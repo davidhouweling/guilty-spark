@@ -1,0 +1,25 @@
+{
+  "name": "discord-neatqueue-halo-stats",
+  "version": "1.0.0",
+  "description": "Discord app to work in conjunction with NeatQueue for Halo stats to populate into channels after a series has taken place",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidhouweling/discord-neatqueue-halo-stats.git"
+  },
+  "keywords": [
+    "discord",
+    "neatqueue",
+    "halo",
+    "stats"
+  ],
+  "author": "David Houweling",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/davidhouweling/discord-neatqueue-halo-stats/issues"
+  },
+  "homepage": "https://github.com/davidhouweling/discord-neatqueue-halo-stats#readme"
+}
