@@ -1,0 +1,41 @@
+{
+  "name": "discord-neatqueue-halo-stats",
+  "version": "1.0.0",
+  "author": "David Houweling",
+  "description": "Discord app to work in conjunction with NeatQueue for Halo stats to populate into channels after a series has taken place",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidhouweling/discord-neatqueue-halo-stats.git"
+  },
+  "bugs": {
+    "url": "https://github.com/davidhouweling/discord-neatqueue-halo-stats/issues"
+  },
+  "homepage": "https://github.com/davidhouweling/discord-neatqueue-halo-stats#readme",
+  "main": "src/app.mts",
+  "scripts": {
+    "start": "npx tsx src/app.mts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "npx prettier . --check",
+    "format:fix": "npx prettier . --write",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.11.1",
+    "@tsconfig/node20": "^20.1.4",
+    "@types/eslint__js": "^8.42.3",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^9.11.1",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.8.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0"
+  }
+}
