@@ -26,6 +26,8 @@
   },
   "homepage": "https://github.com/davidhouweling/discord-neatqueue-halo-stats#readme",
   "devDependencies": {
-    "prettier": "^3.3.3"
+    "@tsconfig/node20": "^20.1.4",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
   }
 }
