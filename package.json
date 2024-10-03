@@ -15,7 +15,8 @@
   "homepage": "https://github.com/davidhouweling/discord-neatqueue-halo-stats#readme",
   "main": "src/app.mts",
   "scripts": {
-    "start": "npx tsx src/app.mts",
+    "start": "npx tsx watch src/app.mts",
+    "register": "npx tsx src/deploy-commands.mts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
@@ -26,7 +27,6 @@
     "@eslint/js": "^9.11.1",
     "@tsconfig/node20": "^20.1.4",
     "@types/eslint__js": "^8.42.3",
-    "@types/express": "^5.0.0",
     "@types/node": "^20.0.0",
     "eslint": "^9.11.1",
     "prettier": "^3.3.3",
@@ -35,7 +35,7 @@
     "typescript-eslint": "^8.8.0"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^5.0.0"
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
   }
 }
