@@ -1,12 +1,13 @@
 import "dotenv/config";
-import { Client, Events, GatewayIntentBits } from "discord.js";
-import { Preconditions } from "./utils/preconditions.mjs";
+import { Events } from "discord.js";
 import { getCommands } from "./commands/commands.mjs";
+import { services } from "./services/services.mjs";
+import { Preconditions } from "./utils/preconditions.mjs";
 
 const DISCORD_TOKEN = Preconditions.checkExists(process.env["DISCORD_TOKEN"]);
 
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const { discord: client } = services;
 const commands = getCommands(client);
 
 // When the client is ready, run this code (only once).
