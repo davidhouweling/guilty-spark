@@ -1,12 +1,13 @@
 import "dotenv/config";
 import { Client, Events, GatewayIntentBits } from "discord.js";
 import { Preconditions } from "./utils/preconditions.mjs";
-import { commands } from "./commands/commands.mjs";
+import { getCommands } from "./commands/commands.mjs";
 
 const DISCORD_TOKEN = Preconditions.checkExists(process.env["DISCORD_TOKEN"]);
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const commands = getCommands(client);
 
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.

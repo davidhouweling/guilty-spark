@@ -1,7 +1,7 @@
 export const Preconditions = {
-  checkExists<T>(value: T): NonNullable<T> {
+  checkExists<T>(value: T, errorMessage?: string): NonNullable<T> {
     if (value == null) {
-      throw new Error("Value cannot be null");
+      throw new Error(errorMessage ?? "Value cannot be null");
     }
 
     return value;

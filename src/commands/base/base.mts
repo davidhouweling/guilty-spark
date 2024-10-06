@@ -1,7 +1,9 @@
-import { CommandInteraction, SlashCommandBuilder } from "discord.js";
+import { Client, CommandInteraction, SharedSlashCommand } from "discord.js";
 
 export abstract class BaseCommand {
-  abstract data: SlashCommandBuilder;
+  constructor(readonly client: Client) {}
+
+  abstract data: SharedSlashCommand;
 
   abstract execute(interaction: CommandInteraction): Promise<void>;
 }

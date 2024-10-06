@@ -1,14 +1,16 @@
 import "dotenv/config";
-import { REST, Routes } from "discord.js";
+import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 
 import { Preconditions } from "./utils/preconditions.mjs";
-import { commands } from "./commands/commands.mjs";
+import { getCommands } from "./commands/commands.mjs";
 
 const DISCORD_TOKEN = Preconditions.checkExists(process.env["DISCORD_TOKEN"]);
 const APP_ID = Preconditions.checkExists(process.env["APP_ID"]);
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(DISCORD_TOKEN);
+
+const commands = getCommands(new Client({ intents: [GatewayIntentBits.Guilds] }));
 
 // and deploy your commands!
 console.log(`Started refreshing ${commands.size.toString()} application (/) commands.`);
