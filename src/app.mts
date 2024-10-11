@@ -1,10 +1,11 @@
 import "dotenv/config";
-import { server } from "./server.mjs";
-import { services } from "./services/services.mjs";
+import { Server } from "./server.mjs";
+import { installServices } from "./services/install.mjs";
 import { getCommands } from "./commands/commands.mjs";
 
-const { discord } = services;
+const { discordService, xboxService } = installServices();
 
-server(() => {
-  void discord.activate(getCommands(discord.client));
+const server = new Server({ xboxService });
+server.connect(() => {
+  void discordService.activate(getCommands(discordService.client));
 });

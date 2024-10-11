@@ -1,31 +1,48 @@
 import express, { Request } from "express";
 import morgan from "morgan";
-import { services } from "./services/services.mjs";
+import { config } from "./config.mjs";
+import { XboxService } from "./services/xbox/xbox.mjs";
 
-const PORT = process.env["PORT"] ?? 3000;
-const { xbox } = services;
+interface ServerOpts {
+  xboxService: XboxService;
+}
 
-const app = express();
-app.use(morgan("common"));
+export class Server {
+  private readonly xboxService: XboxService;
+  app = express();
 
-app.get("/authorize", (_req, res) => {
-  res.redirect(xbox.authorizeUrl);
-});
+  constructor({ xboxService }: ServerOpts) {
+    this.xboxService = xboxService;
 
-app.get("/oauth2", (req: Request<null, { success: boolean }, null, { code: string }>, res) => {
-  const code = req.query.code;
-  if (!code) {
-    res.sendStatus(403);
-    return;
+    this.loadMiddlewares();
+    this.loadRoutes();
   }
 
-  res.send({ success: true });
-});
+  connect(readyCallback: () => void) {
+    this.app.listen(config.SERVER_PORT, () => {
+      console.log("Listening on port", config.SERVER_PORT);
 
-export function server(onReady: () => void) {
-  app.listen(PORT, () => {
-    console.log("Listening on port", PORT);
+      readyCallback();
+    });
+  }
 
-    onReady();
-  });
+  private loadMiddlewares() {
+    this.app.use(morgan("common"));
+  }
+
+  private loadRoutes() {
+    this.app.get("/authorize", (_req, res) => {
+      res.redirect(this.xboxService.authorizeUrl);
+    });
+
+    this.app.get("/oauth2", (req: Request<null, { success: boolean }, null, { code: string }>, res) => {
+      const code = req.query.code;
+      if (!code) {
+        res.sendStatus(403);
+        return;
+      }
+
+      res.send({ success: true });
+    });
+  }
 }
