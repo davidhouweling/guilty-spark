@@ -1,11 +1,11 @@
 import "dotenv/config";
-import express from "express";
+import { Server } from "./server.mjs";
+import { installServices } from "./services/install.mjs";
+import { getCommands } from "./commands/commands.mjs";
 
-// Create an express app
-const app = express();
-// Get port, or default to 3000
-const PORT = process.env["PORT"] ?? 3000;
+const { discordService, xboxService } = installServices();
 
-app.listen(PORT, () => {
-  console.log("Listening on port", PORT);
+const server = new Server({ xboxService });
+server.connect(() => {
+  void discordService.activate(getCommands(discordService.client));
 });
