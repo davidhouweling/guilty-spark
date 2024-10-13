@@ -1,0 +1,11 @@
+diff --git a/node_modules/halo-infinite-api/package.json b/node_modules/halo-infinite-api/package.json
+index cb8f32b..59302db 100644
+--- a/node_modules/halo-infinite-api/package.json
++++ b/node_modules/halo-infinite-api/package.json
+@@ -1,6 +1,5 @@
+ {
+   "name": "halo-infinite-api",
+-  "type": "module",
+   "version": "9.0.1",
+   "description": "An NPM package for accessing the official Halo Infinite API.",
+   "main": "dist/index.js",

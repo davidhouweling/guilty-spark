@@ -21,7 +21,8 @@
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
-    "lint:fix": "npx eslint . --fix"
+    "lint:fix": "npx eslint . --fix",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
@@ -31,6 +32,7 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.0.0",
     "eslint": "^9.11.1",
+    "patch-package": "^8.0.0",
     "prettier": "^3.3.3",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
@@ -41,6 +43,7 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "express": "^5.0.0",
+    "halo-infinite-api": "^9.0.1",
     "morgan": "^1.10.0"
   }
 }
