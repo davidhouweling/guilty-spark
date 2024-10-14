@@ -6,13 +6,16 @@ export class DiscordService {
   readonly client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   async activate(commands: Collection<string, BaseCommand>) {
-    // When the client is ready, run this code (only once).
-    // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
-    // It makes some properties non-nullable.
     this.client.once(Events.ClientReady, (readyClient) => {
       console.log(`Ready! Logged in as ${readyClient.user.tag}`);
     });
 
+    this.addEventHandlers(commands);
+
+    await this.client.login(config.DISCORD_TOKEN);
+  }
+
+  private addEventHandlers(commands: Collection<string, BaseCommand>) {
     this.client.on(Events.InteractionCreate, (interaction) => {
       if (!interaction.isChatInputCommand()) return;
 
@@ -34,8 +37,5 @@ export class DiscordService {
         }
       }
     });
-
-    // Log in to Discord with your client's token
-    await this.client.login(config.DISCORD_TOKEN);
   }
 }
