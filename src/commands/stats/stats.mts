@@ -114,7 +114,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async getUsername(userId: string): Promise<string> {
-    const user = await this.client.users.fetch(userId);
+    const user = await this.services.discordService.client.users.fetch(userId);
     return user.username;
   }
 }

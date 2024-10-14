@@ -1,9 +1,10 @@
-import { Client, Collection } from "discord.js";
+import { Collection } from "discord.js";
 import { PingCommand } from "./utility/ping.mjs";
 import { StatsCommand } from "./stats/stats.mjs";
+import { Services } from "../services/install.mjs";
 
-export function getCommands(client: Client) {
+export function getCommands(services: Services) {
   return new Collection(
-    [new PingCommand(client), new StatsCommand(client)].map((command) => [command.data.name, command]),
+    [new PingCommand(services), new StatsCommand(services)].map((command) => [command.data.name, command]),
   );
 }

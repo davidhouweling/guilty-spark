@@ -1,7 +1,8 @@
-import { Client, CommandInteraction, SharedSlashCommand } from "discord.js";
+import { CommandInteraction, SharedSlashCommand } from "discord.js";
+import { Services } from "../../services/install.mjs";
 
 export abstract class BaseCommand {
-  constructor(readonly client: Client) {}
+  constructor(readonly services: Services) {}
 
   abstract data: SharedSlashCommand;
 

@@ -1,7 +1,7 @@
 import { DiscordService } from "./discord/discord.mjs";
 import { XboxService } from "./xbox/xbox.mjs";
 
-interface Services {
+export interface Services {
   discordService: DiscordService;
   xboxService: XboxService;
 }
