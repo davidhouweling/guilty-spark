@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@xboxreplay/xboxlive-auth": "^4.0.0",
+    "date-fns": "^4.1.0",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "halo-infinite-api": "^9.0.2",
