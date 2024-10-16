@@ -1,76 +1,35 @@
-import { live, xbl } from "@xboxreplay/xboxlive-auth";
-import { Preconditions } from "../../utils/preconditions.mjs";
+import { authenticate, CredentialsAuthenticateInitialResponse } from "@xboxreplay/xboxlive-auth";
 import { config } from "../../config.mjs";
 
-const scope = "XboxLive.signin XboxLive.offline_access";
-
 enum TokenInfoKey {
-  RefreshToken,
-  NotAfter,
   XSTSToken,
+  expiresOn,
 }
 const tokenInfoMap = new Map<TokenInfoKey, string>();
 
 export class XboxService {
-  authorizeUrl = live.getAuthorizeUrl(config.TENANT_CLIENT_ID, scope, "code", config.SERVER_OAUTH2_ENDPOINT);
-
-  async getAccessToken(code: string) {
-    const exchangeCodeResponse = await live.exchangeCodeForAccessToken(
-      code,
-      config.TENANT_CLIENT_ID,
-      scope,
-      this.authorizeUrl,
-      config.TENANT_CLIENT_SECRET,
-    );
-
-    const { access_token: accessToken, refresh_token: refreshToken } = exchangeCodeResponse;
-    if (refreshToken) {
-      tokenInfoMap.set(TokenInfoKey.RefreshToken, refreshToken);
-    }
-
-    await this.swapAccessTokenForXSTSToken(accessToken);
+  get token() {
+    return tokenInfoMap.get(TokenInfoKey.XSTSToken);
   }
 
-  async maybeRefreshAccessToken() {
-    const notAfter = tokenInfoMap.get(TokenInfoKey.NotAfter);
-    const refreshToken = tokenInfoMap.get(TokenInfoKey.RefreshToken);
-    if (!notAfter) {
-      throw new Error("getAccessToken has not yet been called");
-    }
-    if (!refreshToken) {
-      throw new Error("no refresh token has been given");
-    }
+  async maybeRefreshToken() {
+    const expiresOn = tokenInfoMap.get(TokenInfoKey.expiresOn);
 
-    const hasExpired = new Date() >= new Date(notAfter);
-
-    if (hasExpired) {
-      const { access_token: accessToken, refresh_token: updatedRefreshToken } = await live.refreshAccessToken(
-        refreshToken,
-        config.TENANT_CLIENT_ID,
-        scope,
-        config.TENANT_CLIENT_SECRET,
-      );
-
-      if (updatedRefreshToken) {
-        tokenInfoMap.set(TokenInfoKey.RefreshToken, updatedRefreshToken);
-      }
-
-      await this.swapAccessTokenForXSTSToken(accessToken);
+    if (!this.token || !expiresOn || new Date() >= new Date(expiresOn)) {
+      await this.updateCredentials();
     }
   }
 
-  async swapAccessTokenForXSTSToken(accessToken: string) {
-    const userTokenResponse = await xbl.exchangeRpsTicketForUserToken(
-      accessToken,
-      "d", // Required for custom Azure applications
-    );
-
-    const XSTSTokenResponse = await xbl.exchangeTokenForXSTSToken(userTokenResponse.Token);
-    tokenInfoMap.set(TokenInfoKey.NotAfter, XSTSTokenResponse.NotAfter);
-    tokenInfoMap.set(TokenInfoKey.XSTSToken, XSTSTokenResponse.Token);
+  clearToken() {
+    tokenInfoMap.clear();
   }
 
-  getXSTSToken() {
-    return Preconditions.checkExists(tokenInfoMap.get(TokenInfoKey.XSTSToken));
+  private async updateCredentials() {
+    const credentialsResponse = (await authenticate(config.XBOX_USERNAME, config.XBOX_PASSWORD, {
+      XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+    })) as CredentialsAuthenticateInitialResponse;
+
+    tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
+    tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
   }
 }

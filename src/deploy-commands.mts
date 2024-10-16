@@ -1,14 +1,13 @@
 import "dotenv/config";
 import { REST, Routes } from "discord.js";
-import { DiscordService } from "./services/discord/discord.mjs";
 import { config } from "./config.mjs";
 import { getCommands } from "./commands/commands.mjs";
+import { Services } from "./services/install.mjs";
 
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(config.DISCORD_TOKEN);
-const discordService = new DiscordService();
 
-const commands = getCommands(discordService.client);
+const commands = getCommands({} as Services);
 
 // and deploy your commands!
 console.log(`Started refreshing ${commands.size.toString()} application (/) commands.`);
