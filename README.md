@@ -1,4 +1,6 @@
-# Discord Halo Stats app
+# Guilty Spark
+
+A Discord App that allows for stats to be pulled for Halo games played in a custom games series.
 
 > [!WARNING]  
 > This is a functional proof of concept.
