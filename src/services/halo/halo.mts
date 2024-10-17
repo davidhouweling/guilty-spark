@@ -170,7 +170,7 @@ export class HaloService {
       case GameVariantCategory.MultiplayerInfection:
         return "Infection";
       case GameVariantCategory.MultiplayerKingOfTheHill:
-        return "ROTH";
+        return "KOTH";
       case GameVariantCategory.MultiplayerLandGrab:
         return "Land Grab";
       case GameVariantCategory.MultiplayerMinigame:
