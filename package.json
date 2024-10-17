@@ -42,6 +42,6 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "halo-infinite-api": "^9.0.2",
-    "morgan": "^1.10.0"
+    "tinyduration": "^3.3.1"
   }
 }

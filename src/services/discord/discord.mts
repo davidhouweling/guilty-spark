@@ -5,6 +5,7 @@ import {
   Events,
   GatewayIntentBits,
   GuildBasedChannel,
+  Message,
   TextChannel,
   User,
 } from "discord.js";
@@ -15,6 +16,7 @@ import { Preconditions } from "../../utils/preconditions.mjs";
 const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
 export interface QueueData {
+  message: Message;
   timestamp: Date;
   teams: {
     name: string;
@@ -66,6 +68,7 @@ export class DiscordService {
     }
 
     return {
+      message: queueMessage,
       timestamp: new Date(Preconditions.checkExists(data.timestamp, "No timestamp found")),
       teams: fields.map((field) => ({
         name: field.name,
