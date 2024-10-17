@@ -13,18 +13,22 @@ export class StatsCommand extends BaseCommand {
     )
     .addIntegerOption((option) =>
       option.setName("queue").setDescription("The Queue number for the series").setRequired(true),
+    )
+    .addBooleanOption((option) =>
+      option.setName("debug").setDescription("Debug mode, will only set ephemeral to true").setRequired(false),
     );
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const channel = interaction.options.get("channel", true);
     const queue = interaction.options.get("queue", true);
+    const ephemeral = interaction.options.getBoolean("debug") ?? false;
 
     try {
       console.log(`StatsCommand execute from ${interaction.user.globalName ?? interaction.user.username}`);
       const channelValue = Preconditions.checkExists(channel.channel);
       const queueValue = queue.value as number;
 
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral });
 
       const queueData = await this.services.discordService.getTeamsFromQueue(
         Preconditions.checkExists(channel.channel),

@@ -101,7 +101,7 @@ export class HaloService {
     const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
 
     return matchStats.sort(
-      (a, b) => new Date(b.MatchInfo.StartTime).getTime() - new Date(a.MatchInfo.StartTime).getTime(),
+      (a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime(),
     );
   }
 
