@@ -1,10 +1,18 @@
-import { HaloInfiniteClient, MatchType, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
+import * as tinyduration from "tinyduration";
+import {
+  AssetKind,
+  GameVariantCategory,
+  HaloInfiniteClient,
+  MatchStats,
+  MatchType,
+  PlayerMatchHistory,
+  UserInfo,
+} from "halo-infinite-api";
 import { XboxService } from "../xbox/xbox.mjs";
 import { XstsTokenProvider } from "./xsts-token-provider.mjs";
 import { User } from "discord.js";
 import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
-import { inspect } from "util";
 import { Preconditions } from "../../utils/preconditions.mjs";
 
 interface HaloServiceOpts {
@@ -20,22 +28,12 @@ export class HaloService {
 
   async getSeriesFromDiscordQueue(queueData: QueueData) {
     const users = queueData.teams.flatMap((team) => team.players);
-
     const xboxUsers = await this.getXboxUsers(users);
-    console.log("Xbox users", inspect(xboxUsers, { colors: true, depth: 3 }));
-
     const matchesForUsers = await this.getMatchesForUsers(xboxUsers, queueData.timestamp);
-    console.log("Matches for users", inspect(matchesForUsers, { colors: true, depth: 3 }));
-
     const matchDetails = await this.getMatchDetails(matchesForUsers);
-    console.log("Match details", inspect(matchDetails, { colors: true, depth: 3 }));
-
-    const sortedMatches = matchDetails.sort(
-      (a, b) => new Date(b.MatchInfo.StartTime).getTime() - new Date(a.MatchInfo.StartTime).getTime(),
-    );
-    const finalMatch = Preconditions.checkExists(sortedMatches[sortedMatches.length - 1]);
+    const finalMatch = Preconditions.checkExists(matchDetails[matchDetails.length - 1]);
     const finalMatchPlayers = finalMatch.Players.map((player) => player.PlayerId);
-    const seriesMatches = sortedMatches.filter((match) =>
+    const seriesMatches = matchDetails.filter((match) =>
       match.Players.every((player) => finalMatchPlayers.includes(player.PlayerId)),
     );
 
@@ -46,6 +44,7 @@ export class HaloService {
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
       users.map((user) => this.client.getUser(user.username)),
     );
+
     const unresolvedUsers = users.filter((_, index) => xboxUsersByDiscordUsernameResult[index]?.status === "rejected");
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map((user) => this.client.getUser(user.displayName)),
@@ -58,7 +57,6 @@ export class HaloService {
 
   private async getPlayerMatches(xboxUserId: string, date: Date) {
     const playerMatches = await this.client.getPlayerMatches(xboxUserId, MatchType.Custom);
-
     const matchesCloseToDate = playerMatches.filter((match) => {
       const startTime = new Date(match.MatchInfo.StartTime);
       // comparing start time rather than end time in the event that the match somehow completes after the end date
@@ -100,6 +98,95 @@ export class HaloService {
   }
 
   private async getMatchDetails(matchIDs: string[]) {
-    return Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
+    const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
+
+    return matchStats.sort(
+      (a, b) => new Date(b.MatchInfo.StartTime).getTime() - new Date(a.MatchInfo.StartTime).getTime(),
+    );
+  }
+
+  async getGameTypeAndMap(match: MatchStats) {
+    const mapName = await this.getMapName(match);
+    return `${this.getGameVariant(match)}: ${mapName}`;
+  }
+
+  getGameScore(match: MatchStats) {
+    const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
+
+    if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
+      const roundsCompare = match.Teams.map((team) => team.Stats.CoreStats.RoundsWon);
+
+      return `${roundsCompare.join(":")} (${scoreCompare.join(":")})`;
+    }
+
+    return scoreCompare.join(":");
+  }
+
+  getGameDuration(match: MatchStats) {
+    const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+    const output: string[] = [];
+    if (parsedDuration.days) {
+      output.push(`${parsedDuration.days.toString()}d`);
+    }
+    if (parsedDuration.hours) {
+      output.push(`${parsedDuration.hours.toString()}h`);
+    }
+    if (parsedDuration.minutes) {
+      output.push(`${parsedDuration.minutes.toString()}m`);
+    }
+    if (parsedDuration.seconds) {
+      output.push(`${Math.floor(parsedDuration.seconds).toString()}s`);
+    }
+
+    return output.join(" ");
+  }
+
+  private async getMapName(match: MatchStats) {
+    const { AssetId, VersionId } = match.MatchInfo.MapVariant;
+
+    const mapData = await this.client.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+
+    return mapData.PublicName;
+  }
+
+  private getGameVariant(match: MatchStats) {
+    switch (match.MatchInfo.GameVariantCategory) {
+      case GameVariantCategory.MultiplayerAttrition:
+        return "Attrition";
+      case GameVariantCategory.MultiplayerCtf:
+        return "CTF";
+      case GameVariantCategory.MultiplayerElimination:
+        return "Elimination";
+      case GameVariantCategory.MultiplayerEscalation:
+        return "Escalation";
+      case GameVariantCategory.MultiplayerExtraction:
+        return "Extraction";
+      case GameVariantCategory.MultiplayerFiesta:
+        return "Fiesta";
+      case GameVariantCategory.MultiplayerFirefight:
+        return "Firefight";
+      case GameVariantCategory.MultiplayerGrifball:
+        return "Grifball";
+      case GameVariantCategory.MultiplayerInfection:
+        return "Infection";
+      case GameVariantCategory.MultiplayerKingOfTheHill:
+        return "ROTH";
+      case GameVariantCategory.MultiplayerLandGrab:
+        return "Land Grab";
+      case GameVariantCategory.MultiplayerMinigame:
+        return "Minigame";
+      case GameVariantCategory.MultiplayerOddball:
+        return "Oddball";
+      case GameVariantCategory.MultiplayerSlayer:
+        return "Slayer";
+      case GameVariantCategory.MultiplayerStockpile:
+        return "Stockpile";
+      case GameVariantCategory.MultiplayerStrongholds:
+        return "Strongholds";
+      case GameVariantCategory.MultiplayerTotalControl:
+        return "Total Control";
+      default:
+        return "Unknown";
+    }
   }
 }
