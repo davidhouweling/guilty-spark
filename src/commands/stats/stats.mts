@@ -24,7 +24,7 @@ export class StatsCommand extends BaseCommand {
       const channelValue = Preconditions.checkExists(channel.channel);
       const queueValue = queue.value as number;
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const queueData = await this.services.discordService.getTeamsFromQueue(
         Preconditions.checkExists(channel.channel),
