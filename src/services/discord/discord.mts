@@ -11,7 +11,7 @@ import {
 } from "discord.js";
 import { BaseCommand } from "../../commands/base/base.mjs";
 import { config } from "../../config.mjs";
-import { Preconditions } from "../../utils/preconditions.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 
 const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 

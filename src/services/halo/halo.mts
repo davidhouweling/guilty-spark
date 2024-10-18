@@ -13,7 +13,7 @@ import { XstsTokenProvider } from "./xsts-token-provider.mjs";
 import { User } from "discord.js";
 import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
-import { Preconditions } from "../../utils/preconditions.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 
 interface HaloServiceOpts {
   xboxService: XboxService;
@@ -120,6 +120,31 @@ export class HaloService {
     }
 
     return scoreCompare.join(":");
+  }
+
+  getTeamName(teamId: number) {
+    switch (teamId) {
+      case 0:
+        return "Eagle";
+      case 1:
+        return "Cobra";
+      case 2:
+        return "Green";
+      case 3:
+        return "Orange";
+      default:
+        return "Unknown";
+    }
+  }
+
+  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">) {
+    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+  }
+
+  async getPlayerXuidsToGametags(match: MatchStats): Promise<Map<string, string>> {
+    const playerNames = await this.client.getUsers(match.Players.map((player) => this.getPlayerXuid(player)));
+
+    return new Map(playerNames.map((player) => [player.xuid, player.gamertag]));
   }
 
   getGameDuration(match: MatchStats) {

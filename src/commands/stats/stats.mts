@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import { BaseCommand } from "../base/base.mjs";
-import { Preconditions } from "../../utils/preconditions.mjs";
-import { MatchStats } from "halo-infinite-api";
+import { Preconditions } from "../../base/preconditions.mjs";
+import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { QueueData } from "../../services/discord/discord.mjs";
 
 export class StatsCommand extends BaseCommand {
@@ -48,7 +48,7 @@ export class StatsCommand extends BaseCommand {
       const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
 
       await interaction.editReply({
-        embeds: [await this.createEmbed(queueData, queueValue, series)],
+        embeds: [await this.createSeriesEmbed(queueData, queueValue, series)],
       });
     } catch (error) {
       await interaction.editReply({
@@ -57,7 +57,20 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private async createEmbed(queueData: QueueData, queue: number, series: MatchStats[]) {
+  private addEmbedFields(embed: EmbedBuilder, titles: string[], data: string[][]) {
+    for (let column = 0; column < titles.length; column++) {
+      embed.addFields({
+        name: Preconditions.checkExists(titles[column]),
+        value: data
+          .slice(1)
+          .map((row) => row[column])
+          .join("\n"),
+        inline: true,
+      });
+    }
+  }
+
+  private async createSeriesEmbed(queueData: QueueData, queue: number, series: MatchStats[]) {
     const { haloService } = this.services;
     const titles = ["Game", "Duration", "Score"];
     const tableData = [titles];
@@ -77,15 +90,95 @@ export class StatsCommand extends BaseCommand {
       .setURL(`https://discord.com/channels/${guildId}/${channelId}/${messageId}`)
       .setColor("DarkBlue");
 
-    for (let column = 0; column < titles.length; column++) {
-      embed.addFields({
-        name: Preconditions.checkExists(titles[column]),
-        value: tableData
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
+    this.addEmbedFields(embed, titles, tableData);
+
+    return embed;
+  }
+
+  private async createMatchEmbed(match: MatchStats) {
+    const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+
+    switch (match.MatchInfo.GameVariantCategory) {
+      case GameVariantCategory.MultiplayerAttrition:
+        return "Attrition";
+      case GameVariantCategory.MultiplayerCtf:
+        return "CTF";
+      case GameVariantCategory.MultiplayerElimination:
+        return "Elimination";
+      case GameVariantCategory.MultiplayerEscalation:
+        return "Escalation";
+      case GameVariantCategory.MultiplayerExtraction:
+        return "Extraction";
+      case GameVariantCategory.MultiplayerFiesta:
+        return "Fiesta";
+      case GameVariantCategory.MultiplayerFirefight:
+        return "Firefight";
+      case GameVariantCategory.MultiplayerGrifball:
+        return "Grifball";
+      case GameVariantCategory.MultiplayerInfection:
+        return "Infection";
+      case GameVariantCategory.MultiplayerKingOfTheHill:
+        return "KOTH";
+      case GameVariantCategory.MultiplayerLandGrab:
+        return "Land Grab";
+      case GameVariantCategory.MultiplayerMinigame:
+        return "Minigame";
+      case GameVariantCategory.MultiplayerOddball:
+        return "Oddball";
+      case GameVariantCategory.MultiplayerSlayer:
+        return this.createSlayerMatchEmbed(match as MatchStats<GameVariantCategory.MultiplayerSlayer>, players);
+      case GameVariantCategory.MultiplayerStockpile:
+        return "Stockpile";
+      case GameVariantCategory.MultiplayerStrongholds:
+        return "Strongholds";
+      case GameVariantCategory.MultiplayerTotalControl:
+        return "Total Control";
+      default:
+        return "Unknown";
+    }
+  }
+
+  private async createSlayerMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerSlayer>,
+    players: Map<string, string>,
+  ) {
+    const { haloService } = this.services;
+    const titles = ["Player", "Rank", "Score", "KDA", "Kills", "Deaths", "Assists"];
+    const gameTypeAndMap = await haloService.getGameTypeAndMap(match);
+
+    const embed = new EmbedBuilder()
+      .setTitle(gameTypeAndMap)
+      .setURL(`https://halodatahive.com/Infinite/Match/${match.MatchId}`);
+
+    for (const team of match.Teams) {
+      const tableData = [titles];
+      const teamPlayers = match.Players.filter((player) =>
+        player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+      ).sort((a, b) => b.Rank - a.Rank);
+      for (const teamPlayer of teamPlayers) {
+        const playerXuid = haloService.getPlayerXuid(teamPlayer);
+        const playerGamertag = Preconditions.checkExists(players.get(playerXuid));
+        const playerStats = Preconditions.checkExists(
+          teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+          "Unable to match player to team",
+        );
+        const {
+          Stats: { CoreStats: coreStats },
+        } = playerStats;
+
+        tableData.push([
+          playerGamertag,
+          teamPlayer.Rank.toString(),
+          coreStats.Score.toString(),
+          coreStats.KDA.toString(),
+          coreStats.Kills.toString(),
+          coreStats.Deaths.toString(),
+          coreStats.Assists.toString(),
+        ]);
+
+        embed.addFields({ name: haloService.getTeamName(team.TeamId), value: team.Stats.CoreStats.Score.toString() });
+        this.addEmbedFields(embed, titles, tableData);
+      }
     }
 
     return embed;

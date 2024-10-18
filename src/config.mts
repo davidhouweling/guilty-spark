@@ -1,4 +1,4 @@
-import { Preconditions } from "./utils/preconditions.mjs";
+import { Preconditions } from "./base/preconditions.mjs";
 
 export const config = {
   DISCORD_APP_ID: Preconditions.checkExists(process.env["DISCORD_APP_ID"]),
