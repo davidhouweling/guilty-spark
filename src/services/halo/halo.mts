@@ -100,9 +100,13 @@ export class HaloService {
   private async getMatchDetails(matchIDs: string[]) {
     const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
 
-    return matchStats.sort(
-      (a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime(),
-    );
+    return matchStats
+      .filter((match) => {
+        const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+        // we want at least 2 minutes of game play, otherwise assume that the match was chalked
+        return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
+      })
+      .sort((a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime());
   }
 
   async getGameTypeAndMap(match: MatchStats) {
