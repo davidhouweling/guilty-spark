@@ -3,25 +3,78 @@ import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { QueueData } from "../../services/discord/discord.mjs";
+import { inspect } from "util";
+
+const MATCH_ID_EXAMPLE = "d9d77058-f140-4838-8f41-1a3406b28566";
 
 export class StatsCommand extends BaseCommand {
   data = new SlashCommandBuilder()
     .setName("stats")
-    .setDescription("Pulls stats")
-    .addChannelOption((option) =>
-      option.setName("channel").setDescription("The channel to echo into").setRequired(true),
+    .setDescription("Pulls stats from Halo waypoint")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("neatqueue")
+        .setDescription("Pulls stats for a NeatQueue series result")
+        .addChannelOption((option) =>
+          option
+            .setName("channel")
+            .setDescription("The channel which has the NeatQueue result message")
+            .setRequired(true),
+        )
+        .addIntegerOption((option) =>
+          option.setName("queue").setDescription("The Queue number for the series").setRequired(true),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("private")
+            .setDescription("Only provide the response to you instead of the channel")
+            .setRequired(false),
+        ),
     )
-    .addIntegerOption((option) =>
-      option.setName("queue").setDescription("The Queue number for the series").setRequired(true),
-    )
-    .addBooleanOption((option) =>
-      option.setName("debug").setDescription("Debug mode, will only set ephemeral to true").setRequired(false),
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("match")
+        .setDescription("Pulls stats for a specific match")
+        .addStringOption((option) =>
+          option
+            .setName("matchid")
+            .setDescription(`The match ID (example: ${MATCH_ID_EXAMPLE})`)
+            .setRequired(true)
+            .setMinLength(MATCH_ID_EXAMPLE.length)
+            .setMaxLength(MATCH_ID_EXAMPLE.length),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName("private")
+            .setDescription("Only provide the response to you instead of the channel")
+            .setRequired(false),
+        ),
     );
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    console.log(inspect(interaction, { depth: 10, colors: true, compact: false }));
+
+    switch (interaction.options.getSubcommand()) {
+      case "neatqueue":
+        await this.handleNeatQueueSubCommand(interaction);
+        break;
+      case "match":
+        await this.handleMatchSubCommand(interaction);
+        break;
+      default:
+        await interaction.reply("Unknown subcommand");
+        break;
+    }
+  }
+
+  private handleMatchSubCommand(interaction: ChatInputCommandInteraction) {
+    throw new Error("Method not implemented.");
+  }
+
+  private async handleNeatQueueSubCommand(interaction: ChatInputCommandInteraction) {
     const channel = interaction.options.get("channel", true);
     const queue = interaction.options.get("queue", true);
-    const ephemeral = interaction.options.getBoolean("debug") ?? false;
+    const ephemeral = interaction.options.getBoolean("private") ?? false;
     let deferred = false;
 
     try {
