@@ -25,7 +25,10 @@ This Discord bot can pull stats from Halo Waypoint and post accordingly.
    a. Follow the steps in Discord's Developer Documentation for Creating your first app to set the respective `DISCORD_API_*` variables in the `.env` file... you'll also need to hook up the Discord app you just created to a server
    b. Use a spare Microsoft account (or create one) which has also been set up to have an xbox gamer tag and has accessed Halo Waypoint before... then add the username and password to the `XBOX_*` variables in the `.env` file
 4. In terminal do `npm install`
-5. In terminal do `npm start`
+5. On the basis that you just minted a new application, in terminal, do `npm run register` so that the commands are available in your server
+6. In terminal do `npm start`
+
+Now in a channel you can use `/stats` command.
 
 ## How does it work?
 
