@@ -22,6 +22,7 @@ export class StatsCommand extends BaseCommand {
     const channel = interaction.options.get("channel", true);
     const queue = interaction.options.get("queue", true);
     const ephemeral = interaction.options.getBoolean("debug") ?? false;
+    let deferred = false;
 
     try {
       console.log(`StatsCommand execute from ${interaction.user.globalName ?? interaction.user.username}`);
@@ -29,6 +30,7 @@ export class StatsCommand extends BaseCommand {
       const queueValue = queue.value as number;
 
       await interaction.deferReply({ ephemeral });
+      deferred = true;
 
       const queueData = await this.services.discordService.getTeamsFromQueue(
         Preconditions.checkExists(channel.channel),
@@ -68,9 +70,16 @@ export class StatsCommand extends BaseCommand {
         }));
         */
     } catch (error) {
-      await interaction.editReply({
+      const reply = {
         content: `Failed to fetch (Channel: <#${channel.channel?.id ?? "unknown"}>, queue: ${queue.value?.toString() ?? "unknown"}): ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      };
+      if (deferred) {
+        await interaction.editReply(reply);
+      } else {
+        await interaction.reply({ ...reply, ephemeral: true });
+      }
+
+      console.error(error);
     }
   }
 
