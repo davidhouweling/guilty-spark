@@ -27,16 +27,22 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      # ESLint and Prettier must be in `package.json`
       - name: Install Node.js dependencies
         run: npm ci
+
+      # TODO: remove once lint-action supports eslint v9
+      - name: Run eslint
+        run: npm run lint
 
       - name: Run linters
         uses: wearerequired/lint-action@v2
         with:
           auto_fix: true
-          eslint: true
-          eslint_auto_fix: true
-          eslint_args: "-c eslint.config.mjs --max-warnings 0"
+          # TODO: enable again once eslint v9 is supported
+          # eslint: true
+          # eslint_auto_fix: true
+          # eslint_args: "--max-warnings 0"
           prettier: true
           prettier_auto_fix: true
+          tsc: true
+          tsc_auto_fix: true
