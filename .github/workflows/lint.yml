@@ -37,6 +37,6 @@ jobs:
           auto_fix: true
           eslint: true
           eslint_auto_fix: true
-          eslint_args: "--max-warnings 0"
+          eslint_args: "-c eslint.config.mjs --max-warnings 0"
           prettier: true
           prettier_auto_fix: true
