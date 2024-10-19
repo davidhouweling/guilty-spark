@@ -47,9 +47,26 @@ export class StatsCommand extends BaseCommand {
 
       const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
 
+      const seriesEmbed = await this.createSeriesEmbed(queueData, queueValue, series);
+
       await interaction.editReply({
-        embeds: [await this.createSeriesEmbed(queueData, queueValue, series)],
+        embeds: [seriesEmbed],
       });
+
+      /* Based on https://discordjs.guide/popular-topics/threads.html#thread-related-gateway-events
+      * But threads is not available for channel here. Needs further investigation
+      await Promise.all(series.map(async (match, index) => {
+            const thread = await channel.threads.create({
+                name: `Match ${index + 1} - Queue ${queueValue}`,
+                autoArchiveDuration: 60,
+                startMessage: mainMessage.id,
+            });
+
+            const matchEmbed = await this.createMatchEmbed(match);
+
+            await thread.send({ embeds: [matchEmbed] });
+        }));
+        */
     } catch (error) {
       await interaction.editReply({
         content: `Failed to fetch (Channel: <#${channel.channel?.id ?? "unknown"}>, queue: ${queue.value?.toString() ?? "unknown"}): ${error instanceof Error ? error.message : "unknown"}`,
@@ -100,50 +117,92 @@ export class StatsCommand extends BaseCommand {
 
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
-        return "Attrition";
+        return this.createMultiplayerAttritionMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerAttrition>,
+          players,
+        );
       case GameVariantCategory.MultiplayerCtf:
-        return "CTF";
+        return this.createMultiplayerCtfMatchEmbed(match as MatchStats<GameVariantCategory.MultiplayerCtf>, players);
       case GameVariantCategory.MultiplayerElimination:
-        return "Elimination";
+        return this.createMultiplayerEliminationMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerElimination>,
+          players,
+        );
       case GameVariantCategory.MultiplayerEscalation:
-        return "Escalation";
+        return this.createMultiplayerEscalationMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerEscalation>,
+          players,
+        );
       case GameVariantCategory.MultiplayerExtraction:
-        return "Extraction";
+        return this.createMultiplayerExtractionMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerExtraction>,
+          players,
+        );
       case GameVariantCategory.MultiplayerFiesta:
-        return "Fiesta";
+        return this.createMultiplayerFiestaMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerFiesta>,
+          players,
+        );
       case GameVariantCategory.MultiplayerFirefight:
-        return "Firefight";
+        return this.createMultiplayerFirefightMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerFirefight>,
+          players,
+        );
       case GameVariantCategory.MultiplayerGrifball:
-        return "Grifball";
+        return this.createMultiplayerGrifballMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerGrifball>,
+          players,
+        );
       case GameVariantCategory.MultiplayerInfection:
-        return "Infection";
+        return this.createMultiplayerInfectionMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerInfection>,
+          players,
+        );
       case GameVariantCategory.MultiplayerKingOfTheHill:
-        return "KOTH";
+        return this.createMultiplayerKingOfTheHillMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerKingOfTheHill>,
+          players,
+        );
       case GameVariantCategory.MultiplayerLandGrab:
-        return "Land Grab";
+        return this.createMultiplayerLandGrabMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerLandGrab>,
+          players,
+        );
       case GameVariantCategory.MultiplayerMinigame:
-        return "Minigame";
+        return this.createMultiplayerMinigameMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerMinigame>,
+          players,
+        );
       case GameVariantCategory.MultiplayerOddball:
-        return "Oddball";
+        return this.createMultiplayerOddballMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerOddball>,
+          players,
+        );
       case GameVariantCategory.MultiplayerSlayer:
         return this.createSlayerMatchEmbed(match as MatchStats<GameVariantCategory.MultiplayerSlayer>, players);
       case GameVariantCategory.MultiplayerStockpile:
-        return "Stockpile";
+        return this.createMultiplayerStockpileMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerStockpile>,
+          players,
+        );
       case GameVariantCategory.MultiplayerStrongholds:
-        return "Strongholds";
+        return this.createMultiplayerStrongholdsMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerStrongholds>,
+          players,
+        );
       case GameVariantCategory.MultiplayerTotalControl:
-        return "Total Control";
+        return this.createMultiplayerTotalControlMatchEmbed(
+          match as MatchStats<GameVariantCategory.MultiplayerTotalControl>,
+          players,
+        );
       default:
-        return "Unknown";
+        return this.createBaseMatchEmbed(match, players);
     }
   }
 
-  private async createSlayerMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerSlayer>,
-    players: Map<string, string>,
-  ) {
+  private async createBaseMatchEmbed(match: MatchStats, players: Map<string, string>) {
     const { haloService } = this.services;
-    const titles = ["Player", "Rank", "Score", "KDA", "Kills", "Deaths", "Assists"];
+    const titles = ["Player", "Rank", "Score", "KDA", "Kills", "Deaths", "Assists", "Accuracy"];
     const gameTypeAndMap = await haloService.getGameTypeAndMap(match);
 
     const embed = new EmbedBuilder()
@@ -174,6 +233,7 @@ export class StatsCommand extends BaseCommand {
           coreStats.Kills.toString(),
           coreStats.Deaths.toString(),
           coreStats.Assists.toString(),
+          coreStats.Accuracy.toString(),
         ]);
 
         embed.addFields({ name: haloService.getTeamName(team.TeamId), value: team.Stats.CoreStats.Score.toString() });
@@ -182,5 +242,124 @@ export class StatsCommand extends BaseCommand {
     }
 
     return embed;
+  }
+
+  private async createMultiplayerAttritionMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerAttrition>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerCtfMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerCtf>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerEliminationMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerElimination>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerEscalationMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerEscalation>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerExtractionMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerExtraction>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerFiestaMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerFiesta>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerFirefightMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerFirefight>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerGrifballMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerGrifball>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerInfectionMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerInfection>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerKingOfTheHillMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerKingOfTheHill>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerLandGrabMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerLandGrab>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerMinigameMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerMinigame>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerOddballMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerOddball>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createSlayerMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerSlayer>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerStockpileMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerStockpile>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerStrongholdsMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerStrongholds>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
+  }
+
+  private async createMultiplayerTotalControlMatchEmbed(
+    match: MatchStats<GameVariantCategory.MultiplayerTotalControl>,
+    players: Map<string, string>,
+  ) {
+    return await this.createBaseMatchEmbed(match, players);
   }
 }
