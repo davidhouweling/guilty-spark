@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  run-linters:
-    name: Run linters
+  run-build:
+    name: Run Build
     runs-on: ubuntu-latest
 
     steps:
