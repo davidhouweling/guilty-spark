@@ -21,7 +21,8 @@
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
-    "lint:fix": "npx eslint . --fix"
+    "lint:fix": "npx eslint . --fix",
+    "build": "tsc --project tsconfig.build.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
