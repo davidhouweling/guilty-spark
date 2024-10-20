@@ -30,7 +30,11 @@ export class HaloService {
     const users = queueData.teams.flatMap((team) => team.players);
     const xboxUsers = await this.getXboxUsers(users);
     const matchesForUsers = await this.getMatchesForUsers(xboxUsers, queueData.timestamp);
-    const matchDetails = await this.getMatchDetails(matchesForUsers);
+    const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
+      const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+      // we want at least 2 minutes of game play, otherwise assume that the match was chalked
+      return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
+    });
     const finalMatch = Preconditions.checkExists(matchDetails[matchDetails.length - 1]);
     const finalMatchPlayers = finalMatch.Players.map((player) => player.PlayerId);
     const seriesMatches = matchDetails.filter((match) =>
@@ -97,16 +101,13 @@ export class HaloService {
     return scopedMatches.map(([matchID]) => matchID);
   }
 
-  private async getMatchDetails(matchIDs: string[]) {
+  async getMatchDetails(matchIDs: string[], filter?: (match: MatchStats, index: number) => boolean) {
     const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
+    const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
-    return matchStats
-      .filter((match) => {
-        const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
-        // we want at least 2 minutes of game play, otherwise assume that the match was chalked
-        return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
-      })
-      .sort((a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime());
+    return filteredMatches.sort(
+      (a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime(),
+    );
   }
 
   async getGameTypeAndMap(match: MatchStats) {

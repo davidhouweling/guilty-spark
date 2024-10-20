@@ -37,7 +37,7 @@ export class StatsCommand extends BaseCommand {
         .setDescription("Pulls stats for a specific match")
         .addStringOption((option) =>
           option
-            .setName("matchid")
+            .setName("id")
             .setDescription(`The match ID (example: ${MATCH_ID_EXAMPLE})`)
             .setRequired(true)
             .setMinLength(MATCH_ID_EXAMPLE.length)
@@ -54,6 +54,10 @@ export class StatsCommand extends BaseCommand {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     console.log(inspect(interaction, { depth: 10, colors: true, compact: false }));
 
+    console.log(
+      `StatsCommand execute from ${interaction.user.globalName ?? interaction.user.username}: ${interaction.options.getSubcommand()}`,
+    );
+
     switch (interaction.options.getSubcommand()) {
       case "neatqueue":
         await this.handleNeatQueueSubCommand(interaction);
@@ -67,10 +71,6 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private handleMatchSubCommand(interaction: ChatInputCommandInteraction) {
-    throw new Error("Method not implemented.");
-  }
-
   private async handleNeatQueueSubCommand(interaction: ChatInputCommandInteraction) {
     const channel = interaction.options.get("channel", true);
     const queue = interaction.options.get("queue", true);
@@ -78,7 +78,6 @@ export class StatsCommand extends BaseCommand {
     let deferred = false;
 
     try {
-      console.log(`StatsCommand execute from ${interaction.user.globalName ?? interaction.user.username}`);
       const channelValue = Preconditions.checkExists(channel.channel);
       const queueValue = queue.value as number;
 
@@ -98,10 +97,7 @@ export class StatsCommand extends BaseCommand {
         return;
       }
 
-      console.log(`Queue data: ${JSON.stringify(queueData)}`);
-
       const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
-
       const seriesEmbed = await this.createSeriesEmbed(queueData, queueValue, series);
 
       await interaction.editReply({
@@ -125,6 +121,40 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       const reply = {
         content: `Failed to fetch (Channel: <#${channel.channel?.id ?? "unknown"}>, queue: ${queue.value?.toString() ?? "unknown"}): ${error instanceof Error ? error.message : "unknown"}`,
+      };
+      if (deferred) {
+        await interaction.editReply(reply);
+      } else {
+        await interaction.reply({ ...reply, ephemeral: true });
+      }
+
+      console.error(error);
+    }
+  }
+
+  private async handleMatchSubCommand(interaction: ChatInputCommandInteraction) {
+    const matchId = interaction.options.get("id", true);
+    const ephemeral = interaction.options.getBoolean("private") ?? false;
+    let deferred = false;
+
+    try {
+      await interaction.deferReply({ ephemeral });
+      deferred = true;
+      const match = await this.services.haloService.getMatchDetails([matchId.value as string]);
+
+      if (!match.length) {
+        await interaction.editReply({ content: "Match not found" });
+        return;
+      }
+
+      const matchEmbed = await this.createMatchEmbed(Preconditions.checkExists(match[0]));
+
+      await interaction.editReply({
+        embeds: [matchEmbed],
+      });
+    } catch (error) {
+      const reply = {
+        content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
       };
       if (deferred) {
         await interaction.editReply(reply);
@@ -264,7 +294,7 @@ export class StatsCommand extends BaseCommand {
 
   private async createBaseMatchEmbed(match: MatchStats, players: Map<string, string>) {
     const { haloService } = this.services;
-    const titles = ["Player", "Rank", "Score", "KDA", "Kills", "Deaths", "Assists", "Accuracy"];
+    const titles = ["Player", "Rank", "Score", "Kills", "Deaths", "Assists", "KDA", "Accuracy"];
     const gameTypeAndMap = await haloService.getGameTypeAndMap(match);
 
     const embed = new EmbedBuilder()
@@ -273,9 +303,23 @@ export class StatsCommand extends BaseCommand {
 
     for (const team of match.Teams) {
       const tableData = [titles];
+
       const teamPlayers = match.Players.filter((player) =>
         player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-      ).sort((a, b) => b.Rank - a.Rank);
+      ).sort((a, b) => {
+        if (a.Rank - b.Rank !== 0) {
+          return a.Rank - b.Rank;
+        }
+
+        const aStats = Preconditions.checkExists(
+          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+        );
+        const bStats = Preconditions.checkExists(
+          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+        );
+        return aStats.Stats.CoreStats.Score - bStats.Stats.CoreStats.Score;
+      });
+
       for (const teamPlayer of teamPlayers) {
         const playerXuid = haloService.getPlayerXuid(teamPlayer);
         const playerGamertag = Preconditions.checkExists(players.get(playerXuid));
@@ -291,16 +335,16 @@ export class StatsCommand extends BaseCommand {
           playerGamertag,
           teamPlayer.Rank.toString(),
           coreStats.Score.toString(),
-          coreStats.KDA.toString(),
           coreStats.Kills.toString(),
           coreStats.Deaths.toString(),
           coreStats.Assists.toString(),
+          coreStats.KDA.toString(),
           coreStats.Accuracy.toString(),
         ]);
-
-        embed.addFields({ name: haloService.getTeamName(team.TeamId), value: team.Stats.CoreStats.Score.toString() });
-        this.addEmbedFields(embed, titles, tableData);
       }
+
+      embed.addFields({ name: haloService.getTeamName(team.TeamId), value: team.Stats.CoreStats.Score.toString() });
+      this.addEmbedFields(embed, titles, tableData);
     }
 
     return embed;
