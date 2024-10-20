@@ -294,7 +294,6 @@ export class StatsCommand extends BaseCommand {
 
   private async createBaseMatchEmbed(match: MatchStats, players: Map<string, string>) {
     const { haloService } = this.services;
-    const titles = ["Player", "Rank", "Score", "Kills", "Deaths", "Assists", "KDA", "Accuracy"];
     const gameTypeAndMap = await haloService.getGameTypeAndMap(match);
 
     const embed = new EmbedBuilder()
@@ -302,7 +301,11 @@ export class StatsCommand extends BaseCommand {
       .setURL(`https://halodatahive.com/Infinite/Match/${match.MatchId}`);
 
     for (const team of match.Teams) {
-      const tableData = [titles];
+      embed.addFields({
+        name: `${haloService.getTeamName(team.TeamId)}`,
+        value: `Team Score: ${team.Stats.CoreStats.Score}`,
+        inline: false,
+      });
 
       const teamPlayers = match.Players.filter((player) =>
         player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
@@ -315,11 +318,12 @@ export class StatsCommand extends BaseCommand {
           a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
         );
         const bStats = Preconditions.checkExists(
-          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
         );
         return aStats.Stats.CoreStats.Score - bStats.Stats.CoreStats.Score;
       });
 
+      let playerFields = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = haloService.getPlayerXuid(teamPlayer);
         const playerGamertag = Preconditions.checkExists(players.get(playerXuid));
@@ -327,24 +331,30 @@ export class StatsCommand extends BaseCommand {
           teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
           "Unable to match player to team",
         );
+
         const {
           Stats: { CoreStats: coreStats },
         } = playerStats;
 
-        tableData.push([
-          playerGamertag,
-          teamPlayer.Rank.toString(),
-          coreStats.Score.toString(),
-          coreStats.Kills.toString(),
-          coreStats.Deaths.toString(),
-          coreStats.Assists.toString(),
-          coreStats.KDA.toString(),
-          coreStats.Accuracy.toString(),
-        ]);
-      }
+        playerFields.push({
+          name: `${playerGamertag}`,
+          value: `\`\`\`Rank: ${teamPlayer.Rank}\nScore: ${coreStats.Score}\nKills: ${coreStats.Kills}\nDeaths: ${coreStats.Deaths}\nAssists: ${coreStats.Assists}\nKDA: ${coreStats.KDA}\nAccuracy: ${coreStats.Accuracy}\`\`\``,
+          inline: true,
+        });
 
-      embed.addFields({ name: haloService.getTeamName(team.TeamId), value: team.Stats.CoreStats.Score.toString() });
-      this.addEmbedFields(embed, titles, tableData);
+        // If two players are added, or if it's the last player, push to embed and reset
+        if (playerFields.length === 2 || teamPlayer === teamPlayers[teamPlayers.length - 1]) {
+          embed.addFields(playerFields);
+          playerFields = [];
+
+          // Adds a new row
+          embed.addFields({
+            name: "\n",
+            value: "\n",
+            inline: false,
+          });
+        }
+      }
     }
 
     return embed;
