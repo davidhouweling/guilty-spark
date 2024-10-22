@@ -1,6 +1,6 @@
 import { SpartanTokenProvider, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { XboxService } from "../xbox/xbox.mjs";
-import { Preconditions } from "../../utils/preconditions.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 
 export class XstsTokenProvider implements SpartanTokenProvider {
   private readonly xboxService: XboxService;

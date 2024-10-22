@@ -13,7 +13,7 @@ import { XstsTokenProvider } from "./xsts-token-provider.mjs";
 import { User } from "discord.js";
 import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
-import { Preconditions } from "../../utils/preconditions.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 
 interface HaloServiceOpts {
   xboxService: XboxService;
@@ -30,7 +30,11 @@ export class HaloService {
     const users = queueData.teams.flatMap((team) => team.players);
     const xboxUsers = await this.getXboxUsers(users);
     const matchesForUsers = await this.getMatchesForUsers(xboxUsers, queueData.timestamp);
-    const matchDetails = await this.getMatchDetails(matchesForUsers);
+    const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
+      const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+      // we want at least 2 minutes of game play, otherwise assume that the match was chalked
+      return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
+    });
     const finalMatch = Preconditions.checkExists(matchDetails[matchDetails.length - 1]);
     const finalMatchPlayers = finalMatch.Players.map((player) => player.PlayerId);
     const seriesMatches = matchDetails.filter((match) =>
@@ -97,24 +101,21 @@ export class HaloService {
     return scopedMatches.map(([matchID]) => matchID);
   }
 
-  private async getMatchDetails(matchIDs: string[]) {
+  async getMatchDetails(matchIDs: string[], filter?: (match: MatchStats, index: number) => boolean) {
     const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
+    const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
-    return matchStats
-      .filter((match) => {
-        const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
-        // we want at least 2 minutes of game play, otherwise assume that the match was chalked
-        return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
-      })
-      .sort((a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime());
+    return filteredMatches.sort(
+      (a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime(),
+    );
   }
 
   async getGameTypeAndMap(match: MatchStats) {
     const mapName = await this.getMapName(match);
-    return `${this.getGameVariant(match)}: ${mapName}`;
+    return `${this.getMatchVariant(match)}: ${mapName}`;
   }
 
-  getGameScore(match: MatchStats) {
+  getMatchScore(match: MatchStats) {
     const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
@@ -126,8 +127,33 @@ export class HaloService {
     return scoreCompare.join(":");
   }
 
-  getGameDuration(match: MatchStats) {
-    const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+  getTeamName(teamId: number) {
+    switch (teamId) {
+      case 0:
+        return "Eagle";
+      case 1:
+        return "Cobra";
+      case 2:
+        return "Green";
+      case 3:
+        return "Orange";
+      default:
+        return "Unknown";
+    }
+  }
+
+  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">) {
+    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+  }
+
+  async getPlayerXuidsToGametags(match: MatchStats): Promise<Map<string, string>> {
+    const playerNames = await this.client.getUsers(match.Players.map((player) => this.getPlayerXuid(player)));
+
+    return new Map(playerNames.map((player) => [player.xuid, player.gamertag]));
+  }
+
+  getReadableDuration(duration: string) {
+    const parsedDuration = tinyduration.parse(duration);
     const output: string[] = [];
     if (parsedDuration.days) {
       output.push(`${parsedDuration.days.toString()}d`);
@@ -153,7 +179,7 @@ export class HaloService {
     return mapData.PublicName;
   }
 
-  private getGameVariant(match: MatchStats) {
+  private getMatchVariant(match: MatchStats) {
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
         return "Attrition";
