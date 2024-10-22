@@ -152,8 +152,8 @@ export class HaloService {
     return new Map(playerNames.map((player) => [player.xuid, player.gamertag]));
   }
 
-  getGameDuration(match: MatchStats) {
-    const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
+  getReadableDuration(duration: string) {
+    const parsedDuration = tinyduration.parse(duration);
     const output: string[] = [];
     if (parsedDuration.days) {
       output.push(`${parsedDuration.days.toString()}d`);

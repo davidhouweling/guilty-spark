@@ -4,6 +4,25 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { QueueData } from "../../services/discord/discord.mjs";
 import { inspect } from "util";
+import { BaseMatchEmbed } from "./embeds/base-match-embed.mjs";
+import { AttritionMatchEmbed } from "./embeds/attrition-match-embed.mjs";
+import { CtfMatchEmbed } from "./embeds/ctf-match-embed.mjs";
+import { EliminationMatchEmbed } from "./embeds/elimination-match-embed.mjs";
+import { EscalationMatchEmbed } from "./embeds/escalation-match-embed.mjs";
+import { ExtractionMatchEmbed } from "./embeds/extraction-match-embed.mjs";
+import { FiestaMatchEmbed } from "./embeds/fiesta-match-embed.mjs";
+import { FirefightMatchEmbed } from "./embeds/firefight-match-embed.mjs";
+import { GrifballMatchEmbed } from "./embeds/grifball-match-embed.mjs";
+import { InfectionMatchEmbed } from "./embeds/infection-match-embed.mjs";
+import { KOTHMatchEmbed } from "./embeds/koth-match-embed.mjs";
+import { LandGrabMatchEmbed } from "./embeds/land-grab-match-embed.mjs";
+import { MinigameMatchEmbed } from "./embeds/minigame-match-embed.mjs";
+import { OddballMatchEmbed } from "./embeds/oddball-match-embed.mjs";
+import { SlayerMatchEmbed } from "./embeds/slayer-match-embed.mjs";
+import { StockpileMatchEmbed } from "./embeds/stockpile-match-embed.mjs";
+import { StrongholdsMatchEmbed } from "./embeds/strongholds-match-embed.mjs";
+import { TotalControlMatchEmbed } from "./embeds/total-control-match-embed.mjs";
+import { UnknownMatchEmbed } from "./embeds/unknown-match-embed.mjs";
 
 const MATCH_ID_EXAMPLE = "d9d77058-f140-4838-8f41-1a3406b28566";
 
@@ -140,17 +159,21 @@ export class StatsCommand extends BaseCommand {
     try {
       await interaction.deferReply({ ephemeral });
       deferred = true;
-      const match = await this.services.haloService.getMatchDetails([matchId.value as string]);
+      const matches = await this.services.haloService.getMatchDetails([matchId.value as string]);
 
-      if (!match.length) {
+      if (!matches.length) {
         await interaction.editReply({ content: "Match not found" });
         return;
       }
 
-      const matchEmbed = await this.createMatchEmbed(Preconditions.checkExists(match[0]));
+      const match = Preconditions.checkExists(matches[0]);
+      const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+
+      const matchEmbed = this.getMatchEmbed(match);
+      const embed = await matchEmbed.getEmbed(match, players);
 
       await interaction.editReply({
-        embeds: [matchEmbed],
+        embeds: [embed],
       });
     } catch (error) {
       const reply = {
@@ -185,7 +208,7 @@ export class StatsCommand extends BaseCommand {
     const tableData = [titles];
     for (const seriesMatch of series) {
       const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
-      const gameDuration = haloService.getGameDuration(seriesMatch);
+      const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration);
       const gameScore = haloService.getGameScore(seriesMatch);
 
       tableData.push([gameTypeAndMap, gameDuration, gameScore]);
@@ -204,278 +227,46 @@ export class StatsCommand extends BaseCommand {
     return embed;
   }
 
-  private async createMatchEmbed(match: MatchStats) {
-    const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+  private getMatchEmbed(match: MatchStats): BaseMatchEmbed<GameVariantCategory> {
+    const { haloService } = this.services;
 
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
-        return this.createMultiplayerAttritionMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerAttrition>,
-          players,
-        );
+        return new AttritionMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerCtf:
-        return this.createMultiplayerCtfMatchEmbed(match as MatchStats<GameVariantCategory.MultiplayerCtf>, players);
+        return new CtfMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerElimination:
-        return this.createMultiplayerEliminationMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerElimination>,
-          players,
-        );
+        return new EliminationMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerEscalation:
-        return this.createMultiplayerEscalationMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerEscalation>,
-          players,
-        );
+        return new EscalationMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerExtraction:
-        return this.createMultiplayerExtractionMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerExtraction>,
-          players,
-        );
+        return new ExtractionMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerFiesta:
-        return this.createMultiplayerFiestaMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerFiesta>,
-          players,
-        );
+        return new FiestaMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerFirefight:
-        return this.createMultiplayerFirefightMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerFirefight>,
-          players,
-        );
+        return new FirefightMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerGrifball:
-        return this.createMultiplayerGrifballMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerGrifball>,
-          players,
-        );
+        return new GrifballMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerInfection:
-        return this.createMultiplayerInfectionMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerInfection>,
-          players,
-        );
+        return new InfectionMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerKingOfTheHill:
-        return this.createMultiplayerKingOfTheHillMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerKingOfTheHill>,
-          players,
-        );
+        return new KOTHMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerLandGrab:
-        return this.createMultiplayerLandGrabMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerLandGrab>,
-          players,
-        );
+        return new LandGrabMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerMinigame:
-        return this.createMultiplayerMinigameMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerMinigame>,
-          players,
-        );
+        return new MinigameMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerOddball:
-        return this.createMultiplayerOddballMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerOddball>,
-          players,
-        );
+        return new OddballMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerSlayer:
-        return this.createSlayerMatchEmbed(match as MatchStats<GameVariantCategory.MultiplayerSlayer>, players);
+        return new SlayerMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerStockpile:
-        return this.createMultiplayerStockpileMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerStockpile>,
-          players,
-        );
+        return new StockpileMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerStrongholds:
-        return this.createMultiplayerStrongholdsMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerStrongholds>,
-          players,
-        );
+        return new StrongholdsMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerTotalControl:
-        return this.createMultiplayerTotalControlMatchEmbed(
-          match as MatchStats<GameVariantCategory.MultiplayerTotalControl>,
-          players,
-        );
+        return new TotalControlMatchEmbed(haloService);
       default:
-        return this.createBaseMatchEmbed(match, players);
+        return new UnknownMatchEmbed(haloService);
     }
-  }
-
-  private async createBaseMatchEmbed(match: MatchStats, players: Map<string, string>) {
-    const { haloService } = this.services;
-    const gameTypeAndMap = await haloService.getGameTypeAndMap(match);
-
-    const embed = new EmbedBuilder()
-      .setTitle(gameTypeAndMap)
-      .setURL(`https://halodatahive.com/Infinite/Match/${match.MatchId}`);
-
-    for (const team of match.Teams) {
-      embed.addFields({
-        name: `${haloService.getTeamName(team.TeamId)}`,
-        value: `Team Score: ${team.Stats.CoreStats.Score}`,
-        inline: false,
-      });
-
-      const teamPlayers = match.Players.filter((player) =>
-        player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-      ).sort((a, b) => {
-        if (a.Rank - b.Rank !== 0) {
-          return a.Rank - b.Rank;
-        }
-
-        const aStats = Preconditions.checkExists(
-          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        const bStats = Preconditions.checkExists(
-          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        return aStats.Stats.CoreStats.Score - bStats.Stats.CoreStats.Score;
-      });
-
-      let playerFields = [];
-      for (const teamPlayer of teamPlayers) {
-        const playerXuid = haloService.getPlayerXuid(teamPlayer);
-        const playerGamertag = Preconditions.checkExists(players.get(playerXuid));
-        const playerStats = Preconditions.checkExists(
-          teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-          "Unable to match player to team",
-        );
-
-        const {
-          Stats: { CoreStats: coreStats },
-        } = playerStats;
-
-        playerFields.push({
-          name: `${playerGamertag}`,
-          value: `\`\`\`Rank: ${teamPlayer.Rank}\nScore: ${coreStats.Score}\nKills: ${coreStats.Kills}\nDeaths: ${coreStats.Deaths}\nAssists: ${coreStats.Assists}\nKDA: ${coreStats.KDA}\nAccuracy: ${coreStats.Accuracy}\`\`\``,
-          inline: true,
-        });
-
-        // If two players are added, or if it's the last player, push to embed and reset
-        if (playerFields.length === 2 || teamPlayer === teamPlayers[teamPlayers.length - 1]) {
-          embed.addFields(playerFields);
-          playerFields = [];
-
-          // Adds a new row
-          embed.addFields({
-            name: "\n",
-            value: "\n",
-            inline: false,
-          });
-        }
-      }
-    }
-
-    return embed;
-  }
-
-  private async createMultiplayerAttritionMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerAttrition>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerCtfMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerCtf>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerEliminationMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerElimination>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerEscalationMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerEscalation>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerExtractionMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerExtraction>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerFiestaMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerFiesta>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerFirefightMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerFirefight>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerGrifballMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerGrifball>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerInfectionMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerInfection>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerKingOfTheHillMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerKingOfTheHill>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerLandGrabMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerLandGrab>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerMinigameMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerMinigame>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerOddballMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerOddball>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createSlayerMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerSlayer>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerStockpileMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerStockpile>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerStrongholdsMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerStrongholds>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
-  }
-
-  private async createMultiplayerTotalControlMatchEmbed(
-    match: MatchStats<GameVariantCategory.MultiplayerTotalControl>,
-    players: Map<string, string>,
-  ) {
-    return await this.createBaseMatchEmbed(match, players);
   }
 }
