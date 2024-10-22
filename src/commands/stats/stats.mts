@@ -207,7 +207,7 @@ export class StatsCommand extends BaseCommand {
     for (const seriesMatch of series) {
       const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
       const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration);
-      const gameScore = haloService.getGameScore(seriesMatch);
+      const gameScore = haloService.getMatchScore(seriesMatch);
 
       tableData.push([gameTypeAndMap, gameDuration, gameScore]);
     }

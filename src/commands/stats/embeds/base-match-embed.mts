@@ -20,7 +20,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       ["KDA", CoreStats.KDA.toString()],
       ["Headshot kills", CoreStats.HeadshotKills.toString()],
       ["Shots H:F", `${CoreStats.ShotsHit.toString()}:${CoreStats.ShotsFired.toString()}`],
-      ["Accuracy", CoreStats.Accuracy.toString()],
+      ["Accuracy", `${CoreStats.Accuracy.toString()}%`],
       ["Damage D:T", `${CoreStats.DamageDealt.toString()}:${CoreStats.DamageTaken.toString()}`],
       ["Av life duration", this.haloService.getReadableDuration(CoreStats.AverageLifeDuration)],
       ["Av damage/life", (CoreStats.DamageDealt / CoreStats.Deaths).toFixed(2)],

@@ -112,10 +112,10 @@ export class HaloService {
 
   async getGameTypeAndMap(match: MatchStats) {
     const mapName = await this.getMapName(match);
-    return `${this.getGameVariant(match)}: ${mapName}`;
+    return `${this.getMatchVariant(match)}: ${mapName}`;
   }
 
-  getGameScore(match: MatchStats) {
+  getMatchScore(match: MatchStats) {
     const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
@@ -179,7 +179,7 @@ export class HaloService {
     return mapData.PublicName;
   }
 
-  private getGameVariant(match: MatchStats) {
+  private getMatchVariant(match: MatchStats) {
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
         return "Attrition";
