@@ -119,24 +119,22 @@ export class StatsCommand extends BaseCommand {
       const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
       const seriesEmbed = await this.createSeriesEmbed(queueData, queueValue, series);
 
-      await interaction.editReply({
+      const message = await interaction.editReply({
         embeds: [seriesEmbed],
       });
 
-      /* Based on https://discordjs.guide/popular-topics/threads.html#thread-related-gateway-events
-      * But threads is not available for channel here. Needs further investigation
-      await Promise.all(series.map(async (match, index) => {
-            const thread = await channel.threads.create({
-                name: `Match ${index + 1} - Queue ${queueValue}`,
-                autoArchiveDuration: 60,
-                startMessage: mainMessage.id,
-            });
+      const thread = await message.startThread({
+        name: `In depth match stats for queue #${queueValue.toString()}`,
+        autoArchiveDuration: 60,
+      });
 
-            const matchEmbed = await this.createMatchEmbed(match);
+      for (const match of series) {
+        const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+        const matchEmbed = this.getMatchEmbed(match);
+        const embed = await matchEmbed.getEmbed(match, players);
 
-            await thread.send({ embeds: [matchEmbed] });
-        }));
-        */
+        await thread.send({ embeds: [embed] });
+      }
     } catch (error) {
       const reply = {
         content: `Failed to fetch (Channel: <#${channel.channel?.id ?? "unknown"}>, queue: ${queue.value?.toString() ?? "unknown"}): ${error instanceof Error ? error.message : "unknown"}`,
