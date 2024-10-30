@@ -15,6 +15,7 @@
   "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
   "main": "src/app.mts",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "wrangler dev",
     "ngrok": "ngrok http 8787",
     "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
