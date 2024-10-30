@@ -30,6 +30,9 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
+      - name: Generate types
+        run: npm run build:generate-types
+
       # TODO: remove once lint-action supports eslint v9
       - name: Run eslint
         run: npm run lint

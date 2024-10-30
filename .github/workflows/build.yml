@@ -27,5 +27,8 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
+      - name: Generate types
+        run: npm run build:generate-types
+
       - name: Run build
         run: npm run build

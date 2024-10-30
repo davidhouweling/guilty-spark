@@ -23,6 +23,7 @@
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
+    "build:generate-types": "wrangler types --experimental-include-runtime",
     "build": "tsc --project tsconfig.build.json"
   },
   "dependencies": {
