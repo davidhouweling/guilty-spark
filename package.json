@@ -1,22 +1,23 @@
 {
-  "name": "discord-neatqueue-halo-stats",
+  "name": "guilty-spark",
   "version": "1.0.0",
   "author": "David Houweling",
-  "description": "Discord app to work in conjunction with NeatQueue for Halo stats to populate into channels after a series has taken place",
+  "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davidhouweling/discord-neatqueue-halo-stats.git"
+    "url": "git+https://github.com/davidhouweling/guilty-spark.git"
   },
   "bugs": {
-    "url": "https://github.com/davidhouweling/discord-neatqueue-halo-stats/issues"
+    "url": "https://github.com/davidhouweling/guilty-spark/issues"
   },
-  "homepage": "https://github.com/davidhouweling/discord-neatqueue-halo-stats#readme",
+  "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
   "main": "src/app.mts",
   "scripts": {
-    "start": "npx tsx watch src/app.mts",
-    "register": "npx tsx src/deploy-commands.mts",
+    "start": "wrangler dev",
+    "ngrok": "ngrok http 8787",
+    "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
@@ -24,25 +25,31 @@
     "lint:fix": "npx eslint . --fix",
     "build": "tsc --project tsconfig.build.json"
   },
+  "dependencies": {
+    "@xboxreplay/xboxlive-auth": "^4.0.0",
+    "date-fns": "^4.1.0",
+    "discord-api-types": "^0.37.103",
+    "discord-interactions": "^4.1.0",
+    "halo-infinite-api": "^9.0.2",
+    "itty-router": "^5.0.18",
+    "tinyduration": "^3.3.1"
+  },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@tsconfig/node20": "^20.1.4",
     "@types/eslint__js": "^8.42.3",
-    "@types/express": "^5.0.0",
-    "@types/morgan": "^1.9.9",
-    "@types/node": "^20.0.0",
-    "eslint": "^9.13.0",
-    "prettier": "^3.3.3",
-    "tsx": "^4.19.1",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.10.0"
-  },
-  "dependencies": {
-    "@xboxreplay/xboxlive-auth": "^4.0.0",
-    "date-fns": "^4.1.0",
-    "discord.js": "^14.16.3",
+    "@types/node": "20.8.3",
     "dotenv": "^16.4.5",
-    "halo-infinite-api": "^9.0.2",
-    "tinyduration": "^3.3.1"
+    "eslint": "^9.13.0",
+    "ngrok": "^5.0.0-beta.2",
+    "patch-package": "^8.0.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.10.0",
+    "wrangler": "^3.83.0"
+  },
+  "overrides": {
+    "@types/node": "20.8.3"
   }
 }

@@ -1,9 +1,18 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import {
+  APIApplicationCommand,
+  APIApplicationCommandInteraction,
+  APIApplicationCommandInteractionDataBasicOption,
+  APIEmbed,
+  APIInteractionResponse,
+  ApplicationCommandOptionType,
+  ApplicationCommandType,
+  InteractionResponseType,
+  MessageFlags,
+} from "discord-api-types/v10";
+import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { QueueData } from "../../services/discord/discord.mjs";
-import { inspect } from "util";
 import { BaseMatchEmbed } from "./embeds/base-match-embed.mjs";
 import { AttritionMatchEmbed } from "./embeds/attrition-match-embed.mjs";
 import { CtfMatchEmbed } from "./embeds/ctf-match-embed.mjs";
@@ -24,172 +33,222 @@ import { StrongholdsMatchEmbed } from "./embeds/strongholds-match-embed.mjs";
 import { TotalControlMatchEmbed } from "./embeds/total-control-match-embed.mjs";
 import { UnknownMatchEmbed } from "./embeds/unknown-match-embed.mjs";
 
-const MATCH_ID_EXAMPLE = "d9d77058-f140-4838-8f41-1a3406b28566";
-
 export class StatsCommand extends BaseCommand {
-  data = new SlashCommandBuilder()
-    .setName("stats")
-    .setDescription("Pulls stats from Halo waypoint")
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("neatqueue")
-        .setDescription("Pulls stats for a NeatQueue series result")
-        .addChannelOption((option) =>
-          option
-            .setName("channel")
-            .setDescription("The channel which has the NeatQueue result message")
-            .setRequired(true),
-        )
-        .addIntegerOption((option) =>
-          option.setName("queue").setDescription("The Queue number for the series").setRequired(true),
-        )
-        .addBooleanOption((option) =>
-          option
-            .setName("private")
-            .setDescription("Only provide the response to you instead of the channel")
-            .setRequired(false),
-        ),
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("match")
-        .setDescription("Pulls stats for a specific match")
-        .addStringOption((option) =>
-          option
-            .setName("id")
-            .setDescription(`The match ID (example: ${MATCH_ID_EXAMPLE})`)
-            .setRequired(true)
-            .setMinLength(MATCH_ID_EXAMPLE.length)
-            .setMaxLength(MATCH_ID_EXAMPLE.length),
-        )
-        .addBooleanOption((option) =>
-          option
-            .setName("private")
-            .setDescription("Only provide the response to you instead of the channel")
-            .setRequired(false),
-        ),
-    );
+  data: Omit<APIApplicationCommand, "id" | "application_id" | "default_member_permissions" | "version"> = {
+    type: ApplicationCommandType.ChatInput,
+    name: "stats",
+    description: "Pulls stats from Halo waypoint",
+    options: [
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: "neatqueue",
+        description: "Pulls stats for a NeatQueue series result",
+        options: [
+          {
+            name: "channel",
+            description: "The channel which has the NeatQueue result message",
+            required: true,
+            type: ApplicationCommandOptionType.Channel,
+          },
+          {
+            type: ApplicationCommandOptionType.Integer,
+            name: "queue",
+            description: "The Queue number for the series",
+            required: true,
+          },
+          {
+            name: "private",
+            description: "Only provide the response to you instead of the channel",
+            required: false,
+            type: ApplicationCommandOptionType.Boolean,
+          },
+        ],
+      },
+      {
+        type: ApplicationCommandOptionType.Subcommand,
+        name: "match",
+        description: "Pulls stats for a specific match",
+        options: [
+          {
+            type: ApplicationCommandOptionType.String,
+            name: "id",
+            description: "The match ID (example: d9d77058-f140-4838-8f41-1a3406b28566)",
+            required: true,
+            max_length: 36,
+            min_length: 36,
+          },
+          {
+            name: "private",
+            description: "Only provide the response to you instead of the channel",
+            required: false,
+            type: ApplicationCommandOptionType.Boolean,
+          },
+        ],
+      },
+    ],
+  };
 
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    console.log(inspect(interaction, { depth: 10, colors: true, compact: false }));
-
-    console.log(
-      `StatsCommand execute from ${interaction.user.globalName ?? interaction.user.username}: ${interaction.options.getSubcommand()}`,
-    );
-
-    switch (interaction.options.getSubcommand()) {
-      case "neatqueue":
-        await this.handleNeatQueueSubCommand(interaction);
-        break;
-      case "match":
-        await this.handleMatchSubCommand(interaction);
-        break;
-      default:
-        await interaction.reply("Unknown subcommand");
-        break;
-    }
-  }
-
-  private async handleNeatQueueSubCommand(interaction: ChatInputCommandInteraction) {
-    const channel = interaction.options.get("channel", true);
-    const queue = interaction.options.get("queue", true);
-    const ephemeral = interaction.options.getBoolean("private") ?? false;
-    let deferred = false;
-
+  execute(interaction: APIApplicationCommandInteraction): APIInteractionResponse {
     try {
-      const channelValue = Preconditions.checkExists(channel.channel);
-      const queueValue = queue.value as number;
-
-      await interaction.deferReply({ ephemeral });
-      deferred = true;
-
-      const queueData = await this.services.discordService.getTeamsFromQueue(
-        Preconditions.checkExists(channel.channel),
-        queueValue,
-      );
-
-      if (!queueData) {
-        await interaction.editReply({
-          content: `No queue found within the last 100 messages of <#${channelValue.id}>, with queue number ${queueValue.toString()}`,
-        });
-
-        return;
+      const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
+      if (subcommand.type !== "SUBCOMMAND_DATA") {
+        return subcommand;
       }
 
-      const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
-      const seriesEmbed = await this.createSeriesEmbed(queueData, queueValue, series);
-
-      const message = await interaction.editReply({
-        embeds: [seriesEmbed],
-      });
-
-      const thread = await message.startThread({
-        name: `In depth match stats for queue #${queueValue.toString()}`,
-        autoArchiveDuration: 60,
-      });
-
-      for (const match of series) {
-        const players = await this.services.haloService.getPlayerXuidsToGametags(match);
-        const matchEmbed = this.getMatchEmbed(match);
-        const embed = await matchEmbed.getEmbed(match, players);
-
-        await thread.send({ embeds: [embed] });
+      if (!subcommand.mappedOptions?.size) {
+        return {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: { content: "Missing subcommand options", flags: MessageFlags.Ephemeral },
+        };
+      }
+      switch (subcommand.name) {
+        case "neatqueue":
+          return this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
+        case "match":
+          return this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
+        default:
+          return { type: InteractionResponseType.ChannelMessageWithSource, data: { content: "Invalid subcommand" } };
       }
     } catch (error) {
-      const reply = {
-        content: `Failed to fetch (Channel: <#${channel.channel?.id ?? "unknown"}>, queue: ${queue.value?.toString() ?? "unknown"}): ${error instanceof Error ? error.message : "unknown"}`,
+      return {
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
+          flags: MessageFlags.Ephemeral,
+        },
       };
-      if (deferred) {
-        await interaction.editReply(reply);
-      } else {
-        await interaction.reply({ ...reply, ephemeral: true });
-      }
-
-      console.error(error);
     }
   }
 
-  private async handleMatchSubCommand(interaction: ChatInputCommandInteraction) {
-    const matchId = interaction.options.get("id", true);
-    const ephemeral = interaction.options.getBoolean("private") ?? false;
-    let deferred = false;
+  private handleNeatQueueSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): APIInteractionResponse {
+    const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
+    const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
+    const ephemeral = (options.get("private") as boolean | undefined) ?? false;
 
     try {
-      await interaction.deferReply({ ephemeral });
-      deferred = true;
-      const matches = await this.services.haloService.getMatchDetails([matchId.value as string]);
+      void this.completeNeatQueueSubCommand(interaction, { channel, queue });
 
-      if (!matches.length) {
-        await interaction.editReply({ content: "Match not found" });
-        return;
-      }
+      return this.deferredReply(ephemeral);
+    } catch (error) {
+      console.error(error);
 
-      const match = Preconditions.checkExists(matches[0]);
+      return {
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
+          flags: MessageFlags.Ephemeral,
+        },
+      };
+    }
+  }
+
+  private async completeNeatQueueSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: { channel: string; queue: number },
+  ): Promise<void> {
+    const { channel, queue } = options;
+    const { discordService } = this.services;
+
+    const queueData = await discordService.getTeamsFromQueue(channel, queue);
+    if (!queueData) {
+      await discordService.updateDeferredReply(interaction.token, {
+        content: `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+      });
+
+      return;
+    }
+
+    const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
+    const seriesEmbed = await this.createSeriesEmbed(
+      Preconditions.checkExists(interaction.guild_id, "No guild id"),
+      channel,
+      queue,
+      queueData,
+      series,
+    );
+
+    await discordService.updateDeferredReply(interaction.token, {
+      embeds: [seriesEmbed],
+    });
+
+    const message = await discordService.getMessageFromInteractionToken(interaction.token);
+    const thread = await discordService.startThreadFromMessage(
+      channel,
+      message.id,
+      `In depth match stats for queue #${queue.toString()}`,
+    );
+    for (const match of series) {
       const players = await this.services.haloService.getPlayerXuidsToGametags(match);
-
       const matchEmbed = this.getMatchEmbed(match);
       const embed = await matchEmbed.getEmbed(match, players);
 
-      await interaction.editReply({
-        embeds: [embed],
-      });
-    } catch (error) {
-      const reply = {
-        content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-      };
-      if (deferred) {
-        await interaction.editReply(reply);
-      } else {
-        await interaction.reply({ ...reply, ephemeral: true });
-      }
-
-      console.error(error);
+      await discordService.createMessage(thread.id, { embeds: [embed] });
     }
   }
 
-  private addEmbedFields(embed: EmbedBuilder, titles: string[], data: string[][]) {
+  private handleMatchSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): APIInteractionResponse {
+    const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
+    const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+
+    try {
+      void this.completeMatchSubCommand(interaction, matchId);
+
+      return this.deferredReply(ephemeral);
+    } catch (error) {
+      console.error(error);
+
+      return {
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: `Failed to fetch (match id: ${matchId}): ${error instanceof Error ? error.message : "unknown"}`,
+          flags: MessageFlags.Ephemeral,
+        },
+      };
+    }
+  }
+
+  private async completeMatchSubCommand(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
+    const { discordService } = this.services;
+
+    const matches = await this.services.haloService.getMatchDetails([matchId]);
+    if (!matches.length) {
+      await discordService.updateDeferredReply(interaction.token, {
+        content: "Match not found",
+      });
+
+      return;
+    }
+
+    const match = Preconditions.checkExists(matches[0]);
+    const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+
+    const matchEmbed = this.getMatchEmbed(match);
+    const embed = await matchEmbed.getEmbed(match, players);
+
+    await discordService.updateDeferredReply(interaction.token, {
+      embeds: [embed],
+    });
+  }
+
+  private deferredReply(ephemeral: boolean): APIInteractionResponse {
+    const data: { flags?: MessageFlags } = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
+
+    return { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
+  }
+
+  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]) {
     for (let column = 0; column < titles.length; column++) {
-      embed.addFields({
+      embed.fields ??= [];
+      embed.fields.push({
         name: Preconditions.checkExists(titles[column]),
         value: data
           .slice(1)
@@ -200,7 +259,13 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private async createSeriesEmbed(queueData: QueueData, queue: number, series: MatchStats[]) {
+  private async createSeriesEmbed(
+    guildId: string,
+    channel: string,
+    queue: number,
+    queueData: QueueData,
+    series: MatchStats[],
+  ) {
     const { haloService } = this.services;
     const titles = ["Game", "Duration", "Score"];
     const tableData = [titles];
@@ -212,13 +277,12 @@ export class StatsCommand extends BaseCommand {
       tableData.push([gameTypeAndMap, gameDuration, gameScore]);
     }
 
-    const guildId = Preconditions.checkExists(queueData.message.guildId);
-    const channelId = Preconditions.checkExists(queueData.message.channelId);
     const messageId = Preconditions.checkExists(queueData.message.id);
-    const embed = new EmbedBuilder()
-      .setTitle(`Series stats for queue #${queue.toString()}`)
-      .setURL(`https://discord.com/channels/${guildId}/${channelId}/${messageId}`)
-      .setColor("DarkBlue");
+    const embed: APIEmbed = {
+      title: `Series stats for queue #${queue.toString()}`,
+      url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
+      color: 3447003,
+    };
 
     this.addEmbedFields(embed, titles, tableData);
 
