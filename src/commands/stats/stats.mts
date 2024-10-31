@@ -152,40 +152,48 @@ export class StatsCommand extends BaseCommand {
     const { channel, queue } = options;
     const { discordService } = this.services;
 
-    const queueData = await discordService.getTeamsFromQueue(channel, queue);
-    if (!queueData) {
+    try {
+      const queueData = await discordService.getTeamsFromQueue(channel, queue);
+      if (!queueData) {
+        await discordService.updateDeferredReply(interaction.token, {
+          content: `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+        });
+
+        return;
+      }
+
+      const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
+      const seriesEmbed = await this.createSeriesEmbed(
+        Preconditions.checkExists(interaction.guild_id, "No guild id"),
+        channel,
+        queue,
+        queueData,
+        series,
+      );
+
       await discordService.updateDeferredReply(interaction.token, {
-        content: `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+        embeds: [seriesEmbed],
       });
 
-      return;
-    }
+      const message = await discordService.getMessageFromInteractionToken(interaction.token);
+      const thread = await discordService.startThreadFromMessage(
+        channel,
+        message.id,
+        `In depth match stats for queue #${queue.toString()}`,
+      );
+      for (const match of series) {
+        const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+        const matchEmbed = this.getMatchEmbed(match);
+        const embed = await matchEmbed.getEmbed(match, players);
 
-    const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
-    const seriesEmbed = await this.createSeriesEmbed(
-      Preconditions.checkExists(interaction.guild_id, "No guild id"),
-      channel,
-      queue,
-      queueData,
-      series,
-    );
+        await discordService.createMessage(thread.id, { embeds: [embed] });
+      }
+    } catch (error) {
+      console.error(error);
 
-    await discordService.updateDeferredReply(interaction.token, {
-      embeds: [seriesEmbed],
-    });
-
-    const message = await discordService.getMessageFromInteractionToken(interaction.token);
-    const thread = await discordService.startThreadFromMessage(
-      channel,
-      message.id,
-      `In depth match stats for queue #${queue.toString()}`,
-    );
-    for (const match of series) {
-      const players = await this.services.haloService.getPlayerXuidsToGametags(match);
-      const matchEmbed = this.getMatchEmbed(match);
-      const embed = await matchEmbed.getEmbed(match, players);
-
-      await discordService.createMessage(thread.id, { embeds: [embed] });
+      await discordService.updateDeferredReply(interaction.token, {
+        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
+      });
     }
   }
 
@@ -195,6 +203,8 @@ export class StatsCommand extends BaseCommand {
   ): APIInteractionResponse {
     const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+
+    console.log("handleMatchSubCommand", matchId, ephemeral);
 
     try {
       void this.completeMatchSubCommand(interaction, matchId);
@@ -216,24 +226,34 @@ export class StatsCommand extends BaseCommand {
   private async completeMatchSubCommand(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
     const { discordService } = this.services;
 
-    const matches = await this.services.haloService.getMatchDetails([matchId]);
-    if (!matches.length) {
+    try {
+      const matches = await this.services.haloService.getMatchDetails([matchId]);
+      console.log(matches);
+      if (!matches.length) {
+        await discordService.updateDeferredReply(interaction.token, {
+          content: "Match not found",
+        });
+
+        return;
+      }
+
+      const match = Preconditions.checkExists(matches[0]);
+      const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+      console.log(players);
+
+      const matchEmbed = this.getMatchEmbed(match);
+      const embed = await matchEmbed.getEmbed(match, players);
+
       await discordService.updateDeferredReply(interaction.token, {
-        content: "Match not found",
+        embeds: [embed],
       });
+    } catch (error) {
+      console.error(error);
 
-      return;
+      await discordService.updateDeferredReply(interaction.token, {
+        content: `Failed to fetch (match id: ${matchId}): ${error instanceof Error ? error.message : "unknown"}`,
+      });
     }
-
-    const match = Preconditions.checkExists(matches[0]);
-    const players = await this.services.haloService.getPlayerXuidsToGametags(match);
-
-    const matchEmbed = this.getMatchEmbed(match);
-    const embed = await matchEmbed.getEmbed(match, players);
-
-    await discordService.updateDeferredReply(interaction.token, {
-      embeds: [embed],
-    });
   }
 
   private deferredReply(ephemeral: boolean): APIInteractionResponse {

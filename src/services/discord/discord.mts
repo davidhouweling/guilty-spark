@@ -165,12 +165,19 @@ export class DiscordService {
   }
 
   async updateDeferredReply(interactionToken: string, data: RESTPatchAPIChannelMessageJSONBody) {
+    console.log("Getting message from interaction token", interactionToken);
+    const message = await this.getMessageFromInteractionToken(interactionToken);
+    console.log("Got message from interaction token", message);
+
     const jsonResponse = new JsonResponse(data);
-    return await this.fetch<RESTPatchAPIChannelMessageResult>(
-      Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
+    console.log("Updating deferred reply", jsonResponse);
+    const response = await this.fetch<RESTPatchAPIChannelMessageResult>(
+      Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken, message.id),
       {},
       { method: "PATCH", body: await jsonResponse.text(), headers: jsonResponse.headers },
     );
+    console.log("Updated deferred reply", response);
+    return response;
   }
 
   getMessageFromInteractionToken(interactionToken: string) {
