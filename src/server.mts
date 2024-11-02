@@ -9,7 +9,7 @@ import { getCommands } from "./commands/commands.mjs";
 
 const router = AutoRouter();
 
-router.get("/", (request, env: Env) => {
+router.get("/", (_request, env: Env) => {
   return new Response(`👋 ${env.DISCORD_APP_ID}`);
 });
 
@@ -24,7 +24,9 @@ router.post("/interactions", async (request, env: Env) => {
     return new Response("Bad request signature.", { status: 401 });
   }
 
-  return discordService.handleInteraction(interaction);
+  const response = await discordService.handleInteraction(interaction);
+
+  return response;
 });
 router.all("*", () => new Response("Not Found.", { status: 404 }));
 

@@ -14,11 +14,12 @@ import {
   MessageFlags,
   RESTGetAPIUserResult,
   RESTGetAPIWebhookWithTokenMessageResult,
-  RESTPatchAPIChannelMessageJSONBody,
   RESTPatchAPIChannelMessageResult,
   RESTPostAPIChannelMessageJSONBody,
   RESTPostAPIChannelMessageResult,
   RESTPostAPIChannelThreadsResult,
+  RESTPostAPIInteractionCallbackResult,
+  RESTPostAPIWebhookWithTokenJSONBody,
   Routes,
 } from "discord-api-types/v10";
 import { JsonResponse } from "./json-response.mjs";
@@ -37,7 +38,6 @@ export interface QueueData {
 }
 
 export interface SubcommandData {
-  type: "SUBCOMMAND_DATA";
   name: string;
   options: APIApplicationCommandInteractionDataBasicOption[] | undefined;
   mappedOptions: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]> | undefined;
@@ -75,7 +75,7 @@ export class DiscordService {
     }
   }
 
-  handleInteraction(interaction: APIInteraction) {
+  async handleInteraction(interaction: APIInteraction) {
     switch (interaction.type) {
       case InteractionType.Ping: {
         return new JsonResponse({
@@ -92,7 +92,12 @@ export class DiscordService {
           return new JsonResponse({ error: "Command not found" }, { status: 404 });
         }
 
-        return new JsonResponse(command.execute(interaction));
+        const { response, deferred } = await command.execute(interaction);
+        if (deferred) {
+          await this.updateDeferredReply(interaction.token, response);
+        }
+
+        return new JsonResponse(response);
       }
       default: {
         return new JsonResponse({ error: "Unknown Type" }, { status: 400 });
@@ -100,33 +105,20 @@ export class DiscordService {
     }
   }
 
-  extractSubcommand(
-    interaction: APIApplicationCommandInteraction,
-    name: string,
-  ): SubcommandData | APIInteractionResponse {
+  extractSubcommand(interaction: APIApplicationCommandInteraction, name: string): SubcommandData {
     if (interaction.data.type !== ApplicationCommandType.ChatInput) {
-      return {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: { content: "Invalid interaction type.", flags: MessageFlags.Ephemeral },
-      };
+      throw new Error("Unexpected interaction type");
     }
     if (interaction.data.name !== name) {
-      return {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: { content: "Unexpected interaction routing.", flags: MessageFlags.Ephemeral },
-      };
+      throw new Error("Unexpected interaction name");
     }
     const subcommand = interaction.data.options?.[0] as APIApplicationCommandSubcommandOption | undefined;
     if (!subcommand) {
-      return {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: { content: "Missing subcommand", flags: MessageFlags.Ephemeral },
-      };
+      throw new Error("No subcommand found");
     }
 
     const options = subcommand.options as APIApplicationCommandInteractionDataBasicOption[] | undefined;
     return {
-      type: "SUBCOMMAND_DATA",
       name: subcommand.name,
       options: options,
       mappedOptions: options?.reduce((acc, option) => {
@@ -137,7 +129,10 @@ export class DiscordService {
   }
 
   async getTeamsFromQueue(channel: string, queue: number): Promise<QueueData | null> {
-    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channel), { limit: 100 });
+    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
+      method: "GET",
+      queryParameters: { limit: 100 },
+    });
     const queueMessage = messages
       .filter((message) => message.author.bot && message.author.id === NEAT_QUEUE_BOT_USER_ID)
       .find((message) => message.embeds.find((embed) => embed.title?.includes(`#${queue.toString()}`)));
@@ -164,17 +159,30 @@ export class DiscordService {
     };
   }
 
-  async updateDeferredReply(interactionToken: string, data: RESTPatchAPIChannelMessageJSONBody) {
-    console.log("Getting message from interaction token", interactionToken);
-    const message = await this.getMessageFromInteractionToken(interactionToken);
-    console.log("Got message from interaction token", message);
+  async acknowledgeInteraction(interaction: APIApplicationCommandInteraction, ephemeral = false) {
+    console.log("Acknowledging interaction", interaction);
 
-    const jsonResponse = new JsonResponse(data);
-    console.log("Updating deferred reply", jsonResponse);
+    const data: { flags?: MessageFlags } = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
+
+    const response: APIInteractionResponse = { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
+
+    return await this.fetch<RESTPostAPIInteractionCallbackResult>(
+      Routes.interactionCallback(interaction.id, interaction.token),
+      {
+        method: "POST",
+        body: JSON.stringify(response),
+      },
+    );
+  }
+
+  async updateDeferredReply(interactionToken: string, data: RESTPostAPIWebhookWithTokenJSONBody) {
+    console.log("Updating deferred reply", interactionToken, data);
     const response = await this.fetch<RESTPatchAPIChannelMessageResult>(
-      Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken, message.id),
-      {},
-      { method: "PATCH", body: await jsonResponse.text(), headers: jsonResponse.headers },
+      Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
+      { method: "PATCH", body: JSON.stringify(data) },
     );
     console.log("Updated deferred reply", response);
     return response;
@@ -187,44 +195,63 @@ export class DiscordService {
   }
 
   createMessage(channel: string, data: RESTPostAPIChannelMessageJSONBody) {
-    return this.fetch<RESTPostAPIChannelMessageResult>(
-      Routes.channelMessages(channel),
-      {},
-      { method: "POST", body: JSON.stringify(data) },
-    );
+    return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channel), {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   startThreadFromMessage(channel: string, message: string, name: string, autoArchiveDuration = 60) {
-    return this.fetch<RESTPostAPIChannelThreadsResult>(
-      Routes.threads(channel, message),
-      {},
-      { method: "POST", body: JSON.stringify({ name, auto_archive_duration: autoArchiveDuration }) },
-    );
+    return this.fetch<RESTPostAPIChannelThreadsResult>(Routes.threads(channel, message), {
+      method: "POST",
+      body: JSON.stringify({ name, auto_archive_duration: autoArchiveDuration }),
+    });
   }
 
   private async fetch<T>(
     path: string,
-    queryParameters: Record<string, string | number> = {},
-    fetchOptions: RequestInit = {},
+    options: RequestInit &
+      (
+        | { method: "GET"; queryParameters?: Record<string, string | number>; body?: never }
+        | { method: "PUT" | "POST" | "PATCH" | "DELETE"; body?: RequestInit["body"]; queryParameters?: never }
+      ) = {
+      method: "GET",
+    },
   ) {
-    const url = new URL(path, `https://discord.com/api/v${APIVersion}`);
-    for (const [key, value] of Object.entries(queryParameters)) {
-      url.searchParams.set(key, value.toString());
+    console.log("Fetching", path, options);
+    const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
+    if (options.method === "GET" && options.queryParameters) {
+      for (const [key, value] of Object.entries(options.queryParameters)) {
+        url.searchParams.set(key, value.toString());
+      }
     }
+    console.log("URL:", url.toString());
 
-    const response = await fetch(url.toString(), {
-      ...fetchOptions,
+    const fetchOptions = {
+      ...options,
+      body: options.body ?? null,
       headers: {
         Authorization: `Bot ${this.env.DISCORD_TOKEN}`,
-        ...fetchOptions.headers,
+        "content-type": "application/json;charset=UTF-8",
+        ...options.headers,
       },
-    });
+    };
+    console.log("Fetch options", fetchOptions);
+
+    const response = await fetch(url.toString(), fetchOptions);
+    console.log("Response", response);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 
+    console.log("Parsing response");
+    if (response.status === 204) {
+      return {} as T;
+    }
     const data = await response.json();
+    console.log("Parsed response", data);
+
     return data as T;
   }
 
