@@ -189,14 +189,11 @@ export class StatsCommand extends BaseCommand {
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
     let deferred = false;
 
-    console.log("handleMatchSubCommand", matchId, ephemeral);
-
     try {
       await this.services.discordService.acknowledgeInteraction(interaction, ephemeral);
       deferred = true;
 
       const matches = await this.services.haloService.getMatchDetails([matchId]);
-      console.log(matches);
       if (!matches.length) {
         return {
           response: {

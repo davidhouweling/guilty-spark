@@ -160,8 +160,6 @@ export class DiscordService {
   }
 
   async acknowledgeInteraction(interaction: APIApplicationCommandInteraction, ephemeral = false) {
-    console.log("Acknowledging interaction", interaction);
-
     const data: { flags?: MessageFlags } = {};
     if (ephemeral) {
       data.flags = MessageFlags.Ephemeral;
@@ -179,12 +177,10 @@ export class DiscordService {
   }
 
   async updateDeferredReply(interactionToken: string, data: RESTPostAPIWebhookWithTokenJSONBody) {
-    console.log("Updating deferred reply", interactionToken, data);
     const response = await this.fetch<RESTPatchAPIChannelMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
       { method: "PATCH", body: JSON.stringify(data) },
     );
-    console.log("Updated deferred reply", response);
     return response;
   }
 
@@ -218,14 +214,12 @@ export class DiscordService {
       method: "GET",
     },
   ) {
-    console.log("Fetching", path, options);
     const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
     if (options.method === "GET" && options.queryParameters) {
       for (const [key, value] of Object.entries(options.queryParameters)) {
         url.searchParams.set(key, value.toString());
       }
     }
-    console.log("URL:", url.toString());
 
     const fetchOptions = {
       ...options,
@@ -236,22 +230,17 @@ export class DiscordService {
         ...options.headers,
       },
     };
-    console.log("Fetch options", fetchOptions);
 
     const response = await fetch(url.toString(), fetchOptions);
-    console.log("Response", response);
-
     if (!response.ok) {
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 
-    console.log("Parsing response");
     if (response.status === 204) {
       return {} as T;
     }
-    const data = await response.json();
-    console.log("Parsed response", data);
 
+    const data = await response.json();
     return data as T;
   }
 
