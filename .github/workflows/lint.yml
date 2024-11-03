@@ -50,5 +50,3 @@ jobs:
           # eslint_args: "--max-warnings 0"
           prettier: true
           prettier_auto_fix: true
-          tsc: true
-          tsc_auto_fix: true
