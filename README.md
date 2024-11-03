@@ -22,9 +22,9 @@ This Discord bot can pull stats from Halo Waypoint and post accordingly.
 1. [Download and install node.js](https://nodejs.org/en/download/package-manager) if you haven't done already
 2. Clone the repo (assuming you already know how)
 3. Follow the instructions from [`discord/cloudflare-sample-app`](https://github.com/discord/cloudflare-sample-app)
-   a. [Configuring project](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#configuring-project)
-   b. [Creating your Cloudflare worker](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#creating-your-cloudflare-worker)
-   c. [Running locally](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#running-locally)
+   1. [Configuring project](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#configuring-project)
+   2. [Creating your Cloudflare worker](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#creating-your-cloudflare-worker)
+   3. [Running locally](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#running-locally)
 
 Now in a channel you can use `/stats` command.
 
