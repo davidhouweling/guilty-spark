@@ -48,5 +48,9 @@ jspm_packages/
 .env.production.local
 .env.local
 
+# cloudflare workers prefer .dev.vars
+.dev.vars
+.wrangler
+
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test

@@ -10,10 +10,10 @@ import {
 } from "halo-infinite-api";
 import { XboxService } from "../xbox/xbox.mjs";
 import { XstsTokenProvider } from "./xsts-token-provider.mjs";
-import { User } from "discord.js";
 import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { APIUser } from "discord-api-types/v10";
 
 interface HaloServiceOpts {
   xboxService: XboxService;
@@ -44,14 +44,16 @@ export class HaloService {
     return seriesMatches;
   }
 
-  private async getXboxUsers(users: User[]) {
+  private async getXboxUsers(users: APIUser[]) {
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
       users.map((user) => this.client.getUser(user.username)),
     );
 
     const unresolvedUsers = users.filter((_, index) => xboxUsersByDiscordUsernameResult[index]?.status === "rejected");
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
-      unresolvedUsers.map((user) => this.client.getUser(user.displayName)),
+      unresolvedUsers.map((user) =>
+        user.global_name ? this.client.getUser(user.global_name) : Promise.reject(new Error("No global name")),
+      ),
     );
 
     return [...xboxUsersByDiscordUsernameResult, ...xboxUsersByDiscordDisplayNameResult]

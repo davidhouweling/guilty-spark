@@ -8,9 +8,13 @@ export interface Services {
   haloService: HaloService;
 }
 
-export function installServices(): Services {
-  const discordService = new DiscordService();
-  const xboxService = new XboxService();
+interface InstallServicesOpts {
+  env: Env;
+}
+
+export function installServices({ env }: InstallServicesOpts): Services {
+  const discordService = new DiscordService(env);
+  const xboxService = new XboxService(env);
   const haloService = new HaloService({ xboxService });
 
   return {

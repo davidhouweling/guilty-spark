@@ -1,7 +1,7 @@
 import { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import { HaloService } from "../../../services/halo/halo.mjs";
-import { EmbedBuilder } from "discord.js";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { APIEmbed } from "discord-api-types/v10";
 
 export type PlayerStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
@@ -30,12 +30,14 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   async getEmbed(match: MatchStats, players: Map<string, string>) {
     const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match);
 
-    const embed = new EmbedBuilder()
-      .setTitle(gameTypeAndMap)
-      .setURL(`https://halodatahive.com/Infinite/Match/${match.MatchId}`);
+    const embed: APIEmbed = {
+      title: gameTypeAndMap,
+      url: `https://halodatahive.com/Infinite/Match/${match.MatchId}`,
+      fields: [],
+    };
 
     for (const team of match.Teams) {
-      embed.addFields({
+      embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
         value: `Team Score: ${team.Stats.CoreStats.Score.toString()}`,
         inline: false,
@@ -84,11 +86,11 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
         // If two players are added, or if it's the last player, push to embed and reset
         if (playerFields.length === 2 || teamPlayer === teamPlayers[teamPlayers.length - 1]) {
-          embed.addFields(playerFields);
+          embed.fields?.push(...playerFields);
           playerFields = [];
 
           // Adds a new row
-          embed.addFields({
+          embed.fields?.push({
             name: "\n",
             value: "\n",
             inline: false,

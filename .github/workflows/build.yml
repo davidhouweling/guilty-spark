@@ -23,9 +23,19 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      # ESLint and Prettier must be in `package.json`
       - name: Install Node.js dependencies
         run: npm ci
 
+      - name: Copy environment file
+        run: cp .example.dev.vars .dev.vars
+
+      - name: Generate types
+        run: npm run build:generate-types
+
       - name: Run build
         run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guilt-spark-build
+          path: ./dist

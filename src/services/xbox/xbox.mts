@@ -1,5 +1,4 @@
 import { authenticate, CredentialsAuthenticateInitialResponse } from "@xboxreplay/xboxlive-auth";
-import { config } from "../../config.mjs";
 
 enum TokenInfoKey {
   XSTSToken,
@@ -8,6 +7,8 @@ enum TokenInfoKey {
 const tokenInfoMap = new Map<TokenInfoKey, string>();
 
 export class XboxService {
+  constructor(private readonly env: Env) {}
+
   get token() {
     return tokenInfoMap.get(TokenInfoKey.XSTSToken);
   }
@@ -25,7 +26,7 @@ export class XboxService {
   }
 
   private async updateCredentials() {
-    const credentialsResponse = (await authenticate(config.XBOX_USERNAME, config.XBOX_PASSWORD, {
+    const credentialsResponse = (await authenticate(this.env.XBOX_USERNAME, this.env.XBOX_PASSWORD, {
       XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
     })) as CredentialsAuthenticateInitialResponse;
 
