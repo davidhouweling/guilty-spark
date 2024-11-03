@@ -51,4 +51,4 @@ jobs:
           prettier: true
           prettier_auto_fix: true
           tsc: true
-          tsc_auto_fix: true
+          tsc_auto_fix: false
