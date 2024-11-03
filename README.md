@@ -1,6 +1,6 @@
 # Guilty Spark
 
-A Discord App that allows for stats to be pulled for Halo games played in a custom games series.
+A [Discord App](https://discord.com/oauth2/authorize?client_id=1290269474536034357) utilizing [Cloudflare Workers](https://developers.cloudflare.com/workers/) that allows for stats to be pulled for Halo games played in a custom games series.
 
 > [!WARNING]  
 > This is a functional proof of concept.
@@ -21,16 +21,16 @@ This Discord bot can pull stats from Halo Waypoint and post accordingly.
 
 1. [Download and install node.js](https://nodejs.org/en/download/package-manager) if you haven't done already
 2. Clone the repo (assuming you already know how)
-3. Make a copy of `.env.sample` and name it `.env`
-   a. Follow the steps in Discord's Developer Documentation for Creating your first app to set the respective `DISCORD_API_*` variables in the `.env` file... you'll also need to hook up the Discord app you just created to a server
-   b. Use a spare Microsoft account (or create one) which has also been set up to have an xbox gamer tag and has accessed Halo Waypoint before... then add the username and password to the `XBOX_*` variables in the `.env` file
-4. In terminal do `npm install`
-5. On the basis that you just minted a new application, in terminal, do `npm run register` so that the commands are available in your server
-6. In terminal do `npm start`
+3. Follow the instructions from [`discord/cloudflare-sample-app`](https://github.com/discord/cloudflare-sample-app)
+   a. [Configuring project](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#configuring-project)
+   b. [Creating your Cloudflare worker](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#creating-your-cloudflare-worker)
+   c. [Running locally](https://github.com/discord/cloudflare-sample-app?tab=readme-ov-file#running-locally)
 
 Now in a channel you can use `/stats` command.
 
-## How does it work?
+## Commands explained
+
+### `/stats neatqueue <channel> <queue number>`
 
 As mentioned, this is presently a proof of concept and more can be done to improve it but as of now:
 
@@ -48,3 +48,9 @@ As mentioned, this is presently a proof of concept and more can be done to impro
    a. do additional filtering to ensure the most recent game has all the same players as every other game found
 7. Pull stats for each match
 8. Send back to Discord
+
+### `/stats match <match id>`
+
+1. User sends slash command to Discord bot
+2. Pull stats for match
+3. Send back to Discord
