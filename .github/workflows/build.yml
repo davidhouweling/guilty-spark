@@ -26,6 +26,9 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
+      - name: Copy environment file
+        run: cp .example.dev.vars .dev.vars
+
       - name: Generate types
         run: npm run build:generate-types
 
