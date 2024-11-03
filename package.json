@@ -25,7 +25,8 @@
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
     "build:generate-types": "wrangler types --experimental-include-runtime",
-    "build": "tsc --project tsconfig.build.json"
+    "build": "tsc --project tsconfig.build.json",
+    "publish": "wrangler deploy"
   },
   "dependencies": {
     "@xboxreplay/xboxlive-auth": "^4.0.0",
