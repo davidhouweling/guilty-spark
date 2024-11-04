@@ -50,6 +50,8 @@ jspm_packages/
 
 # cloudflare workers prefer .dev.vars
 .dev.vars
+.staging.vars
+.production.vars
 .wrangler
 
 # Stores VSCode versions used for testing VSCode extensions

@@ -8,10 +8,6 @@ on:
     branches:
       - main
 
-permissions:
-  checks: write
-  contents: write
-
 jobs:
   run-linters:
     name: Run linters
@@ -36,17 +32,9 @@ jobs:
       - name: Generate types
         run: npm run build:generate-types
 
+      - name: Run format
+        run: npm run format
+
       # TODO: remove once lint-action supports eslint v9
       - name: Run eslint
         run: npm run lint
-
-      - name: Run linters
-        uses: wearerequired/lint-action@v2
-        with:
-          auto_fix: true
-          # TODO: enable again once eslint v9 is supported
-          # eslint: true
-          # eslint_auto_fix: true
-          # eslint_args: "--max-warnings 0"
-          prettier: true
-          prettier_auto_fix: true
