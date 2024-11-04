@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.pull_request.base.ref == 'main' && 'production' || 'staging' }}
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 60
     steps:
