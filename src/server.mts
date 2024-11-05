@@ -10,23 +10,35 @@ import { getCommands } from "./commands/commands.mjs";
 const router = AutoRouter();
 
 router.get("/", (_request, env: Env) => {
-  return new Response(`👋 ${env.DISCORD_APP_ID}`);
+  return new Response(
+    `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357 🚀`,
+  );
 });
 
-router.post("/interactions", async (request, env: Env) => {
-  const services = installServices({ env });
-  const { discordService } = services;
-  const commands = getCommands(services);
-  discordService.setCommands(commands);
+router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
+  try {
+    const services = installServices({ env });
+    const { discordService } = services;
+    const commands = getCommands(services);
+    discordService.setCommands(commands);
 
-  const { isValid, interaction } = await discordService.verifyDiscordRequest(request);
-  if (!isValid || !interaction) {
-    return new Response("Bad request signature.", { status: 401 });
+    const { isValid, interaction } = await discordService.verifyDiscordRequest(request);
+    if (!isValid || !interaction) {
+      return new Response("Bad request signature.", { status: 401 });
+    }
+
+    const { response, jobToComplete } = discordService.handleInteraction(interaction);
+
+    if (jobToComplete) {
+      ctx.waitUntil(jobToComplete);
+    }
+
+    return response;
+  } catch (error) {
+    console.error(error);
+
+    return new Response("Internal error", { status: 500 });
   }
-
-  const response = await discordService.handleInteraction(interaction);
-
-  return response;
 });
 router.all("*", () => new Response("Not Found.", { status: 404 }));
 

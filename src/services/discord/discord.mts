@@ -18,7 +18,6 @@ import {
   RESTPostAPIChannelMessageJSONBody,
   RESTPostAPIChannelMessageResult,
   RESTPostAPIChannelThreadsResult,
-  RESTPostAPIInteractionCallbackResult,
   RESTPostAPIWebhookWithTokenJSONBody,
   Routes,
 } from "discord-api-types/v10";
@@ -75,32 +74,48 @@ export class DiscordService {
     }
   }
 
-  async handleInteraction(interaction: APIInteraction) {
+  handleInteraction(interaction: APIInteraction): {
+    response: JsonResponse;
+    jobToComplete?: Promise<void> | undefined;
+  } {
     switch (interaction.type) {
       case InteractionType.Ping: {
-        return new JsonResponse({
-          type: InteractionResponseType.Pong,
-        });
+        return {
+          response: new JsonResponse({
+            type: InteractionResponseType.Pong,
+          }),
+        };
       }
       case InteractionType.ApplicationCommand: {
         if (!this.commands) {
-          return new JsonResponse({ error: "No commands found" }, { status: 500 });
+          console.error("No commands found");
+          return {
+            response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
+          };
         }
 
         const command = this.commands.get(interaction.data.name);
         if (!command) {
-          return new JsonResponse({ error: "Command not found" }, { status: 404 });
+          console.warn("Command not found");
+
+          return {
+            response: new JsonResponse({ error: "Command not found" }, { status: 400 }),
+          };
         }
 
-        const { response, deferred } = await command.execute(interaction);
-        if (deferred) {
-          await this.updateDeferredReply(interaction.token, response);
-        }
+        const { response, jobToComplete } = command.execute(interaction);
 
-        return new JsonResponse(response);
+        return {
+          response: new JsonResponse(response),
+          jobToComplete,
+        };
       }
       default: {
-        return new JsonResponse({ error: "Unknown Type" }, { status: 400 });
+        console.warn("Unknown interaction type");
+
+        return {
+          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
+        };
       }
     }
   }
@@ -159,21 +174,13 @@ export class DiscordService {
     };
   }
 
-  async acknowledgeInteraction(interaction: APIApplicationCommandInteraction, ephemeral = false) {
+  getAcknowledgeResponse(ephemeral = false): APIInteractionResponse {
     const data: { flags?: MessageFlags } = {};
     if (ephemeral) {
       data.flags = MessageFlags.Ephemeral;
     }
 
-    const response: APIInteractionResponse = { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
-
-    return await this.fetch<RESTPostAPIInteractionCallbackResult>(
-      Routes.interactionCallback(interaction.id, interaction.token),
-      {
-        method: "POST",
-        body: JSON.stringify(response),
-      },
-    );
+    return { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
   }
 
   async updateDeferredReply(interactionToken: string, data: RESTPostAPIWebhookWithTokenJSONBody) {
