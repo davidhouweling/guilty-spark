@@ -9,12 +9,18 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
+      - name: Debug
+        run: ${{ tojson(github.event) }}
+        shell: cat {0}
+
       - name: Check out Git repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -25,20 +31,12 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: guilt-spark-build
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build & Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
-          wranglerVersion: 3.84.1
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
           vars: |
             DISCORD_APP_ID
             DISCORD_PUBLIC_KEY
@@ -52,6 +50,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           XBOX_USERNAME: ${{ vars.XBOX_USERNAME }}
           XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
+
   deploy-cancel:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
