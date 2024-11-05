@@ -30,7 +30,7 @@ router.get("/test", async (_request, env: Env) => {
   }
 });
 
-router.post("/interactions", async (request, env: Env) => {
+router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
     const services = installServices({ env });
     const { discordService } = services;
@@ -42,7 +42,11 @@ router.post("/interactions", async (request, env: Env) => {
       return new Response("Bad request signature.", { status: 401 });
     }
 
-    const response = await discordService.handleInteraction(interaction);
+    const { response, jobToComplete } = discordService.handleInteraction(interaction);
+
+    if (jobToComplete) {
+      ctx.waitUntil(jobToComplete);
+    }
 
     return response;
   } catch (error) {

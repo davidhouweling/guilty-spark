@@ -5,6 +5,7 @@ import {
   APIEmbed,
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  InteractionResponseType,
   MessageFlags,
 } from "discord-api-types/v10";
 import { GameVariantCategory, MatchStats } from "halo-infinite-api";
@@ -86,7 +87,7 @@ export class StatsCommand extends BaseCommand {
     ],
   };
 
-  async execute(interaction: APIApplicationCommandInteraction): Promise<ExecuteResponse> {
+  execute(interaction: APIApplicationCommandInteraction): ExecuteResponse {
     try {
       const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
@@ -95,10 +96,10 @@ export class StatsCommand extends BaseCommand {
       }
       switch (subcommand.name) {
         case "neatqueue": {
-          return await this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
+          return this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
         }
         case "match":
-          return await this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
+          return this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
         default:
           throw new Error("Unknown subcommand");
       }
@@ -107,28 +108,40 @@ export class StatsCommand extends BaseCommand {
 
       return {
         response: {
-          content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-          flags: MessageFlags.Ephemeral,
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
+            flags: MessageFlags.Ephemeral,
+          },
         },
-        deferred: false,
       };
     }
   }
 
-  private async handleNeatQueueSubCommand(
+  private handleNeatQueueSubCommand(
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-  ): Promise<ExecuteResponse> {
+  ): ExecuteResponse {
+    const { discordService } = this.services;
+
     const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
     const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+
+    return {
+      response: discordService.getAcknowledgeResponse(ephemeral),
+      jobToComplete: this.neatQueueSubCommandJob(interaction, channel, queue),
+    };
+  }
+
+  private async neatQueueSubCommandJob(
+    interaction: APIApplicationCommandInteraction,
+    channel: string,
+    queue: number,
+  ): Promise<void> {
     const { discordService } = this.services;
-    let deferred = false;
 
     try {
-      await this.services.discordService.acknowledgeInteraction(interaction, ephemeral);
-      deferred = true;
-
       const queueData = await discordService.getTeamsFromQueue(channel, queue);
       if (!queueData) {
         throw new Error(
@@ -145,10 +158,9 @@ export class StatsCommand extends BaseCommand {
         series,
       );
 
-      const response: ExecuteResponse["response"] = {
+      await discordService.updateDeferredReply(interaction.token, {
         embeds: [seriesEmbed],
-      };
-      await discordService.updateDeferredReply(interaction.token, response);
+      });
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
       const thread = await discordService.startThreadFromMessage(
@@ -163,70 +175,49 @@ export class StatsCommand extends BaseCommand {
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
-
-      return {
-        response,
-        deferred,
-      };
     } catch (error) {
-      console.error(error);
-
-      return {
-        response: {
-          content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
-          flags: MessageFlags.Ephemeral,
-        },
-        deferred,
-      };
+      await discordService.updateDeferredReply(interaction.token, {
+        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
+      });
     }
   }
 
-  private async handleMatchSubCommand(
+  private handleMatchSubCommand(
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-  ): Promise<ExecuteResponse> {
+  ): ExecuteResponse {
+    const { discordService } = this.services;
+
     const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
-    let deferred = false;
 
+    return {
+      response: discordService.getAcknowledgeResponse(ephemeral),
+      jobToComplete: this.matchSubCommandJob(interaction, matchId),
+    };
+  }
+
+  private async matchSubCommandJob(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
+    const { discordService, haloService } = this.services;
     try {
-      await this.services.discordService.acknowledgeInteraction(interaction, ephemeral);
-      deferred = true;
-
-      const matches = await this.services.haloService.getMatchDetails([matchId]);
+      const matches = await haloService.getMatchDetails([matchId]);
       if (!matches.length) {
-        return {
-          response: {
-            content: "Match not found",
-            flags: MessageFlags.Ephemeral,
-          },
-          deferred,
-        };
+        await discordService.updateDeferredReply(interaction.token, { content: "Match not found" });
+
+        return;
       }
 
       const match = Preconditions.checkExists(matches[0]);
-      const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+      const players = await haloService.getPlayerXuidsToGametags(match);
 
       const matchEmbed = this.getMatchEmbed(match);
       const embed = await matchEmbed.getEmbed(match, players);
 
-      return {
-        response: {
-          embeds: [embed],
-          flags: MessageFlags.Ephemeral,
-        },
-        deferred,
-      };
+      await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
     } catch (error) {
-      console.error(error);
-
-      return {
-        response: {
-          content: `Failed to fetch (match id: ${matchId}): ${error instanceof Error ? error.message : "unknown"}`,
-          flags: MessageFlags.Ephemeral,
-        },
-        deferred,
-      };
+      await discordService.updateDeferredReply(interaction.token, {
+        content: `Failed to fetch (match id: ${matchId}}): ${error instanceof Error ? error.message : "unknown"}`,
+      });
     }
   }
 
