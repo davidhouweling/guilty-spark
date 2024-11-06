@@ -10,12 +10,9 @@ head_sampling_rate = 1 # optional. default = 1.
 
 [env.dev]
 name = "guilty-spark-dev"
-workers_dev = true
 
 [env.staging]
 name = "guilty-spark-staging"
-workers_dev = true
 
 [env.production]
 name = "guilty-spark"
-workers_dev = false
