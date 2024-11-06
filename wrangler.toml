@@ -8,6 +8,10 @@ upload_source_maps = true
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
+[[kv_namespaces]]
+binding = "SERVICE_API_TOKENS"
+id = "eae67afcb62847beb5502014962ac15b"
+
 [env.dev]
 name = "guilty-spark-dev"
 
