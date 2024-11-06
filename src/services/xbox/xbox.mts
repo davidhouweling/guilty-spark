@@ -4,17 +4,20 @@ enum TokenInfoKey {
   XSTSToken,
   expiresOn,
 }
-const tokenInfoMap = new Map<TokenInfoKey, string>();
 
 export class XboxService {
-  constructor(private readonly env: Env) {}
+  private tokenInfoMap = new Map<TokenInfoKey, string>();
+
+  constructor(private readonly env: Env) {
+    void this.loadCredentials();
+  }
 
   get token() {
-    return tokenInfoMap.get(TokenInfoKey.XSTSToken);
+    return this.tokenInfoMap.get(TokenInfoKey.XSTSToken);
   }
 
   async maybeRefreshToken() {
-    const expiresOn = tokenInfoMap.get(TokenInfoKey.expiresOn);
+    const expiresOn = this.tokenInfoMap.get(TokenInfoKey.expiresOn);
 
     if (!this.token || !expiresOn || new Date() >= new Date(expiresOn)) {
       await this.updateCredentials();
@@ -22,7 +25,19 @@ export class XboxService {
   }
 
   clearToken() {
-    tokenInfoMap.clear();
+    this.tokenInfoMap.clear();
+    void this.env.SERVICE_API_TOKENS.delete("xbox");
+  }
+
+  private async loadCredentials() {
+    const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
+    if (tokenInfo) {
+      try {
+        this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   private async updateCredentials() {
@@ -30,7 +45,11 @@ export class XboxService {
       XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
     })) as CredentialsAuthenticateInitialResponse;
 
-    tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
-    tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
+    this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
+    this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
+
+    void this.env.SERVICE_API_TOKENS.put("xbox", JSON.stringify(this.tokenInfoMap.entries()), {
+      expiration: new Date(credentialsResponse.expires_on).getTime(),
+    });
   }
 }
