@@ -5,10 +5,17 @@ enum TokenInfoKey {
   expiresOn,
 }
 
+interface XboxServiceOpts {
+  env: Env;
+}
+
 export class XboxService {
+  private readonly env: Env;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
 
-  constructor(private readonly env: Env) {
+  constructor({ env }: XboxServiceOpts) {
+    this.env = env;
+
     void this.loadCredentials();
   }
 
