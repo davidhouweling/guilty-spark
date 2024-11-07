@@ -21,6 +21,7 @@ interface HaloServiceOpts {
 
 export class HaloService {
   private readonly client: HaloInfiniteClient;
+  private readonly mapNameCache = new Map<string, string>();
 
   constructor({ xboxService }: HaloServiceOpts) {
     this.client = new HaloInfiniteClient(new XstsTokenProvider(xboxService));
@@ -175,10 +176,14 @@ export class HaloService {
 
   private async getMapName(match: MatchStats) {
     const { AssetId, VersionId } = match.MatchInfo.MapVariant;
+const cacheKey = `${AssetId}:${VersionId}`;
 
+if (!this.mapNameCache.has(cacheKey)) {
     const mapData = await this.client.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+this.mapNameCache.set(cacheKey, mapData.PublicName);
+    }
 
-    return mapData.PublicName;
+    return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
   private getMatchVariant(match: MatchStats) {
