@@ -31,7 +31,7 @@
   "dependencies": {
     "@xboxreplay/xboxlive-auth": "^4.0.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.37.103",
+    "discord-api-types": "^0.37.104",
     "discord-interactions": "^4.1.0",
     "halo-infinite-api": "^9.0.2",
     "itty-router": "^5.0.18",
@@ -50,7 +50,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.13.0",
-    "wrangler": "^3.84.1"
+    "wrangler": "^3.86.0"
   },
   "overrides": {
     "@types/node": "20.8.3"
