@@ -176,11 +176,11 @@ export class HaloService {
 
   private async getMapName(match: MatchStats) {
     const { AssetId, VersionId } = match.MatchInfo.MapVariant;
-const cacheKey = `${AssetId}:${VersionId}`;
+    const cacheKey = `${AssetId}:${VersionId}`;
 
-if (!this.mapNameCache.has(cacheKey)) {
-    const mapData = await this.client.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
-this.mapNameCache.set(cacheKey, mapData.PublicName);
+    if (!this.mapNameCache.has(cacheKey)) {
+      const mapData = await this.client.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+      this.mapNameCache.set(cacheKey, mapData.PublicName);
     }
 
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
