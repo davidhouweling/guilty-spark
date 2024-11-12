@@ -15,8 +15,18 @@ export class XboxService {
 
   constructor({ env }: XboxServiceOpts) {
     this.env = env;
+  }
 
-    void this.loadCredentials();
+  async loadCredentials() {
+    const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
+    console.log("loading token info", tokenInfo);
+    if (tokenInfo) {
+      try {
+        this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   get token() {
@@ -41,18 +51,6 @@ export class XboxService {
   clearToken() {
     this.tokenInfoMap.clear();
     void this.env.SERVICE_API_TOKENS.delete("xbox");
-  }
-
-  private async loadCredentials() {
-    const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
-    console.log("loading token info", tokenInfo);
-    if (tokenInfo) {
-      try {
-        this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
-      } catch (e) {
-        console.error(e);
-      }
-    }
   }
 
   private async updateCredentials() {

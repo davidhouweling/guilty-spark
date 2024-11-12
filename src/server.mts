@@ -17,7 +17,7 @@ router.get("/", (_request, env: Env) => {
 
 router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
-    const services = installServices({ env });
+    const services = await installServices({ env });
     const { discordService } = services;
     const commands = getCommands(services);
     discordService.setCommands(commands);
