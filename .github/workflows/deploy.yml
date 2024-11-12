@@ -38,6 +38,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
           vars: |
+            KV_NAMESPACE
             DISCORD_APP_ID
             DISCORD_PUBLIC_KEY
             XBOX_USERNAME
@@ -45,6 +46,7 @@ jobs:
             DISCORD_TOKEN
             XBOX_PASSWORD
         env:
+          KV_NAMESPACE: ${{ vars.KV_NAMESPACE }}
           DISCORD_APP_ID: ${{ vars.DISCORD_APP_ID }}
           DISCORD_PUBLIC_KEY: ${{ vars.DISCORD_PUBLIC_KEY }}
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
