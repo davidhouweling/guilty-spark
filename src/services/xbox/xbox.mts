@@ -1,5 +1,4 @@
 import { authenticate, CredentialsAuthenticateInitialResponse } from "@xboxreplay/xboxlive-auth";
-import { KvService } from "../kv/kv.mjs";
 
 enum TokenInfoKey {
   XSTSToken,
@@ -8,17 +7,14 @@ enum TokenInfoKey {
 
 interface XboxServiceOpts {
   env: Env;
-  kvService: KvService;
 }
 
 export class XboxService {
   private readonly env: Env;
-  private readonly kvService: KvService;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
 
-  constructor({ env, kvService }: XboxServiceOpts) {
+  constructor({ env }: XboxServiceOpts) {
     this.env = env;
-    this.kvService = kvService;
 
     void this.loadCredentials();
   }
@@ -37,11 +33,11 @@ export class XboxService {
 
   clearToken() {
     this.tokenInfoMap.clear();
-    void this.kvService.kv.delete("xbox");
+    void this.env.SERVICE_API_TOKENS.delete("xbox");
   }
 
   private async loadCredentials() {
-    const tokenInfo = await this.kvService.kv.get("xbox");
+    const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
     console.log("loading token info", tokenInfo);
     if (tokenInfo) {
       try {
@@ -61,7 +57,7 @@ export class XboxService {
     this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
 
     console.log("updating token info...");
-    await this.kvService.kv.put("xbox", JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
+    await this.env.SERVICE_API_TOKENS.put("xbox", JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
       expirationTtl: Math.floor((new Date(credentialsResponse.expires_on).getTime() - new Date().getTime()) / 1000),
     });
     console.log("updated token info");
