@@ -176,6 +176,12 @@ export class StatsCommand extends BaseCommand {
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
     } catch (error) {
+      console.error(error);
+
+      if (error instanceof Error && error.message === "Too many subrequests.") {
+        return;
+      }
+
       await discordService.updateDeferredReply(interaction.token, {
         content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
       });
@@ -215,6 +221,12 @@ export class StatsCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
     } catch (error) {
+      console.error(error);
+
+      if (error instanceof Error && error.message === "Too many subrequests.") {
+        return;
+      }
+
       await discordService.updateDeferredReply(interaction.token, {
         content: `Failed to fetch (match id: ${matchId}}): ${error instanceof Error ? error.message : "unknown"}`,
       });
