@@ -38,6 +38,7 @@ export class XboxService {
 
   private async loadCredentials() {
     const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
+    console.log("loading token info", tokenInfo);
     if (tokenInfo) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
@@ -55,8 +56,10 @@ export class XboxService {
     this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
     this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
 
-    void this.env.SERVICE_API_TOKENS.put("xbox", JSON.stringify(this.tokenInfoMap.entries()), {
-      expiration: new Date(credentialsResponse.expires_on).getTime(),
+    console.log("updating token info...");
+    await this.env.SERVICE_API_TOKENS.put("xbox", JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
+      expirationTtl: Math.floor((new Date(credentialsResponse.expires_on).getTime() - new Date().getTime()) / 1000),
     });
+    console.log("updated token info");
   }
 }
