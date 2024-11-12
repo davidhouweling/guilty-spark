@@ -3,23 +3,22 @@ main = "./src/server.mts"
 compatibility_flags = [ "nodejs_compat" ]
 compatibility_date = "2024-09-23"
 upload_source_maps = true
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS_DEV", id = "09cd8999e6974145bd11b533f9f8afaa" }
+]
 
 [observability]
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
-[[kv_namespaces]]
-binding = "SERVICE_API_TOKENS_DEV"
-id = "09cd8999e6974145bd11b533f9f8afaa"
-
 [env.staging]
 name = "guilty-spark-staging"
-[[kv_namespaces]]
-binding = "SERVICE_API_TOKENS_STAGING"
-id = "0bda29a4f4f046c18495f498dc3ff926"
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS_STAGING", id = "0bda29a4f4f046c18495f498dc3ff926" }
+]
 
 [env.production]
 name = "guilty-spark"
-[[kv_namespaces]]
-binding = "SERVICE_API_TOKENS_PRODUCTION"
-id = "627e6ea829d347ff848dc11cebc43923"
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS_PRODUCTION", id = "627e6ea829d347ff848dc11cebc43923" }
+]
