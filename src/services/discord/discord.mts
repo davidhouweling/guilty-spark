@@ -36,6 +36,10 @@ export interface QueueData {
   }[];
 }
 
+interface DiscordServiceOpts {
+  env: Env;
+}
+
 export interface SubcommandData {
   name: string;
   options: APIApplicationCommandInteractionDataBasicOption[] | undefined;
@@ -47,9 +51,12 @@ export interface SubcommandData {
 // replacing the outer workings with the expectations of discord HTTP interactions
 // but keep the underlying logic the same, so this acts to transform between the two
 export class DiscordService {
+  private readonly env: Env;
   private commands: Map<string, BaseCommand> | undefined = undefined;
 
-  constructor(private readonly env: Env) {}
+  constructor({ env }: DiscordServiceOpts) {
+    this.env = env;
+  }
 
   setCommands(commands: Map<string, BaseCommand>) {
     this.commands = commands;
@@ -70,6 +77,7 @@ export class DiscordService {
       return { interaction: parsedInteraction, isValid: true };
     } catch (error) {
       console.error(error);
+
       return { isValid: false, error: "Invalid JSON" };
     }
   }

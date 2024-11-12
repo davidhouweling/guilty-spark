@@ -3,16 +3,24 @@ main = "./src/server.mts"
 compatibility_flags = [ "nodejs_compat" ]
 compatibility_date = "2024-09-23"
 upload_source_maps = true
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS", id = "374fa9b9bed741fe9b5cb2d777206413" }
+]
 
 [observability]
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
-[env.dev]
-name = "guilty-spark-dev"
 
 [env.staging]
 name = "guilty-spark-staging"
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS", id = "15f902ee57834484a4809a839a5c0a71" }
+]
+
 
 [env.production]
 name = "guilty-spark"
+kv_namespaces = [
+  { binding = "SERVICE_API_TOKENS", id = "2b593da40c7e4762be0c2095afdad49f" }
+]

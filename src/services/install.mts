@@ -12,10 +12,12 @@ interface InstallServicesOpts {
   env: Env;
 }
 
-export function installServices({ env }: InstallServicesOpts): Services {
-  const discordService = new DiscordService(env);
-  const xboxService = new XboxService(env);
+export async function installServices({ env }: InstallServicesOpts): Promise<Services> {
+  const discordService = new DiscordService({ env });
+  const xboxService = new XboxService({ env });
   const haloService = new HaloService({ xboxService });
+
+  await xboxService.loadCredentials();
 
   return {
     discordService,
