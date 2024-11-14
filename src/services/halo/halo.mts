@@ -6,7 +6,6 @@ import {
   MatchStats,
   MatchType,
   PlayerMatchHistory,
-  UserInfo,
 } from "halo-infinite-api";
 import { XboxService } from "../xbox/xbox.mjs";
 import { XstsTokenProvider } from "./xsts-token-provider.mjs";
@@ -14,94 +13,51 @@ import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { APIUser } from "discord-api-types/v10";
+import {
+  AssociationReason,
+  DiscordAssociationsRow,
+  GamesRetrievable,
+} from "../database/types/discord_associations.mjs";
+import { DatabaseService } from "../database/database.mjs";
 
 interface HaloServiceOpts {
   xboxService: XboxService;
+  databaseService: DatabaseService;
 }
 
 export class HaloService {
+  private readonly databaseService: DatabaseService;
   private readonly client: HaloInfiniteClient;
   private readonly mapNameCache = new Map<string, string>();
+  private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
 
-  constructor({ xboxService }: HaloServiceOpts) {
+  constructor({ xboxService, databaseService }: HaloServiceOpts) {
+    this.databaseService = databaseService;
     this.client = new HaloInfiniteClient(new XstsTokenProvider(xboxService));
   }
 
   async getSeriesFromDiscordQueue(queueData: QueueData) {
     const users = queueData.teams.flatMap((team) => team.players);
-    const xboxUsers = await this.getXboxUsers(users);
-    const matchesForUsers = await this.getMatchesForUsers(xboxUsers, queueData.timestamp);
+    await this.populateUserCache(users);
+
+    const usersWithGamesRetrieved = Array.from(this.userCache.values()).filter(
+      (user) => user.GamesRetrievable === GamesRetrievable.YES,
+    );
+    const usersWithGamesUnknown = Array.from(this.userCache.values()).filter(
+      (user) => user.GamesRetrievable === GamesRetrievable.UNKNOWN,
+    );
+    // whilst we only need to find the first one matchable, allow us to go through the list and update cache if not matching
+    const usersToSearch = [...usersWithGamesRetrieved, ...usersWithGamesUnknown];
+
+    const matchesForUsers = await this.getMatchesForUsers(usersToSearch, queueData.timestamp);
     const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
       const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
       // we want at least 2 minutes of game play, otherwise assume that the match was chalked
       return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
     });
-    const finalMatch = Preconditions.checkExists(matchDetails[matchDetails.length - 1]);
-    const finalMatchPlayers = finalMatch.Players.map((player) => player.PlayerId);
-    const seriesMatches = matchDetails.filter((match) =>
-      match.Players.every((player) => finalMatchPlayers.includes(player.PlayerId)),
-    );
+    const seriesMatches = this.filterMatchesToMatchingTeams(matchDetails);
 
     return seriesMatches;
-  }
-
-  private async getXboxUsers(users: APIUser[]) {
-    const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      users.map((user) => this.client.getUser(user.username)),
-    );
-
-    const unresolvedUsers = users.filter((_, index) => xboxUsersByDiscordUsernameResult[index]?.status === "rejected");
-    const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
-      unresolvedUsers.map((user) =>
-        user.global_name ? this.client.getUser(user.global_name) : Promise.reject(new Error("No global name")),
-      ),
-    );
-
-    return [...xboxUsersByDiscordUsernameResult, ...xboxUsersByDiscordDisplayNameResult]
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value);
-  }
-
-  private async getPlayerMatches(xboxUserId: string, date: Date) {
-    const playerMatches = await this.client.getPlayerMatches(xboxUserId, MatchType.Custom);
-    const matchesCloseToDate = playerMatches.filter((match) => {
-      const startTime = new Date(match.MatchInfo.StartTime);
-      // comparing start time rather than end time in the event that the match somehow completes after the end date
-      // would be hard to imagine a series taking longer than 6 hours
-      return isBefore(startTime, date) && differenceInHours(date, startTime) < 6;
-    });
-
-    return matchesCloseToDate;
-  }
-
-  private async getMatchesForUsers(xboxUsers: UserInfo[], endDate: Date) {
-    const userMatches = new Map<string, PlayerMatchHistory[]>();
-    for (const xboxUser of xboxUsers) {
-      const playerMatches = await this.getPlayerMatches(xboxUser.xuid, endDate);
-      if (playerMatches.length) {
-        userMatches.set(xboxUser.xuid, playerMatches);
-      }
-    }
-
-    if (!userMatches.size) {
-      throw new Error(
-        "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
-      );
-    }
-
-    const matchToUsers = new Map<string, string[]>();
-    for (const [xuid, matches] of userMatches) {
-      for (const match of matches) {
-        const existingMatches = matchToUsers.get(match.MatchId) ?? ([] as string[]);
-        existingMatches.push(xuid);
-        matchToUsers.set(match.MatchId, existingMatches);
-      }
-    }
-
-    const mostUsersInMatch = Math.max(...Array.from(matchToUsers.values()).map((users) => users.length));
-    const scopedMatches = Array.from(matchToUsers.entries()).filter(([, users]) => users.length === mostUsersInMatch);
-
-    return scopedMatches.map(([matchID]) => matchID);
   }
 
   async getMatchDetails(matchIDs: string[], filter?: (match: MatchStats, index: number) => boolean) {
@@ -172,6 +128,129 @@ export class HaloService {
     }
 
     return output.join(" ");
+  }
+
+  private async populateUserCache(users: APIUser[]): Promise<void> {
+    const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
+    for (const association of discordAssociations) {
+      this.userCache.set(association.DiscordId, association);
+    }
+
+    let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
+    const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
+      unresolvedUsers.map((user) => this.client.getUser(user.username)),
+    );
+    for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
+      if (result.status === "fulfilled") {
+        const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
+        this.userCache.set(discordId, {
+          DiscordId: discordId,
+          XboxId: result.value.xuid,
+          AssociationReason: AssociationReason.USERNAME_SEARCH,
+          AssociationDate: new Date().toISOString(),
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+        });
+      }
+    }
+
+    unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
+    const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
+      unresolvedUsers.map((user) =>
+        user.global_name ? this.client.getUser(user.global_name) : Promise.reject(new Error("No global name")),
+      ),
+    );
+    for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
+      if (result.status === "fulfilled") {
+        const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
+        this.userCache.set(discordId, {
+          DiscordId: discordId,
+          XboxId: result.value.xuid,
+          AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+          AssociationDate: new Date().toISOString(),
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+        });
+      }
+    }
+  }
+
+  private async getPlayerMatches(xboxUserId: string, date: Date) {
+    const playerMatches = await this.client.getPlayerMatches(xboxUserId, MatchType.Custom);
+    const matchesCloseToDate = playerMatches.filter((match) => {
+      const startTime = new Date(match.MatchInfo.StartTime);
+      // comparing start time rather than end time in the event that the match somehow completes after the end date
+      // would be hard to imagine a series taking longer than 6 hours
+      return isBefore(startTime, date) && differenceInHours(date, startTime) < 6;
+    });
+
+    return matchesCloseToDate;
+  }
+
+  private async getMatchesForUsers(users: DiscordAssociationsRow[], endDate: Date) {
+    const userMatches = new Map<string, PlayerMatchHistory[]>();
+    const matches: PlayerMatchHistory[] = [];
+
+    for (const user of users) {
+      const playerMatches = await this.getPlayerMatches(user.XboxId, endDate);
+      if (!playerMatches.length) {
+        this.userCache.set(user.DiscordId, { ...user, GamesRetrievable: GamesRetrievable.NO });
+        continue;
+      }
+
+      userMatches.set(user.DiscordId, playerMatches);
+
+      // ideal: if we have at least 2 users with the same last match, then we can assume that this is the series
+      if (userMatches.size >= 2) {
+        const lastMatch = Preconditions.checkExists(playerMatches[0]);
+        const otherUsersWithSameLastMatch = Array.from(userMatches.entries()).filter(
+          ([, matches]) => Preconditions.checkExists(matches[0]).MatchId === lastMatch.MatchId,
+        );
+        if (otherUsersWithSameLastMatch.length) {
+          for (const [discordId] of otherUsersWithSameLastMatch) {
+            this.userCache.set(discordId, {
+              ...Preconditions.checkExists(this.userCache.get(discordId)),
+              GamesRetrievable: GamesRetrievable.YES,
+            });
+          }
+          this.userCache.set(user.DiscordId, { ...user, GamesRetrievable: GamesRetrievable.YES });
+          matches.push(...playerMatches);
+
+          break;
+        }
+      }
+    }
+
+    // if no matching matches but at least one user has matches, then we can assume the series from that one user
+    if (!matches.length && userMatches.size) {
+      const [discordId, playerMatches] = Preconditions.checkExists(userMatches.entries().next().value);
+      this.userCache.set(discordId, {
+        ...Preconditions.checkExists(this.userCache.get(discordId)),
+        GamesRetrievable: GamesRetrievable.YES,
+      });
+      matches.push(...playerMatches);
+    }
+
+    if (!matches.length) {
+      throw new Error(
+        "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
+      );
+    }
+
+    return matches.map((match) => match.MatchId);
+  }
+
+  private filterMatchesToMatchingTeams(matches: MatchStats[]) {
+    const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
+    return matches.filter((match) => {
+      if (match.Teams.length !== lastMatch.Teams.length) {
+        return false;
+      }
+
+      return match.Players.every((player) =>
+        lastMatch.Players.some(
+          (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
+        ),
+      );
+    });
   }
 
   private async getMapName(match: MatchStats) {
