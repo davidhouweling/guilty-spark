@@ -160,16 +160,16 @@ export class HaloService {
       ),
     );
     for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
-      if (result.status === "fulfilled") {
-        const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
-        this.userCache.set(discordId, {
-          DiscordId: discordId,
-          XboxId: result.value.xuid,
-          AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
-          AssociationDate: new Date().toISOString(),
-          GamesRetrievable: GamesRetrievable.UNKNOWN,
-        });
-      }
+      const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
+      const resolved = result.status === "fulfilled";
+
+      this.userCache.set(discordId, {
+        DiscordId: discordId,
+        XboxId: resolved ? result.value.xuid : "",
+        AssociationReason: resolved ? AssociationReason.DISPLAY_NAME_SEARCH : AssociationReason.UNKNOWN,
+        AssociationDate: new Date().toISOString(),
+        GamesRetrievable: GamesRetrievable.UNKNOWN,
+      });
     }
   }
 
