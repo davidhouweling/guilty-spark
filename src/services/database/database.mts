@@ -14,8 +14,7 @@ export class DatabaseService {
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
     const placeholders = discordIds.map(() => "?").join(",");
     const query = `SELECT * FROM DiscordAssociations WHERE DiscordId IN (${placeholders})`;
-    const stmt = this.env.DB.prepare(query);
-    discordIds.forEach((discordId, index) => stmt.bind(index + 1, discordId));
+    const stmt = this.env.DB.prepare(query).bind(...discordIds);
     const response = await stmt.all<DiscordAssociationsRow>();
     return response.results;
   }

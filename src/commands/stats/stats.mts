@@ -164,9 +164,9 @@ export class StatsCommand extends BaseCommand {
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
       const thread = await discordService.startThreadFromMessage(
-        channel,
+        message.channel_id,
         message.id,
-        `In depth match stats for queue #${queue.toString()}`,
+        `Queue #${queue.toString()} series stats`,
       );
       for (const match of series) {
         const players = await this.services.haloService.getPlayerXuidsToGametags(match);
