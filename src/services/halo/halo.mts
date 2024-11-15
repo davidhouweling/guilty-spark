@@ -139,6 +139,10 @@ export class HaloService {
     return output.join(" ");
   }
 
+  async updateDiscordAssociations() {
+    await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
+  }
+
   private async populateUserCache(users: APIUser[]): Promise<void> {
     const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
     for (const association of discordAssociations) {
@@ -201,7 +205,11 @@ export class HaloService {
     for (const user of users) {
       const playerMatches = await this.getPlayerMatches(user.XboxId, endDate);
       if (!playerMatches.length) {
-        this.userCache.set(user.DiscordId, { ...user, GamesRetrievable: GamesRetrievable.NO });
+        this.userCache.set(user.DiscordId, {
+          ...user,
+          AssociationDate: new Date().toISOString(),
+          GamesRetrievable: GamesRetrievable.NO,
+        });
         continue;
       }
 
@@ -217,10 +225,15 @@ export class HaloService {
           for (const [discordId] of otherUsersWithSameLastMatch) {
             this.userCache.set(discordId, {
               ...Preconditions.checkExists(this.userCache.get(discordId)),
+              AssociationDate: new Date().toISOString(),
               GamesRetrievable: GamesRetrievable.YES,
             });
           }
-          this.userCache.set(user.DiscordId, { ...user, GamesRetrievable: GamesRetrievable.YES });
+          this.userCache.set(user.DiscordId, {
+            ...user,
+            AssociationDate: new Date().toISOString(),
+            GamesRetrievable: GamesRetrievable.YES,
+          });
           matches.push(...playerMatches);
 
           break;
@@ -233,6 +246,7 @@ export class HaloService {
       const [discordId, playerMatches] = Preconditions.checkExists(userMatches.entries().next().value);
       this.userCache.set(discordId, {
         ...Preconditions.checkExists(this.userCache.get(discordId)),
+        AssociationDate: new Date().toISOString(),
         GamesRetrievable: GamesRetrievable.YES,
       });
       matches.push(...playerMatches);

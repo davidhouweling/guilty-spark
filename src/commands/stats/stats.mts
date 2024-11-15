@@ -139,7 +139,7 @@ export class StatsCommand extends BaseCommand {
     channel: string,
     queue: number,
   ): Promise<void> {
-    const { discordService } = this.services;
+    const { discordService, haloService } = this.services;
 
     try {
       const queueData = await discordService.getTeamsFromQueue(channel, queue);
@@ -149,7 +149,7 @@ export class StatsCommand extends BaseCommand {
         );
       }
 
-      const series = await this.services.haloService.getSeriesFromDiscordQueue(queueData);
+      const series = await haloService.getSeriesFromDiscordQueue(queueData);
       const seriesEmbed = await this.createSeriesEmbed(
         Preconditions.checkExists(interaction.guild_id, "No guild id"),
         channel,
@@ -169,12 +169,14 @@ export class StatsCommand extends BaseCommand {
         `Queue #${queue.toString()} series stats`,
       );
       for (const match of series) {
-        const players = await this.services.haloService.getPlayerXuidsToGametags(match);
+        const players = await haloService.getPlayerXuidsToGametags(match);
         const matchEmbed = this.getMatchEmbed(match);
         const embed = await matchEmbed.getEmbed(match, players);
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
+
+      await haloService.updateDiscordAssociations();
     } catch (error) {
       console.error(error);
 

@@ -19,10 +19,11 @@ export class DatabaseService {
     return response.results;
   }
 
-  async addDiscordAssociation(associations: DiscordAssociationsRow[]): Promise<void> {
+  async upsertDiscordAssociations(associations: DiscordAssociationsRow[]): Promise<void> {
     const placeholders = associations.map(() => "(?, ?, ?, ?, ?)").join(",");
-    const query = `INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable) VALUES ${placeholders}`;
-    const stmt = this.env.DB.prepare(query);
+    const query = `
+      INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable) VALUES ${placeholders}
+      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable`;
     const bindings = associations.flatMap((association) => [
       association.DiscordId,
       association.XboxId,
@@ -30,7 +31,7 @@ export class DatabaseService {
       association.AssociationDate,
       association.GamesRetrievable,
     ]);
-    stmt.bind(...bindings);
+    const stmt = this.env.DB.prepare(query).bind(...bindings);
     await stmt.run();
   }
 }
