@@ -30,6 +30,7 @@ export class HaloService {
   private readonly client: HaloInfiniteClient;
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
+  private readonly xuidToGamerTagCache = new Map<string, string>();
 
   constructor({ xboxService, databaseService }: HaloServiceOpts) {
     this.databaseService = databaseService;
@@ -106,9 +107,17 @@ export class HaloService {
   }
 
   async getPlayerXuidsToGametags(match: MatchStats): Promise<Map<string, string>> {
-    const playerNames = await this.client.getUsers(match.Players.map((player) => this.getPlayerXuid(player)));
+    const xuidsToResolve = match.Players.map((player) => this.getPlayerXuid(player)).filter(
+      (xuid) => !this.xuidToGamerTagCache.has(xuid),
+    );
+    if (xuidsToResolve.length) {
+      const playerNames = await this.client.getUsers(xuidsToResolve);
+      for (const player of playerNames) {
+        this.xuidToGamerTagCache.set(player.xuid, player.gamertag);
+      }
+    }
 
-    return new Map(playerNames.map((player) => [player.xuid, player.gamertag]));
+    return this.xuidToGamerTagCache;
   }
 
   getReadableDuration(duration: string) {
