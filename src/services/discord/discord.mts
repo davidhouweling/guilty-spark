@@ -17,6 +17,7 @@ import {
   RESTPatchAPIChannelMessageResult,
   RESTPostAPIChannelMessageJSONBody,
   RESTPostAPIChannelMessageResult,
+  RESTPostAPIChannelMessagesThreadsJSONBody,
   RESTPostAPIChannelThreadsResult,
   RESTPostAPIWebhookWithTokenJSONBody,
   Routes,
@@ -212,10 +213,24 @@ export class DiscordService {
     });
   }
 
-  startThreadFromMessage(channel: string, message: string, name: string, autoArchiveDuration = 60) {
+  startThreadFromMessage(
+    channel: string,
+    message: string,
+    name: string,
+    autoArchiveDuration: 60 | 1440 | 4320 | 10080 = 60,
+  ) {
+    if (name.length > 100) {
+      throw new Error("Thread name must be 100 characters or fewer");
+    }
+
+    const data: RESTPostAPIChannelMessagesThreadsJSONBody = {
+      name,
+      auto_archive_duration: autoArchiveDuration,
+    };
+
     return this.fetch<RESTPostAPIChannelThreadsResult>(Routes.threads(channel, message), {
       method: "POST",
-      body: JSON.stringify({ name, auto_archive_duration: autoArchiveDuration }),
+      body: JSON.stringify(data),
     });
   }
 

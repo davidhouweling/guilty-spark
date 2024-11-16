@@ -7,4 +7,5 @@ interface Env {
 	DISCORD_PUBLIC_KEY: string;
 	XBOX_USERNAME: string;
 	XBOX_PASSWORD: string;
+	DB: D1Database;
 }
