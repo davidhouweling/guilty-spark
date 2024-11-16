@@ -45,10 +45,17 @@ export class HaloService {
       (user) => user.GamesRetrievable === GamesRetrievable.YES,
     );
     const usersWithGamesUnknown = Array.from(this.userCache.values()).filter(
-      (user) => user.GamesRetrievable === GamesRetrievable.UNKNOWN,
+      (user) =>
+        user.AssociationReason !== AssociationReason.UNKNOWN && user.GamesRetrievable === GamesRetrievable.UNKNOWN,
     );
     // whilst we only need to find the first one matchable, allow us to go through the list and update cache if not matching
     const usersToSearch = [...usersWithGamesRetrieved, ...usersWithGamesUnknown];
+
+    if (!usersToSearch.length) {
+      await this.updateDiscordAssociations();
+
+      throw new Error("Unable to match any of the Discord users to their Xbox accounts");
+    }
 
     const matchesForUsers = await this.getMatchesForUsers(usersToSearch, queueData.timestamp);
     const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {

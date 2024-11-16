@@ -78,6 +78,7 @@ export class DiscordService {
       return { interaction: parsedInteraction, isValid: true };
     } catch (error) {
       console.error(error);
+      console.trace();
 
       return { isValid: false, error: "Invalid JSON" };
     }
