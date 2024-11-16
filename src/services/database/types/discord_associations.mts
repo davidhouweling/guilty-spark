@@ -17,6 +17,6 @@ export interface DiscordAssociationsRow {
   DiscordId: string;
   XboxId: string;
   AssociationReason: AssociationReason;
-  AssociationDate: string;
+  AssociationDate: number;
   GamesRetrievable: GamesRetrievable;
 }

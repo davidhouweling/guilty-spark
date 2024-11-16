@@ -160,7 +160,7 @@ export class HaloService {
           DiscordId: discordId,
           XboxId: result.value.xuid,
           AssociationReason: AssociationReason.USERNAME_SEARCH,
-          AssociationDate: new Date().toISOString(),
+          AssociationDate: new Date().getTime(),
           GamesRetrievable: GamesRetrievable.UNKNOWN,
         });
       }
@@ -180,7 +180,7 @@ export class HaloService {
         DiscordId: discordId,
         XboxId: resolved ? result.value.xuid : "",
         AssociationReason: resolved ? AssociationReason.DISPLAY_NAME_SEARCH : AssociationReason.UNKNOWN,
-        AssociationDate: new Date().toISOString(),
+        AssociationDate: new Date().getTime(),
         GamesRetrievable: GamesRetrievable.UNKNOWN,
       });
     }
@@ -207,7 +207,7 @@ export class HaloService {
       if (!playerMatches.length) {
         this.userCache.set(user.DiscordId, {
           ...user,
-          AssociationDate: new Date().toISOString(),
+          AssociationDate: new Date().getTime(),
           GamesRetrievable: GamesRetrievable.NO,
         });
         continue;
@@ -225,13 +225,13 @@ export class HaloService {
           for (const [discordId] of otherUsersWithSameLastMatch) {
             this.userCache.set(discordId, {
               ...Preconditions.checkExists(this.userCache.get(discordId)),
-              AssociationDate: new Date().toISOString(),
+              AssociationDate: new Date().getTime(),
               GamesRetrievable: GamesRetrievable.YES,
             });
           }
           this.userCache.set(user.DiscordId, {
             ...user,
-            AssociationDate: new Date().toISOString(),
+            AssociationDate: new Date().getTime(),
             GamesRetrievable: GamesRetrievable.YES,
           });
           matches.push(...playerMatches);
@@ -246,7 +246,7 @@ export class HaloService {
       const [discordId, playerMatches] = Preconditions.checkExists(userMatches.entries().next().value);
       this.userCache.set(discordId, {
         ...Preconditions.checkExists(this.userCache.get(discordId)),
-        AssociationDate: new Date().toISOString(),
+        AssociationDate: new Date().getTime(),
         GamesRetrievable: GamesRetrievable.YES,
       });
       matches.push(...playerMatches);
