@@ -104,7 +104,7 @@ export class StatsCommand extends BaseCommand {
           throw new Error("Unknown subcommand");
       }
     } catch (error) {
-      console.error(error);
+      console.trace(error);
 
       return {
         response: {
@@ -178,7 +178,7 @@ export class StatsCommand extends BaseCommand {
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
-      console.error(error);
+      console.trace(error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -223,7 +223,7 @@ export class StatsCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
     } catch (error) {
-      console.error(error);
+      console.trace(error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;

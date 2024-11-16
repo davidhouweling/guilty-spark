@@ -77,7 +77,7 @@ export class DiscordService {
       const parsedInteraction = JSON.parse(body) as APIInteraction;
       return { interaction: parsedInteraction, isValid: true };
     } catch (error) {
-      console.error(error);
+      console.trace(error);
 
       return { isValid: false, error: "Invalid JSON" };
     }
@@ -97,7 +97,7 @@ export class DiscordService {
       }
       case InteractionType.ApplicationCommand: {
         if (!this.commands) {
-          console.error("No commands found");
+          console.trace("No commands found");
           return {
             response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
           };

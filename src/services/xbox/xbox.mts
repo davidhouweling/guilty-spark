@@ -22,8 +22,9 @@ export class XboxService {
     if (tokenInfo) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.trace(error);
+        console.log("Continuing without cached Xbox credentials");
       }
     }
   }

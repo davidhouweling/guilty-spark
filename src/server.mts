@@ -35,7 +35,7 @@ router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, ""
 
     return response;
   } catch (error) {
-    console.error(error);
+    console.trace(error);
 
     return new Response("Internal error", { status: 500 });
   }
