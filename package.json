@@ -22,7 +22,7 @@
     "start": "wrangler dev",
     "ngrok": "ngrok http 8787",
     "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx --test",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
