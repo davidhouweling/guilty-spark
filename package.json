@@ -5,6 +5,9 @@
   "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/davidhouweling/guilty-spark.git"
@@ -41,7 +44,7 @@
     "@eslint/js": "^9.14.0",
     "@tsconfig/node20": "^20.1.4",
     "@types/eslint__js": "^8.42.3",
-    "@types/node": "20.8.3",
+    "@types/node": "22.9.0",
     "dotenv": "^16.4.5",
     "eslint": "^9.14.0",
     "ngrok": "^5.0.0-beta.2",
@@ -51,8 +54,5 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.13.0",
     "wrangler": "^3.86.0"
-  },
-  "overrides": {
-    "@types/node": "20.8.3"
   }
 }
