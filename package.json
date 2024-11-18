@@ -34,25 +34,25 @@
   "dependencies": {
     "@xboxreplay/xboxlive-auth": "^4.0.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.37.104",
+    "discord-api-types": "^0.37.105",
     "discord-interactions": "^4.1.0",
     "halo-infinite-api": "^9.0.2",
     "itty-router": "^5.0.18",
     "tinyduration": "^3.3.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.14.0",
+    "@eslint/js": "^9.15.0",
     "@tsconfig/node20": "^20.1.4",
     "@types/eslint__js": "^8.42.3",
     "@types/node": "22.9.0",
     "dotenv": "^16.4.5",
-    "eslint": "^9.14.0",
+    "eslint": "^9.15.0",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.0",
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.13.0",
-    "wrangler": "^3.86.0"
+    "typescript-eslint": "^8.14.0",
+    "wrangler": "^3.87.0"
   }
 }
