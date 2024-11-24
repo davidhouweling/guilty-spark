@@ -1,20 +1,33 @@
-import { authenticate, CredentialsAuthenticateInitialResponse } from "@xboxreplay/xboxlive-auth";
+import {
+  AuthenticateOptions,
+  CredentialsAuthenticateInitialResponse,
+  CredentialsAuthenticateResponse,
+} from "@xboxreplay/xboxlive-auth";
 
-enum TokenInfoKey {
+export enum TokenInfoKey {
   XSTSToken,
   expiresOn,
 }
 
 interface XboxServiceOpts {
   env: Env;
+  authenticate: XboxLiveAuthAuthenticate;
 }
+
+export type XboxLiveAuthAuthenticate = (
+  email: string,
+  password: string,
+  options?: AuthenticateOptions,
+) => Promise<CredentialsAuthenticateResponse>;
 
 export class XboxService {
   private readonly env: Env;
+  private readonly authenticate: XboxLiveAuthAuthenticate;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
 
-  constructor({ env }: XboxServiceOpts) {
+  constructor({ env, authenticate }: XboxServiceOpts) {
     this.env = env;
+    this.authenticate = authenticate;
   }
 
   async loadCredentials() {
@@ -47,7 +60,7 @@ export class XboxService {
   }
 
   private async updateCredentials() {
-    const credentialsResponse = (await authenticate(this.env.XBOX_USERNAME, this.env.XBOX_PASSWORD, {
+    const credentialsResponse = (await this.authenticate(this.env.XBOX_USERNAME, this.env.XBOX_PASSWORD, {
       XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
     })) as CredentialsAuthenticateInitialResponse;
 
