@@ -22,7 +22,7 @@
     "start": "wrangler dev",
     "ngrok": "ngrok http 8787",
     "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
-    "test": "tsx --test",
+    "test": "vitest",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
@@ -53,6 +53,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.6",
     "wrangler": "^3.90.0"
   }
 }
