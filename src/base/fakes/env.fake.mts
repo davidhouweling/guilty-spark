@@ -6,7 +6,7 @@ const fakeNamespace: KVNamespace = {
   delete: () => Promise.resolve(),
 };
 
-const fakeD1Response: D1Response = {
+export const fakeD1Response: D1Response = {
   success: true,
   meta: {
     changed_db: true,
@@ -19,18 +19,29 @@ const fakeD1Response: D1Response = {
   },
 };
 
-const prepare: D1PreparedStatement = {
-  bind: () => prepare,
-  first: () => Promise.resolve(null),
-  run: () => Promise.resolve({ ...fakeD1Response, results: [] }),
-  all: () => Promise.resolve({ ...fakeD1Response, results: [] }),
-  raw: () => {
+export class FakePreparedStatement /* extends D1PreparedStatement */ {
+  bind() {
+    return this as unknown as D1PreparedStatement;
+  }
+  first() {
+    return Promise.resolve(null);
+  }
+  run() {
+    return Promise.resolve({ ...fakeD1Response, results: [] });
+  }
+  all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+    return Promise.resolve({ ...fakeD1Response, results: [] as T[] });
+  }
+  raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
+  raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  raw<T = unknown[]>(_options?: { columnNames?: boolean }): Promise<T[] | [string[], ...T[]]> {
     throw new Error("Not implemented");
-  },
-};
+  }
+}
 
 const fakeDb: D1Database = {
-  prepare: () => prepare,
+  prepare: () => new FakePreparedStatement(),
   batch: () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
   exec: () => Promise.resolve({ count: 1, duration: 1 }),
   dump: () => Promise.resolve(new ArrayBuffer(1)),
