@@ -13,6 +13,11 @@ jobs:
     name: Run Test
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
@@ -33,4 +38,16 @@ jobs:
         run: npm run build:generate-types
 
       - name: Run test
-        run: npm run test
+        run: npx vitest --coverage.enabled true
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          comment_mode: off
+          files: |
+            test-results/**/*.xml
+
+      - name: Report Coverage
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@v2

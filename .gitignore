@@ -57,4 +57,8 @@ jspm_packages/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# don't save any of the json files that may have fetched in the scripts run
 scripts/*.json
+
+# test output for vitest to use in publish to github action
+test-results

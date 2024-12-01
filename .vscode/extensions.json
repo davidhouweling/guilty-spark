@@ -1,3 +1,8 @@
 {
-  "recommendations": ["streetsidesoftware.code-spell-checker", "esbenp.prettier-vscode", "tamasfe.even-better-toml"]
+  "recommendations": [
+    "streetsidesoftware.code-spell-checker",
+    "esbenp.prettier-vscode",
+    "tamasfe.even-better-toml",
+    "vitest.explorer"
+  ]
 }
