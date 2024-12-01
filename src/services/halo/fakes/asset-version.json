@@ -1,0 +1,72 @@
+{
+  "CustomData": {
+    "NumOfObjectsOnMap": 5325,
+    "TagLevelId": -426470250,
+    "IsBaked": false,
+    "HasNodeGraph": true
+  },
+  "Tags": [],
+  "PrefabLinks": [],
+  "AssetId": "70dd38c5-2eb7-4db3-8901-0dfca292ff18",
+  "VersionId": "51817144-eb2e-408a-be19-0f46d4746d93",
+  "PublicName": "Empyrean - Ranked",
+  "Description": "Sleepless nights, timeless fights",
+  "Files": {
+    "Prefix": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/70dd38c5-2eb7-4db3-8901-0dfca292ff18/51817144-eb2e-408a-be19-0f46d4746d93/",
+    "FileRelativePaths": [
+      "audioocclusion.blob",
+      "fo11_blank.mvar",
+      "images/hero.jpg",
+      "images/thumbnail.jpg",
+      "images/thumbnail.png",
+      "lightprobes.blob",
+      "map.mvar",
+      "navmesh.blob"
+    ],
+    "PrefixEndpoint": {
+      "AuthorityId": "iUgcFiles",
+      "Path": "/ugcstorage/map/70dd38c5-2eb7-4db3-8901-0dfca292ff18/51817144-eb2e-408a-be19-0f46d4746d93/",
+      "QueryString": null,
+      "RetryPolicyId": "linearretry",
+      "TopicName": "",
+      "AcknowledgementTypeId": 0,
+      "AuthenticationLifetimeExtensionSupported": false,
+      "ClearanceAware": false
+    }
+  },
+  "Contributors": [
+    "xuid(2814631097707926)",
+    "xuid(2814660122751469)",
+    "xuid(2814670609540011)",
+    "xuid(2814618963508845)",
+    "xuid(2814654855941658)",
+    "xuid(2814629547136384)",
+    "xuid(2814647812484553)",
+    "xuid(2814645944950643)",
+    "xuid(2814658030103965)",
+    "xuid(2814631527439266)",
+    "xuid(2814620159006815)",
+    "xuid(2814673621658978)",
+    "xuid(2814640426484785)"
+  ],
+  "AssetHome": 1,
+  "AssetStats": {
+    "PlaysRecent": 126087675,
+    "PlaysAllTime": 260880831,
+    "Favorites": 985,
+    "Likes": 0,
+    "Bookmarks": 0,
+    "ParentAssetCount": 8,
+    "AverageRating": 4.048076923076923,
+    "NumberOfRatings": 104
+  },
+  "InspectionResult": 0,
+  "CloneBehavior": 0,
+  "Order": 0,
+  "PublishedDate": {
+    "ISO8601Date": "2021-11-15T12:00:00Z"
+  },
+  "VersionNumber": 5,
+  "Admin": "xuid(2814672600485177)",
+  "DisplayOwnerOverride": ""
+}

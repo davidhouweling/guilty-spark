@@ -1,0 +1,387 @@
+import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
+import { mock, MockProxy } from "vitest-mock-extended";
+import { AssetKind, HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { HaloService } from "../halo.mjs";
+import { DatabaseService } from "../../database/database.mjs";
+import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
+import { aFakeDiscordNeatQueueData } from "../../discord/fakes/discord.fake.mjs";
+import { matchStats, playerMatches, assetVersion } from "../fakes/data.mjs";
+import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
+import { Preconditions } from "../../../base/preconditions.mjs";
+
+describe("Halo service", () => {
+  let databaseService: DatabaseService;
+  let infiniteClient: MockProxy<HaloInfiniteClient>;
+  let haloService: HaloService;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2024-11-26T12:00:00.000Z");
+
+    infiniteClient = mock<HaloInfiniteClient>();
+    infiniteClient.getUser.mockImplementation((username) => {
+      if (/^discord_user_\d+$/.test(username)) {
+        const discriminator = username.slice(-2);
+        return Promise.resolve({
+          xuid: "xuid00000000000" + discriminator,
+          gamerpic: {
+            small: "small" + discriminator + ".png",
+            medium: "medium" + discriminator + ".png",
+            large: "large" + discriminator + ".png",
+            xlarge: "xlarge" + discriminator + ".png",
+          },
+          gamertag: "gamertag" + discriminator,
+        });
+      }
+
+      return Promise.reject(new Error("User not found"));
+    });
+    infiniteClient.getUsers.mockImplementation((xuids) => {
+      return Promise.resolve(
+        xuids.map((xuid) => ({
+          xuid,
+          gamerpic: {
+            small: "small" + xuid + ".png",
+            medium: "medium" + xuid + ".png",
+            large: "large" + xuid + ".png",
+            xlarge: "xlarge" + xuid + ".png",
+          },
+          gamertag: "gamertag" + xuid,
+        })),
+      );
+    });
+    infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, gameType) => {
+      if (gameType !== MatchType.Custom) {
+        return Promise.reject(new Error("Only custom games are supported"));
+      }
+
+      if (xboxUserId === "xuid0000000000001") {
+        return playerMatches;
+      }
+
+      return [];
+    });
+    infiniteClient.getMatchStats.mockImplementation((matchId) => {
+      const stats = matchStats.get(matchId);
+      if (stats) {
+        return Promise.resolve(stats);
+      }
+
+      return Promise.reject(new Error("Match not found"));
+    });
+    infiniteClient.getSpecificAssetVersion.mockImplementation((assetKind, assetId, version) => {
+      if (assetKind === AssetKind.Map && assetVersion.AssetId === assetId && assetVersion.VersionId === version) {
+        return Promise.resolve(assetVersion);
+      }
+
+      return Promise.reject(new Error("Asset not found"));
+    });
+
+    databaseService = aFakeDatabaseServiceWith();
+    haloService = new HaloService({ databaseService, infiniteClient });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe("getSeriesFromDiscordQueue()", () => {
+    it("returns the series from the discord queue", async () => {
+      const series = await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+
+      expect(series.map((s) => s.MatchId)).toEqual([
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "e20900f9-4c6c-4003-a175-00000000koth",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+    });
+
+    it("fetches possible users from database service", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+      await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+
+      expect(getDiscordAssociationsSpy).toHaveBeenCalledOnce();
+      expect(getDiscordAssociationsSpy).toHaveBeenCalledWith([
+        "000000000000000001",
+        "000000000000000002",
+        "000000000000000003",
+        "000000000000000004",
+        "000000000000000005",
+        "000000000000000006",
+        "000000000000000007",
+        "000000000000000008",
+      ]);
+    });
+
+    it("throws an error when all users from database are not game retrievable", () => {
+      const discordIds = [
+        "000000000000000001",
+        "000000000000000002",
+        "000000000000000003",
+        "000000000000000004",
+        "000000000000000005",
+        "000000000000000006",
+        "000000000000000007",
+        "000000000000000008",
+      ];
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue(
+        discordIds.map((id) =>
+          aFakeDiscordAssociationsRow({
+            DiscordId: id,
+            XboxId: "",
+            GamesRetrievable: GamesRetrievable.NO,
+          }),
+        ),
+      );
+
+      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+        "Unable to match any of the Discord users to their Xbox accounts",
+      );
+    });
+
+    it("throws an error when no users could be found for all users", () => {
+      infiniteClient.getUser.mockClear();
+      infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
+
+      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+        "Unable to match any of the Discord users to their Xbox accounts",
+      );
+    });
+
+    it("throws an error when no matches could be found for all users", () => {
+      infiniteClient.getPlayerMatches.mockClear();
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+
+      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+        "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
+      );
+    });
+  });
+
+  describe("getMatchDetails()", () => {
+    it("returns the match details", async () => {
+      const matchDetails = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
+
+      expect(matchDetails.map((s) => s.MatchId)).toEqual(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
+    });
+
+    it("uses the supplied filter", async () => {
+      const filterMock = vi.fn().mockReturnValue(true);
+      const matchDetails = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"], filterMock);
+
+      expect(filterMock).toHaveBeenCalledOnce();
+      expect(filterMock).toHaveBeenCalledWith(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"), 0);
+      expect(matchDetails.map((s) => s.MatchId)).toEqual(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
+    });
+
+    it('sorts the matches by "MatchStartTime" in ascending order', async () => {
+      const matchDetails = await haloService.getMatchDetails([
+        "e20900f9-4c6c-4003-a175-00000000koth",
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+
+      expect(matchDetails.map((s) => s.MatchId)).toEqual([
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "e20900f9-4c6c-4003-a175-00000000koth",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+    });
+  });
+
+  describe("getGameTypeAndMap()", () => {
+    it.each([{ matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", gameTypeAndMap: "CTF: Empyrean - Ranked" }])(
+      "returns the game type and map for match $matchId",
+      async ({ matchId, gameTypeAndMap }) => {
+        const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)));
+
+        expect(result).toBe(gameTypeAndMap);
+      },
+    );
+
+    it("caches the asset data for the map", async () => {
+      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      await haloService.getGameTypeAndMap(match);
+      await haloService.getGameTypeAndMap(match);
+
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getMatchScore()", () => {
+    it.each([
+      { matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", score: "3:0" },
+      { matchId: "e20900f9-4c6c-4003-a175-00000000koth", score: "3:2" },
+      { matchId: "9535b946-f30c-4a43-b852-000000slayer", score: "44:50" },
+      { matchId: "cf0fb794-2df1-4ba1-9415-00000oddball", score: "1:2 (198:256)" },
+      { matchId: "099deb74-3f60-48cf-8784-0strongholds", score: "175:250" },
+    ])("returns the score for match $matchId", ({ matchId, score }) => {
+      const result = haloService.getMatchScore(Preconditions.checkExists(matchStats.get(matchId)));
+
+      expect(result).toBe(score);
+    });
+  });
+
+  describe("getTeamName()", () => {
+    it.each([
+      { teamId: 0, teamName: "Eagle" },
+      { teamId: 1, teamName: "Cobra" },
+      { teamId: 2, teamName: "Green" },
+      { teamId: 3, teamName: "Orange" },
+      { teamId: 4, teamName: "Unknown" },
+    ])("returns the team name for team $teamId", ({ teamId, teamName }) => {
+      const result = haloService.getTeamName(teamId);
+
+      expect(result).toBe(teamName);
+    });
+  });
+
+  describe("getPlayerXuid()", () => {
+    it("returns the xuid for the specified player", () => {
+      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const player = Preconditions.checkExists(match.Players[0]);
+
+      const result = haloService.getPlayerXuid(player);
+      expect(result).toBe("1000000000000000");
+    });
+  });
+
+  describe("getPlayerXuidsToGametags()", () => {
+    it("returns the xuids to gamertags map for the specified players", async () => {
+      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+
+      const result = await haloService.getPlayerXuidsToGametags(match);
+      expect(result).toEqual(
+        new Map([
+          ["1000000000000000", "gamertag1000000000000000"],
+          ["2000000000000000", "gamertag2000000000000000"],
+          ["5000000000000000", "gamertag5000000000000000"],
+          ["4000000000000000", "gamertag4000000000000000"],
+          ["9000000000000000", "gamertag9000000000000000"],
+          ["8000000000000000", "gamertag8000000000000000"],
+          ["1100000000000000", "gamertag1100000000000000"],
+          ["1200000000000000", "gamertag1200000000000000"],
+        ]),
+      );
+    });
+
+    it("caches xuids and does not call infiniteClient.getUsers if all users are cache hits", async () => {
+      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+
+      await haloService.getPlayerXuidsToGametags(match);
+      await haloService.getPlayerXuidsToGametags(match);
+
+      expect(infiniteClient.getUsers).toHaveBeenCalledTimes(1);
+    });
+
+    it("only calls infiniteClient.getUsers for cache misses", async () => {
+      const match1 = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match2 = Preconditions.checkExists(matchStats.get("cf0fb794-2df1-4ba1-9415-00000oddball"));
+
+      await haloService.getPlayerXuidsToGametags(match1);
+      await haloService.getPlayerXuidsToGametags(match2);
+
+      expect(infiniteClient.getUsers).toHaveBeenCalledTimes(2);
+      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(1, [
+        "1000000000000000",
+        "2000000000000000",
+        "5000000000000000",
+        "4000000000000000",
+        "9000000000000000",
+        "8000000000000000",
+        "1100000000000000",
+        "1200000000000000",
+      ]);
+      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(2, [
+        "6000000000000000",
+        "3000000000000000",
+        "7000000000000000",
+      ]);
+    });
+  });
+
+  describe("getReadableDuration()", () => {
+    it("returns the duration in a readable format", () => {
+      const duration = "PT10M58.2413691S";
+      const result = haloService.getReadableDuration(duration);
+
+      expect(result).toBe("10m 58s");
+    });
+
+    it("returns the duration in a readable format (including days and hours)", () => {
+      const duration = "P3DT4H30M15.5S";
+      const result = haloService.getReadableDuration(duration);
+
+      expect(result).toBe("3d 4h 30m 15s");
+    });
+  });
+
+  describe("updateDiscordAssociations()", () => {
+    it("updates the discord associations with the user cache", async () => {
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+      await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+      await haloService.updateDiscordAssociations();
+
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith([
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000001",
+          GamesRetrievable: "Y",
+          XboxId: "xuid0000000000001",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000002",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000002",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000003",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000003",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000004",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000004",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000005",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000005",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000006",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000006",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000007",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000007",
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "U",
+          DiscordId: "000000000000000008",
+          GamesRetrievable: "N",
+          XboxId: "xuid0000000000008",
+        },
+      ]);
+    });
+  });
+});
