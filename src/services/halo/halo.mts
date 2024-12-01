@@ -7,8 +7,6 @@ import {
   MatchType,
   PlayerMatchHistory,
 } from "halo-infinite-api";
-import { XboxService } from "../xbox/xbox.mjs";
-import { XstsTokenProvider } from "./xsts-token-provider.mjs";
 import { differenceInHours, isBefore } from "date-fns";
 import { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -21,20 +19,20 @@ import {
 import { DatabaseService } from "../database/database.mjs";
 
 interface HaloServiceOpts {
-  xboxService: XboxService;
+  infiniteClient: HaloInfiniteClient;
   databaseService: DatabaseService;
 }
 
 export class HaloService {
   private readonly databaseService: DatabaseService;
-  private readonly client: HaloInfiniteClient;
+  private readonly infiniteClient: HaloInfiniteClient;
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
 
-  constructor({ xboxService, databaseService }: HaloServiceOpts) {
+  constructor({ databaseService, infiniteClient }: HaloServiceOpts) {
     this.databaseService = databaseService;
-    this.client = new HaloInfiniteClient(new XstsTokenProvider(xboxService));
+    this.infiniteClient = infiniteClient;
   }
 
   async getSeriesFromDiscordQueue(queueData: QueueData) {
@@ -69,7 +67,7 @@ export class HaloService {
   }
 
   async getMatchDetails(matchIDs: string[], filter?: (match: MatchStats, index: number) => boolean) {
-    const matchStats = await Promise.all(matchIDs.map((matchID) => this.client.getMatchStats(matchID)));
+    const matchStats = await Promise.all(matchIDs.map((matchID) => this.infiniteClient.getMatchStats(matchID)));
     const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
     return filteredMatches.sort(
@@ -118,7 +116,7 @@ export class HaloService {
       (xuid) => !this.xuidToGamerTagCache.has(xuid),
     );
     if (xuidsToResolve.length) {
-      const playerNames = await this.client.getUsers(xuidsToResolve);
+      const playerNames = await this.infiniteClient.getUsers(xuidsToResolve);
       for (const player of playerNames) {
         this.xuidToGamerTagCache.set(player.xuid, player.gamertag);
       }
@@ -158,7 +156,7 @@ export class HaloService {
 
     let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      unresolvedUsers.map((user) => this.client.getUser(user.username)),
+      unresolvedUsers.map((user) => this.infiniteClient.getUser(user.username)),
     );
     for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
       if (result.status === "fulfilled") {
@@ -176,7 +174,7 @@ export class HaloService {
     unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map((user) =>
-        user.global_name ? this.client.getUser(user.global_name) : Promise.reject(new Error("No global name")),
+        user.global_name ? this.infiniteClient.getUser(user.global_name) : Promise.reject(new Error("No global name")),
       ),
     );
     for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
@@ -194,7 +192,7 @@ export class HaloService {
   }
 
   private async getPlayerMatches(xboxUserId: string, date: Date) {
-    const playerMatches = await this.client.getPlayerMatches(xboxUserId, MatchType.Custom);
+    const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom);
     const matchesCloseToDate = playerMatches.filter((match) => {
       const startTime = new Date(match.MatchInfo.StartTime);
       // comparing start time rather than end time in the event that the match somehow completes after the end date
@@ -288,7 +286,7 @@ export class HaloService {
     const cacheKey = `${AssetId}:${VersionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
-      const mapData = await this.client.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
       this.mapNameCache.set(cacheKey, mapData.PublicName);
     }
 

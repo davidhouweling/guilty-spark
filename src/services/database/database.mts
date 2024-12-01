@@ -1,6 +1,6 @@
 import { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 
-interface DatabaseServiceOpts {
+export interface DatabaseServiceOpts {
   env: Env;
 }
 
@@ -23,7 +23,8 @@ export class DatabaseService {
     const placeholders = associations.map(() => "(?, ?, ?, ?, ?)").join(",");
     const query = `
       INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable) VALUES ${placeholders}
-      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable`;
+      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable
+    `;
     const bindings = associations.flatMap((association) => [
       association.DiscordId,
       association.XboxId,

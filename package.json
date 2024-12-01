@@ -22,7 +22,7 @@
     "start": "wrangler dev",
     "ngrok": "ngrok http 8787",
     "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
-    "@tsconfig/node20": "^20.1.4",
+    "@tsconfig/node22": "^22.0.0",
     "@types/eslint__js": "^8.42.3",
     "@types/node": "22.9.3",
     "dotenv": "^16.4.5",
@@ -53,6 +53,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.6",
+    "vitest-mock-extended": "^2.0.2",
     "wrangler": "^3.90.0"
   }
 }

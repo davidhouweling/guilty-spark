@@ -1,7 +1,10 @@
+import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { DatabaseService } from "./database/database.mjs";
 import { DiscordService } from "./discord/discord.mjs";
 import { HaloService } from "./halo/halo.mjs";
 import { XboxService } from "./xbox/xbox.mjs";
+import { HaloInfiniteClient } from "halo-infinite-api";
+import { XstsTokenProvider } from "./halo/xsts-token-provider.mjs";
 
 export interface Services {
   databaseService: DatabaseService;
@@ -17,8 +20,11 @@ interface InstallServicesOpts {
 export async function installServices({ env }: InstallServicesOpts): Promise<Services> {
   const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env });
-  const xboxService = new XboxService({ env });
-  const haloService = new HaloService({ databaseService, xboxService });
+  const xboxService = new XboxService({ env, authenticate });
+  const haloService = new HaloService({
+    databaseService,
+    infiniteClient: new HaloInfiniteClient(new XstsTokenProvider(xboxService)),
+  });
 
   await xboxService.loadCredentials();
 

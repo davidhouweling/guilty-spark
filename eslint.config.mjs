@@ -18,6 +18,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: [".wrangler/*", "dist/*", "patches/*"],
+    ignores: [".wrangler/*", "dist/*", "patches/*", "**/*.json"],
   },
 );
