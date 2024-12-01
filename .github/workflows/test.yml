@@ -1,4 +1,4 @@
-name: Build
+name: Test
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   run-build:
-    name: Run Build
+    name: Run Test
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +32,5 @@ jobs:
       - name: Generate types
         run: npm run build:generate-types
 
-      - name: Run build
-        run: npm run build
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: guilt-spark-build-${{ github.sha }}
-          path: ./dist
+      - name: Run test
+        run: npm run test
