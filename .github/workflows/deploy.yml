@@ -1,10 +1,16 @@
 name: Deploy
 
 on:
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Debug the event payload"
+        required: false
+        type: boolean
   workflow_run:
     workflows: [Build]
-    types:
-      - completed
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
@@ -14,6 +20,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Debug
+        if: ${{ github.event.inputs.debug == true }}
         run: ${{ tojson(github.event) }}
         shell: cat {0}
 
