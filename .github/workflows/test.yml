@@ -1,5 +1,9 @@
 name: Test
 
+permissions:
+  checks: write
+  pull-requests: write
+
 on:
   push:
     branches:
@@ -34,3 +38,9 @@ jobs:
 
       - name: Run test
         run: npm run test
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            test-results/**/*.xml
