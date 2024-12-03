@@ -1,13 +1,14 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { mock, MockProxy } from "vitest-mock-extended";
-import { AssetKind, HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { MockProxy } from "vitest-mock-extended";
+import { HaloInfiniteClient } from "halo-infinite-api";
 import { HaloService } from "../halo.mjs";
 import { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import { aFakeDiscordNeatQueueData } from "../../discord/fakes/discord.fake.mjs";
-import { matchStats, playerMatches, assetVersion } from "../fakes/data.mjs";
+import { matchStats } from "../fakes/data.mjs";
 import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 
 describe("Halo service", () => {
   let databaseService: DatabaseService;
@@ -18,64 +19,7 @@ describe("Halo service", () => {
     vi.useFakeTimers();
     vi.setSystemTime("2024-11-26T12:00:00.000Z");
 
-    infiniteClient = mock<HaloInfiniteClient>();
-    infiniteClient.getUser.mockImplementation((username) => {
-      if (/^discord_user_\d+$/.test(username)) {
-        const discriminator = username.slice(-2);
-        return Promise.resolve({
-          xuid: "xuid00000000000" + discriminator,
-          gamerpic: {
-            small: "small" + discriminator + ".png",
-            medium: "medium" + discriminator + ".png",
-            large: "large" + discriminator + ".png",
-            xlarge: "xlarge" + discriminator + ".png",
-          },
-          gamertag: "gamertag" + discriminator,
-        });
-      }
-
-      return Promise.reject(new Error("User not found"));
-    });
-    infiniteClient.getUsers.mockImplementation((xuids) => {
-      return Promise.resolve(
-        xuids.map((xuid) => ({
-          xuid,
-          gamerpic: {
-            small: "small" + xuid + ".png",
-            medium: "medium" + xuid + ".png",
-            large: "large" + xuid + ".png",
-            xlarge: "xlarge" + xuid + ".png",
-          },
-          gamertag: "gamertag" + xuid,
-        })),
-      );
-    });
-    infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, gameType) => {
-      if (gameType !== MatchType.Custom) {
-        return Promise.reject(new Error("Only custom games are supported"));
-      }
-
-      if (xboxUserId === "xuid0000000000001") {
-        return playerMatches;
-      }
-
-      return [];
-    });
-    infiniteClient.getMatchStats.mockImplementation((matchId) => {
-      const stats = matchStats.get(matchId);
-      if (stats) {
-        return Promise.resolve(stats);
-      }
-
-      return Promise.reject(new Error("Match not found"));
-    });
-    infiniteClient.getSpecificAssetVersion.mockImplementation((assetKind, assetId, version) => {
-      if (assetKind === AssetKind.Map && assetVersion.AssetId === assetId && assetVersion.VersionId === version) {
-        return Promise.resolve(assetVersion);
-      }
-
-      return Promise.reject(new Error("Asset not found"));
-    });
+    infiniteClient = aFakeHaloInfiniteClient();
 
     databaseService = aFakeDatabaseServiceWith();
     haloService = new HaloService({ databaseService, infiniteClient });
@@ -243,7 +187,7 @@ describe("Halo service", () => {
       const player = Preconditions.checkExists(match.Players[0]);
 
       const result = haloService.getPlayerXuid(player);
-      expect(result).toBe("1000000000000000");
+      expect(result).toBe("0100000000000000");
     });
   });
 
@@ -254,12 +198,12 @@ describe("Halo service", () => {
       const result = await haloService.getPlayerXuidsToGametags(match);
       expect(result).toEqual(
         new Map([
-          ["1000000000000000", "gamertag1000000000000000"],
-          ["2000000000000000", "gamertag2000000000000000"],
-          ["5000000000000000", "gamertag5000000000000000"],
-          ["4000000000000000", "gamertag4000000000000000"],
-          ["9000000000000000", "gamertag9000000000000000"],
-          ["8000000000000000", "gamertag8000000000000000"],
+          ["0100000000000000", "gamertag0100000000000000"],
+          ["0200000000000000", "gamertag0200000000000000"],
+          ["0500000000000000", "gamertag0500000000000000"],
+          ["0400000000000000", "gamertag0400000000000000"],
+          ["0900000000000000", "gamertag0900000000000000"],
+          ["0800000000000000", "gamertag0800000000000000"],
           ["1100000000000000", "gamertag1100000000000000"],
           ["1200000000000000", "gamertag1200000000000000"],
         ]),
@@ -284,19 +228,19 @@ describe("Halo service", () => {
 
       expect(infiniteClient.getUsers).toHaveBeenCalledTimes(2);
       expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(1, [
-        "1000000000000000",
-        "2000000000000000",
-        "5000000000000000",
-        "4000000000000000",
-        "9000000000000000",
-        "8000000000000000",
+        "0100000000000000",
+        "0200000000000000",
+        "0500000000000000",
+        "0400000000000000",
+        "0900000000000000",
+        "0800000000000000",
         "1100000000000000",
         "1200000000000000",
       ]);
       expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(2, [
-        "6000000000000000",
-        "3000000000000000",
-        "7000000000000000",
+        "0600000000000000",
+        "0300000000000000",
+        "0700000000000000",
       ]);
     });
   });
