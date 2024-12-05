@@ -1,4 +1,4 @@
-import { verifyKey } from "discord-interactions";
+import { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
 import {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -37,8 +37,10 @@ export interface QueueData {
   }[];
 }
 
-interface DiscordServiceOpts {
+export interface DiscordServiceOpts {
   env: Env;
+  fetch: typeof fetch;
+  verifyKey: typeof discordInteractionsVerifyKey;
 }
 
 export interface SubcommandData {
@@ -53,10 +55,14 @@ export interface SubcommandData {
 // but keep the underlying logic the same, so this acts to transform between the two
 export class DiscordService {
   private readonly env: Env;
+  private readonly globalFetch: typeof fetch;
+  private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
 
-  constructor({ env }: DiscordServiceOpts) {
+  constructor({ env, fetch, verifyKey }: DiscordServiceOpts) {
     this.env = env;
+    this.globalFetch = fetch;
+    this.verifyKey = verifyKey;
   }
 
   setCommands(commands: Map<string, BaseCommand>) {
@@ -68,7 +74,7 @@ export class DiscordService {
     const timestamp = request.headers.get("x-signature-timestamp");
     const body = await request.text();
     const isValidRequest =
-      signature && timestamp && (await verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
+      signature && timestamp && (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
     if (!isValidRequest) {
       return { isValid: false };
     }
@@ -99,6 +105,7 @@ export class DiscordService {
       case InteractionType.ApplicationCommand: {
         if (!this.commands) {
           console.error("No commands found");
+
           return {
             response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
           };
@@ -158,9 +165,12 @@ export class DiscordService {
       method: "GET",
       queryParameters: { limit: 100 },
     });
+
     const queueMessage = messages
       .filter((message) => message.author.bot && message.author.id === NEAT_QUEUE_BOT_USER_ID)
-      .find((message) => message.embeds.find((embed) => embed.title?.includes(`#${queue.toString()}`)));
+      .find((message) =>
+        message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")),
+      );
     if (!queueMessage) {
       return null;
     }
@@ -262,7 +272,10 @@ export class DiscordService {
       },
     };
 
-    const response = await fetch(url.toString(), fetchOptions);
+    // having to rebind back to global fetch due to Cloudflare Workers
+    // https://developers.cloudflare.com/workers/observability/errors/#illegal-invocation-errors
+    const boundFetch = this.globalFetch.bind(null);
+    const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }

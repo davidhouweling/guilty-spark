@@ -4,11 +4,11 @@ import { HaloInfiniteClient } from "halo-infinite-api";
 import { HaloService } from "../halo.mjs";
 import { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
-import { aFakeDiscordNeatQueueData } from "../../discord/fakes/discord.fake.mjs";
 import { matchStats } from "../fakes/data.mjs";
 import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
+import { discordNeatQueueData } from "../../discord/fakes/data.mjs";
 
 describe("Halo service", () => {
   let databaseService: DatabaseService;
@@ -31,7 +31,7 @@ describe("Halo service", () => {
 
   describe("getSeriesFromDiscordQueue()", () => {
     it("returns the series from the discord queue", async () => {
-      const series = await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+      const series = await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
 
       expect(series.map((s) => s.MatchId)).toEqual([
         "d81554d7-ddfe-44da-a6cb-000000000ctf",
@@ -43,7 +43,7 @@ describe("Halo service", () => {
     it("fetches possible users from database service", async () => {
       const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
 
-      await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+      await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
 
       expect(getDiscordAssociationsSpy).toHaveBeenCalledOnce();
       expect(getDiscordAssociationsSpy).toHaveBeenCalledWith([
@@ -79,7 +79,7 @@ describe("Halo service", () => {
         ),
       );
 
-      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts",
       );
     });
@@ -88,7 +88,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockClear();
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
-      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts",
       );
     });
@@ -97,7 +97,7 @@ describe("Halo service", () => {
       infiniteClient.getPlayerMatches.mockClear();
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
 
-      return expect(haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
         "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
       );
     });
@@ -264,7 +264,7 @@ describe("Halo service", () => {
   describe("updateDiscordAssociations()", () => {
     it("updates the discord associations with the user cache", async () => {
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
-      await haloService.getSeriesFromDiscordQueue(aFakeDiscordNeatQueueData);
+      await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
       await haloService.updateDiscordAssociations();
 
       expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
