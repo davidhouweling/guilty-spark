@@ -327,7 +327,7 @@
   ],
   "Players": [
     {
-      "PlayerId": "xuid(2000000000000000)",
+      "PlayerId": "xuid(0200000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 0,
@@ -458,7 +458,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(3000000000000000)",
+      "PlayerId": "xuid(0300000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 1,
@@ -604,7 +604,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(4000000000000000)",
+      "PlayerId": "xuid(0400000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 1,
@@ -730,7 +730,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(1000000000000000)",
+      "PlayerId": "xuid(0100000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 0,
@@ -856,7 +856,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(5000000000000000)",
+      "PlayerId": "xuid(0500000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 1,
@@ -982,7 +982,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(6000000000000000)",
+      "PlayerId": "xuid(0600000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 0,
@@ -1108,7 +1108,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(7000000000000000)",
+      "PlayerId": "xuid(0700000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 1,
@@ -1254,7 +1254,7 @@
       ]
     },
     {
-      "PlayerId": "xuid(8000000000000000)",
+      "PlayerId": "xuid(0800000000000000)",
       "PlayerType": 1,
       "BotAttributes": null,
       "LastTeamId": 0,

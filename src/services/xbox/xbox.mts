@@ -9,7 +9,7 @@ export enum TokenInfoKey {
   expiresOn,
 }
 
-interface XboxServiceOpts {
+export interface XboxServiceOpts {
   env: Env;
   authenticate: XboxLiveAuthAuthenticate;
 }

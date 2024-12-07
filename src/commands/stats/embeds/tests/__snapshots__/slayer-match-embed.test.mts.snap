@@ -1,0 +1,176 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SlayerMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 44",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05",
+      "value": "\`\`\`Rank: 5
+Score: 18
+Kills: 18
+Deaths: 14
+Assists: 4
+KDA: 5.33
+Headshot kills: 13
+Shots H:F: 138:211
+Accuracy: 65.4%
+Damage D:T: 5850:4647
+Av life duration: 25s
+Av damage/life: 417.86\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01",
+      "value": "\`\`\`Rank: 6
+Score: 14
+Kills: 14
+Deaths: 12
+Assists: 8
+KDA: 4.66
+Headshot kills: 3
+Shots H:F: 141:283
+Accuracy: 49.82%
+Damage D:T: 4498:4249
+Av life duration: 31s
+Av damage/life: 374.83\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02",
+      "value": "\`\`\`Rank: 7
+Score: 8
+Kills: 8
+Deaths: 10
+Assists: 5
+KDA: -0.33
+Headshot kills: 2
+Shots H:F: 63:159
+Accuracy: 39.62%
+Damage D:T: 3527:4516
+Av life duration: 42s
+Av damage/life: 352.70\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09",
+      "value": "\`\`\`Rank: 8
+Score: 4
+Kills: 4
+Deaths: 14
+Assists: 8
+KDA: -7.33
+Headshot kills: 4
+Shots H:F: 79:180
+Accuracy: 43.88%
+Damage D:T: 3290:4656
+Av life duration: 25s
+Av damage/life: 235.00\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 50",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04",
+      "value": "\`\`\`Rank: 1
+Score: 19
+Kills: 19
+Deaths: 10
+Assists: 10
+KDA: 12.33
+Headshot kills: 14
+Shots H:F: 116:195
+Accuracy: 59.48%
+Damage D:T: 6178:5163
+Av life duration: 38s
+Av damage/life: 617.80\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08",
+      "value": "\`\`\`Rank: 2
+Score: 11
+Kills: 11
+Deaths: 12
+Assists: 4
+KDA: 0.33
+Headshot kills: 6
+Shots H:F: 75:129
+Accuracy: 58.13%
+Damage D:T: 3868:4158
+Av life duration: 31s
+Av damage/life: 322.33\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag11",
+      "value": "\`\`\`Rank: 2
+Score: 11
+Kills: 11
+Deaths: 12
+Assists: 8
+KDA: 1.66
+Headshot kills: 4
+Shots H:F: 82:193
+Accuracy: 42.48%
+Damage D:T: 3629:3885
+Av life duration: 31s
+Av damage/life: 302.42\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag12",
+      "value": "\`\`\`Rank: 4
+Score: 9
+Kills: 9
+Deaths: 10
+Assists: 8
+KDA: 1.66
+Headshot kills: 6
+Shots H:F: 98:195
+Accuracy: 50.25%
+Damage D:T: 4174:4150
+Av life duration: 38s
+Av damage/life: 417.40\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e",
+  "url": "https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer",
+}
+`;

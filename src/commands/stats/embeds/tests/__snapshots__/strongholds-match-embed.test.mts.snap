@@ -1,0 +1,216 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`StrongholdsMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 175",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 17
+Deaths: 22
+Assists: 10
+KDA: -1.66
+Headshot kills: 12
+Shots H:F: 155:253
+Accuracy: 61.26%
+Damage D:T: 6633:6892
+Av life duration: 21s
+Av damage/life: 301.50
+Captures: 9
+Occupation time: 1m 28s
+Secures: 2
+Offensive kills: 3
+Defensive kills: 3\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 20
+Deaths: 21
+Assists: 4
+KDA: 0.33
+Headshot kills: 11
+Shots H:F: 125:201
+Accuracy: 62.18%
+Damage D:T: 5771:5949
+Av life duration: 22s
+Av damage/life: 274.81
+Captures: 10
+Occupation time: 1m 34s
+Secures: 2
+Offensive kills: 0
+Defensive kills: 3\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag06",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 13
+Deaths: 21
+Assists: 5
+KDA: -6.33
+Headshot kills: 9
+Shots H:F: 88:170
+Accuracy: 51.76%
+Damage D:T: 4528:6405
+Av life duration: 21s
+Av damage/life: 215.62
+Captures: 12
+Occupation time: 2m 10s
+Secures: 2
+Offensive kills: 1
+Defensive kills: 3\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 12
+Deaths: 19
+Assists: 7
+KDA: -4.66
+Headshot kills: 6
+Shots H:F: 128:220
+Accuracy: 58.18%
+Damage D:T: 5716:6138
+Av life duration: 24s
+Av damage/life: 300.84
+Captures: 6
+Occupation time: 1m 10s
+Secures: 3
+Offensive kills: 1
+Defensive kills: 2\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 250",
+    },
+    {
+      "inline": true,
+      "name": "gamertag03",
+      "value": "\`\`\`Rank: 1
+Score: 0
+Kills: 19
+Deaths: 12
+Assists: 9
+KDA: 10
+Headshot kills: 12
+Shots H:F: 112:229
+Accuracy: 48.9%
+Damage D:T: 5374:5154
+Av life duration: 43s
+Av damage/life: 447.83
+Captures: 8
+Occupation time: 1m 41s
+Secures: 3
+Offensive kills: 2
+Defensive kills: 4\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04",
+      "value": "\`\`\`Rank: 1
+Score: 0
+Kills: 14
+Deaths: 13
+Assists: 13
+KDA: 5.33
+Headshot kills: 11
+Shots H:F: 125:228
+Accuracy: 54.82%
+Damage D:T: 5803:4939
+Av life duration: 39s
+Av damage/life: 446.38
+Captures: 6
+Occupation time: 1m 5s
+Secures: 2
+Offensive kills: 1
+Defensive kills: 2\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05",
+      "value": "\`\`\`Rank: 1
+Score: 0
+Kills: 20
+Deaths: 17
+Assists: 10
+KDA: 6.33
+Headshot kills: 9
+Shots H:F: 128:248
+Accuracy: 51.61%
+Damage D:T: 6660:6197
+Av life duration: 28s
+Av damage/life: 391.76
+Captures: 8
+Occupation time: 1m 49s
+Secures: 1
+Offensive kills: 7
+Defensive kills: 1\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag07",
+      "value": "\`\`\`Rank: 1
+Score: 0
+Kills: 30
+Deaths: 20
+Assists: 3
+KDA: 11
+Headshot kills: 20
+Shots H:F: 141:237
+Accuracy: 59.49%
+Damage D:T: 7066:6496
+Av life duration: 24s
+Av damage/life: 353.30
+Captures: 7
+Occupation time: 1m 32s
+Secures: 2
+Offensive kills: 4
+Defensive kills: 5\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47",
+  "url": "https://halodatahive.com/Infinite/Match/099deb74-3f60-48cf-8784-0strongholds",
+}
+`;

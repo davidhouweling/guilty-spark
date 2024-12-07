@@ -62,7 +62,10 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = this.haloService.getPlayerXuid(teamPlayer);
-        const playerGamertag = Preconditions.checkExists(players.get(playerXuid));
+        const playerGamertag = Preconditions.checkExists(
+          players.get(playerXuid),
+          `Unable to find player gamertag for XUID ${playerXuid}`,
+        );
         const playerStats = Preconditions.checkExists(
           teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
           "Unable to match player to team",

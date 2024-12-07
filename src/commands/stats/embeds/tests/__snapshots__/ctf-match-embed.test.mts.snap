@@ -1,0 +1,224 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CtfMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 3",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05",
+      "value": "\`\`\`Rank: 1
+Score: 2
+Kills: 12
+Deaths: 14
+Assists: 8
+KDA: 0.66
+Headshot kills: 6
+Shots H:F: 83:178
+Accuracy: 46.62%
+Damage D:T: 4736:4879
+Av life duration: 32s
+Av damage/life: 338.29
+Captures: 2
+Captures assists: 0
+Carrier time: 9s
+Grabs: 4
+Returns: 0
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02",
+      "value": "\`\`\`Rank: 2
+Score: 1
+Kills: 22
+Deaths: 15
+Assists: 10
+KDA: 10.33
+Headshot kills: 17
+Shots H:F: 108:182
+Accuracy: 59.34%
+Damage D:T: 5890:4614
+Av life duration: 29s
+Av damage/life: 392.67
+Captures: 1
+Captures assists: 2
+Carrier time: 20s
+Grabs: 14
+Returns: 0
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01",
+      "value": "\`\`\`Rank: 3
+Score: 0
+Kills: 16
+Deaths: 17
+Assists: 12
+KDA: 3
+Headshot kills: 11
+Shots H:F: 122:189
+Accuracy: 64.55%
+Damage D:T: 5717:5479
+Av life duration: 27s
+Av damage/life: 336.29
+Captures: 0
+Captures assists: 1
+Carrier time: 11s
+Grabs: 14
+Returns: 2
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09",
+      "value": "\`\`\`Rank: 3
+Score: 0
+Kills: 17
+Deaths: 9
+Assists: 6
+KDA: 10
+Headshot kills: 10
+Shots H:F: 84:162
+Accuracy: 51.85%
+Damage D:T: 3859:3049
+Av life duration: 53s
+Av damage/life: 428.78
+Captures: 0
+Captures assists: 3
+Carrier time: 22s
+Grabs: 15
+Returns: 0
+Carriers killed: 1\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 0",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 19
+Deaths: 16
+Assists: 6
+KDA: 5
+Headshot kills: 16
+Shots H:F: 134:200
+Accuracy: 67%
+Damage D:T: 6202:5431
+Av life duration: 27s
+Av damage/life: 387.63
+Captures: 0
+Captures assists: 0
+Carrier time: 26s
+Grabs: 6
+Returns: 0
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 11
+Deaths: 21
+Assists: 7
+KDA: -7.66
+Headshot kills: 9
+Shots H:F: 99:191
+Accuracy: 51.83%
+Damage D:T: 4094:5882
+Av life duration: 19s
+Av damage/life: 194.95
+Captures: 0
+Captures assists: 0
+Carrier time: 
+Grabs: 0
+Returns: 1
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag11",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 17
+Deaths: 16
+Assists: 2
+KDA: 1.66
+Headshot kills: 9
+Shots H:F: 81:160
+Accuracy: 50.62%
+Damage D:T: 3657:4401
+Av life duration: 27s
+Av damage/life: 228.56
+Captures: 0
+Captures assists: 0
+Carrier time: 1m 3s
+Grabs: 6
+Returns: 0
+Carriers killed: 0\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag12",
+      "value": "\`\`\`Rank: 5
+Score: 0
+Kills: 8
+Deaths: 15
+Assists: 5
+KDA: -5.33
+Headshot kills: 5
+Shots H:F: 77:163
+Accuracy: 47.23%
+Damage D:T: 3859:5057
+Av life duration: 29s
+Av damage/life: 257.27
+Captures: 0
+Captures assists: 0
+Carrier time: 17s
+Grabs: 9
+Returns: 0
+Carriers killed: 1\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "CTF: Empyrean - Ranked",
+  "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
+}
+`;

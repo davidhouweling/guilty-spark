@@ -23,6 +23,7 @@
     "ngrok": "ngrok http 8787",
     "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
     "test": "vitest",
+    "test:coverage": "vitest --coverage.enabled true",
     "format": "npx prettier . --check",
     "format:fix": "npx prettier . --write",
     "lint": "npx eslint .",
