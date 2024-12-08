@@ -137,6 +137,9 @@ export class DiscordService {
           jobToComplete,
         };
       }
+      case InteractionType.MessageComponent:
+      case InteractionType.ApplicationCommandAutocomplete:
+      case InteractionType.ModalSubmit:
       default: {
         console.warn("Unknown interaction type");
 

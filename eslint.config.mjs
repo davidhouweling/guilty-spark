@@ -54,6 +54,7 @@ export default config(
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/promise-function-async": "error",
       "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
       "import/order": "error",
     },
   },
