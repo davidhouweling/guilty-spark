@@ -1,14 +1,5 @@
-import type {
-  APIApplicationCommandInteraction,
-  APIMessage,
-  APIPingInteraction} from "discord-api-types/v10";
-import {
-  ChannelFlags,
-  GuildMemberFlags,
-  InteractionType,
-  Locale,
-  MessageType,
-} from "discord-api-types/v10";
+import type { APIApplicationCommandInteraction, APIMessage, APIPingInteraction } from "discord-api-types/v10";
+import { ChannelFlags, GuildMemberFlags, InteractionType, Locale, MessageType } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 
 export const apiMessage: APIMessage = {

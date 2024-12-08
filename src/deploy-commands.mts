@@ -1,5 +1,5 @@
 import "dotenv/config";
-import type { RESTPutAPIApplicationCommandsResult} from "discord-api-types/v10";
+import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import { APIVersion, Routes } from "discord-api-types/v10";
 import { getCommands } from "./commands/commands.mjs";
 import type { Services } from "./services/install.mjs";

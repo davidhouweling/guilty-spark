@@ -1,4 +1,4 @@
-import type { HaloInfiniteClient} from "halo-infinite-api";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";

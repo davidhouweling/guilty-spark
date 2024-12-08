@@ -1,7 +1,7 @@
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { DatabaseServiceOpts } from "../database.mjs";
 import { DatabaseService } from "../database.mjs";
-import type { DiscordAssociationsRow} from "../types/discord_associations.mjs";
+import type { DiscordAssociationsRow } from "../types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../types/discord_associations.mjs";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {

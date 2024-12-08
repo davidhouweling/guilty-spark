@@ -3,7 +3,7 @@ import type { Mock } from "vitest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { CredentialsAuthenticateResponse } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import type { XboxLiveAuthAuthenticate} from "../xbox.mjs";
+import type { XboxLiveAuthAuthenticate } from "../xbox.mjs";
 import { TokenInfoKey, XboxService } from "../xbox.mjs";
 
 const validKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2025-01-01T03:00:00.000Z"]]`;

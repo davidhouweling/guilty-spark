@@ -1,9 +1,7 @@
-import type { Mock} from "vitest";
+import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
-import type {
-  APIInteraction,
-  APIUser} from "discord-api-types/v10";
+import type { APIInteraction, APIUser } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -473,9 +471,9 @@ describe("DiscordService", () => {
     });
 
     it("throws an error if the thread name is too long", () => {
-      expect(async () => discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101))).toThrow(
-        new Error("Thread name must be 100 characters or fewer"),
-      );
+      expect(async () =>
+        discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
+      ).toThrow(new Error("Thread name must be 100 characters or fewer"));
     });
   });
 });

@@ -1,4 +1,4 @@
-import type { SpartanTokenProvider} from "halo-infinite-api";
+import type { SpartanTokenProvider } from "halo-infinite-api";
 import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { XboxService } from "../xbox/xbox.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
