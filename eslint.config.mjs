@@ -53,6 +53,7 @@ export default config(
       "@typescript-eslint/prefer-destructuring": "error",
       "@typescript-eslint/prefer-readonly": "error",
       "@typescript-eslint/promise-function-async": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
       "import/order": "error",
     },
   },

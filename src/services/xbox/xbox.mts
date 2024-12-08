@@ -32,7 +32,7 @@ export class XboxService {
 
   async loadCredentials(): Promise<void> {
     const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
-    if (tokenInfo) {
+    if (tokenInfo != null) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
       } catch (error) {
@@ -49,7 +49,7 @@ export class XboxService {
   async maybeRefreshToken(): Promise<void> {
     const expiresOn = this.tokenInfoMap.get(TokenInfoKey.expiresOn);
 
-    if (!this.token || !expiresOn || new Date() >= new Date(expiresOn)) {
+    if (this.token == null || expiresOn == null || new Date() >= new Date(expiresOn)) {
       await this.updateCredentials();
     }
   }

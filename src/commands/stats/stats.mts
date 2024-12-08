@@ -95,7 +95,7 @@ export class StatsCommand extends BaseCommand {
     try {
       const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
-      if (!subcommand.mappedOptions?.size) {
+      if (subcommand.mappedOptions == null || subcommand.mappedOptions.size === 0) {
         throw new Error("Missing subcommand options");
       }
       switch (subcommand.name) {

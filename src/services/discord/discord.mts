@@ -81,7 +81,10 @@ export class DiscordService {
     const timestamp = request.headers.get("x-signature-timestamp");
     const body = await request.text();
     const isValidRequest =
-      signature && timestamp && (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
+      signature != null &&
+      timestamp != null &&
+      (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
+
     if (!isValidRequest) {
       return { isValid: false };
     }
@@ -174,7 +177,7 @@ export class DiscordService {
     });
 
     const queueMessage = messages
-      .filter((message) => message.author.bot && message.author.id === NEAT_QUEUE_BOT_USER_ID)
+      .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
       .find((message) =>
         message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")),
       );
@@ -227,7 +230,10 @@ export class DiscordService {
     );
   }
 
-  async createMessage(channel: string, data: RESTPostAPIChannelMessageJSONBody): Promise<RESTPostAPIChannelMessageResult> {
+  async createMessage(
+    channel: string,
+    data: RESTPostAPIChannelMessageJSONBody,
+  ): Promise<RESTPostAPIChannelMessageResult> {
     return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channel), {
       method: "POST",
       body: JSON.stringify(data),
@@ -303,7 +309,7 @@ export class DiscordService {
     const ids: string[] = [];
     let match: RegExpExecArray | null;
     while ((match = regex.exec(message)) !== null) {
-      if (match[1]) {
+      if (match[1] != null) {
         ids.push(match[1]);
       }
     }

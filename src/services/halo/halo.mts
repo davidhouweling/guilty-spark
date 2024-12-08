@@ -121,18 +121,19 @@ export class HaloService {
 
   getReadableDuration(duration: string): string {
     const parsedDuration = tinyduration.parse(duration);
+    const { days, hours, minutes, seconds } = parsedDuration;
     const output: string[] = [];
-    if (parsedDuration.days) {
-      output.push(`${parsedDuration.days.toString()}d`);
+    if (days != null && days > 0) {
+      output.push(`${days.toString()}d`);
     }
-    if (parsedDuration.hours) {
-      output.push(`${parsedDuration.hours.toString()}h`);
+    if (hours != null && hours > 0) {
+      output.push(`${hours.toString()}h`);
     }
-    if (parsedDuration.minutes) {
-      output.push(`${parsedDuration.minutes.toString()}m`);
+    if (minutes != null && minutes > 0) {
+      output.push(`${minutes.toString()}m`);
     }
-    if (parsedDuration.seconds) {
-      output.push(`${Math.floor(parsedDuration.seconds).toString()}s`);
+    if (seconds != null && seconds > 0) {
+      output.push(`${Math.floor(seconds).toString()}s`);
     }
 
     return output.join(" ");
@@ -168,7 +169,9 @@ export class HaloService {
     unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) =>
-        user.global_name ? this.infiniteClient.getUser(user.global_name) : Promise.reject(new Error("No global name")),
+        user.global_name != null
+          ? this.infiniteClient.getUser(user.global_name)
+          : Promise.reject(new Error("No global name")),
       ),
     );
     for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
