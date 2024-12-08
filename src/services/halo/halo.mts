@@ -8,9 +8,9 @@ import {
   PlayerMatchHistory,
 } from "halo-infinite-api";
 import { differenceInHours, isBefore } from "date-fns";
+import { APIUser } from "discord-api-types/v10";
 import { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import { APIUser } from "discord-api-types/v10";
 import {
   AssociationReason,
   DiscordAssociationsRow,

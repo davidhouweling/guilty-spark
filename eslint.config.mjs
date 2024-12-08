@@ -1,12 +1,23 @@
 import eslint from "@eslint/js";
-import tseslint from "typescript-eslint";
+import { config, configs } from "typescript-eslint";
+import importPlugin from "eslint-plugin-import";
+import tsParser from "@typescript-eslint/parser";
 
-export default tseslint.config(
+export default config(
   eslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  configs.strictTypeChecked,
+  configs.stylisticTypeChecked,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  importPlugin.flatConfigs.recommended,
+  importPlugin.flatConfigs.typescript,
+  {
+    ignores: [".wrangler/", "coverage/", "dist/", "patches/", "**/*.json"],
+  },
   {
     languageOptions: {
+      parser: tsParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
       parserOptions: {
         projectService: {
           allowDefaultProject: ["*.mjs"],
@@ -16,8 +27,14 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
-  },
-  {
-    ignores: [".wrangler/*", "dist/*", "patches/*", "**/*.json"],
+    settings: {
+      "import/resolver": {
+        typescript: true,
+        node: true,
+      },
+    },
+    rules: {
+      "import/order": "error",
+    },
   },
 );

@@ -22,9 +22,9 @@ import {
   RESTPostAPIWebhookWithTokenJSONBody,
   Routes,
 } from "discord-api-types/v10";
-import { JsonResponse } from "./json-response.mjs";
 import { BaseCommand } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { JsonResponse } from "./json-response.mjs";
 
 const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 

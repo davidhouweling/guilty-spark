@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { verifyKey } from "discord-interactions";
-import { DiscordService, QueueData } from "../discord.mjs";
-import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
 import {
   APIInteraction,
   APIUser,
@@ -12,6 +9,9 @@ import {
   InteractionType,
   MessageFlags,
 } from "discord-api-types/v10";
+import { DiscordService, QueueData } from "../discord.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import { BaseCommand } from "../../../commands/base/base.mjs";
 import { Services } from "../../install.mjs";

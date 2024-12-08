@@ -1,7 +1,7 @@
 import { CredentialsAuthenticateInitialResponse } from "@xboxreplay/xboxlive-auth";
+import { addHours } from "date-fns";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { XboxService, XboxServiceOpts } from "../xbox.mjs";
-import { addHours } from "date-fns";
 
 export function aFakeXboxServiceWith(opts: Partial<XboxServiceOpts> = {}): XboxService {
   return new XboxService({

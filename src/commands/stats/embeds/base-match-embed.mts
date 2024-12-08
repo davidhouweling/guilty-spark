@@ -1,7 +1,7 @@
 import { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import { APIEmbed } from "discord-api-types/v10";
 import { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import { APIEmbed } from "discord-api-types/v10";
 
 export type PlayerStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
