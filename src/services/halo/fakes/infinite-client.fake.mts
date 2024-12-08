@@ -1,5 +1,7 @@
-import { AssetKind, HaloInfiniteClient, MatchType } from "halo-infinite-api";
-import { mock, MockProxy } from "vitest-mock-extended";
+import type { HaloInfiniteClient} from "halo-infinite-api";
+import { AssetKind, MatchType } from "halo-infinite-api";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { assetVersion, matchStats, playerMatches } from "./data.mjs";
 
 export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {

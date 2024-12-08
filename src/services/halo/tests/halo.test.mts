@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { MockProxy } from "vitest-mock-extended";
-import { HaloInfiniteClient } from "halo-infinite-api";
+import type { MockProxy } from "vitest-mock-extended";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { HaloService } from "../halo.mjs";
-import { DatabaseService } from "../../database/database.mjs";
+import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import { matchStats } from "../fakes/data.mjs";
 import { GamesRetrievable } from "../../database/types/discord_associations.mjs";

@@ -34,6 +34,7 @@ export default config(
       },
     },
     rules: {
+      "@typescript-eslint/consistent-type-imports": "error",
       "import/order": "error",
     },
   },

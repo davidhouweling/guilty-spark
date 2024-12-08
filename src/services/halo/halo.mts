@@ -1,22 +1,24 @@
 import * as tinyduration from "tinyduration";
+import type {
+  HaloInfiniteClient,
+  MatchStats,
+  PlayerMatchHistory} from "halo-infinite-api";
 import {
   AssetKind,
   GameVariantCategory,
-  HaloInfiniteClient,
-  MatchStats,
-  MatchType,
-  PlayerMatchHistory,
+  MatchType
 } from "halo-infinite-api";
 import { differenceInHours, isBefore } from "date-fns";
-import { APIUser } from "discord-api-types/v10";
-import { QueueData } from "../discord/discord.mjs";
+import type { APIUser } from "discord-api-types/v10";
+import type { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import type {
+  DiscordAssociationsRow} from "../database/types/discord_associations.mjs";
 import {
   AssociationReason,
-  DiscordAssociationsRow,
   GamesRetrievable,
 } from "../database/types/discord_associations.mjs";
-import { DatabaseService } from "../database/database.mjs";
+import type { DatabaseService } from "../database/database.mjs";
 
 interface HaloServiceOpts {
   infiniteClient: HaloInfiniteClient;

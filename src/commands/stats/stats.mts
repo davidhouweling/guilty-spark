@@ -1,18 +1,21 @@
-import {
+import type {
   APIApplicationCommand,
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIEmbed,
+  APIEmbed} from "discord-api-types/v10";
+import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   InteractionResponseType,
   MessageFlags,
 } from "discord-api-types/v10";
-import { GameVariantCategory, MatchStats } from "halo-infinite-api";
-import { BaseCommand, ExecuteResponse } from "../base/base.mjs";
+import type { MatchStats } from "halo-infinite-api";
+import { GameVariantCategory } from "halo-infinite-api";
+import type { ExecuteResponse } from "../base/base.mjs";
+import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import { QueueData } from "../../services/discord/discord.mjs";
-import { BaseMatchEmbed } from "./embeds/base-match-embed.mjs";
+import type { QueueData } from "../../services/discord/discord.mjs";
+import type { BaseMatchEmbed } from "./embeds/base-match-embed.mjs";
 import { AttritionMatchEmbed } from "./embeds/attrition-match-embed.mjs";
 import { CtfMatchEmbed } from "./embeds/ctf-match-embed.mjs";
 import { EliminationMatchEmbed } from "./embeds/elimination-match-embed.mjs";

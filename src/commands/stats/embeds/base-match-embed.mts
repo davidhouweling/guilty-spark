@@ -1,6 +1,6 @@
-import { GameVariantCategory, MatchStats } from "halo-infinite-api";
-import { APIEmbed } from "discord-api-types/v10";
-import { HaloService } from "../../../services/halo/halo.mjs";
+import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import type { APIEmbed } from "discord-api-types/v10";
+import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
 export type PlayerStats<TCategory extends GameVariantCategory> =

@@ -1,20 +1,23 @@
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import { verifyKey } from "discord-interactions";
-import {
+import type { Mock} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { verifyKey } from "discord-interactions";
+import type {
   APIInteraction,
-  APIUser,
+  APIUser} from "discord-api-types/v10";
+import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
   MessageFlags,
 } from "discord-api-types/v10";
-import { DiscordService, QueueData } from "../discord.mjs";
+import type { QueueData } from "../discord.mjs";
+import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
-import { BaseCommand } from "../../../commands/base/base.mjs";
-import { Services } from "../../install.mjs";
+import type { BaseCommand } from "../../../commands/base/base.mjs";
+import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("DiscordService", () => {

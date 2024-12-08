@@ -1,4 +1,4 @@
-import { Services } from "../services/install.mjs";
+import type { Services } from "../services/install.mjs";
 import { StatsCommand } from "./stats/stats.mjs";
 
 export function getCommands(services: Services) {

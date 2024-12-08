@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
+import type { MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

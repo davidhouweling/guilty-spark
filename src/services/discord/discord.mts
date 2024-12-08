@@ -1,5 +1,5 @@
-import { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
-import {
+import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
+import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
@@ -7,11 +7,6 @@ import {
   APIInteractionResponse,
   APIMessage,
   APIUser,
-  APIVersion,
-  ApplicationCommandType,
-  InteractionResponseType,
-  InteractionType,
-  MessageFlags,
   RESTGetAPIUserResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
@@ -19,10 +14,16 @@ import {
   RESTPostAPIChannelMessageResult,
   RESTPostAPIChannelMessagesThreadsJSONBody,
   RESTPostAPIChannelThreadsResult,
-  RESTPostAPIWebhookWithTokenJSONBody,
+  RESTPostAPIWebhookWithTokenJSONBody} from "discord-api-types/v10";
+import {
+  APIVersion,
+  ApplicationCommandType,
+  InteractionResponseType,
+  InteractionType,
+  MessageFlags,
   Routes,
 } from "discord-api-types/v10";
-import { BaseCommand } from "../../commands/base/base.mjs";
+import type { BaseCommand } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { JsonResponse } from "./json-response.mjs";
 

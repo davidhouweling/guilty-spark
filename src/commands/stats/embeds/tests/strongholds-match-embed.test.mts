@@ -1,7 +1,7 @@
 import { describe, beforeEach, expect, it } from "vitest";
 import { matchStats, playerXuidsToGametags } from "../../../../services/halo/fakes/data.mjs";
 import { StrongholdsMatchEmbed } from "../strongholds-match-embed.mjs";
-import { HaloService } from "../../../../services/halo/halo.mjs";
+import type { HaloService } from "../../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../../../services/halo/fakes/halo.fake.mjs";
 

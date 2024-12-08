@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { APIVersion, RESTPutAPIApplicationCommandsResult, Routes } from "discord-api-types/v10";
+import type { RESTPutAPIApplicationCommandsResult} from "discord-api-types/v10";
+import { APIVersion, Routes } from "discord-api-types/v10";
 import { getCommands } from "./commands/commands.mjs";
-import { Services } from "./services/install.mjs";
+import type { Services } from "./services/install.mjs";
 import { Preconditions } from "./base/preconditions.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {
