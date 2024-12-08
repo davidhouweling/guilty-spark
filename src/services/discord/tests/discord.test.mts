@@ -470,10 +470,10 @@ describe("DiscordService", () => {
       expect(response).toEqual(apiMessage);
     });
 
-    it("throws an error if the thread name is too long", () => {
-      expect(async () =>
+    it("throws an error if the thread name is too long", async () => {
+      return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
-      ).toThrow(new Error("Thread name must be 100 characters or fewer"));
+      ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
     });
   });
 });

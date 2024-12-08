@@ -250,7 +250,7 @@ export class DiscordService {
     autoArchiveDuration: 60 | 1440 | 4320 | 10080 = 60,
   ): Promise<RESTPostAPIChannelThreadsResult> {
     if (name.length > 100) {
-      throw new Error("Thread name must be 100 characters or fewer");
+      return Promise.reject(new Error("Thread name must be 100 characters or fewer"));
     }
 
     const data: RESTPostAPIChannelMessagesThreadsJSONBody = {
