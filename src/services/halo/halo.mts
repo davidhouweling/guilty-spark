@@ -1,23 +1,12 @@
 import * as tinyduration from "tinyduration";
-import type {
-  HaloInfiniteClient,
-  MatchStats,
-  PlayerMatchHistory} from "halo-infinite-api";
-import {
-  AssetKind,
-  GameVariantCategory,
-  MatchType
-} from "halo-infinite-api";
+import type { HaloInfiniteClient, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
+import { AssetKind, GameVariantCategory, MatchType } from "halo-infinite-api";
 import { differenceInHours, isBefore } from "date-fns";
 import type { APIUser } from "discord-api-types/v10";
 import type { QueueData } from "../discord/discord.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type {
-  DiscordAssociationsRow} from "../database/types/discord_associations.mjs";
-import {
-  AssociationReason,
-  GamesRetrievable,
-} from "../database/types/discord_associations.mjs";
+import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
+import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 
 interface HaloServiceOpts {
@@ -37,7 +26,7 @@ export class HaloService {
     this.infiniteClient = infiniteClient;
   }
 
-  async getSeriesFromDiscordQueue(queueData: QueueData) {
+  async getSeriesFromDiscordQueue(queueData: QueueData): Promise<MatchStats[]> {
     const users = queueData.teams.flatMap((team) => team.players);
     await this.populateUserCache(users);
 
@@ -68,7 +57,10 @@ export class HaloService {
     return seriesMatches;
   }
 
-  async getMatchDetails(matchIDs: string[], filter?: (match: MatchStats, index: number) => boolean) {
+  async getMatchDetails(
+    matchIDs: string[],
+    filter?: (match: MatchStats, index: number) => boolean,
+  ): Promise<MatchStats[]> {
     const matchStats = await Promise.all(matchIDs.map((matchID) => this.infiniteClient.getMatchStats(matchID)));
     const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
@@ -77,12 +69,12 @@ export class HaloService {
     );
   }
 
-  async getGameTypeAndMap(match: MatchStats) {
+  async getGameTypeAndMap(match: MatchStats): Promise<string> {
     const mapName = await this.getMapName(match);
     return `${this.getMatchVariant(match)}: ${mapName}`;
   }
 
-  getMatchScore(match: MatchStats) {
+  getMatchScore(match: MatchStats): string {
     const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
@@ -94,7 +86,7 @@ export class HaloService {
     return scoreCompare.join(":");
   }
 
-  getTeamName(teamId: number) {
+  getTeamName(teamId: number): "Unknown" | "Eagle" | "Cobra" | "Green" | "Orange" {
     switch (teamId) {
       case 0:
         return "Eagle";
@@ -109,7 +101,7 @@ export class HaloService {
     }
   }
 
-  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">) {
+  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
   }
 
@@ -127,7 +119,7 @@ export class HaloService {
     return this.xuidToGamerTagCache;
   }
 
-  getReadableDuration(duration: string) {
+  getReadableDuration(duration: string): string {
     const parsedDuration = tinyduration.parse(duration);
     const output: string[] = [];
     if (parsedDuration.days) {
@@ -146,7 +138,7 @@ export class HaloService {
     return output.join(" ");
   }
 
-  async updateDiscordAssociations() {
+  async updateDiscordAssociations(): Promise<void> {
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
@@ -193,7 +185,7 @@ export class HaloService {
     }
   }
 
-  private async getPlayerMatches(xboxUserId: string, date: Date) {
+  private async getPlayerMatches(xboxUserId: string, date: Date): Promise<PlayerMatchHistory[]> {
     const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom);
     const matchesCloseToDate = playerMatches.filter((match) => {
       const startTime = new Date(match.MatchInfo.StartTime);
@@ -205,7 +197,7 @@ export class HaloService {
     return matchesCloseToDate;
   }
 
-  private async getMatchesForUsers(users: DiscordAssociationsRow[], endDate: Date) {
+  private async getMatchesForUsers(users: DiscordAssociationsRow[], endDate: Date): Promise<string[]> {
     const userMatches = new Map<string, PlayerMatchHistory[]>();
     const matches: PlayerMatchHistory[] = [];
 
@@ -268,7 +260,7 @@ export class HaloService {
     return matches.map((match) => match.MatchId);
   }
 
-  private filterMatchesToMatchingTeams(matches: MatchStats[]) {
+  private filterMatchesToMatchingTeams(matches: MatchStats[]): MatchStats[] {
     const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
     return matches.filter((match) => {
       if (match.Teams.length !== lastMatch.Teams.length) {
@@ -283,7 +275,7 @@ export class HaloService {
     });
   }
 
-  private async getMapName(match: MatchStats) {
+  private async getMapName(match: MatchStats): Promise<string> {
     const { AssetId, VersionId } = match.MatchInfo.MapVariant;
     const cacheKey = `${AssetId}:${VersionId}`;
 
@@ -295,7 +287,7 @@ export class HaloService {
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
-  private getMatchVariant(match: MatchStats) {
+  private getMatchVariant(match: MatchStats): string {
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
         return "Attrition";

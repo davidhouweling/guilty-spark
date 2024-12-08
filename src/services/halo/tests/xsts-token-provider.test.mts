@@ -1,4 +1,4 @@
-import type { MockInstance} from "vitest";
+import type { MockInstance } from "vitest";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { XstsTokenProvider } from "../xsts-token-provider.mjs";
 import type { XboxService } from "../../xbox/xbox.mjs";
@@ -8,7 +8,7 @@ vi.mock("halo-infinite-api", () => ({
   StaticXstsTicketTokenSpartanTokenProvider: class StaticXstsTicketTokenSpartanTokenProvider {
     constructor(readonly token: string) {}
 
-    getSpartanToken() {
+    getSpartanToken(): string {
       return this.token;
     }
   },

@@ -20,13 +20,13 @@ export const fakeD1Response: D1Response = {
 };
 
 export class FakePreparedStatement /* extends D1PreparedStatement */ {
-  bind() {
+  bind(): D1PreparedStatement {
     return this as unknown as D1PreparedStatement;
   }
-  first() {
+  first(): Promise<null> {
     return Promise.resolve(null);
   }
-  run() {
+  run(): Promise<{ results: never[]; success: true; meta: D1Meta & Record<string, unknown>; error?: never }> {
     return Promise.resolve({ ...fakeD1Response, results: [] });
   }
   all<T = Record<string, unknown>>(): Promise<D1Result<T>> {

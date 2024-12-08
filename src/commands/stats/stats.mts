@@ -2,7 +2,8 @@ import type {
   APIApplicationCommand,
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIEmbed} from "discord-api-types/v10";
+  APIEmbed,
+} from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -241,7 +242,7 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]) {
+  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
     for (let column = 0; column < titles.length; column++) {
       embed.fields ??= [];
       embed.fields.push({
@@ -261,7 +262,7 @@ export class StatsCommand extends BaseCommand {
     queue: number,
     queueData: QueueData,
     series: MatchStats[],
-  ) {
+  ): Promise<APIEmbed> {
     const { haloService } = this.services;
     const titles = ["Game", "Duration", "Score"];
     const tableData = [titles];

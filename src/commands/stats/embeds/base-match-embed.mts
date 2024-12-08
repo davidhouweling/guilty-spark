@@ -27,7 +27,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     ]);
   }
 
-  async getEmbed(match: MatchStats, players: Map<string, string>) {
+  async getEmbed(match: MatchStats, players: Map<string, string>): Promise<APIEmbed> {
     const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match);
 
     const embed: APIEmbed = {

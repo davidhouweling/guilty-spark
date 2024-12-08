@@ -34,7 +34,11 @@ export default config(
       },
     },
     rules: {
+      "@typescript-eslint/consistent-type-exports": "error",
       "@typescript-eslint/consistent-type-imports": "error",
+      "default-param-last": "off",
+      "@typescript-eslint/default-param-last": "error",
+      "@typescript-eslint/explicit-function-return-type": "error",
       "import/order": "error",
     },
   },
