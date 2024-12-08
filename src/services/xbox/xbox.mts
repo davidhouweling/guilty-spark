@@ -1,4 +1,4 @@
-import {
+import type {
   AuthenticateOptions,
   CredentialsAuthenticateInitialResponse,
   CredentialsAuthenticateResponse,
@@ -30,9 +30,9 @@ export class XboxService {
     this.authenticate = authenticate;
   }
 
-  async loadCredentials() {
+  async loadCredentials(): Promise<void> {
     const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
-    if (tokenInfo) {
+    if (tokenInfo != null) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
       } catch (error) {
@@ -42,24 +42,24 @@ export class XboxService {
     }
   }
 
-  get token() {
+  get token(): string | undefined {
     return this.tokenInfoMap.get(TokenInfoKey.XSTSToken);
   }
 
-  async maybeRefreshToken() {
+  async maybeRefreshToken(): Promise<void> {
     const expiresOn = this.tokenInfoMap.get(TokenInfoKey.expiresOn);
 
-    if (!this.token || !expiresOn || new Date() >= new Date(expiresOn)) {
+    if (this.token == null || expiresOn == null || new Date() >= new Date(expiresOn)) {
       await this.updateCredentials();
     }
   }
 
-  clearToken() {
+  clearToken(): void {
     this.tokenInfoMap.clear();
     void this.env.SERVICE_API_TOKENS.delete("xbox");
   }
 
-  private async updateCredentials() {
+  private async updateCredentials(): Promise<void> {
     const credentialsResponse = (await this.authenticate(this.env.XBOX_USERNAME, this.env.XBOX_PASSWORD, {
       XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
     })) as CredentialsAuthenticateInitialResponse;

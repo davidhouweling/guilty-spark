@@ -1,7 +1,7 @@
-import { GameVariantCategory, MatchStats } from "halo-infinite-api";
-import { HaloService } from "../../../services/halo/halo.mjs";
+import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import type { APIEmbed } from "discord-api-types/v10";
+import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import { APIEmbed } from "discord-api-types/v10";
 
 export type PlayerStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
@@ -27,7 +27,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     ]);
   }
 
-  async getEmbed(match: MatchStats, players: Map<string, string>) {
+  async getEmbed(match: MatchStats, players: Map<string, string>): Promise<APIEmbed> {
     const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match);
 
     const embed: APIEmbed = {

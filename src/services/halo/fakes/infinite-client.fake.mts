@@ -1,10 +1,12 @@
-import { AssetKind, HaloInfiniteClient, MatchType } from "halo-infinite-api";
-import { mock, MockProxy } from "vitest-mock-extended";
+import type { HaloInfiniteClient } from "halo-infinite-api";
+import { AssetKind, MatchType } from "halo-infinite-api";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { assetVersion, matchStats, playerMatches } from "./data.mjs";
 
 export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
   const infiniteClient = mock<HaloInfiniteClient>();
-  infiniteClient.getUser.mockImplementation((username) => {
+  infiniteClient.getUser.mockImplementation(async (username) => {
     if (/^discord_user_\d+$/.test(username)) {
       const discriminator = username.slice(-2);
       return Promise.resolve({
@@ -21,7 +23,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return Promise.reject(new Error("User not found"));
   });
-  infiniteClient.getUsers.mockImplementation((xuids) => {
+  infiniteClient.getUsers.mockImplementation(async (xuids) => {
     return Promise.resolve(
       xuids.map((xuid) => ({
         xuid,
@@ -46,7 +48,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return [];
   });
-  infiniteClient.getMatchStats.mockImplementation((matchId) => {
+  infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
     const stats = matchStats.get(matchId);
     if (stats) {
       return Promise.resolve(stats);
@@ -54,7 +56,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return Promise.reject(new Error("Match not found"));
   });
-  infiniteClient.getSpecificAssetVersion.mockImplementation((assetKind, assetId, version) => {
+  infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, version) => {
     if (assetKind === AssetKind.Map && assetVersion.AssetId === assetId && assetVersion.VersionId === version) {
       return Promise.resolve(assetVersion);
     }

@@ -1,5 +1,9 @@
-import { Services } from "../../services/install.mjs";
-import { APIApplicationCommandInteraction, APIApplicationCommand, APIInteractionResponse } from "discord-api-types/v10";
+import type {
+  APIApplicationCommandInteraction,
+  APIApplicationCommand,
+  APIInteractionResponse,
+} from "discord-api-types/v10";
+import type { Services } from "../../services/install.mjs";
 
 export interface ExecuteResponse {
   response: APIInteractionResponse;

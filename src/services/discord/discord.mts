@@ -1,5 +1,5 @@
-import { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
-import {
+import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
+import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
@@ -7,11 +7,6 @@ import {
   APIInteractionResponse,
   APIMessage,
   APIUser,
-  APIVersion,
-  ApplicationCommandType,
-  InteractionResponseType,
-  InteractionType,
-  MessageFlags,
   RESTGetAPIUserResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
@@ -20,11 +15,18 @@ import {
   RESTPostAPIChannelMessagesThreadsJSONBody,
   RESTPostAPIChannelThreadsResult,
   RESTPostAPIWebhookWithTokenJSONBody,
+} from "discord-api-types/v10";
+import {
+  APIVersion,
+  ApplicationCommandType,
+  InteractionResponseType,
+  InteractionType,
+  MessageFlags,
   Routes,
 } from "discord-api-types/v10";
-import { JsonResponse } from "./json-response.mjs";
-import { BaseCommand } from "../../commands/base/base.mjs";
+import type { BaseCommand } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { JsonResponse } from "./json-response.mjs";
 
 const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
@@ -49,6 +51,11 @@ export interface SubcommandData {
   mappedOptions: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]> | undefined;
 }
 
+type VerifyDiscordResponse =
+  | { isValid: boolean; interaction?: never; error?: never }
+  | { interaction: APIInteraction; isValid: boolean; error?: never }
+  | { isValid: boolean; error: string; interaction?: never };
+
 // originally this was built to wrap discord.js and use the provided client
 // but in a move to make it work with Cloud Workers (such as Cloudflare Workers or AWS Lambda)
 // replacing the outer workings with the expectations of discord HTTP interactions
@@ -65,16 +72,19 @@ export class DiscordService {
     this.verifyKey = verifyKey;
   }
 
-  setCommands(commands: Map<string, BaseCommand>) {
+  setCommands(commands: Map<string, BaseCommand>): void {
     this.commands = commands;
   }
 
-  async verifyDiscordRequest(request: Request) {
+  async verifyDiscordRequest(request: Request): Promise<VerifyDiscordResponse> {
     const signature = request.headers.get("x-signature-ed25519");
     const timestamp = request.headers.get("x-signature-timestamp");
     const body = await request.text();
     const isValidRequest =
-      signature && timestamp && (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
+      signature != null &&
+      timestamp != null &&
+      (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
+
     if (!isValidRequest) {
       return { isValid: false };
     }
@@ -127,6 +137,9 @@ export class DiscordService {
           jobToComplete,
         };
       }
+      case InteractionType.MessageComponent:
+      case InteractionType.ApplicationCommandAutocomplete:
+      case InteractionType.ModalSubmit:
       default: {
         console.warn("Unknown interaction type");
 
@@ -167,7 +180,7 @@ export class DiscordService {
     });
 
     const queueMessage = messages
-      .filter((message) => message.author.bot && message.author.id === NEAT_QUEUE_BOT_USER_ID)
+      .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
       .find((message) =>
         message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")),
       );
@@ -203,7 +216,10 @@ export class DiscordService {
     return { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
   }
 
-  async updateDeferredReply(interactionToken: string, data: RESTPostAPIWebhookWithTokenJSONBody) {
+  async updateDeferredReply(
+    interactionToken: string,
+    data: RESTPostAPIWebhookWithTokenJSONBody,
+  ): Promise<RESTPatchAPIChannelMessageResult> {
     const response = await this.fetch<RESTPatchAPIChannelMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
       { method: "PATCH", body: JSON.stringify(data) },
@@ -211,27 +227,30 @@ export class DiscordService {
     return response;
   }
 
-  getMessageFromInteractionToken(interactionToken: string) {
+  async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
     return this.fetch<RESTGetAPIWebhookWithTokenMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
     );
   }
 
-  createMessage(channel: string, data: RESTPostAPIChannelMessageJSONBody) {
+  async createMessage(
+    channel: string,
+    data: RESTPostAPIChannelMessageJSONBody,
+  ): Promise<RESTPostAPIChannelMessageResult> {
     return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channel), {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  startThreadFromMessage(
+  async startThreadFromMessage(
     channel: string,
     message: string,
     name: string,
     autoArchiveDuration: 60 | 1440 | 4320 | 10080 = 60,
-  ) {
+  ): Promise<RESTPostAPIChannelThreadsResult> {
     if (name.length > 100) {
-      throw new Error("Thread name must be 100 characters or fewer");
+      return Promise.reject(new Error("Thread name must be 100 characters or fewer"));
     }
 
     const data: RESTPostAPIChannelMessagesThreadsJSONBody = {
@@ -254,7 +273,7 @@ export class DiscordService {
       ) = {
       method: "GET",
     },
-  ) {
+  ): Promise<T> {
     const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
     if (options.method === "GET" && options.queryParameters) {
       for (const [key, value] of Object.entries(options.queryParameters)) {
@@ -293,7 +312,7 @@ export class DiscordService {
     const ids: string[] = [];
     let match: RegExpExecArray | null;
     while ((match = regex.exec(message)) !== null) {
-      if (match[1]) {
+      if (match[1] != null) {
         ids.push(match[1]);
       }
     }

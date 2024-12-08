@@ -1,8 +1,10 @@
-import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
-import { TokenInfoKey, XboxLiveAuthAuthenticate, XboxService } from "../xbox.mjs";
-import { CredentialsAuthenticateResponse } from "@xboxreplay/xboxlive-auth";
 import { afterEach } from "node:test";
+import type { Mock } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { CredentialsAuthenticateResponse } from "@xboxreplay/xboxlive-auth";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import type { XboxLiveAuthAuthenticate } from "../xbox.mjs";
+import { TokenInfoKey, XboxService } from "../xbox.mjs";
 
 const validKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2025-01-01T03:00:00.000Z"]]`;
 const expiredKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2024-12-31T23:59:00.000Z"]]`;

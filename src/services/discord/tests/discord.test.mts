@@ -1,20 +1,21 @@
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import { verifyKey } from "discord-interactions";
-import { DiscordService, QueueData } from "../discord.mjs";
-import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
+import type { Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { verifyKey } from "discord-interactions";
+import type { APIInteraction, APIUser } from "discord-api-types/v10";
 import {
-  APIInteraction,
-  APIUser,
   ApplicationCommandOptionType,
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
   MessageFlags,
 } from "discord-api-types/v10";
+import type { QueueData } from "../discord.mjs";
+import { DiscordService } from "../discord.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
-import { BaseCommand } from "../../../commands/base/base.mjs";
-import { Services } from "../../install.mjs";
+import type { BaseCommand } from "../../../commands/base/base.mjs";
+import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("DiscordService", () => {
@@ -23,7 +24,7 @@ describe("DiscordService", () => {
   let discordService: DiscordService;
 
   beforeEach(() => {
-    mockFetch = vi.fn<typeof fetch>().mockImplementation((path) => {
+    mockFetch = vi.fn<typeof fetch>().mockImplementation(async (path) => {
       const prefix = "https://discord.com/api/v10";
       if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
         return Promise.resolve(new Response(JSON.stringify(channelMessages)));
@@ -469,10 +470,10 @@ describe("DiscordService", () => {
       expect(response).toEqual(apiMessage);
     });
 
-    it("throws an error if the thread name is too long", () => {
-      expect(() => discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101))).toThrow(
-        new Error("Thread name must be 100 characters or fewer"),
-      );
+    it("throws an error if the thread name is too long", async () => {
+      return expect(async () =>
+        discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
+      ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
     });
   });
 });

@@ -1,12 +1,23 @@
 import eslint from "@eslint/js";
-import tseslint from "typescript-eslint";
+import { config, configs } from "typescript-eslint";
+import importPlugin from "eslint-plugin-import";
+import tsParser from "@typescript-eslint/parser";
 
-export default tseslint.config(
+export default config(
   eslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  configs.strictTypeChecked,
+  configs.stylisticTypeChecked,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  importPlugin.flatConfigs.recommended,
+  importPlugin.flatConfigs.typescript,
+  {
+    ignores: [".wrangler/", "coverage/", "dist/", "patches/", "**/*.json"],
+  },
   {
     languageOptions: {
+      parser: tsParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
       parserOptions: {
         projectService: {
           allowDefaultProject: ["*.mjs"],
@@ -16,8 +27,35 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
-  },
-  {
-    ignores: [".wrangler/*", "dist/*", "patches/*", "**/*.json"],
+    settings: {
+      "import/resolver": {
+        typescript: true,
+        node: true,
+      },
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-exports": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "default-param-last": "off",
+      "@typescript-eslint/default-param-last": "error",
+      "@typescript-eslint/explicit-function-return-type": "error",
+      "no-loop-func": "off",
+      "@typescript-eslint/no-loop-func": "error",
+      "no-shadow": "off",
+      "@typescript-eslint/no-shadow": "error",
+      "@typescript-eslint/no-unnecessary-parameter-property-assignment": "error",
+      "@typescript-eslint/no-unnecessary-qualifier": "error",
+      // TODO: resolve these and turn into error
+      "@typescript-eslint/no-unsafe-type-assertion": "warn",
+      "@typescript-eslint/no-use-before-define": "error",
+      "@typescript-eslint/no-useless-empty-export": "error",
+      "prefer-destructuring": "off",
+      "@typescript-eslint/prefer-destructuring": "error",
+      "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/promise-function-async": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "import/order": "error",
+    },
   },
 );

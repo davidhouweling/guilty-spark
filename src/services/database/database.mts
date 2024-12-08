@@ -1,4 +1,4 @@
-import { DiscordAssociationsRow } from "./types/discord_associations.mjs";
+import type { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 
 export interface DatabaseServiceOpts {
   env: Env;

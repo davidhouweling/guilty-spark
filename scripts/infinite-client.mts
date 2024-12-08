@@ -1,13 +1,13 @@
 import "dotenv/config";
-import { XboxService } from "../src/services/xbox/xbox.mjs";
-import { XstsTokenProvider } from "../src/services/halo/xsts-token-provider.mjs";
-import { HaloInfiniteClient } from "halo-infinite-api";
-import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
-import { Preconditions } from "../src/base/preconditions.mjs";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
+import { HaloInfiniteClient } from "halo-infinite-api";
+import { authenticate } from "@xboxreplay/xboxlive-auth";
+import { XboxService } from "../src/services/xbox/xbox.mjs";
+import { XstsTokenProvider } from "../src/services/halo/xsts-token-provider.mjs";
+import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
+import { Preconditions } from "../src/base/preconditions.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

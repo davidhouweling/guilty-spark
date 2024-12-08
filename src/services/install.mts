@@ -1,11 +1,11 @@
 import { authenticate } from "@xboxreplay/xboxlive-auth";
+import { HaloInfiniteClient } from "halo-infinite-api";
+import { verifyKey } from "discord-interactions";
 import { DatabaseService } from "./database/database.mjs";
 import { DiscordService } from "./discord/discord.mjs";
 import { HaloService } from "./halo/halo.mjs";
 import { XboxService } from "./xbox/xbox.mjs";
-import { HaloInfiniteClient } from "halo-infinite-api";
 import { XstsTokenProvider } from "./halo/xsts-token-provider.mjs";
-import { verifyKey } from "discord-interactions";
 
 export interface Services {
   databaseService: DatabaseService;
