@@ -5,8 +5,8 @@ import { DiscordService } from "../discord.mjs";
 export function aFakeDiscordServiceWith(opts: Partial<DiscordServiceOpts> = {}): DiscordService {
   return new DiscordService({
     env: aFakeEnvWith(),
-    fetch: () => Promise.resolve(new Response()),
-    verifyKey: () => Promise.resolve(true),
+    fetch: async () => Promise.resolve(new Response()),
+    verifyKey: async () => Promise.resolve(true),
     ...opts,
   });
 }

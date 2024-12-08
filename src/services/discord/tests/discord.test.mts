@@ -26,7 +26,7 @@ describe("DiscordService", () => {
   let discordService: DiscordService;
 
   beforeEach(() => {
-    mockFetch = vi.fn<typeof fetch>().mockImplementation((path) => {
+    mockFetch = vi.fn<typeof fetch>().mockImplementation(async (path) => {
       const prefix = "https://discord.com/api/v10";
       if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
         return Promise.resolve(new Response(JSON.stringify(channelMessages)));
@@ -473,7 +473,7 @@ describe("DiscordService", () => {
     });
 
     it("throws an error if the thread name is too long", () => {
-      expect(() => discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101))).toThrow(
+      expect(async () => discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101))).toThrow(
         new Error("Thread name must be 100 characters or fewer"),
       );
     });

@@ -1,9 +1,9 @@
 const fakeNamespace: KVNamespace = {
-  getWithMetadata: () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
-  get: () => Promise.resolve(null),
-  put: () => Promise.resolve(),
-  list: () => Promise.resolve({ list_complete: true, keys: [], cacheStatus: null }),
-  delete: () => Promise.resolve(),
+  getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
+  get: async () => Promise.resolve(null),
+  put: async () => Promise.resolve(),
+  list: async () => Promise.resolve({ list_complete: true, keys: [], cacheStatus: null }),
+  delete: async () => Promise.resolve(),
 };
 
 export const fakeD1Response: D1Response = {
@@ -23,28 +23,28 @@ export class FakePreparedStatement /* extends D1PreparedStatement */ {
   bind(): D1PreparedStatement {
     return this as unknown as D1PreparedStatement;
   }
-  first(): Promise<null> {
+  async first(): Promise<null> {
     return Promise.resolve(null);
   }
-  run(): Promise<{ results: never[]; success: true; meta: D1Meta & Record<string, unknown>; error?: never }> {
+  async run(): Promise<{ results: never[]; success: true; meta: D1Meta & Record<string, unknown>; error?: never }> {
     return Promise.resolve({ ...fakeD1Response, results: [] });
   }
-  all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+  async all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
     return Promise.resolve({ ...fakeD1Response, results: [] as T[] });
   }
   raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
   raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  raw<T = unknown[]>(_options?: { columnNames?: boolean }): Promise<T[] | [string[], ...T[]]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/require-await
+  async raw<T = unknown[]>(_options?: { columnNames?: boolean }): Promise<T[] | [string[], ...T[]]> {
     throw new Error("Not implemented");
   }
 }
 
 const fakeDb: D1Database = {
   prepare: () => new FakePreparedStatement(),
-  batch: () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
-  exec: () => Promise.resolve({ count: 1, duration: 1 }),
-  dump: () => Promise.resolve(new ArrayBuffer(1)),
+  batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
+  exec: async () => Promise.resolve({ count: 1, duration: 1 }),
+  dump: async () => Promise.resolve(new ArrayBuffer(1)),
 };
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {

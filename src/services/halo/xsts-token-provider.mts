@@ -20,7 +20,7 @@ export class XstsTokenProvider implements SpartanTokenProvider {
     ).getSpartanToken();
   }
 
-  clearSpartanToken(): Promise<void> {
+  async clearSpartanToken(): Promise<void> {
     this.xboxService.clearToken();
     return Promise.resolve();
   }

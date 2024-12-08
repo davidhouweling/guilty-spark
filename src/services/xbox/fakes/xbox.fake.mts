@@ -7,7 +7,7 @@ import { XboxService } from "../xbox.mjs";
 export function aFakeXboxServiceWith(opts: Partial<XboxServiceOpts> = {}): XboxService {
   return new XboxService({
     env: aFakeEnvWith(),
-    authenticate: (): Promise<CredentialsAuthenticateInitialResponse> =>
+    authenticate: async (): Promise<CredentialsAuthenticateInitialResponse> =>
       Promise.resolve({
         xuid: "fake-xuid",
         xsts_token: "fake-xsts-token",

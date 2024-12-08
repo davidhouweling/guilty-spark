@@ -221,20 +221,20 @@ export class DiscordService {
     return response;
   }
 
-  getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
+  async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
     return this.fetch<RESTGetAPIWebhookWithTokenMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
     );
   }
 
-  createMessage(channel: string, data: RESTPostAPIChannelMessageJSONBody): Promise<RESTPostAPIChannelMessageResult> {
+  async createMessage(channel: string, data: RESTPostAPIChannelMessageJSONBody): Promise<RESTPostAPIChannelMessageResult> {
     return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channel), {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  startThreadFromMessage(
+  async startThreadFromMessage(
     channel: string,
     message: string,
     name: string,

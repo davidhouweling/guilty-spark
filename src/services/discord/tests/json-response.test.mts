@@ -9,7 +9,7 @@ describe("JsonResponse", () => {
   });
 
   it("has content-type header", () => {
-    const headers = jsonResponse.headers;
+    const {headers} = jsonResponse;
     expect(headers.get("content-type")).toBe("application/json;charset=UTF-8");
   });
 

@@ -58,7 +58,7 @@ describe("Halo service", () => {
       ]);
     });
 
-    it("throws an error when all users from database are not game retrievable", () => {
+    it("throws an error when all users from database are not game retrievable", async () => {
       const discordIds = [
         "000000000000000001",
         "000000000000000002",
@@ -84,7 +84,7 @@ describe("Halo service", () => {
       );
     });
 
-    it("throws an error when no users could be found for all users", () => {
+    it("throws an error when no users could be found for all users", async () => {
       infiniteClient.getUser.mockClear();
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
@@ -93,7 +93,7 @@ describe("Halo service", () => {
       );
     });
 
-    it("throws an error when no matches could be found for all users", () => {
+    it("throws an error when no matches could be found for all users", async () => {
       infiniteClient.getPlayerMatches.mockClear();
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
 

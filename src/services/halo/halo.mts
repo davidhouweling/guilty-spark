@@ -61,7 +61,7 @@ export class HaloService {
     matchIDs: string[],
     filter?: (match: MatchStats, index: number) => boolean,
   ): Promise<MatchStats[]> {
-    const matchStats = await Promise.all(matchIDs.map((matchID) => this.infiniteClient.getMatchStats(matchID)));
+    const matchStats = await Promise.all(matchIDs.map(async (matchID) => this.infiniteClient.getMatchStats(matchID)));
     const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
     return filteredMatches.sort(
@@ -150,7 +150,7 @@ export class HaloService {
 
     let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      unresolvedUsers.map((user) => this.infiniteClient.getUser(user.username)),
+      unresolvedUsers.map(async (user) => this.infiniteClient.getUser(user.username)),
     );
     for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
       if (result.status === "fulfilled") {
@@ -167,7 +167,7 @@ export class HaloService {
 
     unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
-      unresolvedUsers.map((user) =>
+      unresolvedUsers.map(async (user) =>
         user.global_name ? this.infiniteClient.getUser(user.global_name) : Promise.reject(new Error("No global name")),
       ),
     );
@@ -218,7 +218,7 @@ export class HaloService {
       if (userMatches.size >= 2) {
         const lastMatch = Preconditions.checkExists(playerMatches[0]);
         const otherUsersWithSameLastMatch = Array.from(userMatches.entries()).filter(
-          ([, matches]) => Preconditions.checkExists(matches[0]).MatchId === lastMatch.MatchId,
+          ([, otherMatches]) => Preconditions.checkExists(otherMatches[0]).MatchId === lastMatch.MatchId,
         );
         if (otherUsersWithSameLastMatch.length) {
           for (const [discordId] of otherUsersWithSameLastMatch) {
