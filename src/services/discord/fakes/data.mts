@@ -277,6 +277,31 @@ export const channelMessages: APIMessage[] = [
       },
     ],
   }),
+  {
+    type: MessageType.Default,
+    content: "",
+    mentions: [],
+    mention_roles: [],
+    attachments: [],
+    embeds: [],
+    timestamp: "2024-12-06T12:03:09.182000+00:00",
+    edited_timestamp: null,
+    components: [],
+    id: "1314562775950954626",
+    channel_id: "1299532381308325949",
+    author: {
+      id: "000000000000000001",
+      username: "soundmanD",
+      avatar: "e803b2f163fda5aeba2cf4820e3a6535",
+      discriminator: "0850",
+      public_flags: 65536,
+      flags: 65536,
+      global_name: null,
+    },
+    pinned: false,
+    mention_everyone: false,
+    tts: false,
+  },
 ];
 
 export const discordNeatQueueData: QueueData = {

@@ -179,10 +179,14 @@ describe("DiscordService", () => {
       });
     });
 
-    describe("Unknown InteractionType", () => {
+    describe.each([
+      ["InteractionType.MessageComponent", InteractionType.MessageComponent],
+      ["InteractionType.ApplicationCommandAutocomplete", InteractionType.ApplicationCommandAutocomplete],
+      ["InteractionType.ModalSubmit", InteractionType.ModalSubmit],
+    ])("%s", (_, interactionType) => {
       it("returns an error response", async () => {
         const { response } = discordService.handleInteraction({
-          type: InteractionType.ModalSubmit,
+          type: interactionType,
         } as APIInteraction);
 
         expect(response.status).toEqual(400);
