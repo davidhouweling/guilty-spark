@@ -381,7 +381,7 @@ export const discordNeatQueueData: QueueData = {
           username: "discord_user_03",
           avatar: null,
           discriminator: "0",
-          global_name: "DiscordUser03",
+          global_name: null,
         },
         {
           id: "000000000000000004",
