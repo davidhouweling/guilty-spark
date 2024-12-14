@@ -11,7 +11,7 @@ export default config(
   importPlugin.flatConfigs.recommended,
   importPlugin.flatConfigs.typescript,
   {
-    ignores: [".wrangler/", "coverage/", "dist/", "patches/", "**/*.json"],
+    ignores: [".wrangler/", "coverage/", "dist/", "patches/", "test-results/", "**/*.json"],
   },
   {
     languageOptions: {

@@ -12,7 +12,12 @@ import {
 import type { QueueData } from "../discord.mjs";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import { apiMessage, applicationCommandInteraction, channelMessages, pingInteraction } from "../fakes/data.mjs";
+import {
+  apiMessage,
+  applicationCommandInteractionStatsMatch,
+  channelMessages,
+  pingInteraction,
+} from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import type { BaseCommand } from "../../../commands/base/base.mjs";
 import type { Services } from "../../install.mjs";
@@ -142,7 +147,7 @@ describe("DiscordService", () => {
 
     describe("InteractionType.ApplicationCommand", () => {
       it("returns an error response if no commands are loaded", async () => {
-        const { response } = discordService.handleInteraction(applicationCommandInteraction);
+        const { response } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
         expect(response.status).toEqual(500);
         expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
@@ -150,7 +155,7 @@ describe("DiscordService", () => {
 
       it("returns an error response if the command is not found", async () => {
         discordService.setCommands(new Map());
-        const { response } = discordService.handleInteraction(applicationCommandInteraction);
+        const { response } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
         expect(response.status).toEqual(400);
         expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
@@ -162,18 +167,18 @@ describe("DiscordService", () => {
         const command: BaseCommand = {
           services: {} as Services,
           data: {
-            name: applicationCommandInteraction.data.name,
+            name: applicationCommandInteractionStatsMatch.data.name,
             type: 1,
             options: [],
             description: "some description",
           },
           execute: executeFn,
         };
-        discordService.setCommands(new Map([[applicationCommandInteraction.data.name, command]]));
+        discordService.setCommands(new Map([[applicationCommandInteractionStatsMatch.data.name, command]]));
 
-        const { response, jobToComplete } = discordService.handleInteraction(applicationCommandInteraction);
+        const { response, jobToComplete } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
-        expect(executeFn).toHaveBeenCalledWith(applicationCommandInteraction);
+        expect(executeFn).toHaveBeenCalledWith(applicationCommandInteractionStatsMatch);
         expect(await response.text()).toEqual(JSON.stringify({}));
         expect(jobToComplete).toEqual(jobToCompleteFn);
       });
@@ -198,8 +203,8 @@ describe("DiscordService", () => {
   describe("extractSubcommand()", () => {
     it("returns subcommand data", () => {
       const subcommand = discordService.extractSubcommand(
-        applicationCommandInteraction,
-        applicationCommandInteraction.data.name,
+        applicationCommandInteractionStatsMatch,
+        applicationCommandInteractionStatsMatch.data.name,
       );
 
       expect(subcommand).toEqual({
@@ -215,7 +220,7 @@ describe("DiscordService", () => {
       expect(() =>
         discordService.extractSubcommand(
           {
-            ...applicationCommandInteraction,
+            ...applicationCommandInteractionStatsMatch,
             type: InteractionType.ApplicationCommand,
             data: {
               type: ApplicationCommandType.Message,
@@ -227,13 +232,13 @@ describe("DiscordService", () => {
               target_id: "fake-target-id",
             },
           },
-          applicationCommandInteraction.data.name,
+          applicationCommandInteractionStatsMatch.data.name,
         ),
       ).toThrow("Unexpected interaction type");
     });
 
     it("throws an error if the interaction name does not match", () => {
-      expect(() => discordService.extractSubcommand(applicationCommandInteraction, "fake-name")).toThrow(
+      expect(() => discordService.extractSubcommand(applicationCommandInteractionStatsMatch, "fake-name")).toThrow(
         "Unexpected interaction name",
       );
     });
@@ -242,15 +247,15 @@ describe("DiscordService", () => {
       expect(() =>
         discordService.extractSubcommand(
           {
-            ...applicationCommandInteraction,
+            ...applicationCommandInteractionStatsMatch,
             data: {
               type: ApplicationCommandType.ChatInput,
-              name: applicationCommandInteraction.data.name,
+              name: applicationCommandInteractionStatsMatch.data.name,
               id: "fake-id",
               resolved: {},
             },
           },
-          applicationCommandInteraction.data.name,
+          applicationCommandInteractionStatsMatch.data.name,
         ),
       ).toThrow("No subcommand found");
     });

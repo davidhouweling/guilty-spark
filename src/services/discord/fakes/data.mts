@@ -1,5 +1,19 @@
-import type { APIApplicationCommandInteraction, APIMessage, APIPingInteraction } from "discord-api-types/v10";
-import { ChannelFlags, GuildMemberFlags, InteractionType, Locale, MessageType } from "discord-api-types/v10";
+import type {
+  APIApplicationCommandInteraction,
+  APIMessage,
+  APIPingInteraction,
+  RESTPostAPIChannelMessagesThreadsResult,
+} from "discord-api-types/v10";
+import {
+  ApplicationCommandOptionType,
+  ChannelFlags,
+  ChannelType,
+  GuildFeature,
+  GuildMemberFlags,
+  InteractionType,
+  Locale,
+  MessageType,
+} from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 
 export const apiMessage: APIMessage = {
@@ -37,7 +51,81 @@ export const pingInteraction: APIPingInteraction = {
   entitlements: [],
 };
 
-export const applicationCommandInteraction: APIApplicationCommandInteraction = {
+export const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
+  app_permissions: "fake-permissions",
+  application_id: "1290269474536034357",
+  authorizing_integration_owners: {},
+  channel: {
+    guild_id: "fake-channel-guild-id",
+    id: "1297029879296036884",
+    type: ChannelType.GuildText,
+  },
+  channel_id: "1297029879296036884",
+  context: 0,
+  data: {
+    id: "1296081783443685377",
+    name: "stats",
+    options: [
+      {
+        name: "neatqueue",
+        options: [
+          {
+            name: "channel",
+            type: 7,
+            value: "1299532381308325949",
+          },
+          {
+            name: "queue",
+            type: 4,
+            value: 1418,
+          },
+        ],
+        type: 1,
+      },
+    ],
+    resolved: {
+      channels: {
+        "1299532381308325949": {
+          id: "1299532381308325949",
+          name: "🥉results",
+          permissions: "2230813650837056",
+          type: 0,
+        },
+      },
+    },
+    type: 1,
+  },
+  entitlements: [],
+  guild: {
+    features: [GuildFeature.Soundboard],
+    id: "1238795949266964560",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "1238795949266964560",
+  guild_locale: Locale.EnglishUS,
+  id: "1315651085972541480",
+  locale: Locale.EnglishUS,
+  member: {
+    deaf: false,
+    joined_at: "2024-05-11T11:45:17.722000+00:00",
+    mute: false,
+    permissions: "fake-permissions",
+    roles: [],
+    user: {
+      avatar: null,
+      discriminator: "0",
+      global_name: null,
+      id: "fake-user-id",
+      username: "soundmanD",
+    },
+    flags: GuildMemberFlags.CompletedOnboarding,
+  },
+  token: "fake-token",
+  type: 2,
+  version: 1,
+};
+
+export const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
   app_permissions: "2248473465835073",
   application_id: "1300002105951653941",
   authorizing_integration_owners: { "0": "1300001976334946326" },
@@ -65,8 +153,8 @@ export const applicationCommandInteraction: APIApplicationCommandInteraction = {
         options: [
           {
             name: "id",
-            type: 3,
-            value: "1e6a7a1f-80dc-4421-b975-fb921e3e2e5d",
+            type: ApplicationCommandOptionType.String,
+            value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
           },
         ],
         type: 1,
@@ -426,4 +514,12 @@ export const discordNeatQueueData: QueueData = {
       ],
     },
   ],
+};
+
+export const channelThreadsResult: RESTPostAPIChannelMessagesThreadsResult = {
+  id: "fake-thread-id",
+  name: "fake-thread-name",
+  type: ChannelType.PublicThread,
+  applied_tags: [],
+  position: 0,
 };

@@ -9,7 +9,7 @@ import type { DiscordAssociationsRow } from "../database/types/discord_associati
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 
-interface HaloServiceOpts {
+export interface HaloServiceOpts {
   infiniteClient: HaloInfiniteClient;
   databaseService: DatabaseService;
 }

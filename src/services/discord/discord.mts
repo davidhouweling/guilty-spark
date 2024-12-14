@@ -102,7 +102,7 @@ export class DiscordService {
 
   handleInteraction(interaction: APIInteraction): {
     response: JsonResponse;
-    jobToComplete?: Promise<void> | undefined;
+    jobToComplete?: (() => Promise<void>) | undefined;
   } {
     switch (interaction.type) {
       case InteractionType.Ping: {
@@ -157,6 +157,7 @@ export class DiscordService {
     if (interaction.data.name !== name) {
       throw new Error("Unexpected interaction name");
     }
+
     const subcommand = interaction.data.options?.[0] as APIApplicationCommandSubcommandOption | undefined;
     if (!subcommand) {
       throw new Error("No subcommand found");
@@ -298,6 +299,9 @@ export class DiscordService {
     if (!response.ok) {
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
+
+    console.log(response);
+    console.trace();
 
     if (response.status === 204) {
       return {} as T;

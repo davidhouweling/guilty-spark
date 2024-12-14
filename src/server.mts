@@ -30,7 +30,7 @@ router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, ""
     const { response, jobToComplete } = discordService.handleInteraction(interaction);
 
     if (jobToComplete) {
-      ctx.waitUntil(jobToComplete);
+      ctx.waitUntil(jobToComplete());
     }
 
     return response;
