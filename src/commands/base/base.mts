@@ -7,7 +7,7 @@ import type { Services } from "../../services/install.mjs";
 
 export interface ExecuteResponse {
   response: APIInteractionResponse;
-  jobToComplete?: Promise<void>;
+  jobToComplete?: () => Promise<void>;
 }
 
 export abstract class BaseCommand {

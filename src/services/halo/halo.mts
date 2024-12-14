@@ -9,7 +9,7 @@ import type { DiscordAssociationsRow } from "../database/types/discord_associati
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 
-interface HaloServiceOpts {
+export interface HaloServiceOpts {
   infiniteClient: HaloInfiniteClient;
   databaseService: DatabaseService;
 }
@@ -169,7 +169,7 @@ export class HaloService {
     unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) =>
-        user.global_name != null
+        user.global_name != null && user.global_name !== ""
           ? this.infiniteClient.getUser(user.global_name)
           : Promise.reject(new Error("No global name")),
       ),
@@ -266,10 +266,6 @@ export class HaloService {
   private filterMatchesToMatchingTeams(matches: MatchStats[]): MatchStats[] {
     const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
     return matches.filter((match) => {
-      if (match.Teams.length !== lastMatch.Teams.length) {
-        return false;
-      }
-
       return match.Players.every((player) =>
         lastMatch.Players.some(
           (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,

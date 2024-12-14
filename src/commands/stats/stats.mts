@@ -135,7 +135,7 @@ export class StatsCommand extends BaseCommand {
 
     return {
       response: discordService.getAcknowledgeResponse(ephemeral),
-      jobToComplete: this.neatQueueSubCommandJob(interaction, channel, queue),
+      jobToComplete: async () => this.neatQueueSubCommandJob(interaction, channel, queue),
     };
   }
 
@@ -207,7 +207,7 @@ export class StatsCommand extends BaseCommand {
 
     return {
       response: discordService.getAcknowledgeResponse(ephemeral),
-      jobToComplete: this.matchSubCommandJob(interaction, matchId),
+      jobToComplete: async () => this.matchSubCommandJob(interaction, matchId),
     };
   }
 

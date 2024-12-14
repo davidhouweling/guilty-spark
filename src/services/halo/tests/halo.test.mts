@@ -4,7 +4,7 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
-import { matchStats } from "../fakes/data.mjs";
+import { matchStats, playerMatches } from "../fakes/data.mjs";
 import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
@@ -56,6 +56,23 @@ describe("Halo service", () => {
         "000000000000000007",
         "000000000000000008",
       ]);
+    });
+
+    it("short circuits when two users with the same last match are found", async () => {
+      infiniteClient.getPlayerMatches.mockClear();
+      infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
+        if (xboxUserId === "xuid0000000000001") {
+          return Promise.resolve(playerMatches);
+        }
+        if (xboxUserId === "xuid0000000000003") {
+          return Promise.resolve(playerMatches.slice(0, 3));
+        }
+
+        return Promise.resolve([]);
+      });
+
+      await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(3);
     });
 
     it("throws an error when all users from database are not game retrievable", async () => {
