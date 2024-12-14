@@ -210,9 +210,9 @@ describe("DiscordService", () => {
       expect(subcommand).toEqual({
         name: "match",
         options: [
-          { name: "id", type: ApplicationCommandOptionType.String, value: "1e6a7a1f-80dc-4421-b975-fb921e3e2e5d" },
+          { name: "id", type: ApplicationCommandOptionType.String, value: "d81554d7-ddfe-44da-a6cb-000000000ctf" },
         ],
-        mappedOptions: new Map([["id", "1e6a7a1f-80dc-4421-b975-fb921e3e2e5d"]]),
+        mappedOptions: new Map([["id", "d81554d7-ddfe-44da-a6cb-000000000ctf"]]),
       });
     });
 
