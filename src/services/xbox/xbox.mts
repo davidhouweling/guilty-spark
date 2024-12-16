@@ -24,6 +24,7 @@ export class XboxService {
   private readonly env: Env;
   private readonly authenticate: XboxLiveAuthAuthenticate;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
+  private static readonly TOKEN_NAME = "xboxToken";
 
   constructor({ env, authenticate }: XboxServiceOpts) {
     this.env = env;
@@ -31,7 +32,7 @@ export class XboxService {
   }
 
   async loadCredentials(): Promise<void> {
-    const tokenInfo = await this.env.SERVICE_API_TOKENS.get("xbox");
+    const tokenInfo = await this.env.APP_CONFIG.get(XboxService.TOKEN_NAME);
     if (tokenInfo != null) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
@@ -56,7 +57,7 @@ export class XboxService {
 
   clearToken(): void {
     this.tokenInfoMap.clear();
-    void this.env.SERVICE_API_TOKENS.delete("xbox");
+    void this.env.APP_CONFIG.delete(XboxService.TOKEN_NAME);
   }
 
   private async updateCredentials(): Promise<void> {
@@ -67,7 +68,7 @@ export class XboxService {
     this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
     this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
 
-    await this.env.SERVICE_API_TOKENS.put("xbox", JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
+    await this.env.APP_CONFIG.put(XboxService.TOKEN_NAME, JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
       expirationTtl: Math.floor((new Date(credentialsResponse.expires_on).getTime() - new Date().getTime()) / 1000),
     });
   }

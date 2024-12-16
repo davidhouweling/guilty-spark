@@ -54,7 +54,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     DISCORD_TOKEN: "DISCORD_TOKEN",
     XBOX_USERNAME: "XBOX_USERNAME",
     XBOX_PASSWORD: "XBOX_PASSWORD",
-    SERVICE_API_TOKENS: fakeNamespace,
+    APP_CONFIG: fakeNamespace,
     DB: fakeDb,
   };
 
