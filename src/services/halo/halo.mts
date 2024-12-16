@@ -322,6 +322,8 @@ export class HaloService {
         return "Strongholds";
       case GameVariantCategory.MultiplayerTotalControl:
         return "Total Control";
+      case GameVariantCategory.MultiplayerVIP:
+        return "VIP";
       default:
         return "Unknown";
     }
