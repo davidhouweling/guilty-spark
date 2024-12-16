@@ -35,6 +35,7 @@ import { StockpileMatchEmbed } from "./embeds/stockpile-match-embed.mjs";
 import { StrongholdsMatchEmbed } from "./embeds/strongholds-match-embed.mjs";
 import { TotalControlMatchEmbed } from "./embeds/total-control-match-embed.mjs";
 import { UnknownMatchEmbed } from "./embeds/unknown-match-embed.mjs";
+import { VIPMatchEmbed } from "./embeds/vip-match-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
   data: Omit<APIApplicationCommand, "id" | "application_id" | "default_member_permissions" | "version"> = {
@@ -324,6 +325,8 @@ export class StatsCommand extends BaseCommand {
         return new StrongholdsMatchEmbed(haloService);
       case GameVariantCategory.MultiplayerTotalControl:
         return new TotalControlMatchEmbed(haloService);
+      case GameVariantCategory.MultiplayerVIP:
+        return new VIPMatchEmbed(haloService);
       default:
         return new UnknownMatchEmbed(haloService);
     }
