@@ -1,0 +1,344 @@
+diff --git a/node_modules/@xboxreplay/xboxlive-auth/dist/core/live/index.js b/node_modules/@xboxreplay/xboxlive-auth/dist/core/live/index.js
+index 818ebd9..70d7414 100644
+--- a/node_modules/@xboxreplay/xboxlive-auth/dist/core/live/index.js
++++ b/node_modules/@xboxreplay/xboxlive-auth/dist/core/live/index.js
+@@ -46,7 +46,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.authenticate = exports.preAuth = exports.refreshAccessToken = exports.exchangeCodeForAccessToken = exports.getAuthorizeUrl = void 0;
+-const axios_1 = __importDefault(require("axios"));
+ const querystring_1 = require("querystring");
+ const utils_1 = require("../../utils");
+ const XRError_1 = __importDefault(require("../../classes/XRError"));
+@@ -64,6 +63,7 @@ const getAuthorizeUrl = (clientId = config_2.defaultClientId, scope = config_2.d
+ })}`;
+ exports.getAuthorizeUrl = getAuthorizeUrl;
+ const exchangeCodeForAccessToken = (code, clientId, scope, redirectUri, clientSecret) => __awaiter(void 0, void 0, void 0, function* () {
++    var _a, _b;
+     const payload = {
+         code,
+         client_id: clientId,
+@@ -74,27 +74,33 @@ const exchangeCodeForAccessToken = (code, clientId, scope, redirectUri, clientSe
+     if (clientSecret !== void 0) {
+         payload.client_secret = clientSecret;
+     }
+-    const response = yield (0, axios_1.default)({
+-        url: config_2.default.urls.token,
+-        method: 'POST',
+-        headers: (0, utils_1.getBaseHeaders)({
+-            Accept: 'application/json',
+-            'Content-Type': 'application/x-www-form-urlencoded'
+-        }),
+-        data: (0, querystring_1.stringify)(payload)
+-    })
+-        .then(res => res.data)
+-        .catch((err) => {
+-        var _a, _b;
++    try {
++        const response = yield fetch(config_2.default.urls.token, {
++            method: 'POST',
++            headers: (0, utils_1.getBaseHeaders)({
++                Accept: 'application/json',
++                'Content-Type': 'application/x-www-form-urlencoded'
++            }),
++            body: (0, querystring_1.stringify)(payload),
++        });
++        if (!response.ok) {
++            throw new XRError_1.default(response.statusText, {
++                statusCode: response.status,
++                additional: (yield response.text()) || null
++            });
++        }
++        return yield response.json();
++    }
++    catch (err) {
+         throw new XRError_1.default(err.message, {
+             statusCode: (_a = err.response) === null || _a === void 0 ? void 0 : _a.status,
+             additional: ((_b = err.response) === null || _b === void 0 ? void 0 : _b.data) || null
+         });
+-    });
+-    return response;
++    }
+ });
+ exports.exchangeCodeForAccessToken = exchangeCodeForAccessToken;
+ const refreshAccessToken = (refreshToken_1, ...args_1) => __awaiter(void 0, [refreshToken_1, ...args_1], void 0, function* (refreshToken, clientId = config_2.defaultClientId, scope = config_2.defaultScope, clientSecret) {
++    var _a, _b;
+     const payload = {
+         client_id: clientId,
+         scope: scope || config_2.defaultScope,
+@@ -104,38 +110,48 @@ const refreshAccessToken = (refreshToken_1, ...args_1) => __awaiter(void 0, [ref
+     if (clientSecret !== void 0) {
+         payload.client_secret = clientSecret;
+     }
+-    const response = yield (0, axios_1.default)({
+-        url: config_2.default.urls.token,
+-        method: 'POST',
+-        headers: (0, utils_1.getBaseHeaders)({
+-            Accept: 'application/json',
+-            'Accept-Encoding': 'identity',
+-            'Content-Type': 'application/x-www-form-urlencoded'
+-        }),
+-        data: (0, querystring_1.stringify)(payload)
+-    })
+-        .then(res => res.data)
+-        .catch((err) => {
+-        var _a, _b;
++    try {
++        const response = yield fetch(config_2.default.urls.token, {
++            method: 'POST',
++            headers: (0, utils_1.getBaseHeaders)({
++                Accept: 'application/json',
++                'Accept-Encoding': 'identity',
++                'Content-Type': 'application/x-www-form-urlencoded'
++            }),
++            body: (0, querystring_1.stringify)(payload),
++        });
++        if (!response.ok) {
++            throw new XRError_1.default(response.statusText, {
++                statusCode: response.status,
++                additional: (yield response.text()) || null
++            });
++        }
++        return yield response.json();
++    }
++    catch (err) {
+         throw new XRError_1.default(err.message, {
+             statusCode: (_a = err.response) === null || _a === void 0 ? void 0 : _a.status,
+             additional: ((_b = err.response) === null || _b === void 0 ? void 0 : _b.data) || null
+         });
+-    });
+-    return response;
++    }
+ });
+ exports.refreshAccessToken = refreshAccessToken;
+ const preAuth = (options) => __awaiter(void 0, void 0, void 0, function* () {
+-    const response = yield (0, axios_1.default)({
+-        url: (0, exports.getAuthorizeUrl)(options === null || options === void 0 ? void 0 : options.clientId, options === null || options === void 0 ? void 0 : options.scope, options === null || options === void 0 ? void 0 : options.responseType, options === null || options === void 0 ? void 0 : options.redirectUri),
+-        method: 'GET',
+-        headers: (0, utils_1.getBaseHeaders)({
+-            'Accept-Encoding': 'identity'
+-        })
+-    })
+-        .then(res => {
+-        const body = (res.data || '');
+-        const cookie = (res.headers['set-cookie'] || [])
++    try {
++        const response = yield fetch((0, exports.getAuthorizeUrl)(options === null || options === void 0 ? void 0 : options.clientId, options === null || options === void 0 ? void 0 : options.scope, options === null || options === void 0 ? void 0 : options.responseType, options === null || options === void 0 ? void 0 : options.redirectUri), {
++            method: 'GET',
++            headers: (0, utils_1.getBaseHeaders)({
++                'Accept-Encoding': 'identity'
++            })
++        });
++        if (!response.ok) {
++            throw new XRError_1.default(response.statusText, {
++                statusCode: response.status,
++                additional: (yield response.text()) || null
++            });
++        }
++        const body = ((yield response.text()) || '');
++        const cookie = (response.headers.getSetCookie() || [])
+             .map((c) => c.split(';')[0])
+             .join('; ');
+         const matches = {
+@@ -149,39 +165,40 @@ const preAuth = (options) => __awaiter(void 0, void 0, void 0, function* () {
+             };
+         }
+         throw XRError_1.default.internal(`Could not match required "preAuth" parameters, please fill an issue on ${config_1.default.github.createIssue}`);
+-    })
+-        .catch(err => {
++    }
++    catch (err) {
+         if (err.__XboxReplay__ === true)
+             throw err;
+         throw XRError_1.default.internal(err.message);
+-    });
+-    return response;
++    }
+ });
+ exports.preAuth = preAuth;
+ const authenticate = (credentials) => __awaiter(void 0, void 0, void 0, function* () {
+     const preAuthResponse = yield (0, exports.preAuth)();
+-    const response = yield (0, axios_1.default)({
+-        url: preAuthResponse.matches.urlPost,
+-        method: 'POST',
+-        headers: (0, utils_1.getBaseHeaders)({
+-            'Accept-Encoding': 'identity',
+-            'Content-Type': 'application/x-www-form-urlencoded',
+-            Cookie: preAuthResponse.cookie
+-        }),
+-        data: (0, querystring_1.stringify)({
+-            login: credentials.email,
+-            loginfmt: credentials.email,
+-            passwd: credentials.password,
+-            PPFT: preAuthResponse.matches.PPFT
+-        }),
+-        maxRedirects: 0,
+-        validateStatus: status => status === 302 || status === 200
+-    })
+-        .then(res => {
+-        if (res.status === 200) {
++    const payload = {
++        login: credentials.email,
++        loginfmt: credentials.email,
++        passwd: credentials.password,
++        PPFT: preAuthResponse.matches.PPFT
++    };
++    try {
++        const response = yield fetch(preAuthResponse.matches.urlPost, {
++            method: 'POST',
++            headers: (0, utils_1.getBaseHeaders)({
++                'Accept-Encoding': 'identity',
++                'Content-Type': 'application/x-www-form-urlencoded',
++                Cookie: preAuthResponse.cookie
++            }),
++            redirect: 'manual',
++            body: (0, querystring_1.stringify)(payload),
++        });
++        if (response.status === 200) {
+             throw XRError_1.default.unauthorized(`Invalid credentials or 2FA enabled`);
+         }
+-        const { location = '' } = res.headers || {};
++        if (response.status !== 302) {
++            throw XRError_1.default.internal(`Unexpected status code: ${response.status}`);
++        }
++        const location = response.headers.get('location') || '';
+         const hash = location.split('#')[1];
+         const output = {};
+         for (const part of new URLSearchParams(hash)) {
+@@ -192,12 +209,11 @@ const authenticate = (credentials) => __awaiter(void 0, void 0, void 0, function
+                 output[part[0]] = part[1];
+         }
+         return output;
+-    })
+-        .catch(err => {
++    }
++    catch (err) {
+         if (err.__XboxReplay__ === true)
+             throw err;
+         throw XRError_1.default.internal(err.message);
+-    });
+-    return response;
++    }
+ });
+ exports.authenticate = authenticate;
+diff --git a/node_modules/@xboxreplay/xboxlive-auth/dist/core/xboxlive/index.js b/node_modules/@xboxreplay/xboxlive-auth/dist/core/xboxlive/index.js
+index 59dcf86..697e352 100644
+--- a/node_modules/@xboxreplay/xboxlive-auth/dist/core/xboxlive/index.js
++++ b/node_modules/@xboxreplay/xboxlive-auth/dist/core/xboxlive/index.js
+@@ -46,7 +46,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.EXPERIMENTAL_createDummyWin32DeviceToken = exports.exchangeTokenForXSTSToken = exports.exchangeTokensForXSTSToken = exports.exchangeRpsTicketForUserToken = void 0;
+-const axios_1 = __importDefault(require("axios"));
+ const config_1 = __importStar(require("./config"));
+ const utils_1 = require("../../utils");
+ const XRError_1 = __importDefault(require("../../classes/XRError"));
+@@ -61,33 +60,30 @@ const exchangeRpsTicketForUserToken = (rpsTicket_1, ...args_1) => __awaiter(void
+     if (match === null) {
+         rpsTicket = `${preamble}=${rpsTicket}`;
+     }
+-    const response = yield (0, axios_1.default)({
+-        url: config_1.default.urls.userAuthenticate,
++    const response = yield fetch(config_1.default.urls.userAuthenticate, {
+         method: 'POST',
+         headers: (0, utils_1.getBaseHeaders)(Object.assign(Object.assign({}, XBLAdditionalHeaders), additionalHeaders)),
+-        data: {
++        body: JSON.stringify({
+             RelyingParty: 'http://auth.xboxlive.com',
+             TokenType: 'JWT',
+             Properties: {
+                 AuthMethod: 'RPS',
+                 SiteName: 'user.auth.xboxlive.com',
+-                RpsTicket: rpsTicket,
+-            },
+-        },
+-    })
+-        .then(res => res.data)
+-        .catch(_ => {
+-        throw XRError_1.default.badRequest('Could not exchange specified "RpsTicket"');
++                RpsTicket: rpsTicket
++            }
++        }),
+     });
+-    return response;
++    if (!response.ok) {
++        throw XRError_1.default.badRequest('Could not exchange specified "RpsTicket"', response);
++    }
++    return yield response.json();
+ });
+ exports.exchangeRpsTicketForUserToken = exchangeRpsTicketForUserToken;
+ const exchangeTokensForXSTSToken = (tokens_1, ...args_1) => __awaiter(void 0, [tokens_1, ...args_1], void 0, function* (tokens, options = {}, additionalHeaders = {}) {
+-    const response = yield (0, axios_1.default)({
+-        url: config_1.default.urls.XSTSAuthorize,
++    const response = yield fetch(config_1.default.urls.XSTSAuthorize, {
+         method: 'POST',
+         headers: (0, utils_1.getBaseHeaders)(Object.assign(Object.assign({}, XBLAdditionalHeaders), additionalHeaders)),
+-        data: {
++        body: JSON.stringify({
+             RelyingParty: options.XSTSRelyingParty || config_1.defaultXSTSRelyingParty,
+             TokenType: 'JWT',
+             Properties: {
+@@ -95,16 +91,14 @@ const exchangeTokensForXSTSToken = (tokens_1, ...args_1) => __awaiter(void 0, [t
+                 DeviceToken: tokens.deviceToken,
+                 TitleToken: tokens.titleToken,
+                 OptionalDisplayClaims: options.optionalDisplayClaims,
+-                SandboxId: options.sandboxId || 'RETAIL',
+-            },
+-        },
+-    })
+-        .then(res => res.data)
+-        .catch((err) => {
+-        var _a;
+-        throw new XRError_1.default('Could not exchange specified tokens, please double check used parameters or make sure to use the "EXPERIMENTAL_createDummyWin32DeviceToken" method to handle "Child" and "Teen" accounts', { statusCode: (_a = err.response) === null || _a === void 0 ? void 0 : _a.status });
++                SandboxId: options.sandboxId || 'RETAIL'
++            }
++        }),
+     });
+-    return response;
++    if (!response.ok) {
++        throw new XRError_1.default('Could not exchange specified tokens, please double check used parameters or make sure to use the "EXPERIMENTAL_createDummyWin32DeviceToken" method to handle "Child" and "Teen" accounts', { statusCode: response.status });
++    }
++    return yield response.json();
+ });
+ exports.exchangeTokensForXSTSToken = exchangeTokensForXSTSToken;
+ const exchangeTokenForXSTSToken = (userToken, options = {}, additionalHeaders = {}) => (0, exports.exchangeTokensForXSTSToken)({ userTokens: [userToken] }, options, additionalHeaders);
+@@ -121,27 +115,25 @@ const EXPERIMENTAL_createDummyWin32DeviceToken = () => __awaiter(void 0, void 0,
+         x: 'v0pdipnZ5pVB5F8FhJy8B2StVRjB6tiQc1YsOFuABNY',
+         y: 'PuRfclnYeqBroHVhX_QLPmOMGB6zUjK4bIScxpKIVh4',
+     };
+-    const response = yield (0, axios_1.default)({
+-        url: config_1.default.urls.deviceAuthenticate,
++    const response = yield fetch(config_1.default.urls.deviceAuthenticate, {
+         method: 'POST',
+         headers: (0, utils_1.getBaseHeaders)(Object.assign(Object.assign({}, XBLAdditionalHeaders), { Signature: serviceSignature })),
+-        data: {
++        body: JSON.stringify({
+             RelyingParty: 'http://auth.xboxlive.com',
+             TokenType: 'JWT',
+             Properties: {
+                 AuthMethod: 'ProofOfPossession',
+-                Id: serviceDeviceId,
+-                DeviceType: 'Win32',
+-                Version: '10.0.19042',
+-                ProofKey: serviceProofKey,
+                 TrustedParty: serviceTrustedParty,
+-            },
+-        },
+-    })
+-        .then(res => res.data)
+-        .catch(_ => {
+-        throw XRError_1.default.badRequest(`Could not create a valid device token, please fill an issue on ${config_2.default.github.createIssue}`);
++                Id: `{${serviceDeviceId}}`,
++                DeviceType: 'Win32',
++                Version: '10.0.18363',
++                ProofKey: serviceProofKey
++            }
++        }),
+     });
+-    return response;
++    if (!response.ok) {
++        throw XRError_1.default.badRequest(`Could not create a valid device token, please fill an issue on ${config_2.default.github.createIssue}`, response);
++    }
++    return yield response.json();
+ });
+ exports.EXPERIMENTAL_createDummyWin32DeviceToken = EXPERIMENTAL_createDummyWin32DeviceToken;
