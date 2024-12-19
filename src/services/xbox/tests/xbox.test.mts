@@ -118,7 +118,7 @@ describe("Xbox Service", () => {
       await xboxService.loadCredentials();
       await xboxService.maybeRefreshToken();
 
-      expect(putSpy).toHaveBeenCalledWith("xbox", '[[0,"xsts_token"],[1,"2025-01-01T06:00:00.000Z"]]', {
+      expect(putSpy).toHaveBeenCalledWith("xboxToken", '[[0,"xsts_token"],[1,"2025-01-01T06:00:00.000Z"]]', {
         expirationTtl: 21600,
       });
     });
@@ -133,7 +133,7 @@ describe("Xbox Service", () => {
 
       xboxService.clearToken();
 
-      expect(deleteSpy).toHaveBeenCalledWith("xbox");
+      expect(deleteSpy).toHaveBeenCalledWith("xboxToken");
       expect(xboxService.token).toBe(undefined);
     });
   });

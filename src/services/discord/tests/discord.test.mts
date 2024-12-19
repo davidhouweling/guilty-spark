@@ -1,5 +1,5 @@
-import type { Mock } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock, MockInstance } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
 import type { APIInteraction, APIUser } from "discord-api-types/v10";
 import {
@@ -24,11 +24,13 @@ import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("DiscordService", () => {
+  let env: Env;
   let mockFetch: Mock<typeof fetch>;
   let mockVerifyKey: Mock<typeof verifyKey>;
   let discordService: DiscordService;
 
   beforeEach(() => {
+    env = aFakeEnvWith();
     mockFetch = vi.fn<typeof fetch>().mockImplementation(async (path) => {
       const prefix = "https://discord.com/api/v10";
       if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
@@ -62,7 +64,7 @@ describe("DiscordService", () => {
 
     mockVerifyKey = vi.fn().mockResolvedValue(true);
     discordService = new DiscordService({
-      env: aFakeEnvWith(),
+      env,
       fetch: mockFetch,
       verifyKey: mockVerifyKey,
     });
@@ -483,6 +485,81 @@ describe("DiscordService", () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
       ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+    });
+  });
+
+  describe("rate limiting", () => {
+    const now = new Date("2025-01-01T00:00:00.000000+00:00").getTime();
+    const appConfigKv = new Map<string, string>();
+    let appConfigGetSpy: MockInstance;
+    let appConfigPutSpy: MockInstance;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      appConfigGetSpy = vi.spyOn(env.APP_CONFIG, "get");
+      appConfigGetSpy.mockImplementation(async (key: string) => Promise.resolve(appConfigKv.get(key)));
+
+      appConfigPutSpy = vi.spyOn(env.APP_CONFIG, "put");
+      appConfigPutSpy.mockImplementation(async (key: string, value: string) => {
+        appConfigKv.set(key, value);
+        return Promise.resolve();
+      });
+    });
+
+    afterEach(() => {
+      appConfigKv.clear();
+      vi.useRealTimers();
+    });
+
+    it("fetches rate limit from app config", async () => {
+      await discordService.createMessage("fake-channel", { content: "fake-content" });
+
+      expect(appConfigGetSpy).toHaveBeenCalledWith("rateLimit./channels/fake-channel/messages");
+    });
+
+    it("puts rate limit in app config when headers are present", async () => {
+      const reset = now + 100;
+      const response = new Response(null, {
+        status: 204,
+        headers: {
+          "x-ratelimit-reset-after": "1",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": reset.toString(),
+        },
+      });
+
+      mockFetch.mockResolvedValue(response);
+
+      await discordService.createMessage("fake-channel", { content: "fake-content" });
+
+      expect(appConfigPutSpy).toHaveBeenCalledWith(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${reset.toString()},"resetAfter":1}`,
+        {
+          expiration: reset,
+        },
+      );
+    });
+
+    it("waits for the rate limit to reset", async () => {
+      const delay = 100;
+      appConfigKv.set(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${(now + delay).toString()},"resetAfter":1}`,
+      );
+
+      const promise = discordService.createMessage("fake-channel", { content: "fake-content" });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(delay - 10);
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(10);
+      await promise;
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });

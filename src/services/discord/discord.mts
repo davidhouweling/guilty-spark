@@ -56,6 +56,39 @@ type VerifyDiscordResponse =
   | { interaction: APIInteraction; isValid: boolean; error?: never }
   | { isValid: boolean; error: string; interaction?: never };
 
+/**
+ * Rate limit information for a specific path
+ * https://github.com/discord/discord-api-docs/blob/main/docs/topics/Rate_Limits.md
+ *
+ * For most API requests made, we return optional HTTP response headers containing the rate limit encountered during your request.
+ */
+interface RateLimit {
+  /**
+   * The number of requests that can be made
+   */
+  limit: number | undefined;
+
+  /**
+   * The number of remaining requests that can be made
+   */
+  remaining: number | undefined;
+
+  /**
+   * Epoch time (seconds since 00:00:00 UTC on January 1, 1970) at which the rate limit resets
+   */
+  reset: number | undefined;
+
+  /**
+   * Total time (in seconds) of when the current rate limit bucket will reset. Can have decimals to match previous millisecond ratelimit precision
+   */
+  resetAfter: number | undefined;
+
+  /**
+   * A unique string denoting the rate limit being encountered (non-inclusive of top-level resources in the path)
+   */
+  bucket: number | undefined;
+}
+
 // originally this was built to wrap discord.js and use the provided client
 // but in a move to make it work with Cloud Workers (such as Cloudflare Workers or AWS Lambda)
 // replacing the outer workings with the expectations of discord HTTP interactions
@@ -275,6 +308,16 @@ export class DiscordService {
       method: "GET",
     },
   ): Promise<T> {
+    const rateLimit = await this.getRateLimitFromAppConfig(path);
+
+    if (rateLimit != null && rateLimit.remaining === 0 && rateLimit.reset != null) {
+      const now = Date.now();
+      if (now < rateLimit.reset) {
+        const timeUntilReset = rateLimit.reset - now;
+        await new Promise((resolve) => setTimeout(resolve, timeUntilReset));
+      }
+    }
+
     const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
     if (options.method === "GET" && options.queryParameters) {
       for (const [key, value] of Object.entries(options.queryParameters)) {
@@ -300,8 +343,8 @@ export class DiscordService {
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 
-    console.log(response);
-    console.trace();
+    const rateLimitFromResponse = this.getRateLimitFromResponse(response);
+    await this.setRateLimitInAppConfig(path, rateLimitFromResponse);
 
     if (response.status === 204) {
       return {} as T;
@@ -326,5 +369,43 @@ export class DiscordService {
 
   private async getUserInfo(userId: string): Promise<RESTGetAPIUserResult> {
     return await this.fetch<RESTGetAPIUserResult>(Routes.user(userId));
+  }
+
+  private getRateLimitFromHeader(headers: Headers, key: string): number | undefined {
+    const value = headers.get(key);
+    if (value == null) {
+      return undefined;
+    }
+
+    return Number(value);
+  }
+
+  private getRateLimitFromResponse(response: Response): RateLimit {
+    const { headers } = response;
+    const limit = this.getRateLimitFromHeader(headers, "X-RateLimit-Limit");
+    const remaining = this.getRateLimitFromHeader(headers, "X-RateLimit-Remaining");
+    const reset = this.getRateLimitFromHeader(headers, "X-RateLimit-Reset");
+    const resetAfter = this.getRateLimitFromHeader(headers, "X-RateLimit-Reset-After");
+    const bucket = this.getRateLimitFromHeader(headers, "X-RateLimit-Bucket");
+
+    return { limit, remaining, reset, resetAfter, bucket };
+  }
+
+  private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
+    const serializedRateLimit = await this.env.APP_CONFIG.get(`rateLimit.${path}`);
+    if (serializedRateLimit == null) {
+      return null;
+    }
+
+    const rateLimit = JSON.parse(serializedRateLimit) as RateLimit;
+    return rateLimit;
+  }
+
+  private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
+    if (rateLimit.reset != null) {
+      await this.env.APP_CONFIG.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
+        expiration: rateLimit.reset,
+      });
+    }
   }
 }
