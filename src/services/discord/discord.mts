@@ -307,6 +307,7 @@ export class DiscordService {
       ) = {
       method: "GET",
     },
+    retry = false,
   ): Promise<T> {
     const rateLimit = await this.getRateLimitFromAppConfig(path);
 
@@ -340,6 +341,16 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
+      if (response.status === 429 && !retry) {
+        const rateLimitFromResponse = this.getRateLimitFromResponse(response);
+
+        if (rateLimitFromResponse.reset != null) {
+          await this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+
+          return this.fetch<T>(path, options, true);
+        }
+      }
+
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 

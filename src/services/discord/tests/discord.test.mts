@@ -561,5 +561,53 @@ describe("DiscordService", () => {
       await promise;
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
+
+    it("handles http status 429 response with rate limit headers and retries once", async () => {
+      const reset = now + 100;
+      const response = new Response(null, {
+        status: 429,
+        headers: {
+          "x-ratelimit-reset-after": "1",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": reset.toString(),
+        },
+      });
+
+      mockFetch
+        .mockClear()
+        .mockResolvedValueOnce(response)
+        .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+      await Promise.all([
+        discordService.createMessage("fake-channel", { content: "fake-content" }),
+        vi.advanceTimersByTimeAsync(100),
+      ]);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("throws an error if http 429 is returned twice", async () => {
+      const reset = now + 100;
+      const response = new Response("Too many requests", {
+        status: 429,
+        statusText: "Too many requests",
+        headers: {
+          "x-ratelimit-reset-after": "1",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": reset.toString(),
+        },
+      });
+
+      mockFetch.mockClear().mockResolvedValueOnce(response).mockResolvedValueOnce(response);
+
+      await expect(async () =>
+        Promise.all([
+          discordService.createMessage("fake-channel", { content: "fake-content" }),
+          vi.advanceTimersByTimeAsync(100),
+        ]),
+      ).rejects.toThrowError(new Error("Failed to fetch data from Discord API: 429 Too many requests"));
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 });
