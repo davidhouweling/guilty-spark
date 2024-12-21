@@ -1,0 +1,285 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`VIPMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 9",
+    },
+    {
+      "inline": true,
+      "name": "gamertag07",
+      "value": "\`\`\`Rank: 5
+Score: 5
+Kills: 25
+Deaths: 11
+Assists: 5
+KDA: 15.66
+Headshot kills: 18
+Shots H:F: 270:470
+Accuracy: 57.44%
+Damage D:T: 6613:4087
+Av life duration: 37s
+Av damage/life: 601.18
+VIP kills: 6
+VIP Assists: 1
+Kills as VIP: 4
+Times selected as VIP: 4
+Max killing spree as VIP: 3
+Longest Time as VIP: 47s
+Time as VIP: 1m 36s\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag06",
+      "value": "\`\`\`Rank: 6
+Score: 2
+Kills: 14
+Deaths: 11
+Assists: 6
+KDA: 5
+Headshot kills: 3
+Shots H:F: 251:485
+Accuracy: 51.75%
+Damage D:T: 6807:4933
+Av life duration: 33s
+Av damage/life: 618.82
+VIP kills: 4
+VIP Assists: 3
+Kills as VIP: 2
+Times selected as VIP: 2
+Max killing spree as VIP: 2
+Longest Time as VIP: 1m 27s
+Time as VIP: 1m 48s\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04",
+      "value": "\`\`\`Rank: 7
+Score: 1
+Kills: 3
+Deaths: 11
+Assists: 8
+KDA: -5.33
+Headshot kills: 0
+Shots H:F: 102:362
+Accuracy: 28.17%
+Damage D:T: 2721:4748
+Av life duration: 33s
+Av damage/life: 247.36
+VIP kills: 1
+VIP Assists: 1
+Kills as VIP: 2
+Times selected as VIP: 4
+Max killing spree as VIP: 1
+Longest Time as VIP: 58s
+Time as VIP: 2m 39s\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05",
+      "value": "\`\`\`Rank: 7
+Score: 1
+Kills: 9
+Deaths: 7
+Assists: 1
+KDA: 2.33
+Headshot kills: 3
+Shots H:F: 83:207
+Accuracy: 40.09%
+Damage D:T: 2375:2002
+Av life duration: 55s
+Av damage/life: 339.29
+VIP kills: 1
+VIP Assists: 0
+Kills as VIP: 0
+Times selected as VIP: 0
+Max killing spree as VIP: 0
+Longest Time as VIP: 
+Time as VIP: \`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 10",
+    },
+    {
+      "inline": true,
+      "name": "gamertag03",
+      "value": "\`\`\`Rank: 1
+Score: 5
+Kills: 18
+Deaths: 10
+Assists: 3
+KDA: 9
+Headshot kills: 2
+Shots H:F: 378:775
+Accuracy: 48.77%
+Damage D:T: 6247:4444
+Av life duration: 37s
+Av damage/life: 624.70
+VIP kills: 5
+VIP Assists: 1
+Kills as VIP: 1
+Times selected as VIP: 2
+Max killing spree as VIP: 1
+Longest Time as VIP: 28s
+Time as VIP: 45s\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02",
+      "value": "\`\`\`Rank: 2
+Score: 2
+Kills: 8
+Deaths: 16
+Assists: 7
+KDA: -5.66
+Headshot kills: 3
+Shots H:F: 133:352
+Accuracy: 37.78%
+Damage D:T: 4597:5035
+Av life duration: 20s
+Av damage/life: 287.31
+VIP kills: 2
+VIP Assists: 3
+Kills as VIP: 3
+Times selected as VIP: 5
+Max killing spree as VIP: 2
+Longest Time as VIP: 1m 14s
+Time as VIP: 2m 34s\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09",
+      "value": "\`\`\`Rank: 2
+Score: 2
+Kills: 9
+Deaths: 7
+Assists: 3
+KDA: 3
+Headshot kills: 7
+Shots H:F: 125:246
+Accuracy: 50.81%
+Damage D:T: 3175:2433
+Av life duration: 34s
+Av damage/life: 453.57
+VIP kills: 2
+VIP Assists: 0
+Kills as VIP: 2
+Times selected as VIP: 1
+Max killing spree as VIP: 2
+Longest Time as VIP: 1m 6s
+Time as VIP: 1m 6s\`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01",
+      "value": "\`\`\`Rank: 4
+Score: 1
+Kills: 5
+Deaths: 14
+Assists: 3
+KDA: -8
+Headshot kills: 0
+Shots H:F: 50:214
+Accuracy: 23.36%
+Damage D:T: 1454:5611
+Av life duration: 25s
+Av damage/life: 103.86
+VIP kills: 1
+VIP Assists: 2
+Kills as VIP: 3
+Times selected as VIP: 5
+Max killing spree as VIP: 3
+Longest Time as VIP: 1m 13s
+Time as VIP: 2m 49s\`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08",
+      "value": "\`\`\`Rank: 9
+Score: 0
+Kills: 0
+Deaths: 4
+Assists: 0
+KDA: -4
+Headshot kills: 0
+Shots H:F: 9:55
+Accuracy: 16.36%
+Damage D:T: 194:1020
+Av life duration: 21s
+Av damage/life: 48.50
+VIP kills: 0
+VIP Assists: 0
+Kills as VIP: 0
+Times selected as VIP: 0
+Max killing spree as VIP: 0
+Longest Time as VIP: 
+Time as VIP: \`\`\`",
+    },
+    {
+      "inline": true,
+      "name": "Bot",
+      "value": "\`\`\`Rank: 9
+Score: 0
+Kills: 0
+Deaths: 0
+Assists: 0
+KDA: 0
+Headshot kills: 0
+Shots H:F: 0:0
+Accuracy: 0%
+Damage D:T: 0:0
+Av life duration: 
+Av damage/life: NaN
+VIP kills: 0
+VIP Assists: 0
+Kills as VIP: 0
+Times selected as VIP: 0
+Max killing spree as VIP: 0
+Longest Time as VIP: 
+Time as VIP: \`\`\`",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "VIP: Fake name for asset 654dff62-d618-496a-8914-06ab73d991e3",
+  "url": "https://halodatahive.com/Infinite/Match/28af2f64-7c05-458d-b8b1-000000000vip",
+}
+`;

@@ -45,6 +45,7 @@ export const matchStats = new Map<string, MatchStats>(
     readMatchStats("slayer.json"),
     readMatchStats("strongholds.json"),
     readMatchStats("total-control.json"),
+    readMatchStats("vip.json"),
   ]),
 );
 
