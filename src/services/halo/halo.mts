@@ -119,6 +119,16 @@ export class HaloService {
     return this.xuidToGamerTagCache;
   }
 
+  getDurationInSeconds(duration: string): number {
+    const parsedDuration = tinyduration.parse(duration);
+    return Math.floor(
+      (parsedDuration.days ?? 0) * 86400 +
+        (parsedDuration.hours ?? 0) * 3600 +
+        (parsedDuration.minutes ?? 0) * 60 +
+        (parsedDuration.seconds ?? 0),
+    );
+  }
+
   getReadableDuration(duration: string): string {
     const parsedDuration = tinyduration.parse(duration);
     const { days, hours, minutes, seconds } = parsedDuration;

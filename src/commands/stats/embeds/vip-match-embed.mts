@@ -1,17 +1,31 @@
 import type { GameVariantCategory } from "halo-infinite-api";
-import type { PlayerStats } from "./base-match-embed.mjs";
-import { BaseMatchEmbed } from "./base-match-embed.mjs";
+import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class VIPMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerVIP> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerVIP>): Map<string, string> {
+  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerVIP>): EmbedPlayerStats {
     return new Map([
-      ["VIP kills", stats.VipStats.VipKills.toString()],
-      ["VIP Assists", stats.VipStats.VipAssists.toString()],
-      ["Kills as VIP", stats.VipStats.KillsAsVip.toString()],
-      ["Times selected as VIP", stats.VipStats.TimesSelectedAsVip.toString()],
-      ["Max killing spree as VIP", stats.VipStats.MaxKillingSpreeAsVip.toString()],
-      ["Longest Time as VIP", this.haloService.getReadableDuration(stats.VipStats.LongestTimeAsVip)],
-      ["Time as VIP", this.haloService.getReadableDuration(stats.VipStats.TimeAsVip)],
+      ["VIP kills", { value: stats.VipStats.VipKills, sortBy: StatsValueSortBy.DESC }],
+      ["VIP Assists", { value: stats.VipStats.VipAssists, sortBy: StatsValueSortBy.DESC }],
+      ["Kills as VIP", { value: stats.VipStats.KillsAsVip, sortBy: StatsValueSortBy.DESC }],
+      ["Times selected as VIP", { value: stats.VipStats.TimesSelectedAsVip, sortBy: StatsValueSortBy.DESC }],
+      ["Max killing spree as VIP", { value: stats.VipStats.MaxKillingSpreeAsVip, sortBy: StatsValueSortBy.DESC }],
+      [
+        "Longest Time as VIP",
+        {
+          value: this.haloService.getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
+          sortBy: StatsValueSortBy.DESC,
+          display: this.haloService.getReadableDuration(stats.VipStats.LongestTimeAsVip),
+        },
+      ],
+      [
+        "Time as VIP",
+        {
+          value: this.haloService.getDurationInSeconds(stats.VipStats.TimeAsVip),
+          sortBy: StatsValueSortBy.DESC,
+          display: this.haloService.getReadableDuration(stats.VipStats.TimeAsVip),
+        },
+      ],
     ]);
   }
 }

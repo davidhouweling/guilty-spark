@@ -280,6 +280,22 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getDurationInSeconds()", () => {
+    it("returns the duration in seconds", () => {
+      const duration = "PT10M58.2413691S";
+      const result = haloService.getDurationInSeconds(duration);
+
+      expect(result).toBe(658);
+    });
+
+    it("returns the duration in a readable format (including days and hours)", () => {
+      const duration = "P3DT4H30M15.5S";
+      const result = haloService.getDurationInSeconds(duration);
+
+      expect(result).toBe(275415);
+    });
+  });
+
   describe("getReadableDuration()", () => {
     it("returns the duration in a readable format", () => {
       const duration = "PT10M58.2413691S";
