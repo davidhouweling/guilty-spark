@@ -129,7 +129,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         );
         playerFields.push({
           name: `${playerGamertag} (Rank: ${teamPlayer.Rank.toString()} | Score: ${coreStats.PersonalScore.toString()})`,
-          value: `\`\`\`${outputStats.join("\n")}\`\`\``,
+          value: outputStats.join("\n"),
           inline: true,
         });
 
@@ -163,12 +163,12 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       const aStats = Preconditions.checkExists(a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
       const bStats = Preconditions.checkExists(b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
 
-      const scoreCalc = aStats.Stats.CoreStats.Score - bStats.Stats.CoreStats.Score;
+      const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
       if (scoreCalc !== 0) {
         return scoreCalc;
       }
 
-      return aStats.Stats.CoreStats.PersonalScore - bStats.Stats.CoreStats.PersonalScore;
+      return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
     });
   }
 

@@ -415,7 +415,7 @@ export class DiscordService {
   private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
     if (rateLimit.reset != null) {
       await this.env.APP_CONFIG.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
-        expiration: rateLimit.reset,
+        expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
       });
     }
   }

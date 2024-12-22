@@ -538,7 +538,7 @@ describe("DiscordService", () => {
         "rateLimit./channels/fake-channel/messages",
         `{"remaining":0,"reset":${reset.toString()},"resetAfter":1}`,
         {
-          expiration: reset,
+          expirationTtl: 60,
         },
       );
     });

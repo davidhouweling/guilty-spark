@@ -15,7 +15,7 @@ exports[`StatsCommand > execute() > match > jobToComplete > calls discordService
           {
             "inline": true,
             "name": "gamertag05 (Rank: 1 | Score: 2240)",
-            "value": "\`\`\`Kills: 12
+            "value": "Kills: 12
 Deaths: 14
 Assists: 8
 KDA: 0.66
@@ -30,12 +30,12 @@ Captures assists: 0
 Carrier time: 9s
 Grabs: 4
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
           },
           {
             "inline": true,
             "name": "gamertag02 (Rank: 2 | Score: 3355)",
-            "value": "\`\`\`Kills: __**22**__
+            "value": "Kills: __**22**__
 Deaths: 15
 Assists: 10
 KDA: __**10.33**__
@@ -50,7 +50,7 @@ Captures assists: 2
 Carrier time: 20s
 Grabs: 14
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
           },
           {
             "inline": false,
@@ -61,28 +61,8 @@ Carriers killed: 0\`\`\`",
           },
           {
             "inline": true,
-            "name": "gamertag09 (Rank: 3 | Score: 2375)",
-            "value": "\`\`\`Kills: 17
-Deaths: __**9**__
-Assists: 6
-KDA: 10
-Headshot kills: 10
-Shots H:F: 84:162
-Accuracy: 51.85%
-Damage D:T: 3859:__**3049**__
-Av life duration: __**53s**__
-Av damage/life: __**428.78**__
-Captures: 0
-Captures assists: __**3**__
-Carrier time: **22s**
-Grabs: __**15**__
-Returns: 0
-Carriers killed: __**1**__\`\`\`",
-          },
-          {
-            "inline": true,
             "name": "gamertag01 (Rank: 3 | Score: 2410)",
-            "value": "\`\`\`Kills: 16
+            "value": "Kills: 16
 Deaths: 17
 Assists: __**12**__
 KDA: 3
@@ -97,7 +77,27 @@ Captures assists: 1
 Carrier time: 11s
 Grabs: 14
 Returns: __**2**__
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
+          },
+          {
+            "inline": true,
+            "name": "gamertag09 (Rank: 3 | Score: 2375)",
+            "value": "Kills: 17
+Deaths: __**9**__
+Assists: 6
+KDA: 10
+Headshot kills: 10
+Shots H:F: 84:162
+Accuracy: 51.85%
+Damage D:T: 3859:__**3049**__
+Av life duration: __**53s**__
+Av damage/life: __**428.78**__
+Captures: 0
+Captures assists: __**3**__
+Carrier time: **22s**
+Grabs: __**15**__
+Returns: 0
+Carriers killed: __**1**__",
           },
           {
             "inline": false,
@@ -113,75 +113,8 @@ Carriers killed: 0\`\`\`",
           },
           {
             "inline": true,
-            "name": "gamertag12 (Rank: 5 | Score: 1045)",
-            "value": "\`\`\`Kills: 8
-Deaths: **15**
-Assists: 5
-KDA: -5.33
-Headshot kills: 5
-Shots H:F: 77:163
-Accuracy: 47.23%
-Damage D:T: 3859:5057
-Av life duration: **29s**
-Av damage/life: 257.27
-Captures: **0**
-Captures assists: **0**
-Carrier time: 17s
-Grabs: **9**
-Returns: 0
-Carriers killed: __**1**__\`\`\`",
-          },
-          {
-            "inline": true,
-            "name": "gamertag08 (Rank: 5 | Score: 1485)",
-            "value": "\`\`\`Kills: 11
-Deaths: 21
-Assists: **7**
-KDA: -7.66
-Headshot kills: 9
-Shots H:F: 99:191
-Accuracy: 51.83%
-Damage D:T: 4094:5882
-Av life duration: 19s
-Av damage/life: 194.95
-Captures: **0**
-Captures assists: **0**
-Carrier time: 
-Grabs: 0
-Returns: **1**
-Carriers killed: 0\`\`\`",
-          },
-          {
-            "inline": false,
-            "name": "
-",
-            "value": "
-",
-          },
-          {
-            "inline": true,
-            "name": "gamertag11 (Rank: 5 | Score: 1835)",
-            "value": "\`\`\`Kills: 17
-Deaths: 16
-Assists: 2
-KDA: 1.66
-Headshot kills: 9
-Shots H:F: 81:160
-Accuracy: 50.62%
-Damage D:T: 3657:**4401**
-Av life duration: 27s
-Av damage/life: 228.56
-Captures: **0**
-Captures assists: **0**
-Carrier time: __**1m 3s**__
-Grabs: 6
-Returns: 0
-Carriers killed: 0\`\`\`",
-          },
-          {
-            "inline": true,
             "name": "gamertag04 (Rank: 5 | Score: 2275)",
-            "value": "\`\`\`Kills: **19**
+            "value": "Kills: **19**
 Deaths: 16
 Assists: 6
 KDA: **5**
@@ -196,7 +129,74 @@ Captures assists: **0**
 Carrier time: 26s
 Grabs: 6
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
+          },
+          {
+            "inline": true,
+            "name": "gamertag11 (Rank: 5 | Score: 1835)",
+            "value": "Kills: 17
+Deaths: 16
+Assists: 2
+KDA: 1.66
+Headshot kills: 9
+Shots H:F: 81:160
+Accuracy: 50.62%
+Damage D:T: 3657:**4401**
+Av life duration: 27s
+Av damage/life: 228.56
+Captures: **0**
+Captures assists: **0**
+Carrier time: __**1m 3s**__
+Grabs: 6
+Returns: 0
+Carriers killed: 0",
+          },
+          {
+            "inline": false,
+            "name": "
+",
+            "value": "
+",
+          },
+          {
+            "inline": true,
+            "name": "gamertag08 (Rank: 5 | Score: 1485)",
+            "value": "Kills: 11
+Deaths: 21
+Assists: **7**
+KDA: -7.66
+Headshot kills: 9
+Shots H:F: 99:191
+Accuracy: 51.83%
+Damage D:T: 4094:5882
+Av life duration: 19s
+Av damage/life: 194.95
+Captures: **0**
+Captures assists: **0**
+Carrier time: 
+Grabs: 0
+Returns: **1**
+Carriers killed: 0",
+          },
+          {
+            "inline": true,
+            "name": "gamertag12 (Rank: 5 | Score: 1045)",
+            "value": "Kills: 8
+Deaths: **15**
+Assists: 5
+KDA: -5.33
+Headshot kills: 5
+Shots H:F: 77:163
+Accuracy: 47.23%
+Damage D:T: 3859:5057
+Av life duration: **29s**
+Av damage/life: 257.27
+Captures: **0**
+Captures assists: **0**
+Carrier time: 17s
+Grabs: **9**
+Returns: 0
+Carriers killed: __**1**__",
           },
           {
             "inline": false,
@@ -230,7 +230,7 @@ exports[`StatsCommand > execute() > neatqueue > jobToComplete > adds each game t
             {
               "inline": true,
               "name": "gamertag0500000000000000 (Rank: 1 | Score: 2240)",
-              "value": "\`\`\`Kills: 12
+              "value": "Kills: 12
 Deaths: 14
 Assists: 8
 KDA: 0.66
@@ -245,12 +245,12 @@ Captures assists: 0
 Carrier time: 9s
 Grabs: 4
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
             },
             {
               "inline": true,
               "name": "gamertag0200000000000000 (Rank: 2 | Score: 3355)",
-              "value": "\`\`\`Kills: __**22**__
+              "value": "Kills: __**22**__
 Deaths: 15
 Assists: 10
 KDA: __**10.33**__
@@ -265,7 +265,7 @@ Captures assists: 2
 Carrier time: 20s
 Grabs: 14
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
             },
             {
               "inline": false,
@@ -276,28 +276,8 @@ Carriers killed: 0\`\`\`",
             },
             {
               "inline": true,
-              "name": "gamertag0900000000000000 (Rank: 3 | Score: 2375)",
-              "value": "\`\`\`Kills: 17
-Deaths: __**9**__
-Assists: 6
-KDA: 10
-Headshot kills: 10
-Shots H:F: 84:162
-Accuracy: 51.85%
-Damage D:T: 3859:__**3049**__
-Av life duration: __**53s**__
-Av damage/life: __**428.78**__
-Captures: 0
-Captures assists: __**3**__
-Carrier time: **22s**
-Grabs: __**15**__
-Returns: 0
-Carriers killed: __**1**__\`\`\`",
-            },
-            {
-              "inline": true,
               "name": "gamertag0100000000000000 (Rank: 3 | Score: 2410)",
-              "value": "\`\`\`Kills: 16
+              "value": "Kills: 16
 Deaths: 17
 Assists: __**12**__
 KDA: 3
@@ -312,7 +292,27 @@ Captures assists: 1
 Carrier time: 11s
 Grabs: 14
 Returns: __**2**__
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0900000000000000 (Rank: 3 | Score: 2375)",
+              "value": "Kills: 17
+Deaths: __**9**__
+Assists: 6
+KDA: 10
+Headshot kills: 10
+Shots H:F: 84:162
+Accuracy: 51.85%
+Damage D:T: 3859:__**3049**__
+Av life duration: __**53s**__
+Av damage/life: __**428.78**__
+Captures: 0
+Captures assists: __**3**__
+Carrier time: **22s**
+Grabs: __**15**__
+Returns: 0
+Carriers killed: __**1**__",
             },
             {
               "inline": false,
@@ -328,75 +328,8 @@ Carriers killed: 0\`\`\`",
             },
             {
               "inline": true,
-              "name": "gamertag1200000000000000 (Rank: 5 | Score: 1045)",
-              "value": "\`\`\`Kills: 8
-Deaths: **15**
-Assists: 5
-KDA: -5.33
-Headshot kills: 5
-Shots H:F: 77:163
-Accuracy: 47.23%
-Damage D:T: 3859:5057
-Av life duration: **29s**
-Av damage/life: 257.27
-Captures: **0**
-Captures assists: **0**
-Carrier time: 17s
-Grabs: **9**
-Returns: 0
-Carriers killed: __**1**__\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0800000000000000 (Rank: 5 | Score: 1485)",
-              "value": "\`\`\`Kills: 11
-Deaths: 21
-Assists: **7**
-KDA: -7.66
-Headshot kills: 9
-Shots H:F: 99:191
-Accuracy: 51.83%
-Damage D:T: 4094:5882
-Av life duration: 19s
-Av damage/life: 194.95
-Captures: **0**
-Captures assists: **0**
-Carrier time: 
-Grabs: 0
-Returns: **1**
-Carriers killed: 0\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
-              "name": "gamertag1100000000000000 (Rank: 5 | Score: 1835)",
-              "value": "\`\`\`Kills: 17
-Deaths: 16
-Assists: 2
-KDA: 1.66
-Headshot kills: 9
-Shots H:F: 81:160
-Accuracy: 50.62%
-Damage D:T: 3657:**4401**
-Av life duration: 27s
-Av damage/life: 228.56
-Captures: **0**
-Captures assists: **0**
-Carrier time: __**1m 3s**__
-Grabs: 6
-Returns: 0
-Carriers killed: 0\`\`\`",
-            },
-            {
-              "inline": true,
               "name": "gamertag0400000000000000 (Rank: 5 | Score: 2275)",
-              "value": "\`\`\`Kills: **19**
+              "value": "Kills: **19**
 Deaths: 16
 Assists: 6
 KDA: **5**
@@ -411,7 +344,74 @@ Captures assists: **0**
 Carrier time: 26s
 Grabs: 6
 Returns: 0
-Carriers killed: 0\`\`\`",
+Carriers killed: 0",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1100000000000000 (Rank: 5 | Score: 1835)",
+              "value": "Kills: 17
+Deaths: 16
+Assists: 2
+KDA: 1.66
+Headshot kills: 9
+Shots H:F: 81:160
+Accuracy: 50.62%
+Damage D:T: 3657:**4401**
+Av life duration: 27s
+Av damage/life: 228.56
+Captures: **0**
+Captures assists: **0**
+Carrier time: __**1m 3s**__
+Grabs: 6
+Returns: 0
+Carriers killed: 0",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0800000000000000 (Rank: 5 | Score: 1485)",
+              "value": "Kills: 11
+Deaths: 21
+Assists: **7**
+KDA: -7.66
+Headshot kills: 9
+Shots H:F: 99:191
+Accuracy: 51.83%
+Damage D:T: 4094:5882
+Av life duration: 19s
+Av damage/life: 194.95
+Captures: **0**
+Captures assists: **0**
+Carrier time: 
+Grabs: 0
+Returns: **1**
+Carriers killed: 0",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1200000000000000 (Rank: 5 | Score: 1045)",
+              "value": "Kills: 8
+Deaths: **15**
+Assists: 5
+KDA: -5.33
+Headshot kills: 5
+Shots H:F: 77:163
+Accuracy: 47.23%
+Damage D:T: 3859:5057
+Av life duration: **29s**
+Av damage/life: 257.27
+Captures: **0**
+Captures assists: **0**
+Carrier time: 17s
+Grabs: **9**
+Returns: 0
+Carriers killed: __**1**__",
             },
             {
               "inline": false,
@@ -440,53 +440,8 @@ Carriers killed: 0\`\`\`",
             },
             {
               "inline": true,
-              "name": "gamertag0500000000000000 (Rank: 1 | Score: 2975)",
-              "value": "\`\`\`Kills: 19
-Deaths: 18
-Assists: __**18**__
-KDA: 7
-Headshot kills: 10
-Shots H:F: 134:265
-Accuracy: 50.56%
-Damage D:T: 6659:5468
-Av life duration: 27s
-Av damage/life: 369.94
-Captures: __**0**__
-Occupation time: 49s
-Secures: __**0**__
-Offensive kills: __**7**__
-Defensive kills: 1\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0200000000000000 (Rank: 1 | Score: 3100)",
-              "value": "\`\`\`Kills: 20
-Deaths: 19
-Assists: __**18**__
-KDA: 7
-Headshot kills: 14
-Shots H:F: 136:237
-Accuracy: 57.38%
-Damage D:T: 6757:6899
-Av life duration: 27s
-Av damage/life: 355.63
-Captures: __**0**__
-Occupation time: 44s
-Secures: __**0**__
-Offensive kills: 2
-Defensive kills: 3\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
               "name": "gamertag0100000000000000 (Rank: 1 | Score: 4255)",
-              "value": "\`\`\`Kills: __**34**__
+              "value": "Kills: __**34**__
 Deaths: 19
 Assists: 9
 KDA: 18
@@ -500,12 +455,57 @@ Captures: __**0**__
 Occupation time: **1m 11s**
 Secures: __**0**__
 Offensive kills: __**7**__
-Defensive kills: __**4**__\`\`\`",
+Defensive kills: __**4**__",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0200000000000000 (Rank: 1 | Score: 3100)",
+              "value": "Kills: 20
+Deaths: 19
+Assists: __**18**__
+KDA: 7
+Headshot kills: 14
+Shots H:F: 136:237
+Accuracy: 57.38%
+Damage D:T: 6757:6899
+Av life duration: 27s
+Av damage/life: 355.63
+Captures: __**0**__
+Occupation time: 44s
+Secures: __**0**__
+Offensive kills: 2
+Defensive kills: 3",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0500000000000000 (Rank: 1 | Score: 2975)",
+              "value": "Kills: 19
+Deaths: 18
+Assists: __**18**__
+KDA: 7
+Headshot kills: 10
+Shots H:F: 134:265
+Accuracy: 50.56%
+Damage D:T: 6659:5468
+Av life duration: 27s
+Av damage/life: 369.94
+Captures: __**0**__
+Occupation time: 49s
+Secures: __**0**__
+Offensive kills: __**7**__
+Defensive kills: 1",
             },
             {
               "inline": true,
               "name": "gamertag0900000000000000 (Rank: 4 | Score: 3175)",
-              "value": "\`\`\`Kills: 25
+              "value": "Kills: 25
 Deaths: __**7**__
 Assists: 7
 KDA: __**20.33**__
@@ -519,7 +519,7 @@ Captures: __**0**__
 Occupation time: 53s
 Secures: __**0**__
 Offensive kills: __**7**__
-Defensive kills: 1\`\`\`",
+Defensive kills: 1",
             },
             {
               "inline": false,
@@ -535,53 +535,8 @@ Defensive kills: 1\`\`\`",
             },
             {
               "inline": true,
-              "name": "gamertag1200000000000000 (Rank: 5 | Score: 1645)",
-              "value": "\`\`\`Kills: 9
-Deaths: 24
-Assists: 10
-KDA: -11.66
-Headshot kills: 5
-Shots H:F: 114:237
-Accuracy: 48.1%
-Damage D:T: 5525:**6557**
-Av life duration: 19s
-Av damage/life: 230.21
-Captures: __**0**__
-Occupation time: 48s
-Secures: __**0**__
-Offensive kills: 4
-Defensive kills: 0\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0800000000000000 (Rank: 5 | Score: 1785)",
-              "value": "\`\`\`Kills: 10
-Deaths: 26
-Assists: **13**
-KDA: -11.66
-Headshot kills: 5
-Shots H:F: 127:267
-Accuracy: 47.56%
-Damage D:T: 5401:7155
-Av life duration: 17s
-Av damage/life: 207.73
-Captures: __**0**__
-Occupation time: 35s
-Secures: __**0**__
-Offensive kills: 2
-Defensive kills: 2\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
               "name": "gamertag1100000000000000 (Rank: 5 | Score: 2350)",
-              "value": "\`\`\`Kills: 14
+              "value": "Kills: 14
 Deaths: 25
 Assists: 10
 KDA: -7.66
@@ -595,12 +550,57 @@ Captures: __**0**__
 Occupation time: __**1m 29s**__
 Secures: __**0**__
 Offensive kills: 3
-Defensive kills: 3\`\`\`",
+Defensive kills: 3",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0800000000000000 (Rank: 5 | Score: 1785)",
+              "value": "Kills: 10
+Deaths: 26
+Assists: **13**
+KDA: -11.66
+Headshot kills: 5
+Shots H:F: 127:267
+Accuracy: 47.56%
+Damage D:T: 5401:7155
+Av life duration: 17s
+Av damage/life: 207.73
+Captures: __**0**__
+Occupation time: 35s
+Secures: __**0**__
+Offensive kills: 2
+Defensive kills: 2",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1200000000000000 (Rank: 5 | Score: 1645)",
+              "value": "Kills: 9
+Deaths: 24
+Assists: 10
+KDA: -11.66
+Headshot kills: 5
+Shots H:F: 114:237
+Accuracy: 48.1%
+Damage D:T: 5525:**6557**
+Av life duration: 19s
+Av damage/life: 230.21
+Captures: __**0**__
+Occupation time: 48s
+Secures: __**0**__
+Offensive kills: 4
+Defensive kills: 0",
             },
             {
               "inline": true,
               "name": "gamertag0400000000000000 (Rank: 8 | Score: 3610)",
-              "value": "\`\`\`Kills: **30**
+              "value": "Kills: **30**
 Deaths: **23**
 Assists: 7
 KDA: **9.33**
@@ -614,7 +614,7 @@ Captures: __**0**__
 Occupation time: 47s
 Secures: __**0**__
 Offensive kills: **5**
-Defensive kills: __**4**__\`\`\`",
+Defensive kills: __**4**__",
             },
             {
               "inline": false,
@@ -644,7 +644,7 @@ Defensive kills: __**4**__\`\`\`",
             {
               "inline": true,
               "name": "gamertag0300000000000000 (Rank: 1 | Score: 950)",
-              "value": "\`\`\`Kills: 3
+              "value": "Kills: 3
 Deaths: 9
 Assists: 3
 KDA: -5
@@ -653,12 +653,12 @@ Shots H:F: 66:404
 Accuracy: 16.33%
 Damage D:T: 1715:2612
 Av life duration: 27s
-Av damage/life: 190.56\`\`\`",
+Av damage/life: 190.56",
             },
             {
               "inline": true,
               "name": "gamertag0200000000000000 (Rank: 2 | Score: 1500)",
-              "value": "\`\`\`Kills: **9**
+              "value": "Kills: **9**
 Deaths: **7**
 Assists: __**6**__
 KDA: **4**
@@ -667,42 +667,7 @@ Shots H:F: 123:285
 Accuracy: 43.15%
 Damage D:T: 2418:**2024**
 Av life duration: **36s**
-Av damage/life: 345.43\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
-              "name": "gamertag1200000000000000 (Rank: 3 | Score: 750)",
-              "value": "\`\`\`Kills: 4
-Deaths: 10
-Assists: 5
-KDA: -4.33
-Headshot kills: 1
-Shots H:F: 61:161
-Accuracy: 37.88%
-Damage D:T: 1322:2416
-Av life duration: 23s
-Av damage/life: 132.20\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0400000000000000 (Rank: 3 | Score: 1425)",
-              "value": "\`\`\`Kills: 7
-Deaths: 8
-Assists: __**6**__
-KDA: 1
-Headshot kills: 3
-Shots H:F: **158**:__**723**__
-Accuracy: 21.85%
-Damage D:T: **3774**:2186
-Av life duration: **36s**
-Av damage/life: **471.75**\`\`\`",
+Av damage/life: 345.43",
             },
             {
               "inline": false,
@@ -714,7 +679,7 @@ Av damage/life: **471.75**\`\`\`",
             {
               "inline": true,
               "name": "gamertag0100000000000000 (Rank: 3 | Score: 1500)",
-              "value": "\`\`\`Kills: **9**
+              "value": "Kills: **9**
 Deaths: 10
 Assists: 4
 KDA: 0.33
@@ -723,21 +688,21 @@ Shots H:F: 114:237
 Accuracy: **48.1%**
 Damage D:T: 2253:2526
 Av life duration: 23s
-Av damage/life: 225.30\`\`\`",
+Av damage/life: 225.30",
             },
             {
               "inline": true,
-              "name": "gamertag1400000000000000 (Rank: 6 | Score: 750)",
-              "value": "\`\`\`Kills: 5
-Deaths: 13
-Assists: 3
-KDA: -7
-Headshot kills: 0
-Shots H:F: 76:305
-Accuracy: 24.91%
-Damage D:T: 1243:3058
-Av life duration: 16s
-Av damage/life: 95.62\`\`\`",
+              "name": "gamertag0400000000000000 (Rank: 3 | Score: 1425)",
+              "value": "Kills: 7
+Deaths: 8
+Assists: __**6**__
+KDA: 1
+Headshot kills: 3
+Shots H:F: **158**:__**723**__
+Accuracy: 21.85%
+Damage D:T: **3774**:2186
+Av life duration: **36s**
+Av damage/life: **471.75**",
             },
             {
               "inline": false,
@@ -748,8 +713,22 @@ Av damage/life: 95.62\`\`\`",
             },
             {
               "inline": true,
+              "name": "gamertag1200000000000000 (Rank: 3 | Score: 750)",
+              "value": "Kills: 4
+Deaths: 10
+Assists: 5
+KDA: -4.33
+Headshot kills: 1
+Shots H:F: 61:161
+Accuracy: 37.88%
+Damage D:T: 1322:2416
+Av life duration: 23s
+Av damage/life: 132.20",
+            },
+            {
+              "inline": true,
               "name": "gamertag0900000000000000 (Rank: 6 | Score: 1050)",
-              "value": "\`\`\`Kills: 8
+              "value": "Kills: 8
 Deaths: 14
 Assists: 3
 KDA: -5
@@ -758,12 +737,19 @@ Shots H:F: 75:207
 Accuracy: 36.23%
 Damage D:T: 1846:3332
 Av life duration: 14s
-Av damage/life: 131.86\`\`\`",
+Av damage/life: 131.86",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
             },
             {
               "inline": true,
               "name": "gamertag1300000000000000 (Rank: 6 | Score: 1050)",
-              "value": "\`\`\`Kills: 7
+              "value": "Kills: 7
 Deaths: 8
 Assists: 3
 KDA: 0
@@ -772,7 +758,21 @@ Shots H:F: 123:316
 Accuracy: 38.92%
 Damage D:T: 2825:2306
 Av life duration: 31s
-Av damage/life: 353.13\`\`\`",
+Av damage/life: 353.13",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1400000000000000 (Rank: 6 | Score: 750)",
+              "value": "Kills: 5
+Deaths: 13
+Assists: 3
+KDA: -7
+Headshot kills: 0
+Shots H:F: 76:305
+Accuracy: 24.91%
+Damage D:T: 1243:3058
+Av life duration: 16s
+Av damage/life: 95.62",
             },
             {
               "inline": false,
@@ -788,22 +788,8 @@ Av damage/life: 353.13\`\`\`",
             },
             {
               "inline": true,
-              "name": "gamertag0800000000000000 (Rank: 9 | Score: 1000)",
-              "value": "\`\`\`Kills: 5
-Deaths: 10
-Assists: 2
-KDA: -4.33
-Headshot kills: 1
-Shots H:F: 94:233
-Accuracy: 40.34%
-Damage D:T: 1847:2873
-Av life duration: 27s
-Av damage/life: 184.70\`\`\`",
-            },
-            {
-              "inline": true,
               "name": "gamertag1000000000000000 (Rank: 9 | Score: 1650)",
-              "value": "\`\`\`Kills: 11
+              "value": "Kills: 11
 Deaths: 6
 Assists: 3
 KDA: 6
@@ -812,7 +798,21 @@ Shots H:F: 107:299
 Accuracy: 35.78%
 Damage D:T: 2255:1904
 Av life duration: 43s
-Av damage/life: 375.83\`\`\`",
+Av damage/life: 375.83",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0800000000000000 (Rank: 9 | Score: 1000)",
+              "value": "Kills: 5
+Deaths: 10
+Assists: 2
+KDA: -4.33
+Headshot kills: 1
+Shots H:F: 94:233
+Accuracy: 40.34%
+Damage D:T: 1847:2873
+Av life duration: 27s
+Av damage/life: 184.70",
             },
             {
               "inline": false,
@@ -824,7 +824,7 @@ Av damage/life: 375.83\`\`\`",
             {
               "inline": true,
               "name": "gamertag0700000000000000 (Rank: 11 | Score: 750)",
-              "value": "\`\`\`Kills: 2
+              "value": "Kills: 2
 Deaths: 8
 Assists: 5
 KDA: -4.33
@@ -833,68 +833,12 @@ Shots H:F: 65:170
 Accuracy: 38.23%
 Damage D:T: 1131:2237
 Av life duration: 31s
-Av damage/life: 141.38\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0600000000000000 (Rank: 12 | Score: 800)",
-              "value": "\`\`\`Kills: 6
-Deaths: __**3**__
-Assists: 0
-KDA: 3
-Headshot kills: 2
-Shots H:F: 147:450
-Accuracy: 32.66%
-Damage D:T: 1051:__**1202**__
-Av life duration: __**1m 23s**__
-Av damage/life: 350.33\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
-              "name": "gamertag1100000000000000 (Rank: 12 | Score: 810)",
-              "value": "\`\`\`Kills: 4
-Deaths: 7
-Assists: __**6**__
-KDA: -1
-Headshot kills: 0
-Shots H:F: 118:**596**
-Accuracy: 19.79%
-Damage D:T: 1975:1869
-Av life duration: 36s
-Av damage/life: 282.14\`\`\`",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0500000000000000 (Rank: 12 | Score: 900)",
-              "value": "\`\`\`Kills: 6
-Deaths: 6
-Assists: 2
-KDA: 0.66
-Headshot kills: 3
-Shots H:F: 160:386
-Accuracy: 41.45%
-Damage D:T: 1552:2026
-Av life duration: 43s
-Av damage/life: 258.67\`\`\`",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
+Av damage/life: 141.38",
             },
             {
               "inline": true,
               "name": "gamertag1600000000000000 (Rank: 12 | Score: 3100)",
-              "value": "\`\`\`Kills: __**29**__
+              "value": "Kills: __**29**__
 Deaths: 6
 Assists: 4
 KDA: __**24.33**__
@@ -903,12 +847,68 @@ Shots H:F: 197:314
 Accuracy: __**62.73%**__
 Damage D:T: __**7623**__:1989
 Av life duration: 43s
-Av damage/life: __**1270.50**__\`\`\`",
+Av damage/life: __**1270.50**__",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0500000000000000 (Rank: 12 | Score: 900)",
+              "value": "Kills: 6
+Deaths: 6
+Assists: 2
+KDA: 0.66
+Headshot kills: 3
+Shots H:F: 160:386
+Accuracy: 41.45%
+Damage D:T: 1552:2026
+Av life duration: 43s
+Av damage/life: 258.67",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1100000000000000 (Rank: 12 | Score: 810)",
+              "value": "Kills: 4
+Deaths: 7
+Assists: __**6**__
+KDA: -1
+Headshot kills: 0
+Shots H:F: 118:**596**
+Accuracy: 19.79%
+Damage D:T: 1975:1869
+Av life duration: 36s
+Av damage/life: 282.14",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0600000000000000 (Rank: 12 | Score: 800)",
+              "value": "Kills: 6
+Deaths: __**3**__
+Assists: 0
+KDA: 3
+Headshot kills: 2
+Shots H:F: 147:450
+Accuracy: 32.66%
+Damage D:T: 1051:__**1202**__
+Av life duration: __**1m 23s**__
+Av damage/life: 350.33",
             },
             {
               "inline": true,
               "name": "gamertag1500000000000000 (Rank: 16 | Score: 2100)",
-              "value": "\`\`\`Kills: 16
+              "value": "Kills: 16
 Deaths: 6
 Assists: __**6**__
 KDA: 12
@@ -917,7 +917,7 @@ Shots H:F: __**202**__:418
 Accuracy: 48.32%
 Damage D:T: 3961:2231
 Av life duration: 43s
-Av damage/life: 660.17\`\`\`",
+Av damage/life: 660.17",
             },
             {
               "inline": false,

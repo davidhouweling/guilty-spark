@@ -11,7 +11,7 @@ exports[`VIPMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": true,
       "name": "gamertag07 (Rank: 5 | Score: 2750)",
-      "value": "\`\`\`Kills: __**25**__
+      "value": "Kills: __**25**__
 Deaths: 11
 Assists: 5
 KDA: __**15.66**__
@@ -27,12 +27,12 @@ Kills as VIP: __**4**__
 Times selected as VIP: **4**
 Max killing spree as VIP: __**3**__
 Longest Time as VIP: 47s
-Time as VIP: 1m 36s\`\`\`",
+Time as VIP: 1m 36s",
     },
     {
       "inline": true,
       "name": "gamertag06 (Rank: 6 | Score: 1720)",
-      "value": "\`\`\`Kills: 14
+      "value": "Kills: 14
 Deaths: 11
 Assists: 6
 KDA: 5
@@ -48,7 +48,7 @@ Kills as VIP: 2
 Times selected as VIP: 2
 Max killing spree as VIP: 2
 Longest Time as VIP: __**1m 27s**__
-Time as VIP: 1m 48s\`\`\`",
+Time as VIP: 1m 48s",
     },
     {
       "inline": false,
@@ -59,29 +59,8 @@ Time as VIP: 1m 48s\`\`\`",
     },
     {
       "inline": true,
-      "name": "gamertag04 (Rank: 7 | Score: 700)",
-      "value": "\`\`\`Kills: 3
-Deaths: 11
-Assists: __**8**__
-KDA: -5.33
-Headshot kills: 0
-Shots H:F: 102:362
-Accuracy: 28.17%
-Damage D:T: 2721:4748
-Av life duration: 33s
-Av damage/life: 247.36
-VIP kills: 1
-VIP Assists: 1
-Kills as VIP: 2
-Times selected as VIP: **4**
-Max killing spree as VIP: 1
-Longest Time as VIP: 58s
-Time as VIP: **2m 39s**\`\`\`",
-    },
-    {
-      "inline": true,
       "name": "gamertag05 (Rank: 7 | Score: 950)",
-      "value": "\`\`\`Kills: 9
+      "value": "Kills: 9
 Deaths: **7**
 Assists: 1
 KDA: 2.33
@@ -97,7 +76,28 @@ Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
 Longest Time as VIP: 
-Time as VIP: \`\`\`",
+Time as VIP: ",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04 (Rank: 7 | Score: 700)",
+      "value": "Kills: 3
+Deaths: 11
+Assists: __**8**__
+KDA: -5.33
+Headshot kills: 0
+Shots H:F: 102:362
+Accuracy: 28.17%
+Damage D:T: 2721:4748
+Av life duration: 33s
+Av damage/life: 247.36
+VIP kills: 1
+VIP Assists: 1
+Kills as VIP: 2
+Times selected as VIP: **4**
+Max killing spree as VIP: 1
+Longest Time as VIP: 58s
+Time as VIP: **2m 39s**",
     },
     {
       "inline": false,
@@ -114,7 +114,7 @@ Time as VIP: \`\`\`",
     {
       "inline": true,
       "name": "gamertag03 (Rank: 1 | Score: 1950)",
-      "value": "\`\`\`Kills: **18**
+      "value": "Kills: **18**
 Deaths: 10
 Assists: 3
 KDA: **9**
@@ -130,40 +130,12 @@ Kills as VIP: 1
 Times selected as VIP: 2
 Max killing spree as VIP: 1
 Longest Time as VIP: 28s
-Time as VIP: 45s\`\`\`",
-    },
-    {
-      "inline": true,
-      "name": "gamertag09 (Rank: 2 | Score: 1050)",
-      "value": "\`\`\`Kills: 9
-Deaths: 7
-Assists: 3
-KDA: 3
-Headshot kills: **7**
-Shots H:F: 125:246
-Accuracy: **50.81%**
-Damage D:T: 3175:2433
-Av life duration: 34s
-Av damage/life: 453.57
-VIP kills: 2
-VIP Assists: 0
-Kills as VIP: 2
-Times selected as VIP: 1
-Max killing spree as VIP: 2
-Longest Time as VIP: 1m 6s
-Time as VIP: 1m 6s\`\`\`",
-    },
-    {
-      "inline": false,
-      "name": "
-",
-      "value": "
-",
+Time as VIP: 45s",
     },
     {
       "inline": true,
       "name": "gamertag02 (Rank: 2 | Score: 1150)",
-      "value": "\`\`\`Kills: 8
+      "value": "Kills: 8
 Deaths: 16
 Assists: **7**
 KDA: -5.66
@@ -179,12 +151,40 @@ Kills as VIP: **3**
 Times selected as VIP: __**5**__
 Max killing spree as VIP: 2
 Longest Time as VIP: **1m 14s**
-Time as VIP: 2m 34s\`\`\`",
+Time as VIP: 2m 34s",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09 (Rank: 2 | Score: 1050)",
+      "value": "Kills: 9
+Deaths: 7
+Assists: 3
+KDA: 3
+Headshot kills: **7**
+Shots H:F: 125:246
+Accuracy: **50.81%**
+Damage D:T: 3175:2433
+Av life duration: 34s
+Av damage/life: 453.57
+VIP kills: 2
+VIP Assists: 0
+Kills as VIP: 2
+Times selected as VIP: 1
+Max killing spree as VIP: 2
+Longest Time as VIP: 1m 6s
+Time as VIP: 1m 6s",
     },
     {
       "inline": true,
       "name": "gamertag01 (Rank: 4 | Score: 650)",
-      "value": "\`\`\`Kills: 5
+      "value": "Kills: 5
 Deaths: 14
 Assists: 3
 KDA: -8
@@ -200,7 +200,7 @@ Kills as VIP: **3**
 Times selected as VIP: __**5**__
 Max killing spree as VIP: __**3**__
 Longest Time as VIP: 1m 13s
-Time as VIP: __**2m 49s**__\`\`\`",
+Time as VIP: __**2m 49s**__",
     },
     {
       "inline": false,
@@ -212,7 +212,7 @@ Time as VIP: __**2m 49s**__\`\`\`",
     {
       "inline": true,
       "name": "gamertag08 (Rank: 9 | Score: 0)",
-      "value": "\`\`\`Kills: 0
+      "value": "Kills: 0
 Deaths: 4
 Assists: 0
 KDA: -4
@@ -228,12 +228,12 @@ Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
 Longest Time as VIP: 
-Time as VIP: \`\`\`",
+Time as VIP: ",
     },
     {
       "inline": true,
       "name": "Bot (Rank: 9 | Score: 0)",
-      "value": "\`\`\`Kills: 0
+      "value": "Kills: 0
 Deaths: __**0**__
 Assists: 0
 KDA: 0
@@ -249,7 +249,7 @@ Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
 Longest Time as VIP: 
-Time as VIP: \`\`\`",
+Time as VIP: ",
     },
     {
       "inline": false,
