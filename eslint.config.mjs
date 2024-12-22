@@ -45,8 +45,6 @@ export default config(
       "@typescript-eslint/no-shadow": "error",
       "@typescript-eslint/no-unnecessary-parameter-property-assignment": "error",
       "@typescript-eslint/no-unnecessary-qualifier": "error",
-      // TODO: resolve these and turn into error
-      "@typescript-eslint/no-unsafe-type-assertion": "warn",
       "@typescript-eslint/no-use-before-define": "error",
       "@typescript-eslint/no-useless-empty-export": "error",
       "prefer-destructuring": "off",

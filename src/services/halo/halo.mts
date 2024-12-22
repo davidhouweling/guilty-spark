@@ -106,9 +106,9 @@ export class HaloService {
   }
 
   async getPlayerXuidsToGametags(match: MatchStats): Promise<Map<string, string>> {
-    const xuidsToResolve = match.Players.map((player) => this.getPlayerXuid(player)).filter(
-      (xuid) => !this.xuidToGamerTagCache.has(xuid),
-    );
+    const xuidsToResolve = match.Players.filter((player) => player.PlayerType === 1)
+      .map((player) => this.getPlayerXuid(player))
+      .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
     if (xuidsToResolve.length) {
       const playerNames = await this.infiniteClient.getUsers(xuidsToResolve);
       for (const player of playerNames) {
@@ -117,6 +117,16 @@ export class HaloService {
     }
 
     return this.xuidToGamerTagCache;
+  }
+
+  getDurationInSeconds(duration: string): number {
+    const parsedDuration = tinyduration.parse(duration);
+    return Math.floor(
+      (parsedDuration.days ?? 0) * 86400 +
+        (parsedDuration.hours ?? 0) * 3600 +
+        (parsedDuration.minutes ?? 0) * 60 +
+        (parsedDuration.seconds ?? 0),
+    );
   }
 
   getReadableDuration(duration: string): string {

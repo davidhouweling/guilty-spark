@@ -2,5 +2,6 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
-  "vitest.shellType": "terminal"
+  "vitest.shellType": "terminal",
+  "cSpell.words": ["gamertag", "Gametags", "Xuid", "Xuids"]
 }

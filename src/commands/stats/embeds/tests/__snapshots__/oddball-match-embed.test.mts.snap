@@ -10,28 +10,24 @@ exports[`OddballMatchEmbed > getEmbed > returns the expected embed 1`] = `
     },
     {
       "inline": true,
-      "name": "gamertag06",
-      "value": "\`\`\`Rank: 5
-Score: 89
-Kills: 22
-Deaths: 29
+      "name": "gamertag06 (Rank: 5 | Score: 3560)",
+      "value": "Kills: 22
+Deaths: **29**
 Assists: 9
 KDA: -4
 Headshot kills: 4
 Shots H:F: 161:326
 Accuracy: 49.38%
-Damage D:T: 7718:9491
-Av life duration: 27s
+Damage D:T: 7718:**9491**
+Av life duration: **27s**
 Av damage/life: 266.14
-Total time as carrier: 1m 33s
-Longest time as carrier: 22s\`\`\`",
+Total time as carrier: **1m 33s**
+Longest time as carrier: **22s**",
     },
     {
       "inline": true,
-      "name": "gamertag08",
-      "value": "\`\`\`Rank: 6
-Score: 50
-Kills: 21
+      "name": "gamertag08 (Rank: 6 | Score: 2840)",
+      "value": "Kills: 21
 Deaths: 36
 Assists: 6
 KDA: -13
@@ -42,7 +38,7 @@ Damage D:T: 8476:10836
 Av life duration: 20s
 Av damage/life: 235.44
 Total time as carrier: 53s
-Longest time as carrier: 15s\`\`\`",
+Longest time as carrier: 15s",
     },
     {
       "inline": false,
@@ -53,30 +49,26 @@ Longest time as carrier: 15s\`\`\`",
     },
     {
       "inline": true,
-      "name": "gamertag02",
-      "value": "\`\`\`Rank: 7
-Score: 42
-Kills: 38
+      "name": "gamertag02 (Rank: 7 | Score: 4945)",
+      "value": "Kills: **38**
 Deaths: 33
 Assists: 16
-KDA: 10.33
-Headshot kills: 31
-Shots H:F: 268:458
-Accuracy: 58.51%
-Damage D:T: 11620:11411
+KDA: **10.33**
+Headshot kills: __**31**__
+Shots H:F: **268**:**458**
+Accuracy: __**58.51%**__
+Damage D:T: **11620**:11411
 Av life duration: 24s
-Av damage/life: 352.12
+Av damage/life: **352.12**
 Total time as carrier: 48s
-Longest time as carrier: 11s\`\`\`",
+Longest time as carrier: 11s",
     },
     {
       "inline": true,
-      "name": "gamertag01",
-      "value": "\`\`\`Rank: 8
-Score: 17
-Kills: 28
+      "name": "gamertag01 (Rank: 8 | Score: 3950)",
+      "value": "Kills: 28
 Deaths: 32
-Assists: 17
+Assists: **17**
 KDA: 1.66
 Headshot kills: 17
 Shots H:F: 251:443
@@ -85,7 +77,7 @@ Damage D:T: 10303:10590
 Av life duration: 23s
 Av damage/life: 321.97
 Total time as carrier: 21s
-Longest time as carrier: 10s\`\`\`",
+Longest time as carrier: 10s",
     },
     {
       "inline": false,
@@ -101,30 +93,26 @@ Longest time as carrier: 10s\`\`\`",
     },
     {
       "inline": true,
-      "name": "gamertag03",
-      "value": "\`\`\`Rank: 1
-Score: 98
-Kills: 30
-Deaths: 21
+      "name": "gamertag03 (Rank: 1 | Score: 4725)",
+      "value": "Kills: 30
+Deaths: __**21**__
 Assists: 16
 KDA: 14.33
 Headshot kills: 20
 Shots H:F: 224:409
 Accuracy: 54.76%
-Damage D:T: 9430:8596
-Av life duration: 41s
+Damage D:T: 9430:__**8596**__
+Av life duration: __**41s**__
 Av damage/life: 449.05
-Total time as carrier: 1m 45s
-Longest time as carrier: 25s\`\`\`",
+Total time as carrier: __**1m 45s**__
+Longest time as carrier: __**25s**__",
     },
     {
       "inline": true,
-      "name": "gamertag04",
-      "value": "\`\`\`Rank: 2
-Score: 83
-Kills: 29
+      "name": "gamertag04 (Rank: 2 | Score: 4625)",
+      "value": "Kills: 29
 Deaths: 31
-Assists: 19
+Assists: __**19**__
 KDA: 4.33
 Headshot kills: 18
 Shots H:F: 237:447
@@ -133,7 +121,7 @@ Damage D:T: 10815:10019
 Av life duration: 25s
 Av damage/life: 348.87
 Total time as carrier: 1m 26s
-Longest time as carrier: 24s\`\`\`",
+Longest time as carrier: 24s",
     },
     {
       "inline": false,
@@ -144,28 +132,24 @@ Longest time as carrier: 24s\`\`\`",
     },
     {
       "inline": true,
-      "name": "gamertag07",
-      "value": "\`\`\`Rank: 3
-Score: 43
-Kills: 49
+      "name": "gamertag07 (Rank: 3 | Score: 6100)",
+      "value": "Kills: __**49**__
 Deaths: 24
 Assists: 15
-KDA: 30
-Headshot kills: 30
-Shots H:F: 335:582
-Accuracy: 57.56%
-Damage D:T: 13919:10011
+KDA: __**30**__
+Headshot kills: **30**
+Shots H:F: __**335**__:__**582**__
+Accuracy: **57.56%**
+Damage D:T: __**13919**__:10011
 Av life duration: 33s
-Av damage/life: 579.96
+Av damage/life: __**579.96**__
 Total time as carrier: 45s
-Longest time as carrier: 13s\`\`\`",
+Longest time as carrier: 13s",
     },
     {
       "inline": true,
-      "name": "gamertag05",
-      "value": "\`\`\`Rank: 4
-Score: 32
-Kills: 22
+      "name": "gamertag05 (Rank: 4 | Score: 3130)",
+      "value": "Kills: 22
 Deaths: 33
 Assists: 13
 KDA: -6.66
@@ -176,7 +160,7 @@ Damage D:T: 7200:9781
 Av life duration: 22s
 Av damage/life: 218.18
 Total time as carrier: 33s
-Longest time as carrier: 11s\`\`\`",
+Longest time as carrier: 11s",
     },
     {
       "inline": false,

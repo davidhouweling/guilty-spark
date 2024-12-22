@@ -260,6 +260,40 @@ describe("Halo service", () => {
         "0700000000000000",
       ]);
     });
+
+    it('filters out "Bot" players', async () => {
+      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      Preconditions.checkExists(match.Players[0]).PlayerType = 2;
+
+      const result = await haloService.getPlayerXuidsToGametags(match);
+      expect(result).toEqual(
+        new Map([
+          ["0200000000000000", "gamertag0200000000000000"],
+          ["0500000000000000", "gamertag0500000000000000"],
+          ["0400000000000000", "gamertag0400000000000000"],
+          ["0900000000000000", "gamertag0900000000000000"],
+          ["0800000000000000", "gamertag0800000000000000"],
+          ["1100000000000000", "gamertag1100000000000000"],
+          ["1200000000000000", "gamertag1200000000000000"],
+        ]),
+      );
+    });
+  });
+
+  describe("getDurationInSeconds()", () => {
+    it("returns the duration in seconds", () => {
+      const duration = "PT10M58.2413691S";
+      const result = haloService.getDurationInSeconds(duration);
+
+      expect(result).toBe(658);
+    });
+
+    it("returns the duration in a readable format (including days and hours)", () => {
+      const duration = "P3DT4H30M15.5S";
+      const result = haloService.getDurationInSeconds(duration);
+
+      expect(result).toBe(275415);
+    });
   });
 
   describe("getReadableDuration()", () => {

@@ -1,18 +1,16 @@
 import type { GameVariantCategory } from "halo-infinite-api";
-import type { PlayerStats } from "./base-match-embed.mjs";
-import { BaseMatchEmbed } from "./base-match-embed.mjs";
+import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class EliminationMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerElimination> {
-  override getPlayerObjectiveStats(
-    stats: PlayerStats<GameVariantCategory.MultiplayerElimination>,
-  ): Map<string, string> {
+  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerElimination>): EmbedPlayerStats {
     return new Map([
-      ["Eliminations", stats.EliminationStats.Eliminations.toString()],
-      ["Elimination assists", stats.EliminationStats.EliminationAssists.toString()],
-      ["Allies revived", stats.EliminationStats.AlliesRevived.toString()],
-      ["Rounds Survived", stats.EliminationStats.RoundsSurvived.toString()],
-      ["Times revived by ally", stats.EliminationStats.TimesRevivedByAlly.toString()],
-      ["Enemy revives denied", stats.EliminationStats.EnemyRevivesDenied.toString()],
+      ["Eliminations", { value: stats.EliminationStats.Eliminations, sortBy: StatsValueSortBy.DESC }],
+      ["Elimination assists", { value: stats.EliminationStats.EliminationAssists, sortBy: StatsValueSortBy.DESC }],
+      ["Allies revived", { value: stats.EliminationStats.AlliesRevived, sortBy: StatsValueSortBy.DESC }],
+      ["Rounds Survived", { value: stats.EliminationStats.RoundsSurvived, sortBy: StatsValueSortBy.DESC }],
+      ["Times revived by ally", { value: stats.EliminationStats.TimesRevivedByAlly, sortBy: StatsValueSortBy.ASC }],
+      ["Enemy revives denied", { value: stats.EliminationStats.EnemyRevivesDenied, sortBy: StatsValueSortBy.DESC }],
     ]);
   }
 }

@@ -63,6 +63,11 @@ await writeFile(path.join(__dirname, "land-grab.json"), JSON.stringify(landGrabM
 */
 
 /*
+const vipMatch = await client.getMatchStats("28af2f64-7c05-458d-b8b1-6427d54fd2df");
+await writeFile(path.join(__dirname, "vip.json"), JSON.stringify(vipMatch, null, 2));
+*/
+
+/*
 const assertVersion = await client.getSpecificAssetVersion(
   AssetKind.Map,
   "70dd38c5-2eb7-4db3-8901-0dfca292ff18",

@@ -6,24 +6,66 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 export type PlayerStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
 
+export enum StatsValueSortBy {
+  ASC,
+  DESC,
+}
+
+export interface StatsValue {
+  value: number;
+  sortBy: StatsValueSortBy;
+  display?: string;
+}
+
+export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
+
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   constructor(protected readonly haloService: HaloService) {}
 
-  protected abstract getPlayerObjectiveStats(stats: PlayerStats<TCategory>): Map<string, string>;
+  protected abstract getPlayerObjectiveStats(stats: PlayerStats<TCategory>): EmbedPlayerStats;
 
-  protected getPlayerSlayerStats(stats: PlayerStats<TCategory>): Map<string, string> {
+  protected getPlayerSlayerStats(stats: PlayerStats<TCategory>): EmbedPlayerStats {
     const { CoreStats } = stats;
     return new Map([
-      ["Kills", CoreStats.Kills.toString()],
-      ["Deaths", CoreStats.Deaths.toString()],
-      ["Assists", CoreStats.Assists.toString()],
-      ["KDA", CoreStats.KDA.toString()],
-      ["Headshot kills", CoreStats.HeadshotKills.toString()],
-      ["Shots H:F", `${CoreStats.ShotsHit.toString()}:${CoreStats.ShotsFired.toString()}`],
-      ["Accuracy", `${CoreStats.Accuracy.toString()}%`],
-      ["Damage D:T", `${CoreStats.DamageDealt.toString()}:${CoreStats.DamageTaken.toString()}`],
-      ["Av life duration", this.haloService.getReadableDuration(CoreStats.AverageLifeDuration)],
-      ["Av damage/life", (CoreStats.DamageDealt / CoreStats.Deaths).toFixed(2)],
+      ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
+      ["Deaths", { value: CoreStats.Deaths, sortBy: StatsValueSortBy.ASC }],
+      ["Assists", { value: CoreStats.Assists, sortBy: StatsValueSortBy.DESC }],
+      ["KDA", { value: CoreStats.KDA, sortBy: StatsValueSortBy.DESC }],
+      ["Headshot kills", { value: CoreStats.HeadshotKills, sortBy: StatsValueSortBy.DESC }],
+      [
+        "Shots H:F",
+        [
+          { value: CoreStats.ShotsHit, sortBy: StatsValueSortBy.DESC },
+          { value: CoreStats.ShotsFired, sortBy: StatsValueSortBy.DESC },
+        ],
+      ],
+      [
+        "Accuracy",
+        { value: CoreStats.Accuracy, sortBy: StatsValueSortBy.DESC, display: `${CoreStats.Accuracy.toString()}%` },
+      ],
+      [
+        "Damage D:T",
+        [
+          { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
+          { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
+        ],
+      ],
+      [
+        "Av life duration",
+        {
+          value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
+          sortBy: StatsValueSortBy.DESC,
+          display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration),
+        },
+      ],
+      [
+        "Av damage/life",
+        {
+          value: CoreStats.DamageDealt / CoreStats.Deaths,
+          sortBy: StatsValueSortBy.DESC,
+          display: (CoreStats.DamageDealt / CoreStats.Deaths).toFixed(2),
+        },
+      ],
     ]);
   }
 
@@ -36,6 +78,21 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       fields: [],
     };
 
+    const playersStats = new Map<string, EmbedPlayerStats>(
+      match.Players.map((player) => {
+        const stats = Preconditions.checkExists(
+          player.PlayerTeamStats[0],
+        ) as MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+
+        return [
+          player.PlayerId,
+          new Map([...this.getPlayerSlayerStats(stats.Stats), ...this.getPlayerObjectiveStats(stats.Stats)]),
+        ];
+      }),
+    );
+
+    const matchBestValues = this.getBestStatValues(playersStats);
+
     for (const team of match.Teams) {
       embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
@@ -43,29 +100,19 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         inline: false,
       });
 
-      const teamPlayers = match.Players.filter((player) =>
-        player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-      ).sort((a, b) => {
-        if (a.Rank - b.Rank !== 0) {
-          return a.Rank - b.Rank;
-        }
-
-        const aStats = Preconditions.checkExists(
-          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        const bStats = Preconditions.checkExists(
-          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        return aStats.Stats.CoreStats.Score - bStats.Stats.CoreStats.Score;
-      });
+      const teamPlayers = this.getTeamPlayers(match, team);
+      const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = this.haloService.getPlayerXuid(teamPlayer);
-        const playerGamertag = Preconditions.checkExists(
-          players.get(playerXuid),
-          `Unable to find player gamertag for XUID ${playerXuid}`,
-        );
+        const playerGamertag =
+          teamPlayer.PlayerType === 1
+            ? Preconditions.checkExists(
+                players.get(playerXuid),
+                `Unable to find player gamertag for XUID ${playerXuid}`,
+              )
+            : "Bot";
         const playerStats = Preconditions.checkExists(
           teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
           "Unable to match player to team",
@@ -75,15 +122,14 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           Stats: { CoreStats: coreStats },
         } = playerStats;
 
-        const outputStats = [
-          `Rank: ${teamPlayer.Rank.toString()}`,
-          `Score: ${coreStats.Score.toString()}`,
-          ...this.playerStatsToFields(this.getPlayerSlayerStats(playerStats.Stats)),
-          ...this.playerStatsToFields(this.getPlayerObjectiveStats(playerStats.Stats)),
-        ];
+        const outputStats = this.playerStatsToFields(
+          matchBestValues,
+          teamBestValues,
+          Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
+        );
         playerFields.push({
-          name: playerGamertag,
-          value: `\`\`\`${outputStats.join("\n")}\`\`\``,
+          name: `${playerGamertag} (Rank: ${teamPlayer.Rank.toString()} | Score: ${coreStats.PersonalScore.toString()})`,
+          value: outputStats.join("\n"),
           inline: true,
         });
 
@@ -105,7 +151,118 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return embed;
   }
 
-  private playerStatsToFields(playerStats: Map<string, string>): string[] {
-    return Array.from(playerStats.entries()).map(([key, value]) => `${key}: ${value}`);
+  private getTeamPlayers(match: MatchStats, team: MatchStats["Teams"][0]): MatchStats["Players"] {
+    return match.Players.filter((player) =>
+      player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+    ).sort((a, b) => {
+      const rankCalc = a.Rank - b.Rank;
+      if (rankCalc !== 0) {
+        return rankCalc;
+      }
+
+      const aStats = Preconditions.checkExists(a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
+      const bStats = Preconditions.checkExists(b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
+
+      const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
+      if (scoreCalc !== 0) {
+        return scoreCalc;
+      }
+
+      return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
+    });
+  }
+
+  private playerStatsToFields(
+    matchBestValues: Map<string, number | number[]>,
+    teamBestValues: Map<string, number | number[]>,
+    playerStats: EmbedPlayerStats,
+  ): string[] {
+    return Array.from(playerStats.entries()).map(
+      ([key, value]) => `${key}: ${this.getStatsValue(matchBestValues, teamBestValues, key, value)}`,
+    );
+  }
+
+  private getStatsValue(
+    matchBestValues: Map<string, number | number[]>,
+    teamBestValues: Map<string, number | number[]>,
+    key: string,
+    value: StatsValue | StatsValue[],
+    index?: number,
+  ): string {
+    if (Array.isArray(value)) {
+      return value.map((v, i) => this.getStatsValue(matchBestValues, teamBestValues, key, v, i)).join(":");
+    }
+
+    const { value: statValue, display } = value;
+    let outputValue = display ?? statValue.toString();
+
+    const tbValue = teamBestValues.get(key);
+    const teamBestValue = tbValue != null && Array.isArray(tbValue) && index != null ? tbValue[index] : tbValue;
+    if (teamBestValue === statValue) {
+      outputValue = `**${outputValue}**`;
+    }
+
+    const mbValue = matchBestValues.get(key);
+    const matchBestValue = mbValue != null && Array.isArray(mbValue) && index != null ? mbValue[index] : mbValue;
+    if (matchBestValue === statValue) {
+      outputValue = `__${outputValue}__`;
+    }
+
+    return outputValue;
+  }
+
+  private getBestTeamStatValues(
+    playersStats: Map<string, EmbedPlayerStats>,
+    teamPlayers: MatchStats["Players"],
+  ): Map<string, number | number[]> {
+    const teamPlayersStats = new Map<string, EmbedPlayerStats>();
+    for (const teamPlayer of teamPlayers) {
+      const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
+      teamPlayersStats.set(teamPlayer.PlayerId, playerStats);
+    }
+
+    return this.getBestStatValues(teamPlayersStats);
+  }
+
+  private getBestStatValues(playersStats: Map<string, EmbedPlayerStats>): Map<string, number | number[]> {
+    const bestValues = new Map<string, number | number[]>();
+    for (const embedPlayerStats of playersStats.values()) {
+      for (const [key, playerStats] of embedPlayerStats.entries()) {
+        const previousBestValue = bestValues.get(key);
+
+        if (previousBestValue == null) {
+          bestValues.set(key, Array.isArray(playerStats) ? playerStats.map(({ value }) => value) : playerStats.value);
+          continue;
+        }
+
+        if (Array.isArray(playerStats)) {
+          if (!Array.isArray(previousBestValue)) {
+            throw new Error("Previous best value is not an array");
+          }
+
+          bestValues.set(
+            key,
+            playerStats.map(({ value, sortBy }, index) => {
+              const previousValue = Preconditions.checkExists(previousBestValue[index]);
+              return sortBy === StatsValueSortBy.ASC ? Math.min(previousValue, value) : Math.max(previousValue, value);
+            }),
+          );
+          continue;
+        }
+
+        if (Array.isArray(previousBestValue)) {
+          throw new Error("Previous best value is not a number");
+        }
+
+        bestValues.set(
+          key,
+          playerStats.sortBy === StatsValueSortBy.ASC
+            ? Math.min(previousBestValue, playerStats.value)
+            : Math.max(previousBestValue, playerStats.value),
+        );
+      }
+    }
+
+    return bestValues;
   }
 }
