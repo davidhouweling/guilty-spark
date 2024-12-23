@@ -3,8 +3,9 @@ import type { APIEmbed } from "discord-api-types/v10";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
-export type PlayerStats<TCategory extends GameVariantCategory> =
-  MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
+export type PlayerTeamStats<TCategory extends GameVariantCategory> =
+  MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+export type PlayerStats<TCategory extends GameVariantCategory> = PlayerTeamStats<TCategory>["Stats"];
 
 export enum StatsValueSortBy {
   ASC,
@@ -80,9 +81,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
     const playersStats = new Map<string, EmbedPlayerStats>(
       match.Players.map((player) => {
-        const stats = Preconditions.checkExists(
-          player.PlayerTeamStats[0],
-        ) as MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+        const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<TCategory>;
 
         return [
           player.PlayerId,
@@ -116,7 +115,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         const playerStats = Preconditions.checkExists(
           teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
           "Unable to match player to team",
-        ) as MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+        ) as PlayerTeamStats<TCategory>;
 
         const {
           Stats: { CoreStats: coreStats },
