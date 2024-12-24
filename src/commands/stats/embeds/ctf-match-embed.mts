@@ -1,9 +1,9 @@
-import type { GameVariantCategory } from "halo-infinite-api";
-import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class CtfMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerCtf> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerCtf>): EmbedPlayerStats {
+  override getPlayerObjectiveStats(stats: Stats<GameVariantCategory.MultiplayerCtf>): EmbedPlayerStats {
     return new Map([
       ["Captures", { value: stats.CaptureTheFlagStats.FlagCaptures, sortBy: StatsValueSortBy.DESC }],
       ["Captures assists", { value: stats.CaptureTheFlagStats.FlagCaptureAssists, sortBy: StatsValueSortBy.DESC }],
