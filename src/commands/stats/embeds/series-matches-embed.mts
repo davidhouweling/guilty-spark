@@ -17,7 +17,7 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
   getSeriesEmbed(matches: MatchStats[], players: Map<string, string>): APIEmbed {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
-      title: "Series matches",
+      title: "Accumulated Series Stats",
       fields: [],
     };
 
@@ -38,7 +38,7 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
       const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
       embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
-        value: `Team Acc Score: ${teamStats.PersonalScore.toString()} | Team Acc K:D:A: ${teamStats.Kills.toString()}:${teamStats.Deaths.toString()}:${teamStats.Assists.toString()}`,
+        value: `Score: ${teamStats.PersonalScore.toString()} | K:D:A: ${teamStats.Kills.toString()}:${teamStats.Deaths.toString()}:${teamStats.Assists.toString()}`,
         inline: false,
       });
 

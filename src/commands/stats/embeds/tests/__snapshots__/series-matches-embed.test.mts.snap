@@ -6,7 +6,7 @@ exports[`SeriesMatchesEmbed > getSeriesEmbed > returns the expected embed 1`] = 
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Acc Score: 29645 | Team Acc K:D:A: 209:168:104",
+      "value": "Score: 29645 | K:D:A: 209:168:104",
     },
     {
       "inline": true,
@@ -81,7 +81,7 @@ Av damage/life: __**438.63**__",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Acc Score: 22630 | Team Acc K:D:A: 168:210:83",
+      "value": "Score: 22630 | K:D:A: 168:210:83",
     },
     {
       "inline": true,
@@ -154,6 +154,6 @@ Av damage/life: 276.69",
 ",
     },
   ],
-  "title": "Series matches",
+  "title": "Accumulated Series Stats",
 }
 `;
