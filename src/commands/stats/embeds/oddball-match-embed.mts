@@ -1,9 +1,9 @@
-import type { GameVariantCategory } from "halo-infinite-api";
-import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class OddballMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerOddball> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerOddball>): EmbedPlayerStats {
+  override getPlayerObjectiveStats(stats: Stats<GameVariantCategory.MultiplayerOddball>): EmbedPlayerStats {
     return new Map([
       [
         "Total time as carrier",

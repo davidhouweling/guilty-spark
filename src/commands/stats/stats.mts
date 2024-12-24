@@ -36,6 +36,7 @@ import { StrongholdsMatchEmbed } from "./embeds/strongholds-match-embed.mjs";
 import { TotalControlMatchEmbed } from "./embeds/total-control-match-embed.mjs";
 import { UnknownMatchEmbed } from "./embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "./embeds/vip-match-embed.mjs";
+import { SeriesMatchesEmbed } from "./embeds/series-matches-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
   data: Omit<APIApplicationCommand, "id" | "application_id" | "default_member_permissions" | "version"> = {
@@ -181,6 +182,11 @@ export class StatsCommand extends BaseCommand {
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
+
+      const seriesMatchesEmbed = new SeriesMatchesEmbed(haloService);
+      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
+      const seriesAccumulationEmbed = seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
+      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
 
       await haloService.updateDiscordAssociations();
     } catch (error) {

@@ -6,7 +6,7 @@ exports[`KOTHMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 3",
+      "value": "Team Score: 3 | Team K:D:A: 98:63:48",
     },
     {
       "inline": true,
@@ -101,7 +101,7 @@ Defensive kills: 1",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 2",
+      "value": "Team Score: 2 | Team K:D:A: 63:98:36",
     },
     {
       "inline": true,
@@ -115,7 +115,7 @@ Shots H:F: 120:239
 Accuracy: 50.2%
 Damage D:T: 5135:6802
 Av life duration: 17s
-Av damage/life: 205.40
+Av damage/life: 205.4
 Captures: __**0**__
 Occupation time: __**1m 29s**__
 Secures: __**0**__

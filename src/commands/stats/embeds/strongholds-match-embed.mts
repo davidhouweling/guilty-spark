@@ -1,9 +1,9 @@
-import type { GameVariantCategory } from "halo-infinite-api";
-import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class StrongholdsMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerStrongholds> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerStrongholds>): EmbedPlayerStats {
+  override getPlayerObjectiveStats(stats: Stats<GameVariantCategory.MultiplayerStrongholds>): EmbedPlayerStats {
     return new Map([
       ["Captures", { value: stats.ZonesStats.StrongholdCaptures, sortBy: StatsValueSortBy.DESC }],
       [

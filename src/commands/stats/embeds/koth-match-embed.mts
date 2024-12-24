@@ -1,9 +1,9 @@
-import type { GameVariantCategory } from "halo-infinite-api";
-import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class KOTHMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerKingOfTheHill> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerKingOfTheHill>): EmbedPlayerStats {
+  override getPlayerObjectiveStats(stats: Stats<GameVariantCategory.MultiplayerKingOfTheHill>): EmbedPlayerStats {
     return new Map([
       ["Captures", { value: stats.ZonesStats.StrongholdCaptures, sortBy: StatsValueSortBy.DESC }],
       [

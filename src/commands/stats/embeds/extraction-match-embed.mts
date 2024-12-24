@@ -1,9 +1,9 @@
-import type { GameVariantCategory } from "halo-infinite-api";
-import type { EmbedPlayerStats, PlayerStats } from "./base-match-embed.mjs";
+import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
 export class ExtractionMatchEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerExtraction> {
-  override getPlayerObjectiveStats(stats: PlayerStats<GameVariantCategory.MultiplayerExtraction>): EmbedPlayerStats {
+  override getPlayerObjectiveStats(stats: Stats<GameVariantCategory.MultiplayerExtraction>): EmbedPlayerStats {
     return new Map([
       ["Successful extractions", { value: stats.ExtractionStats.SuccessfulExtractions, sortBy: StatsValueSortBy.DESC }],
       [

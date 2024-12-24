@@ -1,10 +1,10 @@
-import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
-export type PlayerStats<TCategory extends GameVariantCategory> =
-  MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0]["Stats"];
+export type PlayerTeamStats<TCategory extends GameVariantCategory> =
+  MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
 
 export enum StatsValueSortBy {
   ASC,
@@ -22,9 +22,9 @@ export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   constructor(protected readonly haloService: HaloService) {}
 
-  protected abstract getPlayerObjectiveStats(stats: PlayerStats<TCategory>): EmbedPlayerStats;
+  protected abstract getPlayerObjectiveStats(stats: Stats): EmbedPlayerStats;
 
-  protected getPlayerSlayerStats(stats: PlayerStats<TCategory>): EmbedPlayerStats {
+  protected getPlayerSlayerStats(stats: Stats): EmbedPlayerStats {
     const { CoreStats } = stats;
     return new Map([
       ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
@@ -41,7 +41,11 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       ],
       [
         "Accuracy",
-        { value: CoreStats.Accuracy, sortBy: StatsValueSortBy.DESC, display: `${CoreStats.Accuracy.toString()}%` },
+        {
+          value: CoreStats.Accuracy,
+          sortBy: StatsValueSortBy.DESC,
+          display: `${this.formatStatValue(CoreStats.Accuracy)}%`,
+        },
       ],
       [
         "Damage D:T",
@@ -63,7 +67,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         {
           value: CoreStats.DamageDealt / CoreStats.Deaths,
           sortBy: StatsValueSortBy.DESC,
-          display: (CoreStats.DamageDealt / CoreStats.Deaths).toFixed(2),
+          display: this.formatStatValue(CoreStats.DamageDealt / CoreStats.Deaths),
         },
       ],
     ]);
@@ -80,9 +84,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
     const playersStats = new Map<string, EmbedPlayerStats>(
       match.Players.map((player) => {
-        const stats = Preconditions.checkExists(
-          player.PlayerTeamStats[0],
-        ) as MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+        const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<TCategory>;
 
         return [
           player.PlayerId,
@@ -96,7 +98,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     for (const team of match.Teams) {
       embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
-        value: `Team Score: ${team.Stats.CoreStats.Score.toString()}`,
+        value: `Team Score: ${team.Stats.CoreStats.Score.toString()} | Team K:D:A: ${team.Stats.CoreStats.Kills.toString()}:${team.Stats.CoreStats.Deaths.toString()}:${team.Stats.CoreStats.Assists.toString()}`,
         inline: false,
       });
 
@@ -116,7 +118,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         const playerStats = Preconditions.checkExists(
           teamPlayer.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
           "Unable to match player to team",
-        ) as MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
+        ) as PlayerTeamStats<TCategory>;
 
         const {
           Stats: { CoreStats: coreStats },
@@ -151,7 +153,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return embed;
   }
 
-  private getTeamPlayers(match: MatchStats, team: MatchStats["Teams"][0]): MatchStats["Players"] {
+  protected getTeamPlayers(match: MatchStats, team: MatchStats["Teams"][0]): MatchStats["Players"] {
     return match.Players.filter((player) =>
       player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
     ).sort((a, b) => {
@@ -172,7 +174,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     });
   }
 
-  private playerStatsToFields(
+  protected playerStatsToFields(
     matchBestValues: Map<string, number | number[]>,
     teamBestValues: Map<string, number | number[]>,
     playerStats: EmbedPlayerStats,
@@ -194,7 +196,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     }
 
     const { value: statValue, display } = value;
-    let outputValue = display ?? statValue.toString();
+    let outputValue = display ?? this.formatStatValue(statValue);
 
     const tbValue = teamBestValues.get(key);
     const teamBestValue = tbValue != null && Array.isArray(tbValue) && index != null ? tbValue[index] : tbValue;
@@ -211,7 +213,11 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return outputValue;
   }
 
-  private getBestTeamStatValues(
+  private formatStatValue(statValue: number): string {
+    return Number.isSafeInteger(statValue) ? statValue.toString() : Number(statValue.toFixed(2)).toString();
+  }
+
+  protected getBestTeamStatValues(
     playersStats: Map<string, EmbedPlayerStats>,
     teamPlayers: MatchStats["Players"],
   ): Map<string, number | number[]> {
@@ -224,7 +230,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return this.getBestStatValues(teamPlayersStats);
   }
 
-  private getBestStatValues(playersStats: Map<string, EmbedPlayerStats>): Map<string, number | number[]> {
+  protected getBestStatValues(playersStats: Map<string, EmbedPlayerStats>): Map<string, number | number[]> {
     const bestValues = new Map<string, number | number[]>();
     for (const embedPlayerStats of playersStats.values()) {
       for (const [key, playerStats] of embedPlayerStats.entries()) {

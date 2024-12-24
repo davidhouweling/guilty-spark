@@ -6,7 +6,7 @@ exports[`SlayerMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 44",
+      "value": "Team Score: 44 | Team K:D:A: 44:50:23",
     },
     {
       "inline": true,
@@ -55,7 +55,7 @@ Shots H:F: 63:159
 Accuracy: 39.62%
 Damage D:T: 3527:4516
 Av life duration: __**42s**__
-Av damage/life: 352.70",
+Av damage/life: 352.7",
     },
     {
       "inline": true,
@@ -69,7 +69,7 @@ Shots H:F: 79:180
 Accuracy: 43.88%
 Damage D:T: 3290:4656
 Av life duration: 25s
-Av damage/life: 235.00",
+Av damage/life: 235",
     },
     {
       "inline": false,
@@ -81,7 +81,7 @@ Av damage/life: 235.00",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 50",
+      "value": "Team Score: 50 | Team K:D:A: 50:44:27",
     },
     {
       "inline": true,
@@ -95,7 +95,7 @@ Shots H:F: **116**:**195**
 Accuracy: **59.48%**
 Damage D:T: __**6178**__:5163
 Av life duration: **38s**
-Av damage/life: __**617.80**__",
+Av damage/life: __**617.8**__",
     },
     {
       "inline": true,
@@ -144,7 +144,7 @@ Shots H:F: 98:**195**
 Accuracy: 50.25%
 Damage D:T: 4174:4150
 Av life duration: **38s**
-Av damage/life: 417.40",
+Av damage/life: 417.4",
     },
     {
       "inline": false,
