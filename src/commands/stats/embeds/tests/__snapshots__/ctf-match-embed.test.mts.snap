@@ -6,7 +6,7 @@ exports[`CtfMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 3",
+      "value": "Team Score: 3 | Team K:D:A: 67:55:33",
     },
     {
       "inline": true,
@@ -105,7 +105,7 @@ Carriers killed: __**1**__",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 0",
+      "value": "Team Score: 0 | Team K:D:A: 55:68:20",
     },
     {
       "inline": true,

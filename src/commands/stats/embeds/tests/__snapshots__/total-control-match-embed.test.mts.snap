@@ -6,7 +6,7 @@ exports[`TotalControlMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 0",
+      "value": "Team Score: 0 | Team K:D:A: 92:98:47",
     },
     {
       "inline": true,
@@ -151,7 +151,7 @@ Av damage/life: 208.56",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 3",
+      "value": "Team Score: 3 | Team K:D:A: 98:92:41",
     },
     {
       "inline": true,
@@ -179,7 +179,7 @@ Shots H:F: 180:440
 Accuracy: 40.9%
 Damage D:T: 3260:3530
 Av life duration: 45s
-Av damage/life: 326.00",
+Av damage/life: 326",
     },
     {
       "inline": false,
@@ -200,7 +200,7 @@ Shots H:F: 163:405
 Accuracy: 40.24%
 Damage D:T: 3248:4207
 Av life duration: 45s
-Av damage/life: 324.80",
+Av damage/life: 324.8",
     },
     {
       "inline": true,

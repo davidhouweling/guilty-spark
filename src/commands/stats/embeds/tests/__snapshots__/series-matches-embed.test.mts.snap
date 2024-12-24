@@ -1,0 +1,159 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SeriesMatchesEmbed > getSeriesEmbed > returns the expected embed 1`] = `
+{
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Acc Score: 29645 | Team Acc K:D:A: 209:168:104",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05 (Acc Score: 7215)",
+      "value": "Kills: 49
+Deaths: 46
+Assists: 30
+KDA: 12.99
+Headshot kills: 29
+Shots H:F: 355:654
+Accuracy: 54.19%
+Damage D:T: 17245:14994
+Av life duration: 32s
+Av damage/life: 374.89",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02 (Acc Score: 7515)",
+      "value": "Kills: 50
+Deaths: 44
+Assists: __**33**__
+KDA: 17
+Headshot kills: 33
+Shots H:F: 307:578
+Accuracy: 52.11%
+Damage D:T: 16174:16029
+Av life duration: 29s
+Av damage/life: 367.59",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01 (Acc Score: 8505)",
+      "value": "Kills: **64**
+Deaths: 48
+Assists: 29
+KDA: **25.66**
+Headshot kills: **39**
+Shots H:F: __**439**__:__**760**__
+Accuracy: **58.49%**
+Damage D:T: **17916**:16468
+Av life duration: 27s
+Av damage/life: 373.25",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09 (Acc Score: 6410)",
+      "value": "Kills: 46
+Deaths: __**30**__
+Assists: 21
+KDA: 23
+Headshot kills: 32
+Shots H:F: 304:584
+Accuracy: 51.33%
+Damage D:T: 13159:__**12252**__
+Av life duration: __**53s**__
+Av damage/life: __**438.63**__",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Acc Score: 22630 | Team Acc K:D:A: 168:210:83",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04 (Acc Score: 8285)",
+      "value": "Kills: __**68**__
+Deaths: **49**
+Assists: 23
+KDA: __**26.66**__
+Headshot kills: __**49**__
+Shots H:F: **420**:**692**
+Accuracy: __**61.24%**__
+Damage D:T: __**19567**__:17444
+Av life duration: 27s
+Av damage/life: **399.33**",
+    },
+    {
+      "inline": true,
+      "name": "gamertag11 (Acc Score: 5755)",
+      "value": "Kills: 42
+Deaths: 53
+Assists: 20
+KDA: -4.34
+Headshot kills: 23
+Shots H:F: 283:592
+Accuracy: 47.77%
+Damage D:T: 12421:**15088**
+Av life duration: 27s
+Av damage/life: 234.36",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08 (Acc Score: 4590)",
+      "value": "Kills: 32
+Deaths: 59
+Assists: **24**
+KDA: -18.99
+Headshot kills: 20
+Shots H:F: 301:587
+Accuracy: 52.51%
+Damage D:T: 13363:17195
+Av life duration: 19s
+Av damage/life: 226.49",
+    },
+    {
+      "inline": true,
+      "name": "gamertag12 (Acc Score: 4000)",
+      "value": "Kills: 26
+Deaths: **49**
+Assists: 23
+KDA: -15.33
+Headshot kills: 16
+Shots H:F: 289:595
+Accuracy: 48.53%
+Damage D:T: 13558:15764
+Av life duration: **29s**
+Av damage/life: 276.69",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "Series matches",
+}
+`;

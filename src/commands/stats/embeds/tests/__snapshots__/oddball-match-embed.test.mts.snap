@@ -6,7 +6,7 @@ exports[`OddballMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 198",
+      "value": "Team Score: 198 | Team K:D:A: 109:130:46",
     },
     {
       "inline": true,
@@ -89,7 +89,7 @@ Longest time as carrier: 10s",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 256",
+      "value": "Team Score: 256 | Team K:D:A: 130:109:59",
     },
     {
       "inline": true,

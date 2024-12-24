@@ -6,7 +6,7 @@ exports[`StrongholdsMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 175",
+      "value": "Team Score: 175 | Team K:D:A: 62:83:24",
     },
     {
       "inline": true,
@@ -39,7 +39,7 @@ Shots H:F: __**155**__:__**253**__
 Accuracy: 61.26%
 Damage D:T: **6633**:6892
 Av life duration: 21s
-Av damage/life: **301.50**
+Av damage/life: **301.5**
 Captures: 9
 Occupation time: 1m 28s
 Secures: 2
@@ -101,7 +101,7 @@ Defensive kills: 2",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 250",
+      "value": "Team Score: 250 | Team K:D:A: 83:62:32",
     },
     {
       "inline": true,
@@ -115,7 +115,7 @@ Shots H:F: **141**:237
 Accuracy: **59.49%**
 Damage D:T: __**7066**__:6496
 Av life duration: 24s
-Av damage/life: 353.30
+Av damage/life: 353.3
 Captures: 7
 Occupation time: 1m 32s
 Secures: 2

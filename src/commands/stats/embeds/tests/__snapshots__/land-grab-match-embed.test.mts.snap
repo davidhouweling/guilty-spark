@@ -6,7 +6,7 @@ exports[`LandGrabMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 11",
+      "value": "Team Score: 11 | Team K:D:A: 52:79:31",
     },
     {
       "inline": true,
@@ -55,7 +55,7 @@ Shots H:F: 114:237
 Accuracy: **48.1%**
 Damage D:T: 2253:2526
 Av life duration: 23s
-Av damage/life: 225.30",
+Av damage/life: 225.3",
     },
     {
       "inline": true,
@@ -90,7 +90,7 @@ Shots H:F: 61:161
 Accuracy: 37.88%
 Damage D:T: 1322:2416
 Av life duration: 23s
-Av damage/life: 132.20",
+Av damage/life: 132.2",
     },
     {
       "inline": true,
@@ -151,7 +151,7 @@ Av damage/life: 95.62",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 8",
+      "value": "Team Score: 8 | Team K:D:A: 79:52:26",
     },
     {
       "inline": true,
@@ -179,7 +179,7 @@ Shots H:F: 94:233
 Accuracy: 40.34%
 Damage D:T: 1847:2873
 Av life duration: 27s
-Av damage/life: 184.70",
+Av damage/life: 184.7",
     },
     {
       "inline": false,
@@ -214,7 +214,7 @@ Shots H:F: 197:314
 Accuracy: __**62.73%**__
 Damage D:T: __**7623**__:1989
 Av life duration: 43s
-Av damage/life: __**1270.50**__",
+Av damage/life: __**1270.5**__",
     },
     {
       "inline": false,

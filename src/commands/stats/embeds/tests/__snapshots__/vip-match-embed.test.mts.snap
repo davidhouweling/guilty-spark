@@ -6,7 +6,7 @@ exports[`VIPMatchEmbed > getEmbed > returns the expected embed 1`] = `
     {
       "inline": false,
       "name": "Eagle",
-      "value": "Team Score: 9",
+      "value": "Team Score: 9 | Team K:D:A: 51:40:19",
     },
     {
       "inline": true,
@@ -109,7 +109,7 @@ Time as VIP: **2m 39s**",
     {
       "inline": false,
       "name": "Cobra",
-      "value": "Team Score: 10",
+      "value": "Team Score: 10 | Team K:D:A: 40:51:15",
     },
     {
       "inline": true,
@@ -123,7 +123,7 @@ Shots H:F: __**378**__:__**775**__
 Accuracy: 48.77%
 Damage D:T: **6247**:4444
 Av life duration: **37s**
-Av damage/life: 624.70
+Av damage/life: 624.7
 VIP kills: **5**
 VIP Assists: 1
 Kills as VIP: 1
@@ -221,7 +221,7 @@ Shots H:F: 9:55
 Accuracy: 16.36%
 Damage D:T: 194:1020
 Av life duration: 21s
-Av damage/life: 48.50
+Av damage/life: 48.5
 VIP kills: 0
 VIP Assists: 0
 Kills as VIP: 0

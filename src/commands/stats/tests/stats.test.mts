@@ -175,10 +175,10 @@ describe("StatsCommand", () => {
           );
         });
 
-        it("adds each game to the thread", async () => {
+        it("adds each game and series summary to the thread", async () => {
           await jobToComplete?.();
 
-          expect(createMessageSpy).toHaveBeenCalledTimes(3);
+          expect(createMessageSpy).toHaveBeenCalledTimes(4);
           expect(createMessageSpy.mock.calls).toMatchSnapshot();
         });
 
