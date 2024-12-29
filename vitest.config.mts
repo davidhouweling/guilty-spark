@@ -12,6 +12,5 @@ export default defineConfig({
       reportOnFailure: true,
       exclude: [...coverageConfigDefaults.exclude, "scripts/**/*", "**/fakes/**", "**/install.mts"],
     },
-    exclude: [...coverageConfigDefaults.exclude, "scripts/**/*", "test-results/**/*", ".wrangler/**/*"],
   },
 });
