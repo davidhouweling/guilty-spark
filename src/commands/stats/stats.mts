@@ -175,6 +175,12 @@ export class StatsCommand extends BaseCommand {
         message.id,
         `Queue #${queue.toString()} series stats`,
       );
+
+      const seriesMatchesEmbed = new SeriesMatchesEmbed(haloService);
+      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
+      const seriesAccumulationEmbed = seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
+      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
+
       for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match);
         const matchEmbed = this.getMatchEmbed(match);
@@ -182,11 +188,6 @@ export class StatsCommand extends BaseCommand {
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
-
-      const seriesMatchesEmbed = new SeriesMatchesEmbed(haloService);
-      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
-      const seriesAccumulationEmbed = seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
-      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
 
       await haloService.updateDiscordAssociations();
     } catch (error) {

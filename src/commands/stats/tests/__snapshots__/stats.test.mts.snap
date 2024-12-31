@@ -225,6 +225,168 @@ exports[`StatsCommand > execute() > neatqueue > jobToComplete > adds each game a
             {
               "inline": false,
               "name": "Eagle",
+              "value": "Score: 32860 | K:D:A: 217:197:112",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0500000000000000 (Acc Score: 6115)",
+              "value": "Kills: 37
+Deaths: 38
+Assists: 28
+KDA: 8.32
+Headshot kills: 19
+Shots H:F: 377:**829**
+Accuracy: 46.21%
+Damage D:T: 12947:12373
+Av life duration: 32s
+Av damage/life: 340.71",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0200000000000000 (Acc Score: 7955)",
+              "value": "Kills: 51
+Deaths: 41
+Assists: __**34**__
+KDA: 21.33
+Headshot kills: 32
+Shots H:F: 367:704
+Accuracy: 53.29%
+Damage D:T: 15065:13537
+Av life duration: 29s
+Av damage/life: 367.44",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0100000000000000 (Acc Score: 8165)",
+              "value": "Kills: __**59**__
+Deaths: 46
+Assists: 25
+KDA: 21.33
+Headshot kills: __**40**__
+Shots H:F: **412**:714
+Accuracy: __**57.92%**__
+Damage D:T: **15671**:14745
+Av life duration: 27s
+Av damage/life: 340.67",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0900000000000000 (Acc Score: 6600)",
+              "value": "Kills: 50
+Deaths: **30**
+Assists: 16
+KDA: __**25.33**__
+Headshot kills: 30
+Shots H:F: 300:611
+Accuracy: 48.78%
+Damage D:T: 11715:**10928**
+Av life duration: **53s**
+Av damage/life: **390.5**",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": false,
+              "name": "Cobra",
+              "value": "Score: 27140 | K:D:A: 197:218:82",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0400000000000000 (Acc Score: 7310)",
+              "value": "Kills: **56**
+Deaths: **47**
+Assists: 19
+KDA: **15.33**
+Headshot kills: **38**
+Shots H:F: __**462**__:__**1220**__
+Accuracy: **48.69%**
+Damage D:T: __**17163**__:14467
+Av life duration: 27s
+Av damage/life: **365.17**",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1100000000000000 (Acc Score: 4995)",
+              "value": "Kills: 35
+Deaths: 48
+Assists: 18
+KDA: -7
+Headshot kills: 19
+Shots H:F: 319:995
+Accuracy: 40.2%
+Damage D:T: 10767:**13072**
+Av life duration: 27s
+Av damage/life: 224.31",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+            {
+              "inline": true,
+              "name": "gamertag0800000000000000 (Acc Score: 4270)",
+              "value": "Kills: 26
+Deaths: 57
+Assists: **22**
+KDA: -23.65
+Headshot kills: 15
+Shots H:F: 320:691
+Accuracy: 46.58%
+Damage D:T: 11342:15910
+Av life duration: 19s
+Av damage/life: 198.98",
+            },
+            {
+              "inline": true,
+              "name": "gamertag1200000000000000 (Acc Score: 3440)",
+              "value": "Kills: 21
+Deaths: 49
+Assists: 20
+KDA: -21.32
+Headshot kills: 11
+Shots H:F: 252:561
+Accuracy: 44.4%
+Damage D:T: 10706:14030
+Av life duration: **29s**
+Av damage/life: 218.49",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+          ],
+          "title": "Accumulated Series Stats",
+        },
+      ],
+    },
+  ],
+  [
+    "fake-thread-id",
+    {
+      "embeds": [
+        {
+          "fields": [
+            {
+              "inline": false,
+              "name": "Eagle",
               "value": "Team Score: 3 | Team K:D:A: 67:55:33",
             },
             {
@@ -929,168 +1091,6 @@ Av damage/life: 660.17",
           ],
           "title": "Land Grab: Fake name for asset a778ae21-a8ae-4569-acb5-898efbd4b3f3",
           "url": "https://halodatahive.com/Infinite/Match/32b4cddf-5451-4d83-bcf6-000land-grab",
-        },
-      ],
-    },
-  ],
-  [
-    "fake-thread-id",
-    {
-      "embeds": [
-        {
-          "fields": [
-            {
-              "inline": false,
-              "name": "Eagle",
-              "value": "Score: 32860 | K:D:A: 217:197:112",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0500000000000000 (Acc Score: 6115)",
-              "value": "Kills: 37
-Deaths: 38
-Assists: 28
-KDA: 8.32
-Headshot kills: 19
-Shots H:F: 377:**829**
-Accuracy: 46.21%
-Damage D:T: 12947:12373
-Av life duration: 32s
-Av damage/life: 340.71",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0200000000000000 (Acc Score: 7955)",
-              "value": "Kills: 51
-Deaths: 41
-Assists: __**34**__
-KDA: 21.33
-Headshot kills: 32
-Shots H:F: 367:704
-Accuracy: 53.29%
-Damage D:T: 15065:13537
-Av life duration: 29s
-Av damage/life: 367.44",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0100000000000000 (Acc Score: 8165)",
-              "value": "Kills: __**59**__
-Deaths: 46
-Assists: 25
-KDA: 21.33
-Headshot kills: __**40**__
-Shots H:F: **412**:714
-Accuracy: __**57.92%**__
-Damage D:T: **15671**:14745
-Av life duration: 27s
-Av damage/life: 340.67",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0900000000000000 (Acc Score: 6600)",
-              "value": "Kills: 50
-Deaths: **30**
-Assists: 16
-KDA: __**25.33**__
-Headshot kills: 30
-Shots H:F: 300:611
-Accuracy: 48.78%
-Damage D:T: 11715:**10928**
-Av life duration: **53s**
-Av damage/life: **390.5**",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": false,
-              "name": "Cobra",
-              "value": "Score: 27140 | K:D:A: 197:218:82",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0400000000000000 (Acc Score: 7310)",
-              "value": "Kills: **56**
-Deaths: **47**
-Assists: 19
-KDA: **15.33**
-Headshot kills: **38**
-Shots H:F: __**462**__:__**1220**__
-Accuracy: **48.69%**
-Damage D:T: __**17163**__:14467
-Av life duration: 27s
-Av damage/life: **365.17**",
-            },
-            {
-              "inline": true,
-              "name": "gamertag1100000000000000 (Acc Score: 4995)",
-              "value": "Kills: 35
-Deaths: 48
-Assists: 18
-KDA: -7
-Headshot kills: 19
-Shots H:F: 319:995
-Accuracy: 40.2%
-Damage D:T: 10767:**13072**
-Av life duration: 27s
-Av damage/life: 224.31",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-            {
-              "inline": true,
-              "name": "gamertag0800000000000000 (Acc Score: 4270)",
-              "value": "Kills: 26
-Deaths: 57
-Assists: **22**
-KDA: -23.65
-Headshot kills: 15
-Shots H:F: 320:691
-Accuracy: 46.58%
-Damage D:T: 11342:15910
-Av life duration: 19s
-Av damage/life: 198.98",
-            },
-            {
-              "inline": true,
-              "name": "gamertag1200000000000000 (Acc Score: 3440)",
-              "value": "Kills: 21
-Deaths: 49
-Assists: 20
-KDA: -21.32
-Headshot kills: 11
-Shots H:F: 252:561
-Accuracy: 44.4%
-Damage D:T: 10706:14030
-Av life duration: **29s**
-Av damage/life: 218.49",
-            },
-            {
-              "inline": false,
-              "name": "
-",
-              "value": "
-",
-            },
-          ],
-          "title": "Accumulated Series Stats",
         },
       ],
     },
