@@ -4,16 +4,20 @@ import { VIPMatchEmbed } from "../vip-match-embed.mjs";
 import type { HaloService } from "../../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../../../services/halo/fakes/halo.fake.mjs";
+import type { DiscordService } from "../../../../services/discord/discord.mjs";
+import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/discord.fake.mjs";
 
 const match = Preconditions.checkExists(matchStats.get("28af2f64-7c05-458d-b8b1-000000000vip"));
 
 describe("VIPMatchEmbed", () => {
+  let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: VIPMatchEmbed;
 
   beforeEach(() => {
+    discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new VIPMatchEmbed(haloService);
+    matchEmbed = new VIPMatchEmbed({ discordService, haloService });
   });
 
   describe("getEmbed", () => {

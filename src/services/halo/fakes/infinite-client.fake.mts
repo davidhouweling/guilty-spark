@@ -2,10 +2,11 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
-import { assetVersion, matchStats, playerMatches } from "./data.mjs";
+import { assetVersion, matchStats, medalsMetadata, playerMatches } from "./data.mjs";
 
 export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
   const infiniteClient = mock<HaloInfiniteClient>();
+
   infiniteClient.getUser.mockImplementation(async (username) => {
     if (/^discord_user_\d+$/.test(username)) {
       const discriminator = username.slice(-2);
@@ -23,6 +24,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return Promise.reject(new Error("User not found"));
   });
+
   infiniteClient.getUsers.mockImplementation(async (xuids) => {
     return Promise.resolve(
       xuids.map((xuid) => ({
@@ -37,6 +39,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       })),
     );
   });
+
   infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, gameType) => {
     if (gameType !== MatchType.Custom) {
       return Promise.reject(new Error("Only custom games are supported"));
@@ -48,6 +51,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return [];
   });
+
   infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
     const stats = matchStats.get(matchId);
     if (stats) {
@@ -56,6 +60,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
     return Promise.reject(new Error("Match not found"));
   });
+
   infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, version) => {
     if (assetKind === AssetKind.Map && assetVersion.AssetId === assetId && assetVersion.VersionId === version) {
       return Promise.resolve(assetVersion);
@@ -68,6 +73,8 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       VersionId: version,
     });
   });
+
+  infiniteClient.getMedalsMetadataFile.mockResolvedValue(medalsMetadata);
 
   return infiniteClient;
 }

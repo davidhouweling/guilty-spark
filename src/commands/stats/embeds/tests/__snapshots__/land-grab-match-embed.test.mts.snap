@@ -34,7 +34,8 @@ Shots H:F: 123:285
 Accuracy: 43.15%
 Damage D:T: 2418:**2024**
 Av life duration: **36s**
-Av damage/life: 345.43",
+Av damage/life: 345.43
+<:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129> <:BackSmack:1322872596135546891>",
     },
     {
       "inline": false,
@@ -55,7 +56,8 @@ Shots H:F: 114:237
 Accuracy: **48.1%**
 Damage D:T: 2253:2526
 Av life duration: 23s
-Av damage/life: 225.3",
+Av damage/life: 225.3
+<:TripleKill:1322814228477906944> <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129>",
     },
     {
       "inline": true,
@@ -69,7 +71,8 @@ Shots H:F: **158**:__**723**__
 Accuracy: 21.85%
 Damage D:T: **3774**:2186
 Av life duration: **36s**
-Av damage/life: **471.75**",
+Av damage/life: **471.75**
+<:Grapplejack:1322884573906075729>",
     },
     {
       "inline": false,
@@ -90,7 +93,8 @@ Shots H:F: 61:161
 Accuracy: 37.88%
 Damage D:T: 1322:2416
 Av life duration: 23s
-Av damage/life: 132.2",
+Av damage/life: 132.2
+<:Killjoy:1322802841039147129> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351>",
     },
     {
       "inline": true,
@@ -104,7 +108,8 @@ Shots H:F: 75:207
 Accuracy: 36.23%
 Damage D:T: 1846:3332
 Av life duration: 14s
-Av damage/life: 131.86",
+Av damage/life: 131.86
+<:DoubleKill:1322814147980689430>",
     },
     {
       "inline": false,
@@ -139,7 +144,8 @@ Shots H:F: 76:305
 Accuracy: 24.91%
 Damage D:T: 1243:3058
 Av life duration: 16s
-Av damage/life: 95.62",
+Av damage/life: 95.62
+2x<:DoubleKill:1322814147980689430> <:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129>",
     },
     {
       "inline": false,
@@ -165,7 +171,8 @@ Shots H:F: 107:299
 Accuracy: 35.78%
 Damage D:T: 2255:1904
 Av life duration: 43s
-Av damage/life: 375.83",
+Av damage/life: 375.83
+<:KillingSpree:1322803050347499541> <:Stick:1322871787695898676> <:BackSmack:1322872596135546891> <:GuardianAngel:1322873057928286248>",
     },
     {
       "inline": true,
@@ -214,7 +221,8 @@ Shots H:F: 197:314
 Accuracy: __**62.73%**__
 Damage D:T: __**7623**__:1989
 Av life duration: 43s
-Av damage/life: __**1270.5**__",
+Av damage/life: __**1270.5**__
+<:AutopilotEngaged:1322883411660243016> 2x<:TripleKill:1322814228477906944> <:KillingFrenzy:1322803174238584853> 4x<:DoubleKill:1322814147980689430> <:OfftheRack:1322884747881353279> 3x<:Perfect:1322879561515532308> 2x<:KillingSpree:1322803050347499541> 5x<:Snipe:1322872969571340370> <:Sharpshooter:1322866954457055242> <:Rifleman:1322860656399220828> <:GuardianAngel:1322873057928286248> <:Reversal:1322872797701083166> <:Stick:1322871787695898676>",
     },
     {
       "inline": false,
@@ -249,7 +257,8 @@ Shots H:F: 118:**596**
 Accuracy: 19.79%
 Damage D:T: 1975:1869
 Av life duration: 36s
-Av damage/life: 282.14",
+Av damage/life: 282.14
+<:Splatter:1322872682592735242>",
     },
     {
       "inline": false,
@@ -284,7 +293,8 @@ Shots H:F: __**202**__:418
 Accuracy: 48.32%
 Damage D:T: 3961:2231
 Av life duration: 43s
-Av damage/life: 660.17",
+Av damage/life: 660.17
+<:TripleKill:1322814228477906944> 3x<:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:HailMary:1322882032103325768> <:Reversal:1322872797701083166> <:Gunslinger:1322866262736637992> <:QuickDraw:1322884127212699660>",
     },
     {
       "inline": false,
