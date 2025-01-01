@@ -208,7 +208,7 @@ export class DiscordService {
     };
   }
 
-  async getTeamsFromQueue(channel: string, queue: number, locale: string): Promise<QueueData | null> {
+  async getTeamsFromQueue(channel: string, queue: number): Promise<QueueData | null> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
       method: "GET",
       queryParameters: { limit: 100 },
@@ -217,7 +217,7 @@ export class DiscordService {
     const queueMessage = messages
       .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
       .find((message) =>
-        message.embeds.find((embed) => new RegExp(`\\b#${queue.toLocaleString(locale)}\\b`).test(embed.title ?? "")),
+        message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")),
       );
     if (!queueMessage) {
       return null;
