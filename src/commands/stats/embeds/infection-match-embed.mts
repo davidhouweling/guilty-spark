@@ -20,7 +20,7 @@ export class InfectionMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mult
         {
           value: this.haloService.getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding),
+          display: this.haloService.getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding, this.locale),
         },
       ],
       ["Spartans infected", { value: stats.InfectionSTats.SpartansInfected, sortBy: StatsValueSortBy.DESC }],

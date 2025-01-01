@@ -178,7 +178,7 @@ describe("Halo service", () => {
       { matchId: "cf0fb794-2df1-4ba1-9415-00000oddball", score: "1:2 (198:256)" },
       { matchId: "099deb74-3f60-48cf-8784-0strongholds", score: "175:250" },
     ])("returns the score for match $matchId", ({ matchId, score }) => {
-      const result = haloService.getMatchScore(Preconditions.checkExists(matchStats.get(matchId)));
+      const result = haloService.getMatchScore(Preconditions.checkExists(matchStats.get(matchId)), "en-US");
 
       expect(result).toBe(score);
     });
@@ -299,14 +299,14 @@ describe("Halo service", () => {
   describe("getReadableDuration()", () => {
     it("returns the duration in a readable format", () => {
       const duration = "PT10M58.2413691S";
-      const result = haloService.getReadableDuration(duration);
+      const result = haloService.getReadableDuration(duration, "en-US");
 
       expect(result).toBe("10m 58s");
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
-      const result = haloService.getReadableDuration(duration);
+      const result = haloService.getReadableDuration(duration, "en-US");
 
       expect(result).toBe("3d 4h 30m 15s");
     });

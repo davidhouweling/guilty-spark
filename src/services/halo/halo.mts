@@ -82,16 +82,20 @@ export class HaloService {
     return `${this.getMatchVariant(match)}: ${mapName}`;
   }
 
-  getMatchScore(match: MatchStats): string {
+  getMatchScore(match: MatchStats, locale: string): string {
     const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
+    const scoreString = scoreCompare.map((value) => value.toLocaleString(locale)).join(":");
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
-      const roundsCompare = match.Teams.map((team) => team.Stats.CoreStats.RoundsWon);
+      const roundsCompare = match.Teams.map((team) => team.Stats.CoreStats.RoundsWon).map((value) =>
+        value.toLocaleString(locale),
+      );
+      const roundsString = roundsCompare.join(":");
 
-      return `${roundsCompare.join(":")} (${scoreCompare.join(":")})`;
+      return `${roundsString} (${scoreString})`;
     }
 
-    return scoreCompare.join(":");
+    return scoreString;
   }
 
   getTeamName(teamId: number): "Unknown" | "Eagle" | "Cobra" | "Green" | "Orange" {
@@ -137,21 +141,21 @@ export class HaloService {
     );
   }
 
-  getReadableDuration(duration: string): string {
+  getReadableDuration(duration: string, locale: string): string {
     const parsedDuration = tinyduration.parse(duration);
     const { days, hours, minutes, seconds } = parsedDuration;
     const output: string[] = [];
     if (days != null && days > 0) {
-      output.push(`${days.toString()}d`);
+      output.push(`${days.toLocaleString(locale)}d`);
     }
     if (hours != null && hours > 0) {
-      output.push(`${hours.toString()}h`);
+      output.push(`${hours.toLocaleString(locale)}h`);
     }
     if (minutes != null && minutes > 0) {
-      output.push(`${minutes.toString()}m`);
+      output.push(`${minutes.toLocaleString(locale)}m`);
     }
     if (seconds != null && seconds > 0) {
-      output.push(`${Math.floor(seconds).toString()}s`);
+      output.push(`${Math.floor(seconds).toLocaleString(locale)}s`);
     }
 
     return output.join(" ");

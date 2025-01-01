@@ -10,6 +10,7 @@ import type { DiscordService } from "../../../../services/discord/discord.mjs";
 const match = Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"));
 
 describe("SlayerMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: SlayerMatchEmbed;
@@ -17,7 +18,7 @@ describe("SlayerMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new SlayerMatchEmbed({ discordService, haloService });
+    matchEmbed = new SlayerMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

@@ -147,23 +147,25 @@ export class StatsCommand extends BaseCommand {
     queue: number,
   ): Promise<void> {
     const { discordService, haloService } = this.services;
+    const locale = interaction.guild_locale ?? interaction.locale;
 
     try {
-      const queueData = await discordService.getTeamsFromQueue(channel, queue);
+      const queueData = await discordService.getTeamsFromQueue(channel, queue, locale);
       if (!queueData) {
         throw new Error(
-          `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+          `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toLocaleString(locale)}`,
         );
       }
 
       const series = await haloService.getSeriesFromDiscordQueue(queueData);
-      const seriesEmbed = await this.createSeriesEmbed(
-        Preconditions.checkExists(interaction.guild_id, "No guild id"),
+      const seriesEmbed = await this.createSeriesEmbed({
+        guildId: Preconditions.checkExists(interaction.guild_id, "No guild id"),
         channel,
+        locale,
         queue,
         queueData,
         series,
-      );
+      });
 
       await discordService.updateDeferredReply(interaction.token, {
         embeds: [seriesEmbed],
@@ -173,17 +175,17 @@ export class StatsCommand extends BaseCommand {
       const thread = await discordService.startThreadFromMessage(
         message.channel_id,
         message.id,
-        `Queue #${queue.toString()} series stats`,
+        `Queue #${queue.toLocaleString(locale)} series stats`,
       );
 
-      const seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService });
+      const seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService, locale });
       const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
-      const seriesAccumulationEmbed = await seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
+      const seriesAccumulationEmbed = await seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers, locale);
       await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
 
       for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match);
-        const matchEmbed = this.getMatchEmbed(match);
+        const matchEmbed = this.getMatchEmbed(match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
@@ -199,7 +201,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
+        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toLocaleString(locale)}): ${error instanceof Error ? error.message : "unknown"}`,
       });
     }
   }
@@ -221,6 +223,8 @@ export class StatsCommand extends BaseCommand {
 
   private async matchSubCommandJob(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
     const { discordService, haloService } = this.services;
+    const locale = interaction.guild_locale ?? interaction.locale;
+
     try {
       const matches = await haloService.getMatchDetails([matchId]);
       if (!matches.length) {
@@ -232,7 +236,7 @@ export class StatsCommand extends BaseCommand {
       const match = Preconditions.checkExists(matches[0]);
       const players = await haloService.getPlayerXuidsToGametags(match);
 
-      const matchEmbed = this.getMatchEmbed(match);
+      const matchEmbed = this.getMatchEmbed(match, locale);
       const embed = await matchEmbed.getEmbed(match, players);
 
       await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
@@ -264,27 +268,35 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private async createSeriesEmbed(
-    guildId: string,
-    channel: string,
-    queue: number,
-    queueData: QueueData,
-    series: MatchStats[],
-  ): Promise<APIEmbed> {
+  private async createSeriesEmbed({
+    guildId,
+    channel,
+    locale,
+    queue,
+    queueData,
+    series,
+  }: {
+    guildId: string;
+    channel: string;
+    locale: string;
+    queue: number;
+    queueData: QueueData;
+    series: MatchStats[];
+  }): Promise<APIEmbed> {
     const { haloService } = this.services;
     const titles = ["Game", "Duration", "Score"];
     const tableData = [titles];
     for (const seriesMatch of series) {
       const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
-      const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration);
-      const gameScore = haloService.getMatchScore(seriesMatch);
+      const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
+      const gameScore = haloService.getMatchScore(seriesMatch, locale);
 
       tableData.push([gameTypeAndMap, gameDuration, gameScore]);
     }
 
     const messageId = Preconditions.checkExists(queueData.message.id);
     const embed: APIEmbed = {
-      title: `Series stats for queue #${queue.toString()}`,
+      title: `Series stats for queue #${queue.toLocaleString(locale)}`,
       url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
       color: 3447003,
     };
@@ -294,10 +306,11 @@ export class StatsCommand extends BaseCommand {
     return embed;
   }
 
-  private getMatchEmbed(match: MatchStats): BaseMatchEmbed<GameVariantCategory> {
+  private getMatchEmbed(match: MatchStats, locale: string): BaseMatchEmbed<GameVariantCategory> {
     const opts = {
       discordService: this.services.discordService,
       haloService: this.services.haloService,
+      locale,
     };
 
     switch (match.MatchInfo.GameVariantCategory) {

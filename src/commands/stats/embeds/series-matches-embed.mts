@@ -14,7 +14,7 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     return new Map([]);
   }
 
-  async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>): Promise<APIEmbed> {
+  async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>, locale: string): Promise<APIEmbed> {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
       title: "Accumulated Series Stats",
@@ -40,9 +40,13 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
+      const teamScore = teamStats.PersonalScore.toLocaleString(locale);
+      const kills = teamStats.Kills.toLocaleString(locale);
+      const deaths = teamStats.Deaths.toLocaleString(locale);
+      const assists = teamStats.Assists.toLocaleString(locale);
       embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
-        value: `Score: ${teamStats.PersonalScore.toString()} | K:D:A: ${teamStats.Kills.toString()}:${teamStats.Deaths.toString()}:${teamStats.Assists.toString()}`,
+        value: `Score: ${teamScore} | K:D:A: ${kills}:${deaths}:${assists}`,
         inline: false,
       });
 
@@ -62,9 +66,10 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
         const outputStats = this.playerStatsToFields(matchBestValues, teamBestValues, playerStats);
         const medals = await this.playerMedalsToFields(playerCoreStats);
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+        const personalScore = playerCoreStats.PersonalScore.toLocaleString(locale);
 
         playerFields.push({
-          name: `${playerGamertag} (Acc Score: ${playerCoreStats.PersonalScore.toString()})`,
+          name: `${playerGamertag} (Acc Score: ${personalScore})`,
           value: output,
           inline: true,
         });

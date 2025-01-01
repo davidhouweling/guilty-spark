@@ -13,6 +13,7 @@ const slayerMatch = Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43
 const matches = [ctfMatch, kothMatch, slayerMatch];
 
 describe("SeriesMatchesEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let seriesMatchesEmbed: SeriesMatchesEmbed;
@@ -20,7 +21,7 @@ describe("SeriesMatchesEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService });
+    seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {
@@ -33,7 +34,7 @@ describe("SeriesMatchesEmbed", () => {
 
   describe("getSeriesEmbed", () => {
     it("returns the expected embed", () => {
-      const result = seriesMatchesEmbed.getSeriesEmbed(matches, playerXuidsToGametags);
+      const result = seriesMatchesEmbed.getSeriesEmbed(matches, playerXuidsToGametags, locale);
       expect(result).toMatchSnapshot();
     });
   });

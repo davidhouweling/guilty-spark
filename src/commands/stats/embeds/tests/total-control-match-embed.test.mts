@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("57e0e7b6-d959-433a-aac7-totalcontrol"));
 
 describe("TotalControlMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: TotalControlMatchEmbed;
@@ -17,7 +18,7 @@ describe("TotalControlMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new TotalControlMatchEmbed({ discordService, haloService });
+    matchEmbed = new TotalControlMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

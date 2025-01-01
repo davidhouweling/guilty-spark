@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
 
 describe("CtfMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: CtfMatchEmbed;
@@ -17,7 +18,7 @@ describe("CtfMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new CtfMatchEmbed({ discordService, haloService });
+    matchEmbed = new CtfMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

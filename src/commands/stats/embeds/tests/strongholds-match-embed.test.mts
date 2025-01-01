@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("099deb74-3f60-48cf-8784-0strongholds"));
 
 describe("StrongholdsMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: StrongholdsMatchEmbed;
@@ -17,7 +18,7 @@ describe("StrongholdsMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new StrongholdsMatchEmbed({ discordService, haloService });
+    matchEmbed = new StrongholdsMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

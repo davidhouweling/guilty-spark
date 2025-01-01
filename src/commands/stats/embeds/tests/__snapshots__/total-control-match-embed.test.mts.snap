@@ -10,7 +10,7 @@ exports[`TotalControlMatchEmbed > getEmbed > returns the expected embed 1`] = `
     },
     {
       "inline": true,
-      "name": "gamertag12 (Rank: 9 | Score: 2900)",
+      "name": "gamertag12 (Rank: 9 | Score: 2,900)",
       "value": "Kills: 21
 Deaths: 11
 Assists: __**12**__
@@ -18,14 +18,14 @@ KDA: **14**
 Headshot kills: 5
 Shots H:F: __**329**__:__**875**__
 Accuracy: 37.59%
-Damage D:T: **6630**:3707
+Damage D:T: **6,630**:3,707
 Av life duration: 40s
 Av damage/life: **602.73**
 2x<:OfftheRack:1322884747881353279> <:KillingSpree:1322803050347499541> <:Perfect:1322879561515532308> 2x<:Snipe:1322872969571340370> <:GuardianAngel:1322873057928286248> <:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
     },
     {
       "inline": true,
-      "name": "gamertag06 (Rank: 9 | Score: 2625)",
+      "name": "gamertag06 (Rank: 9 | Score: 2,625)",
       "value": "Kills: **22**
 Deaths: 13
 Assists: 8
@@ -33,7 +33,7 @@ KDA: 11.66
 Headshot kills: **13**
 Shots H:F: 223:621
 Accuracy: 35.9%
-Damage D:T: 6544:3809
+Damage D:T: 6,544:3,809
 Av life duration: 33s
 Av damage/life: 503.38
 <:Overkill:1322814293691076649> <:TripleKill:1322814228477906944> 4x<:DoubleKill:1322814147980689430> <:YardSale:1322884799886786571> <:KillingSpree:1322803050347499541> <:Gunslinger:1322866262736637992> <:LastShot:1322884170606972959> <:Killjoy:1322802841039147129> 4x<:Snipe:1322872969571340370>",
@@ -47,7 +47,7 @@ Av damage/life: 503.38
     },
     {
       "inline": true,
-      "name": "gamertag08 (Rank: 9 | Score: 1830)",
+      "name": "gamertag08 (Rank: 9 | Score: 1,830)",
       "value": "Kills: 11
 Deaths: 14
 Assists: __**12**__
@@ -55,14 +55,14 @@ KDA: 1
 Headshot kills: 3
 Shots H:F: 112:268
 Accuracy: **41.79%**
-Damage D:T: 3113:4286
+Damage D:T: 3,113:4,286
 Av life duration: 30s
 Av damage/life: 222.36
 <:OfftheRack:1322884747881353279> <:KillingSpree:1322803050347499541> <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129> 2x<:Reversal:1322872797701083166> <:Wheelman:1322854352334884938>",
     },
     {
       "inline": true,
-      "name": "gamertag16 (Rank: 9 | Score: 1425)",
+      "name": "gamertag16 (Rank: 9 | Score: 1,425)",
       "value": "Kills: 10
 Deaths: 17
 Assists: 5
@@ -70,7 +70,7 @@ KDA: -5.33
 Headshot kills: 0
 Shots H:F: 241:680
 Accuracy: 35.44%
-Damage D:T: 4331:4578
+Damage D:T: 4,331:4,578
 Av life duration: 25s
 Av damage/life: 254.76
 2x<:DoubleKill:1322814147980689430> <:OdinsRaven:1322873365278756884> <:BackSmack:1322872596135546891> <:Rifleman:1322860656399220828>",
@@ -92,7 +92,7 @@ KDA: -8.33
 Headshot kills: 1
 Shots H:F: 73:329
 Accuracy: 22.18%
-Damage D:T: 2065:4031
+Damage D:T: 2,065:4,031
 Av life duration: 28s
 Av damage/life: 137.67
 <:360:1322885279266373703> <:Kong:1322873292180160604>",
@@ -107,7 +107,7 @@ KDA: -2
 Headshot kills: 1
 Shots H:F: 106:522
 Accuracy: 20.3%
-Damage D:T: 2582:2390
+Damage D:T: 2,582:2,390
 Av life duration: **57s**
 Av damage/life: 322.75
 <:ShotCaller:1322884687693086771>",
@@ -121,7 +121,7 @@ Av damage/life: 322.75
     },
     {
       "inline": true,
-      "name": "gamertag09 (Rank: 15 | Score: 1575)",
+      "name": "gamertag09 (Rank: 15 | Score: 1,575)",
       "value": "Kills: 12
 Deaths: 11
 Assists: 7
@@ -129,14 +129,14 @@ KDA: 3.33
 Headshot kills: 0
 Shots H:F: 74:241
 Accuracy: 30.7%
-Damage D:T: 3844:2892
+Damage D:T: 3,844:2,892
 Av life duration: 40s
 Av damage/life: 349.45
 2x<:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:Killjoy:1322802841039147129> <:Driver:1322854828468342784>",
     },
     {
       "inline": true,
-      "name": "gamertag02 (Rank: 15 | Score: 1000)",
+      "name": "gamertag02 (Rank: 15 | Score: 1,000)",
       "value": "Kills: 7
 Deaths: 9
 Assists: 3
@@ -144,7 +144,7 @@ KDA: -1
 Headshot kills: 0
 Shots H:F: 127:414
 Accuracy: 30.67%
-Damage D:T: 1877:__**2367**__
+Damage D:T: 1,877:__**2,367**__
 Av life duration: 35s
 Av damage/life: 208.56
 <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129> <:Rifleman:1322860656399220828>",
@@ -163,7 +163,7 @@ Av damage/life: 208.56
     },
     {
       "inline": true,
-      "name": "gamertag01 (Rank: 1 | Score: 4700)",
+      "name": "gamertag01 (Rank: 1 | Score: 4,700)",
       "value": "Kills: __**43**__
 Deaths: __**7**__
 Assists: 7
@@ -171,14 +171,14 @@ KDA: __**38.33**__
 Headshot kills: __**29**__
 Shots H:F: 197:326
 Accuracy: __**60.42%**__
-Damage D:T: __**10707**__:**3031**
+Damage D:T: __**10,707**__:**3,031**
 Av life duration: __**1m 6s**__
-Av damage/life: __**1529.57**__
+Av damage/life: __**1,529.57**__
 <:Killtacular:1322814341950603275> 2x<:Overkill:1322814293691076649> <:RunningRiot:1322804226656571394> 3x<:TripleKill:1322814228477906944> 2x<:KillingFrenzy:1322803174238584853> 9x<:DoubleKill:1322814147980689430> 3x<:KillingSpree:1322803050347499541> 4x<:Perfect:1322879561515532308> <:NoScope:1322882248516702220> <:YardSale:1322884799886786571> <:Pull:1322883571912015912> 9x<:Snipe:1322872969571340370> <:Sharpshooter:1322866954457055242> <:GuardianAngel:1322873057928286248> 3x<:Killjoy:1322802841039147129> <:Gunslinger:1322866262736637992> <:Rifleman:1322860656399220828> <:Bomber:1322863948101586956> <:LastShot:1322884170606972959> <:Reversal:1322872797701083166>",
     },
     {
       "inline": true,
-      "name": "gamertag15 (Rank: 1 | Score: 1900)",
+      "name": "gamertag15 (Rank: 1 | Score: 1,900)",
       "value": "Kills: 10
 Deaths: 10
 Assists: 9
@@ -186,7 +186,7 @@ KDA: 3
 Headshot kills: 6
 Shots H:F: 180:440
 Accuracy: 40.9%
-Damage D:T: 3260:3530
+Damage D:T: 3,260:3,530
 Av life duration: 45s
 Av damage/life: 326
 <:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:Gunslinger:1322866262736637992>",
@@ -200,7 +200,7 @@ Av damage/life: 326
     },
     {
       "inline": true,
-      "name": "gamertag07 (Rank: 1 | Score: 1775)",
+      "name": "gamertag07 (Rank: 1 | Score: 1,775)",
       "value": "Kills: 9
 Deaths: 10
 Assists: **10**
@@ -208,14 +208,14 @@ KDA: 2.33
 Headshot kills: 3
 Shots H:F: 163:405
 Accuracy: 40.24%
-Damage D:T: 3248:4207
+Damage D:T: 3,248:4,207
 Av life duration: 45s
 Av damage/life: 324.8
 <:QuickDraw:1322884127212699660> <:Killjoy:1322802841039147129> <:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
     },
     {
       "inline": true,
-      "name": "gamertag11 (Rank: 1 | Score: 1750)",
+      "name": "gamertag11 (Rank: 1 | Score: 1,750)",
       "value": "Kills: 13
 Deaths: 13
 Assists: 3
@@ -223,7 +223,7 @@ KDA: 1
 Headshot kills: 3
 Shots H:F: 91:209
 Accuracy: 43.54%
-Damage D:T: 3662:3411
+Damage D:T: 3,662:3,411
 Av life duration: 33s
 Av damage/life: 281.69
 3x<:DoubleKill:1322814147980689430> <:NoScope:1322882248516702220> <:KillingSpree:1322803050347499541> <:Snipe:1322872969571340370>",
@@ -237,7 +237,7 @@ Av damage/life: 281.69
     },
     {
       "inline": true,
-      "name": "gamertag04 (Rank: 1 | Score: 1450)",
+      "name": "gamertag04 (Rank: 1 | Score: 1,450)",
       "value": "Kills: 7
 Deaths: 11
 Assists: 4
@@ -245,14 +245,14 @@ KDA: -2.66
 Headshot kills: 2
 Shots H:F: 182:408
 Accuracy: 44.6%
-Damage D:T: 2617:3314
+Damage D:T: 2,617:3,314
 Av life duration: 40s
 Av damage/life: 237.91
 <:BackSmack:1322872596135546891> <:Reversal:1322872797701083166>",
     },
     {
       "inline": true,
-      "name": "gamertag10 (Rank: 1 | Score: 1300)",
+      "name": "gamertag10 (Rank: 1 | Score: 1,300)",
       "value": "Kills: 6
 Deaths: 14
 Assists: 4
@@ -260,7 +260,7 @@ KDA: -6.66
 Headshot kills: 0
 Shots H:F: 141:437
 Accuracy: 32.26%
-Damage D:T: 2526:4373
+Damage D:T: 2,526:4,373
 Av life duration: 30s
 Av damage/life: 180.43
 <:WindshieldWiper:1322882369019052052> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351>",
@@ -274,7 +274,7 @@ Av damage/life: 180.43
     },
     {
       "inline": true,
-      "name": "gamertag05 (Rank: 1 | Score: 1100)",
+      "name": "gamertag05 (Rank: 1 | Score: 1,100)",
       "value": "Kills: 6
 Deaths: 11
 Assists: 4
@@ -282,7 +282,7 @@ KDA: -3.66
 Headshot kills: 2
 Shots H:F: **230**:**704**
 Accuracy: 32.67%
-Damage D:T: 3868:3629
+Damage D:T: 3,868:3,629
 Av life duration: 40s
 Av damage/life: 351.64
 <:YardSale:1322884799886786571>",
@@ -297,7 +297,7 @@ KDA: -10.66
 Headshot kills: 0
 Shots H:F: 54:210
 Accuracy: 25.71%
-Damage D:T: 1222:3887
+Damage D:T: 1,222:3,887
 Av life duration: 25s
 Av damage/life: 76.38
 <:Reversal:1322872797701083166>",
