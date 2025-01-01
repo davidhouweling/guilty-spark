@@ -265,7 +265,7 @@ describe("DiscordService", () => {
 
   describe("getTeamsFromQueue()", () => {
     it("returns QueueData of the found queue", async () => {
-      const result = await discordService.getTeamsFromQueue("fake-channel", 7, "en-US");
+      const result = await discordService.getTeamsFromQueue("fake-channel", 7);
       const queueMessage = Preconditions.checkExists(channelMessages[1]);
 
       expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages?limit=100", {
@@ -355,7 +355,7 @@ describe("DiscordService", () => {
     });
 
     it("returns null if no queue is found", async () => {
-      const result = await discordService.getTeamsFromQueue("fake-channel", 1000, "en-US");
+      const result = await discordService.getTeamsFromQueue("fake-channel", 1000);
 
       expect(result).toBeNull();
     });

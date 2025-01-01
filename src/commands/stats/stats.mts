@@ -150,7 +150,7 @@ export class StatsCommand extends BaseCommand {
     const locale = interaction.guild_locale ?? interaction.locale;
 
     try {
-      const queueData = await discordService.getTeamsFromQueue(channel, queue, locale);
+      const queueData = await discordService.getTeamsFromQueue(channel, queue);
       if (!queueData) {
         throw new Error(
           `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toLocaleString(locale)}`,
