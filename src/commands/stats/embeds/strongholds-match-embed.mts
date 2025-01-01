@@ -11,7 +11,7 @@ export class StrongholdsMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mu
         {
           value: this.haloService.getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.ZonesStats.StrongholdOccupationTime),
+          display: this.haloService.getReadableDuration(stats.ZonesStats.StrongholdOccupationTime, this.locale),
         },
       ],
       ["Secures", { value: stats.ZonesStats.StrongholdSecures, sortBy: StatsValueSortBy.DESC }],

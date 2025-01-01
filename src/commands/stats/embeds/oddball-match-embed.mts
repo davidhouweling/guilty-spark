@@ -10,7 +10,7 @@ export class OddballMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multip
         {
           value: this.haloService.getDurationInSeconds(stats.OddballStats.TimeAsSkullCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.OddballStats.TimeAsSkullCarrier),
+          display: this.haloService.getReadableDuration(stats.OddballStats.TimeAsSkullCarrier, this.locale),
         },
       ],
       [
@@ -18,7 +18,7 @@ export class OddballMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multip
         {
           value: this.haloService.getDurationInSeconds(stats.OddballStats.LongestTimeAsSkullCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.OddballStats.LongestTimeAsSkullCarrier),
+          display: this.haloService.getReadableDuration(stats.OddballStats.LongestTimeAsSkullCarrier, this.locale),
         },
       ],
     ]);

@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("32b4cddf-5451-4d83-bcf6-000land-grab"));
 
 describe("LandGrabMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: LandGrabMatchEmbed;
@@ -17,7 +18,7 @@ describe("LandGrabMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new LandGrabMatchEmbed({ discordService, haloService });
+    matchEmbed = new LandGrabMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

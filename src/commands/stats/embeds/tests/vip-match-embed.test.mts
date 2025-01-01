@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("28af2f64-7c05-458d-b8b1-000000000vip"));
 
 describe("VIPMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: VIPMatchEmbed;
@@ -17,7 +18,7 @@ describe("VIPMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new VIPMatchEmbed({ discordService, haloService });
+    matchEmbed = new VIPMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

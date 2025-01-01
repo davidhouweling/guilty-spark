@@ -15,7 +15,7 @@ export class VIPMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multiplaye
         {
           value: this.haloService.getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.VipStats.LongestTimeAsVip),
+          display: this.haloService.getReadableDuration(stats.VipStats.LongestTimeAsVip, this.locale),
         },
       ],
       [
@@ -23,7 +23,7 @@ export class VIPMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multiplaye
         {
           value: this.haloService.getDurationInSeconds(stats.VipStats.TimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.VipStats.TimeAsVip),
+          display: this.haloService.getReadableDuration(stats.VipStats.TimeAsVip, this.locale),
         },
       ],
     ]);

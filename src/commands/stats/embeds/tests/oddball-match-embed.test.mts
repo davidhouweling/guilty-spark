@@ -10,6 +10,7 @@ import type { DiscordService } from "../../../../services/discord/discord.mjs";
 const match = Preconditions.checkExists(matchStats.get("cf0fb794-2df1-4ba1-9415-00000oddball"));
 
 describe("OddballMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: OddballMatchEmbed;
@@ -17,7 +18,7 @@ describe("OddballMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new OddballMatchEmbed({ discordService, haloService });
+    matchEmbed = new OddballMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {

@@ -10,7 +10,7 @@ exports[`VIPMatchEmbed > getEmbed > returns the expected embed 1`] = `
     },
     {
       "inline": true,
-      "name": "gamertag07 (Rank: 5 | Score: 2750)",
+      "name": "gamertag07 (Rank: 5 | Score: 2,750)",
       "value": "Kills: __**25**__
 Deaths: 11
 Assists: 5
@@ -18,7 +18,7 @@ KDA: __**15.66**__
 Headshot kills: __**18**__
 Shots H:F: **270**:470
 Accuracy: __**57.44%**__
-Damage D:T: 6613:4087
+Damage D:T: 6,613:4,087
 Av life duration: 37s
 Av damage/life: 601.18
 VIP kills: __**6**__
@@ -32,7 +32,7 @@ Time as VIP: 1m 36s
     },
     {
       "inline": true,
-      "name": "gamertag06 (Rank: 6 | Score: 1720)",
+      "name": "gamertag06 (Rank: 6 | Score: 1,720)",
       "value": "Kills: 14
 Deaths: 11
 Assists: 6
@@ -40,7 +40,7 @@ KDA: 5
 Headshot kills: 3
 Shots H:F: 251:**485**
 Accuracy: 51.75%
-Damage D:T: __**6807**__:4933
+Damage D:T: __**6,807**__:4,933
 Av life duration: 33s
 Av damage/life: **618.82**
 VIP kills: 4
@@ -69,7 +69,7 @@ KDA: 2.33
 Headshot kills: 3
 Shots H:F: 83:207
 Accuracy: 40.09%
-Damage D:T: 2375:**2002**
+Damage D:T: 2,375:**2,002**
 Av life duration: __**55s**__
 Av damage/life: 339.29
 VIP kills: 1
@@ -91,7 +91,7 @@ KDA: -5.33
 Headshot kills: 0
 Shots H:F: 102:362
 Accuracy: 28.17%
-Damage D:T: 2721:4748
+Damage D:T: 2,721:4,748
 Av life duration: 33s
 Av damage/life: 247.36
 VIP kills: 1
@@ -117,7 +117,7 @@ Time as VIP: **2m 39s**
     },
     {
       "inline": true,
-      "name": "gamertag03 (Rank: 1 | Score: 1950)",
+      "name": "gamertag03 (Rank: 1 | Score: 1,950)",
       "value": "Kills: **18**
 Deaths: 10
 Assists: 3
@@ -125,7 +125,7 @@ KDA: **9**
 Headshot kills: 2
 Shots H:F: __**378**__:__**775**__
 Accuracy: 48.77%
-Damage D:T: **6247**:4444
+Damage D:T: **6,247**:4,444
 Av life duration: **37s**
 Av damage/life: 624.7
 VIP kills: **5**
@@ -139,7 +139,7 @@ Time as VIP: 45s
     },
     {
       "inline": true,
-      "name": "gamertag02 (Rank: 2 | Score: 1150)",
+      "name": "gamertag02 (Rank: 2 | Score: 1,150)",
       "value": "Kills: 8
 Deaths: 16
 Assists: **7**
@@ -147,7 +147,7 @@ KDA: -5.66
 Headshot kills: 3
 Shots H:F: 133:352
 Accuracy: 37.78%
-Damage D:T: 4597:5035
+Damage D:T: 4,597:5,035
 Av life duration: 20s
 Av damage/life: 287.31
 VIP kills: 2
@@ -167,7 +167,7 @@ Time as VIP: 2m 34s",
     },
     {
       "inline": true,
-      "name": "gamertag09 (Rank: 2 | Score: 1050)",
+      "name": "gamertag09 (Rank: 2 | Score: 1,050)",
       "value": "Kills: 9
 Deaths: 7
 Assists: 3
@@ -175,7 +175,7 @@ KDA: 3
 Headshot kills: **7**
 Shots H:F: 125:246
 Accuracy: **50.81%**
-Damage D:T: 3175:2433
+Damage D:T: 3,175:2,433
 Av life duration: 34s
 Av damage/life: 453.57
 VIP kills: 2
@@ -197,7 +197,7 @@ KDA: -8
 Headshot kills: 0
 Shots H:F: 50:214
 Accuracy: 23.36%
-Damage D:T: 1454:5611
+Damage D:T: 1,454:5,611
 Av life duration: 25s
 Av damage/life: 103.86
 VIP kills: 1
@@ -226,7 +226,7 @@ KDA: -4
 Headshot kills: 0
 Shots H:F: 9:55
 Accuracy: 16.36%
-Damage D:T: 194:1020
+Damage D:T: 194:1,020
 Av life duration: 21s
 Av damage/life: 48.5
 VIP kills: 0

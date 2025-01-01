@@ -23,15 +23,18 @@ export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 export interface BaseMatchEmbedOpts {
   discordService: DiscordService;
   haloService: HaloService;
+  locale: string;
 }
 
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   protected readonly discordService: DiscordService;
   protected readonly haloService: HaloService;
+  protected readonly locale: string;
 
-  constructor({ discordService, haloService }: BaseMatchEmbedOpts) {
+  constructor({ discordService, haloService, locale }: BaseMatchEmbedOpts) {
     this.discordService = discordService;
     this.haloService = haloService;
+    this.locale = locale;
   }
 
   protected abstract getPlayerObjectiveStats(stats: Stats): EmbedPlayerStats;
@@ -71,7 +74,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         {
           value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration),
+          display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
         },
       ],
       [
@@ -108,9 +111,13 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     const matchBestValues = this.getBestStatValues(playersStats);
 
     for (const team of match.Teams) {
+      const teamScore = team.Stats.CoreStats.Score.toLocaleString(this.locale);
+      const kills = team.Stats.CoreStats.Kills.toLocaleString(this.locale);
+      const deaths = team.Stats.CoreStats.Deaths.toLocaleString(this.locale);
+      const assists = team.Stats.CoreStats.Assists.toLocaleString(this.locale);
       embed.fields?.push({
         name: this.haloService.getTeamName(team.TeamId),
-        value: `Team Score: ${team.Stats.CoreStats.Score.toString()} | Team K:D:A: ${team.Stats.CoreStats.Kills.toString()}:${team.Stats.CoreStats.Deaths.toString()}:${team.Stats.CoreStats.Assists.toString()}`,
+        value: `Team Score: ${teamScore} | Team K:D:A: ${kills}:${deaths}:${assists}`,
         inline: false,
       });
 
@@ -144,7 +151,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
 
         playerFields.push({
-          name: `${playerGamertag} (Rank: ${teamPlayer.Rank.toString()} | Score: ${coreStats.PersonalScore.toString()})`,
+          name: `${playerGamertag} (Rank: ${teamPlayer.Rank.toLocaleString(this.locale)} | Score: ${coreStats.PersonalScore.toLocaleString(this.locale)})`,
           value: output,
           inline: true,
         });
@@ -217,7 +224,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       .sort((a, b) => b.sortingWeight - a.sortingWeight)
       .map(
         (medal) =>
-          `${medal.count > 1 ? `${medal.count.toString()}x` : ""}${this.discordService.getEmojiFromName(medal.name)}`,
+          `${medal.count > 1 ? `${medal.count.toLocaleString(this.locale)}x` : ""}${this.discordService.getEmojiFromName(medal.name)}`,
       );
 
     return output.join(" ");
@@ -253,7 +260,9 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   }
 
   private formatStatValue(statValue: number): string {
-    return Number.isSafeInteger(statValue) ? statValue.toString() : Number(statValue.toFixed(2)).toString();
+    return Number.isSafeInteger(statValue)
+      ? statValue.toLocaleString(this.locale)
+      : Number(statValue.toFixed(2)).toLocaleString(this.locale);
   }
 
   protected getBestTeamStatValues(

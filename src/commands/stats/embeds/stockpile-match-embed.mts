@@ -20,7 +20,7 @@ export class StockpileMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mult
         {
           value: this.haloService.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier),
+          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier, this.locale),
         },
       ],
       [
@@ -28,7 +28,7 @@ export class StockpileMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mult
         {
           value: this.haloService.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver),
+          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver, this.locale),
         },
       ],
     ]);

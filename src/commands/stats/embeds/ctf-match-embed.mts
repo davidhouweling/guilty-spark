@@ -12,7 +12,7 @@ export class CtfMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multiplaye
         {
           value: this.haloService.getDurationInSeconds(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
+          display: this.haloService.getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier, this.locale),
         },
       ],
       ["Grabs", { value: stats.CaptureTheFlagStats.FlagGrabs, sortBy: StatsValueSortBy.DESC }],

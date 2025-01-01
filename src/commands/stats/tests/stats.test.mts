@@ -129,7 +129,7 @@ describe("StatsCommand", () => {
         it("fetches queue data from discordService", async () => {
           await jobToComplete?.();
 
-          expect(getTeamsFromQueueSpy).toHaveBeenCalledWith("1234567890", 5);
+          expect(getTeamsFromQueueSpy).toHaveBeenCalledWith("1234567890", 5, "en-US");
         });
 
         it("calls discordService.updateDeferredReply with an error when no data is returned from getTeamsFromQueue", async () => {

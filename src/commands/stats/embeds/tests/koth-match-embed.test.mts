@@ -10,6 +10,7 @@ import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/disc
 const match = Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth"));
 
 describe("KOTHMatchEmbed", () => {
+  const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: KOTHMatchEmbed;
@@ -17,7 +18,7 @@ describe("KOTHMatchEmbed", () => {
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new KOTHMatchEmbed({ discordService, haloService });
+    matchEmbed = new KOTHMatchEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {
