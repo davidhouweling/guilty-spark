@@ -26,7 +26,8 @@ Captures assists: 0
 Carrier time: 9s
 Grabs: 4
 Returns: 0
-Carriers killed: 0",
+Carriers killed: 0
+<:TripleKill:1322814228477906944> <:OfftheRack:1322884747881353279> 2x<:DoubleKill:1322814147980689430> <:Rifleman:1322860656399220828>",
     },
     {
       "inline": true,
@@ -46,7 +47,8 @@ Captures assists: 2
 Carrier time: 20s
 Grabs: 14
 Returns: 0
-Carriers killed: 0",
+Carriers killed: 0
+2x<:Perfect:1322879561515532308> <:DoubleKill:1322814147980689430> <:ShotCaller:1322884687693086771> 3x<:Snipe:1322872969571340370> <:Rifleman:1322860656399220828> 2x<:Reversal:1322872797701083166> 2x<:GuardianAngel:1322873057928286248> <:LastShot:1322884170606972959> <:Bodyguard:1322867380136841279> <:Wingman:1322854221095108609>",
     },
     {
       "inline": false,
@@ -73,7 +75,8 @@ Captures assists: 1
 Carrier time: 11s
 Grabs: 14
 Returns: __**2**__
-Carriers killed: 0",
+Carriers killed: 0
+2x<:ShotCaller:1322884687693086771> <:NoScope:1322882248516702220> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351> <:Reversal:1322872797701083166> <:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
     },
     {
       "inline": true,
@@ -93,7 +96,8 @@ Captures assists: __**3**__
 Carrier time: **22s**
 Grabs: __**15**__
 Returns: 0
-Carriers killed: __**1**__",
+Carriers killed: __**1**__
+<:DoubleKill:1322814147980689430> <:Perfect:1322879561515532308> 2x<:KillingSpree:1322803050347499541> <:Killjoy:1322802841039147129> <:Rifleman:1322860656399220828> <:Snipe:1322872969571340370>",
     },
     {
       "inline": false,
@@ -125,7 +129,8 @@ Captures assists: **0**
 Carrier time: 26s
 Grabs: 6
 Returns: 0
-Carriers killed: 0",
+Carriers killed: 0
+3x<:DoubleKill:1322814147980689430> 3x<:Perfect:1322879561515532308> <:KillingSpree:1322803050347499541> <:OfftheRack:1322884747881353279> <:Rifleman:1322860656399220828> <:Killjoy:1322802841039147129>",
     },
     {
       "inline": true,
@@ -145,7 +150,8 @@ Captures assists: **0**
 Carrier time: __**1m 3s**__
 Grabs: 6
 Returns: 0
-Carriers killed: 0",
+Carriers killed: 0
+<:Perfect:1322879561515532308> <:Rifleman:1322860656399220828> <:Stick:1322871787695898676> <:Killjoy:1322802841039147129>",
     },
     {
       "inline": false,
@@ -172,7 +178,8 @@ Captures assists: **0**
 Carrier time: 
 Grabs: 0
 Returns: **1**
-Carriers killed: 0",
+Carriers killed: 0
+<:DoubleKill:1322814147980689430> <:Rifleman:1322860656399220828> <:Reversal:1322872797701083166>",
     },
     {
       "inline": true,
@@ -192,7 +199,8 @@ Captures assists: **0**
 Carrier time: 17s
 Grabs: **9**
 Returns: 0
-Carriers killed: __**1**__",
+Carriers killed: __**1**__
+2x<:ShotCaller:1322884687693086771> <:Rifleman:1322860656399220828> <:StoppedShort:1322806739778670652>",
     },
     {
       "inline": false,

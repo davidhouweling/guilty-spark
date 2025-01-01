@@ -4,16 +4,20 @@ import { KOTHMatchEmbed } from "../koth-match-embed.mjs";
 import type { HaloService } from "../../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../../../services/halo/fakes/halo.fake.mjs";
+import type { DiscordService } from "../../../../services/discord/discord.mjs";
+import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/discord.fake.mjs";
 
 const match = Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth"));
 
 describe("KOTHMatchEmbed", () => {
+  let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: KOTHMatchEmbed;
 
   beforeEach(() => {
+    discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new KOTHMatchEmbed(haloService);
+    matchEmbed = new KOTHMatchEmbed({ discordService, haloService });
   });
 
   describe("getEmbed", () => {

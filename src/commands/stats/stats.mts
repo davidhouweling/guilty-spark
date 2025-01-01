@@ -175,6 +175,12 @@ export class StatsCommand extends BaseCommand {
         message.id,
         `Queue #${queue.toString()} series stats`,
       );
+
+      const seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService });
+      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
+      const seriesAccumulationEmbed = await seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
+      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
+
       for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match);
         const matchEmbed = this.getMatchEmbed(match);
@@ -182,11 +188,6 @@ export class StatsCommand extends BaseCommand {
 
         await discordService.createMessage(thread.id, { embeds: [embed] });
       }
-
-      const seriesMatchesEmbed = new SeriesMatchesEmbed(haloService);
-      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
-      const seriesAccumulationEmbed = seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers);
-      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
@@ -294,47 +295,50 @@ export class StatsCommand extends BaseCommand {
   }
 
   private getMatchEmbed(match: MatchStats): BaseMatchEmbed<GameVariantCategory> {
-    const { haloService } = this.services;
+    const opts = {
+      discordService: this.services.discordService,
+      haloService: this.services.haloService,
+    };
 
     switch (match.MatchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
-        return new AttritionMatchEmbed(haloService);
+        return new AttritionMatchEmbed(opts);
       case GameVariantCategory.MultiplayerCtf:
-        return new CtfMatchEmbed(haloService);
+        return new CtfMatchEmbed(opts);
       case GameVariantCategory.MultiplayerElimination:
-        return new EliminationMatchEmbed(haloService);
+        return new EliminationMatchEmbed(opts);
       case GameVariantCategory.MultiplayerEscalation:
-        return new EscalationMatchEmbed(haloService);
+        return new EscalationMatchEmbed(opts);
       case GameVariantCategory.MultiplayerExtraction:
-        return new ExtractionMatchEmbed(haloService);
+        return new ExtractionMatchEmbed(opts);
       case GameVariantCategory.MultiplayerFiesta:
-        return new FiestaMatchEmbed(haloService);
+        return new FiestaMatchEmbed(opts);
       case GameVariantCategory.MultiplayerFirefight:
-        return new FirefightMatchEmbed(haloService);
+        return new FirefightMatchEmbed(opts);
       case GameVariantCategory.MultiplayerGrifball:
-        return new GrifballMatchEmbed(haloService);
+        return new GrifballMatchEmbed(opts);
       case GameVariantCategory.MultiplayerInfection:
-        return new InfectionMatchEmbed(haloService);
+        return new InfectionMatchEmbed(opts);
       case GameVariantCategory.MultiplayerKingOfTheHill:
-        return new KOTHMatchEmbed(haloService);
+        return new KOTHMatchEmbed(opts);
       case GameVariantCategory.MultiplayerLandGrab:
-        return new LandGrabMatchEmbed(haloService);
+        return new LandGrabMatchEmbed(opts);
       case GameVariantCategory.MultiplayerMinigame:
-        return new MinigameMatchEmbed(haloService);
+        return new MinigameMatchEmbed(opts);
       case GameVariantCategory.MultiplayerOddball:
-        return new OddballMatchEmbed(haloService);
+        return new OddballMatchEmbed(opts);
       case GameVariantCategory.MultiplayerSlayer:
-        return new SlayerMatchEmbed(haloService);
+        return new SlayerMatchEmbed(opts);
       case GameVariantCategory.MultiplayerStockpile:
-        return new StockpileMatchEmbed(haloService);
+        return new StockpileMatchEmbed(opts);
       case GameVariantCategory.MultiplayerStrongholds:
-        return new StrongholdsMatchEmbed(haloService);
+        return new StrongholdsMatchEmbed(opts);
       case GameVariantCategory.MultiplayerTotalControl:
-        return new TotalControlMatchEmbed(haloService);
+        return new TotalControlMatchEmbed(opts);
       case GameVariantCategory.MultiplayerVIP:
-        return new VIPMatchEmbed(haloService);
+        return new VIPMatchEmbed(opts);
       default:
-        return new UnknownMatchEmbed(haloService);
+        return new UnknownMatchEmbed(opts);
     }
   }
 }

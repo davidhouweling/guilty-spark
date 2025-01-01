@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
+import type { HaloInfiniteClient, MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +32,16 @@ async function readAssetVersion(): Promise<MapAsset> {
     return JSON.parse(fileContents) as MapAsset;
   } catch (error) {
     console.error(`Failed to read asset version: ${error as Error}`);
+    throw error;
+  }
+}
+
+async function readMedalsMetadata(): ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> {
+  try {
+    const fileContents = await readFile(path.join(__dirname, "data", "medals-metadata.json"), "utf-8");
+    return JSON.parse(fileContents) as Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
+  } catch (error) {
+    console.error(`Failed to read medals metadata: ${error as Error}`);
     throw error;
   }
 }
@@ -71,3 +81,5 @@ export const playerXuidsToGametags = new Map([
   ["1500000000000000", "gamertag15"],
   ["1600000000000000", "gamertag16"],
 ]);
+
+export const medalsMetadata = await readMedalsMetadata();

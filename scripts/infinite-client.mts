@@ -28,6 +28,11 @@ await writeFile(path.join(__dirname, "player-matches.json"), JSON.stringify(play
 */
 
 /*
+const medalsMetadata = await client.getMedalsMetadataFile();
+await writeFile(path.join(__dirname, "medals-metadata.json"), JSON.stringify(medalsMetadata, null, 2));
+*/
+
+/*
 const slayerMatch = await client.getMatchStats("9535b946-f30c-4a43-b852-11ff9b9f75ac");
 await writeFile(path.join(__dirname, "slayer.json"), JSON.stringify(slayerMatch, null, 2));
 */

@@ -9,6 +9,13 @@ import type { DiscordAssociationsRow } from "../database/types/discord_associati
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 
+export interface Medal {
+  name: string;
+  sortingWeight: number;
+  difficulty: string;
+  type: string;
+}
+
 export interface HaloServiceOpts {
   infiniteClient: HaloInfiniteClient;
   databaseService: DatabaseService;
@@ -20,6 +27,7 @@ export class HaloService {
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
+  private metadataJsonCache: Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>> | undefined;
 
   constructor({ databaseService, infiniteClient }: HaloServiceOpts) {
     this.databaseService = databaseService;
@@ -147,6 +155,26 @@ export class HaloService {
     }
 
     return output.join(" ");
+  }
+
+  async getMedal(medalId: number): Promise<Medal | undefined> {
+    if (this.metadataJsonCache == null) {
+      this.metadataJsonCache = await this.infiniteClient.getMedalsMetadataFile();
+    }
+
+    const medal = this.metadataJsonCache.medals.find(({ nameId }) => nameId === medalId);
+
+    if (medal == null) {
+      // TODO: work out the medals that are currently unknown, such as the VIP ones
+      return undefined;
+    }
+
+    return {
+      name: medal.name.value,
+      sortingWeight: medal.sortingWeight,
+      difficulty: Preconditions.checkExists(this.metadataJsonCache.difficulties[medal.difficultyIndex]),
+      type: Preconditions.checkExists(this.metadataJsonCache.types[medal.typeIndex]),
+    };
   }
 
   async updateDiscordAssociations(): Promise<void> {

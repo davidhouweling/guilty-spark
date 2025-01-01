@@ -1,4 +1,4 @@
-name: Build
+name: Typecheck
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  run-build:
-    name: Run Build
+  run-typecheck:
+    name: Run Typecheck
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +32,5 @@ jobs:
       - name: Generate types
         run: npm run build:generate-types
 
-      - name: Run build
-        run: npm run build
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: guilt-spark-build-${{ github.sha }}
-          path: ./dist
+      - name: Run Typecheck
+        run: npm run typecheck

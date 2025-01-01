@@ -27,6 +27,7 @@ import {
 import type { BaseCommand } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { JsonResponse } from "./json-response.mjs";
+import { AppEmojis } from "./emoji.mjs";
 
 const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
@@ -296,6 +297,16 @@ export class DiscordService {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  getEmojiFromName(name: string): string {
+    const appEmojiName = name.replace(/[^a-z0-9]/gi, "");
+    const emojiId = Preconditions.checkExists(
+      AppEmojis.get(name.replace(/[^a-z0-9]/gi, "")),
+      `Emoji not found: ${name}`,
+    );
+
+    return `<:${appEmojiName}:${emojiId}>`;
   }
 
   private async fetch<T>(

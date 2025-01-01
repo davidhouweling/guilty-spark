@@ -4,16 +4,20 @@ import { CtfMatchEmbed } from "../ctf-match-embed.mjs";
 import type { HaloService } from "../../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../../../services/halo/fakes/halo.fake.mjs";
+import type { DiscordService } from "../../../../services/discord/discord.mjs";
+import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/discord.fake.mjs";
 
 const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
 
 describe("CtfMatchEmbed", () => {
+  let discordService: DiscordService;
   let haloService: HaloService;
   let matchEmbed: CtfMatchEmbed;
 
   beforeEach(() => {
+    discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new CtfMatchEmbed(haloService);
+    matchEmbed = new CtfMatchEmbed({ discordService, haloService });
   });
 
   describe("getEmbed", () => {

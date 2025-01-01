@@ -1,7 +1,8 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
-import type { HaloService } from "../../../services/halo/halo.mjs";
+import type { HaloService, Medal } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import type { DiscordService } from "../../../services/discord/discord.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
@@ -19,8 +20,19 @@ export interface StatsValue {
 
 export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 
+export interface BaseMatchEmbedOpts {
+  discordService: DiscordService;
+  haloService: HaloService;
+}
+
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
-  constructor(protected readonly haloService: HaloService) {}
+  protected readonly discordService: DiscordService;
+  protected readonly haloService: HaloService;
+
+  constructor({ discordService, haloService }: BaseMatchEmbedOpts) {
+    this.discordService = discordService;
+    this.haloService = haloService;
+  }
 
   protected abstract getPlayerObjectiveStats(stats: Stats): EmbedPlayerStats;
 
@@ -123,15 +135,17 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         const {
           Stats: { CoreStats: coreStats },
         } = playerStats;
-
         const outputStats = this.playerStatsToFields(
           matchBestValues,
           teamBestValues,
           Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
         );
+        const medals = await this.playerMedalsToFields(coreStats);
+        const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+
         playerFields.push({
           name: `${playerGamertag} (Rank: ${teamPlayer.Rank.toString()} | Score: ${coreStats.PersonalScore.toString()})`,
-          value: outputStats.join("\n"),
+          value: output,
           inline: true,
         });
 
@@ -182,6 +196,31 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return Array.from(playerStats.entries()).map(
       ([key, value]) => `${key}: ${this.getStatsValue(matchBestValues, teamBestValues, key, value)}`,
     );
+  }
+
+  protected async playerMedalsToFields(coreStats: Stats["CoreStats"]): Promise<string> {
+    const medals: (Medal & { count: number })[] = [];
+    for (const medal of coreStats.Medals) {
+      const medalData = await this.haloService.getMedal(medal.NameId);
+      if (medalData == null) {
+        // TODO: work out the medals that are currently unknown, such as the VIP ones
+        continue;
+      }
+
+      medals.push({
+        ...medalData,
+        count: medal.Count,
+      });
+    }
+
+    const output = medals
+      .sort((a, b) => b.sortingWeight - a.sortingWeight)
+      .map(
+        (medal) =>
+          `${medal.count > 1 ? `${medal.count.toString()}x` : ""}${this.discordService.getEmojiFromName(medal.name)}`,
+      );
+
+    return output.join(" ");
   }
 
   private getStatsValue(

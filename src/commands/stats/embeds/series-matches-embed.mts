@@ -14,7 +14,7 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     return new Map([]);
   }
 
-  getSeriesEmbed(matches: MatchStats[], players: Map<string, string>): APIEmbed {
+  async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>): Promise<APIEmbed> {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
       title: "Accumulated Series Stats",
@@ -32,7 +32,11 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     const matchBestValues = this.getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
-      const teamPlayers = this.getTeamPlayers(firstMatch, team);
+      const teamPlayers = this.getTeamPlayers(firstMatch, team).sort(
+        (a, b) =>
+          Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
+          Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
+      );
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
@@ -56,9 +60,12 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
         const outputStats = this.playerStatsToFields(matchBestValues, teamBestValues, playerStats);
+        const medals = await this.playerMedalsToFields(playerCoreStats);
+        const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+
         playerFields.push({
           name: `${playerGamertag} (Acc Score: ${playerCoreStats.PersonalScore.toString()})`,
-          value: outputStats.join("\n"),
+          value: output,
           inline: true,
         });
 
