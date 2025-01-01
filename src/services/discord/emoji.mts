@@ -123,7 +123,7 @@ export const AppEmojis = new Map<string, string>([
   ["WindshieldWiper", "1322882369019052052"],
   ["BoomBlock", "1322882423591014411"],
   ["GrandSlam", "1322882491689996328"],
-  ["ReturnToSender", "1322882548698714164"],
+  ["ReturntoSender", "1322882548698714164"],
   ["Interlinked", "1322883337060352084"],
   ["AutopilotEngaged", "1322883411660243016"],
   ["AchillesSpine", "1322883448888885311"],
