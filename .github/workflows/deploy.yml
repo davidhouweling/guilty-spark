@@ -8,7 +8,7 @@ on:
         required: false
         type: boolean
   workflow_run:
-    workflows: [Build]
+    workflows: [Typecheck]
     types: [completed]
     branches: [main]
 
