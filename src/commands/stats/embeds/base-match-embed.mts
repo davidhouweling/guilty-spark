@@ -175,8 +175,8 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   }
 
   protected getTeamPlayers(match: MatchStats, team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    return match.Players.filter((player) =>
-      player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+    return match.Players.filter(
+      (player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null,
     ).sort((a, b) => {
       const rankCalc = a.Rank - b.Rank;
       if (rankCalc !== 0) {

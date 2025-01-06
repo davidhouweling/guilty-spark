@@ -216,8 +216,9 @@ export class DiscordService {
 
     const queueMessage = messages
       .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
-      .find((message) =>
-        message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")),
+      .find(
+        (message): boolean =>
+          message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")) != null,
       );
     if (!queueMessage) {
       return null;
