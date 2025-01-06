@@ -94,6 +94,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     const embed: APIEmbed = {
       title: gameTypeAndMap,
       url: `https://halodatahive.com/Infinite/Match/${match.MatchId}`,
+      description: "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
       fields: [],
     };
 

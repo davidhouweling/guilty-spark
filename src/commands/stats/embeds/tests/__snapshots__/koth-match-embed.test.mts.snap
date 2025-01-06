@@ -2,6 +2,7 @@
 
 exports[`KOTHMatchEmbed > getEmbed > returns the expected embed 1`] = `
 {
+  "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
   "fields": [
     {
       "inline": false,

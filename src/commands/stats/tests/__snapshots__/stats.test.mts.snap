@@ -6,6 +6,7 @@ exports[`StatsCommand > execute() > match > jobToComplete > calls discordService
   {
     "embeds": [
       {
+        "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
         "fields": [
           {
             "inline": false,
@@ -229,6 +230,7 @@ exports[`StatsCommand > execute() > neatqueue > jobToComplete > adds each game a
     {
       "embeds": [
         {
+          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
           "fields": [
             {
               "inline": false,
@@ -399,6 +401,7 @@ Av damage/life: 218.49
     {
       "embeds": [
         {
+          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
           "fields": [
             {
               "inline": false,
@@ -618,6 +621,7 @@ Carriers killed: __**1**__
     {
       "embeds": [
         {
+          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
           "fields": [
             {
               "inline": false,
@@ -829,6 +833,7 @@ Defensive kills: __**4**__
     {
       "embeds": [
         {
+          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
           "fields": [
             {
               "inline": false,
