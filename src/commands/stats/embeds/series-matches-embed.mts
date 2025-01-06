@@ -18,6 +18,7 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
       title: "Accumulated Series Stats",
+      description: "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
       fields: [],
     };
 
