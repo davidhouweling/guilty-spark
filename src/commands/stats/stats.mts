@@ -298,9 +298,15 @@ export class StatsCommand extends BaseCommand {
     const teams = queueData.teams
       .map((team) => `**${team.name}:** ${team.players.map((player) => `<@${player.id}>`).join(" ")}`)
       .join("\n");
+    const startUnixTime = Math.floor(
+      new Date(Preconditions.checkExists(series[0]?.MatchInfo.StartTime)).getTime() / 1000,
+    );
+    const endUnixTime = Math.floor(
+      new Date(Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime)).getTime() / 1000,
+    );
     const embed: APIEmbed = {
       title: `Series stats for queue #${queue.toLocaleString(locale)}`,
-      description: teams,
+      description: `${teams}\n\n-# Start time: <t:${startUnixTime.toString()}:f> | End time: <t:${endUnixTime.toString()}:f>`,
       url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
       color: 3447003,
     };

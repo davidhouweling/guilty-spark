@@ -6,7 +6,7 @@ exports[`StatsCommand > execute() > match > jobToComplete > calls discordService
   {
     "embeds": [
       {
-        "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+        "description": "-# Legend: **Best in team** | __**Best overall**__",
         "fields": [
           {
             "inline": false,
@@ -230,7 +230,7 @@ exports[`StatsCommand > execute() > neatqueue > jobToComplete > adds each game a
     {
       "embeds": [
         {
-          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+          "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
             {
               "inline": false,
@@ -401,7 +401,7 @@ Av damage/life: 218.49
     {
       "embeds": [
         {
-          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+          "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
             {
               "inline": false,
@@ -621,7 +621,7 @@ Carriers killed: __**1**__
     {
       "embeds": [
         {
-          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+          "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
             {
               "inline": false,
@@ -833,7 +833,7 @@ Defensive kills: __**4**__
     {
       "embeds": [
         {
-          "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+          "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
             {
               "inline": false,
@@ -1153,7 +1153,9 @@ exports[`StatsCommand > execute() > neatqueue > jobToComplete > calls discordSer
       {
         "color": 3447003,
         "description": "**Eagle:** <@000000000000000001> <@000000000000000002> <@000000000000000003> <@000000000000000004>
-**Cobra:** <@000000000000000005> <@000000000000000006> <@000000000000000007> <@000000000000000008>",
+**Cobra:** <@000000000000000005> <@000000000000000006> <@000000000000000007> <@000000000000000008>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732508761:f>",
         "fields": [
           {
             "inline": true,
