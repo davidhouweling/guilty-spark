@@ -2,7 +2,7 @@
 
 exports[`SlayerMatchEmbed > getEmbed > returns the expected embed 1`] = `
 {
-  "description": "Legend: **BOLD = Best in team** | __UNDERLINE = Best overall__",
+  "description": "-# Legend: **Best in team** | __**Best overall**__",
   "fields": [
     {
       "inline": false,
