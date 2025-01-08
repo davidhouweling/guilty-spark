@@ -284,7 +284,7 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[];
   }): Promise<APIEmbed> {
     const { haloService } = this.services;
-    const titles = ["Game", "Duration", "Score"];
+    const titles = ["Game", "Duration", `Score${queueData.teams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     for (const seriesMatch of series) {
       const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
@@ -295,8 +295,12 @@ export class StatsCommand extends BaseCommand {
     }
 
     const messageId = Preconditions.checkExists(queueData.message.id);
+    const teams = queueData.teams
+      .map((team) => `**${team.name}:** ${team.players.map((player) => `<@${player.id}>`).join(" ")}`)
+      .join("\n");
     const embed: APIEmbed = {
       title: `Series stats for queue #${queue.toLocaleString(locale)}`,
+      description: teams,
       url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
       color: 3447003,
     };
