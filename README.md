@@ -2,9 +2,6 @@
 
 A [Discord App](https://discord.com/oauth2/authorize?client_id=1290269474536034357) utilizing [Cloudflare Workers](https://developers.cloudflare.com/workers/) that allows for stats to be pulled for Halo games played in a custom games series.
 
-> [!WARNING]  
-> This is a functional proof of concept.
-
 This Discord bot can pull stats from Halo Waypoint and post accordingly.
 
 - Work with NeatQueue results
@@ -54,3 +51,11 @@ As mentioned, this is presently a proof of concept and more can be done to impro
 1. User sends slash command to Discord bot
 2. Pull stats for match
 3. Send back to Discord
+
+## Terms of Service
+
+Please read our [Terms of Service](./TERMS_OF_SERVICE.md) for detailed information.
+
+## Privacy Policy
+
+Please read our [Privacy Policy](./PRIVACY_POLICY.md) for detailed information.
