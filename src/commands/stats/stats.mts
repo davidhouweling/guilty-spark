@@ -1,5 +1,4 @@
 import type {
-  APIApplicationCommand,
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIEmbed,
@@ -12,7 +11,7 @@ import {
 } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
-import type { ExecuteResponse } from "../base/base.mjs";
+import type { BaseApplicationCommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { QueueData } from "../../services/discord/discord.mjs";
@@ -39,7 +38,7 @@ import { VIPMatchEmbed } from "./embeds/vip-match-embed.mjs";
 import { SeriesMatchesEmbed } from "./embeds/series-matches-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
-  data: Omit<APIApplicationCommand, "id" | "application_id" | "default_member_permissions" | "version"> = {
+  data: BaseApplicationCommandData = {
     type: ApplicationCommandType.ChatInput,
     name: "stats",
     description: "Pulls stats from Halo waypoint",
