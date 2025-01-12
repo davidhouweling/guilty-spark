@@ -1,5 +1,5 @@
 import * as tinyduration from "tinyduration";
-import type { HaloInfiniteClient, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
+import type { HaloInfiniteClient, MatchStats, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
 import { AssetKind, GameVariantCategory, MatchType } from "halo-infinite-api";
 import { differenceInHours, isBefore } from "date-fns";
 import type { APIUser } from "discord-api-types/v10";
@@ -122,13 +122,17 @@ export class HaloService {
       .map((player) => this.getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
     if (xuidsToResolve.length) {
-      const playerNames = await this.infiniteClient.getUsers(xuidsToResolve);
-      for (const player of playerNames) {
-        this.xuidToGamerTagCache.set(player.xuid, player.gamertag);
+      const users = await this.getUsersByXuids(xuidsToResolve);
+      for (const user of users) {
+        this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
       }
     }
 
     return this.xuidToGamerTagCache;
+  }
+
+  async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+    return this.infiniteClient.getUsers(xuids);
   }
 
   getDurationInSeconds(duration: string): number {

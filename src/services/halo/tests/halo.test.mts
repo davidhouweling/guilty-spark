@@ -280,6 +280,48 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getUsersByXuids()", () => {
+    it("calls infiniteClient.getUsers and returns the UserInfo for the given xuids", async () => {
+      const xuids = ["0100000000000000", "0200000000000000", "0500000000000000"];
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(infiniteClient.getUsers).toHaveBeenCalledTimes(1);
+      expect(infiniteClient.getUsers).toHaveBeenCalledWith(xuids);
+      expect(result).toEqual([
+        {
+          gamerpic: {
+            large: "large0100000000000000.png",
+            medium: "medium0100000000000000.png",
+            small: "small0100000000000000.png",
+            xlarge: "xlarge0100000000000000.png",
+          },
+          gamertag: "gamertag0100000000000000",
+          xuid: "0100000000000000",
+        },
+        {
+          gamerpic: {
+            large: "large0200000000000000.png",
+            medium: "medium0200000000000000.png",
+            small: "small0200000000000000.png",
+            xlarge: "xlarge0200000000000000.png",
+          },
+          gamertag: "gamertag0200000000000000",
+          xuid: "0200000000000000",
+        },
+        {
+          gamerpic: {
+            large: "large0500000000000000.png",
+            medium: "medium0500000000000000.png",
+            small: "small0500000000000000.png",
+            xlarge: "xlarge0500000000000000.png",
+          },
+          gamertag: "gamertag0500000000000000",
+          xuid: "0500000000000000",
+        },
+      ]);
+    });
+  });
+
   describe("getDurationInSeconds()", () => {
     it("returns the duration in seconds", () => {
       const duration = "PT10M58.2413691S";
