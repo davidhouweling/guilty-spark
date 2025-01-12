@@ -22,6 +22,7 @@ import { JsonResponse } from "../json-response.mjs";
 import type { BaseCommand } from "../../../commands/base/base.mjs";
 import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { AssociationReason } from "../../database/types/discord_associations.mjs";
 
 describe("DiscordService", () => {
   let env: Env;
@@ -485,6 +486,54 @@ describe("DiscordService", () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
       ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+    });
+  });
+
+  describe("getEmojiFromName()", () => {
+    it.each([
+      ["KillingSpree", "<:KillingSpree:1322803050347499541>"],
+      ["Killionaire", "<:Killionaire:1322814735539896423>"],
+      ["Counter-snipe", "<:Countersnipe:1322885512209633320>"],
+      ["Hold This", "<:HoldThis:1322884625739026463>"],
+    ])("%s -> %s", (name, expected) => {
+      expect(discordService.getEmojiFromName(name)).toEqual(expected);
+    });
+  });
+
+  describe("getReadableAssociationReason()", () => {
+    it.each([
+      {
+        reason: AssociationReason.CONNECTED,
+        reasonString: "AssociationReason.CONNECTED",
+        expected: "Connected Halo account",
+      },
+      {
+        reason: AssociationReason.MANUAL,
+        reasonString: "AssociationReason.MANUAL",
+        expected: "Manually claimed Halo account",
+      },
+      {
+        reason: AssociationReason.USERNAME_SEARCH,
+        reasonString: "AssociationReason.USERNAME_SEARCH",
+        expected: "Matched Discord Username to Halo account",
+      },
+      {
+        reason: AssociationReason.DISPLAY_NAME_SEARCH,
+        reasonString: "AssociationReason.DISPLAY_NAME_SEARCH",
+        expected: "Matched Discord Display Name to Halo account",
+      },
+      {
+        reason: AssociationReason.GAME_SIMILARITY,
+        reasonString: "AssociationReason.GAME_SIMILARITY",
+        expected: "Fuzzy matched Discord Username / Display name from a previous series",
+      },
+      {
+        reason: AssociationReason.UNKNOWN,
+        reasonString: "AssociationReason.UNKNOWN",
+        expected: "Unknown",
+      },
+    ])("$reasonString -> $expected", ({ reason, expected }) => {
+      expect(discordService.getReadableAssociationReason(reason)).toEqual(expected);
     });
   });
 

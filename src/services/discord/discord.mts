@@ -27,6 +27,8 @@ import {
 } from "discord-api-types/v10";
 import type { BaseCommand } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { AssociationReason } from "../database/types/discord_associations.mjs";
+import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
@@ -311,6 +313,32 @@ export class DiscordService {
     );
 
     return `<:${appEmojiName}:${emojiId}>`;
+  }
+
+  getReadableAssociationReason(associationReason: AssociationReason): string {
+    switch (associationReason) {
+      case AssociationReason.CONNECTED: {
+        return "Connected Halo account";
+      }
+      case AssociationReason.MANUAL: {
+        return "Manually claimed Halo account";
+      }
+      case AssociationReason.USERNAME_SEARCH: {
+        return "Matched Discord Username to Halo account";
+      }
+      case AssociationReason.DISPLAY_NAME_SEARCH: {
+        return "Matched Discord Display Name to Halo account";
+      }
+      case AssociationReason.GAME_SIMILARITY: {
+        return "Fuzzy matched Discord Username / Display name from a previous series";
+      }
+      case AssociationReason.UNKNOWN: {
+        return "Unknown";
+      }
+      default: {
+        throw new UnreachableError(associationReason);
+      }
+    }
   }
 
   private async fetch<T>(
