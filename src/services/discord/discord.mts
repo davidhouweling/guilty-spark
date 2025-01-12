@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
 import type {
   APIApplicationCommandInteraction,
@@ -138,6 +139,8 @@ export class DiscordService {
     response: JsonResponse;
     jobToComplete?: (() => Promise<void>) | undefined;
   } {
+    console.log(inspect(interaction, { depth: null, colors: true }));
+
     switch (interaction.type) {
       case InteractionType.Ping: {
         return {
