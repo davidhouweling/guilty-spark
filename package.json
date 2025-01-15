@@ -44,24 +44,24 @@
     "tinyduration": "^3.3.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
+    "@eslint/js": "^9.18.0",
     "@tsconfig/node22": "^22.0.0",
     "@types/eslint__js": "^8.42.3",
     "@types/node": "22.10.5",
-    "@typescript-eslint/parser": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.1",
     "@vitest/coverage-v8": "^2.1.8",
     "dotenv": "^16.4.7",
-    "eslint": "^9.17.0",
+    "eslint": "^9.18.0",
     "eslint-import-resolver-typescript": "^3.7.0",
     "eslint-plugin-import": "^2.31.0",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.19.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
     "vitest": "^2.1.6",
     "vitest-mock-extended": "^2.0.2",
-    "wrangler": "^3.99.0"
+    "wrangler": "^3.101.0"
   }
 }

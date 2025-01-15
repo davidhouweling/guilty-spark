@@ -172,14 +172,17 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
           [castKey]: Array.from(existingStatMap.values()),
         };
       } else if (castKey === "AverageLifeDuration") {
+        const averageLifeDuration = mergedCoreStats[castKey];
         mergedCoreStats = {
           ...mergedCoreStats,
-          [castKey]: [mergedCoreStats[castKey], value].join(","),
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          [castKey]: [averageLifeDuration, value].join(","),
         };
       } else if (typeof value === "number" && typeof mergedCoreStats[castKey] === "number") {
+        const oldValue = mergedCoreStats[castKey];
         mergedCoreStats = {
           ...mergedCoreStats,
-          [castKey]: mergedCoreStats[castKey] + value,
+          [castKey]: oldValue + value,
         };
       } else {
         throw new Error(`Invalid type for key ${key}`);
