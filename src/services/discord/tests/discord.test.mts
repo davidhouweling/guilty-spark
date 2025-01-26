@@ -7,7 +7,6 @@ import {
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
-  MessageFlags,
 } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 import { DiscordService } from "../discord.mjs";
@@ -359,28 +358,6 @@ describe("DiscordService", () => {
       const result = await discordService.getTeamsFromQueue("fake-channel", 1000);
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe("getAcknowledgeResponse()", () => {
-    it("returns an ephemeral response", () => {
-      const response = discordService.getAcknowledgeResponse(true);
-
-      expect(response).toEqual({
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data: {
-          flags: MessageFlags.Ephemeral,
-        },
-      });
-    });
-
-    it("returns a public response", () => {
-      const response = discordService.getAcknowledgeResponse();
-
-      expect(response).toEqual({
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data: {},
-      });
     });
   });
 

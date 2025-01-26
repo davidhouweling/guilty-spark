@@ -22,7 +22,6 @@ import {
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
-  MessageFlags,
   Routes,
 } from "discord-api-types/v10";
 import type { BaseCommand } from "../../commands/base/base.mjs";
@@ -246,15 +245,6 @@ export class DiscordService {
         players: this.extractUserIds(field.value).map((id) => Preconditions.checkExists(playerIdToUserMap.get(id))),
       })),
     };
-  }
-
-  getAcknowledgeResponse(ephemeral = false): APIInteractionResponse {
-    const data: { flags?: MessageFlags } = {};
-    if (ephemeral) {
-      data.flags = MessageFlags.Ephemeral;
-    }
-
-    return { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
   }
 
   async updateDeferredReply(

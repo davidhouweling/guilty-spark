@@ -2,6 +2,7 @@ import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIEmbed,
+  APIInteractionResponseDeferredChannelMessageWithSource,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -128,14 +129,19 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const { discordService } = this.services;
-
     const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
     const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
 
     return {
-      response: discordService.getAcknowledgeResponse(ephemeral),
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data,
+      },
       jobToComplete: async () => this.neatQueueSubCommandJob(interaction, channel, queue),
     };
   }
@@ -209,13 +215,18 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const { discordService } = this.services;
-
     const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
 
     return {
-      response: discordService.getAcknowledgeResponse(ephemeral),
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data,
+      },
       jobToComplete: async () => this.matchSubCommandJob(interaction, matchId),
     };
   }
