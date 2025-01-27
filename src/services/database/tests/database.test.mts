@@ -12,8 +12,8 @@ describe("Database Service", () => {
     databaseService = new DatabaseService({ env });
   });
 
-  describe("getDiscordAssociations", () => {
-    it("should get Discord associations from the database", async () => {
+  describe("getDiscordAssociations()", () => {
+    it("gets Discord associations from the database", async () => {
       const association1 = aFakeDiscordAssociationsRow({ DiscordId: "discordId1", XboxId: "xboxId1" });
       const association2 = aFakeDiscordAssociationsRow({ DiscordId: "discordId2", XboxId: "xboxId2" });
 
@@ -34,8 +34,8 @@ describe("Database Service", () => {
     });
   });
 
-  describe("upsertDiscordAssociations", () => {
-    it("should upsert Discord associations in the database", async () => {
+  describe("upsertDiscordAssociations()", () => {
+    it("upserts Discord associations in the database", async () => {
       const association1 = aFakeDiscordAssociationsRow({
         DiscordId: "discordId1",
         XboxId: "xboxId1",
@@ -71,6 +71,21 @@ describe("Database Service", () => {
         association2.AssociationDate,
         association2.GamesRetrievable,
       );
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteDiscordAssociations()", () => {
+    it("deletes Discord associations from the database", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteDiscordAssociations(["discordId", "discordId2"]);
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM DiscordAssociations WHERE DiscordId IN (?,?)");
+      expect(bindSpy).toHaveBeenCalledWith("discordId", "discordId2");
       expect(runSpy).toHaveBeenCalled();
     });
   });
