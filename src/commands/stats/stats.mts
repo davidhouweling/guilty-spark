@@ -297,7 +297,7 @@ export class StatsCommand extends BaseCommand {
     const titles = ["Game", "Duration", `Score${queueData.teams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     for (const seriesMatch of series) {
-      const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
+      const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
       const gameScore = haloService.getMatchScore(seriesMatch, locale);
 

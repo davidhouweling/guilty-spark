@@ -1,5 +1,5 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { AssetKind, MatchType } from "halo-infinite-api";
+import { AssetKind } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { assetVersion, matchStats, medalsMetadata, playerMatches } from "./data.mjs";
@@ -22,6 +22,20 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       });
     }
 
+    if (/^gamertag\d+$/.test(username)) {
+      const discriminator = username.slice(8);
+      return Promise.resolve({
+        xuid: "xuid" + discriminator,
+        gamerpic: {
+          small: "small" + discriminator + ".png",
+          medium: "medium" + discriminator + ".png",
+          large: "large" + discriminator + ".png",
+          xlarge: "xlarge" + discriminator + ".png",
+        },
+        gamertag: username,
+      });
+    }
+
     return Promise.reject(new Error("User not found"));
   });
 
@@ -40,16 +54,12 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     );
   });
 
-  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, gameType) => {
-    if (gameType !== MatchType.Custom) {
-      return Promise.reject(new Error("Only custom games are supported"));
-    }
-
+  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
     if (xboxUserId === "xuid0000000000001") {
-      return playerMatches;
+      return Promise.resolve(playerMatches);
     }
 
-    return [];
+    return Promise.resolve([]);
   });
 
   infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
