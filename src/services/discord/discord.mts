@@ -338,14 +338,14 @@ export class DiscordService {
       }
     }
 
+    const headers = new Headers(options.headers);
+    headers.set("Authorization", `Bot ${this.env.DISCORD_TOKEN}`);
+    headers.set("content-type", "application/json;charset=UTF-8");
+
     const fetchOptions = {
       ...options,
       body: options.body ?? null,
-      headers: {
-        Authorization: `Bot ${this.env.DISCORD_TOKEN}`,
-        "content-type": "application/json;charset=UTF-8",
-        ...options.headers,
-      },
+      headers: headers,
     };
 
     // having to rebind back to global fetch due to Cloudflare Workers
