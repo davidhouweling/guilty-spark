@@ -270,10 +270,10 @@ describe("DiscordService", () => {
 
       expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages?limit=100", {
         body: null,
-        headers: {
+        headers: new Headers({
           Authorization: "Bot DISCORD_TOKEN",
           "content-type": "application/json;charset=UTF-8",
-        },
+        }),
         method: "GET",
         queryParameters: {
           limit: 100,
@@ -392,10 +392,10 @@ describe("DiscordService", () => {
         "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
         {
           body: JSON.stringify(data),
-          headers: {
+          headers: new Headers({
             Authorization: "Bot DISCORD_TOKEN",
             "content-type": "application/json;charset=UTF-8",
-          },
+          }),
           method: "PATCH",
         },
       );
@@ -412,10 +412,10 @@ describe("DiscordService", () => {
         "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
         {
           body: null,
-          headers: {
+          headers: new Headers({
             Authorization: "Bot DISCORD_TOKEN",
             "content-type": "application/json;charset=UTF-8",
-          },
+          }),
           method: "GET",
         },
       );
@@ -431,10 +431,10 @@ describe("DiscordService", () => {
 
       expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages", {
         body: JSON.stringify(data),
-        headers: {
+        headers: new Headers({
           Authorization: "Bot DISCORD_TOKEN",
           "content-type": "application/json;charset=UTF-8",
-        },
+        }),
         method: "POST",
       });
 
@@ -470,10 +470,10 @@ describe("DiscordService", () => {
         "https://discord.com/api/v10/channels/fake-channel/messages/fake-message/threads",
         {
           body: JSON.stringify(data),
-          headers: {
+          headers: new Headers({
             Authorization: "Bot DISCORD_TOKEN",
             "content-type": "application/json;charset=UTF-8",
-          },
+          }),
           method: "POST",
         },
       );

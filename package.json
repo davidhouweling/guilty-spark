@@ -37,21 +37,21 @@
   "dependencies": {
     "@xboxreplay/xboxlive-auth": "^4.1.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.37.115",
+    "discord-api-types": "^0.37.117",
     "discord-interactions": "^4.1.0",
-    "halo-infinite-api": "^9.2.0",
+    "halo-infinite-api": "^9.3.0",
     "itty-router": "^5.0.18",
-    "tinyduration": "^3.3.1"
+    "tinyduration": "^3.4.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.18.0",
+    "@eslint/js": "^9.19.0",
     "@tsconfig/node22": "^22.0.0",
     "@types/eslint__js": "^8.42.3",
-    "@types/node": "22.10.5",
-    "@typescript-eslint/parser": "^8.19.1",
+    "@types/node": "22.10.10",
+    "@typescript-eslint/parser": "^8.21.0",
     "@vitest/coverage-v8": "^2.1.8",
     "dotenv": "^16.4.7",
-    "eslint": "^9.18.0",
+    "eslint": "^9.19.0",
     "eslint-import-resolver-typescript": "^3.7.0",
     "eslint-plugin-import": "^2.31.0",
     "ngrok": "^5.0.0-beta.2",
@@ -59,9 +59,9 @@
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.19.1",
+    "typescript-eslint": "^8.21.0",
     "vitest": "^2.1.6",
     "vitest-mock-extended": "^2.0.2",
-    "wrangler": "^3.101.0"
+    "wrangler": "^3.105.1"
   }
 }
