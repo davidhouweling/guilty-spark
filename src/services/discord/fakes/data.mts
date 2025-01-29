@@ -10,7 +10,6 @@ import {
   ButtonStyle,
   ComponentType,
   MessageFlags,
-  ApplicationCommandOptionType,
   ChannelType,
   GuildMemberFlags,
   InteractionType,
@@ -80,7 +79,7 @@ const fakeBaseInteraction = {
   token: "fake-token",
 };
 
-const fakeBaseAPIApplicationCommandInteraction: Omit<APIApplicationCommandInteraction, "type" | "data"> = {
+export const fakeBaseAPIApplicationCommandInteraction: Omit<APIApplicationCommandInteraction, "type" | "data"> = {
   ...fakeBaseInteraction,
   channel: {
     guild_id: "fake-channel-guild-id",
@@ -89,67 +88,6 @@ const fakeBaseAPIApplicationCommandInteraction: Omit<APIApplicationCommandIntera
   },
   channel_id: "fake-channel-id",
   version: 1,
-};
-
-export const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
-  ...fakeBaseAPIApplicationCommandInteraction,
-  type: InteractionType.ApplicationCommand,
-  data: {
-    id: "1296081783443685377",
-    name: "stats",
-    options: [
-      {
-        name: "neatqueue",
-        options: [
-          {
-            name: "channel",
-            type: 7,
-            value: "1299532381308325949",
-          },
-          {
-            name: "queue",
-            type: 4,
-            value: 1418,
-          },
-        ],
-        type: 1,
-      },
-    ],
-    resolved: {
-      channels: {
-        "1299532381308325949": {
-          id: "1299532381308325949",
-          name: "🥉results",
-          permissions: "2230813650837056",
-          type: 0,
-        },
-      },
-    },
-    type: 1,
-  },
-};
-
-export const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
-  ...fakeBaseAPIApplicationCommandInteraction,
-  type: InteractionType.ApplicationCommand,
-  data: {
-    id: "1300004385459408960",
-    name: "stats",
-    options: [
-      {
-        name: "match",
-        options: [
-          {
-            name: "id",
-            type: ApplicationCommandOptionType.String,
-            value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
-          },
-        ],
-        type: 1,
-      },
-    ],
-    type: 1,
-  },
 };
 
 export const buttonClickInteraction: APIMessageComponentButtonInteraction = {

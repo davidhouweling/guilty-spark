@@ -1,30 +1,60 @@
 import type { Mock, MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
-import type { APIInteraction, APIUser } from "discord-api-types/v10";
+import type { APIApplicationCommandInteraction, APIInteraction, APIUser } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   ComponentType,
   InteractionResponseType,
   InteractionType,
+  Locale,
 } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import {
   apiMessage,
-  applicationCommandInteractionStatsMatch,
   channelMessages,
   pingInteraction,
   buttonClickInteraction,
   modalSubmitInteraction,
+  fakeBaseAPIApplicationCommandInteraction,
 } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import type { BaseCommand } from "../../../commands/base/base.mjs";
 import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { AssociationReason } from "../../database/types/discord_associations.mjs";
+
+const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  guild: {
+    features: [],
+    id: "1238795949266964560",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "1238795949266964560",
+  data: {
+    id: "1300004385459408960",
+    name: "stats",
+    options: [
+      {
+        name: "match",
+        options: [
+          {
+            name: "id",
+            type: ApplicationCommandOptionType.String,
+            value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+          },
+        ],
+        type: 1,
+      },
+    ],
+    type: 1,
+  },
+};
 
 describe("DiscordService", () => {
   let env: Env;
