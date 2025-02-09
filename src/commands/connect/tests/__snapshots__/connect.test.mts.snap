@@ -1,0 +1,1167 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Connected Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_confirm",
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is correct",
+            "style": 1,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Matched Discord Display Name to Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_confirm",
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is correct",
+            "style": 1,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Fuzzy matched Discord Username / Display name from a previous series
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Manually claimed Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'UNKNOWN' & GamesRetrievable = '?' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_confirm",
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is correct",
+            "style": 1,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Matched Discord Username to Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > No Association > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.Change > returns response but no jobToComplete 1`] = `
+{
+  "data": {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "gamertag",
+            "label": "Gamertag",
+            "max_length": 100,
+            "min_length": 1,
+            "placeholder": "Enter your Xbox/Halo gamertag",
+            "required": true,
+            "style": 1,
+            "type": 4,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "custom_id": "gamertag_search_modal",
+    "title": "Gamertag search",
+  },
+  "type": 9,
+}
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.Confirm > jobToComplete > Existing association > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Manually claimed Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.Remove > jobToComplete > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.SearchCancel > jobToComplete > Existing association > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_confirm",
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is correct",
+            "style": 1,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Matched Discord Username to Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.SearchCancel > jobToComplete > No association > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionButton.SearchConfirm > jobToComplete > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Change",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Manually claimed Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchModal > jobToComplete > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_search_confirm",
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is me",
+            "style": 3,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "No, change search",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_search_cancel",
+            "emoji": {
+              "name": "🔙",
+            },
+            "label": "Cancel",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Please confirm the recent game history for yourself below:",
+        "fields": [
+          {
+            "inline": true,
+            "name": "Game",
+            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
+KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
+CTF: Empyrean - Ranked
+Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
+Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
+          },
+          {
+            "inline": true,
+            "name": "Result",
+            "value": "Loss - 44:50
+Win - 3:2
+Win - 3:0
+Loss - 175:250
+Loss - 1:2 (198:256)",
+          },
+          {
+            "inline": true,
+            "name": "When",
+            "value": "<t:1732619665:f>
+<t:1732619016:f>
+<t:1732618052:f>
+<t:1732616814:f>
+<t:1732615353:f>",
+          },
+        ],
+        "title": "Gamertag search for "gamertag0000000000001"",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchModal > returns response and jobToComplete 1`] = `
+{
+  "data": {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_search_confirm",
+            "disabled": true,
+            "emoji": {
+              "name": "👍",
+            },
+            "label": "Yes, this is me",
+            "style": 3,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_change",
+            "disabled": true,
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "No, change search",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_search_cancel",
+            "disabled": true,
+            "emoji": {
+              "name": "🔙",
+            },
+            "label": "Cancel",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Please wait while we search for your gamertag and recent game history...",
+        "title": "Gamertag search...",
+      },
+    ],
+  },
+  "type": 7,
+}
+`;

@@ -71,7 +71,7 @@ const fakeBaseInteraction = {
       avatar: null,
       discriminator: "0",
       global_name: null,
-      id: "fake-user-id",
+      id: "discord_user_01",
       username: "soundmanD",
     },
     flags: GuildMemberFlags.CompletedOnboarding,
@@ -90,7 +90,7 @@ export const fakeBaseAPIApplicationCommandInteraction: Omit<APIApplicationComman
   version: 1,
 };
 
-export const buttonClickInteraction: APIMessageComponentButtonInteraction = {
+export const fakeButtonClickInteraction: APIMessageComponentButtonInteraction = {
   ...fakeBaseInteraction,
   channel: {
     guild_id: "fake-channel-guild-id",
@@ -165,7 +165,7 @@ export const buttonClickInteraction: APIMessageComponentButtonInteraction = {
         avatar_decoration_data: null,
         discriminator: "0",
         global_name: "fake-user-global-name",
-        id: "fake-user-id",
+        id: "discord_user_01",
         username: "fake-username",
       },
     },
@@ -178,7 +178,7 @@ export const buttonClickInteraction: APIMessageComponentButtonInteraction = {
         avatar_decoration_data: null,
         discriminator: "0",
         global_name: "fake-user-global-name",
-        id: "fake-user-id",
+        id: "discord_user_01",
         username: "fake-username",
       },
     },
@@ -261,7 +261,7 @@ export const modalSubmitInteraction: APIModalSubmitInteraction = {
         avatar_decoration_data: null,
         discriminator: "0",
         global_name: "fake-user-global-name",
-        id: "fake-user-id",
+        id: "discord_user_01",
         username: "fake-username",
       },
     },
@@ -274,7 +274,7 @@ export const modalSubmitInteraction: APIModalSubmitInteraction = {
         avatar_decoration_data: null,
         discriminator: "0",
         global_name: "fake-user-global-name",
-        id: "fake-user-id",
+        id: "discord_user_01",
         username: "fake-username",
       },
     },

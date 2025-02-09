@@ -17,7 +17,7 @@ import {
   apiMessage,
   channelMessages,
   pingInteraction,
-  buttonClickInteraction,
+  fakeButtonClickInteraction,
   modalSubmitInteraction,
   fakeBaseAPIApplicationCommandInteraction,
 } from "../fakes/data.mjs";
@@ -237,15 +237,15 @@ describe("DiscordService", () => {
           };
           discordService.setCommands(new Map([["btn_yes", command]]));
 
-          const { response, jobToComplete } = discordService.handleInteraction(buttonClickInteraction);
+          const { response, jobToComplete } = discordService.handleInteraction(fakeButtonClickInteraction);
 
-          expect(executeFn).toHaveBeenCalledWith(buttonClickInteraction);
+          expect(executeFn).toHaveBeenCalledWith(fakeButtonClickInteraction);
           expect(await response.text()).toEqual(JSON.stringify({}));
           expect(jobToComplete).toEqual(jobToCompleteFn);
         });
 
         it("returns an error response if no commands are loaded", async () => {
-          const { response } = discordService.handleInteraction(buttonClickInteraction);
+          const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
 
           expect(response.status).toEqual(500);
           expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
@@ -253,7 +253,7 @@ describe("DiscordService", () => {
 
         it("returns an error response if the command is not found", async () => {
           discordService.setCommands(new Map());
-          const { response } = discordService.handleInteraction(buttonClickInteraction);
+          const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
 
           expect(response.status).toEqual(400);
           expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
@@ -262,7 +262,7 @@ describe("DiscordService", () => {
 
       it("returns an error response if the interaction type is not known", async () => {
         const { response } = discordService.handleInteraction({
-          ...buttonClickInteraction,
+          ...fakeButtonClickInteraction,
           data: {
             // eslint-disable-next-line @typescript-eslint/no-deprecated
             component_type: ComponentType.SelectMenu,
@@ -602,23 +602,23 @@ describe("DiscordService", () => {
 
   describe("getDiscordUserId()", () => {
     it("returns id from interaction member user", () => {
-      const id = discordService.getDiscordUserId(buttonClickInteraction);
+      const id = discordService.getDiscordUserId(fakeButtonClickInteraction);
 
-      expect(id).toEqual("fake-user-id");
+      expect(id).toEqual("discord_user_01");
     });
 
     it("returns id from interaction user if no member property on interaction", () => {
-      const cloneInteraction = { ...buttonClickInteraction };
+      const cloneInteraction = { ...fakeButtonClickInteraction };
       cloneInteraction.user = Preconditions.checkExists(cloneInteraction.member).user;
       delete cloneInteraction.member;
 
       const id = discordService.getDiscordUserId(cloneInteraction);
 
-      expect(id).toEqual("fake-user-id");
+      expect(id).toEqual("discord_user_01");
     });
 
     it("throws an error if no member user and no user on interaction", () => {
-      const cloneInteraction = { ...buttonClickInteraction };
+      const cloneInteraction = { ...fakeButtonClickInteraction };
       delete cloneInteraction.member;
       delete cloneInteraction.user;
 

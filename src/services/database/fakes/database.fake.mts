@@ -6,8 +6,8 @@ import { AssociationReason, GamesRetrievable } from "../types/discord_associatio
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   return {
-    DiscordId: "DiscordId",
-    XboxId: "XboxId",
+    DiscordId: "discord_user_01",
+    XboxId: "0000000000001",
     AssociationReason: AssociationReason.USERNAME_SEARCH,
     AssociationDate: new Date("2024-09-01T00:00:00.000Z").getTime(),
     GamesRetrievable: GamesRetrievable.YES,

@@ -61,10 +61,10 @@ describe("Halo service", () => {
     it("short circuits when two users with the same last match are found", async () => {
       infiniteClient.getPlayerMatches.mockClear();
       infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
-        if (xboxUserId === "xuid0000000000001") {
+        if (xboxUserId === "0000000000001") {
           return Promise.resolve(playerMatches);
         }
-        if (xboxUserId === "xuid0000000000003") {
+        if (xboxUserId === "0000000000003") {
           return Promise.resolve(playerMatches.slice(0, 3));
         }
 
@@ -410,7 +410,7 @@ describe("Halo service", () => {
           xlarge: "xlarge0100000000000000.png",
         },
         gamertag: "gamertag0100000000000000",
-        xuid: "xuid0100000000000000",
+        xuid: "0100000000000000",
       });
     });
   });
@@ -466,56 +466,56 @@ describe("Halo service", () => {
           AssociationReason: "U",
           DiscordId: "000000000000000001",
           GamesRetrievable: "Y",
-          XboxId: "xuid0000000000001",
+          XboxId: "0000000000001",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000002",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000002",
+          XboxId: "0000000000002",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000003",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000003",
+          XboxId: "0000000000003",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000004",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000004",
+          XboxId: "0000000000004",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000005",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000005",
+          XboxId: "0000000000005",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000006",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000006",
+          XboxId: "0000000000006",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000007",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000007",
+          XboxId: "0000000000007",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000008",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000008",
+          XboxId: "0000000000008",
         },
       ]);
     });

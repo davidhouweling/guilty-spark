@@ -11,7 +11,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     if (/^discord_user_\d+$/.test(username)) {
       const discriminator = username.slice(-2);
       return Promise.resolve({
-        xuid: "xuid00000000000" + discriminator,
+        xuid: "00000000000" + discriminator,
         gamerpic: {
           small: "small" + discriminator + ".png",
           medium: "medium" + discriminator + ".png",
@@ -25,7 +25,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     if (/^gamertag\d+$/.test(username)) {
       const discriminator = username.slice(8);
       return Promise.resolve({
-        xuid: "xuid" + discriminator,
+        xuid: discriminator,
         gamerpic: {
           small: "small" + discriminator + ".png",
           medium: "medium" + discriminator + ".png",
@@ -36,26 +36,29 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       });
     }
 
-    return Promise.reject(new Error("User not found"));
+    return Promise.reject(new Error(`User not found: ${username}`));
   });
 
   infiniteClient.getUsers.mockImplementation(async (xuids) => {
     return Promise.resolve(
-      xuids.map((xuid) => ({
-        xuid,
-        gamerpic: {
-          small: "small" + xuid + ".png",
-          medium: "medium" + xuid + ".png",
-          large: "large" + xuid + ".png",
-          xlarge: "xlarge" + xuid + ".png",
-        },
-        gamertag: "gamertag" + xuid,
-      })),
+      xuids.map((xuid) => {
+        const discriminator = xuid.startsWith("xuid") ? xuid.slice(4) : xuid;
+        return {
+          xuid: discriminator,
+          gamerpic: {
+            small: "small" + discriminator + ".png",
+            medium: "medium" + discriminator + ".png",
+            large: "large" + discriminator + ".png",
+            xlarge: "xlarge" + discriminator + ".png",
+          },
+          gamertag: "gamertag" + discriminator,
+        };
+      }),
     );
   });
 
   infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
-    if (xboxUserId === "xuid0000000000001") {
+    if (xboxUserId === "0000000000001") {
       return Promise.resolve(playerMatches);
     }
 
