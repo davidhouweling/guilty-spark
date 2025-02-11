@@ -35,4 +35,11 @@ export class DatabaseService {
     const stmt = this.env.DB.prepare(query).bind(...bindings);
     await stmt.run();
   }
+
+  async deleteDiscordAssociations(discordIds: string[]): Promise<void> {
+    const placeholders = discordIds.map(() => "?").join(",");
+    const query = `DELETE FROM DiscordAssociations WHERE DiscordId IN (${placeholders})`;
+    const stmt = this.env.DB.prepare(query).bind(...discordIds);
+    await stmt.run();
+  }
 }

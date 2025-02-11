@@ -1,6 +1,6 @@
 import * as tinyduration from "tinyduration";
-import type { HaloInfiniteClient, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
-import { AssetKind, GameVariantCategory, MatchType } from "halo-infinite-api";
+import type { HaloInfiniteClient, MatchInfo, MatchStats, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
+import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInHours, isBefore } from "date-fns";
 import type { APIUser } from "discord-api-types/v10";
 import type { QueueData } from "../discord/discord.mjs";
@@ -8,6 +8,7 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
+import { UnreachableError } from "../../base/unreachable-error.mjs";
 
 export interface Medal {
   name: string;
@@ -27,7 +28,7 @@ export class HaloService {
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
-  private metadataJsonCache: Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>> | undefined;
+  private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
   constructor({ databaseService, infiniteClient }: HaloServiceOpts) {
     this.databaseService = databaseService;
@@ -77,9 +78,24 @@ export class HaloService {
     );
   }
 
-  async getGameTypeAndMap(match: MatchStats): Promise<string> {
-    const mapName = await this.getMapName(match);
-    return `${this.getMatchVariant(match)}: ${mapName}`;
+  async getGameTypeAndMap(matchInfo: MatchInfo): Promise<string> {
+    const mapName = await this.getMapName(matchInfo);
+    return `${this.getMatchVariant(matchInfo)}: ${mapName}`;
+  }
+
+  getMatchOutcome(outcome: MatchOutcome): "Win" | "Loss" | "Tie" | "DNF" {
+    switch (outcome) {
+      case MatchOutcome.Tie:
+        return "Tie";
+      case MatchOutcome.Win:
+        return "Win";
+      case MatchOutcome.Loss:
+        return "Loss";
+      case MatchOutcome.DidNotFinish:
+        return "DNF";
+      default:
+        throw new UnreachableError(outcome);
+    }
   }
 
   getMatchScore(match: MatchStats, locale: string): string {
@@ -122,13 +138,17 @@ export class HaloService {
       .map((player) => this.getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
     if (xuidsToResolve.length) {
-      const playerNames = await this.infiniteClient.getUsers(xuidsToResolve);
-      for (const player of playerNames) {
-        this.xuidToGamerTagCache.set(player.xuid, player.gamertag);
+      const users = await this.getUsersByXuids(xuidsToResolve);
+      for (const user of users) {
+        this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
       }
     }
 
     return this.xuidToGamerTagCache;
+  }
+
+  async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+    return this.infiniteClient.getUsers(xuids);
   }
 
   getDurationInSeconds(duration: string): number {
@@ -163,10 +183,12 @@ export class HaloService {
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
     if (this.metadataJsonCache == null) {
-      this.metadataJsonCache = await this.infiniteClient.getMedalsMetadataFile();
+      this.metadataJsonCache = this.infiniteClient.getMedalsMetadataFile();
     }
 
-    const medal = this.metadataJsonCache.medals.find(({ nameId }) => nameId === medalId);
+    const metadata = await this.metadataJsonCache;
+
+    const medal = metadata.medals.find(({ nameId }) => nameId === medalId);
 
     if (medal == null) {
       // TODO: work out the medals that are currently unknown, such as the VIP ones
@@ -176,9 +198,39 @@ export class HaloService {
     return {
       name: medal.name.value,
       sortingWeight: medal.sortingWeight,
-      difficulty: Preconditions.checkExists(this.metadataJsonCache.difficulties[medal.difficultyIndex]),
-      type: Preconditions.checkExists(this.metadataJsonCache.types[medal.typeIndex]),
+      difficulty: Preconditions.checkExists(metadata.difficulties[medal.difficultyIndex]),
+      type: Preconditions.checkExists(metadata.types[medal.typeIndex]),
     };
+  }
+
+  async getUserByGamertag(xboxUserId: string): Promise<UserInfo> {
+    return await this.infiniteClient.getUser(xboxUserId);
+  }
+
+  async getRecentMatchHistory(
+    gamertag: string,
+    matchType: MatchType = MatchType.All,
+    count = 10,
+  ): Promise<PlayerMatchHistory[]> {
+    let user: UserInfo;
+
+    try {
+      user = await this.getUserByGamertag(gamertag);
+    } catch (error) {
+      if (error instanceof RequestError && error.response.status === 400) {
+        throw new Error(`No user found with gamertag "${gamertag}"`);
+      }
+
+      throw error;
+    }
+
+    try {
+      return await this.infiniteClient.getPlayerMatches(user.xuid, matchType, count);
+    } catch (error) {
+      console.error(error);
+
+      throw new Error("Unable to retrieve match history");
+    }
   }
 
   async updateDiscordAssociations(): Promise<void> {
@@ -193,7 +245,7 @@ export class HaloService {
 
     let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      unresolvedUsers.map(async (user) => this.infiniteClient.getUser(user.username)),
+      unresolvedUsers.map(async (user) => this.getUserByGamertag(user.username)),
     );
     for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
       if (result.status === "fulfilled") {
@@ -212,7 +264,7 @@ export class HaloService {
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) =>
         user.global_name != null && user.global_name !== ""
-          ? this.infiniteClient.getUser(user.global_name)
+          ? this.getUserByGamertag(user.global_name)
           : Promise.reject(new Error("No global name")),
       ),
     );
@@ -316,8 +368,8 @@ export class HaloService {
     });
   }
 
-  private async getMapName(match: MatchStats): Promise<string> {
-    const { AssetId, VersionId } = match.MatchInfo.MapVariant;
+  private async getMapName(matchInfo: MatchInfo): Promise<string> {
+    const { AssetId, VersionId } = matchInfo.MapVariant;
     const cacheKey = `${AssetId}:${VersionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
@@ -328,8 +380,8 @@ export class HaloService {
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
-  private getMatchVariant(match: MatchStats): string {
-    switch (match.MatchInfo.GameVariantCategory) {
+  private getMatchVariant(matchInfo: MatchInfo): string {
+    switch (matchInfo.GameVariantCategory) {
       case GameVariantCategory.MultiplayerAttrition:
         return "Attrition";
       case GameVariantCategory.MultiplayerCtf:

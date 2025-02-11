@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`StatsCommand > execute() > match > jobToComplete > calls discordService.updateDeferredReply with match embeds 1`] = `
+exports[`StatsCommand > execute(): subcommand match > jobToComplete > calls discordService.updateDeferredReply with match embeds 1`] = `
 [
   "fake-token",
   {
@@ -223,7 +223,7 @@ Carriers killed: __**1**__
 ]
 `;
 
-exports[`StatsCommand > execute() > neatqueue > jobToComplete > adds each game and series summary to the thread 1`] = `
+exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > adds each game and series summary to the thread 1`] = `
 [
   [
     "fake-thread-id",
@@ -1145,7 +1145,7 @@ Av damage/life: 660.17
 ]
 `;
 
-exports[`StatsCommand > execute() > neatqueue > jobToComplete > calls discordService.updateDeferredReply with series embeds 1`] = `
+exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls discordService.updateDeferredReply with series embeds 1`] = `
 [
   "fake-token",
   {
@@ -1180,7 +1180,7 @@ Land Grab: Fake name for asset a778ae21-a8ae-4569-acb5-898efbd4b3f3",
           },
         ],
         "title": "Series stats for queue #5",
-        "url": "https://discord.com/channels/1238795949266964560/1234567890/1310523001611096064",
+        "url": "https://discord.com/channels/fake-guild-id/1234567890/1310523001611096064",
       },
     ],
   },

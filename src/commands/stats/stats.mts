@@ -1,8 +1,8 @@
 import type {
-  APIApplicationCommand,
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIEmbed,
+  APIInteractionResponseDeferredChannelMessageWithSource,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -12,7 +12,7 @@ import {
 } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
-import type { ExecuteResponse } from "../base/base.mjs";
+import type { ApplicationCommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { QueueData } from "../../services/discord/discord.mjs";
@@ -39,7 +39,7 @@ import { VIPMatchEmbed } from "./embeds/vip-match-embed.mjs";
 import { SeriesMatchesEmbed } from "./embeds/series-matches-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
-  data: Omit<APIApplicationCommand, "id" | "application_id" | "default_member_permissions" | "version"> = {
+  data: ApplicationCommandData = {
     type: ApplicationCommandType.ChatInput,
     name: "stats",
     description: "Pulls stats from Halo waypoint",
@@ -129,14 +129,19 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const { discordService } = this.services;
-
     const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
     const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
 
     return {
-      response: discordService.getAcknowledgeResponse(ephemeral),
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data,
+      },
       jobToComplete: async () => this.neatQueueSubCommandJob(interaction, channel, queue),
     };
   }
@@ -210,13 +215,18 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const { discordService } = this.services;
-
     const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
     const ephemeral = (options.get("private") as boolean | undefined) ?? false;
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
+    if (ephemeral) {
+      data.flags = MessageFlags.Ephemeral;
+    }
 
     return {
-      response: discordService.getAcknowledgeResponse(ephemeral),
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data,
+      },
       jobToComplete: async () => this.matchSubCommandJob(interaction, matchId),
     };
   }
@@ -283,11 +293,11 @@ export class StatsCommand extends BaseCommand {
     queueData: QueueData;
     series: MatchStats[];
   }): Promise<APIEmbed> {
-    const { haloService } = this.services;
+    const { discordService, haloService } = this.services;
     const titles = ["Game", "Duration", `Score${queueData.teams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     for (const seriesMatch of series) {
-      const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch);
+      const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
       const gameScore = haloService.getMatchScore(seriesMatch, locale);
 
@@ -298,15 +308,13 @@ export class StatsCommand extends BaseCommand {
     const teams = queueData.teams
       .map((team) => `**${team.name}:** ${team.players.map((player) => `<@${player.id}>`).join(" ")}`)
       .join("\n");
-    const startUnixTime = Math.floor(
-      new Date(Preconditions.checkExists(series[0]?.MatchInfo.StartTime)).getTime() / 1000,
-    );
-    const endUnixTime = Math.floor(
-      new Date(Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime)).getTime() / 1000,
+    const startTime = discordService.getTimestamp(Preconditions.checkExists(series[0]?.MatchInfo.StartTime));
+    const endTime = discordService.getTimestamp(
+      Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime),
     );
     const embed: APIEmbed = {
       title: `Series stats for queue #${queue.toLocaleString(locale)}`,
-      description: `${teams}\n\n-# Start time: <t:${startUnixTime.toString()}:f> | End time: <t:${endUnixTime.toString()}:f>`,
+      description: `${teams}\n\n-# Start time: ${startTime} | End time: ${endTime}`,
       url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
       color: 3447003,
     };

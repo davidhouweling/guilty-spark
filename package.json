@@ -21,7 +21,7 @@
     "postinstall": "patch-package",
     "start": "wrangler dev",
     "ngrok": "ngrok http 8787",
-    "register": "npx tsx --env-file=.dev.vars src/deploy-commands.mts",
+    "register": "npx tsx --env-file=.dev.vars scripts/deploy-commands.mts",
     "test": "vitest",
     "test:update-snapshot": "vitest -u",
     "test:coverage": "vitest --coverage.enabled true",

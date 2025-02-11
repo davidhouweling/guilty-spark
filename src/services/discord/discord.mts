@@ -1,11 +1,13 @@
+import { inspect } from "node:util";
 import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
   APIInteraction,
-  APIInteractionResponse,
   APIMessage,
+  APIMessageComponentButtonInteraction,
+  APIModalSubmitInteraction,
   APIUser,
   RESTGetAPIUserResult,
   RESTGetAPIWebhookWithTokenMessageResult,
@@ -17,15 +19,17 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
+  ComponentType,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
-  MessageFlags,
   Routes,
 } from "discord-api-types/v10";
-import type { BaseCommand } from "../../commands/base/base.mjs";
+import type { BaseCommand, BaseInteraction } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { AssociationReason } from "../database/types/discord_associations.mjs";
+import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
@@ -56,6 +60,11 @@ type VerifyDiscordResponse =
   | { isValid: boolean; interaction?: never; error?: never }
   | { interaction: APIInteraction; isValid: boolean; error?: never }
   | { isValid: boolean; error: string; interaction?: never };
+
+interface InteractionResponse {
+  response: JsonResponse;
+  jobToComplete?: (() => Promise<void>) | undefined;
+}
 
 /**
  * Rate limit information for a specific path
@@ -134,10 +143,9 @@ export class DiscordService {
     }
   }
 
-  handleInteraction(interaction: APIInteraction): {
-    response: JsonResponse;
-    jobToComplete?: (() => Promise<void>) | undefined;
-  } {
+  handleInteraction(interaction: APIInteraction): InteractionResponse {
+    console.log(inspect(interaction, { depth: null, colors: true }));
+
     switch (interaction.type) {
       case InteractionType.Ping: {
         return {
@@ -147,33 +155,25 @@ export class DiscordService {
         };
       }
       case InteractionType.ApplicationCommand: {
-        if (!this.commands) {
-          console.error("No commands found");
-
-          return {
-            response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
-          };
+        return this.getCommandToExecute(interaction.data.name, interaction);
+      }
+      case InteractionType.MessageComponent: {
+        if (interaction.data.component_type === ComponentType.Button) {
+          return this.getCommandToExecute(
+            interaction.data.custom_id,
+            interaction as APIMessageComponentButtonInteraction,
+          );
         }
-
-        const command = this.commands.get(interaction.data.name);
-        if (!command) {
-          console.warn("Command not found");
-
-          return {
-            response: new JsonResponse({ error: "Command not found" }, { status: 400 }),
-          };
-        }
-
-        const { response, jobToComplete } = command.execute(interaction);
+        console.warn("Unknown interaction type");
 
         return {
-          response: new JsonResponse(response),
-          jobToComplete,
+          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
         };
       }
-      case InteractionType.MessageComponent:
+      case InteractionType.ModalSubmit: {
+        return this.getCommandToExecute(interaction.data.custom_id, interaction);
+      }
       case InteractionType.ApplicationCommandAutocomplete:
-      case InteractionType.ModalSubmit:
       default: {
         console.warn("Unknown interaction type");
 
@@ -182,6 +182,32 @@ export class DiscordService {
         };
       }
     }
+  }
+
+  private getCommandToExecute(name: string, interaction: BaseInteraction): InteractionResponse {
+    if (!this.commands) {
+      console.error("No commands found");
+
+      return {
+        response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
+      };
+    }
+
+    const command = this.commands.get(name);
+    if (!command) {
+      console.warn("Command not found");
+
+      return {
+        response: new JsonResponse({ error: "Command not found" }, { status: 400 }),
+      };
+    }
+
+    const { response, jobToComplete } = command.execute(interaction);
+
+    return {
+      response: new JsonResponse(response),
+      jobToComplete,
+    };
   }
 
   extractSubcommand(interaction: APIApplicationCommandInteraction, name: string): SubcommandData {
@@ -206,6 +232,16 @@ export class DiscordService {
         return acc;
       }, new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>()),
     };
+  }
+
+  extractModalSubmitData(interaction: APIModalSubmitInteraction): Map<string, string> {
+    const data = new Map<string, string>();
+    for (const component of interaction.data.components) {
+      for (const subComponent of component.components) {
+        data.set(subComponent.custom_id, subComponent.value);
+      }
+    }
+    return data;
   }
 
   async getTeamsFromQueue(channel: string, queue: number): Promise<QueueData | null> {
@@ -241,15 +277,6 @@ export class DiscordService {
         players: this.extractUserIds(field.value).map((id) => Preconditions.checkExists(playerIdToUserMap.get(id))),
       })),
     };
-  }
-
-  getAcknowledgeResponse(ephemeral = false): APIInteractionResponse {
-    const data: { flags?: MessageFlags } = {};
-    if (ephemeral) {
-      data.flags = MessageFlags.Ephemeral;
-    }
-
-    return { type: InteractionResponseType.DeferredChannelMessageWithSource, data };
   }
 
   async updateDeferredReply(
@@ -300,6 +327,10 @@ export class DiscordService {
     });
   }
 
+  getDiscordUserId(interaction: BaseInteraction): string {
+    return Preconditions.checkExists(interaction.member?.user ?? interaction.user, "No user found on interaction").id;
+  }
+
   getEmojiFromName(name: string): string {
     const appEmojiName = name.replace(/[^a-z0-9]/gi, "");
     const emojiId = Preconditions.checkExists(
@@ -308,6 +339,38 @@ export class DiscordService {
     );
 
     return `<:${appEmojiName}:${emojiId}>`;
+  }
+
+  getTimestamp(isoDate: string): string {
+    const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
+
+    return `<t:${unixTime.toString()}:f>`;
+  }
+
+  getReadableAssociationReason(associationReason: AssociationReason): string {
+    switch (associationReason) {
+      case AssociationReason.CONNECTED: {
+        return "Connected Halo account";
+      }
+      case AssociationReason.MANUAL: {
+        return "Manually claimed Halo account";
+      }
+      case AssociationReason.USERNAME_SEARCH: {
+        return "Matched Discord Username to Halo account";
+      }
+      case AssociationReason.DISPLAY_NAME_SEARCH: {
+        return "Matched Discord Display Name to Halo account";
+      }
+      case AssociationReason.GAME_SIMILARITY: {
+        return "Fuzzy matched Discord Username / Display name from a previous series";
+      }
+      case AssociationReason.UNKNOWN: {
+        return "Unknown";
+      }
+      default: {
+        throw new UnreachableError(associationReason);
+      }
+    }
   }
 
   private async fetch<T>(
@@ -363,6 +426,7 @@ export class DiscordService {
         }
       }
 
+      console.warn(response);
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 

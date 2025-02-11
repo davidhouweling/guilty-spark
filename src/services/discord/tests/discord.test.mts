@@ -1,27 +1,60 @@
 import type { Mock, MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
-import type { APIInteraction, APIUser } from "discord-api-types/v10";
+import type { APIApplicationCommandInteraction, APIInteraction, APIUser } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  ComponentType,
   InteractionResponseType,
   InteractionType,
-  MessageFlags,
+  Locale,
 } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import {
   apiMessage,
-  applicationCommandInteractionStatsMatch,
   channelMessages,
   pingInteraction,
+  fakeButtonClickInteraction,
+  modalSubmitInteraction,
+  fakeBaseAPIApplicationCommandInteraction,
 } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import type { BaseCommand } from "../../../commands/base/base.mjs";
 import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { AssociationReason } from "../../database/types/discord_associations.mjs";
+
+const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  guild: {
+    features: [],
+    id: "1238795949266964560",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "1238795949266964560",
+  data: {
+    id: "1300004385459408960",
+    name: "stats",
+    options: [
+      {
+        name: "match",
+        options: [
+          {
+            name: "id",
+            type: ApplicationCommandOptionType.String,
+            value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+          },
+        ],
+        type: 1,
+      },
+    ],
+    type: 1,
+  },
+};
 
 describe("DiscordService", () => {
   let env: Env;
@@ -186,14 +219,107 @@ describe("DiscordService", () => {
       });
     });
 
-    describe.each([
-      ["InteractionType.MessageComponent", InteractionType.MessageComponent],
-      ["InteractionType.ApplicationCommandAutocomplete", InteractionType.ApplicationCommandAutocomplete],
-      ["InteractionType.ModalSubmit", InteractionType.ModalSubmit],
-    ])("%s", (_, interactionType) => {
+    describe("InteractionType.MessageComponent", () => {
+      describe("ComponentType.Button", () => {
+        it("executes the command and returns the response and jobToComplete", async () => {
+          const jobToCompleteFn = vi.fn().mockResolvedValue(undefined);
+          const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
+          const command: BaseCommand = {
+            services: {} as Services,
+            data: {
+              type: InteractionType.MessageComponent,
+              data: {
+                component_type: ComponentType.Button,
+                custom_id: "btn_yes",
+              },
+            },
+            execute: executeFn,
+          };
+          discordService.setCommands(new Map([["btn_yes", command]]));
+
+          const { response, jobToComplete } = discordService.handleInteraction(fakeButtonClickInteraction);
+
+          expect(executeFn).toHaveBeenCalledWith(fakeButtonClickInteraction);
+          expect(await response.text()).toEqual(JSON.stringify({}));
+          expect(jobToComplete).toEqual(jobToCompleteFn);
+        });
+
+        it("returns an error response if no commands are loaded", async () => {
+          const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
+
+          expect(response.status).toEqual(500);
+          expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
+        });
+
+        it("returns an error response if the command is not found", async () => {
+          discordService.setCommands(new Map());
+          const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
+
+          expect(response.status).toEqual(400);
+          expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
+        });
+      });
+
+      it("returns an error response if the interaction type is not known", async () => {
+        const { response } = discordService.handleInteraction({
+          ...fakeButtonClickInteraction,
+          data: {
+            // eslint-disable-next-line @typescript-eslint/no-deprecated
+            component_type: ComponentType.SelectMenu,
+            custom_id: "select_menu",
+            values: [],
+          },
+        });
+
+        expect(response.status).toEqual(400);
+        expect(await response.text()).toEqual(JSON.stringify({ error: "Unknown interaction type" }));
+      });
+    });
+
+    describe("InteractionType.ModalSubmit", () => {
+      it("executes the command and returns the response and jobToComplete", async () => {
+        const jobToCompleteFn = vi.fn().mockResolvedValue(undefined);
+        const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
+        const command: BaseCommand = {
+          services: {} as Services,
+          data: {
+            type: InteractionType.ModalSubmit,
+            data: {
+              components: [],
+              custom_id: "text_input",
+            },
+          },
+          execute: executeFn,
+        };
+        discordService.setCommands(new Map([["text_input_modal", command]]));
+
+        const { response, jobToComplete } = discordService.handleInteraction(modalSubmitInteraction);
+
+        expect(executeFn).toHaveBeenCalledWith(modalSubmitInteraction);
+        expect(await response.text()).toEqual(JSON.stringify({}));
+        expect(jobToComplete).toEqual(jobToCompleteFn);
+      });
+
+      it("returns an error response if no commands are loaded", async () => {
+        const { response } = discordService.handleInteraction(modalSubmitInteraction);
+
+        expect(response.status).toEqual(500);
+        expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
+      });
+
+      it("returns an error response if the command is not found", async () => {
+        discordService.setCommands(new Map());
+        const { response } = discordService.handleInteraction(modalSubmitInteraction);
+
+        expect(response.status).toEqual(400);
+        expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
+      });
+    });
+
+    describe("InteractionType.ApplicationCommandAutocomplete", () => {
       it("returns an error response", async () => {
         const { response } = discordService.handleInteraction({
-          type: interactionType,
+          type: InteractionType.ApplicationCommandAutocomplete,
         } as APIInteraction);
 
         expect(response.status).toEqual(400);
@@ -260,6 +386,14 @@ describe("DiscordService", () => {
           applicationCommandInteractionStatsMatch.data.name,
         ),
       ).toThrow("No subcommand found");
+    });
+  });
+
+  describe("extractModalSubmitData()", () => {
+    it("returns a map of the modal submit data", () => {
+      const data = discordService.extractModalSubmitData(modalSubmitInteraction);
+
+      expect(data).toEqual(new Map([["text_input", "Hello!"]]));
     });
   });
 
@@ -358,28 +492,6 @@ describe("DiscordService", () => {
       const result = await discordService.getTeamsFromQueue("fake-channel", 1000);
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe("getAcknowledgeResponse()", () => {
-    it("returns an ephemeral response", () => {
-      const response = discordService.getAcknowledgeResponse(true);
-
-      expect(response).toEqual({
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data: {
-          flags: MessageFlags.Ephemeral,
-        },
-      });
-    });
-
-    it("returns a public response", () => {
-      const response = discordService.getAcknowledgeResponse();
-
-      expect(response).toEqual({
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data: {},
-      });
     });
   });
 
@@ -485,6 +597,88 @@ describe("DiscordService", () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
       ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+    });
+  });
+
+  describe("getDiscordUserId()", () => {
+    it("returns id from interaction member user", () => {
+      const id = discordService.getDiscordUserId(fakeButtonClickInteraction);
+
+      expect(id).toEqual("discord_user_01");
+    });
+
+    it("returns id from interaction user if no member property on interaction", () => {
+      const cloneInteraction = { ...fakeButtonClickInteraction };
+      cloneInteraction.user = Preconditions.checkExists(cloneInteraction.member).user;
+      delete cloneInteraction.member;
+
+      const id = discordService.getDiscordUserId(cloneInteraction);
+
+      expect(id).toEqual("discord_user_01");
+    });
+
+    it("throws an error if no member user and no user on interaction", () => {
+      const cloneInteraction = { ...fakeButtonClickInteraction };
+      delete cloneInteraction.member;
+      delete cloneInteraction.user;
+
+      expect(() => discordService.getDiscordUserId(cloneInteraction)).toThrow("No user found on interaction");
+    });
+  });
+
+  describe("getEmojiFromName()", () => {
+    it.each([
+      ["KillingSpree", "<:KillingSpree:1322803050347499541>"],
+      ["Killionaire", "<:Killionaire:1322814735539896423>"],
+      ["Counter-snipe", "<:Countersnipe:1322885512209633320>"],
+      ["Hold This", "<:HoldThis:1322884625739026463>"],
+    ])("%s -> %s", (name, expected) => {
+      expect(discordService.getEmojiFromName(name)).toEqual(expected);
+    });
+  });
+
+  describe("getTimestamp()", () => {
+    it("returns a discord formatted timestamp", () => {
+      const timestamp = discordService.getTimestamp("2024-12-06T11:05:39.576Z");
+
+      expect(timestamp).toEqual("<t:1733483139:f>");
+    });
+  });
+
+  describe("getReadableAssociationReason()", () => {
+    it.each([
+      {
+        reason: AssociationReason.CONNECTED,
+        reasonString: "AssociationReason.CONNECTED",
+        expected: "Connected Halo account",
+      },
+      {
+        reason: AssociationReason.MANUAL,
+        reasonString: "AssociationReason.MANUAL",
+        expected: "Manually claimed Halo account",
+      },
+      {
+        reason: AssociationReason.USERNAME_SEARCH,
+        reasonString: "AssociationReason.USERNAME_SEARCH",
+        expected: "Matched Discord Username to Halo account",
+      },
+      {
+        reason: AssociationReason.DISPLAY_NAME_SEARCH,
+        reasonString: "AssociationReason.DISPLAY_NAME_SEARCH",
+        expected: "Matched Discord Display Name to Halo account",
+      },
+      {
+        reason: AssociationReason.GAME_SIMILARITY,
+        reasonString: "AssociationReason.GAME_SIMILARITY",
+        expected: "Fuzzy matched Discord Username / Display name from a previous series",
+      },
+      {
+        reason: AssociationReason.UNKNOWN,
+        reasonString: "AssociationReason.UNKNOWN",
+        expected: "Unknown",
+      },
+    ])("$reasonString -> $expected", ({ reason, expected }) => {
+      expect(discordService.getReadableAssociationReason(reason)).toEqual(expected);
     });
   });
 

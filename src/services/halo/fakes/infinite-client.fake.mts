@@ -1,5 +1,5 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { AssetKind, MatchType } from "halo-infinite-api";
+import { AssetKind } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { assetVersion, matchStats, medalsMetadata, playerMatches } from "./data.mjs";
@@ -11,7 +11,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     if (/^discord_user_\d+$/.test(username)) {
       const discriminator = username.slice(-2);
       return Promise.resolve({
-        xuid: "xuid00000000000" + discriminator,
+        xuid: "00000000000" + discriminator,
         gamerpic: {
           small: "small" + discriminator + ".png",
           medium: "medium" + discriminator + ".png",
@@ -22,34 +22,47 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       });
     }
 
-    return Promise.reject(new Error("User not found"));
+    if (/^gamertag\d+$/.test(username)) {
+      const discriminator = username.slice(8);
+      return Promise.resolve({
+        xuid: discriminator,
+        gamerpic: {
+          small: "small" + discriminator + ".png",
+          medium: "medium" + discriminator + ".png",
+          large: "large" + discriminator + ".png",
+          xlarge: "xlarge" + discriminator + ".png",
+        },
+        gamertag: username,
+      });
+    }
+
+    return Promise.reject(new Error(`User not found: ${username}`));
   });
 
   infiniteClient.getUsers.mockImplementation(async (xuids) => {
     return Promise.resolve(
-      xuids.map((xuid) => ({
-        xuid,
-        gamerpic: {
-          small: "small" + xuid + ".png",
-          medium: "medium" + xuid + ".png",
-          large: "large" + xuid + ".png",
-          xlarge: "xlarge" + xuid + ".png",
-        },
-        gamertag: "gamertag" + xuid,
-      })),
+      xuids.map((xuid) => {
+        const discriminator = xuid.startsWith("xuid") ? xuid.slice(4) : xuid;
+        return {
+          xuid: discriminator,
+          gamerpic: {
+            small: "small" + discriminator + ".png",
+            medium: "medium" + discriminator + ".png",
+            large: "large" + discriminator + ".png",
+            xlarge: "xlarge" + discriminator + ".png",
+          },
+          gamertag: "gamertag" + discriminator,
+        };
+      }),
     );
   });
 
-  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, gameType) => {
-    if (gameType !== MatchType.Custom) {
-      return Promise.reject(new Error("Only custom games are supported"));
+  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
+    if (xboxUserId === "0000000000001") {
+      return Promise.resolve(playerMatches);
     }
 
-    if (xboxUserId === "xuid0000000000001") {
-      return playerMatches;
-    }
-
-    return [];
+    return Promise.resolve([]);
   });
 
   infiniteClient.getMatchStats.mockImplementation(async (matchId) => {

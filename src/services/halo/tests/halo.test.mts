@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import type { HaloInfiniteClient } from "halo-infinite-api";
+import { MatchOutcome, RequestError, type HaloInfiniteClient } from "halo-infinite-api";
 import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -61,10 +61,10 @@ describe("Halo service", () => {
     it("short circuits when two users with the same last match are found", async () => {
       infiniteClient.getPlayerMatches.mockClear();
       infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
-        if (xboxUserId === "xuid0000000000001") {
+        if (xboxUserId === "0000000000001") {
           return Promise.resolve(playerMatches);
         }
-        if (xboxUserId === "xuid0000000000003") {
+        if (xboxUserId === "0000000000003") {
           return Promise.resolve(playerMatches.slice(0, 3));
         }
 
@@ -155,7 +155,9 @@ describe("Halo service", () => {
     it.each([{ matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", gameTypeAndMap: "CTF: Empyrean - Ranked" }])(
       "returns the game type and map for match $matchId",
       async ({ matchId, gameTypeAndMap }) => {
-        const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)));
+        const result = await haloService.getGameTypeAndMap(
+          Preconditions.checkExists(matchStats.get(matchId)).MatchInfo,
+        );
 
         expect(result).toBe(gameTypeAndMap);
       },
@@ -163,10 +165,23 @@ describe("Halo service", () => {
 
     it("caches the asset data for the map", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      await haloService.getGameTypeAndMap(match);
-      await haloService.getGameTypeAndMap(match);
+      await haloService.getGameTypeAndMap(match.MatchInfo);
+      await haloService.getGameTypeAndMap(match.MatchInfo);
 
       expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getMatchOutcome()", () => {
+    it.each([
+      [MatchOutcome.Tie, "Tie"],
+      [MatchOutcome.Win, "Win"],
+      [MatchOutcome.Loss, "Loss"],
+      [MatchOutcome.DidNotFinish, "DNF"],
+    ])("returns the outcome for outcome %s", (outcome, expectedOutcome) => {
+      const result = haloService.getMatchOutcome(outcome);
+
+      expect(result).toBe(expectedOutcome);
     });
   });
 
@@ -280,6 +295,48 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getUsersByXuids()", () => {
+    it("calls infiniteClient.getUsers and returns the UserInfo for the given xuids", async () => {
+      const xuids = ["0100000000000000", "0200000000000000", "0500000000000000"];
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(infiniteClient.getUsers).toHaveBeenCalledTimes(1);
+      expect(infiniteClient.getUsers).toHaveBeenCalledWith(xuids);
+      expect(result).toEqual([
+        {
+          gamerpic: {
+            large: "large0100000000000000.png",
+            medium: "medium0100000000000000.png",
+            small: "small0100000000000000.png",
+            xlarge: "xlarge0100000000000000.png",
+          },
+          gamertag: "gamertag0100000000000000",
+          xuid: "0100000000000000",
+        },
+        {
+          gamerpic: {
+            large: "large0200000000000000.png",
+            medium: "medium0200000000000000.png",
+            small: "small0200000000000000.png",
+            xlarge: "xlarge0200000000000000.png",
+          },
+          gamertag: "gamertag0200000000000000",
+          xuid: "0200000000000000",
+        },
+        {
+          gamerpic: {
+            large: "large0500000000000000.png",
+            medium: "medium0500000000000000.png",
+            small: "small0500000000000000.png",
+            xlarge: "xlarge0500000000000000.png",
+          },
+          gamertag: "gamertag0500000000000000",
+          xuid: "0500000000000000",
+        },
+      ]);
+    });
+  });
+
   describe("getDurationInSeconds()", () => {
     it("returns the duration in seconds", () => {
       const duration = "PT10M58.2413691S";
@@ -312,6 +369,90 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getMedal()", () => {
+    it("returns the medal for the specified medalId", async () => {
+      const result = await haloService.getMedal(3334154676);
+
+      expect(result).toEqual({
+        difficulty: "normal",
+        name: "Guardian Angel",
+        sortingWeight: 50,
+        type: "skill",
+      });
+    });
+
+    it("caches the medal data so that it only calls infinite api once", async () => {
+      const getMedalsMetadataFileSpy = vi.spyOn(infiniteClient, "getMedalsMetadataFile");
+      const cleanHaloService = new HaloService({ databaseService, infiniteClient });
+
+      await cleanHaloService.getMedal(3334154676);
+      await cleanHaloService.getMedal(3334154676);
+
+      expect(getMedalsMetadataFileSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns undefined if the medalId is not found", async () => {
+      const result = await haloService.getMedal(0);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("getUserByGamertag()", () => {
+    it("returns the user for the specified gamertag", async () => {
+      const result = await haloService.getUserByGamertag("gamertag0100000000000000");
+
+      expect(result).toEqual({
+        gamerpic: {
+          large: "large0100000000000000.png",
+          medium: "medium0100000000000000.png",
+          small: "small0100000000000000.png",
+          xlarge: "xlarge0100000000000000.png",
+        },
+        gamertag: "gamertag0100000000000000",
+        xuid: "0100000000000000",
+      });
+    });
+  });
+
+  describe("getRecentMatchHistory()", () => {
+    it("returns the recent match history for the specified user", async () => {
+      const result = await haloService.getRecentMatchHistory("gamertag0000000000001");
+
+      expect(result.map((r) => r.MatchId)).toEqual([
+        "9535b946-f30c-4a43-b852-000000slayer",
+        "e20900f9-4c6c-4003-a175-00000000koth",
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "099deb74-3f60-48cf-8784-0strongholds",
+        "cf0fb794-2df1-4ba1-9415-00000oddball",
+      ]);
+    });
+
+    it("returns an empty array if no matches are found", async () => {
+      const result = await haloService.getRecentMatchHistory("gamertag0000000000002");
+
+      expect(result).toEqual([]);
+    });
+
+    it("throws if the user is not found", async () => {
+      const gamertag = "gamertag0000000000002";
+      const response = new Response("", { status: 400, statusText: "Bad Request" });
+
+      infiniteClient.getUser.mockRejectedValue(new RequestError(new URL("https://example.com"), response));
+
+      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrow(
+        `No user found with gamertag "${gamertag}"`,
+      );
+    });
+
+    it("throws error if infiniteClient.getPlayerMatches throws error", async () => {
+      const gamertag = "gamertag0000000000001";
+      infiniteClient.getPlayerMatches.mockRejectedValue(new Error("Error"));
+
+      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrow("Unable to retrieve match history");
+    });
+  });
+
   describe("updateDiscordAssociations()", () => {
     it("updates the discord associations with the user cache", async () => {
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
@@ -325,56 +466,56 @@ describe("Halo service", () => {
           AssociationReason: "U",
           DiscordId: "000000000000000001",
           GamesRetrievable: "Y",
-          XboxId: "xuid0000000000001",
+          XboxId: "0000000000001",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000002",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000002",
+          XboxId: "0000000000002",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000003",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000003",
+          XboxId: "0000000000003",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000004",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000004",
+          XboxId: "0000000000004",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000005",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000005",
+          XboxId: "0000000000005",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000006",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000006",
+          XboxId: "0000000000006",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000007",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000007",
+          XboxId: "0000000000007",
         },
         {
           AssociationDate: 1732622400000,
           AssociationReason: "U",
           DiscordId: "000000000000000008",
           GamesRetrievable: "N",
-          XboxId: "xuid0000000000008",
+          XboxId: "0000000000008",
         },
       ]);
     });
