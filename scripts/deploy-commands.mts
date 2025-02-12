@@ -1,9 +1,10 @@
 import "dotenv/config";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
-import { APIVersion, Routes } from "discord-api-types/v10";
+import { APIVersion, ApplicationCommandType, Routes } from "discord-api-types/v10";
 import { getCommands } from "../src/commands/commands.mjs";
 import type { Services } from "../src/services/install.mjs";
 import { Preconditions } from "../src/base/preconditions.mjs";
+import type { ApplicationCommandData } from "../src/commands/base/base.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {
   DISCORD_APP_ID: Preconditions.checkExists(process.env["DISCORD_APP_ID"], "DISCORD_APP_ID"),
@@ -19,6 +20,21 @@ const url = new URL(`/api/v${APIVersion}${Routes.applicationCommands(env.DISCORD
 
 console.log("URL:", url.toString());
 
+const commandsToDeployMap = new Map<string, ApplicationCommandData>(
+  [...commands.values()]
+    .flatMap(({ data }) => data)
+    .map((data) => {
+      if (data.type === ApplicationCommandType.ChatInput) {
+        return [data.name, data] as const;
+      }
+      return undefined;
+    })
+    .filter((command) => command !== undefined),
+);
+const commandsToDeploy = Array.from(commandsToDeployMap.values());
+
+console.log("Commands to deploy:", commandsToDeploy);
+
 // The put method is used to fully refresh all commands in the guild with the current set
 const response = await fetch(url, {
   method: "PUT",
@@ -26,7 +42,7 @@ const response = await fetch(url, {
     Authorization: `Bot ${env.DISCORD_TOKEN}`,
     "content-type": "application/json;charset=UTF-8",
   },
-  body: JSON.stringify([...commands.values()].map(({ data }) => data)),
+  body: JSON.stringify(commandsToDeploy),
 });
 
 console.log(`Refreshed commands with status ${response.status.toString()}`);
