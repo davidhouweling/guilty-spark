@@ -296,7 +296,6 @@ export class HaloService {
 
   private async getMatchesForUsers(users: DiscordAssociationsRow[], endDate: Date): Promise<string[]> {
     const userMatches = new Map<string, PlayerMatchHistory[]>();
-    const matches: PlayerMatchHistory[] = [];
 
     for (const user of users) {
       const playerMatches = await this.getPlayerMatches(user.XboxId, endDate);
@@ -310,60 +309,55 @@ export class HaloService {
       }
 
       userMatches.set(user.DiscordId, playerMatches);
-
-      // ideal: if we have at least 2 users with the same last match, then we can assume that this is the series
-      if (userMatches.size >= 2) {
-        const lastMatch = Preconditions.checkExists(playerMatches[0]);
-        const otherUsersWithSameLastMatch = Array.from(userMatches.entries()).filter(
-          ([, otherMatches]) => Preconditions.checkExists(otherMatches[0]).MatchId === lastMatch.MatchId,
-        );
-        if (otherUsersWithSameLastMatch.length) {
-          for (const [discordId] of otherUsersWithSameLastMatch) {
-            this.userCache.set(discordId, {
-              ...Preconditions.checkExists(this.userCache.get(discordId)),
-              AssociationDate: new Date().getTime(),
-              GamesRetrievable: GamesRetrievable.YES,
-            });
-          }
-          this.userCache.set(user.DiscordId, {
-            ...user,
-            AssociationDate: new Date().getTime(),
-            GamesRetrievable: GamesRetrievable.YES,
-          });
-          matches.push(...playerMatches);
-
-          break;
-        }
-      }
     }
 
-    // if no matching matches but at least one user has matches, then we can assume the series from that one user
-    if (!matches.length && userMatches.size) {
-      const [discordId, playerMatches] = Preconditions.checkExists(userMatches.entries().next().value);
-      this.userCache.set(discordId, {
-        ...Preconditions.checkExists(this.userCache.get(discordId)),
-        AssociationDate: new Date().getTime(),
-        GamesRetrievable: GamesRetrievable.YES,
-      });
-      matches.push(...playerMatches);
-    }
-
-    if (!matches.length) {
+    if (!userMatches.size) {
       throw new Error(
         "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
       );
     }
 
-    return matches.map((match) => match.MatchId);
+    // Get first player's matches as initial set
+    const [firstPlayer, ...remainingPlayers] = Array.from(userMatches.entries());
+    const [firstPlayerDiscordId, firstPlayerMatches] = Preconditions.checkExists(firstPlayer);
+    const seriesMatches = new Set(firstPlayerMatches.map((match) => match.MatchId));
+
+    // Update user cache and filter matches
+    this.userCache.set(firstPlayerDiscordId, {
+      ...Preconditions.checkExists(this.userCache.get(firstPlayerDiscordId)),
+      AssociationDate: new Date().getTime(),
+      GamesRetrievable: GamesRetrievable.YES,
+    });
+
+    // Intersect with remaining players' matches
+    for (const [discordId, playerMatches] of remainingPlayers) {
+      this.userCache.set(discordId, {
+        ...Preconditions.checkExists(this.userCache.get(discordId)),
+        AssociationDate: new Date().getTime(),
+        GamesRetrievable: GamesRetrievable.YES,
+      });
+
+      // Remove matches not in this player's set
+      for (const matchId of seriesMatches) {
+        if (!playerMatches.some((match) => match.MatchId === matchId)) {
+          seriesMatches.delete(matchId);
+        }
+      }
+    }
+
+    return Array.from(seriesMatches);
   }
 
   private filterMatchesToMatchingTeams(matches: MatchStats[]): MatchStats[] {
     const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
     return matches.filter((match) => {
-      return match.Players.every((player) =>
-        lastMatch.Players.some(
-          (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
-        ),
+      return (
+        lastMatch.Players.length === match.Players.length &&
+        match.Players.every((player) =>
+          lastMatch.Players.some(
+            (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
+          ),
+        )
       );
     });
   }

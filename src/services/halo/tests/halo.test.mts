@@ -58,8 +58,23 @@ describe("Halo service", () => {
       ]);
     });
 
-    it("short circuits when two users with the same last match are found", async () => {
-      infiniteClient.getPlayerMatches.mockClear();
+    it("searches for matches across all possible users", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+      getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
+        return Promise.resolve(
+          discordIds.map((id) => {
+            console.log(id);
+            return aFakeDiscordAssociationsRow({
+              DiscordId: id,
+              XboxId: ["000000000000000001", "000000000000000003"].includes(id) ? id.substring(5) : "",
+              GamesRetrievable: ["000000000000000001", "000000000000000003"].includes(id)
+                ? GamesRetrievable.YES
+                : GamesRetrievable.NO,
+            });
+          }),
+        );
+      });
       infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
         if (xboxUserId === "0000000000001") {
           return Promise.resolve(playerMatches);
@@ -72,7 +87,7 @@ describe("Halo service", () => {
       });
 
       await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(3);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(2);
     });
 
     it("throws an error when all users from database are not game retrievable", async () => {
