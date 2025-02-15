@@ -603,6 +603,7 @@ export class ConnectCommand extends BaseCommand {
           GamesRetrievable: GamesRetrievable.YES,
           AssociationReason: AssociationReason.MANUAL,
           AssociationDate: new Date().getTime(),
+          DiscordDisplayNameSearched: null,
         },
       ]);
 

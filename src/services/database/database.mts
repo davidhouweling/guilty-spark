@@ -20,10 +20,10 @@ export class DatabaseService {
   }
 
   async upsertDiscordAssociations(associations: DiscordAssociationsRow[]): Promise<void> {
-    const placeholders = associations.map(() => "(?, ?, ?, ?, ?)").join(",");
+    const placeholders = associations.map(() => "(?, ?, ?, ?, ?, ?)").join(",");
     const query = `
-      INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable) VALUES ${placeholders}
-      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable
+      INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable, DiscordDisplayNameSearched) VALUES ${placeholders}
+      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable, DiscordDisplayNameSearched=excluded.DiscordDisplayNameSearched
     `;
     const bindings = associations.flatMap((association) => [
       association.DiscordId,
@@ -31,6 +31,7 @@ export class DatabaseService {
       association.AssociationReason,
       association.AssociationDate,
       association.GamesRetrievable,
+      association.DiscordDisplayNameSearched,
     ]);
     const stmt = this.env.DB.prepare(query).bind(...bindings);
     await stmt.run();

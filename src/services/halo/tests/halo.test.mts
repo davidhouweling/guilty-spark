@@ -482,6 +482,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000001",
           GamesRetrievable: "Y",
           XboxId: "0000000000001",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -489,6 +490,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000002",
           GamesRetrievable: "N",
           XboxId: "0000000000002",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -496,13 +498,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000003",
           GamesRetrievable: "N",
           XboxId: "0000000000003",
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000004",
-          GamesRetrievable: "N",
-          XboxId: "0000000000004",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -510,6 +506,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000005",
           GamesRetrievable: "N",
           XboxId: "0000000000005",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -517,6 +514,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000006",
           GamesRetrievable: "N",
           XboxId: "0000000000006",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -524,6 +522,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000007",
           GamesRetrievable: "N",
           XboxId: "0000000000007",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -531,6 +530,15 @@ describe("Halo service", () => {
           DiscordId: "000000000000000008",
           GamesRetrievable: "N",
           XboxId: "0000000000008",
+          DiscordDisplayNameSearched: null,
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "D",
+          DiscordId: "000000000000000004",
+          GamesRetrievable: "N",
+          XboxId: "0000000000004",
+          DiscordDisplayNameSearched: "gamertag0000000000004",
         },
       ]);
     });

@@ -294,6 +294,7 @@ describe("ConnectCommand", () => {
               DiscordId: "discord_user_01",
               GamesRetrievable: GamesRetrievable.YES,
               XboxId: "0000000000001",
+              DiscordDisplayNameSearched: null,
             },
           ]);
         });
@@ -498,6 +499,7 @@ describe("ConnectCommand", () => {
             AssociationDate: 1739145600000,
             AssociationReason: AssociationReason.MANUAL,
             DiscordId: "discord_user_01",
+            DiscordDisplayNameSearched: null,
             GamesRetrievable: GamesRetrievable.YES,
             XboxId: "0000000000001",
           },

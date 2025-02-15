@@ -256,6 +256,7 @@ export class HaloService {
           AssociationReason: AssociationReason.USERNAME_SEARCH,
           AssociationDate: new Date().getTime(),
           GamesRetrievable: GamesRetrievable.UNKNOWN,
+          DiscordDisplayNameSearched: null,
         });
       }
     }
@@ -269,7 +270,8 @@ export class HaloService {
       ),
     );
     for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
-      const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
+      const unresolvedUser = Preconditions.checkExists(unresolvedUsers[index]);
+      const discordId = unresolvedUser.id;
       const resolved = result.status === "fulfilled";
 
       this.userCache.set(discordId, {
@@ -278,6 +280,7 @@ export class HaloService {
         AssociationReason: resolved ? AssociationReason.DISPLAY_NAME_SEARCH : AssociationReason.UNKNOWN,
         AssociationDate: new Date().getTime(),
         GamesRetrievable: GamesRetrievable.UNKNOWN,
+        DiscordDisplayNameSearched: resolved ? unresolvedUser.global_name : null,
       });
     }
   }
