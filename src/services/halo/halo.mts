@@ -52,7 +52,9 @@ export class HaloService {
     if (!usersToSearch.length) {
       await this.updateDiscordAssociations();
 
-      throw new Error("Unable to match any of the Discord users to their Xbox accounts");
+      throw new Error(
+        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
+      );
     }
 
     const matchesForUsers = await this.getMatchesForUsers(usersToSearch, queueData.timestamp);

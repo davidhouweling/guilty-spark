@@ -139,7 +139,7 @@ describe("Halo service", () => {
       );
 
       return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts",
+        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
       );
     });
 
@@ -148,7 +148,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
       return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts",
+        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
       );
     });
 
