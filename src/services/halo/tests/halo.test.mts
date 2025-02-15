@@ -5,7 +5,7 @@ import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import { matchStats, playerMatches } from "../fakes/data.mjs";
-import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
+import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import { discordNeatQueueData } from "../../discord/fakes/data.mjs";
@@ -58,8 +58,50 @@ describe("Halo service", () => {
       ]);
     });
 
-    it("short circuits when two users with the same last match are found", async () => {
-      infiniteClient.getPlayerMatches.mockClear();
+    it("retries display name search when previous search was unsuccessful and display name has changed", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+      getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
+        return Promise.resolve(
+          discordIds.map((id) => {
+            if (id === "000000000000000004") {
+              return aFakeDiscordAssociationsRow({
+                DiscordId: id,
+                XboxId: "",
+                GamesRetrievable: GamesRetrievable.NO,
+                DiscordDisplayNameSearched: "oldDisplayName",
+                AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+              });
+            }
+
+            return aFakeDiscordAssociationsRow({
+              DiscordId: id,
+            });
+          }),
+        );
+      });
+
+      await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
+
+      expect(infiniteClient.getUser).toHaveBeenCalledWith("gamertag0000000000004");
+    });
+
+    it("searches for matches across all possible users", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+      getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
+        return Promise.resolve(
+          discordIds.map((id) => {
+            return aFakeDiscordAssociationsRow({
+              DiscordId: id,
+              XboxId: ["000000000000000001", "000000000000000003"].includes(id) ? id.substring(5) : "",
+              GamesRetrievable: ["000000000000000001", "000000000000000003"].includes(id)
+                ? GamesRetrievable.YES
+                : GamesRetrievable.NO,
+            });
+          }),
+        );
+      });
       infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
         if (xboxUserId === "0000000000001") {
           return Promise.resolve(playerMatches);
@@ -72,7 +114,7 @@ describe("Halo service", () => {
       });
 
       await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(3);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(2);
     });
 
     it("throws an error when all users from database are not game retrievable", async () => {
@@ -97,7 +139,7 @@ describe("Halo service", () => {
       );
 
       return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts",
+        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
       );
     });
 
@@ -106,7 +148,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
       return expect(haloService.getSeriesFromDiscordQueue(discordNeatQueueData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts",
+        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
       );
     });
 
@@ -467,6 +509,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000001",
           GamesRetrievable: "Y",
           XboxId: "0000000000001",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -474,6 +517,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000002",
           GamesRetrievable: "N",
           XboxId: "0000000000002",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -481,13 +525,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000003",
           GamesRetrievable: "N",
           XboxId: "0000000000003",
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000004",
-          GamesRetrievable: "N",
-          XboxId: "0000000000004",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -495,6 +533,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000005",
           GamesRetrievable: "N",
           XboxId: "0000000000005",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -502,6 +541,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000006",
           GamesRetrievable: "N",
           XboxId: "0000000000006",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -509,6 +549,7 @@ describe("Halo service", () => {
           DiscordId: "000000000000000007",
           GamesRetrievable: "N",
           XboxId: "0000000000007",
+          DiscordDisplayNameSearched: null,
         },
         {
           AssociationDate: 1732622400000,
@@ -516,6 +557,15 @@ describe("Halo service", () => {
           DiscordId: "000000000000000008",
           GamesRetrievable: "N",
           XboxId: "0000000000008",
+          DiscordDisplayNameSearched: null,
+        },
+        {
+          AssociationDate: 1732622400000,
+          AssociationReason: "D",
+          DiscordId: "000000000000000004",
+          GamesRetrievable: "N",
+          XboxId: "0000000000004",
+          DiscordDisplayNameSearched: "gamertag0000000000004",
         },
       ]);
     });

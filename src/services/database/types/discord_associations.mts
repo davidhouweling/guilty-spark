@@ -19,4 +19,5 @@ export interface DiscordAssociationsRow {
   AssociationReason: AssociationReason;
   AssociationDate: number;
   GamesRetrievable: GamesRetrievable;
+  DiscordDisplayNameSearched: string | null;
 }

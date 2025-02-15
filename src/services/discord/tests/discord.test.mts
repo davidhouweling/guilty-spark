@@ -26,6 +26,7 @@ import type { BaseCommand } from "../../../commands/base/base.mjs";
 import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { AssociationReason } from "../../database/types/discord_associations.mjs";
+import { aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 
 const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -646,6 +647,8 @@ describe("DiscordService", () => {
   });
 
   describe("getReadableAssociationReason()", () => {
+    const association = aFakeDiscordAssociationsRow();
+
     it.each([
       {
         reason: AssociationReason.CONNECTED,
@@ -665,7 +668,7 @@ describe("DiscordService", () => {
       {
         reason: AssociationReason.DISPLAY_NAME_SEARCH,
         reasonString: "AssociationReason.DISPLAY_NAME_SEARCH",
-        expected: "Matched Discord Display Name to Halo account",
+        expected: 'Matched Discord Display Name to Halo account "fake-display-name"',
       },
       {
         reason: AssociationReason.GAME_SIMILARITY,
@@ -678,7 +681,13 @@ describe("DiscordService", () => {
         expected: "Unknown",
       },
     ])("$reasonString -> $expected", ({ reason, expected }) => {
-      expect(discordService.getReadableAssociationReason(reason)).toEqual(expected);
+      expect(
+        discordService.getReadableAssociationReason({
+          ...association,
+          AssociationReason: reason,
+          DiscordDisplayNameSearched: "fake-display-name",
+        }),
+      ).toEqual(expected);
     });
   });
 

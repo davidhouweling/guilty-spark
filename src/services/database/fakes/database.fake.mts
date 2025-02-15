@@ -11,6 +11,7 @@ export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow
     AssociationReason: AssociationReason.USERNAME_SEARCH,
     AssociationDate: new Date("2024-09-01T00:00:00.000Z").getTime(),
     GamesRetrievable: GamesRetrievable.YES,
+    DiscordDisplayNameSearched: null,
     ...opts,
   };
 }

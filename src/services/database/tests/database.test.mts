@@ -55,8 +55,8 @@ describe("Database Service", () => {
       await databaseService.upsertDiscordAssociations([association1, association2]);
 
       const query = `
-      INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable) VALUES (?, ?, ?, ?, ?),(?, ?, ?, ?, ?)
-      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable
+      INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable, DiscordDisplayNameSearched) VALUES (?, ?, ?, ?, ?, ?),(?, ?, ?, ?, ?, ?)
+      ON CONFLICT(DiscordId) DO UPDATE SET XboxId=excluded.XboxId, AssociationReason=excluded.AssociationReason, AssociationDate=excluded.AssociationDate, GamesRetrievable=excluded.GamesRetrievable, DiscordDisplayNameSearched=excluded.DiscordDisplayNameSearched
     `;
       expect(prepareSpy).toHaveBeenCalledWith(query);
       expect(bindSpy).toHaveBeenCalledWith(
@@ -65,11 +65,13 @@ describe("Database Service", () => {
         association1.AssociationReason,
         association1.AssociationDate,
         association1.GamesRetrievable,
+        association1.DiscordDisplayNameSearched,
         association2.DiscordId,
         association2.XboxId,
         association2.AssociationReason,
         association2.AssociationDate,
         association2.GamesRetrievable,
+        association2.DiscordDisplayNameSearched,
       );
       expect(runSpy).toHaveBeenCalled();
     });

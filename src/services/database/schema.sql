@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS DiscordAssociations (
   XboxId TEXT NOT NULL,
   AssociationReason CHAR(1) CHECK(AssociationReason IN ('C', 'M', 'U', 'D', 'G', '?')) NOT NULL DEFAULT '?',
   AssociationDate INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  GamesRetrievable CHAR(1) CHECK(GamesRetrievable IN ('Y', 'N', '?')) NOT NULL DEFAULT '?'
+  GamesRetrievable CHAR(1) CHECK(GamesRetrievable IN ('Y', 'N', '?')) NOT NULL DEFAULT '?',
+  DiscordDisplayNameSearched TEXT
 );

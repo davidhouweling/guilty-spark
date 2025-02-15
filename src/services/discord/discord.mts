@@ -28,6 +28,7 @@ import {
 } from "discord-api-types/v10";
 import type { BaseCommand, BaseInteraction } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason } from "../database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
@@ -341,13 +342,14 @@ export class DiscordService {
     return `<:${appEmojiName}:${emojiId}>`;
   }
 
-  getTimestamp(isoDate: string): string {
+  getTimestamp(isoDate: string, format: "F" | "f" | "D" | "d" | "T" | "t" | "R" = "f"): string {
     const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
 
-    return `<t:${unixTime.toString()}:f>`;
+    return `<t:${unixTime.toString()}:${format}>`;
   }
 
-  getReadableAssociationReason(associationReason: AssociationReason): string {
+  getReadableAssociationReason(association: DiscordAssociationsRow): string {
+    const { AssociationReason: associationReason } = association;
     switch (associationReason) {
       case AssociationReason.CONNECTED: {
         return "Connected Halo account";
@@ -359,7 +361,9 @@ export class DiscordService {
         return "Matched Discord Username to Halo account";
       }
       case AssociationReason.DISPLAY_NAME_SEARCH: {
-        return "Matched Discord Display Name to Halo account";
+        return `Matched Discord Display Name to Halo account${
+          association.DiscordDisplayNameSearched != null ? ` "${association.DiscordDisplayNameSearched}"` : ""
+        }`;
       }
       case AssociationReason.GAME_SIMILARITY: {
         return "Fuzzy matched Discord Username / Display name from a previous series";

@@ -570,10 +570,10 @@ export const discordNeatQueueData: QueueData = {
         },
         {
           id: "000000000000000004",
-          username: "discord_user_04",
+          username: "not_discord_user_04",
           avatar: "6f9ef56a174047263d9c81e9b2559fdc",
           discriminator: "0",
-          global_name: "DiscordUser04",
+          global_name: "gamertag0000000000004",
         },
       ],
     },

@@ -237,7 +237,7 @@ export class ConnectCommand extends BaseCommand {
 
         currentAssociation = [
           `**Halo account:** ${searchedGamertag}`,
-          `**How:** ${discordService.getReadableAssociationReason(association.AssociationReason)}\n`,
+          `**How:** ${discordService.getReadableAssociationReason(association)}\n`,
           `View profile on: ${thirdPartySites.join(" | ")}`,
         ].join("\n");
       }
@@ -603,6 +603,7 @@ export class ConnectCommand extends BaseCommand {
           GamesRetrievable: GamesRetrievable.YES,
           AssociationReason: AssociationReason.MANUAL,
           AssociationDate: new Date().getTime(),
+          DiscordDisplayNameSearched: null,
         },
       ]);
 
@@ -673,7 +674,7 @@ export class ConnectCommand extends BaseCommand {
             },
             {
               name: "When",
-              value: recentHistory.map((match) => discordService.getTimestamp(match.MatchInfo.EndTime)).join("\n"),
+              value: recentHistory.map((match) => discordService.getTimestamp(match.MatchInfo.EndTime, "R")).join("\n"),
               inline: true,
             },
           ]
