@@ -237,7 +237,7 @@ export class ConnectCommand extends BaseCommand {
 
         currentAssociation = [
           `**Halo account:** ${searchedGamertag}`,
-          `**How:** ${discordService.getReadableAssociationReason(association.AssociationReason)}\n`,
+          `**How:** ${discordService.getReadableAssociationReason(association)}\n`,
           `View profile on: ${thirdPartySites.join(" | ")}`,
         ].join("\n");
       }
