@@ -312,9 +312,31 @@ export class ConnectCommand extends BaseCommand {
         "Recent game history",
         "Here are your most recent games:",
       );
+      const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
 
       if (historyEmbed.fields && embeds[0]?.fields) {
         embeds[0].fields.push({ name: "**Recent matches**", value: "" }, ...historyEmbed.fields);
+      }
+
+      if (!hasHistory) {
+        actions.splice(
+          0,
+          actions.length,
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Secondary,
+            label: "Try again (Search)",
+            custom_id: InteractionButton.Change,
+            emoji: { name: "🔄" },
+          },
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Danger,
+            label: "Remove",
+            custom_id: InteractionButton.Remove,
+            emoji: { name: "🗑️" },
+          },
+        );
       }
     }
 
@@ -492,6 +514,47 @@ export class ConnectCommand extends BaseCommand {
         `Gamertag search for "${gamertag}"`,
         "Please confirm the recent game history for yourself below:",
       );
+      const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
+      const actions: APIButtonComponent[] = hasHistory
+        ? [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Success,
+              label: "Yes, this is me",
+              custom_id: InteractionButton.SearchConfirm,
+              emoji: { name: "👍" },
+            },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Secondary,
+              label: "No, change search",
+              custom_id: InteractionButton.Change,
+              emoji: { name: "🔄" },
+            },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Danger,
+              label: "Cancel",
+              custom_id: InteractionButton.SearchCancel,
+              emoji: { name: "🔙" },
+            },
+          ]
+        : [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Secondary,
+              label: "Try again",
+              custom_id: InteractionButton.Change,
+              emoji: { name: "🔄" },
+            },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Danger,
+              label: "Cancel",
+              custom_id: InteractionButton.SearchCancel,
+              emoji: { name: "🔙" },
+            },
+          ];
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
@@ -499,29 +562,7 @@ export class ConnectCommand extends BaseCommand {
         components: [
           {
             type: ComponentType.ActionRow,
-            components: [
-              {
-                type: ComponentType.Button,
-                style: ButtonStyle.Success,
-                label: "Yes, this is me",
-                custom_id: InteractionButton.SearchConfirm,
-                emoji: { name: "👍" },
-              },
-              {
-                type: ComponentType.Button,
-                style: ButtonStyle.Secondary,
-                label: "No, change search",
-                custom_id: InteractionButton.Change,
-                emoji: { name: "🔄" },
-              },
-              {
-                type: ComponentType.Button,
-                style: ButtonStyle.Danger,
-                label: "Cancel",
-                custom_id: InteractionButton.SearchCancel,
-                emoji: { name: "🔙" },
-              },
-            ],
+            components: actions,
           },
         ],
       };

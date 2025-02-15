@@ -37,6 +37,43 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
@@ -117,7 +154,101 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again (Search)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Connected Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -243,7 +374,101 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again (Search)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Matched Discord Display Name to Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -369,7 +594,101 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again (Search)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Fuzzy matched Discord Username / Display name from a previous series
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -486,6 +805,63 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again (Search)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Manually claimed Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'UNKNOWN' & GamesRetrievable = '?' > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
@@ -523,7 +899,81 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
 ]
 `;
 
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'UNKNOWN' & GamesRetrievable = '?' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -640,6 +1090,63 @@ Loss - 1:2 (198:256)",
 <t:1732618052:f>
 <t:1732616814:f>
 <t:1732615353:f>",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again (Search)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_remove",
+            "emoji": {
+              "name": "🗑️",
+            },
+            "label": "Remove",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** gamertag0000000000001
+**How:** Matched Discord Username to Halo account
+
+View profile on: [Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/gamertag0000000000001>) | [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>) | [Halo Query](<https://haloquery.com/players/gamertag0000000000001>) | [Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/gamertag0000000000001/overview>) | [Leaf App](<https://leafapp.co/player/gamertag0000000000001>) | [Spartan Record](<https://spartanrecord.com/service_record/gamertag0000000000001>)",
+          },
+          {
+            "name": "**Recent matches**",
+            "value": "",
+          },
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -1105,6 +1612,52 @@ Loss - 1:2 (198:256)",
 <t:1732618052:f>
 <t:1732616814:f>
 <t:1732615353:f>",
+          },
+        ],
+        "title": "Gamertag search for "gamertag0000000000001"",
+      },
+    ],
+  },
+]
+`;
+
+exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchModal > jobToComplete > returns expected response when no history 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Try again",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_connect_search_cancel",
+            "emoji": {
+              "name": "🔙",
+            },
+            "label": "Cancel",
+            "style": 4,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Please confirm the recent game history for yourself below:",
+        "fields": [
+          {
+            "name": "No matches found",
+            "value": "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
           },
         ],
         "title": "Gamertag search for "gamertag0000000000001"",
