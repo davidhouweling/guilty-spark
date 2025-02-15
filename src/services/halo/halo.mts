@@ -240,6 +240,18 @@ export class HaloService {
   private async populateUserCache(users: APIUser[]): Promise<void> {
     const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
     for (const association of discordAssociations) {
+      // if matched by display name, and the games aren't retrievable, allow it to try again if the display name is different to last time
+      if (
+        association.AssociationReason === AssociationReason.DISPLAY_NAME_SEARCH &&
+        association.DiscordDisplayNameSearched != null &&
+        association.GamesRetrievable !== GamesRetrievable.YES
+      ) {
+        const user = users.find(({ id }) => id === association.DiscordId);
+        if (user?.global_name !== association.DiscordDisplayNameSearched) {
+          continue;
+        }
+      }
+
       this.userCache.set(association.DiscordId, association);
     }
 

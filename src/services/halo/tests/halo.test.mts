@@ -5,7 +5,7 @@ import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import { matchStats, playerMatches } from "../fakes/data.mjs";
-import { GamesRetrievable } from "../../database/types/discord_associations.mjs";
+import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import { discordNeatQueueData } from "../../discord/fakes/data.mjs";
@@ -58,13 +58,40 @@ describe("Halo service", () => {
       ]);
     });
 
+    it("retries display name search when previous search was unsuccessful and display name has changed", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+      getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
+        return Promise.resolve(
+          discordIds.map((id) => {
+            if (id === "000000000000000004") {
+              return aFakeDiscordAssociationsRow({
+                DiscordId: id,
+                XboxId: "",
+                GamesRetrievable: GamesRetrievable.NO,
+                DiscordDisplayNameSearched: "oldDisplayName",
+                AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+              });
+            }
+
+            return aFakeDiscordAssociationsRow({
+              DiscordId: id,
+            });
+          }),
+        );
+      });
+
+      await haloService.getSeriesFromDiscordQueue(discordNeatQueueData);
+
+      expect(infiniteClient.getUser).toHaveBeenCalledWith("gamertag0000000000004");
+    });
+
     it("searches for matches across all possible users", async () => {
       const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
 
       getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
         return Promise.resolve(
           discordIds.map((id) => {
-            console.log(id);
             return aFakeDiscordAssociationsRow({
               DiscordId: id,
               XboxId: ["000000000000000001", "000000000000000003"].includes(id) ? id.substring(5) : "",
