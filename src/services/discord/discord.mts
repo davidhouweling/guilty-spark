@@ -342,10 +342,10 @@ export class DiscordService {
     return `<:${appEmojiName}:${emojiId}>`;
   }
 
-  getTimestamp(isoDate: string): string {
+  getTimestamp(isoDate: string, format: "F" | "f" | "D" | "d" | "T" | "t" | "R" = "f"): string {
     const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
 
-    return `<t:${unixTime.toString()}:f>`;
+    return `<t:${unixTime.toString()}:${format}>`;
   }
 
   getReadableAssociationReason(association: DiscordAssociationsRow): string {
