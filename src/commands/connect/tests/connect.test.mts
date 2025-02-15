@@ -200,6 +200,14 @@ describe("ConnectCommand", () => {
             expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
             expect(updateDeferredReplySpy.mock.calls[0]).toMatchSnapshot();
           });
+
+          it("returns expected response when no history", async () => {
+            vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+            await jobToComplete?.();
+
+            expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+            expect(updateDeferredReplySpy.mock.calls[0]).toMatchSnapshot();
+          });
         },
       );
 
@@ -421,6 +429,14 @@ describe("ConnectCommand", () => {
       });
 
       it("calls updateDeferredReply with the expected opts", async () => {
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy.mock.calls[0]).toMatchSnapshot();
+      });
+
+      it("returns expected response when no history", async () => {
+        vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([]);
         await jobToComplete?.();
 
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
