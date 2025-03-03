@@ -47,9 +47,9 @@
     "@eslint/js": "^9.21.0",
     "@tsconfig/node22": "^22.0.0",
     "@types/eslint__js": "^9.14.0",
-    "@types/node": "22.13.5",
-    "@typescript-eslint/parser": "^8.24.1",
-    "@vitest/coverage-v8": "^3.0.6",
+    "@types/node": "22.13.8",
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vitest/coverage-v8": "^3.0.7",
     "dotenv": "^16.4.7",
     "eslint": "^9.21.0",
     "eslint-import-resolver-typescript": "^3.8.3",
@@ -58,10 +58,10 @@
     "patch-package": "^8.0.0",
     "prettier": "^3.5.2",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.24.1",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.25.0",
     "vitest": "^3.0.4",
     "vitest-mock-extended": "^3.0.1",
-    "wrangler": "^3.109.2"
+    "wrangler": "^3.111.0"
   }
 }
