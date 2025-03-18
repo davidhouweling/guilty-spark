@@ -19,7 +19,7 @@ router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, ""
   try {
     const services = await installServices({ env });
     const { discordService } = services;
-    const commands = getCommands(services);
+    const commands = getCommands(services, env);
     discordService.setCommands(commands);
 
     const { isValid, interaction } = await discordService.verifyDiscordRequest(request);
