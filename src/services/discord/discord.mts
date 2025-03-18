@@ -19,7 +19,6 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
-  ComponentType,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
@@ -159,22 +158,22 @@ export class DiscordService {
         return this.getCommandToExecute(interaction.data.name, interaction);
       }
       case InteractionType.MessageComponent: {
-        if (interaction.data.component_type === ComponentType.Button) {
-          return this.getCommandToExecute(
-            interaction.data.custom_id,
-            interaction as APIMessageComponentButtonInteraction,
-          );
-        }
-        console.warn("Unknown interaction type");
-
-        return {
-          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
-        };
+        return this.getCommandToExecute(
+          interaction.data.custom_id,
+          interaction as APIMessageComponentButtonInteraction,
+        );
       }
       case InteractionType.ModalSubmit: {
         return this.getCommandToExecute(interaction.data.custom_id, interaction);
       }
-      case InteractionType.ApplicationCommandAutocomplete:
+      case InteractionType.ApplicationCommandAutocomplete: {
+        return {
+          response: new JsonResponse({
+            type: InteractionResponseType.ChannelMessageWithSource,
+            data: { content: "Autocomplete not implemented", flags: 64 },
+          }),
+        };
+      }
       default: {
         console.warn("Unknown interaction type");
 
@@ -194,6 +193,7 @@ export class DiscordService {
       };
     }
 
+    console.log(name);
     const command = this.commands.get(name);
     if (!command) {
       console.warn("Command not found");

@@ -117,7 +117,7 @@ export class ConnectCommand extends BaseCommand {
         };
       }
       case InteractionType.MessageComponent: {
-        return this.messageComponentResponse(interaction);
+        return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
       }
       case InteractionType.ModalSubmit: {
         return {

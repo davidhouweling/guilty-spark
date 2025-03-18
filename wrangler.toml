@@ -10,6 +10,8 @@ d1_databases = [
   { binding = "DB", database_name = "staging-db-guilty-spark", database_id = "f36b6b07-dc66-43d8-8653-571b473c6cd5" }
 ]
 
+[vars]
+HOST_URL = "https://guilty-spark-dev.howling-dev.workers.dev"
 
 [observability]
 enabled = true
@@ -25,6 +27,9 @@ d1_databases = [
   { binding = "DB", database_name = "staging-db-guilty-spark", database_id = "f36b6b07-dc66-43d8-8653-571b473c6cd5" }
 ]
 
+[env.staging.vars]
+HOST_URL = "https://guilty-spark-staging.howling-dev.workers.dev"
+
 
 [env.production]
 name = "guilty-spark"
@@ -34,3 +39,6 @@ kv_namespaces = [
 d1_databases = [
   { binding = "DB", database_name = "prod-db-guilty-spark", database_id = "fa6747b9-e9e0-47ca-891b-d4608ade66a3" }
 ]
+
+[env.production.vars]
+HOST_URL = "https://guilty-spark.howling-dev.workers.dev"
