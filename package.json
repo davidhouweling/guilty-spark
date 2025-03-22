@@ -30,7 +30,7 @@
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "build:generate-types": "wrangler types --experimental-include-runtime",
+    "build:generate-types": "wrangler types",
     "build": "tsc --project tsconfig.build.json",
     "publish": "wrangler deploy"
   },
