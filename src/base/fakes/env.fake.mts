@@ -45,6 +45,11 @@ const fakeDb: D1Database = {
   batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
   exec: async () => Promise.resolve({ count: 1, duration: 1 }),
   dump: async () => Promise.resolve(new ArrayBuffer(1)),
+  withSession: () => ({
+    prepare: () => new FakePreparedStatement(),
+    batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
+    getBookmark: () => null,
+  }),
 };
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {

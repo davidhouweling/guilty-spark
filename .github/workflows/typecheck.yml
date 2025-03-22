@@ -29,8 +29,5 @@ jobs:
       - name: Copy environment file
         run: cp .example.dev.vars .dev.vars
 
-      - name: Generate types
-        run: npm run build:generate-types
-
       - name: Run Typecheck
         run: npm run typecheck
