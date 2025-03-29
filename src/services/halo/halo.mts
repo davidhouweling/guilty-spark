@@ -1,14 +1,27 @@
 import * as tinyduration from "tinyduration";
 import type { HaloInfiniteClient, MatchInfo, MatchStats, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
-import { differenceInHours, isBefore } from "date-fns";
-import type { APIUser } from "discord-api-types/v10";
-import type { QueueData } from "../discord/discord.mjs";
+import { isAfter, isBefore } from "date-fns";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+
+export interface MatchPlayer {
+  id: string;
+  username: string;
+  globalName: string | null;
+}
+
+export interface SeriesData {
+  startDateTime: Date;
+  endDateTime: Date;
+  teams: {
+    name: string;
+    players: MatchPlayer[];
+  }[];
+}
 
 export interface Medal {
   name: string;
@@ -35,7 +48,7 @@ export class HaloService {
     this.infiniteClient = infiniteClient;
   }
 
-  async getSeriesFromDiscordQueue(queueData: QueueData): Promise<MatchStats[]> {
+  async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
     const users = queueData.teams.flatMap((team) => team.players);
     await this.populateUserCache(users);
 
@@ -57,7 +70,11 @@ export class HaloService {
       );
     }
 
-    const matchesForUsers = await this.getMatchesForUsers(usersToSearch, queueData.timestamp);
+    const matchesForUsers = await this.getMatchesForUsers(
+      usersToSearch,
+      queueData.startDateTime,
+      queueData.endDateTime,
+    );
     const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
       const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
       // we want at least 2 minutes of game play, otherwise assume that the match was chalked
@@ -235,7 +252,7 @@ export class HaloService {
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
-  private async populateUserCache(users: APIUser[]): Promise<void> {
+  private async populateUserCache(users: MatchPlayer[]): Promise<void> {
     const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
     for (const association of discordAssociations) {
       // if matched by display name, and the games aren't retrievable, allow it to try again if the display name is different to last time
@@ -245,7 +262,7 @@ export class HaloService {
         association.GamesRetrievable !== GamesRetrievable.YES
       ) {
         const user = users.find(({ id }) => id === association.DiscordId);
-        if (user?.global_name !== association.DiscordDisplayNameSearched) {
+        if (user?.globalName !== association.DiscordDisplayNameSearched) {
           continue;
         }
       }
@@ -274,8 +291,8 @@ export class HaloService {
     unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) =>
-        user.global_name != null && user.global_name !== ""
-          ? this.getUserByGamertag(user.global_name)
+        user.globalName != null && user.globalName !== ""
+          ? this.getUserByGamertag(user.globalName)
           : Promise.reject(new Error("No global name")),
       ),
     );
@@ -290,28 +307,27 @@ export class HaloService {
         AssociationReason: resolved ? AssociationReason.DISPLAY_NAME_SEARCH : AssociationReason.UNKNOWN,
         AssociationDate: new Date().getTime(),
         GamesRetrievable: GamesRetrievable.UNKNOWN,
-        DiscordDisplayNameSearched: resolved ? unresolvedUser.global_name : null,
+        DiscordDisplayNameSearched: resolved && unresolvedUser.globalName != null ? unresolvedUser.globalName : null,
       });
     }
   }
 
-  private async getPlayerMatches(xboxUserId: string, date: Date): Promise<PlayerMatchHistory[]> {
+  private async getPlayerMatches(xboxUserId: string, startDate: Date, endDate: Date): Promise<PlayerMatchHistory[]> {
     const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom);
     const matchesCloseToDate = playerMatches.filter((match) => {
-      const startTime = new Date(match.MatchInfo.StartTime);
+      const matchStartTime = new Date(match.MatchInfo.StartTime);
       // comparing start time rather than end time in the event that the match somehow completes after the end date
-      // would be hard to imagine a series taking longer than 6 hours
-      return isBefore(startTime, date) && differenceInHours(date, startTime) < 6;
+      return isAfter(matchStartTime, startDate) && isBefore(matchStartTime, endDate);
     });
 
     return matchesCloseToDate;
   }
 
-  private async getMatchesForUsers(users: DiscordAssociationsRow[], endDate: Date): Promise<string[]> {
+  private async getMatchesForUsers(users: DiscordAssociationsRow[], startDate: Date, endDate: Date): Promise<string[]> {
     const userMatches = new Map<string, PlayerMatchHistory[]>();
 
     for (const user of users) {
-      const playerMatches = await this.getPlayerMatches(user.XboxId, endDate);
+      const playerMatches = await this.getPlayerMatches(user.XboxId, startDate, endDate);
       if (!playerMatches.length) {
         this.userCache.set(user.DiscordId, {
           ...user,

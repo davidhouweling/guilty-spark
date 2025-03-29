@@ -12,6 +12,7 @@ import {
 } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
+import { subHours } from "date-fns";
 import type { ApplicationCommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -162,7 +163,20 @@ export class StatsCommand extends BaseCommand {
         );
       }
 
-      const series = await haloService.getSeriesFromDiscordQueue(queueData);
+      const startDateTime = subHours(queueData.timestamp, 6);
+      const endDateTime = queueData.timestamp;
+      const series = await haloService.getSeriesFromDiscordQueue({
+        teams: queueData.teams.map((team) => ({
+          name: team.name,
+          players: team.players.map((player) => ({
+            id: player.id,
+            username: player.username,
+            globalName: player.global_name,
+          })),
+        })),
+        startDateTime,
+        endDateTime,
+      });
       const seriesEmbed = await this.createSeriesEmbed({
         guildId: Preconditions.checkExists(interaction.guild_id, "No guild id"),
         channel,

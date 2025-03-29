@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HaloInfiniteClient, MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
+import type { SeriesData } from "../halo.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -83,3 +84,60 @@ export const playerXuidsToGametags = new Map([
 ]);
 
 export const medalsMetadata = await readMedalsMetadata();
+
+export const neatQueueSeriesData: SeriesData = {
+  startDateTime: new Date("2024-11-26T06:30:00.000Z"),
+  endDateTime: new Date("2024-11-26T11:30:00.000Z"),
+  teams: [
+    {
+      name: "Eagle",
+      players: [
+        {
+          id: "000000000000000001",
+          username: "discord_user_01",
+          globalName: "DiscordUser01",
+        },
+        {
+          id: "000000000000000002",
+          username: "discord_user_02",
+          globalName: "DiscordUser02",
+        },
+        {
+          id: "000000000000000003",
+          username: "discord_user_03",
+          globalName: null,
+        },
+        {
+          id: "000000000000000004",
+          username: "not_discord_user_04",
+          globalName: "gamertag0000000000004",
+        },
+      ],
+    },
+    {
+      name: "Cobra",
+      players: [
+        {
+          id: "000000000000000005",
+          username: "discord_user_05",
+          globalName: "DiscordUser05",
+        },
+        {
+          id: "000000000000000006",
+          username: "discord_user_06",
+          globalName: null,
+        },
+        {
+          id: "000000000000000007",
+          username: "discord_user_07",
+          globalName: "DiscordUser07",
+        },
+        {
+          id: "000000000000000008",
+          username: "discord_user_08",
+          globalName: "DiscordUser08",
+        },
+      ],
+    },
+  ],
+};
