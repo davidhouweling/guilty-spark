@@ -701,10 +701,10 @@ describe("DiscordService", () => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
 
-      appConfigGetSpy = vi.spyOn(env.APP_CONFIG, "get");
+      appConfigGetSpy = vi.spyOn(env.APP_DATA, "get");
       appConfigGetSpy.mockImplementation(async (key: string) => Promise.resolve(appConfigKv.get(key)));
 
-      appConfigPutSpy = vi.spyOn(env.APP_CONFIG, "put");
+      appConfigPutSpy = vi.spyOn(env.APP_DATA, "put");
       appConfigPutSpy.mockImplementation(async (key: string, value: string) => {
         appConfigKv.set(key, value);
         return Promise.resolve();

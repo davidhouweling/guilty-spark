@@ -483,18 +483,13 @@ export class DiscordService {
   }
 
   private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
-    const serializedRateLimit = await this.env.APP_CONFIG.get(`rateLimit.${path}`);
-    if (serializedRateLimit == null) {
-      return null;
-    }
-
-    const rateLimit = JSON.parse(serializedRateLimit) as RateLimit;
+    const rateLimit = await this.env.APP_DATA.get<RateLimit>(`rateLimit.${path}`, { type: "json" });
     return rateLimit;
   }
 
   private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
     if (rateLimit.reset != null) {
-      await this.env.APP_CONFIG.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
+      await this.env.APP_DATA.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
         expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
       });
     }

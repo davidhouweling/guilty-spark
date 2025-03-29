@@ -2,7 +2,7 @@
 // Runtime types generated with workerd@1.20250319.0 2024-09-23 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		APP_CONFIG: KVNamespace;
+		APP_DATA: KVNamespace;
 		HOST_URL: "https://guilty-spark-dev.howling-dev.workers.dev" | "https://guilty-spark-staging.howling-dev.workers.dev" | "https://guilty-spark.howling-dev.workers.dev";
 		DISCORD_APP_ID: string;
 		DISCORD_TOKEN: string;
