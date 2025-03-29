@@ -1,11 +1,11 @@
 import { describe, beforeEach, expect, it } from "vitest";
-import { matchStats, playerXuidsToGametags } from "../../../../services/halo/fakes/data.mjs";
+import { matchStats, playerXuidsToGametags } from "../../services/halo/fakes/data.mjs";
 import { LandGrabMatchEmbed } from "../land-grab-match-embed.mjs";
-import type { HaloService } from "../../../../services/halo/halo.mjs";
-import { Preconditions } from "../../../../base/preconditions.mjs";
-import { aFakeHaloServiceWith } from "../../../../services/halo/fakes/halo.fake.mjs";
-import type { DiscordService } from "../../../../services/discord/discord.mjs";
-import { aFakeDiscordServiceWith } from "../../../../services/discord/fakes/discord.fake.mjs";
+import type { HaloService } from "../../services/halo/halo.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
+import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake.mjs";
+import type { DiscordService } from "../../services/discord/discord.mjs";
+import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 
 const match = Preconditions.checkExists(matchStats.get("32b4cddf-5451-4d83-bcf6-000land-grab"));
 
