@@ -716,7 +716,7 @@ export class SetupCommand extends BaseCommand {
       | APIMessageComponentSelectMenuInteraction
       | APIModalSubmitInteraction
       | null,
-  ): Map<string, string> {
+  ): Map<NeatQueueIntegrationAddWizardStepKey, string> {
     const formData = new Map<NeatQueueIntegrationAddWizardStepKey, string>();
 
     if (interaction == null) {
@@ -744,7 +744,7 @@ export class SetupCommand extends BaseCommand {
       | APIMessageComponentSelectMenuInteraction
       | APIModalSubmitInteraction
       | null,
-    formData: Map<string, string>,
+    formData: Map<NeatQueueIntegrationAddWizardStepKey, string>,
   ): APIInteractionResponse | undefined {
     if (interaction == null) {
       return;
@@ -752,7 +752,7 @@ export class SetupCommand extends BaseCommand {
 
     if (interaction.type === InteractionType.ModalSubmit) {
       const { custom_id, value } = Preconditions.checkExists(interaction.data.components[0]?.components[0]);
-      formData.set(custom_id, value);
+      formData.set(custom_id as NeatQueueIntegrationAddWizardStepKey, value);
       return;
     }
 
@@ -791,7 +791,7 @@ export class SetupCommand extends BaseCommand {
     return;
   }
 
-  private wizardGetStep(formData: Map<string, string>): number {
+  private wizardGetStep(formData: Map<NeatQueueIntegrationAddWizardStepKey, string>): number {
     for (let i = 0; i < NeatQueueIntegrationAddWizardSteps.length; i++) {
       const step = Preconditions.checkExists(NeatQueueIntegrationAddWizardSteps[i]);
 
@@ -807,7 +807,7 @@ export class SetupCommand extends BaseCommand {
     return NeatQueueIntegrationAddWizardSteps.length;
   }
 
-  private wizardHasNextStep(formData: Map<string, string>): boolean {
+  private wizardHasNextStep(formData: Map<NeatQueueIntegrationAddWizardStepKey, string>): boolean {
     return this.wizardGetStep(formData) < NeatQueueIntegrationAddWizardSteps.length;
   }
 
@@ -850,7 +850,7 @@ export class SetupCommand extends BaseCommand {
     return description.join("\n");
   }
 
-  private wizardGetResponse(formData: Map<string, string>): ExecuteResponse {
+  private wizardGetResponse(formData: Map<NeatQueueIntegrationAddWizardStepKey, string>): ExecuteResponse {
     const primaryActions: APIMessageActionRowComponent[] = [];
     const secondaryActions: APIMessageActionRowComponent[] = [];
 
@@ -922,7 +922,7 @@ export class SetupCommand extends BaseCommand {
   private async setupSelectNeatQueueIntegrationSaveJob(
     interaction: APIMessageComponentButtonInteraction,
   ): Promise<void> {
-    const { discordService, databaseService } = this.services;
+    const { discordService, databaseService, neatQueueService } = this.services;
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id);
@@ -931,7 +931,10 @@ export class SetupCommand extends BaseCommand {
       const neatQueueConfig: NeatQueueConfigRow = {
         GuildId: guildId,
         ChannelId: Preconditions.checkExists(formData.get(NeatQueueIntegrationAddWizardStepKey.QueueChannel)),
-        WebhookSecret: Preconditions.checkExists(formData.get(NeatQueueIntegrationAddWizardStepKey.WebhookSecret)),
+        WebhookSecret: neatQueueService.hashAuthorizationKey(
+          Preconditions.checkExists(formData.get(NeatQueueIntegrationAddWizardStepKey.WebhookSecret)),
+          guildId,
+        ),
         ResultsChannelId: Preconditions.checkExists(formData.get(NeatQueueIntegrationAddWizardStepKey.ResultsChannel)),
         PostSeriesMode: Preconditions.checkExists(
           formData.get(NeatQueueIntegrationAddWizardStepKey.DisplayMode),

@@ -6,7 +6,6 @@ import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   ComponentType,
-  InteractionResponseType,
   InteractionType,
   Locale,
 } from "discord-api-types/v10";
@@ -171,7 +170,11 @@ describe("DiscordService", () => {
       it("returns a Pong response", async () => {
         const { response } = discordService.handleInteraction(pingInteraction);
 
-        expect(await response.text()).toEqual(JSON.stringify({ type: InteractionResponseType.Pong }));
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "type": 1,
+          }
+        `);
       });
 
       it("does not have a job to complete", () => {
@@ -186,7 +189,11 @@ describe("DiscordService", () => {
         const { response } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
         expect(response.status).toEqual(500);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "error": "No commands found",
+          }
+        `);
       });
 
       it("returns an error response if the command is not found", async () => {
@@ -194,7 +201,11 @@ describe("DiscordService", () => {
         const { response } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
         expect(response.status).toEqual(400);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "error": "Command not found",
+          }
+        `);
       });
 
       it("executes the command and returns the response and jobToComplete", async () => {
@@ -215,7 +226,7 @@ describe("DiscordService", () => {
         const { response, jobToComplete } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
 
         expect(executeFn).toHaveBeenCalledWith(applicationCommandInteractionStatsMatch);
-        expect(await response.text()).toEqual(JSON.stringify({}));
+        expect(await response.json()).toMatchInlineSnapshot(`{}`);
         expect(jobToComplete).toEqual(jobToCompleteFn);
       });
     });
@@ -241,7 +252,7 @@ describe("DiscordService", () => {
           const { response, jobToComplete } = discordService.handleInteraction(fakeButtonClickInteraction);
 
           expect(executeFn).toHaveBeenCalledWith(fakeButtonClickInteraction);
-          expect(await response.text()).toEqual(JSON.stringify({}));
+          expect(await response.json()).toMatchInlineSnapshot(`{}`);
           expect(jobToComplete).toEqual(jobToCompleteFn);
         });
 
@@ -249,7 +260,11 @@ describe("DiscordService", () => {
           const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
 
           expect(response.status).toEqual(500);
-          expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
+          expect(await response.json()).toMatchInlineSnapshot(`
+            {
+              "error": "No commands found",
+            }
+          `);
         });
 
         it("returns an error response if the command is not found", async () => {
@@ -257,23 +272,12 @@ describe("DiscordService", () => {
           const { response } = discordService.handleInteraction(fakeButtonClickInteraction);
 
           expect(response.status).toEqual(400);
-          expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
+          expect(await response.json()).toMatchInlineSnapshot(`
+            {
+              "error": "Command not found",
+            }
+          `);
         });
-      });
-
-      it("returns an error response if the interaction type is not known", async () => {
-        const { response } = discordService.handleInteraction({
-          ...fakeButtonClickInteraction,
-          data: {
-            // eslint-disable-next-line @typescript-eslint/no-deprecated
-            component_type: ComponentType.SelectMenu,
-            custom_id: "select_menu",
-            values: [],
-          },
-        });
-
-        expect(response.status).toEqual(400);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "Unknown interaction type" }));
       });
     });
 
@@ -297,7 +301,7 @@ describe("DiscordService", () => {
         const { response, jobToComplete } = discordService.handleInteraction(modalSubmitInteraction);
 
         expect(executeFn).toHaveBeenCalledWith(modalSubmitInteraction);
-        expect(await response.text()).toEqual(JSON.stringify({}));
+        expect(await response.json()).toMatchInlineSnapshot(`{}`);
         expect(jobToComplete).toEqual(jobToCompleteFn);
       });
 
@@ -305,7 +309,11 @@ describe("DiscordService", () => {
         const { response } = discordService.handleInteraction(modalSubmitInteraction);
 
         expect(response.status).toEqual(500);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "No commands found" }));
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "error": "No commands found",
+          }
+        `);
       });
 
       it("returns an error response if the command is not found", async () => {
@@ -313,7 +321,11 @@ describe("DiscordService", () => {
         const { response } = discordService.handleInteraction(modalSubmitInteraction);
 
         expect(response.status).toEqual(400);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "Command not found" }));
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "error": "Command not found",
+          }
+        `);
       });
     });
 
@@ -323,8 +335,16 @@ describe("DiscordService", () => {
           type: InteractionType.ApplicationCommandAutocomplete,
         } as APIInteraction);
 
-        expect(response.status).toEqual(400);
-        expect(await response.text()).toEqual(JSON.stringify({ error: "Unknown interaction type" }));
+        expect(response.status).toEqual(200);
+        expect(await response.json()).toMatchInlineSnapshot(`
+          {
+            "data": {
+              "content": "Autocomplete not implemented",
+              "flags": 64,
+            },
+            "type": 4,
+          }
+        `);
       });
     });
   });
@@ -719,7 +739,7 @@ describe("DiscordService", () => {
     it("fetches rate limit from app config", async () => {
       await discordService.createMessage("fake-channel", { content: "fake-content" });
 
-      expect(appConfigGetSpy).toHaveBeenCalledWith("rateLimit./channels/fake-channel/messages");
+      expect(appConfigGetSpy).toHaveBeenCalledWith("rateLimit./channels/fake-channel/messages", { type: "json" });
     });
 
     it("puts rate limit in app config when headers are present", async () => {

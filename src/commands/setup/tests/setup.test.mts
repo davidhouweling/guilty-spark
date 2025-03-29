@@ -15,6 +15,7 @@ import { StatsReturnType } from "../../../services/database/types/guild_config.m
 import type { GuildConfigRow } from "../../../services/database/types/guild_config.mjs";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 const applicationCommandInteractionSetup: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -37,12 +38,14 @@ const applicationCommandInteractionSetup: APIApplicationCommandInteraction = {
 describe("SetupCommand", () => {
   let setupCommand: SetupCommand;
   let services: Services;
+  let env: Env;
   let updateDeferredReplySpy: MockInstance<typeof services.discordService.updateDeferredReply>;
 
   beforeEach(() => {
     vi.setSystemTime("2025-02-10T00:00:00.000Z");
-    services = installFakeServicesWith();
-    setupCommand = new SetupCommand(services);
+    env = aFakeEnvWith();
+    services = installFakeServicesWith({ env });
+    setupCommand = new SetupCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
   });
@@ -74,57 +77,83 @@ describe("SetupCommand", () => {
         jobToComplete = Preconditions.checkExists(jtc);
       });
 
-      it("returns error if not in guild", async () => {
+      it("returns error if not in guild", () => {
         const interaction: APIApplicationCommandInteraction = {
           ...applicationCommandInteractionSetup,
         };
         delete interaction.guild;
         delete interaction.guild_id;
 
-        const { jobToComplete: jtc } = setupCommand.execute(interaction);
-        jobToComplete = Preconditions.checkExists(jtc);
+        const { response, jobToComplete: jtc } = setupCommand.execute(interaction);
 
-        await jobToComplete();
-
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-          content: "This command can only be used in a server!",
-        });
+        expect(response).toMatchInlineSnapshot(`
+          {
+            "data": {
+              "content": "This command can only be used in a server!",
+              "flags": 64,
+            },
+            "type": 4,
+          }
+        `);
+        expect(jtc).toBeUndefined();
       });
 
       it("displays current configuration", async () => {
         const mockConfig: GuildConfigRow = {
           GuildId: "fake-guild-id",
-          StatsToReturn: StatsReturnType.SERIES_ONLY,
-          NeatQueueSecret: null,
-          CreatedAt: Date.now(),
-          UpdatedAt: Date.now(),
+          StatsReturn: StatsReturnType.SERIES_ONLY,
+          Medals: "Y",
         };
 
         getGuildConfigSpy.mockResolvedValue(mockConfig);
 
         await jobToComplete();
 
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-          embeds: [
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy.mock.lastCall).toMatchInlineSnapshot(`
+          [
+            "fake-token",
             {
-              description: "Current configuration for your server:",
-              fields: [
+              "components": [
                 {
-                  inline: true,
-                  name: "Stats Display Mode",
-                  value: "Series Stats Only",
-                },
-                {
-                  inline: true,
-                  name: "NeatQueue Integration",
-                  value: "❌ Not Configured",
+                  "components": [
+                    {
+                      "custom_id": "setup_select",
+                      "options": [
+                        {
+                          "description": "Change the way stats are displayed in the server",
+                          "label": "Configure Stats Display Mode",
+                          "value": "stats_display_mode",
+                        },
+                        {
+                          "description": "Configure the NeatQueue integration for your server",
+                          "label": "Configure NeatQueue Integration",
+                          "value": "neatqueue_integration",
+                        },
+                      ],
+                      "placeholder": "Select an option to configure",
+                      "type": 3,
+                    },
+                  ],
+                  "type": 1,
                 },
               ],
-              timestamp: "2025-02-10T00:00:00.000Z",
-              title: "Server Configuration",
+              "embeds": [
+                {
+                  "description": "Current configuration for your server:",
+                  "fields": [
+                    {
+                      "name": "",
+                      "value": "**Stats Display Mode:** Series Stats Only, Medals
+          **NeatQueue Integrations:** *None*",
+                    },
+                  ],
+                  "title": "Server Configuration",
+                },
+              ],
             },
-          ],
-        });
+          ]
+        `);
       });
 
       it("handles database errors gracefully", async () => {

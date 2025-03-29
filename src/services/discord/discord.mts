@@ -5,6 +5,7 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
   APIInteraction,
+  APIInteractionResponseChannelMessageWithSource,
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
@@ -19,6 +20,7 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
+  MessageFlags,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
@@ -146,7 +148,8 @@ export class DiscordService {
   handleInteraction(interaction: APIInteraction): InteractionResponse {
     console.log(inspect(interaction, { depth: null, colors: true }));
 
-    switch (interaction.type) {
+    const { type } = interaction;
+    switch (type) {
       case InteractionType.Ping: {
         return {
           response: new JsonResponse({
@@ -170,16 +173,12 @@ export class DiscordService {
         return {
           response: new JsonResponse({
             type: InteractionResponseType.ChannelMessageWithSource,
-            data: { content: "Autocomplete not implemented", flags: 64 },
-          }),
+            data: { content: "Autocomplete not implemented", flags: MessageFlags.Ephemeral },
+          } satisfies APIInteractionResponseChannelMessageWithSource),
         };
       }
       default: {
-        console.warn("Unknown interaction type");
-
-        return {
-          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
-        };
+        throw new UnreachableError(type);
       }
     }
   }
