@@ -39,28 +39,28 @@
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.37.119",
     "discord-interactions": "^4.1.1",
-    "halo-infinite-api": "^9.3.0",
+    "halo-infinite-api": "^9.5.1",
     "itty-router": "^5.0.18",
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
-    "@tsconfig/node22": "^22.0.0",
-    "@types/node": "22.13.10",
-    "@typescript-eslint/parser": "^8.26.1",
-    "@vitest/coverage-v8": "^3.0.8",
+    "@eslint/js": "^9.23.0",
+    "@tsconfig/node22": "^22.0.1",
+    "@types/node": "22.13.14",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vitest/coverage-v8": "^3.0.9",
     "dotenv": "^16.4.7",
-    "eslint": "^9.22.0",
-    "eslint-import-resolver-typescript": "^4.2.2",
+    "eslint": "^9.23.0",
+    "eslint-import-resolver-typescript": "^4.3.1",
     "eslint-plugin-import": "^2.31.0",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.0",
     "prettier": "^3.5.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.1",
+    "typescript-eslint": "^8.28.0",
     "vitest": "^3.0.4",
     "vitest-mock-extended": "^3.0.1",
-    "wrangler": "^4.3.0"
+    "wrangler": "^4.6.0"
   }
 }
