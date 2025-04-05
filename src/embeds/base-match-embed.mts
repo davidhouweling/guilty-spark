@@ -16,6 +16,7 @@ export interface StatsValue {
   value: number;
   sortBy: StatsValueSortBy;
   display?: string;
+  prefix?: string;
 }
 
 export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
@@ -63,10 +64,16 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         },
       ],
       [
-        "Damage D:T",
+        "Damage D:T (D/T)",
         [
           { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
           { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
+          {
+            value: CoreStats.DamageDealt === 0 ? 0 : CoreStats.DamageTaken === 0 ? Number.POSITIVE_INFINITY : CoreStats.DamageDealt / CoreStats.DamageTaken,
+            sortBy: StatsValueSortBy.DESC,
+            display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
+            prefix: ' ',
+          },
         ],
       ],
       [
@@ -239,7 +246,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     index?: number,
   ): string {
     if (Array.isArray(value)) {
-      return value.map((v, i) => this.getStatsValue(matchBestValues, teamBestValues, key, v, i)).join(":");
+      return value.map((v, i) => `${i > 0 ? (v.prefix ?? ':') : ''}${this.getStatsValue(matchBestValues, teamBestValues, key, v, i)}`).join('');
     }
 
     const { value: statValue, display } = value;
@@ -264,6 +271,18 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return Number.isSafeInteger(statValue)
       ? statValue.toLocaleString(this.locale)
       : Number(statValue.toFixed(2)).toLocaleString(this.locale);
+  }
+
+  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
+    if (damageDealt === 0) {
+      return '(0)';
+    }
+
+    if (damageTaken === 0) {
+      return '(♾️)';
+    }
+
+    return `(${this.formatStatValue(damageDealt / damageTaken)})`
   }
 
   protected getBestTeamStatValues(

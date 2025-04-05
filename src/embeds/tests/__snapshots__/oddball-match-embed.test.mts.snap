@@ -19,7 +19,7 @@ KDA: -4
 Headshot kills: 4
 Shots H:F: 161:326
 Accuracy: 49.38%
-Damage D:T: 7,718:**9,491**
+Damage D:T (D/T): 7,718:**9,491** (0.81)
 Av life duration: **27s**
 Av damage/life: 266.14
 Total time as carrier: **1m 33s**
@@ -36,7 +36,7 @@ KDA: -13
 Headshot kills: 10
 Shots H:F: 181:362
 Accuracy: 50%
-Damage D:T: 8,476:10,836
+Damage D:T (D/T): 8,476:10,836 (0.78)
 Av life duration: 20s
 Av damage/life: 235.44
 Total time as carrier: 53s
@@ -60,7 +60,7 @@ KDA: **10.33**
 Headshot kills: __**31**__
 Shots H:F: **268**:**458**
 Accuracy: __**58.51%**__
-Damage D:T: **11,620**:11,411
+Damage D:T (D/T): **11,620**:11,411 **(1.02)**
 Av life duration: 24s
 Av damage/life: **352.12**
 Total time as carrier: 48s
@@ -77,7 +77,7 @@ KDA: 1.66
 Headshot kills: 17
 Shots H:F: 251:443
 Accuracy: 56.65%
-Damage D:T: 10,303:10,590
+Damage D:T (D/T): 10,303:10,590 (0.97)
 Av life duration: 23s
 Av damage/life: 321.97
 Total time as carrier: 21s
@@ -106,7 +106,7 @@ KDA: 14.33
 Headshot kills: 20
 Shots H:F: 224:409
 Accuracy: 54.76%
-Damage D:T: 9,430:__**8,596**__
+Damage D:T (D/T): 9,430:__**8,596**__ (1.1)
 Av life duration: __**41s**__
 Av damage/life: 449.05
 Total time as carrier: __**1m 45s**__
@@ -123,7 +123,7 @@ KDA: 4.33
 Headshot kills: 18
 Shots H:F: 237:447
 Accuracy: 53.02%
-Damage D:T: 10,815:10,019
+Damage D:T (D/T): 10,815:10,019 (1.08)
 Av life duration: 25s
 Av damage/life: 348.87
 Total time as carrier: 1m 26s
@@ -147,7 +147,7 @@ KDA: __**30**__
 Headshot kills: **30**
 Shots H:F: __**335**__:__**582**__
 Accuracy: **57.56%**
-Damage D:T: __**13,919**__:10,011
+Damage D:T (D/T): __**13,919**__:10,011 __**(1.39)**__
 Av life duration: 33s
 Av damage/life: __**579.96**__
 Total time as carrier: 45s
@@ -164,7 +164,7 @@ KDA: -6.66
 Headshot kills: 12
 Shots H:F: 158:322
 Accuracy: 49.06%
-Damage D:T: 7,200:9,781
+Damage D:T (D/T): 7,200:9,781 (0.74)
 Av life duration: 22s
 Av damage/life: 218.18
 Total time as carrier: 33s

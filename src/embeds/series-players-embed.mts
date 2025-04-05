@@ -4,10 +4,10 @@ import { Preconditions } from "../base/preconditions.mjs";
 import type { EmbedPlayerStats, PlayerTeamStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed } from "./base-match-embed.mjs";
 
-export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerSlayer> {
+export class SeriesPlayersEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerSlayer> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override async getEmbed(_match: MatchStats, _players: Map<string, string>): Promise<APIEmbed> {
-    return Promise.reject(new Error("Series matches embed does not support single match, use getSeriesEmbed instead"));
+    return Promise.reject(new Error("Series players embed does not support single match, use getSeriesEmbed instead"));
   }
 
   override getPlayerObjectiveStats(): EmbedPlayerStats {
@@ -17,12 +17,10 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
   async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>, locale: string): Promise<APIEmbed> {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
-      title: "Accumulated Series Stats",
+      title: "Accumulated Series Stats by Players",
       description: "-# Legend: **Best in team** | __**Best overall**__",
       fields: [],
     };
-
-    const teamCoreStats = this.aggregateTeamCoreStats(matches);
 
     const playersCoreStats = this.aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
@@ -39,17 +37,6 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
           Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
       );
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
-
-      const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
-      const teamScore = teamStats.PersonalScore.toLocaleString(locale);
-      const kills = teamStats.Kills.toLocaleString(locale);
-      const deaths = teamStats.Deaths.toLocaleString(locale);
-      const assists = teamStats.Assists.toLocaleString(locale);
-      embed.fields?.push({
-        name: this.haloService.getTeamName(team.TeamId),
-        value: `Score: ${teamScore} | K:D:A: ${kills}:${deaths}:${assists}`,
-        inline: false,
-      });
 
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
@@ -91,30 +78,6 @@ export class SeriesMatchesEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     }
 
     return embed;
-  }
-
-  private aggregateTeamCoreStats(matches: MatchStats[]): Map<number, Stats["CoreStats"]> {
-    const teamCoreStats = new Map<number, Stats["CoreStats"]>();
-    for (const match of matches) {
-      for (const team of match.Teams) {
-        const { TeamId } = team;
-        const { CoreStats } = team.Stats;
-        if (!teamCoreStats.has(TeamId)) {
-          teamCoreStats.set(TeamId, CoreStats);
-          continue;
-        }
-
-        const mergedStats = this.mergeCoreStats(Preconditions.checkExists(teamCoreStats.get(TeamId)), CoreStats);
-        teamCoreStats.set(TeamId, mergedStats);
-      }
-    }
-
-    // adjust some of the values which should be averages rather than sums
-    for (const [playerId, stats] of teamCoreStats.entries()) {
-      teamCoreStats.set(playerId, this.adjustAveragesInCoreStats(stats, matches.length));
-    }
-
-    return teamCoreStats;
   }
 
   private aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {

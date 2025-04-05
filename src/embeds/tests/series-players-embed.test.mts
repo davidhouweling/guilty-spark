@@ -1,6 +1,6 @@
 import { describe, beforeEach, expect, it } from "vitest";
 import { matchStats, playerXuidsToGametags } from "../../services/halo/fakes/data.mjs";
-import { SeriesMatchesEmbed } from "../series-matches-embed.mjs";
+import { SeriesPlayersEmbed } from "../series-players-embed.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake.mjs";
@@ -12,29 +12,29 @@ const kothMatch = Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a
 const slayerMatch = Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"));
 const matches = [ctfMatch, kothMatch, slayerMatch];
 
-describe("SeriesMatchesEmbed", () => {
+describe("SeriesPlayersEmbed", () => {
   const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
-  let seriesMatchesEmbed: SeriesMatchesEmbed;
+  let seriesPlayersEmbed: SeriesPlayersEmbed;
 
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService, locale });
+    seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, locale });
   });
 
   describe("getEmbed", () => {
     it("returns promise reject", async () => {
-      await expect(seriesMatchesEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrowError(
-        "Series matches embed does not support single match, use getSeriesEmbed instead",
+      await expect(seriesPlayersEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrowError(
+        "Series players embed does not support single match, use getSeriesEmbed instead",
       );
     });
   });
 
   describe("getSeriesEmbed", () => {
-    it("returns the expected embed", () => {
-      const result = seriesMatchesEmbed.getSeriesEmbed(matches, playerXuidsToGametags, locale);
+    it("returns the expected embed", async () => {
+      const result = await seriesPlayersEmbed.getSeriesEmbed(matches, playerXuidsToGametags, locale);
       expect(result).toMatchSnapshot();
     });
   });

@@ -37,7 +37,7 @@ import { StrongholdsMatchEmbed } from "../../embeds/strongholds-match-embed.mjs"
 import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.mjs";
 import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
-import { SeriesMatchesEmbed } from "../../embeds/series-matches-embed.mjs";
+import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
   data: ApplicationCommandData = {
@@ -166,14 +166,13 @@ export class StatsCommand extends BaseCommand {
       const startDateTime = subHours(queueData.timestamp, 6);
       const endDateTime = queueData.timestamp;
       const series = await haloService.getSeriesFromDiscordQueue({
-        teams: queueData.teams.map((team) => ({
-          name: team.name,
-          players: team.players.map((player) => ({
+        teams: queueData.teams.map((team) =>
+          team.players.map((player) => ({
             id: player.id,
             username: player.username,
             globalName: player.global_name,
           })),
-        })),
+        ),
         startDateTime,
         endDateTime,
       });
@@ -194,10 +193,10 @@ export class StatsCommand extends BaseCommand {
       const thread = await discordService.startThreadFromMessage(
         message.channel_id,
         message.id,
-        `Queue #${queue.toLocaleString(locale)} series stats`,
+        `Queue #${queue.toString()} series stats`,
       );
 
-      const seriesMatchesEmbed = new SeriesMatchesEmbed({ discordService, haloService, locale });
+      const seriesMatchesEmbed = new SeriesPlayersEmbed({ discordService, haloService, locale });
       const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
       const seriesAccumulationEmbed = await seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers, locale);
       await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });

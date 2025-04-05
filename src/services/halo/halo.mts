@@ -17,10 +17,7 @@ export interface MatchPlayer {
 export interface SeriesData {
   startDateTime: Date;
   endDateTime: Date;
-  teams: {
-    name: string;
-    players: MatchPlayer[];
-  }[];
+  teams: MatchPlayer[][];
 }
 
 export interface Medal {
@@ -49,7 +46,7 @@ export class HaloService {
   }
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
-    const users = queueData.teams.flatMap((team) => team.players);
+    const users = queueData.teams.flat();
     await this.populateUserCache(users);
 
     const usersWithGamesRetrieved = Array.from(this.userCache.values()).filter(
@@ -152,12 +149,16 @@ export class HaloService {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
   }
 
-  async getPlayerXuidsToGametags(match: MatchStats): Promise<Map<string, string>> {
-    const xuidsToResolve = match.Players.filter((player) => player.PlayerType === 1)
+  async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
+    const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
+      .flatMap((match) => match.Players)
+      .filter((player) => player.PlayerType === 1)
       .map((player) => this.getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
-    if (xuidsToResolve.length) {
-      const users = await this.getUsersByXuids(xuidsToResolve);
+
+    const uniqueXuids = new Set(xuidsToResolve);
+    if (uniqueXuids.size) {
+      const users = await this.getUsersByXuids(Array.from(uniqueXuids));
       for (const user of users) {
         this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
       }

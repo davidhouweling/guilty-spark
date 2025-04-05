@@ -19,7 +19,7 @@ KDA: **0.33**
 Headshot kills: 11
 Shots H:F: 125:201
 Accuracy: __**62.18%**__
-Damage D:T: 5,771:**5,949**
+Damage D:T (D/T): 5,771:**5,949** **(0.97)**
 Av life duration: 22s
 Av damage/life: 274.81
 Captures: 10
@@ -39,7 +39,7 @@ KDA: -1.66
 Headshot kills: **12**
 Shots H:F: __**155**__:__**253**__
 Accuracy: 61.26%
-Damage D:T: **6,633**:6,892
+Damage D:T (D/T): **6,633**:6,892 (0.96)
 Av life duration: 21s
 Av damage/life: **301.5**
 Captures: 9
@@ -66,7 +66,7 @@ KDA: -6.33
 Headshot kills: 9
 Shots H:F: 88:170
 Accuracy: 51.76%
-Damage D:T: 4,528:6,405
+Damage D:T (D/T): 4,528:6,405 (0.71)
 Av life duration: 21s
 Av damage/life: 215.62
 Captures: __**12**__
@@ -86,7 +86,7 @@ KDA: -4.66
 Headshot kills: 6
 Shots H:F: 128:220
 Accuracy: 58.18%
-Damage D:T: 5,716:6,138
+Damage D:T (D/T): 5,716:6,138 (0.93)
 Av life duration: **24s**
 Av damage/life: 300.84
 Captures: 6
@@ -118,7 +118,7 @@ KDA: __**11**__
 Headshot kills: __**20**__
 Shots H:F: **141**:237
 Accuracy: **59.49%**
-Damage D:T: __**7,066**__:6,496
+Damage D:T (D/T): __**7,066**__:6,496 (1.09)
 Av life duration: 24s
 Av damage/life: 353.3
 Captures: 7
@@ -138,7 +138,7 @@ KDA: 6.33
 Headshot kills: 9
 Shots H:F: 128:**248**
 Accuracy: 51.61%
-Damage D:T: 6,660:6,197
+Damage D:T (D/T): 6,660:6,197 (1.07)
 Av life duration: 28s
 Av damage/life: 391.76
 Captures: **8**
@@ -165,7 +165,7 @@ KDA: 10
 Headshot kills: 12
 Shots H:F: 112:229
 Accuracy: 48.9%
-Damage D:T: 5,374:5,154
+Damage D:T (D/T): 5,374:5,154 (1.04)
 Av life duration: __**43s**__
 Av damage/life: __**447.83**__
 Captures: **8**
@@ -185,7 +185,7 @@ KDA: 5.33
 Headshot kills: 11
 Shots H:F: 125:228
 Accuracy: 54.82%
-Damage D:T: 5,803:__**4,939**__
+Damage D:T (D/T): 5,803:__**4,939**__ __**(1.17)**__
 Av life duration: 39s
 Av damage/life: 446.38
 Captures: 6
