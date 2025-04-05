@@ -27,7 +27,7 @@ describe("SeriesPlayersEmbed", () => {
   describe("getEmbed", () => {
     it("returns promise reject", async () => {
       await expect(seriesPlayersEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrowError(
-        "Series players embed does not support single match, use getSeriesEmbed instead",
+        "Series embed does not implement getEmbed, use getSeriesEmbed instead",
       );
     });
   });

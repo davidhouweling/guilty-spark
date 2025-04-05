@@ -39,6 +39,7 @@ import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
 import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
+import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
   data: ApplicationCommandData = {
@@ -197,10 +198,18 @@ export class StatsCommand extends BaseCommand {
         `Queue #${queue.toString()} series stats`,
       );
 
-      const seriesMatchesEmbed = new SeriesPlayersEmbed({ discordService, haloService, locale });
+      const seriesTeamsEmbed = new SeriesTeamsEmbed({
+        discordService,
+        haloService,
+        locale,
+      });
+      const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
+
+      const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, locale });
       const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
-      const seriesAccumulationEmbed = await seriesMatchesEmbed.getSeriesEmbed(series, seriesPlayers, locale);
-      await discordService.createMessage(thread.id, { embeds: [seriesAccumulationEmbed] });
+      const seriesPlayersEmbedOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
+
+      await discordService.createMessage(thread.id, { embeds: [seriesTeamsEmbedOutput, seriesPlayersEmbedOutput] });
 
       for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match);

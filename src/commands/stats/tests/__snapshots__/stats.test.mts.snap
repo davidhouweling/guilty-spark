@@ -230,6 +230,46 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > adds e
     {
       "embeds": [
         {
+          "fields": [
+            {
+              "inline": true,
+              "name": "Eagle",
+              "value": "Kills: __217__
+Assists: __112__
+KDA: __57.34__
+Headshot kills: __124__
+Shots H:F: 1,780:4,381
+Accuracy: 47.62%
+Damage D:T (D/T): __64,725__:__62,135__ __(1.04)__
+Av life duration: __32s__
+Av damage/life: __328.55__
+3x<:TripleKill:1322814228477906944> 19x<:DoubleKill:1322814147980689430> 11x<:Perfect:1322879561515532308> <:OfftheRack:1322884747881353279> 6x<:ShotCaller:1322884687693086771> 7x<:KillingSpree:1322803050347499541> <:NoScope:1322882248516702220> <:Grapplejack:1322884573906075729> 4x<:Snipe:1322872969571340370> 5x<:Killjoy:1322802841039147129> 3x<:Stick:1322871787695898676> 2x<:FromtheGrave:1322884008773816351> 8x<:Rifleman:1322860656399220828> 5x<:Reversal:1322872797701083166> 5x<:GuardianAngel:1322873057928286248> 4x<:Wingman:1322854221095108609> 2x<:LastShot:1322884170606972959> <:Bodyguard:1322867380136841279> 4x<:BackSmack:1322872596135546891>",
+            },
+            {
+              "inline": true,
+              "name": "Cobra",
+              "value": "Kills: 197
+Assists: 82
+KDA: 6.33
+Headshot kills: 116
+Shots H:F: __2,012__:__4,620__
+Accuracy: __47.95%__
+Damage D:T (D/T): 62,455:64,466 (0.97)
+Av life duration: 30s
+Av damage/life: 286.49
+<:SneakKing:1322883516039696415> <:AutopilotEngaged:1322883411660243016> 3x<:TripleKill:1322814228477906944> <:KillingFrenzy:1322803174238584853> 18x<:DoubleKill:1322814147980689430> 5x<:ShotCaller:1322884687693086771> 10x<:Perfect:1322879561515532308> 5x<:KillingSpree:1322803050347499541> 2x<:OfftheRack:1322884747881353279> <:NadeShot:1322877140605206528> <:Whiplash:1322882310122504202> <:HailMary:1322882032103325768> 9x<:Rifleman:1322860656399220828> 7x<:Killjoy:1322802841039147129> 3x<:Stick:1322871787695898676> <:StoppedShort:1322806739778670652> 3x<:Reversal:1322872797701083166> 3x<:GuardianAngel:1322873057928286248> <:Spotter:1322814780796309505> <:LastShot:1322884170606972959> 3x<:Wingman:1322854221095108609> 5x<:Snipe:1322872969571340370> <:Sharpshooter:1322866954457055242> <:BackSmack:1322872596135546891> <:Gunslinger:1322866262736637992> <:QuickDraw:1322884127212699660> <:Splatter:1322872682592735242>",
+            },
+            {
+              "inline": false,
+              "name": "
+",
+              "value": "
+",
+            },
+          ],
+          "title": "Accumulated Series Stats by Team",
+        },
+        {
           "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
             {
@@ -243,7 +283,7 @@ Headshot kills: __**40**__
 Shots H:F: **412**:714
 Accuracy: __**57.92%**__
 Damage D:T (D/T): **15,671**:14,745 (1.06)
-Av life duration: 27s
+Av life duration: 25s
 Av damage/life: 340.67
 2x<:TripleKill:1322814228477906944> 4x<:ShotCaller:1322884687693086771> <:NoScope:1322882248516702220> 9x<:DoubleKill:1322814147980689430> 3x<:KillingSpree:1322803050347499541> 4x<:Perfect:1322879561515532308> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351> 2x<:Reversal:1322872797701083166> 2x<:Rifleman:1322860656399220828> <:Wingman:1322854221095108609> <:Killjoy:1322802841039147129>",
             },
@@ -258,7 +298,7 @@ Headshot kills: 32
 Shots H:F: 367:704
 Accuracy: 53.29%
 Damage D:T (D/T): 15,065:13,537 **(1.11)**
-Av life duration: 29s
+Av life duration: 31s
 Av damage/life: 367.44
 2x<:Perfect:1322879561515532308> 4x<:DoubleKill:1322814147980689430> 2x<:ShotCaller:1322884687693086771> 3x<:Snipe:1322872969571340370> 2x<:Rifleman:1322860656399220828> 3x<:Reversal:1322872797701083166> 3x<:GuardianAngel:1322873057928286248> 2x<:LastShot:1322884170606972959> <:Bodyguard:1322867380136841279> 2x<:Wingman:1322854221095108609> <:Stick:1322871787695898676> 3x<:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129>",
             },
@@ -280,7 +320,7 @@ Headshot kills: 30
 Shots H:F: 300:611
 Accuracy: 48.78%
 Damage D:T (D/T): 11,715:**10,928** (1.07)
-Av life duration: **53s**
+Av life duration: **49s**
 Av damage/life: **390.5**
 2x<:DoubleKill:1322814147980689430> 3x<:Perfect:1322879561515532308> 4x<:KillingSpree:1322803050347499541> <:Killjoy:1322802841039147129> 2x<:Rifleman:1322860656399220828> <:Snipe:1322872969571340370> 2x<:GuardianAngel:1322873057928286248>",
             },
@@ -295,7 +335,7 @@ Headshot kills: 19
 Shots H:F: 377:**829**
 Accuracy: 46.21%
 Damage D:T (D/T): 12,947:12,373 (1.05)
-Av life duration: 32s
+Av life duration: 34s
 Av damage/life: 340.71
 <:TripleKill:1322814228477906944> <:OfftheRack:1322884747881353279> 2x<:DoubleKill:1322814147980689430> 2x<:Perfect:1322879561515532308> 2x<:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
             },
@@ -317,7 +357,7 @@ Headshot kills: **38**
 Shots H:F: __**462**__:__**1,220**__
 Accuracy: **48.69%**
 Damage D:T (D/T): __**17,163**__:14,467 **(1.19)**
-Av life duration: 27s
+Av life duration: **28s**
 Av damage/life: **365.17**
 <:SneakKing:1322883516039696415> 8x<:DoubleKill:1322814147980689430> 5x<:Perfect:1322879561515532308> <:KillingSpree:1322803050347499541> <:OfftheRack:1322884747881353279> <:Whiplash:1322882310122504202> <:Grapplejack:1322884573906075729> 2x<:Rifleman:1322860656399220828> 3x<:Killjoy:1322802841039147129>",
             },
@@ -354,7 +394,7 @@ Headshot kills: 15
 Shots H:F: 320:691
 Accuracy: 46.58%
 Damage D:T (D/T): 11,342:15,910 (0.71)
-Av life duration: 19s
+Av life duration: 21s
 Av damage/life: 198.98
 2x<:DoubleKill:1322814147980689430> 2x<:Rifleman:1322860656399220828> <:Reversal:1322872797701083166> <:LastShot:1322884170606972959> <:Wingman:1322854221095108609> <:Killjoy:1322802841039147129>",
             },
@@ -369,7 +409,7 @@ Headshot kills: 11
 Shots H:F: 252:561
 Accuracy: 44.4%
 Damage D:T (D/T): 10,706:14,030 (0.76)
-Av life duration: **29s**
+Av life duration: 24s
 Av damage/life: 218.49
 5x<:ShotCaller:1322884687693086771> <:Perfect:1322879561515532308> <:DoubleKill:1322814147980689430> <:NadeShot:1322877140605206528> 2x<:Rifleman:1322860656399220828> <:StoppedShort:1322806739778670652> 3x<:Killjoy:1322802841039147129> <:Spotter:1322814780796309505> <:Wingman:1322854221095108609> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351>",
             },
@@ -892,7 +932,7 @@ Headshot kills: 3
 Shots H:F: **158**:__**723**__
 Accuracy: 21.85%
 Damage D:T (D/T): **3,774**:2,186 **(1.73)**
-Av life duration: **36s**
+Av life duration: 36s
 Av damage/life: **471.75**
 <:Grapplejack:1322884573906075729>",
             },

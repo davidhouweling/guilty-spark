@@ -2,18 +2,9 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "../base/preconditions.mjs";
 import type { EmbedPlayerStats, PlayerTeamStats } from "./base-match-embed.mjs";
-import { BaseMatchEmbed } from "./base-match-embed.mjs";
+import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 
-export class SeriesPlayersEmbed extends BaseMatchEmbed<GameVariantCategory.MultiplayerSlayer> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  override async getEmbed(_match: MatchStats, _players: Map<string, string>): Promise<APIEmbed> {
-    return Promise.reject(new Error("Series players embed does not support single match, use getSeriesEmbed instead"));
-  }
-
-  override getPlayerObjectiveStats(): EmbedPlayerStats {
-    return new Map([]);
-  }
-
+export class SeriesPlayersEmbed extends BaseSeriesEmbed {
   async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>, locale: string): Promise<APIEmbed> {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embed: APIEmbed = {
@@ -28,7 +19,7 @@ export class SeriesPlayersEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
       playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
     }
 
-    const matchBestValues = this.getBestStatValues(playersStats);
+    const seriesBestValues = this.getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
       const teamPlayers = this.getTeamPlayers(firstMatch, team).sort(
@@ -51,7 +42,7 @@ export class SeriesPlayersEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
         const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
-        const outputStats = this.playerStatsToFields(matchBestValues, teamBestValues, playerStats);
+        const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
         const medals = await this.playerMedalsToFields(playerCoreStats);
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
         const personalScore = playerCoreStats.PersonalScore.toLocaleString(locale);
@@ -104,61 +95,5 @@ export class SeriesPlayersEmbed extends BaseMatchEmbed<GameVariantCategory.Multi
     }
 
     return playerCoreStats;
-  }
-
-  private mergeCoreStats(
-    existingCoreStats: Stats["CoreStats"],
-    incomingCoreStats: Stats["CoreStats"],
-  ): Stats["CoreStats"] {
-    let mergedCoreStats: Stats["CoreStats"] = { ...existingCoreStats };
-    for (const [key, value] of Object.entries(incomingCoreStats)) {
-      const castKey = key as keyof Stats["CoreStats"];
-
-      if (castKey === "Medals" || castKey === "PersonalScores") {
-        const existingStatMap = new Map(mergedCoreStats[castKey].map((stat) => [stat.NameId, stat]));
-        const castValue = value as Stats["CoreStats"]["Medals"];
-        for (const statValue of castValue) {
-          const existingStat = existingStatMap.get(statValue.NameId);
-          if (existingStat) {
-            existingStatMap.set(statValue.NameId, {
-              ...existingStat,
-              Count: existingStat.Count + statValue.Count,
-              TotalPersonalScoreAwarded: existingStat.TotalPersonalScoreAwarded + statValue.TotalPersonalScoreAwarded,
-            });
-          } else {
-            existingStatMap.set(statValue.NameId, statValue);
-          }
-        }
-
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          [castKey]: Array.from(existingStatMap.values()),
-        };
-      } else if (castKey === "AverageLifeDuration") {
-        const averageLifeDuration = mergedCoreStats[castKey];
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
-          [castKey]: [averageLifeDuration, value].join(","),
-        };
-      } else if (typeof value === "number" && typeof mergedCoreStats[castKey] === "number") {
-        const oldValue = mergedCoreStats[castKey];
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          [castKey]: oldValue + value,
-        };
-      } else {
-        throw new Error(`Invalid type for key ${key}`);
-      }
-    }
-
-    return mergedCoreStats;
-  }
-
-  private adjustAveragesInCoreStats(coreStats: Stats["CoreStats"], matches: number): Stats["CoreStats"] {
-    return {
-      ...coreStats,
-      Accuracy: coreStats.Accuracy / matches,
-    };
   }
 }

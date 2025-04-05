@@ -173,12 +173,20 @@ export class HaloService {
 
   getDurationInSeconds(duration: string): number {
     const parsedDuration = tinyduration.parse(duration);
-    return Math.floor(
-      (parsedDuration.days ?? 0) * 86400 +
+    return parseFloat(
+      (
+        (parsedDuration.days ?? 0) * 86400 +
         (parsedDuration.hours ?? 0) * 3600 +
         (parsedDuration.minutes ?? 0) * 60 +
-        (parsedDuration.seconds ?? 0),
+        (parsedDuration.seconds ?? 0)
+      ).toFixed(1),
     );
+  }
+
+  getDurationInIsoString(seconds: number): string {
+    return tinyduration.serialize({
+      seconds: parseFloat(seconds.toFixed(1)),
+    });
   }
 
   getReadableDuration(duration: string, locale: string): string {

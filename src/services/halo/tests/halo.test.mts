@@ -383,14 +383,14 @@ describe("Halo service", () => {
       const duration = "PT10M58.2413691S";
       const result = haloService.getDurationInSeconds(duration);
 
-      expect(result).toBe(658);
+      expect(result).toBe(658.2);
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
       const result = haloService.getDurationInSeconds(duration);
 
-      expect(result).toBe(275415);
+      expect(result).toBe(275415.5);
     });
   });
 

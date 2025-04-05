@@ -69,10 +69,15 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
           { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
           {
-            value: CoreStats.DamageDealt === 0 ? 0 : CoreStats.DamageTaken === 0 ? Number.POSITIVE_INFINITY : CoreStats.DamageDealt / CoreStats.DamageTaken,
+            value:
+              CoreStats.DamageDealt === 0
+                ? 0
+                : CoreStats.DamageTaken === 0
+                  ? Number.POSITIVE_INFINITY
+                  : CoreStats.DamageDealt / CoreStats.DamageTaken,
             sortBy: StatsValueSortBy.DESC,
             display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
-            prefix: ' ',
+            prefix: " ",
           },
         ],
       ],
@@ -246,7 +251,12 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     index?: number,
   ): string {
     if (Array.isArray(value)) {
-      return value.map((v, i) => `${i > 0 ? (v.prefix ?? ':') : ''}${this.getStatsValue(matchBestValues, teamBestValues, key, v, i)}`).join('');
+      return value
+        .map(
+          (v, i) =>
+            `${i > 0 ? (v.prefix ?? ":") : ""}${this.getStatsValue(matchBestValues, teamBestValues, key, v, i)}`,
+        )
+        .join("");
     }
 
     const { value: statValue, display } = value;
@@ -275,14 +285,14 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
   private formatDamageRatio(damageDealt: number, damageTaken: number): string {
     if (damageDealt === 0) {
-      return '(0)';
+      return "(0)";
     }
 
     if (damageTaken === 0) {
-      return '(♾️)';
+      return "(♾️)";
     }
 
-    return `(${this.formatStatValue(damageDealt / damageTaken)})`
+    return `(${this.formatStatValue(damageDealt / damageTaken)})`;
   }
 
   protected getBestTeamStatValues(
@@ -298,7 +308,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return this.getBestStatValues(teamPlayersStats);
   }
 
-  protected getBestStatValues(playersStats: Map<string, EmbedPlayerStats>): Map<string, number | number[]> {
+  protected getBestStatValues(playersStats: Map<string | number, EmbedPlayerStats>): Map<string, number | number[]> {
     const bestValues = new Map<string, number | number[]>();
     for (const embedPlayerStats of playersStats.values()) {
       for (const [key, playerStats] of embedPlayerStats.entries()) {
