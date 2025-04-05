@@ -38,6 +38,7 @@ import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.m
 import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
+import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
 
 export class StatsCommand extends BaseCommand {
   data: ApplicationCommandData = {
@@ -277,20 +278,6 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
-    for (let column = 0; column < titles.length; column++) {
-      embed.fields ??= [];
-      embed.fields.push({
-        name: Preconditions.checkExists(titles[column]),
-        value: data
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
-    }
-  }
-
   private async createSeriesEmbed({
     guildId,
     channel,
@@ -307,34 +294,23 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[];
   }): Promise<APIEmbed> {
     const { discordService, haloService } = this.services;
-    const titles = ["Game", "Duration", `Score${queueData.teams.length === 2 ? " (🦅:🐍)" : ""}`];
-    const tableData = [titles];
-    for (const seriesMatch of series) {
-      const gameTypeAndMap = await haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
-      const gameDuration = haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
-      const gameScore = haloService.getMatchScore(seriesMatch, locale);
+    const seriesOverview = new SeriesOverviewEmbed({ discordService, haloService });
+    const seriesEmbed = await seriesOverview.getEmbed({
+      guildId,
+      channel,
+      messageId: queueData.message.id,
+      locale,
+      queue,
+      series,
+      teams: queueData.teams.map((team) => ({
+        name: team.name,
+        players: team.players.map(({ id }) => ({
+          id,
+        })),
+      })),
+    });
 
-      tableData.push([gameTypeAndMap, gameDuration, gameScore]);
-    }
-
-    const messageId = Preconditions.checkExists(queueData.message.id);
-    const teams = queueData.teams
-      .map((team) => `**${team.name}:** ${team.players.map((player) => `<@${player.id}>`).join(" ")}`)
-      .join("\n");
-    const startTime = discordService.getTimestamp(Preconditions.checkExists(series[0]?.MatchInfo.StartTime));
-    const endTime = discordService.getTimestamp(
-      Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime),
-    );
-    const embed: APIEmbed = {
-      title: `Series stats for queue #${queue.toLocaleString(locale)}`,
-      description: `${teams}\n\n-# Start time: ${startTime} | End time: ${endTime}`,
-      url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
-      color: 3447003,
-    };
-
-    this.addEmbedFields(embed, titles, tableData);
-
-    return embed;
+    return seriesEmbed;
   }
 
   private getMatchEmbed(match: MatchStats, locale: string): BaseMatchEmbed<GameVariantCategory> {
