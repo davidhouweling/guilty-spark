@@ -226,14 +226,7 @@ export class ConnectCommand extends BaseCommand {
       if (usersByXuids[0] != null) {
         searchedGamertag = usersByXuids[0].gamertag;
 
-        const thirdPartySites = [
-          `[Halo Waypoint](<https://www.halowaypoint.com/halo-infinite/players/${searchedGamertag}>)`,
-          `[Halo Data Hive](<https://halodatahive.com/Player/Infinite/${searchedGamertag}>)`,
-          `[Halo Query](<https://haloquery.com/players/${searchedGamertag}>)`,
-          `[Halo Tracker](<https://halotracker.com/halo-infinite/profile/xbl/${searchedGamertag}/overview>)`,
-          `[Leaf App](<https://leafapp.co/player/${searchedGamertag}>)`,
-          `[Spartan Record](<https://spartanrecord.com/service_record/${searchedGamertag}>)`,
-        ];
+        const thirdPartySites = [`[Halo Data Hive](<https://halodatahive.com/Player/Infinite/${searchedGamertag}>)`];
 
         currentAssociation = [
           `**Halo account:** ${searchedGamertag}`,
