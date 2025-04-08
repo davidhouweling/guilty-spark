@@ -1,7 +1,7 @@
 name = "guilty-spark"
 main = "./src/server.mts"
 compatibility_flags = [ "nodejs_compat" ]
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-04-01"
 upload_source_maps = true
 kv_namespaces = [
   { binding = "APP_DATA", id = "374fa9b9bed741fe9b5cb2d777206413" }
