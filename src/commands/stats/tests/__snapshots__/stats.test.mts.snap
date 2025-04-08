@@ -223,7 +223,7 @@ Carriers killed: __**1**__
 ]
 `;
 
-exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > adds each game and series summary to the thread 1`] = `
+exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > adds each game and series summary to the thread when guildConfig StatsReturn is SERIES_AND_GAMES 1`] = `
 [
   [
     "fake-thread-id",

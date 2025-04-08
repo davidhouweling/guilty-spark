@@ -38,6 +38,7 @@ export class HaloService {
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
+  private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
   constructor({ databaseService, infiniteClient }: HaloServiceOpts) {
@@ -47,23 +48,20 @@ export class HaloService {
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
     const users = queueData.teams.flat();
-    await this.populateUserCache(users);
+    await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 
-    const usersWithGamesRetrieved = Array.from(this.userCache.values()).filter(
+    const usersToSearch = Array.from(this.userCache.values()).filter(
       (user) => user.GamesRetrievable === GamesRetrievable.YES,
     );
-    const usersWithGamesUnknown = Array.from(this.userCache.values()).filter(
-      (user) =>
-        user.AssociationReason !== AssociationReason.UNKNOWN && user.GamesRetrievable === GamesRetrievable.UNKNOWN,
-    );
-    // whilst we only need to find the first one matchable, allow us to go through the list and update cache if not matching
-    const usersToSearch = [...usersWithGamesRetrieved, ...usersWithGamesUnknown];
 
     if (!usersToSearch.length) {
       await this.updateDiscordAssociations();
 
       throw new Error(
-        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
+        [
+          "**Error**: Unable to match any of the Discord users to their Xbox accounts.",
+          "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        ].join("\n"),
       );
     }
 
@@ -261,43 +259,54 @@ export class HaloService {
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
-  private async populateUserCache(users: MatchPlayer[]): Promise<void> {
+  private async populateUserCache(users: MatchPlayer[], startDate: Date, endDate: Date): Promise<void> {
     const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
     for (const association of discordAssociations) {
-      // if matched by display name, and the games aren't retrievable, allow it to try again if the display name is different to last time
-      if (
-        association.AssociationReason === AssociationReason.DISPLAY_NAME_SEARCH &&
-        association.DiscordDisplayNameSearched != null &&
-        association.GamesRetrievable !== GamesRetrievable.YES
-      ) {
-        const user = users.find(({ id }) => id === association.DiscordId);
-        if (user?.globalName !== association.DiscordDisplayNameSearched) {
-          continue;
-        }
-      }
-
       this.userCache.set(association.DiscordId, association);
     }
 
     let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
+    // we can assume that xbox has already been searched for before
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) => this.getUserByGamertag(user.username)),
     );
-    for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
+
+    const processResult = async (
+      associationReason: AssociationReason,
+      index: number,
+      result: PromiseSettledResult<UserInfo>,
+    ): Promise<void> => {
       if (result.status === "fulfilled") {
+        const playerMatches = await this.getPlayerMatches(result.value.xuid, startDate, endDate);
         const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
         this.userCache.set(discordId, {
           DiscordId: discordId,
           XboxId: result.value.xuid,
-          AssociationReason: AssociationReason.USERNAME_SEARCH,
+          AssociationReason: associationReason,
           AssociationDate: new Date().getTime(),
-          GamesRetrievable: GamesRetrievable.UNKNOWN,
-          DiscordDisplayNameSearched: null,
+          GamesRetrievable: playerMatches.length ? GamesRetrievable.YES : GamesRetrievable.NO,
+          DiscordDisplayNameSearched:
+            associationReason === AssociationReason.DISPLAY_NAME_SEARCH ? result.value.gamertag : null,
         });
       }
-    }
+    };
 
-    unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
+    await Promise.all(
+      xboxUsersByDiscordUsernameResult.map(async (result, index) =>
+        processResult(AssociationReason.USERNAME_SEARCH, index, result),
+      ),
+    );
+
+    unresolvedUsers = users.filter((user) => {
+      const cachedUser = this.userCache.get(user.id);
+      return (
+        cachedUser == null ||
+        (cachedUser.GamesRetrievable !== GamesRetrievable.YES &&
+          user.globalName != null &&
+          user.globalName !== "" &&
+          user.globalName !== cachedUser.DiscordDisplayNameSearched)
+      );
+    });
     const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
       unresolvedUsers.map(async (user) =>
         user.globalName != null && user.globalName !== ""
@@ -305,24 +314,20 @@ export class HaloService {
           : Promise.reject(new Error("No global name")),
       ),
     );
-    for (const [index, result] of xboxUsersByDiscordDisplayNameResult.entries()) {
-      const unresolvedUser = Preconditions.checkExists(unresolvedUsers[index]);
-      const discordId = unresolvedUser.id;
-      const resolved = result.status === "fulfilled";
-
-      this.userCache.set(discordId, {
-        DiscordId: discordId,
-        XboxId: resolved ? result.value.xuid : "",
-        AssociationReason: resolved ? AssociationReason.DISPLAY_NAME_SEARCH : AssociationReason.UNKNOWN,
-        AssociationDate: new Date().getTime(),
-        GamesRetrievable: GamesRetrievable.UNKNOWN,
-        DiscordDisplayNameSearched: resolved && unresolvedUser.globalName != null ? unresolvedUser.globalName : null,
-      });
-    }
+    await Promise.all(
+      xboxUsersByDiscordDisplayNameResult.map(async (result, index) =>
+        processResult(AssociationReason.DISPLAY_NAME_SEARCH, index, result),
+      ),
+    );
   }
 
   private async getPlayerMatches(xboxUserId: string, startDate: Date, endDate: Date): Promise<PlayerMatchHistory[]> {
-    const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom);
+    if (!this.playerMatchesCache.has(xboxUserId)) {
+      const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 40, 0);
+      this.playerMatchesCache.set(xboxUserId, playerMatches);
+    }
+
+    const playerMatches = Preconditions.checkExists(this.playerMatchesCache.get(xboxUserId));
     const matchesCloseToDate = playerMatches.filter((match) => {
       const matchStartTime = new Date(match.MatchInfo.StartTime);
       // comparing start time rather than end time in the event that the match somehow completes after the end date
@@ -337,15 +342,6 @@ export class HaloService {
 
     for (const user of users) {
       const playerMatches = await this.getPlayerMatches(user.XboxId, startDate, endDate);
-      if (!playerMatches.length) {
-        this.userCache.set(user.DiscordId, {
-          ...user,
-          AssociationDate: new Date().getTime(),
-          GamesRetrievable: GamesRetrievable.NO,
-        });
-        continue;
-      }
-
       userMatches.set(user.DiscordId, playerMatches);
     }
 
@@ -356,25 +352,11 @@ export class HaloService {
     }
 
     // Get first player's matches as initial set
-    const [firstPlayer, ...remainingPlayers] = Array.from(userMatches.entries());
-    const [firstPlayerDiscordId, firstPlayerMatches] = Preconditions.checkExists(firstPlayer);
-    const seriesMatches = new Set(firstPlayerMatches.map((match) => match.MatchId));
-
-    // Update user cache and filter matches
-    this.userCache.set(firstPlayerDiscordId, {
-      ...Preconditions.checkExists(this.userCache.get(firstPlayerDiscordId)),
-      AssociationDate: new Date().getTime(),
-      GamesRetrievable: GamesRetrievable.YES,
-    });
+    const [firstPlayerMatches, ...remainingMatches] = Array.from(userMatches.values());
+    const seriesMatches = new Set(Preconditions.checkExists(firstPlayerMatches).map((match) => match.MatchId));
 
     // Intersect with remaining players' matches
-    for (const [discordId, playerMatches] of remainingPlayers) {
-      this.userCache.set(discordId, {
-        ...Preconditions.checkExists(this.userCache.get(discordId)),
-        AssociationDate: new Date().getTime(),
-        GamesRetrievable: GamesRetrievable.YES,
-      });
-
+    for (const playerMatches of remainingMatches) {
       // Remove matches not in this player's set
       for (const matchId of seriesMatches) {
         if (!playerMatches.some((match) => match.MatchId === matchId)) {

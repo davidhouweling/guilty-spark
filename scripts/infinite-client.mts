@@ -12,8 +12,8 @@ import { Preconditions } from "../src/base/preconditions.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const env = aFakeEnvWith({
-  XBOX_USERNAME: Preconditions.checkExists(process.env["XBOX_USERNAME"]),
-  XBOX_PASSWORD: Preconditions.checkExists(process.env["XBOX_PASSWORD"]),
+  XBOX_USERNAME: Preconditions.checkExists(process.env.XBOX_USERNAME),
+  XBOX_PASSWORD: Preconditions.checkExists(process.env.XBOX_PASSWORD),
 });
 
 const xboxService = new XboxService({ env, authenticate });

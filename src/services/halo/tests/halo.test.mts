@@ -113,7 +113,11 @@ describe("Halo service", () => {
       });
 
       await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(2);
+
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(3);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000001", 2, 40, 0);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000003", 2, 40, 0);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000004", 2, 40, 0);
     });
 
     it("throws an error when all users from database are not game retrievable", async () => {
@@ -138,7 +142,7 @@ describe("Halo service", () => {
       );
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
+        "**Error**: Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
       );
     });
 
@@ -147,7 +151,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts. Use the `/connect` command to connect your Halo account, and then try the command again after.",
+        "**Error**: Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
       );
     });
 
@@ -156,7 +160,7 @@ describe("Halo service", () => {
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
+        "**Error**: Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
       );
     });
   });

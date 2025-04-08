@@ -25,6 +25,7 @@ import {
 } from "../../../services/discord/fakes/data.mjs";
 import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -309,9 +310,29 @@ describe("StatsCommand", () => {
         );
       });
 
-      it("adds each game and series summary to the thread", async () => {
+      it("does not add games to the thread when guildConfig StatsReturn is SERIES_ONLY", async () => {
+        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+          GuildId: "fake-guild-id",
+          Medals: "Y",
+          StatsReturn: StatsReturnType.SERIES_ONLY,
+        });
+
         await jobToComplete?.();
 
+        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("adds each game and series summary to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
+        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+          GuildId: "fake-guild-id",
+          Medals: "Y",
+          StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+        });
+
+        await jobToComplete?.();
+
+        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
         expect(createMessageSpy).toHaveBeenCalledTimes(4);
         expect(createMessageSpy.mock.calls).toMatchSnapshot();
       });

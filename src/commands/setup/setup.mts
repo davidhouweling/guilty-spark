@@ -409,6 +409,10 @@ export class SetupCommand extends BaseCommand {
       }
     }
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setupNeatQueueIntegrationEditJob(_interaction: APIMessageComponentButtonInteraction): void | PromiseLike<void> {
+    throw new Error("Method not implemented.");
+  }
 
   private async applicationCommandJob(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
@@ -416,7 +420,7 @@ export class SetupCommand extends BaseCommand {
 
     try {
       const [config, neatQueues] = await Promise.all([
-        databaseService.getGuildConfig(guildId),
+        databaseService.getGuildConfig(guildId, true),
         databaseService.findNeatQueueConfig({ GuildId: guildId }),
       ]);
       const statsDisplays = [
@@ -521,7 +525,7 @@ export class SetupCommand extends BaseCommand {
     const guildId = Preconditions.checkExists(interaction.guild_id);
 
     try {
-      const config = await databaseService.getGuildConfig(guildId);
+      const config = await databaseService.getGuildConfig(guildId, true);
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
@@ -581,7 +585,7 @@ export class SetupCommand extends BaseCommand {
     const value = Preconditions.checkExists(interaction.data.values[0]);
 
     try {
-      const config = await databaseService.getGuildConfig(guildId);
+      const config = await databaseService.getGuildConfig(guildId, true);
 
       config.StatsReturn =
         value === SetupStatsDisplayModeOption.SeriesOnly.toString()

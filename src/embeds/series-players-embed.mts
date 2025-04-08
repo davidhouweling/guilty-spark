@@ -43,7 +43,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
         const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
-        const medals = await this.playerMedalsToFields(playerCoreStats);
+        const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
         const personalScore = playerCoreStats.PersonalScore.toLocaleString(locale);
 

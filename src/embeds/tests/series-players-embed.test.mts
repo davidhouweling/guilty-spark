@@ -6,6 +6,8 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
+import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
+import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
 
 const ctfMatch = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
 const kothMatch = Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth"));
@@ -16,12 +18,14 @@ describe("SeriesPlayersEmbed", () => {
   const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
+  let guildConfig: GuildConfigRow;
   let seriesPlayersEmbed: SeriesPlayersEmbed;
 
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, locale });
+    guildConfig = aFakeGuildConfigRow();
+    seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
   });
 
   describe("getEmbed", () => {

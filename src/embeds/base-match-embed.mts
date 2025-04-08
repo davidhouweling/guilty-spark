@@ -3,6 +3,7 @@ import type { APIEmbed } from "discord-api-types/v10";
 import type { HaloService, Medal } from "../services/halo/halo.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
+import type { GuildConfigRow } from "../services/database/types/guild_config.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
@@ -24,17 +25,20 @@ export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 export interface BaseMatchEmbedOpts {
   discordService: DiscordService;
   haloService: HaloService;
+  guildConfig: GuildConfigRow;
   locale: string;
 }
 
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   protected readonly discordService: DiscordService;
   protected readonly haloService: HaloService;
+  protected readonly guildConfig: GuildConfigRow;
   protected readonly locale: string;
 
-  constructor({ discordService, haloService, locale }: BaseMatchEmbedOpts) {
+  constructor({ discordService, haloService, guildConfig, locale }: BaseMatchEmbedOpts) {
     this.discordService = discordService;
     this.haloService = haloService;
+    this.guildConfig = guildConfig;
     this.locale = locale;
   }
 
@@ -160,7 +164,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           teamBestValues,
           Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
         );
-        const medals = await this.playerMedalsToFields(coreStats);
+        const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(coreStats) : "";
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
 
         playerFields.push({

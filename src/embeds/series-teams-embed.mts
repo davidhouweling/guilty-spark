@@ -22,7 +22,7 @@ export class SeriesTeamsEmbed extends BaseSeriesEmbed {
       mappedStats.delete("Deaths");
       const output = this.playerStatsToFields(bestCoreStats, new Map(), mappedStats);
 
-      const medals = await this.playerMedalsToFields(teamStats);
+      const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(teamStats) : "";
       if (medals) {
         output.push(medals);
       }

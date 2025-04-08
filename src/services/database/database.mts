@@ -1,3 +1,4 @@
+import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 import type { GuildConfigRow } from "./types/guild_config.mjs";
 import { StatsReturnType } from "./types/guild_config.mjs";
@@ -9,6 +10,7 @@ export interface DatabaseServiceOpts {
 
 export class DatabaseService {
   private readonly env: Env;
+  private readonly guildConfigCache = new Map<string, GuildConfigRow>();
 
   constructor({ env }: DatabaseServiceOpts) {
     this.env = env;
@@ -47,27 +49,36 @@ export class DatabaseService {
     await stmt.run();
   }
 
-  async getGuildConfig(guildId: string): Promise<GuildConfigRow> {
+  async getGuildConfig(guildId: string, autoCreate = false): Promise<GuildConfigRow> {
+    if (this.guildConfigCache.has(guildId)) {
+      return Preconditions.checkExists(this.guildConfigCache.get(guildId));
+    }
+
     const query = "SELECT * FROM GuildConfig WHERE GuildId = ?";
     const stmt = this.env.DB.prepare(query).bind(guildId);
     const result = await stmt.first<GuildConfigRow>();
 
-    if (!result) {
-      const defaultConfig: GuildConfigRow = {
-        GuildId: guildId,
-        StatsReturn: StatsReturnType.SERIES_ONLY,
-        Medals: "Y",
-      };
+    if (result) {
+      this.guildConfigCache.set(guildId, result);
+      return result;
+    }
 
+    const defaultConfig: GuildConfigRow = {
+      GuildId: guildId,
+      StatsReturn: StatsReturnType.SERIES_ONLY,
+      Medals: "Y",
+    };
+
+    if (autoCreate) {
       const insertStmt = this.env.DB.prepare(
         "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals) VALUES (?, ?, ?)",
       ).bind(defaultConfig.GuildId, defaultConfig.StatsReturn, defaultConfig.Medals);
 
       await insertStmt.run();
-      return defaultConfig;
     }
 
-    return result;
+    this.guildConfigCache.set(guildId, defaultConfig);
+    return defaultConfig;
   }
 
   async updateGuildConfig(guildId: string, updates: Partial<Omit<GuildConfigRow, "GuildId">>): Promise<void> {

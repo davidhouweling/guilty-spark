@@ -6,6 +6,8 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
+import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
+import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
 
 const match = Preconditions.checkExists(matchStats.get("099deb74-3f60-48cf-8784-0strongholds"));
 
@@ -13,12 +15,14 @@ describe("StrongholdsMatchEmbed", () => {
   const locale = "en-US";
   let discordService: DiscordService;
   let haloService: HaloService;
+  let guildConfig: GuildConfigRow;
   let matchEmbed: StrongholdsMatchEmbed;
 
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    matchEmbed = new StrongholdsMatchEmbed({ discordService, haloService, locale });
+    guildConfig = aFakeGuildConfigRow();
+    matchEmbed = new StrongholdsMatchEmbed({ discordService, haloService, guildConfig, locale });
   });
 
   describe("getEmbed", () => {

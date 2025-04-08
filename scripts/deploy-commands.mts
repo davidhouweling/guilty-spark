@@ -7,11 +7,11 @@ import { Preconditions } from "../src/base/preconditions.mjs";
 import type { ApplicationCommandData } from "../src/commands/base/base.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {
-  DISCORD_APP_ID: Preconditions.checkExists(process.env["DISCORD_APP_ID"], "DISCORD_APP_ID"),
-  DISCORD_TOKEN: Preconditions.checkExists(process.env["DISCORD_TOKEN"], "DISCORD_TOKEN"),
+  DISCORD_APP_ID: Preconditions.checkExists(process.env.DISCORD_APP_ID, "DISCORD_APP_ID"),
+  DISCORD_TOKEN: Preconditions.checkExists(process.env.DISCORD_TOKEN, "DISCORD_TOKEN"),
 };
 
-const commands = getCommands({} as Services);
+const commands = getCommands({} as Services, {} as Env);
 
 // and deploy your commands!
 console.log(`Started refreshing ${commands.size.toString()} application (/) commands.`);
