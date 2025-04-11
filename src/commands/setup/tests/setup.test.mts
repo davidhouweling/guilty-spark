@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import type { APIApplicationCommandInteraction, APIInteractionResponse } from "discord-api-types/v10";
 import {
+  GuildMemberFlags,
   ApplicationCommandType,
   InteractionResponseType,
   MessageFlags,
@@ -19,6 +20,20 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 const applicationCommandInteractionSetup: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
+  // TODO: remove this once its done
+  member: {
+    ...fakeBaseAPIApplicationCommandInteraction.member,
+    user: {
+      ...Preconditions.checkExists(fakeBaseAPIApplicationCommandInteraction.member).user,
+      id: "237222473500852224",
+    },
+    permissions: "",
+    deaf: false,
+    flags: GuildMemberFlags.CompletedOnboarding,
+    joined_at: "2025-02-10T00:00:00.000Z",
+    roles: [],
+    mute: false,
+  },
   type: InteractionType.ApplicationCommand,
   guild: {
     features: [],
