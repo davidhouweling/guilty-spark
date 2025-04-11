@@ -471,12 +471,12 @@ export class StatsCommand extends BaseCommand {
       locale,
       queue,
       series,
-      teams: queueData.teams.map((team) => ({
+      finalTeams: queueData.teams.map((team) => ({
         name: team.name,
-        players: team.players.map(({ id }) => ({
-          id,
-        })),
+        playerIds: team.players.map(({ id }) => id),
       })),
+      substitutions: [],
+      hideTeamsDescription: false,
     });
 
     return seriesEmbed;

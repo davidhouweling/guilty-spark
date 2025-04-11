@@ -25,7 +25,9 @@ export class SeriesOverviewEmbed {
     locale,
     queue,
     series,
-    teams,
+    finalTeams,
+    substitutions,
+    hideTeamsDescription,
   }: {
     guildId: string;
     channel: string;
@@ -33,15 +35,19 @@ export class SeriesOverviewEmbed {
     locale: string;
     queue: number;
     series: MatchStats[];
-    teams?: {
+    finalTeams: {
       name: string;
-      players: {
-        id: string;
-        replacedBy?: string;
-      }[];
+      playerIds: string[];
     }[];
+    substitutions: {
+      date: Date;
+      playerOut: string;
+      playerIn: string;
+      team: string;
+    }[];
+    hideTeamsDescription: boolean;
   }): Promise<APIEmbed> {
-    const titles = ["Game", "Duration", `Score${teams?.length === 2 ? " (🦅:🐍)" : ""}`];
+    const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     for (const seriesMatch of series) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
@@ -55,11 +61,29 @@ export class SeriesOverviewEmbed {
       ]);
     }
 
-    const teamsDescription = teams
-      ?.map(
-        (team) =>
-          `**${team.name}:** ${team.players.map(({ id, replacedBy }) => `<@${id}>${replacedBy != null ? ` (replaced by ${replacedBy})` : ""}`).join(" ")}`,
-      )
+    for (const substitution of substitutions) {
+      const substitutionTime = substitution.date.getTime();
+
+      for (let i = 0; i < series.length; i++) {
+        const match = Preconditions.checkExists(series[i]);
+        const matchStartTime = new Date(match.MatchInfo.StartTime).getTime();
+
+        const nextMatch = series[i + 1];
+        const nextMatchStartTime = nextMatch ? new Date(nextMatch.MatchInfo.StartTime).getTime() : Infinity;
+
+        if (substitutionTime >= matchStartTime && substitutionTime < nextMatchStartTime) {
+          tableData.splice(i + 1, 0, [
+            `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
+            "",
+            "",
+          ]);
+          break;
+        }
+      }
+    }
+
+    const teamsDescription = finalTeams
+      .map((team) => `**${team.name}:** ${team.playerIds.map((playerId) => `<@${playerId}>`).join(" ")}`)
       .join("\n");
     const startTime = this.discordService.getTimestamp(Preconditions.checkExists(series[0]?.MatchInfo.StartTime));
     const endTime = this.discordService.getTimestamp(
@@ -67,7 +91,7 @@ export class SeriesOverviewEmbed {
     );
     const embed: APIEmbed = {
       title: `Series stats for queue #${queue.toString()}`,
-      description: `${teamsDescription != null ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
+      description: `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
       url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
       color: 3447003,
     };
