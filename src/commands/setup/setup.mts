@@ -289,6 +289,19 @@ export class SetupCommand extends BaseCommand {
       };
     }
 
+    if (interaction.member?.user.id !== "237222473500852224") {
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            content:
+              "This command is a WIP and is not available to you yet. Please reach out to <@237222473500852224> if you need help.",
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+
     try {
       switch (type) {
         case InteractionType.ApplicationCommand: {
