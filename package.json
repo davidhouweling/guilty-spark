@@ -32,9 +32,12 @@
     "typecheck": "tsc --noEmit",
     "build:generate-types": "wrangler types",
     "build": "tsc --project tsconfig.build.json",
-    "publish": "wrangler deploy"
+    "publish": "wrangler deploy",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org david-houweling --project guilty-spark ./dist && sentry-cli sourcemaps upload --org david-houweling --project guilty-spark ./dist"
   },
   "dependencies": {
+    "@sentry/cli": "^2.43.0",
+    "@sentry/cloudflare": "^9.12.0",
     "@xboxreplay/xboxlive-auth": "^4.1.0",
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.37.119",
