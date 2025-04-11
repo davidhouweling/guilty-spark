@@ -41,6 +41,33 @@ router.post("/api/interactions", async (request, env: Env, ctx: EventContext<Env
     return new Response("Internal error", { status: 500 });
   }
 });
+
+router.post("/api/neatqueue", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
+  try {
+    const services = await installServices({ env });
+    const { neatQueueService } = services;
+
+    const verifiedRequest = await neatQueueService.verifyRequest(request);
+    if (!verifiedRequest.isValid) {
+      return new Response("Bad request signature.", { status: 401 });
+    }
+
+    const { interaction, neatQueueConfig } = verifiedRequest;
+    const { response, jobToComplete } = neatQueueService.handleRequest(interaction, neatQueueConfig);
+
+    if (jobToComplete) {
+      ctx.waitUntil(jobToComplete());
+    }
+
+    return response;
+  } catch (error) {
+    console.error(error);
+    console.trace();
+
+    return new Response("Internal error", { status: 500 });
+  }
+});
+
 router.all("*", () => new Response("Not Found.", { status: 404 }));
 
 const server: ExportedHandler = {
