@@ -11,6 +11,7 @@ import type {
   APIInteractionResponse,
 } from "discord-api-types/v10";
 import {
+  InteractionContextType,
   ApplicationCommandType,
   ButtonStyle,
   ComponentType,
@@ -205,6 +206,8 @@ export class SetupCommand extends BaseCommand {
       type: ApplicationCommandType.ChatInput,
       name: "setup",
       description: "Setup Guilty Spark for your server",
+      contexts: [InteractionContextType.Guild, InteractionContextType.PrivateChannel],
+      default_member_permissions: (1 << 5).toString(),
       options: [],
     },
     {
@@ -283,19 +286,6 @@ export class SetupCommand extends BaseCommand {
           type: InteractionResponseType.ChannelMessageWithSource,
           data: {
             content: "This command can only be used in a server!",
-            flags: MessageFlags.Ephemeral,
-          },
-        },
-      };
-    }
-
-    if (interaction.member?.user.id !== "237222473500852224") {
-      return {
-        response: {
-          type: InteractionResponseType.ChannelMessageWithSource,
-          data: {
-            content:
-              "This command is a WIP and is not available to you yet. Please reach out to <@237222473500852224> if you need help.",
             flags: MessageFlags.Ephemeral,
           },
         },

@@ -14,6 +14,7 @@ import {
   InteractionResponseType,
   InteractionType,
   MessageFlags,
+  InteractionContextType,
 } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
@@ -59,6 +60,8 @@ export class StatsCommand extends BaseCommand {
       type: ApplicationCommandType.ChatInput,
       name: "stats",
       description: "Pulls stats from Halo waypoint",
+      contexts: [InteractionContextType.Guild, InteractionContextType.PrivateChannel],
+      default_member_permissions: null,
       options: [
         {
           type: ApplicationCommandOptionType.Subcommand,
