@@ -184,9 +184,7 @@ export class HaloService {
   }
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
-    if (this.metadataJsonCache == null) {
-      this.metadataJsonCache = this.infiniteClient.getMedalsMetadataFile();
-    }
+    this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile();
 
     const metadata = await this.metadataJsonCache;
 
