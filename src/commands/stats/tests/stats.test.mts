@@ -26,6 +26,7 @@ import {
 import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -103,11 +104,13 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
 describe("StatsCommand", () => {
   let statsCommand: StatsCommand;
   let services: Services;
+  let env: Env;
   let updateDeferredReplySpy: MockInstance;
 
   beforeEach(() => {
     services = installFakeServicesWith();
-    statsCommand = new StatsCommand(services);
+    env = aFakeEnvWith();
+    statsCommand = new StatsCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
   });
@@ -320,7 +323,7 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        expect(createMessageSpy).toHaveBeenCalledTimes(2);
       });
 
       it("adds each game and series summary to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
@@ -333,7 +336,7 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-        expect(createMessageSpy).toHaveBeenCalledTimes(4);
+        expect(createMessageSpy).toHaveBeenCalledTimes(5);
         expect(createMessageSpy.mock.calls).toMatchSnapshot();
       });
 

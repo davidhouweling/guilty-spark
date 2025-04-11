@@ -25,7 +25,6 @@ import { BaseCommand } from "../base/base.mjs";
 import { StatsReturnType } from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { Services } from "../../services/install.mjs";
 import { escapeRegExp } from "../../base/regex.mjs";
 import type {
   NeatQueueConfigRow,
@@ -201,8 +200,6 @@ const NeatQueueIntegrationAddWizardSteps: NeatQueueIntegrationAddWizardStep[] = 
 ];
 
 export class SetupCommand extends BaseCommand {
-  private readonly env: Env;
-
   data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
@@ -276,12 +273,6 @@ export class SetupCommand extends BaseCommand {
       },
     },
   ];
-
-  constructor(services: Services, env: Env) {
-    super(services);
-
-    this.env = env;
-  }
 
   override execute(interaction: BaseInteraction): ExecuteResponse {
     const { type, guild_id: guildId } = interaction;

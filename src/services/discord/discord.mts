@@ -35,7 +35,7 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
-const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
+export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
 export interface QueueData {
   message: APIMessage;
@@ -290,10 +290,22 @@ export class DiscordService {
     return response;
   }
 
+  async getMessage(channel: string, messageId: string): Promise<APIMessage> {
+    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
+      method: "GET",
+    });
+  }
+
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
     return this.fetch<RESTGetAPIWebhookWithTokenMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
     );
+  }
+
+  async getMessages(channel: string): Promise<APIMessage[]> {
+    return this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
+      method: "GET",
+    });
   }
 
   async createMessage(

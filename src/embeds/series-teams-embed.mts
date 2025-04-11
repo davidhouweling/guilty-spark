@@ -19,7 +19,6 @@ export class SeriesTeamsEmbed extends BaseSeriesEmbed {
     for (const team of firstMatch.Teams) {
       const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
       const mappedStats = this.getPlayerSlayerStats({ CoreStats: teamStats });
-      mappedStats.delete("Deaths");
       const output = this.playerStatsToFields(bestCoreStats, new Map(), mappedStats);
 
       const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(teamStats) : "";

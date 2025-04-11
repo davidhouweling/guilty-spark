@@ -31,9 +31,12 @@ export interface ExecuteResponse {
 }
 
 export abstract class BaseCommand {
-  constructor(readonly services: Services) {}
+  constructor(
+    readonly services: Services,
+    readonly env: Env,
+  ) {}
 
-  abstract data: CommandData | CommandData[];
+  abstract data: CommandData[];
 
   abstract execute(interaction: BaseInteraction): ExecuteResponse;
 }

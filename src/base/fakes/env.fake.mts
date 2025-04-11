@@ -1,10 +1,10 @@
-const fakeNamespace: KVNamespace = {
+const fakeNamespace = {
   getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
   get: async () => Promise.resolve(null),
   put: async () => Promise.resolve(),
   list: async () => Promise.resolve({ list_complete: true, keys: [], cacheStatus: null }),
   delete: async () => Promise.resolve(),
-};
+} as unknown as KVNamespace;
 
 export const fakeD1Response: D1Response = {
   success: true,

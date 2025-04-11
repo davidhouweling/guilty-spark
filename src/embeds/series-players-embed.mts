@@ -29,6 +29,12 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
       );
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
+      embed.fields?.push({
+        name: this.haloService.getTeamName(team.TeamId),
+        value: "",
+        inline: false,
+      });
+
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = this.haloService.getPlayerXuid(teamPlayer);

@@ -5,6 +5,11 @@ exports[`SeriesPlayersEmbed > getSeriesEmbed > returns the expected embed 1`] = 
   "description": "-# Legend: **Best in team** | __**Best overall**__",
   "fields": [
     {
+      "inline": false,
+      "name": "Eagle",
+      "value": "",
+    },
+    {
       "inline": true,
       "name": "gamertag01 (Acc Score: 8,505)",
       "value": "Kills: **64**
@@ -77,6 +82,11 @@ Av damage/life: __**438.63**__
 ",
       "value": "
 ",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "",
     },
     {
       "inline": true,

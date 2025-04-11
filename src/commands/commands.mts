@@ -8,33 +8,33 @@ import { SetupCommand } from "./setup/setup.mjs";
 
 export function getCommands(services: Services, env: Env): Map<string, BaseCommand> {
   const commandMap = new Map<string, BaseCommand>();
-  const commands = [new ConnectCommand(services), new StatsCommand(services), new SetupCommand(services, env)];
+  const commands = [
+    new ConnectCommand(services, env),
+    new StatsCommand(services, env),
+    new SetupCommand(services, env),
+  ];
 
   for (const command of commands) {
-    if (Array.isArray(command.data)) {
-      for (const commandData of command.data) {
-        const { type } = commandData;
-        switch (type) {
-          case ApplicationCommandType.ChatInput: {
-            commandMap.set(commandData.name, command);
-            break;
-          }
-          case InteractionType.MessageComponent:
-          case InteractionType.ModalSubmit: {
-            commandMap.set(commandData.data.custom_id, command);
-            break;
-          }
-          case ApplicationCommandType.Message:
-          case ApplicationCommandType.User:
-          case ApplicationCommandType.PrimaryEntryPoint: {
-            throw new Error("Unsupported command type");
-          }
-          default:
-            throw new UnreachableError(type);
+    for (const commandData of command.data) {
+      const { type } = commandData;
+      switch (type) {
+        case ApplicationCommandType.ChatInput: {
+          commandMap.set(commandData.name, command);
+          break;
         }
+        case InteractionType.MessageComponent:
+        case InteractionType.ModalSubmit: {
+          commandMap.set(commandData.data.custom_id, command);
+          break;
+        }
+        case ApplicationCommandType.Message:
+        case ApplicationCommandType.User:
+        case ApplicationCommandType.PrimaryEntryPoint: {
+          throw new Error("Unsupported command type");
+        }
+        default:
+          throw new UnreachableError(type);
       }
-    } else {
-      commandMap.set(command.data.name, command);
     }
   }
 

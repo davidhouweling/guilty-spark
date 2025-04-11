@@ -235,6 +235,7 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > adds e
               "inline": true,
               "name": "Eagle",
               "value": "Kills: __217__
+Deaths: __197__
 Assists: __112__
 KDA: __57.34__
 Headshot kills: __124__
@@ -249,6 +250,7 @@ Av damage/life: __328.55__
               "inline": true,
               "name": "Cobra",
               "value": "Kills: 197
+Deaths: 218
 Assists: 82
 KDA: 6.33
 Headshot kills: 116
@@ -269,9 +271,22 @@ Av damage/life: 286.49
           ],
           "title": "Accumulated Series Stats by Team",
         },
+      ],
+    },
+  ],
+  [
+    "fake-thread-id",
+    {
+      "components": [],
+      "embeds": [
         {
           "description": "-# Legend: **Best in team** | __**Best overall**__",
           "fields": [
+            {
+              "inline": false,
+              "name": "Eagle",
+              "value": "",
+            },
             {
               "inline": true,
               "name": "gamertag0100000000000000 (Acc Score: 8,165)",
@@ -345,6 +360,11 @@ Av damage/life: 340.71
 ",
               "value": "
 ",
+            },
+            {
+              "inline": false,
+              "name": "Cobra",
+              "value": "",
             },
             {
               "inline": true,

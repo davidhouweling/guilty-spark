@@ -213,12 +213,15 @@ describe("DiscordService", () => {
         const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
         const command: BaseCommand = {
           services: {} as Services,
-          data: {
-            name: applicationCommandInteractionStatsMatch.data.name,
-            type: 1,
-            options: [],
-            description: "some description",
-          },
+          env: aFakeEnvWith(),
+          data: [
+            {
+              name: applicationCommandInteractionStatsMatch.data.name,
+              type: 1,
+              options: [],
+              description: "some description",
+            },
+          ],
           execute: executeFn,
         };
         discordService.setCommands(new Map([[applicationCommandInteractionStatsMatch.data.name, command]]));
@@ -238,13 +241,16 @@ describe("DiscordService", () => {
           const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
           const command: BaseCommand = {
             services: {} as Services,
-            data: {
-              type: InteractionType.MessageComponent,
-              data: {
-                component_type: ComponentType.Button,
-                custom_id: "btn_yes",
+            env: aFakeEnvWith(),
+            data: [
+              {
+                type: InteractionType.MessageComponent,
+                data: {
+                  component_type: ComponentType.Button,
+                  custom_id: "btn_yes",
+                },
               },
-            },
+            ],
             execute: executeFn,
           };
           discordService.setCommands(new Map([["btn_yes", command]]));
@@ -287,13 +293,16 @@ describe("DiscordService", () => {
         const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
         const command: BaseCommand = {
           services: {} as Services,
-          data: {
-            type: InteractionType.ModalSubmit,
-            data: {
-              components: [],
-              custom_id: "text_input",
+          env: aFakeEnvWith(),
+          data: [
+            {
+              type: InteractionType.ModalSubmit,
+              data: {
+                components: [],
+                custom_id: "text_input",
+              },
             },
-          },
+          ],
           execute: executeFn,
         };
         discordService.setCommands(new Map([["text_input_modal", command]]));
