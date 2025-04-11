@@ -8,10 +8,7 @@ import type {
 } from "discord-api-types/v10";
 import type { Services } from "../../services/install.mjs";
 
-export type ApplicationCommandData = Omit<
-  APIApplicationCommand,
-  "id" | "application_id" | "default_member_permissions" | "version"
->;
+export type ApplicationCommandData = Omit<APIApplicationCommand, "id" | "application_id" | "version">;
 export type ButtonInteractionData = Pick<APIMessageComponentButtonInteraction, "type" | "data">;
 export type ModalSubmitInteractionData = Pick<APIModalSubmitInteraction, "type" | "data">;
 export type StringSelectInteractionData = Pick<APIMessageComponentSelectMenuInteraction, "type" | "data">;

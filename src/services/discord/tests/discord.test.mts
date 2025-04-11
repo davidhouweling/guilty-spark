@@ -220,6 +220,7 @@ describe("DiscordService", () => {
               type: 1,
               options: [],
               description: "some description",
+              default_member_permissions: null,
             },
           ],
           execute: executeFn,

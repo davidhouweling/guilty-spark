@@ -38,6 +38,7 @@ export class ConnectCommand extends BaseCommand {
       type: ApplicationCommandType.ChatInput,
       name: "connect",
       description: "Connect your Discord account to your Halo account within Guilty Spark.",
+      default_member_permissions: null,
       options: [],
     },
     {
