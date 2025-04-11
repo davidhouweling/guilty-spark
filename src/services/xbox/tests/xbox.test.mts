@@ -38,7 +38,7 @@ describe("Xbox Service", () => {
 
   describe("loadCredentials + get token", () => {
     it("should load credentials from the environment", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(validKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(validKvToken);
 
       await xboxService.loadCredentials();
 
@@ -46,7 +46,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not load credentials if they are not available", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(null);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
 
       await xboxService.loadCredentials();
 
@@ -54,7 +54,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not load credentials if they are invalid", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(invalidKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(invalidKvToken);
 
       await xboxService.loadCredentials();
 
@@ -62,7 +62,7 @@ describe("Xbox Service", () => {
     });
 
     it("should log a warning if the credentials are invalid", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(invalidKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(invalidKvToken);
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => void 0);
 
       await xboxService.loadCredentials();
@@ -71,7 +71,7 @@ describe("Xbox Service", () => {
     });
 
     it("should log a message if the credentials are invalid", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(invalidKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(invalidKvToken);
       const logSpy = vi.spyOn(console, "log").mockImplementation(() => void 0);
 
       await xboxService.loadCredentials();
@@ -82,7 +82,7 @@ describe("Xbox Service", () => {
 
   describe("loadCredentials + maybeRefreshToken", () => {
     it("should refresh the token if it is expired", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(expiredKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(expiredKvToken);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
       await xboxService.loadCredentials();
@@ -92,7 +92,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not refresh the token if it is not expired", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(validKvToken);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(validKvToken);
 
       await xboxService.loadCredentials();
       await xboxService.maybeRefreshToken();
@@ -101,7 +101,7 @@ describe("Xbox Service", () => {
     });
 
     it("should refresh the token if it is not set", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(null);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
       await xboxService.loadCredentials();
@@ -110,9 +110,9 @@ describe("Xbox Service", () => {
       expect(authenticate).toHaveBeenCalled();
     });
 
-    it("should update APP_CONFIG with the new token", async () => {
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(null);
-      const putSpy = vi.spyOn(env.APP_CONFIG, "put").mockResolvedValue(void 0);
+    it("should update APP_DATA with the new token", async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      const putSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue(void 0);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
       await xboxService.loadCredentials();
@@ -126,8 +126,8 @@ describe("Xbox Service", () => {
 
   describe("clearToken", () => {
     it("should clear the token", async () => {
-      const deleteSpy = vi.spyOn(env.APP_CONFIG, "delete").mockResolvedValue(void 0);
-      env.APP_CONFIG.get = vi.fn().mockResolvedValue(validKvToken);
+      const deleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue(void 0);
+      env.APP_DATA.get = vi.fn().mockResolvedValue(validKvToken);
 
       await xboxService.loadCredentials();
 

@@ -27,6 +27,7 @@ import { aFakeDiscordAssociationsRow } from "../../../services/database/fakes/da
 import type { DiscordAssociationsRow } from "../../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../../services/database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 const applicationCommandInteractionConnect: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -49,12 +50,14 @@ const applicationCommandInteractionConnect: APIApplicationCommandInteraction = {
 describe("ConnectCommand", () => {
   let connectCommand: ConnectCommand;
   let services: Services;
+  let env: Env;
   let updateDeferredReplySpy: MockInstance<typeof services.discordService.updateDeferredReply>;
 
   beforeEach(() => {
     vi.setSystemTime("2025-02-10T00:00:00.000Z");
     services = installFakeServicesWith();
-    connectCommand = new ConnectCommand(services);
+    env = aFakeEnvWith();
+    connectCommand = new ConnectCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
   });

@@ -25,6 +25,8 @@ import {
 } from "../../../services/discord/fakes/data.mjs";
 import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -102,11 +104,13 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
 describe("StatsCommand", () => {
   let statsCommand: StatsCommand;
   let services: Services;
+  let env: Env;
   let updateDeferredReplySpy: MockInstance;
 
   beforeEach(() => {
     services = installFakeServicesWith();
-    statsCommand = new StatsCommand(services);
+    env = aFakeEnvWith();
+    statsCommand = new StatsCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
   });
@@ -224,10 +228,64 @@ describe("StatsCommand", () => {
         });
       });
 
-      it('fetches series data from haloService using "getSeriesFromDiscordQueue"', async () => {
+      it('fetches series data from haloService using "getSeriesFromDiscordQueue" with expected data', async () => {
         await jobToComplete?.();
 
-        expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalledWith(discordNeatQueueData);
+        expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalledOnce();
+        expect(getSeriesFromDiscordQueueSpy.mock.lastCall).toMatchInlineSnapshot(`
+          [
+            {
+              "endDateTime": 2024-11-26T11:30:00.000Z,
+              "startDateTime": 2024-11-26T05:30:00.000Z,
+              "teams": [
+                [
+                  {
+                    "globalName": "DiscordUser01",
+                    "id": "000000000000000001",
+                    "username": "discord_user_01",
+                  },
+                  {
+                    "globalName": "DiscordUser02",
+                    "id": "000000000000000002",
+                    "username": "discord_user_02",
+                  },
+                  {
+                    "globalName": null,
+                    "id": "000000000000000003",
+                    "username": "discord_user_03",
+                  },
+                  {
+                    "globalName": "gamertag0000000000004",
+                    "id": "000000000000000004",
+                    "username": "not_discord_user_04",
+                  },
+                ],
+                [
+                  {
+                    "globalName": "DiscordUser05",
+                    "id": "000000000000000005",
+                    "username": "discord_user_05",
+                  },
+                  {
+                    "globalName": "DiscordUser06",
+                    "id": "000000000000000006",
+                    "username": "discord_user_06",
+                  },
+                  {
+                    "globalName": "DiscordUser07",
+                    "id": "000000000000000007",
+                    "username": "discord_user_07",
+                  },
+                  {
+                    "globalName": "DiscordUser08",
+                    "id": "000000000000000008",
+                    "username": "discord_user_08",
+                  },
+                ],
+              ],
+            },
+          ]
+        `);
       });
 
       it("calls discordService.updateDeferredReply with series embeds", async () => {
@@ -255,10 +313,30 @@ describe("StatsCommand", () => {
         );
       });
 
-      it("adds each game and series summary to the thread", async () => {
+      it("does not add games to the thread when guildConfig StatsReturn is SERIES_ONLY", async () => {
+        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+          GuildId: "fake-guild-id",
+          Medals: "Y",
+          StatsReturn: StatsReturnType.SERIES_ONLY,
+        });
+
         await jobToComplete?.();
 
-        expect(createMessageSpy).toHaveBeenCalledTimes(4);
+        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
+        expect(createMessageSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("adds each game and series summary to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
+        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+          GuildId: "fake-guild-id",
+          Medals: "Y",
+          StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+        });
+
+        await jobToComplete?.();
+
+        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
+        expect(createMessageSpy).toHaveBeenCalledTimes(5);
         expect(createMessageSpy.mock.calls).toMatchSnapshot();
       });
 

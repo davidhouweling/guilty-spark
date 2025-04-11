@@ -19,7 +19,7 @@ KDA: -5
 Headshot kills: 1
 Shots H:F: 66:404
 Accuracy: 16.33%
-Damage D:T: 1,715:2,612
+Damage D:T (D/T): 1,715:2,612 (0.66)
 Av life duration: 27s
 Av damage/life: 190.56",
     },
@@ -33,7 +33,7 @@ KDA: **4**
 Headshot kills: 1
 Shots H:F: 123:285
 Accuracy: 43.15%
-Damage D:T: 2,418:**2,024**
+Damage D:T (D/T): 2,418:**2,024** (1.19)
 Av life duration: **36s**
 Av damage/life: 345.43
 <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129> <:BackSmack:1322872596135546891>",
@@ -55,7 +55,7 @@ KDA: 0.33
 Headshot kills: **4**
 Shots H:F: 114:237
 Accuracy: **48.1%**
-Damage D:T: 2,253:2,526
+Damage D:T (D/T): 2,253:2,526 (0.89)
 Av life duration: 23s
 Av damage/life: 225.3
 <:TripleKill:1322814228477906944> <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129>",
@@ -70,8 +70,8 @@ KDA: 1
 Headshot kills: 3
 Shots H:F: **158**:__**723**__
 Accuracy: 21.85%
-Damage D:T: **3,774**:2,186
-Av life duration: **36s**
+Damage D:T (D/T): **3,774**:2,186 **(1.73)**
+Av life duration: 36s
 Av damage/life: **471.75**
 <:Grapplejack:1322884573906075729>",
     },
@@ -92,7 +92,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F: 61:161
 Accuracy: 37.88%
-Damage D:T: 1,322:2,416
+Damage D:T (D/T): 1,322:2,416 (0.55)
 Av life duration: 23s
 Av damage/life: 132.2
 <:Killjoy:1322802841039147129> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351>",
@@ -107,7 +107,7 @@ KDA: -5
 Headshot kills: 2
 Shots H:F: 75:207
 Accuracy: 36.23%
-Damage D:T: 1,846:3,332
+Damage D:T (D/T): 1,846:3,332 (0.55)
 Av life duration: 14s
 Av damage/life: 131.86
 <:DoubleKill:1322814147980689430>",
@@ -129,7 +129,7 @@ KDA: 0
 Headshot kills: 1
 Shots H:F: 123:316
 Accuracy: 38.92%
-Damage D:T: 2,825:2,306
+Damage D:T (D/T): 2,825:2,306 (1.23)
 Av life duration: 31s
 Av damage/life: 353.13",
     },
@@ -143,7 +143,7 @@ KDA: -7
 Headshot kills: 0
 Shots H:F: 76:305
 Accuracy: 24.91%
-Damage D:T: 1,243:3,058
+Damage D:T (D/T): 1,243:3,058 (0.41)
 Av life duration: 16s
 Av damage/life: 95.62
 2x<:DoubleKill:1322814147980689430> <:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129>",
@@ -170,7 +170,7 @@ KDA: 6
 Headshot kills: 4
 Shots H:F: 107:299
 Accuracy: 35.78%
-Damage D:T: 2,255:1,904
+Damage D:T (D/T): 2,255:1,904 (1.18)
 Av life duration: 43s
 Av damage/life: 375.83
 <:KillingSpree:1322803050347499541> <:Stick:1322871787695898676> <:BackSmack:1322872596135546891> <:GuardianAngel:1322873057928286248>",
@@ -185,7 +185,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F: 94:233
 Accuracy: 40.34%
-Damage D:T: 1,847:2,873
+Damage D:T (D/T): 1,847:2,873 (0.64)
 Av life duration: 27s
 Av damage/life: 184.7",
     },
@@ -206,7 +206,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F: 65:170
 Accuracy: 38.23%
-Damage D:T: 1,131:2,237
+Damage D:T (D/T): 1,131:2,237 (0.51)
 Av life duration: 31s
 Av damage/life: 141.38",
     },
@@ -220,7 +220,7 @@ KDA: __**24.33**__
 Headshot kills: __**20**__
 Shots H:F: 197:314
 Accuracy: __**62.73%**__
-Damage D:T: __**7,623**__:1,989
+Damage D:T (D/T): __**7,623**__:1,989 __**(3.83)**__
 Av life duration: 43s
 Av damage/life: __**1,270.5**__
 <:AutopilotEngaged:1322883411660243016> 2x<:TripleKill:1322814228477906944> <:KillingFrenzy:1322803174238584853> 4x<:DoubleKill:1322814147980689430> <:OfftheRack:1322884747881353279> 3x<:Perfect:1322879561515532308> 2x<:KillingSpree:1322803050347499541> 5x<:Snipe:1322872969571340370> <:Sharpshooter:1322866954457055242> <:Rifleman:1322860656399220828> <:GuardianAngel:1322873057928286248> <:Reversal:1322872797701083166> <:Stick:1322871787695898676>",
@@ -242,7 +242,7 @@ KDA: 0.66
 Headshot kills: 3
 Shots H:F: 160:386
 Accuracy: 41.45%
-Damage D:T: 1,552:2,026
+Damage D:T (D/T): 1,552:2,026 (0.77)
 Av life duration: 43s
 Av damage/life: 258.67",
     },
@@ -256,7 +256,7 @@ KDA: -1
 Headshot kills: 0
 Shots H:F: 118:**596**
 Accuracy: 19.79%
-Damage D:T: 1,975:1,869
+Damage D:T (D/T): 1,975:1,869 (1.06)
 Av life duration: 36s
 Av damage/life: 282.14
 <:Splatter:1322872682592735242>",
@@ -278,7 +278,7 @@ KDA: 3
 Headshot kills: 2
 Shots H:F: 147:450
 Accuracy: 32.66%
-Damage D:T: 1,051:__**1,202**__
+Damage D:T (D/T): 1,051:__**1,202**__ (0.87)
 Av life duration: __**1m 23s**__
 Av damage/life: 350.33",
     },
@@ -292,7 +292,7 @@ KDA: 12
 Headshot kills: 7
 Shots H:F: __**202**__:418
 Accuracy: 48.32%
-Damage D:T: 3,961:2,231
+Damage D:T (D/T): 3,961:2,231 (1.78)
 Av life duration: 43s
 Av damage/life: 660.17
 <:TripleKill:1322814228477906944> 3x<:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:HailMary:1322882032103325768> <:Reversal:1322872797701083166> <:Gunslinger:1322866262736637992> <:QuickDraw:1322884127212699660>",

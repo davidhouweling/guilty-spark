@@ -5,6 +5,7 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
   APIInteraction,
+  APIInteractionResponseChannelMessageWithSource,
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
@@ -19,7 +20,7 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
-  ComponentType,
+  MessageFlags,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
@@ -34,7 +35,7 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
-const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
+export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
 export interface QueueData {
   message: APIMessage;
@@ -147,7 +148,8 @@ export class DiscordService {
   handleInteraction(interaction: APIInteraction): InteractionResponse {
     console.log(inspect(interaction, { depth: null, colors: true }));
 
-    switch (interaction.type) {
+    const { type } = interaction;
+    switch (type) {
       case InteractionType.Ping: {
         return {
           response: new JsonResponse({
@@ -159,28 +161,24 @@ export class DiscordService {
         return this.getCommandToExecute(interaction.data.name, interaction);
       }
       case InteractionType.MessageComponent: {
-        if (interaction.data.component_type === ComponentType.Button) {
-          return this.getCommandToExecute(
-            interaction.data.custom_id,
-            interaction as APIMessageComponentButtonInteraction,
-          );
-        }
-        console.warn("Unknown interaction type");
-
-        return {
-          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
-        };
+        return this.getCommandToExecute(
+          interaction.data.custom_id,
+          interaction as APIMessageComponentButtonInteraction,
+        );
       }
       case InteractionType.ModalSubmit: {
         return this.getCommandToExecute(interaction.data.custom_id, interaction);
       }
-      case InteractionType.ApplicationCommandAutocomplete:
-      default: {
-        console.warn("Unknown interaction type");
-
+      case InteractionType.ApplicationCommandAutocomplete: {
         return {
-          response: new JsonResponse({ error: "Unknown interaction type" }, { status: 400 }),
+          response: new JsonResponse({
+            type: InteractionResponseType.ChannelMessageWithSource,
+            data: { content: "Autocomplete not implemented", flags: MessageFlags.Ephemeral },
+          } satisfies APIInteractionResponseChannelMessageWithSource),
         };
+      }
+      default: {
+        throw new UnreachableError(type);
       }
     }
   }
@@ -194,6 +192,7 @@ export class DiscordService {
       };
     }
 
+    console.log(name);
     const command = this.commands.get(name);
     if (!command) {
       console.warn("Command not found");
@@ -291,10 +290,22 @@ export class DiscordService {
     return response;
   }
 
+  async getMessage(channel: string, messageId: string): Promise<APIMessage> {
+    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
+      method: "GET",
+    });
+  }
+
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
     return this.fetch<RESTGetAPIWebhookWithTokenMessageResult>(
       Routes.webhookMessage(this.env.DISCORD_APP_ID, interactionToken),
     );
+  }
+
+  async getMessages(channel: string): Promise<APIMessage[]> {
+    return this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
+      method: "GET",
+    });
   }
 
   async createMessage(
@@ -483,18 +494,13 @@ export class DiscordService {
   }
 
   private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
-    const serializedRateLimit = await this.env.APP_CONFIG.get(`rateLimit.${path}`);
-    if (serializedRateLimit == null) {
-      return null;
-    }
-
-    const rateLimit = JSON.parse(serializedRateLimit) as RateLimit;
+    const rateLimit = await this.env.APP_DATA.get<RateLimit>(`rateLimit.${path}`, { type: "json" });
     return rateLimit;
   }
 
   private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
     if (rateLimit.reset != null) {
-      await this.env.APP_CONFIG.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
+      await this.env.APP_DATA.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
         expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
       });
     }

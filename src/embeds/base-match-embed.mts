@@ -1,8 +1,9 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
-import type { HaloService, Medal } from "../../../services/halo/halo.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
-import type { DiscordService } from "../../../services/discord/discord.mjs";
+import type { HaloService, Medal } from "../services/halo/halo.mjs";
+import { Preconditions } from "../base/preconditions.mjs";
+import type { DiscordService } from "../services/discord/discord.mjs";
+import type { GuildConfigRow } from "../services/database/types/guild_config.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
@@ -16,6 +17,7 @@ export interface StatsValue {
   value: number;
   sortBy: StatsValueSortBy;
   display?: string;
+  prefix?: string;
 }
 
 export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
@@ -23,17 +25,20 @@ export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 export interface BaseMatchEmbedOpts {
   discordService: DiscordService;
   haloService: HaloService;
+  guildConfig: GuildConfigRow;
   locale: string;
 }
 
 export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   protected readonly discordService: DiscordService;
   protected readonly haloService: HaloService;
+  protected readonly guildConfig: GuildConfigRow;
   protected readonly locale: string;
 
-  constructor({ discordService, haloService, locale }: BaseMatchEmbedOpts) {
+  constructor({ discordService, haloService, guildConfig, locale }: BaseMatchEmbedOpts) {
     this.discordService = discordService;
     this.haloService = haloService;
+    this.guildConfig = guildConfig;
     this.locale = locale;
   }
 
@@ -63,10 +68,21 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         },
       ],
       [
-        "Damage D:T",
+        "Damage D:T (D/T)",
         [
           { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
           { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
+          {
+            value:
+              CoreStats.DamageDealt === 0
+                ? 0
+                : CoreStats.DamageTaken === 0
+                  ? Number.POSITIVE_INFINITY
+                  : CoreStats.DamageDealt / CoreStats.DamageTaken,
+            sortBy: StatsValueSortBy.DESC,
+            display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
+            prefix: " ",
+          },
         ],
       ],
       [
@@ -148,7 +164,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           teamBestValues,
           Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
         );
-        const medals = await this.playerMedalsToFields(coreStats);
+        const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(coreStats) : "";
         const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
 
         playerFields.push({
@@ -239,7 +255,12 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     index?: number,
   ): string {
     if (Array.isArray(value)) {
-      return value.map((v, i) => this.getStatsValue(matchBestValues, teamBestValues, key, v, i)).join(":");
+      return value
+        .map(
+          (v, i) =>
+            `${i > 0 ? (v.prefix ?? ":") : ""}${this.getStatsValue(matchBestValues, teamBestValues, key, v, i)}`,
+        )
+        .join("");
     }
 
     const { value: statValue, display } = value;
@@ -266,6 +287,18 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       : Number(statValue.toFixed(2)).toLocaleString(this.locale);
   }
 
+  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
+    if (damageDealt === 0) {
+      return "(0)";
+    }
+
+    if (damageTaken === 0) {
+      return "(♾️)";
+    }
+
+    return `(${this.formatStatValue(damageDealt / damageTaken)})`;
+  }
+
   protected getBestTeamStatValues(
     playersStats: Map<string, EmbedPlayerStats>,
     teamPlayers: MatchStats["Players"],
@@ -279,7 +312,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return this.getBestStatValues(teamPlayersStats);
   }
 
-  protected getBestStatValues(playersStats: Map<string, EmbedPlayerStats>): Map<string, number | number[]> {
+  protected getBestStatValues(playersStats: Map<string | number, EmbedPlayerStats>): Map<string, number | number[]> {
     const bestValues = new Map<string, number | number[]>();
     for (const embedPlayerStats of playersStats.values()) {
       for (const [key, playerStats] of embedPlayerStats.entries()) {

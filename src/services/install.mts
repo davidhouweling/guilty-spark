@@ -6,12 +6,14 @@ import { DiscordService } from "./discord/discord.mjs";
 import { HaloService } from "./halo/halo.mjs";
 import { XboxService } from "./xbox/xbox.mjs";
 import { XstsTokenProvider } from "./halo/xsts-token-provider.mjs";
+import { NeatQueueService } from "./neatqueue/neatqueue.mjs";
 
 export interface Services {
   databaseService: DatabaseService;
   discordService: DiscordService;
   xboxService: XboxService;
   haloService: HaloService;
+  neatQueueService: NeatQueueService;
 }
 
 interface InstallServicesOpts {
@@ -26,6 +28,7 @@ export async function installServices({ env }: InstallServicesOpts): Promise<Ser
     databaseService,
     infiniteClient: new HaloInfiniteClient(new XstsTokenProvider(xboxService)),
   });
+  const neatQueueService = new NeatQueueService({ env, databaseService, discordService, haloService });
 
   await xboxService.loadCredentials();
 
@@ -34,5 +37,6 @@ export async function installServices({ env }: InstallServicesOpts): Promise<Ser
     discordService,
     xboxService,
     haloService,
+    neatQueueService,
   };
 }

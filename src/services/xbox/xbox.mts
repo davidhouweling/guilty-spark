@@ -32,7 +32,7 @@ export class XboxService {
   }
 
   async loadCredentials(): Promise<void> {
-    const tokenInfo = await this.env.APP_CONFIG.get(XboxService.TOKEN_NAME);
+    const tokenInfo = await this.env.APP_DATA.get(XboxService.TOKEN_NAME);
     if (tokenInfo != null) {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
@@ -57,7 +57,7 @@ export class XboxService {
 
   clearToken(): void {
     this.tokenInfoMap.clear();
-    void this.env.APP_CONFIG.delete(XboxService.TOKEN_NAME);
+    void this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
   }
 
   private async updateCredentials(): Promise<void> {
@@ -68,7 +68,7 @@ export class XboxService {
     this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
     this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
 
-    await this.env.APP_CONFIG.put(XboxService.TOKEN_NAME, JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
+    await this.env.APP_DATA.put(XboxService.TOKEN_NAME, JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
       expirationTtl: Math.floor((new Date(credentialsResponse.expires_on).getTime() - new Date().getTime()) / 1000),
     });
   }
