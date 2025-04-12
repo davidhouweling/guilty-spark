@@ -1,8 +1,4 @@
-/**
- * The core server that runs on a Cloudflare worker.
- * Based on https://github.com/discord/cloudflare-sample-app
- */
-
+import * as Sentry from "@sentry/cloudflare";
 import { AutoRouter } from "itty-router";
 import { installServices } from "./services/install.mjs";
 import { getCommands } from "./commands/commands.mjs";
@@ -74,4 +70,14 @@ const server: ExportedHandler = {
   fetch: router.fetch,
 };
 
-export default server;
+export default Sentry.withSentry(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  (_env) => ({
+    dsn: "https://76d3531a8ad7eb47ae6e8574e5fd9f9d@o4509134330462208.ingest.us.sentry.io/4509134352285696",
+    // Set tracesSampleRate to 1.0 to capture 100% of spans for tracing.
+    // Learn more at
+    // https://docs.sentry.io/platforms/javascript/configuration/options/#traces-sample-rate
+    tracesSampleRate: 1.0,
+  }),
+  server satisfies ExportedHandler<Env>,
+);

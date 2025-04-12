@@ -39,6 +39,9 @@ kv_namespaces = [
 d1_databases = [
   { binding = "DB", database_name = "prod-db-guilty-spark", database_id = "fa6747b9-e9e0-47ca-891b-d4608ade66a3" }
 ]
+tail_consumers = [
+  { service = "guilty-spark-tail" }
+]
 
 [env.production.vars]
 HOST_URL = "https://guilty-spark.howling-dev.workers.dev"
