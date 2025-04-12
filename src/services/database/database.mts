@@ -25,6 +25,10 @@ export class DatabaseService {
   }
 
   async upsertDiscordAssociations(associations: DiscordAssociationsRow[]): Promise<void> {
+    if (associations.length === 0) {
+      return;
+    }
+
     const placeholders = associations.map(() => "(?, ?, ?, ?, ?, ?)").join(",");
     const query = `
       INSERT INTO DiscordAssociations (DiscordId, XboxId, AssociationReason, AssociationDate, GamesRetrievable, DiscordDisplayNameSearched) VALUES ${placeholders}
@@ -38,6 +42,7 @@ export class DatabaseService {
       association.GamesRetrievable,
       association.DiscordDisplayNameSearched,
     ]);
+
     const stmt = this.env.DB.prepare(query).bind(...bindings);
     await stmt.run();
   }
