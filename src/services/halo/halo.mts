@@ -59,7 +59,7 @@ export class HaloService {
 
       throw new Error(
         [
-          "**Error**: Unable to match any of the Discord users to their Xbox accounts.",
+          "Unable to match any of the Discord users to their Xbox accounts.",
           "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
         ].join("\n"),
       );
