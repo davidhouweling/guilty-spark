@@ -2,6 +2,7 @@ import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
+import { sub } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
@@ -323,7 +324,7 @@ export class NeatQueueService {
           endDateTime = new Date(timestamp);
           const series = await this.getSeriesData(
             Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
-            Preconditions.checkExists(startDateTime, "expected startDateTime"),
+            startDateTime ?? sub(endDateTime, { hours: 6 }),
             Preconditions.checkExists(endDateTime, "expected endDateTime"),
           );
 
