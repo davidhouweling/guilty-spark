@@ -52,10 +52,10 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
         let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
-        if (output.length > 1024) {
+        if (output.length > 675) {
           // truncate text back to the last whitespace
 
-          const lastWhitespaceIndex = output.lastIndexOf(" ", 1021); // Reserve 3 characters for "..."
+          const lastWhitespaceIndex = output.lastIndexOf(" ", 672); // Reserve 3 characters for "..."
           output = output.substring(0, lastWhitespaceIndex) + "...";
         }
 
