@@ -441,7 +441,10 @@ export class DiscordService {
         }
       }
 
-      console.warn(response);
+      console.log(`Discord API error: ${response.status.toString()} ${response.statusText}`);
+      const responseBody = await response.text();
+      console.warn(responseBody);
+
       throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
     }
 

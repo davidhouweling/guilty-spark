@@ -50,7 +50,15 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
 
         const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
-        const output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+
+        let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+        if (output.length > 675) {
+          // truncate text back to the last whitespace
+
+          const lastWhitespaceIndex = output.lastIndexOf(" ", 672); // Reserve 3 characters for "..."
+          output = output.substring(0, lastWhitespaceIndex) + "...";
+        }
+
         const personalScore = playerCoreStats.PersonalScore.toLocaleString(locale);
 
         playerFields.push({
