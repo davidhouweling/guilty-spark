@@ -1,7 +1,8 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats } from "halo-infinite-api";
-import type { APIEmbed } from "discord-api-types/v10";
+import { GameVariantCategory } from "halo-infinite-api";
+import { ComponentType, type APIEmbed } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
@@ -13,6 +14,29 @@ import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
 import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+import type { GuildConfigRow } from "../database/types/guild_config.mjs";
+import { StatsReturnType } from "../database/types/guild_config.mjs";
+import { InteractionButton as StatsInteractionButton } from "../../../dist/commands/stats/stats.mjs";
+import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
+import { AttritionMatchEmbed } from "../../embeds/attrition-match-embed.mjs";
+import { CtfMatchEmbed } from "../../embeds/ctf-match-embed.mjs";
+import { EliminationMatchEmbed } from "../../embeds/elimination-match-embed.mjs";
+import { EscalationMatchEmbed } from "../../embeds/escalation-match-embed.mjs";
+import { ExtractionMatchEmbed } from "../../embeds/extraction-match-embed.mjs";
+import { FiestaMatchEmbed } from "../../embeds/fiesta-match-embed.mjs";
+import { FirefightMatchEmbed } from "../../embeds/firefight-match-embed.mjs";
+import { GrifballMatchEmbed } from "../../embeds/grifball-match-embed.mjs";
+import { InfectionMatchEmbed } from "../../embeds/infection-match-embed.mjs";
+import { KOTHMatchEmbed } from "../../embeds/koth-match-embed.mjs";
+import { LandGrabMatchEmbed } from "../../embeds/land-grab-match-embed.mjs";
+import { MinigameMatchEmbed } from "../../embeds/minigame-match-embed.mjs";
+import { OddballMatchEmbed } from "../../embeds/oddball-match-embed.mjs";
+import { SlayerMatchEmbed } from "../../embeds/slayer-match-embed.mjs";
+import { StockpileMatchEmbed } from "../../embeds/stockpile-match-embed.mjs";
+import { StrongholdsMatchEmbed } from "../../embeds/strongholds-match-embed.mjs";
+import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.mjs";
+import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
+import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
 
 interface NeatQueuePlayer {
   name: string;
@@ -369,10 +393,11 @@ export class NeatQueueService {
     seriesData: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
+    const { discordService } = this;
     let useFallback = true;
 
     try {
-      const resultsMessage = await this.discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueue(
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
@@ -382,22 +407,25 @@ export class NeatQueueService {
       }
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
-      const thread = await this.discordService.startThreadFromMessage(
+      const thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
         `Queue #${request.match_number.toString()} series stats`,
       );
       useFallback = false;
 
-      const seriesEmbeds = [
-        await this.getSeriesOverviewEmbed({ request, channelId, messageId, seriesData, timeline }),
-        ...(await this.getSeriesEmbeds(request.guild, seriesData)),
-      ];
-      for (const embed of seriesEmbeds) {
-        await this.discordService.createMessage(thread.id, {
-          embeds: [embed],
-        });
-      }
+      const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
+        request,
+        channelId,
+        messageId,
+        seriesData,
+        timeline,
+      });
+      await discordService.createMessage(thread.id, {
+        embeds: [seriesOverviewEmbed],
+      });
+
+      await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
     } catch (error) {
       console.error("Failed to post series data by thread", error);
 
@@ -419,8 +447,9 @@ export class NeatQueueService {
     seriesData: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
+    const { discordService } = this;
     try {
-      const resultsMessage = await this.discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueue(
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
@@ -437,22 +466,76 @@ export class NeatQueueService {
       });
 
       const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
-      const createdMessage = await this.discordService.createMessage(channelId, {
+      const createdMessage = await discordService.createMessage(channelId, {
         embeds: [seriesOverviewEmbed],
       });
 
-      const thread = await this.discordService.startThreadFromMessage(
+      const thread = await discordService.startThreadFromMessage(
         channelId,
         createdMessage.id,
         `Queue #${request.match_number.toString()} series stats`,
       );
 
-      const seriesEmbeds = await this.getSeriesEmbeds(request.guild, seriesData);
-      await this.discordService.createMessage(thread.id, {
-        embeds: seriesEmbeds,
-      });
+      await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
     } catch (error) {
       console.error("Failed to post series data direct to channel", error);
+    }
+  }
+
+  private async postSeriesDetailsToChannel(
+    channelId: string,
+    guildId: string,
+    seriesData: MatchStats[],
+  ): Promise<void> {
+    const { databaseService, discordService, haloService } = this;
+
+    const guildConfig = await databaseService.getGuildConfig(guildId);
+
+    const seriesTeamsEmbed = new SeriesTeamsEmbed({ discordService, haloService, guildConfig, locale: this.locale });
+    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(seriesData);
+    await discordService.createMessage(channelId, {
+      embeds: [seriesTeamsEmbedOutput],
+    });
+
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(seriesData);
+    const seriesPlayersEmbed = new SeriesPlayersEmbed({
+      discordService,
+      haloService,
+      guildConfig,
+      locale: this.locale,
+    });
+    const seriesPlayersEmbedOutput = await seriesPlayersEmbed.getSeriesEmbed(seriesData, seriesPlayers, this.locale);
+    await discordService.createMessage(channelId, {
+      embeds: [seriesPlayersEmbedOutput],
+      components:
+        guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY
+          ? [
+              {
+                type: ComponentType.ActionRow,
+                components: [
+                  {
+                    type: ComponentType.Button,
+                    custom_id: StatsInteractionButton.LoadGames.toString(),
+                    label: "Load game stats",
+                    style: 1,
+                    emoji: {
+                      name: "🎮",
+                    },
+                  },
+                ],
+              },
+            ]
+          : [],
+    });
+
+    if (guildConfig.StatsReturn === StatsReturnType.SERIES_AND_GAMES) {
+      for (const match of seriesData) {
+        const players = await haloService.getPlayerXuidsToGametags(match);
+        const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);
+        const embed = await matchEmbed.getEmbed(match, players);
+
+        await discordService.createMessage(channelId, { embeds: [embed] });
+      }
     }
   }
 
@@ -499,27 +582,61 @@ export class NeatQueueService {
     });
   }
 
-  private async getSeriesEmbeds(guildId: string, seriesData: MatchStats[]): Promise<APIEmbed[]> {
-    const { databaseService, discordService, haloService } = this;
-
-    const guildConfig = await databaseService.getGuildConfig(guildId);
-
-    const seriesTeamsEmbed = new SeriesTeamsEmbed({ discordService, haloService, guildConfig, locale: this.locale });
-    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(seriesData);
-
-    const seriesPlayers = await this.haloService.getPlayerXuidsToGametags(seriesData);
-    const seriesPlayersEmbed = new SeriesPlayersEmbed({
-      discordService,
-      haloService,
-      guildConfig,
-      locale: this.locale,
-    });
-    const seriesPlayersEmbedOutput = await seriesPlayersEmbed.getSeriesEmbed(seriesData, seriesPlayers, this.locale);
-
-    return [seriesTeamsEmbedOutput, seriesPlayersEmbedOutput];
-  }
-
   private async clearTimeline(request: NeatQueueRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
     await this.env.APP_DATA.delete(this.getTimelineKey(request, neatQueueConfig));
+  }
+
+  private getMatchEmbed(
+    guildConfig: GuildConfigRow,
+    match: MatchStats,
+    locale: string,
+  ): BaseMatchEmbed<GameVariantCategory> {
+    const opts = {
+      discordService: this.discordService,
+      haloService: this.haloService,
+      guildConfig,
+      locale,
+    };
+
+    switch (match.MatchInfo.GameVariantCategory) {
+      case GameVariantCategory.MultiplayerAttrition:
+        return new AttritionMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerCtf:
+        return new CtfMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerElimination:
+        return new EliminationMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerEscalation:
+        return new EscalationMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerExtraction:
+        return new ExtractionMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerFiesta:
+        return new FiestaMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerFirefight:
+        return new FirefightMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerGrifball:
+        return new GrifballMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerInfection:
+        return new InfectionMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerKingOfTheHill:
+        return new KOTHMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerLandGrab:
+        return new LandGrabMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerMinigame:
+        return new MinigameMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerOddball:
+        return new OddballMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerSlayer:
+        return new SlayerMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerStockpile:
+        return new StockpileMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerStrongholds:
+        return new StrongholdsMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerTotalControl:
+        return new TotalControlMatchEmbed(opts);
+      case GameVariantCategory.MultiplayerVIP:
+        return new VIPMatchEmbed(opts);
+      default:
+        return new UnknownMatchEmbed(opts);
+    }
   }
 }
