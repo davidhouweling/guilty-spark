@@ -19,16 +19,23 @@ export class SeriesTeamsEmbed extends BaseSeriesEmbed {
     for (const team of firstMatch.Teams) {
       const teamStats = Preconditions.checkExists(teamCoreStats.get(team.TeamId));
       const mappedStats = this.getPlayerSlayerStats({ CoreStats: teamStats });
-      const output = this.playerStatsToFields(bestCoreStats, new Map(), mappedStats);
+      const teamOutput = this.playerStatsToFields(bestCoreStats, new Map(), mappedStats);
 
       const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(teamStats) : "";
       if (medals) {
-        output.push(medals);
+        teamOutput.push(medals);
+      }
+
+      let output = teamOutput.join("\n");
+      if (output.length > 1024) {
+        // truncate text back to the last whitespace
+        const lastWhitespaceIndex = output.lastIndexOf(" ", 1021); // Reserve 3 characters for "..."
+        output = output.substring(0, lastWhitespaceIndex) + "...";
       }
 
       teamFields.push({
         name: this.haloService.getTeamName(team.TeamId),
-        value: output.join("\n"),
+        value: output,
         inline: true,
       });
 
