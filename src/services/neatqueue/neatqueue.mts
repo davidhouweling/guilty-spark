@@ -16,7 +16,7 @@ import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { GuildConfigRow } from "../database/types/guild_config.mjs";
 import { StatsReturnType } from "../database/types/guild_config.mjs";
-import { InteractionButton as StatsInteractionButton } from "../../../dist/commands/stats/stats.mjs";
+import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats.mjs";
 import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
 import { AttritionMatchEmbed } from "../../embeds/attrition-match-embed.mjs";
 import { CtfMatchEmbed } from "../../embeds/ctf-match-embed.mjs";
