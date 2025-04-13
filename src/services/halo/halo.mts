@@ -155,10 +155,30 @@ export class HaloService {
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
 
     const uniqueXuids = new Set(xuidsToResolve);
+
     if (uniqueXuids.size) {
-      const users = await this.getUsersByXuids(Array.from(uniqueXuids));
-      for (const user of users) {
-        this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+      const usersArray = Array.from(uniqueXuids);
+
+      try {
+        const users = await this.getUsersByXuids(usersArray);
+        for (const user of users) {
+          this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+        }
+      } catch (error) {
+        // temporary workaround for 500 errors
+        if (error instanceof RequestError && error.response.status === 500) {
+          const users = await Promise.allSettled(usersArray.map(async (xuid) => this.infiniteClient.getUser(xuid)));
+          for (const [index, result] of users.entries()) {
+            if (result.status === "fulfilled") {
+              const user = result.value;
+              this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+            } else {
+              this.xuidToGamerTagCache.set(Preconditions.checkExists(usersArray[index]), "*Unknown*");
+            }
+          }
+        } else {
+          throw error;
+        }
       }
     }
 
