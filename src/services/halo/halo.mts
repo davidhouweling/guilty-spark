@@ -389,6 +389,10 @@ export class HaloService {
   }
 
   private filterMatchesToMatchingTeams(matches: MatchStats[]): MatchStats[] {
+    if (matches.length < 2) {
+      return matches;
+    }
+
     const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
     return matches.filter((match) => {
       return (
