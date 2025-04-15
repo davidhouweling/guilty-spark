@@ -7,6 +7,7 @@ import type { DiscordAssociationsRow } from "../database/types/discord_associati
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+import type { LogService } from "../log/types.mjs";
 
 export interface MatchPlayer {
   id: string;
@@ -28,11 +29,13 @@ export interface Medal {
 }
 
 export interface HaloServiceOpts {
-  infiniteClient: HaloInfiniteClient;
+  logService: LogService;
   databaseService: DatabaseService;
+  infiniteClient: HaloInfiniteClient;
 }
 
 export class HaloService {
+  private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly infiniteClient: HaloInfiniteClient;
   private readonly mapNameCache = new Map<string, string>();
@@ -41,7 +44,8 @@ export class HaloService {
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
-  constructor({ databaseService, infiniteClient }: HaloServiceOpts) {
+  constructor({ logService, databaseService, infiniteClient }: HaloServiceOpts) {
+    this.logService = logService;
     this.databaseService = databaseService;
     this.infiniteClient = infiniteClient;
   }
@@ -260,6 +264,8 @@ export class HaloService {
       user = await this.getUserByGamertag(gamertag);
     } catch (error) {
       if (error instanceof RequestError && error.response.status === 400) {
+        this.logService.debug(error as Error);
+
         throw new Error(`No user found with gamertag "${gamertag}"`);
       }
 
@@ -269,7 +275,7 @@ export class HaloService {
     try {
       return await this.infiniteClient.getPlayerMatches(user.xuid, matchType, count);
     } catch (error) {
-      console.error(error);
+      this.logService.error(error as Error);
 
       throw new Error("Unable to retrieve match history");
     }

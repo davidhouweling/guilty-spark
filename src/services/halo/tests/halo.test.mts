@@ -8,8 +8,11 @@ import { matchStats, playerMatches, neatQueueSeriesData } from "../fakes/data.mj
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
+import type { LogService } from "../../log/types.mjs";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 
 describe("Halo service", () => {
+  let logService: LogService;
   let databaseService: DatabaseService;
   let infiniteClient: MockProxy<HaloInfiniteClient>;
   let haloService: HaloService;
@@ -18,10 +21,11 @@ describe("Halo service", () => {
     vi.useFakeTimers();
     vi.setSystemTime("2024-11-26T12:00:00.000Z");
 
+    logService = aFakeLogServiceWith();
+    databaseService = aFakeDatabaseServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
-    databaseService = aFakeDatabaseServiceWith();
-    haloService = new HaloService({ databaseService, infiniteClient });
+    haloService = new HaloService({ logService, databaseService, infiniteClient });
   });
 
   afterEach(() => {
@@ -428,7 +432,7 @@ describe("Halo service", () => {
 
     it("caches the medal data so that it only calls infinite api once", async () => {
       const getMedalsMetadataFileSpy = vi.spyOn(infiniteClient, "getMedalsMetadataFile");
-      const cleanHaloService = new HaloService({ databaseService, infiniteClient });
+      const cleanHaloService = new HaloService({ logService, databaseService, infiniteClient });
 
       await cleanHaloService.getMedal(3334154676);
       await cleanHaloService.getMedal(3334154676);

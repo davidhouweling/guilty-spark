@@ -26,6 +26,8 @@ import type { Services } from "../../install.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { AssociationReason } from "../../database/types/discord_associations.mjs";
 import { aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
+import type { LogService } from "../../log/types.mjs";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 
 const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -58,12 +60,14 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
 
 describe("DiscordService", () => {
   let env: Env;
+  let logService: LogService;
   let mockFetch: Mock<typeof fetch>;
   let mockVerifyKey: Mock<typeof verifyKey>;
   let discordService: DiscordService;
 
   beforeEach(() => {
     env = aFakeEnvWith();
+    logService = aFakeLogServiceWith();
     mockFetch = vi.fn<typeof fetch>().mockImplementation(async (path) => {
       const prefix = "https://discord.com/api/v10";
       if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
@@ -98,6 +102,7 @@ describe("DiscordService", () => {
     mockVerifyKey = vi.fn().mockResolvedValue(true);
     discordService = new DiscordService({
       env,
+      logService,
       fetch: mockFetch,
       verifyKey: mockVerifyKey,
     });

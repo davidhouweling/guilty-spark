@@ -55,6 +55,7 @@ const fakeDb: D1Database = {
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const defaultOpts: Env = {
     HOST_URL: "https://guilty-spark-dev.howling-dev.workers.dev",
+    MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",
     DISCORD_TOKEN: "DISCORD_TOKEN",

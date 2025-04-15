@@ -311,22 +311,18 @@ describe("ConnectCommand", () => {
       });
 
       describe("No association", () => {
-        let consoleErrorSpy: MockInstance<typeof console.error>;
-        let consoleTraceSpy: MockInstance<typeof console.trace>;
+        let logServiceErrorSpy: MockInstance<typeof services.logService.error>;
 
         beforeEach(() => {
-          consoleErrorSpy = vi.spyOn(console, "error");
-          consoleTraceSpy = vi.spyOn(console, "trace");
+          logServiceErrorSpy = vi.spyOn(services.logService, "error");
           getDiscordAssociationsSpy.mockResolvedValue([]);
         });
 
         it("logs error", async () => {
           await jobToComplete?.();
 
-          // 2 calls to console.error: 1 for the error, 1 for the stack trace
-          expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
-          expect(consoleErrorSpy).toHaveBeenCalledWith(new Error("Connection not found"));
-          expect(consoleTraceSpy).toHaveBeenCalledOnce();
+          expect(logServiceErrorSpy).toHaveBeenCalledTimes(1);
+          expect(logServiceErrorSpy).toHaveBeenCalledWith(new Error("Connection not found"));
         });
 
         it("calls updateDeferredReply with the expected opts", async () => {

@@ -1,4 +1,4 @@
-name = "guilty-spark"
+name = "guilty-spark-dev"
 main = "./src/server.mts"
 compatibility_flags = [ "nodejs_compat" ]
 compatibility_date = "2025-04-01"
@@ -12,6 +12,7 @@ d1_databases = [
 
 [vars]
 HOST_URL = "https://guilty-spark-dev.howling-dev.workers.dev"
+MODE = "development"
 
 [observability]
 enabled = true
@@ -29,6 +30,7 @@ d1_databases = [
 
 [env.staging.vars]
 HOST_URL = "https://guilty-spark-staging.howling-dev.workers.dev"
+MODE = "production"
 
 
 [env.production]
@@ -45,3 +47,4 @@ tail_consumers = [
 
 [env.production.vars]
 HOST_URL = "https://guilty-spark.howling-dev.workers.dev"
+MODE = "production"

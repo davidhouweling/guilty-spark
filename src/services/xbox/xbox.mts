@@ -3,6 +3,7 @@ import type {
   CredentialsAuthenticateInitialResponse,
   CredentialsAuthenticateResponse,
 } from "@xboxreplay/xboxlive-auth";
+import type { LogService } from "../log/types.mjs";
 
 export enum TokenInfoKey {
   XSTSToken,
@@ -11,6 +12,7 @@ export enum TokenInfoKey {
 
 export interface XboxServiceOpts {
   env: Env;
+  logService: LogService;
   authenticate: XboxLiveAuthAuthenticate;
 }
 
@@ -22,12 +24,14 @@ export type XboxLiveAuthAuthenticate = (
 
 export class XboxService {
   private readonly env: Env;
+  private readonly logService: LogService;
   private readonly authenticate: XboxLiveAuthAuthenticate;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
   private static readonly TOKEN_NAME = "xboxToken";
 
-  constructor({ env, authenticate }: XboxServiceOpts) {
+  constructor({ env, logService, authenticate }: XboxServiceOpts) {
     this.env = env;
+    this.logService = logService;
     this.authenticate = authenticate;
   }
 
@@ -37,8 +41,10 @@ export class XboxService {
       try {
         this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
       } catch (error) {
-        console.warn(error);
-        console.log("Continuing without cached Xbox credentials");
+        this.logService.warn(
+          error as Error,
+          new Map([["message", "Failed to parse cached Xbox credentials, Continuing without cached Xbox credentials"]]),
+        );
       }
     }
   }

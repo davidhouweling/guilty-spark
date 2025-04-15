@@ -32,6 +32,7 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason } from "../database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+import type { LogService } from "../log/types.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
@@ -48,6 +49,7 @@ export interface QueueData {
 
 export interface DiscordServiceOpts {
   env: Env;
+  logService: LogService;
   fetch: typeof fetch;
   verifyKey: typeof discordInteractionsVerifyKey;
 }
@@ -107,12 +109,14 @@ interface RateLimit {
 // but keep the underlying logic the same, so this acts to transform between the two
 export class DiscordService {
   private readonly env: Env;
+  private readonly logService: LogService;
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
 
-  constructor({ env, fetch, verifyKey }: DiscordServiceOpts) {
+  constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
     this.env = env;
+    this.logService = logService;
     this.globalFetch = fetch;
     this.verifyKey = verifyKey;
   }
@@ -138,15 +142,14 @@ export class DiscordService {
       const parsedInteraction = JSON.parse(body) as APIInteraction;
       return { interaction: parsedInteraction, isValid: true };
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.logService.error(error as Error, new Map([["body", body]]));
 
       return { isValid: false, error: "Invalid JSON" };
     }
   }
 
   handleInteraction(interaction: APIInteraction): InteractionResponse {
-    console.log(inspect(interaction, { depth: null, colors: true }));
+    this.logService.info(inspect(interaction, { depth: null, colors: this.env.MODE === "development" }));
 
     const { type } = interaction;
     switch (type) {
@@ -185,17 +188,17 @@ export class DiscordService {
 
   private getCommandToExecute(name: string, interaction: BaseInteraction): InteractionResponse {
     if (!this.commands) {
-      console.error("No commands found");
+      this.logService.error("No commands found");
 
       return {
         response: new JsonResponse({ error: "No commands found" }, { status: 500 }),
       };
     }
 
-    console.log(name);
+    this.logService.info("getCommandToExecute", new Map([["name", name]]));
     const command = this.commands.get(name);
     if (!command) {
-      console.warn("Command not found");
+      this.logService.warn("Command not found", new Map([["name", name]]));
 
       return {
         response: new JsonResponse({ error: "Command not found" }, { status: 400 }),
@@ -441,11 +444,13 @@ export class DiscordService {
         }
       }
 
-      console.log(`Discord API error: ${response.status.toString()} ${response.statusText}`);
-      const responseBody = await response.text();
-      console.warn(responseBody);
+      const error = new Error(
+        `Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`,
+      );
+      const body = await response.text();
+      this.logService.error(error, new Map([["body", body]]));
 
-      throw new Error(`Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`);
+      throw error;
     }
 
     const rateLimitFromResponse = this.getRateLimitFromResponse(response);
