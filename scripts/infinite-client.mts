@@ -8,15 +8,17 @@ import { XboxService } from "../src/services/xbox/xbox.mjs";
 import { XstsTokenProvider } from "../src/services/halo/xsts-token-provider.mjs";
 import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
 import { Preconditions } from "../src/base/preconditions.mjs";
+import { ConsoleLogClient } from "../src/services/log/console-log-client.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const logService = new ConsoleLogClient();
 const env = aFakeEnvWith({
   XBOX_USERNAME: Preconditions.checkExists(process.env.XBOX_USERNAME),
   XBOX_PASSWORD: Preconditions.checkExists(process.env.XBOX_PASSWORD),
 });
 
-const xboxService = new XboxService({ env, authenticate });
+const xboxService = new XboxService({ env, logService, authenticate });
 const client = new HaloInfiniteClient(new XstsTokenProvider(xboxService));
 
 const user = await client.getUser("soundmanD");

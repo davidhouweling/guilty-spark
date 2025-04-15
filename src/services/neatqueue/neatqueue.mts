@@ -37,6 +37,7 @@ import { StrongholdsMatchEmbed } from "../../embeds/strongholds-match-embed.mjs"
 import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.mjs";
 import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
+import type { LogService } from "../log/types.mjs";
 
 interface NeatQueuePlayer {
   name: string;
@@ -139,6 +140,7 @@ interface NeatQueueTimelineEvent {
 
 export interface NeatQueueServiceOpts {
   env: Env;
+  logService: LogService;
   databaseService: DatabaseService;
   discordService: DiscordService;
   haloService: HaloService;
@@ -146,16 +148,18 @@ export interface NeatQueueServiceOpts {
 
 export class NeatQueueService {
   private readonly env: Env;
+  private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly locale = "en-US";
 
-  constructor(opts: NeatQueueServiceOpts) {
-    this.env = opts.env;
-    this.databaseService = opts.databaseService;
-    this.discordService = opts.discordService;
-    this.haloService = opts.haloService;
+  constructor({ env, logService, databaseService, discordService, haloService }: NeatQueueServiceOpts) {
+    this.env = env;
+    this.logService = logService;
+    this.databaseService = databaseService;
+    this.discordService = discordService;
+    this.haloService = haloService;
   }
 
   hashAuthorizationKey(key: string, guildId: string): string {
@@ -180,8 +184,7 @@ export class NeatQueueService {
 
       return { isValid: true, interaction: body, neatQueueConfig };
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.logService.error(error as Error);
 
       return { isValid: false, error: "Invalid JSON" };
     }
@@ -191,7 +194,7 @@ export class NeatQueueService {
     request: NeatQueueRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): { response: Response; jobToComplete?: () => Promise<void> } {
-    console.log(inspect(request, { depth: null, colors: true }));
+    this.logService.info(inspect(request, { depth: null, colors: this.env.MODE === "development" }));
 
     switch (request.action) {
       case "JOIN_QUEUE":
@@ -213,7 +216,8 @@ export class NeatQueueService {
         };
       }
       default: {
-        console.error("Unknown action", request);
+        this.logService.warn("Unknown action", new Map([["request", request]]));
+
         // whilst we could return proper status here, NeatQueue isn't concerned with it
         return { response: new Response("OK") };
       }
@@ -287,7 +291,8 @@ export class NeatQueueService {
 
       return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error(error);
+      this.logService.warn(error as Error);
+
       return [];
     }
   }
@@ -357,7 +362,7 @@ export class NeatQueueService {
           break;
         }
         default:
-          console.warn("Unknown event action", action);
+          this.logService.warn("Unknown event action", new Map([["action", action]]));
       }
     }
 
@@ -427,10 +432,11 @@ export class NeatQueueService {
 
       await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
     } catch (error) {
-      console.error("Failed to post series data by thread", error);
+      this.logService.warn(error as Error, new Map([["reason", "Failed to post series data to thread"]]));
 
       if (useFallback) {
-        console.info("Attempting to post direct to channel", error);
+        this.logService.info("Attempting to post direct to channel");
+
         await this.postSeriesDataByChannel({ request, neatQueueConfig, seriesData, timeline });
       }
     }
@@ -478,7 +484,7 @@ export class NeatQueueService {
 
       await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
     } catch (error) {
-      console.error("Failed to post series data direct to channel", error);
+      this.logService.error(error as Error, new Map([["reason", "Failed to post series data direct to channel"]]));
     }
   }
 

@@ -318,8 +318,7 @@ export class SetupCommand extends BaseCommand {
         }
       }
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       return {
         response: {
@@ -472,8 +471,7 @@ export class SetupCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       await discordService.updateDeferredReply(interaction.token, {
         content: `Failed to fetch configuration: ${error instanceof Error ? error.message : "unknown"}`,
@@ -560,8 +558,7 @@ export class SetupCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -588,8 +585,7 @@ export class SetupCommand extends BaseCommand {
 
       await databaseService.updateGuildConfig(guildId, config);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -944,8 +940,7 @@ export class SetupCommand extends BaseCommand {
 
       await this.applicationCommandJob(interaction);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;

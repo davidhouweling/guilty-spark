@@ -164,8 +164,7 @@ export class StatsCommand extends BaseCommand {
         }
       }
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       return {
         response: {
@@ -301,8 +300,7 @@ export class StatsCommand extends BaseCommand {
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -357,8 +355,7 @@ export class StatsCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -437,8 +434,7 @@ export class StatsCommand extends BaseCommand {
         components: [],
       });
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;

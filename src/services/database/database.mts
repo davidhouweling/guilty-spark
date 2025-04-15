@@ -1,3 +1,4 @@
+import { instrumentD1WithSentry } from "@sentry/cloudflare";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 import type { GuildConfigRow } from "./types/guild_config.mjs";
@@ -9,17 +10,17 @@ export interface DatabaseServiceOpts {
 }
 
 export class DatabaseService {
-  private readonly env: Env;
+  private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
 
   constructor({ env }: DatabaseServiceOpts) {
-    this.env = env;
+    this.DB = env.MODE === "production" ? (instrumentD1WithSentry(env.DB) as D1Database) : env.DB;
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
     const placeholders = discordIds.map(() => "?").join(",");
     const query = `SELECT * FROM DiscordAssociations WHERE DiscordId IN (${placeholders})`;
-    const stmt = this.env.DB.prepare(query).bind(...discordIds);
+    const stmt = this.DB.prepare(query).bind(...discordIds);
     const response = await stmt.all<DiscordAssociationsRow>();
     return response.results;
   }
@@ -43,14 +44,14 @@ export class DatabaseService {
       association.DiscordDisplayNameSearched,
     ]);
 
-    const stmt = this.env.DB.prepare(query).bind(...bindings);
+    const stmt = this.DB.prepare(query).bind(...bindings);
     await stmt.run();
   }
 
   async deleteDiscordAssociations(discordIds: string[]): Promise<void> {
     const placeholders = discordIds.map(() => "?").join(",");
     const query = `DELETE FROM DiscordAssociations WHERE DiscordId IN (${placeholders})`;
-    const stmt = this.env.DB.prepare(query).bind(...discordIds);
+    const stmt = this.DB.prepare(query).bind(...discordIds);
     await stmt.run();
   }
 
@@ -60,7 +61,7 @@ export class DatabaseService {
     }
 
     const query = "SELECT * FROM GuildConfig WHERE GuildId = ?";
-    const stmt = this.env.DB.prepare(query).bind(guildId);
+    const stmt = this.DB.prepare(query).bind(guildId);
     const result = await stmt.first<GuildConfigRow>();
 
     if (result) {
@@ -75,7 +76,7 @@ export class DatabaseService {
     };
 
     if (autoCreate) {
-      const insertStmt = this.env.DB.prepare(
+      const insertStmt = this.DB.prepare(
         "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals) VALUES (?, ?, ?)",
       ).bind(defaultConfig.GuildId, defaultConfig.StatsReturn, defaultConfig.Medals);
 
@@ -107,13 +108,13 @@ export class DatabaseService {
     values.push(guildId);
 
     const query = `UPDATE GuildConfig SET ${setStatements.join(", ")} WHERE GuildId = ?`;
-    const stmt = this.env.DB.prepare(query).bind(...values);
+    const stmt = this.DB.prepare(query).bind(...values);
     await stmt.run();
   }
 
   async getNeatQueueConfig(guildId: string): Promise<NeatQueueConfigRow | null> {
     const query = "SELECT * FROM NeatQueueConfig WHERE GuildId = ?";
-    const stmt = this.env.DB.prepare(query).bind(guildId);
+    const stmt = this.DB.prepare(query).bind(guildId);
     const result = await stmt.first<NeatQueueConfigRow>();
 
     return result;
@@ -136,7 +137,7 @@ export class DatabaseService {
     }
 
     const query = `SELECT * FROM NeatQueueConfig WHERE ${whereConditions.join(" AND ")}`;
-    const stmt = this.env.DB.prepare(query).bind(...values);
+    const stmt = this.DB.prepare(query).bind(...values);
     const { results } = await stmt.all<NeatQueueConfigRow>();
 
     return results;
@@ -155,7 +156,7 @@ export class DatabaseService {
       config.PostSeriesMode,
       config.PostSeriesChannelId,
     ];
-    const stmt = this.env.DB.prepare(query).bind(...bindings);
+    const stmt = this.DB.prepare(query).bind(...bindings);
     await stmt.run();
   }
 }

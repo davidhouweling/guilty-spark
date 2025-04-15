@@ -5,6 +5,8 @@ import type { CredentialsAuthenticateResponse } from "@xboxreplay/xboxlive-auth"
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { XboxLiveAuthAuthenticate } from "../xbox.mjs";
 import { TokenInfoKey, XboxService } from "../xbox.mjs";
+import type { LogService } from "../../log/types.mjs";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 
 const validKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2025-01-01T03:00:00.000Z"]]`;
 const expiredKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2024-12-31T23:59:00.000Z"]]`;
@@ -19,14 +21,16 @@ const validAuthenticateResponse: CredentialsAuthenticateResponse = {
 
 describe("Xbox Service", () => {
   let env: Env;
+  let logService: LogService;
   let xboxService: XboxService;
   let authenticate: Mock<XboxLiveAuthAuthenticate>;
 
   beforeEach(() => {
     const fakeEnv = aFakeEnvWith();
     env = fakeEnv;
+    logService = aFakeLogServiceWith();
     authenticate = vi.fn();
-    xboxService = new XboxService({ env, authenticate });
+    xboxService = new XboxService({ env, logService, authenticate });
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
@@ -61,22 +65,16 @@ describe("Xbox Service", () => {
       expect(xboxService.token).toBeUndefined();
     });
 
-    it("should log a warning if the credentials are invalid", async () => {
+    it("should log if the credentials are invalid", async () => {
       env.APP_DATA.get = vi.fn().mockResolvedValue(invalidKvToken);
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => void 0);
+      const logSpy = vi.spyOn(logService, "warn");
 
       await xboxService.loadCredentials();
 
-      expect(warnSpy).toHaveBeenCalled();
-    });
-
-    it("should log a message if the credentials are invalid", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(invalidKvToken);
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => void 0);
-
-      await xboxService.loadCredentials();
-
-      expect(logSpy).toHaveBeenCalledWith("Continuing without cached Xbox credentials");
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.any(Error),
+        new Map([["message", "Failed to parse cached Xbox credentials, Continuing without cached Xbox credentials"]]),
+      );
     });
   });
 

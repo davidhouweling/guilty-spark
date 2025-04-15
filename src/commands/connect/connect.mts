@@ -89,8 +89,7 @@ export class ConnectCommand extends BaseCommand {
     try {
       return this.handleCommand(interaction);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       return {
         response: {
@@ -187,8 +186,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -420,8 +418,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -478,8 +475,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -563,8 +559,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
@@ -612,8 +607,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      console.error(error);
-      console.trace();
+      this.services.logService.error(error as Error);
 
       if (error instanceof Error && error.message === "Too many subrequests.") {
         return;
