@@ -51,6 +51,7 @@ export const pingInteraction: APIPingInteraction = {
   app_permissions: "",
   authorizing_integration_owners: {},
   entitlements: [],
+  attachment_size_limit: 10000,
 };
 
 const fakeBaseInteraction = {
@@ -77,6 +78,7 @@ const fakeBaseInteraction = {
     flags: GuildMemberFlags.CompletedOnboarding,
   },
   token: "fake-token",
+  attachment_size_limit: 10000,
 };
 
 export const fakeBaseAPIApplicationCommandInteraction: Omit<APIApplicationCommandInteraction, "type" | "data"> = {
