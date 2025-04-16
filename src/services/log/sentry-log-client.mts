@@ -1,18 +1,22 @@
-import { captureException, captureMessage } from "@sentry/cloudflare";
+import { captureException, addBreadcrumb } from "@sentry/cloudflare";
 import type { LogService, JsonAny } from "./types.mjs";
 
 export class SentryLogClient implements LogService {
   debug(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
-    captureMessage(error instanceof Error ? error.message : error, {
+    addBreadcrumb({
+      category: "debug",
+      message: error instanceof Error ? error.message : error,
       level: "debug",
-      extra: Object.fromEntries(extra),
+      data: Object.fromEntries(extra),
     });
   }
 
   info(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
-    captureMessage(error instanceof Error ? error.message : error, {
+    addBreadcrumb({
+      category: "info",
+      message: error instanceof Error ? error.message : error,
       level: "info",
-      extra: Object.fromEntries(extra),
+      data: Object.fromEntries(extra),
     });
   }
 

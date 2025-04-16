@@ -102,6 +102,11 @@ export interface NeatQueueSubstitutionRequest extends NeatQueueBaseRequest {
   player_subbed_in: NeatQueuePlayer;
 }
 
+export interface NeatQueueMatchCancelledRequest extends NeatQueueBaseRequest {
+  action: "MATCH_CANCELLED";
+  teams: NeatQueuePlayer[][];
+}
+
 export interface NeatQueueMatchCompletedRequest extends NeatQueueBaseRequest {
   action: "MATCH_COMPLETED";
   match_number: number;
@@ -120,6 +125,7 @@ export type NeatQueueRequest =
   | NeatQueueMatchStartedRequest
   | NeatQueueTeamsCreatedRequest
   | NeatQueueSubstitutionRequest
+  | NeatQueueMatchCancelledRequest
   | NeatQueueMatchCompletedRequest;
 
 export type VerifyNeatQueueResponse =
@@ -198,7 +204,8 @@ export class NeatQueueService {
 
     switch (request.action) {
       case "JOIN_QUEUE":
-      case "LEAVE_QUEUE": {
+      case "LEAVE_QUEUE":
+      case "MATCH_CANCELLED": {
         return { response: new Response("OK") };
       }
       case "MATCH_STARTED":
@@ -318,7 +325,8 @@ export class NeatQueueService {
       switch (action) {
         case "JOIN_QUEUE":
         case "LEAVE_QUEUE":
-        case "MATCH_STARTED": {
+        case "MATCH_STARTED":
+        case "MATCH_CANCELLED": {
           break;
         }
         case "TEAMS_CREATED": {
