@@ -74,6 +74,17 @@ export class HaloService {
       queueData.startDateTime,
       queueData.endDateTime,
     );
+    if (!matchesForUsers.length) {
+      await this.updateDiscordAssociations();
+
+      throw new Error(
+        [
+          "Unable to match any of the Discord users to their Xbox accounts.",
+          "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        ].join("\n"),
+      );
+    }
+
     const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
       const parsedDuration = tinyduration.parse(match.MatchInfo.Duration);
       // we want at least 2 minutes of game play, otherwise assume that the match was chalked
@@ -368,7 +379,16 @@ export class HaloService {
 
     for (const user of users) {
       const playerMatches = await this.getPlayerMatches(user.XboxId, startDate, endDate);
-      userMatches.set(user.DiscordId, playerMatches);
+
+      if (playerMatches.length) {
+        userMatches.set(user.DiscordId, playerMatches);
+      } else {
+        const cachedUser = this.userCache.get(user.DiscordId);
+        if (cachedUser != null) {
+          cachedUser.GamesRetrievable = GamesRetrievable.NO;
+          this.userCache.set(user.DiscordId, cachedUser);
+        }
+      }
     }
 
     if (!userMatches.size) {
