@@ -338,7 +338,7 @@ export class NeatQueueService {
           endDateTime = new Date(timestamp);
           const series = await this.getSeriesData(
             Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
-            Preconditions.checkExists(startDateTime, "expected startDateTime"),
+            startDateTime ?? sub(endDateTime, { hours: 6 }),
             Preconditions.checkExists(endDateTime, "expected endDateTime"),
           );
 
