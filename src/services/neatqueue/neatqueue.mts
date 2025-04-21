@@ -277,7 +277,7 @@ export class NeatQueueService {
       }
     }
 
-    await this.clearTimeline(request, neatQueueConfig);
+    await Promise.all([this.clearTimeline(request, neatQueueConfig), this.haloService.updateDiscordAssociations()]);
   }
 
   private getTimelineKey(request: NeatQueueRequest, neatQueueConfig: NeatQueueConfigRow): string {
@@ -382,13 +382,20 @@ export class NeatQueueService {
     startDateTime: Date,
     endDateTime: Date,
   ): Promise<MatchStats[]> {
-    return await this.haloService.getSeriesFromDiscordQueue({
+    const { haloService, discordService } = this;
+    const users = await discordService.getUsers(teams.flatMap((team) => team.map((player) => player.id)));
+
+    return await haloService.getSeriesFromDiscordQueue({
       teams: teams.map((team) =>
-        team.map((player) => ({
-          id: player.id,
-          username: player.name,
-          globalName: null,
-        })),
+        team.map(({ id: playerId }) => {
+          const user = Preconditions.checkExists(users.find(({ id }) => id === playerId));
+
+          return {
+            id: playerId,
+            username: user.username,
+            globalName: user.global_name,
+          };
+        }),
       ),
       startDateTime,
       endDateTime,

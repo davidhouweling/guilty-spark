@@ -509,72 +509,76 @@ describe("Halo service", () => {
       await haloService.updateDiscordAssociations();
 
       expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
-      expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith([
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000001",
-          GamesRetrievable: "Y",
-          XboxId: "0000000000001",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000002",
-          GamesRetrievable: "N",
-          XboxId: "0000000000002",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000003",
-          GamesRetrievable: "N",
-          XboxId: "0000000000003",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000005",
-          GamesRetrievable: "N",
-          XboxId: "0000000000005",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000006",
-          GamesRetrievable: "N",
-          XboxId: "0000000000006",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000007",
-          GamesRetrievable: "N",
-          XboxId: "0000000000007",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "U",
-          DiscordId: "000000000000000008",
-          GamesRetrievable: "N",
-          XboxId: "0000000000008",
-          DiscordDisplayNameSearched: null,
-        },
-        {
-          AssociationDate: 1732622400000,
-          AssociationReason: "D",
-          DiscordId: "000000000000000004",
-          GamesRetrievable: "N",
-          XboxId: "0000000000004",
-          DiscordDisplayNameSearched: "gamertag0000000000004",
-        },
-      ]);
+      expect(upsertDiscordAssociationsSpy.mock.lastCall).toMatchInlineSnapshot(`
+        [
+          [
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "gamertag0000000000004",
+              "DiscordId": "000000000000000004",
+              "GamesRetrievable": "N",
+              "XboxId": "0000000000004",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000001",
+              "GamesRetrievable": "Y",
+              "XboxId": "0000000000001",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser02",
+              "DiscordId": "000000000000000002",
+              "GamesRetrievable": "N",
+              "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000003",
+              "GamesRetrievable": "N",
+              "XboxId": "0000000000003",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser05",
+              "DiscordId": "000000000000000005",
+              "GamesRetrievable": "N",
+              "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000006",
+              "GamesRetrievable": "N",
+              "XboxId": "0000000000006",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser07",
+              "DiscordId": "000000000000000007",
+              "GamesRetrievable": "N",
+              "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser08",
+              "DiscordId": "000000000000000008",
+              "GamesRetrievable": "N",
+              "XboxId": "",
+            },
+          ],
+        ]
+      `);
     });
   });
 });

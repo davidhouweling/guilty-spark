@@ -51,6 +51,13 @@ export class HaloService {
   }
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
+    const noMatchError = new Error(
+      [
+        "Unable to match any of the Discord users to their Xbox accounts.",
+        "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+      ].join("\n"),
+    );
+
     const users = queueData.teams.flat();
     await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 
@@ -60,13 +67,7 @@ export class HaloService {
 
     if (!usersToSearch.length) {
       await this.updateDiscordAssociations();
-
-      throw new Error(
-        [
-          "Unable to match any of the Discord users to their Xbox accounts.",
-          "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
-        ].join("\n"),
-      );
+      throw noMatchError;
     }
 
     const matchesForUsers = await this.getMatchesForUsers(
@@ -76,13 +77,7 @@ export class HaloService {
     );
     if (!matchesForUsers.length) {
       await this.updateDiscordAssociations();
-
-      throw new Error(
-        [
-          "Unable to match any of the Discord users to their Xbox accounts.",
-          "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
-        ].join("\n"),
-      );
+      throw noMatchError;
     }
 
     const matchDetails = await this.getMatchDetails(matchesForUsers, (match) => {
@@ -293,68 +288,94 @@ export class HaloService {
   }
 
   async updateDiscordAssociations(): Promise<void> {
+    this.logService.debug(
+      "Updating discord associations",
+      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
+    );
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
   private async populateUserCache(users: MatchPlayer[], startDate: Date, endDate: Date): Promise<void> {
-    const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
-    for (const association of discordAssociations) {
-      this.userCache.set(association.DiscordId, association);
-    }
-
-    let unresolvedUsers = users.filter((user) => !this.userCache.has(user.id));
-    // we can assume that xbox has already been searched for before
-    const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      unresolvedUsers.map(async (user) => this.getUserByGamertag(user.username)),
-    );
-
     const processResult = async (
+      processedUsers: MatchPlayer[],
       associationReason: AssociationReason,
       index: number,
       result: PromiseSettledResult<UserInfo>,
     ): Promise<void> => {
-      if (result.status === "fulfilled") {
-        const playerMatches = await this.getPlayerMatches(result.value.xuid, startDate, endDate);
-        const discordId = Preconditions.checkExists(unresolvedUsers[index]).id;
-        this.userCache.set(discordId, {
-          DiscordId: discordId,
-          XboxId: result.value.xuid,
-          AssociationReason: associationReason,
-          AssociationDate: new Date().getTime(),
-          GamesRetrievable: playerMatches.length ? GamesRetrievable.YES : GamesRetrievable.NO,
-          DiscordDisplayNameSearched:
-            associationReason === AssociationReason.DISPLAY_NAME_SEARCH ? result.value.gamertag : null,
-        });
-      }
+      const fulfilled = result.status === "fulfilled";
+      const { id: discordId, globalName } = Preconditions.checkExists(processedUsers[index]);
+      const gamertag = associationReason === AssociationReason.DISPLAY_NAME_SEARCH ? globalName : null;
+      const playerMatches = fulfilled ? await this.getPlayerMatches(result.value.xuid, startDate, endDate) : [];
+
+      this.userCache.set(discordId, {
+        DiscordId: discordId,
+        XboxId: fulfilled ? result.value.xuid : "",
+        AssociationReason: associationReason,
+        AssociationDate: Date.now(),
+        GamesRetrievable: playerMatches.length ? GamesRetrievable.YES : GamesRetrievable.NO,
+        DiscordDisplayNameSearched: gamertag,
+      });
     };
 
-    await Promise.all(
-      xboxUsersByDiscordUsernameResult.map(async (result, index) =>
-        processResult(AssociationReason.USERNAME_SEARCH, index, result),
-      ),
+    const discordAssociations = await this.databaseService.getDiscordAssociations(users.map((user) => user.id));
+    for (const association of discordAssociations) {
+      this.userCache.set(association.DiscordId, association);
+    }
+    this.logService.debug(
+      `Found ${discordAssociations.length.toString()} associations in the database for ${users.length.toString()} users`,
+    );
+    this.logService.debug(
+      "userCache",
+      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
 
-    unresolvedUsers = users.filter((user) => {
+    const unresolvedUsersByDiscordUsername = users.filter((user) => !this.userCache.has(user.id));
+    // we can assume that xbox has already been searched for before
+    const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
+      unresolvedUsersByDiscordUsername.map(async (user) => this.getUserByGamertag(user.username)),
+    );
+    await Promise.all(
+      xboxUsersByDiscordUsernameResult.map(async (result, index) =>
+        processResult(unresolvedUsersByDiscordUsername, AssociationReason.USERNAME_SEARCH, index, result),
+      ),
+    );
+    this.logService.debug(
+      `Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache`,
+    );
+    this.logService.debug(
+      "userCache",
+      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
+    );
+
+    const unresolvedUsersByDiscordGlobalName = users.filter((user) => {
       const cachedUser = this.userCache.get(user.id);
       return (
         cachedUser == null ||
         (cachedUser.GamesRetrievable !== GamesRetrievable.YES &&
           user.globalName != null &&
           user.globalName !== "" &&
+          user.username !== user.globalName &&
           user.globalName !== cachedUser.DiscordDisplayNameSearched)
       );
     });
-    const xboxUsersByDiscordDisplayNameResult = await Promise.allSettled(
-      unresolvedUsers.map(async (user) =>
+    const unresolvedUsersByDiscordGlobalNameResult = await Promise.allSettled(
+      unresolvedUsersByDiscordGlobalName.map(async (user) =>
         user.globalName != null && user.globalName !== ""
           ? this.getUserByGamertag(user.globalName)
           : Promise.reject(new Error("No global name")),
       ),
     );
     await Promise.all(
-      xboxUsersByDiscordDisplayNameResult.map(async (result, index) =>
-        processResult(AssociationReason.DISPLAY_NAME_SEARCH, index, result),
+      unresolvedUsersByDiscordGlobalNameResult.map(async (result, index) =>
+        processResult(unresolvedUsersByDiscordGlobalName, AssociationReason.DISPLAY_NAME_SEARCH, index, result),
       ),
+    );
+    this.logService.debug(
+      `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache`,
+    );
+    this.logService.debug(
+      "userCache",
+      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
   }
 
