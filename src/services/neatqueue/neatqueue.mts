@@ -144,6 +144,12 @@ interface NeatQueueTimelineEvent {
   event: NeatQueueRequest;
 }
 
+type NeatQueueTimelineRequest =
+  | NeatQueueMatchStartedRequest
+  | NeatQueueTeamsCreatedRequest
+  | NeatQueueSubstitutionRequest
+  | NeatQueueMatchCompletedRequest;
+
 export interface NeatQueueServiceOpts {
   env: Env;
   logService: LogService;
@@ -280,12 +286,12 @@ export class NeatQueueService {
     await Promise.all([this.clearTimeline(request, neatQueueConfig), this.haloService.updateDiscordAssociations()]);
   }
 
-  private getTimelineKey(request: NeatQueueRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.queue}`;
+  private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
+    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.action === "MATCH_STARTED" ? request.match_num.toString() : request.match_number.toString()}`;
   }
 
   private async getTimeline(
-    request: NeatQueueRequest,
+    request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<NeatQueueTimelineEvent[]> {
     try {
@@ -304,7 +310,7 @@ export class NeatQueueService {
     }
   }
 
-  private async extendTimeline(request: NeatQueueRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
+  private async extendTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
@@ -619,7 +625,7 @@ export class NeatQueueService {
     });
   }
 
-  private async clearTimeline(request: NeatQueueRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
+  private async clearTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
     await this.env.APP_DATA.delete(this.getTimelineKey(request, neatQueueConfig));
   }
 
