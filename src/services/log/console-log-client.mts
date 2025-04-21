@@ -2,22 +2,22 @@ import type { LogService, JsonAny } from "./types.mjs";
 
 export class ConsoleLogClient implements LogService {
   debug(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.debug(error, extra ? Object.fromEntries(extra) : undefined);
+    console.debug(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
   }
 
   info(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.info(error, extra ? Object.fromEntries(extra) : undefined);
+    console.info(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
   }
 
   warn(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.warn(error, extra ? Object.fromEntries(extra) : undefined);
+    console.warn(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
   }
 
   error(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error(error, extra ? Object.fromEntries(extra) : undefined);
+    console.error(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
   }
 
   fatal(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error("FATAL:", error, extra ? Object.fromEntries(extra) : undefined);
+    console.error("FATAL:", error, extra ? JSON.stringify([...extra], null, 2) : undefined);
   }
 }
