@@ -51,7 +51,7 @@ interface NeatQueuePlayer {
   pulled_from: string | null;
   team_name: string | null;
   party_leader: string | null;
-  captain: string | null;
+  captain: boolean | null;
   picked: boolean;
   mmr_change: number;
   priority: number;
@@ -251,7 +251,7 @@ export class NeatQueueService {
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-    const seriesData = await this.getSeriesDataFromTimeline(timeline);
+    const seriesData = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
     const opts = {
       request,
       neatQueueConfig,
@@ -313,11 +313,16 @@ export class NeatQueueService {
     });
   }
 
-  private async getSeriesDataFromTimeline(timeline: NeatQueueTimelineEvent[]): Promise<MatchStats[]> {
+  private async getSeriesDataFromTimeline(
+    timeline: NeatQueueTimelineEvent[],
+    neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<MatchStats[]> {
     const seriesData: MatchStats[] = [];
     let seriesTeams: NeatQueuePlayer[][] = [];
     let startDateTime: Date | null = null;
     let endDateTime: Date | null = null;
+
+    this.logService.debug("Timeline", new Map([["timeline", JSON.parse(JSON.stringify(timeline))]]));
 
     for (const { timestamp, event } of timeline) {
       const { action } = event;
@@ -358,11 +363,22 @@ export class NeatQueueService {
           break;
         }
         case "MATCH_COMPLETED": {
+          if (event.winning_team_index === -1) {
+            await this.clearTimeline(event, neatQueueConfig);
+            break;
+          }
+
           endDateTime = new Date(timestamp);
+          if (seriesTeams.length === 0) {
+            this.logService.warn("No teams found in timeline for match completed, using event teams");
+            // its suppose to come from the timeline, but if the timeline is corrupt or incomplete, use the event
+            seriesTeams = event.teams;
+          }
+
           const series = await this.getSeriesData(
-            Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
+            seriesTeams,
             startDateTime ?? sub(endDateTime, { hours: 6 }),
-            Preconditions.checkExists(endDateTime, "expected endDateTime"),
+            endDateTime,
           );
 
           seriesData.push(...series);
