@@ -71,6 +71,11 @@ export class SeriesOverviewEmbed {
         const nextMatch = series[i + 1];
         const nextMatchStartTime = nextMatch ? new Date(nextMatch.MatchInfo.StartTime).getTime() : Infinity;
 
+        // If the substitution happened before the first match, discard it
+        if (substitutionTime < matchStartTime && i === 0) {
+          break;
+        }
+
         if (substitutionTime >= matchStartTime && substitutionTime < nextMatchStartTime) {
           tableData.splice(i + 1, 0, [
             `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,

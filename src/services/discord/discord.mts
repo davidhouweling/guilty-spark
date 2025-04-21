@@ -113,6 +113,7 @@ export class DiscordService {
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
+  private readonly userCache = new Map<string, APIUser>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
     this.env = env;
@@ -342,6 +343,15 @@ export class DiscordService {
     });
   }
 
+  async getUsers(discordIds: string[]): Promise<APIUser[]> {
+    return Promise.all(
+      discordIds.map(async (discordId) => {
+        const user = await this.getUserInfo(discordId);
+        return user;
+      }),
+    );
+  }
+
   getDiscordUserId(interaction: BaseInteraction): string {
     return Preconditions.checkExists(interaction.member?.user ?? interaction.user, "No user found on interaction").id;
   }
@@ -478,7 +488,12 @@ export class DiscordService {
   }
 
   private async getUserInfo(userId: string): Promise<RESTGetAPIUserResult> {
-    return await this.fetch<RESTGetAPIUserResult>(Routes.user(userId));
+    if (!this.userCache.has(userId)) {
+      const user = await this.fetch<RESTGetAPIUserResult>(Routes.user(userId));
+      this.userCache.set(userId, user);
+    }
+
+    return Preconditions.checkExists(this.userCache.get(userId));
   }
 
   private getRateLimitFromHeader(headers: Headers, key: string): number | undefined {
