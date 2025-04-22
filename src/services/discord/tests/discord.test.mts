@@ -757,6 +757,16 @@ describe("DiscordService", () => {
       expect(appConfigGetSpy).toHaveBeenCalledWith("rateLimit./channels/fake-channel/messages", { type: "json" });
     });
 
+    describe("path grouping", () => {
+      it("groups /users/* calls under the same rate limit path", async () => {
+        await discordService.getUsers(["fake-id-01", "fake-id-02"]);
+
+        expect(appConfigGetSpy).toHaveBeenCalledTimes(2);
+        expect(appConfigGetSpy).toHaveBeenNthCalledWith(1, "rateLimit./users/*", { type: "json" });
+        expect(appConfigGetSpy).toHaveBeenNthCalledWith(2, "rateLimit./users/*", { type: "json" });
+      });
+    });
+
     it("puts rate limit in app config when headers are present", async () => {
       const reset = now + 100;
       const response = new Response(null, {

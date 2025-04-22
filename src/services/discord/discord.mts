@@ -344,12 +344,14 @@ export class DiscordService {
   }
 
   async getUsers(discordIds: string[]): Promise<APIUser[]> {
-    return Promise.all(
-      discordIds.map(async (discordId) => {
-        const user = await this.getUserInfo(discordId);
-        return user;
-      }),
-    );
+    // doing it sequentially to better handle rate limit
+    const users: APIUser[] = [];
+    for (const discordId of discordIds) {
+      const user = await this.getUserInfo(discordId);
+      users.push(user);
+    }
+
+    return users;
   }
 
   getDiscordUserId(interaction: BaseInteraction): string {
@@ -517,8 +519,17 @@ export class DiscordService {
   }
 
   private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
-    const rateLimit = await this.env.APP_DATA.get<RateLimit>(`rateLimit.${path}`, { type: "json" });
+    const rateLimit = await this.env.APP_DATA.get<RateLimit>(this.getRateLimitKey(path), { type: "json" });
     return rateLimit;
+  }
+
+  private getRateLimitKey(path: string): string {
+    const prefix = "rateLimit";
+    if (path.startsWith(Routes.user("*").replace("*", ""))) {
+      return `${prefix}./users/*`;
+    }
+
+    return `${prefix}.${path}`;
   }
 
   private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
