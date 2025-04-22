@@ -354,8 +354,8 @@ export class HaloService {
         (cachedUser.GamesRetrievable !== GamesRetrievable.YES &&
           user.globalName != null &&
           user.globalName !== "" &&
-          user.username !== user.globalName &&
-          user.globalName !== cachedUser.DiscordDisplayNameSearched)
+          user.username.toLowerCase() !== user.globalName.toLowerCase() &&
+          user.globalName.toLowerCase() !== cachedUser.DiscordDisplayNameSearched?.toLowerCase())
       );
     });
     const unresolvedUsersByDiscordGlobalNameResult = await Promise.allSettled(
