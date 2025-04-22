@@ -430,6 +430,8 @@ export class DiscordService {
         url.searchParams.set(key, value.toString());
       }
     }
+    this.logService.debug("Discord API request", new Map([["url", url.toString()]]));
+    this.logService.debug("Rate limit", new Map([["rateLimit", rateLimit ? { ...rateLimit } : null]]));
 
     const headers = new Headers(options.headers);
     headers.set("Authorization", `Bot ${this.env.DISCORD_TOKEN}`);
@@ -446,6 +448,7 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
+      this.logService.warn(`Discord API request failed: ${response.status.toString()} ${response.statusText}`);
       if (response.status === 429 && !retry) {
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
 
