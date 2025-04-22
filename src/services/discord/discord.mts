@@ -431,7 +431,7 @@ export class DiscordService {
       }
     }
     this.logService.debug("Discord API request", new Map([["url", url.toString()]]));
-    this.logService.debug("Rate limit", new Map([["rateLimit", rateLimit ? { ...rateLimit } : null]]));
+    this.logService.debug("Stored rate limit", new Map([["rateLimit", rateLimit ? { ...rateLimit } : null]]));
 
     const headers = new Headers(options.headers);
     headers.set("Authorization", `Bot ${this.env.DISCORD_TOKEN}`);
@@ -537,7 +537,18 @@ export class DiscordService {
 
   private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
     if (rateLimit.reset != null) {
-      await this.env.APP_DATA.put(`rateLimit.${path}`, JSON.stringify(rateLimit), {
+      const key = this.getRateLimitKey(path);
+
+      this.logService.debug(
+        "Setting rate limit",
+        new Map([
+          ["path", path],
+          ["key", key],
+          ["rateLimit", JSON.stringify(rateLimit)],
+        ]),
+      );
+
+      await this.env.APP_DATA.put(key, JSON.stringify(rateLimit), {
         expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
       });
     }
