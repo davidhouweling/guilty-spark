@@ -55,7 +55,7 @@ export enum InteractionButton {
 }
 
 export class StatsCommand extends BaseCommand {
-  data: CommandData[] = [
+  readonly data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "stats",

@@ -112,10 +112,14 @@ export class DatabaseService {
     await stmt.run();
   }
 
-  async getNeatQueueConfig(guildId: string): Promise<NeatQueueConfigRow | null> {
-    const query = "SELECT * FROM NeatQueueConfig WHERE GuildId = ?";
-    const stmt = this.DB.prepare(query).bind(guildId);
+  async getNeatQueueConfig(guildId: string, channelId: string): Promise<NeatQueueConfigRow> {
+    const query = "SELECT * FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?";
+    const stmt = this.DB.prepare(query).bind(guildId, channelId);
     const result = await stmt.first<NeatQueueConfigRow>();
+
+    if (!result) {
+      throw new Error(`No NeatQueueConfig found for GuildId: ${guildId} and ChannelId: ${channelId}`);
+    }
 
     return result;
   }
@@ -157,6 +161,12 @@ export class DatabaseService {
       config.PostSeriesChannelId,
     ];
     const stmt = this.DB.prepare(query).bind(...bindings);
+    await stmt.run();
+  }
+
+  async deleteNeatQueueConfig(guildId: string, channelId: string): Promise<void> {
+    const query = "DELETE FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?";
+    const stmt = this.DB.prepare(query).bind(guildId, channelId);
     await stmt.run();
   }
 }

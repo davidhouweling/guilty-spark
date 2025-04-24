@@ -33,7 +33,7 @@ export enum InteractionButton {
 export const GamertagSearchModal = "gamertag_search_modal";
 
 export class ConnectCommand extends BaseCommand {
-  data: CommandData[] = [
+  readonly data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "connect",
