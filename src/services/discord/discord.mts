@@ -4,6 +4,7 @@ import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
+  APIChannel,
   APIInteraction,
   APIInteractionResponseChannelMessageWithSource,
   APIMessage,
@@ -292,6 +293,13 @@ export class DiscordService {
       { method: "PATCH", body: JSON.stringify(data) },
     );
     return response;
+  }
+
+  async getGuildChannels(guildId: string): Promise<APIChannel[]> {
+    return this.fetch<APIChannel[]>(Routes.guildChannels(guildId), {
+      method: "GET",
+      queryParameters: { limit: 100 },
+    });
   }
 
   async getMessage(channel: string, messageId: string): Promise<APIMessage> {

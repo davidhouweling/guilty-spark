@@ -33,7 +33,7 @@ export abstract class BaseCommand {
     readonly env: Env,
   ) {}
 
-  abstract data: CommandData[];
+  abstract readonly data: CommandData[];
 
   abstract execute(interaction: BaseInteraction): ExecuteResponse;
 }

@@ -12,12 +12,17 @@ export default config(
   importPlugin.flatConfigs.typescript,
   {
     ignores: [
+      ".github/",
+      ".vscode/",
       ".wrangler/",
       "coverage/",
       "dist/",
+      "node_modules/",
       "patches/",
       "test-results/",
       "**/*.json",
+      "**/*.log",
+      "**/*.vars",
       "worker-configuration.d.ts",
     ],
   },
