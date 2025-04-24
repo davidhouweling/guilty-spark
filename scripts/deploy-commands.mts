@@ -21,7 +21,7 @@ const url = new URL(`/api/v${APIVersion}${Routes.applicationCommands(env.DISCORD
 console.log("URL:", url.toString());
 
 const commandsToDeployMap = new Map<string, ApplicationCommandData>(
-  [...commands.values()]
+  Array.from(commands.values())
     .flatMap(({ data }) => data)
     .map((data) => {
       if (data.type === ApplicationCommandType.ChatInput) {
