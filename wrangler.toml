@@ -9,9 +9,10 @@ kv_namespaces = [
 d1_databases = [
   { binding = "DB", database_name = "staging-db-guilty-spark", database_id = "f36b6b07-dc66-43d8-8653-571b473c6cd5" }
 ]
+route = "guilty-spark.app/api/*"
 
 [vars]
-HOST_URL = "https://guilty-spark-dev.howling-dev.workers.dev"
+HOST_URL = "https://dev.guilty-spark.app"
 MODE = "development"
 
 [observability]
@@ -29,7 +30,7 @@ d1_databases = [
 ]
 
 [env.staging.vars]
-HOST_URL = "https://guilty-spark-staging.howling-dev.workers.dev"
+HOST_URL = "https://staging.guilty-spark.app"
 MODE = "production"
 
 
@@ -46,5 +47,5 @@ tail_consumers = [
 ]
 
 [env.production.vars]
-HOST_URL = "https://guilty-spark.howling-dev.workers.dev"
+HOST_URL = "https://guilty-spark.app"
 MODE = "production"
