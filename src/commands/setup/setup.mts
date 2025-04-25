@@ -476,7 +476,7 @@ export class SetupCommand extends BaseCommand {
   ];
 
   readonly webhookSecretInstructions = [
-    `1. Copy this URL: \n\`${this.env.HOST_URL}/api/neatqueue\``,
+    `1. Copy this URL: \n\`${this.env.HOST_URL}/neatqueue\``,
     "2. Switch to the queue channel if you are not already there",
     "3. Use NeatQueue's `/webhook add` command and paste in the url",
     "4. NeatQueue will reply with a webhook secret, copy it",

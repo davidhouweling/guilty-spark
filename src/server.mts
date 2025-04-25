@@ -11,7 +11,7 @@ router.get("/", (_request, env: Env) => {
   );
 });
 
-router.post("/api/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
+router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
     const services = await installServices({ env });
     const { discordService } = services;
@@ -38,7 +38,7 @@ router.post("/api/interactions", async (request, env: Env, ctx: EventContext<Env
   }
 });
 
-router.post("/api/neatqueue", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
+router.post("/neatqueue", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
     const services = await installServices({ env });
     const { neatQueueService } = services;
