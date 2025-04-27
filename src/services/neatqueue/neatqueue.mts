@@ -315,7 +315,7 @@ export class NeatQueueService {
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
     await this.env.APP_DATA.put(this.getTimelineKey(request, neatQueueConfig), JSON.stringify(timeline), {
-      metadata: { expirationTtl: 60 * 60 * 24 }, // 1 day
+      expirationTtl: 60 * 60 * 24, // 1 day
     });
   }
 
