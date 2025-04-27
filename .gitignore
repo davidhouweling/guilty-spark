@@ -62,6 +62,3 @@ scripts/*.json
 
 # test output for vitest to use in publish to github action
 test-results
-
-# Sentry Config File
-.sentryclirc
