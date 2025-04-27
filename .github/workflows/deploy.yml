@@ -57,6 +57,10 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           XBOX_USERNAME: ${{ vars.XBOX_USERNAME }}
           XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
+      - name: Upload sourcemaps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: npm run sentry:sourcemaps
 
   deploy-cancel:
     runs-on: ubuntu-latest
