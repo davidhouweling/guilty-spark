@@ -97,7 +97,7 @@ export interface NeatQueueTeamsCreatedRequest extends NeatQueueBaseRequest {
 
 export interface NeatQueueSubstitutionRequest extends NeatQueueBaseRequest {
   action: "SUBSTITUTION";
-  match_number: number;
+  match_number?: number;
   player_subbed_out: NeatQueuePlayer;
   player_subbed_in: NeatQueuePlayer;
 }
