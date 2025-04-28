@@ -2,7 +2,7 @@ import type {
   APIModalInteractionResponse,
   APIActionRowComponent,
   APIEmbedField,
-  APIMessageActionRowComponent,
+  APIComponentInMessageActionRow,
   APIMessageComponentButtonInteraction,
   APIMessageComponentInteraction,
   APIMessageComponentSelectMenuInteraction,
@@ -91,7 +91,7 @@ type NeatQueueIntegrationWizardStep = {
       cta: string;
     }
   | {
-      input: APIMessageActionRowComponent;
+      input: APIComponentInMessageActionRow;
       cta?: never;
     }
 ) &
@@ -927,7 +927,7 @@ export class SetupCommand extends BaseCommand {
       },
     ];
 
-    const actions: APIMessageActionRowComponent[] = [addButton];
+    const actions: APIComponentInMessageActionRow[] = [addButton];
 
     if (neatQueues.length > 0) {
       fields.push({
@@ -1097,7 +1097,7 @@ export class SetupCommand extends BaseCommand {
     return this.wizardGetStep(formData) < NeatQueueIntegrationWizardSteps.length;
   }
 
-  private wizardGetCta(stepData: NeatQueueIntegrationWizardStep): APIMessageActionRowComponent {
+  private wizardGetCta(stepData: NeatQueueIntegrationWizardStep): APIComponentInMessageActionRow {
     const { type } = stepData.input;
     switch (type) {
       case InteractionResponseType.Modal: {
@@ -1143,8 +1143,8 @@ export class SetupCommand extends BaseCommand {
   }
 
   private wizardGetResponse(formData: Map<NeatQueueIntegrationWizardStepKey, string>): ExecuteResponse {
-    const primaryActions: APIMessageActionRowComponent[] = [];
-    const secondaryActions: APIMessageActionRowComponent[] = [];
+    const primaryActions: APIComponentInMessageActionRow[] = [];
+    const secondaryActions: APIComponentInMessageActionRow[] = [];
 
     const step = this.wizardGetStep(formData);
     const stepData = Preconditions.checkExists(NeatQueueIntegrationWizardSteps[step]);
@@ -1160,7 +1160,7 @@ export class SetupCommand extends BaseCommand {
     });
     secondaryActions.push(this.getActionButton(InteractionComponent.MainMenu));
 
-    const components: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
+    const components: APIActionRowComponent<APIComponentInMessageActionRow>[] = [];
     if (primaryActions.length > 0) {
       components.push({
         type: ComponentType.ActionRow,
@@ -1255,7 +1255,7 @@ export class SetupCommand extends BaseCommand {
     const { discordService, databaseService } = this.services;
     const guildId = Preconditions.checkExists(interaction.guild_id);
     const fields: APIEmbedField[] = [];
-    const components: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
+    const components: APIActionRowComponent<APIComponentInMessageActionRow>[] = [];
 
     const [neatQueues, channels] = await Promise.all([
       databaseService.findNeatQueueConfig({ GuildId: guildId }),
@@ -1433,7 +1433,7 @@ export class SetupCommand extends BaseCommand {
     const embed: APIEmbed = {
       title: `Edit NeatQueue Integration for <#${channelId}>`,
     };
-    const actions: APIMessageActionRowComponent[] = [];
+    const actions: APIComponentInMessageActionRow[] = [];
     const handleAction = (key: NeatQueueIntegrationWizardStepKey, id: InteractionComponent): void => {
       const wizardStep = Preconditions.checkExists(NeatQueueIntegrationWizardSteps.find((step) => step.key === key));
       const input = wizardStep.input as APISelectMenuComponent;
