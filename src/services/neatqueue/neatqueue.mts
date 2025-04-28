@@ -257,33 +257,64 @@ export class NeatQueueService {
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-    const seriesData = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
-    const opts = {
-      request,
-      neatQueueConfig,
-      seriesData,
-      timeline,
-    };
+    let seriesData: MatchStats[] = [];
+    let errorOccurred = false;
 
-    if (seriesData.length > 0) {
-      const { PostSeriesMode } = neatQueueConfig;
-      switch (PostSeriesMode) {
-        case NeatQueuePostSeriesDisplayMode.THREAD: {
-          await this.postSeriesDataByThread(opts);
-          break;
-        }
-        case NeatQueuePostSeriesDisplayMode.MESSAGE:
-        case NeatQueuePostSeriesDisplayMode.CHANNEL: {
-          await this.postSeriesDataByChannel(opts);
-          break;
-        }
-        default: {
-          throw new UnreachableError(PostSeriesMode);
-        }
-      }
+    try {
+      seriesData = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+    } catch (error) {
+      this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
+      errorOccurred = true;
+
+      const opts = { request, neatQueueConfig, handledError: error as Error };
+      await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
+    }
+
+    if (!errorOccurred && seriesData.length > 0) {
+      const opts = { request, neatQueueConfig, seriesData, timeline };
+      await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
     await Promise.all([this.clearTimeline(request, neatQueueConfig), this.haloService.updateDiscordAssociations()]);
+  }
+
+  private async handlePostSeriesError(
+    mode: NeatQueuePostSeriesDisplayMode,
+    opts: { request: NeatQueueMatchCompletedRequest; neatQueueConfig: NeatQueueConfigRow; handledError: Error },
+  ): Promise<void> {
+    switch (mode) {
+      case NeatQueuePostSeriesDisplayMode.THREAD:
+        await this.postErrorByThread(opts);
+        break;
+      case NeatQueuePostSeriesDisplayMode.MESSAGE:
+      case NeatQueuePostSeriesDisplayMode.CHANNEL:
+        await this.postErrorByChannel(opts);
+        break;
+      default:
+        throw new UnreachableError(mode);
+    }
+  }
+
+  private async handlePostSeriesData(
+    mode: NeatQueuePostSeriesDisplayMode,
+    opts: {
+      request: NeatQueueMatchCompletedRequest;
+      neatQueueConfig: NeatQueueConfigRow;
+      seriesData: MatchStats[];
+      timeline: NeatQueueTimelineEvent[];
+    },
+  ): Promise<void> {
+    switch (mode) {
+      case NeatQueuePostSeriesDisplayMode.THREAD:
+        await this.postSeriesDataByThread(opts);
+        break;
+      case NeatQueuePostSeriesDisplayMode.MESSAGE:
+      case NeatQueuePostSeriesDisplayMode.CHANNEL:
+        await this.postSeriesDataByChannel(opts);
+        break;
+      default:
+        throw new UnreachableError(mode);
+    }
   }
 
   private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
@@ -347,13 +378,18 @@ export class NeatQueueService {
         }
         case "SUBSTITUTION": {
           endDateTime = new Date(timestamp);
-          const series = await this.getSeriesData(
-            Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
-            startDateTime ?? sub(endDateTime, { hours: 6 }),
-            Preconditions.checkExists(endDateTime, "expected endDateTime"),
-          );
+          try {
+            const series = await this.getSeriesData(
+              Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
+              startDateTime ?? sub(endDateTime, { hours: 6 }),
+              Preconditions.checkExists(endDateTime, "expected endDateTime"),
+            );
 
-          seriesData.push(...series);
+            seriesData.push(...series);
+          } catch (error) {
+            // don't fail if its just a substitution
+            this.logService.info(error as Error, new Map([["reason", "No series data from substitution"]]));
+          }
 
           const { player_subbed_out, player_subbed_in } = event;
           for (const team of seriesTeams) {
@@ -377,7 +413,7 @@ export class NeatQueueService {
           endDateTime = new Date(timestamp);
           if (seriesTeams.length === 0) {
             this.logService.warn("No teams found in timeline for match completed, using event teams");
-            // its suppose to come from the timeline, but if the timeline is corrupt or incomplete, use the event
+            // it's supposed to come from the timeline, but if the timeline is corrupt or incomplete, use the event
             seriesTeams = event.teams;
           }
 
@@ -386,9 +422,7 @@ export class NeatQueueService {
             startDateTime ?? sub(endDateTime, { hours: 6 }),
             endDateTime,
           );
-
           seriesData.push(...series);
-
           break;
         }
         default:
@@ -479,6 +513,49 @@ export class NeatQueueService {
     }
   }
 
+  private async postErrorByThread({
+    request,
+    neatQueueConfig,
+    handledError,
+  }: {
+    request: NeatQueueMatchCompletedRequest;
+    neatQueueConfig: NeatQueueConfigRow;
+    handledError: Error;
+  }): Promise<void> {
+    const { discordService } = this;
+    let useFallback = true;
+
+    try {
+      const resultsMessage = await discordService.getTeamsFromQueue(
+        neatQueueConfig.ResultsChannelId,
+        request.match_number,
+      );
+      if (resultsMessage == null) {
+        useFallback = false;
+        throw new Error("Failed to get results message");
+      }
+
+      const { channel_id: channelId, id: messageId } = resultsMessage.message;
+      const thread = await discordService.startThreadFromMessage(
+        channelId,
+        messageId,
+        `Queue #${request.match_number.toString()} series stats`,
+      );
+
+      await discordService.createMessage(thread.id, {
+        content: handledError.message,
+      });
+    } catch (error) {
+      this.logService.warn(error as Error, new Map([["reason", "Failed to post error to thread"]]));
+
+      if (useFallback) {
+        this.logService.info("Attempting to post direct to channel");
+
+        await this.postErrorByChannel({ neatQueueConfig, handledError });
+      }
+    }
+  }
+
   private async postSeriesDataByChannel({
     request,
     neatQueueConfig,
@@ -522,6 +599,24 @@ export class NeatQueueService {
       await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
     } catch (error) {
       this.logService.error(error as Error, new Map([["reason", "Failed to post series data direct to channel"]]));
+    }
+  }
+
+  private async postErrorByChannel({
+    neatQueueConfig,
+    handledError,
+  }: {
+    neatQueueConfig: NeatQueueConfigRow;
+    handledError: Error;
+  }): Promise<void> {
+    const { discordService } = this;
+    try {
+      const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
+      await discordService.createMessage(channelId, {
+        content: handledError.message,
+      });
+    } catch (error) {
+      this.logService.error(error as Error, new Map([["reason", "Failed to post error direct to channel"]]));
     }
   }
 

@@ -214,7 +214,7 @@ export class StatsCommand extends BaseCommand {
       ]);
       if (!queueData) {
         throw new Error(
-          `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toLocaleString(locale)}`,
+          `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
         );
       }
 
@@ -307,7 +307,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toLocaleString(locale)}): ${error instanceof Error ? error.message : "unknown"}`,
+        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
       });
     }
   }
