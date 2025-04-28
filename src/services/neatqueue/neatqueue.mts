@@ -287,7 +287,7 @@ export class NeatQueueService {
   }
 
   private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.action === "MATCH_STARTED" ? request.match_num.toString() : request.match_number.toString()}`;
+    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}`;
   }
 
   private async getTimeline(
