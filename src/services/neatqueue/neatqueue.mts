@@ -97,7 +97,7 @@ export interface NeatQueueTeamsCreatedRequest extends NeatQueueBaseRequest {
 
 export interface NeatQueueSubstitutionRequest extends NeatQueueBaseRequest {
   action: "SUBSTITUTION";
-  match_number: number;
+  match_number?: number;
   player_subbed_out: NeatQueuePlayer;
   player_subbed_in: NeatQueuePlayer;
 }
@@ -287,7 +287,7 @@ export class NeatQueueService {
   }
 
   private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.action === "MATCH_STARTED" ? request.match_num.toString() : request.match_number.toString()}`;
+    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}`;
   }
 
   private async getTimeline(
