@@ -131,7 +131,6 @@ describe("StatsCommand", () => {
       const { response, jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
 
       expect(response).toEqual<APIInteractionResponse>({
-        data: {},
         type: InteractionResponseType.DeferredChannelMessageWithSource,
       });
       expect(jobToComplete).toBeInstanceOf(Function);

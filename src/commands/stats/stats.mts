@@ -80,12 +80,6 @@ export class StatsCommand extends BaseCommand {
               description: "The Queue number for the series",
               required: true,
             },
-            {
-              name: "private",
-              description: "Only provide the response to you instead of the channel",
-              required: false,
-              type: ApplicationCommandOptionType.Boolean,
-            },
           ],
         },
         {
@@ -184,16 +178,10 @@ export class StatsCommand extends BaseCommand {
   ): ExecuteResponse {
     const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
     const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
-    const ephemeral = (options.get("private") as boolean | undefined) ?? false;
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
-    if (ephemeral) {
-      data.flags = MessageFlags.Ephemeral;
-    }
 
     return {
       response: {
         type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data,
       },
       jobToComplete: async () => this.neatQueueSubCommandJob(interaction, channel, queue),
     };
