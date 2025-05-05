@@ -36,34 +36,34 @@
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org david-houweling --project guilty-spark ./dist && sentry-cli sourcemaps upload --org david-houweling --project guilty-spark ./dist"
   },
   "dependencies": {
-    "@sentry/cli": "^2.43.0",
-    "@sentry/cloudflare": "^9.14.0",
+    "@sentry/cli": "^2.43.1",
+    "@sentry/cloudflare": "^9.15.0",
     "@xboxreplay/xboxlive-auth": "^4.1.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.38.1",
+    "discord-api-types": "^0.38.2",
     "discord-interactions": "^4.1.1",
     "halo-infinite-api": "^10.0.0",
     "itty-router": "^5.0.18",
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.1",
+    "@eslint/js": "^9.26.0",
     "@tsconfig/node22": "^22.0.1",
-    "@types/node": "22.15.2",
-    "@typescript-eslint/parser": "^8.31.0",
+    "@types/node": "22.15.3",
+    "@typescript-eslint/parser": "^8.31.1",
     "@vitest/coverage-v8": "^3.1.2",
     "dotenv": "^16.5.0",
-    "eslint": "^9.25.1",
+    "eslint": "^9.26.0",
     "eslint-import-resolver-typescript": "^4.3.4",
     "eslint-plugin-import": "^2.31.0",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.0",
     "prettier": "^3.5.3",
-    "tsx": "^4.19.3",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.31.0",
+    "typescript-eslint": "^8.31.1",
     "vitest": "^3.0.4",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.13.2"
+    "wrangler": "^4.14.1"
   }
 }
