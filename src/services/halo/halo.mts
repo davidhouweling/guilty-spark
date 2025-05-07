@@ -52,11 +52,16 @@ export class HaloService {
   }
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
-    const noMatchError = new Error(
+    const noMatchError = new EndUserError(
       [
         "Unable to match any of the Discord users to their Xbox accounts.",
         "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
       ].join("\n"),
+      {
+        title: "No matches found",
+        errorType: EndUserErrorType.WARNING,
+        handled: true,
+      },
     );
 
     const users = queueData.teams.flat();
