@@ -379,11 +379,15 @@ export class NeatQueueService {
           break;
         }
         case "SUBSTITUTION": {
-          endDateTime = new Date(timestamp);
+          if (!startDateTime) {
+            this.logService.debug("Substitution event before teams created, skipping");
+            break;
+          }
+
           try {
             const series = await this.getSeriesData(
               Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
-              startDateTime ?? sub(endDateTime, { hours: 6 }),
+              startDateTime,
               Preconditions.checkExists(endDateTime, "expected endDateTime"),
             );
 
