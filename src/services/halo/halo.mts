@@ -8,6 +8,7 @@ import { AssociationReason, GamesRetrievable } from "../database/types/discord_a
 import type { DatabaseService } from "../database/database.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 
 export interface MatchPlayer {
   id: string;
@@ -272,7 +273,7 @@ export class HaloService {
       if (error instanceof RequestError && error.response.status === 400) {
         this.logService.debug(error as Error);
 
-        throw new Error(`No user found with gamertag "${gamertag}"`);
+        throw new EndUserError(`No user found with gamertag "${gamertag}"`);
       }
 
       throw error;
@@ -283,7 +284,7 @@ export class HaloService {
     } catch (error) {
       this.logService.error(error as Error);
 
-      throw new Error("Unable to retrieve match history");
+      throw new EndUserError("Unable to retrieve match history");
     }
   }
 
@@ -413,8 +414,13 @@ export class HaloService {
     }
 
     if (!userMatches.size) {
-      throw new Error(
+      throw new EndUserError(
         "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
+        {
+          handled: true,
+          title: "No matches found",
+          errorType: EndUserErrorType.WARNING,
+        },
       );
     }
 

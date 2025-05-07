@@ -186,15 +186,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to connect: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -418,15 +410,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to update: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -475,15 +459,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to remove: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -559,15 +535,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch data: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -607,15 +575,7 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to update: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 

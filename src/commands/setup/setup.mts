@@ -864,15 +864,7 @@ export class SetupCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to select stats display mode: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -891,15 +883,7 @@ export class SetupCommand extends BaseCommand {
 
       await databaseService.updateGuildConfig(guildId, config);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to update stats display mode: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -1236,15 +1220,7 @@ export class SetupCommand extends BaseCommand {
 
       await this.setupSelectNeatQueueIntegrationJob(interaction);
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to save NeatQueue integration: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -1411,15 +1387,7 @@ export class SetupCommand extends BaseCommand {
         ],
       });
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interactionToken, {
-        content: `Failed to edit NeatQueue integration: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interactionToken, error);
     }
   }
 
@@ -1521,7 +1489,7 @@ export class SetupCommand extends BaseCommand {
   private async setupNeatQueueIntegrationEditChannelWebhookSecretJob(
     interaction: APIModalSubmitInteraction,
   ): Promise<void> {
-    const { discordService, databaseService, logService, neatQueueService } = this.services;
+    const { discordService, databaseService, neatQueueService } = this.services;
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id);
@@ -1545,15 +1513,7 @@ export class SetupCommand extends BaseCommand {
         "Webhook secret updated",
       );
     } catch (error) {
-      logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to edit NeatQueue integration: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -1562,7 +1522,7 @@ export class SetupCommand extends BaseCommand {
     updateConfigCallback: (config: NeatQueueConfigRow, selectedValue: string) => void,
     successMessage: string,
   ): Promise<void> {
-    const { discordService, databaseService, logService } = this.services;
+    const { discordService, databaseService } = this.services;
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id);
@@ -1577,15 +1537,7 @@ export class SetupCommand extends BaseCommand {
       await databaseService.upsertNeatQueueConfig(neatQueueConfig);
       await this.setupNeatQueueIntegrationEditChannelJob(guildId, channelId, interaction.token, successMessage);
     } catch (error) {
-      logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to edit NeatQueue integration: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -1651,15 +1603,7 @@ export class SetupCommand extends BaseCommand {
       await databaseService.deleteNeatQueueConfig(guildId, channelId);
       await this.setupNeatQueueIntegrationEditJob(interaction, "NeatQueue integration deleted");
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to delete NeatQueue integration: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 }
