@@ -2,7 +2,8 @@ import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
-import { ComponentType, type APIEmbed } from "discord-api-types/v10";
+import type { RESTPostAPIChannelThreadsResult, APIEmbed } from "discord-api-types/v10";
+import { ComponentType } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
@@ -38,6 +39,7 @@ import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.m
 import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
 import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
+import { EndUserError } from "../../base/end-user-error.mjs";
 
 interface NeatQueuePlayer {
   name: string;
@@ -471,6 +473,7 @@ export class NeatQueueService {
   }): Promise<void> {
     const { discordService } = this;
     let useFallback = true;
+    let thread: RESTPostAPIChannelThreadsResult | undefined;
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueue(
@@ -479,11 +482,11 @@ export class NeatQueueService {
       );
       if (resultsMessage == null) {
         useFallback = false;
-        throw new Error("Failed to get results message");
+        throw new EndUserError("Failed to find the results message", { handled: true });
       }
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
-      const thread = await discordService.startThreadFromMessage(
+      thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
         `Queue #${request.match_number.toString()} series stats`,
@@ -509,6 +512,19 @@ export class NeatQueueService {
         this.logService.info("Attempting to post direct to channel");
 
         await this.postSeriesDataByChannel({ request, neatQueueConfig, seriesData, timeline });
+      } else if (thread != null) {
+        const endUserError =
+          error instanceof EndUserError
+            ? error
+            : new EndUserError("Failed to post series data", {
+                data: {
+                  Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
+                  Queue: request.match_number.toString(),
+                },
+              });
+        await discordService.createMessage(thread.id, {
+          embeds: [endUserError.discordEmbed],
+        });
       }
     }
   }
@@ -532,7 +548,7 @@ export class NeatQueueService {
       );
       if (resultsMessage == null) {
         useFallback = false;
-        throw new Error("Failed to get results message");
+        throw new EndUserError("Failed to find the results message", { handled: true });
       }
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
@@ -551,7 +567,7 @@ export class NeatQueueService {
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
 
-        await this.postErrorByChannel({ neatQueueConfig, handledError });
+        await this.postErrorByChannel({ request, neatQueueConfig, handledError });
       }
     }
   }
@@ -574,7 +590,7 @@ export class NeatQueueService {
         request.match_number,
       );
       if (resultsMessage == null) {
-        throw new Error("Failed to get results message");
+        throw new EndUserError("Failed to get results message");
       }
 
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
@@ -603,17 +619,30 @@ export class NeatQueueService {
   }
 
   private async postErrorByChannel({
+    request,
     neatQueueConfig,
     handledError,
   }: {
+    request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     handledError: Error;
   }): Promise<void> {
     const { discordService } = this;
+
+    const endUserError =
+      handledError instanceof EndUserError
+        ? handledError
+        : new EndUserError("Failed to post series data", {
+            data: {
+              Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
+              Queue: request.match_number.toString(),
+            },
+          });
+
     try {
       const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
       await discordService.createMessage(channelId, {
-        content: handledError.message,
+        embeds: [endUserError.discordEmbed],
       });
     } catch (error) {
       this.logService.error(error as Error, new Map([["reason", "Failed to post error direct to channel"]]));

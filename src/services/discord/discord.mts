@@ -34,6 +34,7 @@ import type { DiscordAssociationsRow } from "../database/types/discord_associati
 import { AssociationReason } from "../database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 
@@ -293,6 +294,52 @@ export class DiscordService {
       { method: "PATCH", body: JSON.stringify(data) },
     );
     return response;
+  }
+
+  private handleError(error: EndUserError | Error, logService: LogService): EndUserError {
+    const isHandled = error instanceof EndUserError && error.handled;
+    if (!isHandled) {
+      logService[error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING ? "warn" : "error"](
+        error as Error,
+      );
+    }
+
+    if (error instanceof Error && error.message === "Too many subrequests.") {
+      throw new Error("Too many subrequests.");
+    }
+
+    return error instanceof EndUserError
+      ? error
+      : new EndUserError("An unexpected error has occurred. It has been logged. Sorry for the inconvenience.");
+  }
+
+  async updateDeferredReplyWithError(interactionToken: string, error: unknown): Promise<APIMessage | undefined> {
+    try {
+      const endUserError = this.handleError(error as Error, this.logService);
+      return await this.updateDeferredReply(interactionToken, {
+        embeds: [endUserError.discordEmbed],
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  async updateMessageWithError(
+    channel: string,
+    messageId: string,
+    error: EndUserError | Error,
+  ): Promise<APIMessage | undefined> {
+    try {
+      const endUserError = this.handleError(error, this.logService);
+      return await this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
+        method: "PATCH",
+        body: JSON.stringify({
+          embeds: [endUserError.discordEmbed],
+        }),
+      });
+    } catch {
+      return undefined;
+    }
   }
 
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {

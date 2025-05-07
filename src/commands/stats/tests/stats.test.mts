@@ -106,6 +106,7 @@ describe("StatsCommand", () => {
   let services: Services;
   let env: Env;
   let updateDeferredReplySpy: MockInstance;
+  let updateDeferredReplyWithErrorSpy: MockInstance;
 
   beforeEach(() => {
     services = installFakeServicesWith();
@@ -113,6 +114,9 @@ describe("StatsCommand", () => {
     statsCommand = new StatsCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+    updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(apiMessage);
   });
 
   describe("execute(): subcommand neatqueue", () => {
@@ -215,16 +219,18 @@ describe("StatsCommand", () => {
         expect(getTeamsFromQueueSpy).toHaveBeenCalledWith("1234567890", 5);
       });
 
-      it("calls discordService.updateDeferredReply with an error when no data is returned from getTeamsFromQueue", async () => {
+      it("calls discordService.updateDeferredReplyWithError with an error when no data is returned from getTeamsFromQueue", async () => {
         getTeamsFromQueueSpy.mockReset().mockResolvedValue(null);
 
         await jobToComplete?.();
 
-        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-          content:
-            "Failed to fetch (Channel: <#1234567890>, queue: 5): No queue found within the last 100 messages of <#1234567890>, with queue number 5",
-        });
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({
+            endUserMessage: "No queue found within the last 100 messages of <#1234567890>, with queue number 5",
+          }),
+        );
       });
 
       it('fetches series data from haloService using "getSeriesFromDiscordQueue" with expected data', async () => {
@@ -345,23 +351,14 @@ describe("StatsCommand", () => {
         expect(updateDiscordAssociationsSpy).toHaveBeenCalledWith();
       });
 
-      it("does nothing if error is thrown with message 'Too many subrequests.'", async () => {
-        getSeriesFromDiscordQueueSpy.mockReset().mockRejectedValue(new Error("Too many subrequests."));
+      it("calls discordService.updateDeferredReplyWithError with an error when an error is thrown", async () => {
+        const error = new Error("An error occurred.");
+        getSeriesFromDiscordQueueSpy.mockReset().mockRejectedValue(error);
 
         await jobToComplete?.();
 
-        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
-      });
-
-      it("calls discordService.updateDeferredReply with an error when an error is thrown", async () => {
-        getSeriesFromDiscordQueueSpy.mockReset().mockRejectedValue(new Error("An error occurred."));
-
-        await jobToComplete?.();
-
-        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-          content: "Failed to fetch (Channel: <#1234567890>, queue: 5): An error occurred.",
-        });
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error);
       });
     });
   });
@@ -453,23 +450,14 @@ describe("StatsCommand", () => {
         expect(updateDeferredReplySpy.mock.lastCall).toMatchSnapshot();
       });
 
-      it("does nothing if error is thrown with message 'Too many subrequests.'", async () => {
-        getMatchDetailsSpy.mockReset().mockRejectedValue(new Error("Too many subrequests."));
+      it("calls discordService.updateDeferredReplyWithError with an error when an error is thrown", async () => {
+        const error = new Error("An error occurred.");
+        getMatchDetailsSpy.mockReset().mockRejectedValue(error);
 
         await jobToComplete?.();
 
-        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
-      });
-
-      it("calls discordService.updateDeferredReply with an error when an error is thrown", async () => {
-        getMatchDetailsSpy.mockReset().mockRejectedValue(new Error("An error occurred."));
-
-        await jobToComplete?.();
-
-        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-          content: "Failed to fetch (match id: d81554d7-ddfe-44da-a6cb-000000000ctf}): An error occurred.",
-        });
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error);
       });
     });
   });

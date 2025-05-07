@@ -52,6 +52,7 @@ describe("ConnectCommand", () => {
   let services: Services;
   let env: Env;
   let updateDeferredReplySpy: MockInstance<typeof services.discordService.updateDeferredReply>;
+  let updateDeferredReplyWithErrorSpy: MockInstance<typeof services.discordService.updateDeferredReplyWithError>;
 
   beforeEach(() => {
     vi.setSystemTime("2025-02-10T00:00:00.000Z");
@@ -60,6 +61,9 @@ describe("ConnectCommand", () => {
     connectCommand = new ConnectCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+    updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(apiMessage);
   });
 
   afterEach(() => {
@@ -311,27 +315,20 @@ describe("ConnectCommand", () => {
       });
 
       describe("No association", () => {
-        let logServiceErrorSpy: MockInstance<typeof services.logService.error>;
-
         beforeEach(() => {
-          logServiceErrorSpy = vi.spyOn(services.logService, "error");
           getDiscordAssociationsSpy.mockResolvedValue([]);
         });
 
-        it("logs error", async () => {
+        it("calls discordService.updateDeferredReplyWithError with the expected opts", async () => {
           await jobToComplete?.();
 
-          expect(logServiceErrorSpy).toHaveBeenCalledTimes(1);
-          expect(logServiceErrorSpy).toHaveBeenCalledWith(new Error("Connection not found"));
-        });
-
-        it("calls updateDeferredReply with the expected opts", async () => {
-          await jobToComplete?.();
-
-          expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-          expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-            content: "Failed to update: Connection not found",
-          });
+          expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+          expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+            "fake-token",
+            expect.objectContaining({
+              message: "Connection not found",
+            }),
+          );
         });
       });
     });

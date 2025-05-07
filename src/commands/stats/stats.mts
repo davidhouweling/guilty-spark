@@ -49,6 +49,7 @@ import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 import { StatsReturnType } from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 
 export enum InteractionButton {
   LoadGames = "btn_stats_load_games",
@@ -144,8 +145,7 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () =>
-                this.handleLoadGamesButton(interaction as APIMessageComponentButtonInteraction),
+              jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           throw new Error("Unknown interaction");
@@ -201,8 +201,12 @@ export class StatsCommand extends BaseCommand {
         discordService.getTeamsFromQueue(channel, queue),
       ]);
       if (!queueData) {
-        throw new Error(
+        throw new EndUserError(
           `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+          {
+            errorType: EndUserErrorType.WARNING,
+            handled: true,
+          },
         );
       }
 
@@ -288,15 +292,7 @@ export class StatsCommand extends BaseCommand {
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch (Channel: <#${channel}>, queue: ${queue.toString()}): ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -341,23 +337,18 @@ export class StatsCommand extends BaseCommand {
       const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
       const embed = await matchEmbed.getEmbed(match, players);
 
-      await discordService.updateDeferredReply(interaction.token, { embeds: [embed] });
-    } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
       await discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch (match id: ${matchId}}): ${error instanceof Error ? error.message : "unknown"}`,
+        embeds: [embed],
       });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
-  private async handleLoadGamesButton(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+  private async loadGamesJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService, haloService } = this.services;
+
     try {
-      const { databaseService, discordService, haloService } = this.services;
       const locale = interaction.guild_locale ?? interaction.locale;
 
       const { channel } = interaction;
@@ -422,15 +413,7 @@ export class StatsCommand extends BaseCommand {
         components: [],
       });
     } catch (error) {
-      this.services.logService.error(error as Error);
-
-      if (error instanceof Error && error.message === "Too many subrequests.") {
-        return;
-      }
-
-      await this.services.discordService.updateDeferredReply(interaction.token, {
-        content: `Failed to fetch games: ${error instanceof Error ? error.message : "unknown"}`,
-      });
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
