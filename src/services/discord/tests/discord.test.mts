@@ -781,6 +781,7 @@ describe("DiscordService", () => {
       mockFetch.mockResolvedValue(response);
 
       await discordService.createMessage("fake-channel", { content: "fake-content" });
+      vi.runAllTimers();
 
       expect(appConfigPutSpy).toHaveBeenCalledWith(
         "rateLimit./channels/fake-channel/messages",
@@ -856,6 +857,61 @@ describe("DiscordService", () => {
       ).rejects.toThrowError(new Error("Failed to fetch data from Discord API: 429 Too many requests"));
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("handles rate limit headers correctly", async () => {
+      const reset = now + 200;
+      const response = new Response(null, {
+        status: 204,
+        headers: {
+          "x-ratelimit-reset-after": "2",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": reset.toString(),
+        },
+      });
+
+      mockFetch.mockResolvedValue(response);
+
+      await discordService.createMessage("fake-channel", { content: "test-content" });
+      vi.runAllTimers();
+
+      expect(appConfigPutSpy).toHaveBeenCalledWith(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${reset.toString()},"resetAfter":2}`,
+        {
+          expirationTtl: 60,
+        },
+      );
+    });
+
+    it("debounces rate limit writes to app config", async () => {
+      const reset = now + 300;
+      const response = new Response(null, {
+        status: 204,
+        headers: {
+          "x-ratelimit-reset-after": "3",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": reset.toString(),
+        },
+      });
+
+      mockFetch.mockResolvedValue(response);
+
+      const promise1 = discordService.createMessage("fake-channel", { content: "test-content" });
+      const promise2 = discordService.createMessage("fake-channel", { content: "test-content-2" });
+
+      await Promise.all([promise1, promise2]);
+
+      vi.advanceTimersByTime(1000); // Advance timers to trigger debounce
+
+      expect(appConfigPutSpy).toHaveBeenCalledTimes(1);
+      expect(appConfigPutSpy).toHaveBeenCalledWith(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${reset.toString()},"resetAfter":3}`,
+        {
+          expirationTtl: 60,
+        },
+      );
     });
   });
 });
