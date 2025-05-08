@@ -4,6 +4,7 @@ import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIInteractionResponse,
+  APIThreadChannel,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -22,6 +23,8 @@ import {
   channelThreadsResult,
   discordNeatQueueData,
   fakeBaseAPIApplicationCommandInteraction,
+  textChannel,
+  threadChannel,
 } from "../../../services/discord/fakes/data.mjs";
 import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -189,6 +192,7 @@ describe("StatsCommand", () => {
       let getMessageFromInteractionTokenSpy: MockInstance<
         typeof services.discordService.getMessageFromInteractionToken
       >;
+      let getChannelSpy: MockInstance<typeof services.discordService.getChannel>;
       let startThreadFromMessageSpy: MockInstance<typeof services.discordService.startThreadFromMessage>;
       let createMessageSpy: MockInstance<typeof services.discordService.createMessage>;
       let updateDiscordAssociationsSpy: MockInstance<typeof services.haloService.updateDiscordAssociations>;
@@ -203,6 +207,7 @@ describe("StatsCommand", () => {
         getMessageFromInteractionTokenSpy = vi
           .spyOn(services.discordService, "getMessageFromInteractionToken")
           .mockResolvedValue(apiMessage);
+        getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(textChannel);
         startThreadFromMessageSpy = vi
           .spyOn(services.discordService, "startThreadFromMessage")
           .mockResolvedValue(channelThreadsResult);
@@ -308,41 +313,76 @@ describe("StatsCommand", () => {
         );
       });
 
-      it("calls discordService.startThreadFromMessage", async () => {
+      it("calls discordService.getChannel to get the message channel details", async () => {
         await jobToComplete?.();
 
-        expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
-          "1299532381308325949",
-          "1314562775950954626",
-          "Queue #5 series stats",
-        );
+        expect(getChannelSpy).toHaveBeenCalledWith("1299532381308325949");
       });
 
-      it("does not add games to the thread when guildConfig StatsReturn is SERIES_ONLY", async () => {
-        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
-          GuildId: "fake-guild-id",
-          Medals: "Y",
-          StatsReturn: StatsReturnType.SERIES_ONLY,
+      describe("message channel type = GuildText", () => {
+        it("calls discordService.startThreadFromMessage", async () => {
+          await jobToComplete?.();
+
+          expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
+            "1299532381308325949",
+            "1314562775950954626",
+            "Queue #5 series stats",
+          );
         });
 
-        await jobToComplete?.();
+        it("adds series summary and game stats to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
+          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+            GuildId: "fake-guild-id",
+            Medals: "Y",
+            StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+          });
 
-        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-        expect(createMessageSpy).toHaveBeenCalledTimes(2);
+          await jobToComplete?.();
+
+          expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
+          expect(createMessageSpy).toHaveBeenCalledTimes(5);
+          expect(createMessageSpy.mock.calls).toMatchSnapshot();
+        });
+
+        it("does not add games to the thread when guildConfig StatsReturn is SERIES_ONLY", async () => {
+          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
+            GuildId: "fake-guild-id",
+            Medals: "Y",
+            StatsReturn: StatsReturnType.SERIES_ONLY,
+          });
+
+          await jobToComplete?.();
+
+          expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
+          expect(createMessageSpy).toHaveBeenCalledTimes(2);
+        });
       });
 
-      it("adds each game and series summary to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
-        const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
-          GuildId: "fake-guild-id",
-          Medals: "Y",
-          StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+      describe.each([
+        [ChannelType.AnnouncementThread, "AnnouncementThread"],
+        [ChannelType.PublicThread, "PublicThread"],
+        [ChannelType.PrivateThread, "PrivateThread"],
+      ])("message channel type = %s", (channelType, typeName) => {
+        beforeEach(() => {
+          getChannelSpy.mockReset().mockResolvedValue({
+            ...threadChannel,
+            type: channelType,
+          } as APIThreadChannel);
         });
 
-        await jobToComplete?.();
+        it(`does not call discordService.startThreadFromMessage if message channel type is ${typeName}`, async () => {
+          await jobToComplete?.();
 
-        expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-        expect(createMessageSpy).toHaveBeenCalledTimes(5);
-        expect(createMessageSpy.mock.calls).toMatchSnapshot();
+          expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        });
+
+        it("calls createMessage with the thread channel id", async () => {
+          await jobToComplete?.();
+
+          expect(createMessageSpy).toHaveBeenCalledTimes(2);
+          expect(createMessageSpy).toHaveBeenNthCalledWith(1, "thread-channel-id", expect.anything());
+          expect(createMessageSpy).toHaveBeenNthCalledWith(2, "thread-channel-id", expect.anything());
+        });
       });
 
       it("calls haloService.updateDiscordAssociations", async () => {

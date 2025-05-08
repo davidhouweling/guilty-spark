@@ -342,6 +342,12 @@ export class DiscordService {
     }
   }
 
+  async getChannel(channelId: string): Promise<APIChannel> {
+    return this.fetch<APIChannel>(Routes.channel(channelId), {
+      method: "GET",
+    });
+  }
+
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {
     return this.fetch<APIChannel[]>(Routes.guildChannels(guildId), {
       method: "GET",
