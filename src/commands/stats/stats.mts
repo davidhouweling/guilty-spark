@@ -237,11 +237,16 @@ export class StatsCommand extends BaseCommand {
       });
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
-      const thread = await discordService.startThreadFromMessage(
-        message.channel_id,
-        message.id,
-        `Queue #${queue.toString()} series stats`,
-      );
+      const messageChannel = await discordService.getChannel(message.channel_id);
+      const thread = [ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread].includes(
+        messageChannel.type,
+      )
+        ? messageChannel
+        : await discordService.startThreadFromMessage(
+            message.channel_id,
+            message.id,
+            `Queue #${queue.toString()} series stats`,
+          );
 
       const seriesTeamsEmbed = new SeriesTeamsEmbed({
         discordService,

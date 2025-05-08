@@ -4,6 +4,8 @@ import type {
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
   APIPingInteraction,
+  APITextChannel,
+  APIThreadChannel,
   RESTPostAPIChannelMessagesThreadsResult,
 } from "discord-api-types/v10";
 import {
@@ -15,6 +17,7 @@ import {
   InteractionType,
   Locale,
   MessageType,
+  ThreadMemberFlags,
 } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 
@@ -346,6 +349,49 @@ function aFakeNeatQueueMessageWith(opts: Partial<APIMessage> = {}): APIMessage {
     ...opts,
   };
 }
+
+export const textChannel: APITextChannel = {
+  id: "channel-id",
+  type: ChannelType.GuildText,
+  last_message_id: "last-message-id",
+  guild_id: "guild-id",
+  name: "channel-name",
+  parent_id: "parent-id",
+  rate_limit_per_user: 0,
+  topic: null,
+  position: 0,
+  permission_overwrites: [],
+  nsfw: false,
+};
+
+export const threadChannel: APIThreadChannel = {
+  id: "thread-channel-id",
+  type: ChannelType.PublicThread,
+  last_message_id: "thread-message-id",
+  guild_id: "guild-id",
+  name: "thread-name",
+  parent_id: "parent-id",
+  rate_limit_per_user: 0,
+  applied_tags: [],
+  position: 0,
+  owner_id: "thread-owner-id",
+  thread_metadata: {
+    archived: false,
+    archive_timestamp: "2025-05-08T04:31:29.006000+00:00",
+    auto_archive_duration: 60,
+    locked: false,
+    create_timestamp: "2025-05-08T04:31:29.006000+00:00",
+  },
+  message_count: 3,
+  member_count: 3,
+  total_message_sent: 3,
+  member: {
+    id: "1369894435357458472",
+    user_id: "1290269474536034357",
+    join_timestamp: "2025-05-08T04:31:29.021000+00:00",
+    flags: ThreadMemberFlags.HasInteracted,
+  },
+};
 
 export const channelMessages: APIMessage[] = [
   aFakeNeatQueueMessageWith({
