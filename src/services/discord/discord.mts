@@ -116,6 +116,7 @@ export class DiscordService {
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
   private readonly userCache = new Map<string, APIUser>();
+  private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
     this.env = env;
@@ -514,7 +515,7 @@ export class DiscordService {
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
 
         if (rateLimitFromResponse.reset != null) {
-          await this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+          this.setRateLimitInAppConfig(path, rateLimitFromResponse);
 
           return this.fetch<T>(path, options, true);
         }
@@ -530,7 +531,7 @@ export class DiscordService {
     }
 
     const rateLimitFromResponse = this.getRateLimitFromResponse(response);
-    await this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+    this.setRateLimitInAppConfig(path, rateLimitFromResponse);
 
     if (response.status === 204) {
       return {} as T;
@@ -582,11 +583,6 @@ export class DiscordService {
     return { limit, remaining, reset, resetAfter, bucket };
   }
 
-  private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
-    const rateLimit = await this.env.APP_DATA.get<RateLimit>(this.getRateLimitKey(path), { type: "json" });
-    return rateLimit;
-  }
-
   private getRateLimitKey(path: string): string {
     const prefix = "rateLimit";
     if (path.startsWith(Routes.user("*").replace("*", ""))) {
@@ -596,22 +592,42 @@ export class DiscordService {
     return `${prefix}.${path}`;
   }
 
-  private async setRateLimitInAppConfig(path: string, rateLimit: RateLimit): Promise<void> {
-    if (rateLimit.reset != null) {
-      const key = this.getRateLimitKey(path);
+  private async getRateLimitFromAppConfig(path: string): Promise<RateLimit | null> {
+    const key = this.getRateLimitKey(path);
+    const existing = this.rateLimitDebounceMap.get(key);
+    if (existing) {
+      return JSON.parse(existing.data) as RateLimit;
+    }
 
-      this.logService.debug(
-        "Setting rate limit",
-        new Map([
-          ["path", path],
-          ["key", key],
-          ["rateLimit", JSON.stringify(rateLimit)],
-        ]),
-      );
+    const rateLimit = await this.env.APP_DATA.get<RateLimit>(key, { type: "json" });
+    return rateLimit;
+  }
 
-      await this.env.APP_DATA.put(key, JSON.stringify(rateLimit), {
-        expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
-      });
+  private setRateLimitInAppConfig(path: string, rateLimit: RateLimit): void {
+    if (rateLimit.reset == null) {
+      return;
+    }
+    const key = this.getRateLimitKey(path);
+    const rateLimitData = JSON.stringify(rateLimit);
+
+    const scheduleWrite = (data: string): void => {
+      const timeout = setTimeout(() => {
+        void this.env.APP_DATA.put(key, data, {
+          expirationTtl: rateLimit.resetAfter != null && rateLimit.resetAfter > 60 ? rateLimit.resetAfter : 60,
+        });
+        this.rateLimitDebounceMap.delete(key);
+      }, 1000);
+
+      this.rateLimitDebounceMap.set(key, { timeout, data });
+    };
+
+    const existing = this.rateLimitDebounceMap.get(key);
+    if (existing) {
+      clearTimeout(existing.timeout);
+      existing.data = rateLimitData;
+      scheduleWrite(existing.data);
+    } else {
+      scheduleWrite(rateLimitData);
     }
   }
 }
