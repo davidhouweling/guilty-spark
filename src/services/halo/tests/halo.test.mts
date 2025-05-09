@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { MatchOutcome, RequestError, type HaloInfiniteClient } from "halo-infinite-api";
+import { sub } from "date-fns";
 import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -579,6 +580,62 @@ describe("Halo service", () => {
           ],
         ]
       `);
+    });
+
+    it("updates the discord associations even when no user is found", async () => {
+      vi.spyOn(databaseService, "upsertDiscordAssociations");
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+      infiniteClient.getUser.mockRejectedValue(
+        new RequestError(new URL("https://example.com"), new Response("", { status: 400 })),
+      );
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await expect(async () => haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow();
+
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+    });
+
+    it("updates the discord associations even when no matches are found", async () => {
+      vi.spyOn(databaseService, "upsertDiscordAssociations");
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await expect(async () => haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow();
+
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+    });
+
+    it("does not update the discord associations if the queue time is less than 10 minutes and no user is found", async () => {
+      vi.spyOn(databaseService, "upsertDiscordAssociations");
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+      infiniteClient.getUser.mockRejectedValue(
+        new RequestError(new URL("https://example.com"), new Response("", { status: 400 })),
+      );
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await expect(async () =>
+        haloService.getSeriesFromDiscordQueue({
+          ...neatQueueSeriesData,
+          startDateTime: sub(neatQueueSeriesData.endDateTime, { minutes: 5 }),
+        }),
+      ).rejects.toThrow();
+
+      expect(upsertDiscordAssociationsSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not update the discord associations if the queue time is less than 10 minutes and no matches are found", async () => {
+      vi.spyOn(databaseService, "upsertDiscordAssociations");
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await expect(async () =>
+        haloService.getSeriesFromDiscordQueue({
+          ...neatQueueSeriesData,
+          startDateTime: sub(neatQueueSeriesData.endDateTime, { minutes: 5 }),
+        }),
+      ).rejects.toThrow();
+
+      expect(upsertDiscordAssociationsSpy).not.toHaveBeenCalled();
     });
   });
 });

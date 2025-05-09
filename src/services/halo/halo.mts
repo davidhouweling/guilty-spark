@@ -1,7 +1,7 @@
 import * as tinyduration from "tinyduration";
 import type { HaloInfiniteClient, MatchInfo, MatchStats, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
-import { isAfter, isBefore } from "date-fns";
+import { differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
@@ -72,7 +72,10 @@ export class HaloService {
     );
 
     if (!usersToSearch.length) {
-      await this.updateDiscordAssociations();
+      if (differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10) {
+        await this.updateDiscordAssociations();
+      }
+
       throw noMatchError;
     }
 
@@ -82,7 +85,10 @@ export class HaloService {
       queueData.endDateTime,
     );
     if (!matchesForUsers.length) {
-      await this.updateDiscordAssociations();
+      if (differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10) {
+        await this.updateDiscordAssociations();
+      }
+
       throw noMatchError;
     }
 
