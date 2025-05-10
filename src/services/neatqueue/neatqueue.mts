@@ -4,7 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
 import type { RESTPostAPIChannelThreadsResult, APIEmbed } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
-import { sub } from "date-fns";
+import { sub, isAfter } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
@@ -520,12 +520,41 @@ export class NeatQueueService {
         const endUserError =
           error instanceof EndUserError
             ? error
-            : new EndUserError("Failed to post series data", {
-                data: {
-                  Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
-                  Queue: request.match_number.toString(),
-                },
-              });
+            : new EndUserError("Something went wrong while trying to post series data");
+        const matchStartedEvent = timeline.find(({ event }) => event.action === "MATCH_STARTED");
+        const matchCompletedEvent = timeline.find(({ event }) => event.action === "MATCH_COMPLETED");
+        const substitutionEvents = timeline.filter(
+          ({ event, timestamp }) =>
+            event.action === "SUBSTITUTION" &&
+            matchStartedEvent != null &&
+            isAfter(timestamp, matchStartedEvent.timestamp),
+        );
+
+        endUserError.appendData({
+          Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
+          Queue: request.match_number.toString(),
+        });
+
+        if (matchStartedEvent != null) {
+          endUserError.appendData({
+            Started: discordService.getTimestamp(matchStartedEvent.timestamp),
+          });
+        }
+        if (matchCompletedEvent != null) {
+          endUserError.appendData({
+            Completed: discordService.getTimestamp(matchCompletedEvent.timestamp),
+          });
+        }
+        if (substitutionEvents.length > 0) {
+          endUserError.appendData({
+            Substitutions: substitutionEvents
+              .map(({ event, timestamp }) => {
+                const { player_subbed_out, player_subbed_in } = event as NeatQueueSubstitutionRequest;
+                return `@${player_subbed_in.id} subbed in for @${player_subbed_out.id} on ${discordService.getTimestamp(timestamp)}`;
+              })
+              .join(", "),
+          });
+        }
         await discordService.createMessage(thread.id, {
           embeds: [endUserError.discordEmbed],
         });
