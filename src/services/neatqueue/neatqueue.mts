@@ -4,7 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
 import type { RESTPostAPIChannelThreadsResult, APIEmbed } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
-import { sub } from "date-fns";
+import { sub, isAfter } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
@@ -268,7 +268,7 @@ export class NeatQueueService {
       this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
 
-      const opts = { request, neatQueueConfig, handledError: error as Error };
+      const opts = { request, neatQueueConfig, handledError: error as Error, timeline };
       await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
     }
 
@@ -282,7 +282,12 @@ export class NeatQueueService {
 
   private async handlePostSeriesError(
     mode: NeatQueuePostSeriesDisplayMode,
-    opts: { request: NeatQueueMatchCompletedRequest; neatQueueConfig: NeatQueueConfigRow; handledError: Error },
+    opts: {
+      request: NeatQueueMatchCompletedRequest;
+      neatQueueConfig: NeatQueueConfigRow;
+      handledError: Error;
+      timeline: NeatQueueTimelineEvent[];
+    },
   ): Promise<void> {
     switch (mode) {
       case NeatQueuePostSeriesDisplayMode.THREAD:
@@ -517,15 +522,9 @@ export class NeatQueueService {
 
         await this.postSeriesDataByChannel({ request, neatQueueConfig, seriesData, timeline });
       } else if (thread != null) {
-        const endUserError =
-          error instanceof EndUserError
-            ? error
-            : new EndUserError("Failed to post series data", {
-                data: {
-                  Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
-                  Queue: request.match_number.toString(),
-                },
-              });
+        this.logService.info("Attempting to post error to thread");
+
+        const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
         await discordService.createMessage(thread.id, {
           embeds: [endUserError.discordEmbed],
         });
@@ -537,10 +536,12 @@ export class NeatQueueService {
     request,
     neatQueueConfig,
     handledError,
+    timeline,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     handledError: Error;
+    timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
     let useFallback = true;
@@ -571,7 +572,7 @@ export class NeatQueueService {
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
 
-        await this.postErrorByChannel({ request, neatQueueConfig, handledError });
+        await this.postErrorByChannel({ request, neatQueueConfig, handledError, timeline });
       }
     }
   }
@@ -588,6 +589,8 @@ export class NeatQueueService {
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
+    let channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
+
     try {
       const resultsMessage = await discordService.getTeamsFromQueue(
         neatQueueConfig.ResultsChannelId,
@@ -605,7 +608,6 @@ export class NeatQueueService {
         timeline,
       });
 
-      const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
       const createdMessage = await discordService.createMessage(channelId, {
         embeds: [seriesOverviewEmbed],
       });
@@ -616,9 +618,15 @@ export class NeatQueueService {
         `Queue #${request.match_number.toString()} series stats`,
       );
 
-      await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
+      channelId = thread.id;
+      await this.postSeriesDetailsToChannel(channelId, request.guild, seriesData);
     } catch (error) {
       this.logService.error(error as Error, new Map([["reason", "Failed to post series data direct to channel"]]));
+
+      const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
+      await discordService.createMessage(channelId, {
+        embeds: [endUserError.discordEmbed],
+      });
     }
   }
 
@@ -626,22 +634,15 @@ export class NeatQueueService {
     request,
     neatQueueConfig,
     handledError,
+    timeline,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     handledError: Error;
+    timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
-
-    const endUserError =
-      handledError instanceof EndUserError
-        ? handledError
-        : new EndUserError("Failed to post series data", {
-            data: {
-              Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
-              Queue: request.match_number.toString(),
-            },
-          });
+    const endUserError = this.getEndUserErrorEmbed(handledError, request, neatQueueConfig, timeline);
 
     try {
       const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
@@ -809,5 +810,50 @@ export class NeatQueueService {
       default:
         return new UnknownMatchEmbed(opts);
     }
+  }
+
+  private getEndUserErrorEmbed(
+    error: Error,
+    request: NeatQueueMatchCompletedRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    timeline: NeatQueueTimelineEvent[],
+  ): EndUserError {
+    const { discordService } = this;
+    const endUserError =
+      error instanceof EndUserError ? error : new EndUserError("Something went wrong while trying to post series data");
+    const matchStartedEvent = timeline.find(({ event }) => event.action === "MATCH_STARTED");
+    const matchCompletedEvent = timeline.find(({ event }) => event.action === "MATCH_COMPLETED");
+    const substitutionEvents = timeline.filter(
+      ({ event, timestamp }) =>
+        event.action === "SUBSTITUTION" && matchStartedEvent != null && isAfter(timestamp, matchStartedEvent.timestamp),
+    );
+
+    endUserError.appendData({
+      Channel: `<#${neatQueueConfig.ResultsChannelId}>`,
+      Queue: request.match_number.toString(),
+    });
+
+    if (matchStartedEvent != null) {
+      endUserError.appendData({
+        Started: discordService.getTimestamp(matchStartedEvent.timestamp),
+      });
+    }
+    if (matchCompletedEvent != null) {
+      endUserError.appendData({
+        Completed: discordService.getTimestamp(matchCompletedEvent.timestamp),
+      });
+    }
+    if (substitutionEvents.length > 0) {
+      endUserError.appendData({
+        Substitutions: substitutionEvents
+          .map(({ event, timestamp }) => {
+            const { player_subbed_out, player_subbed_in } = event as NeatQueueSubstitutionRequest;
+            return `@${player_subbed_in.id} subbed in for @${player_subbed_out.id} on ${discordService.getTimestamp(timestamp)}`;
+          })
+          .join(", "),
+      });
+    }
+
+    return endUserError;
   }
 }

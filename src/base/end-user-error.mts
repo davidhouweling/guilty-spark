@@ -92,4 +92,10 @@ export class EndUserError extends Error {
       data,
     });
   }
+
+  appendData(newData: Record<string, string>): void {
+    for (const [key, value] of Object.entries(newData)) {
+      this.data[key] = value;
+    }
+  }
 }
