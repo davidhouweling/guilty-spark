@@ -563,8 +563,9 @@ export class NeatQueueService {
         `Queue #${request.match_number.toString()} series stats`,
       );
 
+      const endUserError = this.getEndUserErrorEmbed(handledError, request, neatQueueConfig, timeline);
       await discordService.createMessage(thread.id, {
-        content: handledError.message,
+        embeds: [endUserError.discordEmbed],
       });
     } catch (error) {
       this.logService.warn(error as Error, new Map([["reason", "Failed to post error to thread"]]));
