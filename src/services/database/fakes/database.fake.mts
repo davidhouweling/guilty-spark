@@ -5,6 +5,8 @@ import type { DiscordAssociationsRow } from "../types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../types/discord_associations.mjs";
 import type { GuildConfigRow } from "../types/guild_config.mjs";
 import { StatsReturnType } from "../types/guild_config.mjs";
+import type { NeatQueueConfigRow } from "../types/neat_queue_config.mjs";
+import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config.mjs";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -29,6 +31,21 @@ export function aFakeGuildConfigRow(opts: Partial<GuildConfigRow> = {}): GuildCo
     StatsReturn: StatsReturnType.SERIES_ONLY,
   };
 
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeNeatQueueConfigRow(opts: Partial<NeatQueueConfigRow> = {}): NeatQueueConfigRow {
+  const defaultOpts: NeatQueueConfigRow = {
+    GuildId: "guild-1",
+    ChannelId: "channel-1",
+    WebhookSecret: "hashed-secret",
+    ResultsChannelId: "results-channel-1",
+    PostSeriesMode: NeatQueuePostSeriesDisplayMode.THREAD,
+    PostSeriesChannelId: null,
+  };
   return {
     ...defaultOpts,
     ...opts,
