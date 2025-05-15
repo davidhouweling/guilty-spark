@@ -1,0 +1,58 @@
+{
+  "teams": [
+    [
+      {
+        "name": "soundmanD",
+        "id": "237222473500852224",
+        "mmr": 1000,
+        "role": null,
+        "team_num": 0,
+        "top_role_index": 0,
+        "ign": null,
+        "timestamp": "2025-03-22T09:02:51.361160",
+        "pulled_from": null,
+        "team_name": null,
+        "party_leader": null,
+        "captain": null,
+        "picked": false,
+        "mmr_change": 33.333333333333336,
+        "priority": 0,
+        "guild_id": "1300001976334946326",
+        "mmr_multiplier": 1,
+        "points_multiplier": 1,
+        "tournament_team_id": null,
+        "queue_entry_survey": {}
+      }
+    ],
+    [
+      {
+        "name": "guiltysparktest1",
+        "id": "1352927662896578600",
+        "mmr": 1000,
+        "role": null,
+        "team_num": 1,
+        "top_role_index": 0,
+        "ign": null,
+        "timestamp": "2025-03-22T09:02:59.465263",
+        "pulled_from": null,
+        "team_name": null,
+        "party_leader": null,
+        "captain": null,
+        "picked": false,
+        "mmr_change": -33.333333333333336,
+        "priority": 0,
+        "guild_id": "1300001976334946326",
+        "mmr_multiplier": 1,
+        "points_multiplier": 1,
+        "tournament_team_id": null,
+        "queue_entry_survey": {}
+      }
+    ]
+  ],
+  "winning_team_index": 0,
+  "queue": "Halo",
+  "channel": "1352930551899623494",
+  "guild": "1300001976334946326",
+  "match_number": 2,
+  "action": "MATCH_COMPLETED"
+}

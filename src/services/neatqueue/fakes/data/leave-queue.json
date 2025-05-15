@@ -1,0 +1,31 @@
+{
+  "players": [],
+  "players_removed": [
+    {
+      "name": "soundmanD",
+      "id": "237222473500852224",
+      "mmr": 1033.3333333333333,
+      "role": null,
+      "team_num": -1,
+      "top_role_index": 0,
+      "ign": null,
+      "timestamp": "2025-03-24T10:38:23.969037",
+      "pulled_from": null,
+      "team_name": null,
+      "party_leader": null,
+      "captain": null,
+      "picked": false,
+      "mmr_change": 0,
+      "priority": 0,
+      "guild_id": "1300001976334946326",
+      "mmr_multiplier": 1,
+      "points_multiplier": 1,
+      "tournament_team_id": null,
+      "queue_entry_survey": {}
+    }
+  ],
+  "queue": "Halo",
+  "channel": "1352868353869352970",
+  "guild": "1300001976334946326",
+  "action": "LEAVE_QUEUE"
+}
