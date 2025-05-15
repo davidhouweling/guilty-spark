@@ -2,7 +2,7 @@
   "players": [
     {
       "name": "soundmanD",
-      "id": "237222473500852224",
+      "id": "000000000000000001",
       "mmr": 1000,
       "role": null,
       "team_num": -1,
@@ -16,7 +16,7 @@
       "picked": false,
       "mmr_change": 0,
       "priority": 0,
-      "guild_id": "1300001976334946326",
+      "guild_id": "guild-id",
       "mmr_multiplier": 1,
       "points_multiplier": 1,
       "tournament_team_id": null,
@@ -26,7 +26,7 @@
   "new_players": [
     {
       "name": "soundmanD",
-      "id": "237222473500852224",
+      "id": "000000000000000001",
       "mmr": 1000,
       "role": null,
       "team_num": -1,
@@ -40,7 +40,7 @@
       "picked": false,
       "mmr_change": 0,
       "priority": 0,
-      "guild_id": "1300001976334946326",
+      "guild_id": "guild-id",
       "mmr_multiplier": 1,
       "points_multiplier": 1,
       "tournament_team_id": null,
@@ -48,7 +48,7 @@
     }
   ],
   "queue": "Halo",
-  "channel": "1352868353869352970",
-  "guild": "1300001976334946326",
+  "channel": "1299532381308325949",
+  "guild": "guild-id",
   "action": "JOIN_QUEUE"
 }
