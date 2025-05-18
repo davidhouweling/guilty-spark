@@ -1,31 +1,60 @@
+# Project Coding & Testing Standards
+
+## Linting & Formatting
+
+- **Linting:** Use `eslint` for code linting. Run `npm run lint:fix` to auto-fix issues.
+- **Formatting:** Use `prettier` for code formatting. Run `npm run format:fix` to auto-format code.
+- **Strict Adherence:** All code must pass lint and format checks before merging.
+
+## TypeScript Usage
+
+- **Strict Mode:** Follow the `tsconfig.json` configuration strictly.
+- **No Unsafe Casts:** Do not cast to `unknown` or `any`.
+- **No TypeScript Suppression:** Never use `@ts-expect-error` to bypass TypeScript errors.
+- **Explicit Types:** Always define variables and function signatures with explicit types. Prefer direct type imports over type extraction from function signatures.
+- **No Inline Imports:** Do not use inline `import()` type annotations in variable declarations. Always import types at the top of the file.
+
+## Module System & Imports
+
+- **Node ESM:** The project uses Node's `type: module`.
+- **Import Extensions:** Always use `.mjs` for import statements (never `.mts`).
+- **No Other Compilers:** Only use Node and TypeScript import approaches—no custom compilers or loaders.
+
+## Project Structure
+
+- **Source Code:** Place all source files in the `src/` directory.
+- **Tests:** Place all tests in a sibling `tests/` folder to the code being tested.
+- **Fakes:** Place all fakes in a sibling `fakes/` folder to the code being tested. Fakes are for tests only, never for production code.
+- **Naming:** The main file in a folder should match the folder name (e.g., `src/services/discord/discord.mts`).
+
+## Testing Conventions
+
+- **Test Runner:** Use `vitest` only. Do not use `jest` or native `node:test`.
+- **Test Structure:**
+  - Use `describe` and `it` exclusively (not `test`).
+  - `it` statements must be factual, not use "should" phrasing.
+  - Each test declaration must be separated by a blank line.
+  - Within each test, separate setup, spying, execution, and assertion with blank lines.
+  - Use `beforeEach` to ensure clean instances for each test.
+- **Black Box Testing:**
+  - Treat tests as black box: test input and expect output only.
+  - Do not mock modules or private methods.
+  - Never mock or spy on methods from the file under test. Only mock dependencies passed via the constructor.
+- **Type Safety in Tests:**
+  - When assigning types for test variables (e.g., expected arguments for spies), always import and use the direct type (e.g., `Partial<MyType>`), not `Parameters<typeof fn>[0]`.
+  - This ensures clarity, maintainability, and type safety.
+- **Fakes Usage:**
+  - Use fakes (named `aFake...With()`) for test data. Prefer fakes over ad-hoc objects.
+  - Fakes should allow overrides via spread for differentiation.
+
+## Example Structure
+
+```
+<root>/src/services/discord/discord.mts
+<root>/src/services/discord/tests/discord.test.mts
+<root>/src/services/discord/fakes/aFakeDiscordWith.mts
+```
+
 ---
-applyTo: "**"
----
 
-We use eslint to lint our code, and prettier to format. These should be strictly followed, with the npm scripts `lint:fix` and `format:fix` able to be used to run auto fix for each.
-
-Typescript is also leveraged, with strict adherence to the `tsconfig.json` setup. In addition to this, casting to `unknown` or `any` should not be done, and never use `@ts-expect-error` to circumvent typescript.
-
-Coding wise, prioritize defining variables with explicit types, over casting.
-
-We also make use of node's "type: module", so all import statements should use `.mjs` extension instead of `.mts`. We do not have any other compilers, so strictly follow node and typescripts import approaches only.
-
-Tests are to be created in a `tests` folder making use of `vitest` only (meaning no `jest` and no native `node:test` usage). `it` statements are to be factual statements, rather than `should` statements.
-
-Always use `describe` and `it`, not the alternatives such as `test`.
-
-Do not mock modules, `spyOn` private methods, and never attempt to mock a method from the file being tested (i.e. if a service is being tested, never try and mock out one of its methods simply to get the desired result).
-
-Tests should always be considered black box, where we test an input and expect an output.
-
-On the premise that the code execution depends on data somewhere else, the dependency is passed in as part of the constructor, and only that should be spied on and mocked with the respective response.
-
-Tests should follow the formatting of a blank line between each test declaration, and spacing between setup, spying, execution, and assertion within the test.
-
-Leverage `beforeEach` to ensure clean instances are used for each test.
-
-When assigning types for test variables (such as expected arguments for spies), always prefer importing and using the direct type (e.g., Partial<MyType>) rather than extracting types from function signatures (e.g., Parameters<typeof fn>[0]). This ensures clarity, maintainability, and type safety. Do not use inline import() type annotations in variable declarations, as these are not allowed in strict TypeScript configurations. Always import the type at the top of the file and use it directly in your type annotations. This approach will ensure that if the type changes, TypeScript will catch mismatches at compile time.
-
-Fakes have also be defined where necessary in a sibling folder to `tests` called `fakes`. These should only be leveraged for tests, never in the actual code implementation. When defining fakes, follow the convention of `aFake...With()`. For tests, this should be the preferred approach to take over creating an isolated object with the data, as the fakes contain existing data that can be reused, and with ability to pass in override values which are then spread can help when needing to differentiate.
-
-Taking the tests and fakes into account, follow the structure of `<root>/src/services/discord` where the primary functionality is the same name as the folder (i.e. `discord.mts`), tests exist in `tests`, fakes are in `fakes`.
+For questions or clarifications, contact the project maintainers.
