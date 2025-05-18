@@ -1,4 +1,7 @@
-import { describe, beforeEach, it, expect, vi } from "vitest";
+import type { MockInstance } from "vitest";
+import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
+import type { APIChannel } from "discord-api-types/v10";
+import { ChannelType } from "discord-api-types/v10";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeNeatQueueConfigRow } from "../../database/fakes/database.fake.mjs";
@@ -10,8 +13,24 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.mjs";
+import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
+import * as neatqueueFakes from "../fakes/data.mjs";
+import type { NeatQueueRequest } from "../types.mjs";
+import { matchStats } from "../../halo/fakes/data.mjs";
+import { Preconditions } from "../../../base/preconditions.mjs";
+import { apiMessage, discordNeatQueueData } from "../../discord/fakes/data.mjs";
+import { EndUserError } from "../../../base/end-user-error.mjs";
+
+const startThread: APIChannel = {
+  type: ChannelType.PublicThread,
+  id: "thread-id",
+  name: "Match Completed",
+  applied_tags: [],
+  position: 0,
+};
 
 describe("NeatQueueService", () => {
+  const now = new Date("2025-01-01T00:00:00.000000+00:00").getTime();
   let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
@@ -20,6 +39,9 @@ describe("NeatQueueService", () => {
   let neatQueueService: NeatQueueService;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
     env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     databaseService = aFakeDatabaseServiceWith();
@@ -32,6 +54,10 @@ describe("NeatQueueService", () => {
       discordService,
       haloService,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("hashAuthorizationKey", () => {
@@ -50,7 +76,7 @@ describe("NeatQueueService", () => {
       request = new Request("https://example.com", {
         method: "POST",
         headers: new Headers({ authorization: "Bearer test" }),
-        body: JSON.stringify({ type: "neatqueue", GuildId: "guild-1", ChannelId: "channel-1" }),
+        body: JSON.stringify({ type: "neatqueue", guild: "guild-1", channel: "channel-1" }),
       });
     });
 
@@ -60,16 +86,15 @@ describe("NeatQueueService", () => {
         ChannelId: "channel-1",
         WebhookSecret: "hashed-secret",
       });
-      const expectedFindConfig: Partial<NeatQueueConfigRow> = { GuildId: "guild-1", WebhookSecret: "hashed-secret" };
       const findConfigSpy = vi.spyOn(databaseService, "findNeatQueueConfig").mockResolvedValue([fakeConfig]);
       vi.spyOn(neatQueueService, "hashAuthorizationKey").mockReturnValue("hashed-secret");
 
       const result = await neatQueueService.verifyRequest(request);
 
-      expect(findConfigSpy).toHaveBeenCalledWith(expectedFindConfig);
+      expect(findConfigSpy).toHaveBeenCalledWith({ GuildId: "guild-1", WebhookSecret: "hashed-secret" });
       expect(result).toEqual({
         isValid: true,
-        interaction: { type: "neatqueue", GuildId: "guild-1", ChannelId: "channel-1" },
+        interaction: { type: "neatqueue", guild: "guild-1", channel: "channel-1" },
         neatQueueConfig: fakeConfig,
       });
     });
@@ -100,6 +125,385 @@ describe("NeatQueueService", () => {
       const result = await neatQueueService.verifyRequest(request);
 
       expect(result).toEqual({ isValid: false });
+    });
+  });
+
+  describe("handleRequest", () => {
+    let neatQueueConfig: NeatQueueConfigRow;
+
+    beforeEach(() => {
+      neatQueueConfig = aFakeNeatQueueConfigRow();
+    });
+
+    describe.each([
+      ["JOIN_QUEUE", neatqueueFakes.joinQueueData],
+      ["LEAVE_QUEUE", neatqueueFakes.leaveQueueData],
+      ["MATCH_CANCELLED", neatqueueFakes.matchCancelledData],
+    ] as const)("acknowledges: %s", (_action, request) => {
+      it("returns OK response and no jobToComplete", () => {
+        const { response, jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
+
+        expect(response).toBeInstanceOf(Response);
+        expect(response.status).toBe(200);
+        expect(jobToComplete).toBeUndefined();
+      });
+    });
+
+    describe.each([
+      ["MATCH_STARTED", neatqueueFakes.matchStartedData],
+      ["TEAMS_CREATED", neatqueueFakes.teamsCreatedData],
+      ["SUBSTITUTION", neatqueueFakes.substitutionData],
+    ])("timeline-extending actions: %s", (_action, request) => {
+      it("returns OK response and jobToComplete that extends timeline", async () => {
+        const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+        appDataGetSpy.mockResolvedValueOnce([]);
+
+        const { response, jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
+
+        expect(response).toBeInstanceOf(Response);
+        expect(response.status).toBe(200);
+        expect(jobToComplete).toBeInstanceOf(Function);
+
+        await jobToComplete?.();
+
+        expect(appDataGetSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ type: "json" }));
+        expect(appDataPutSpy).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.stringContaining(request.action),
+          expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
+        );
+      });
+    });
+
+    describe("MATCH_COMPLETED", () => {
+      let appDataGetSpy: MockInstance;
+      let appDataDeleteSpy: MockInstance;
+      let getTeamsFromQueueSpy: MockInstance<typeof discordService.getTeamsFromQueue>;
+      let discordServiceStartThreadFromMessageSpy: MockInstance;
+      let discordServiceCreateMessageSpy: MockInstance;
+
+      beforeEach(() => {
+        const timeline = [
+          {
+            timestamp: new Date().toISOString(),
+            event: neatqueueFakes.teamsCreatedData,
+          },
+          {
+            timestamp: new Date().toISOString(),
+            event: neatqueueFakes.matchCompletedData,
+          },
+        ];
+        appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
+        appDataGetSpy.mockResolvedValueOnce(timeline);
+        appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+
+        const [realMatchStats] = Array.from(matchStats.values());
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
+          Preconditions.checkExists(realMatchStats),
+        ]);
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+
+        getTeamsFromQueueSpy = vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(discordNeatQueueData);
+        discordServiceStartThreadFromMessageSpy = vi
+          .spyOn(discordService, "startThreadFromMessage")
+          .mockResolvedValue(startThread);
+        discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([
+          {
+            id: "000000000000000001",
+            username: "soundmanD",
+            global_name: "soundmanD",
+            discriminator: "0001",
+            avatar: "avatar1",
+          },
+          {
+            id: "000000000000000002",
+            username: "discord_user_02",
+            global_name: "discord_user_02",
+            discriminator: "0002",
+            avatar: "avatar2",
+          },
+        ]);
+      });
+
+      it("returns OK response and jobToComplete", () => {
+        const { response, jobToComplete } = neatQueueService.handleRequest(
+          neatqueueFakes.matchCompletedData,
+          neatQueueConfig,
+        );
+        expect(response).toBeInstanceOf(Response);
+        expect(response.status).toBe(200);
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
+
+      describe("jobToComplete", () => {
+        describe("NeatQueueConfig.PostSeriesMode = THREAD", () => {
+          it("creates the discord thread and post messages to thread when successful and clears timeline", async () => {
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
+              "1299532381308325949",
+              "1310523001611096064",
+              `Queue #2 series stats`,
+            );
+
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+            expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          });
+
+          it("does nothing when no results message can be found", async () => {
+            const logServiceWarnSpy = vi.spyOn(logService, "warn");
+
+            getTeamsFromQueueSpy.mockClear().mockResolvedValue(null);
+
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(logServiceWarnSpy).toHaveBeenCalledExactlyOnceWith(
+              new EndUserError("Failed to find the results message", { handled: true }),
+              new Map([["reason", "Failed to post series data to thread"]]),
+            );
+            expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
+            expect(discordServiceCreateMessageSpy).not.toHaveBeenCalled();
+          });
+
+          it("it falls back to creating a message in post series channel if it fails to create thead", async () => {
+            const error = new Error("Failed to create thread");
+            const logServiceWarnSpy = vi.spyOn(logService, "warn");
+
+            discordServiceStartThreadFromMessageSpy
+              .mockClear()
+              .mockRejectedValueOnce(error)
+              .mockResolvedValueOnce({
+                ...startThread,
+                id: "thread-id-2",
+              });
+
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(logServiceWarnSpy).toHaveBeenCalledExactlyOnceWith(
+              error,
+              new Map([["reason", "Failed to post series data to thread"]]),
+            );
+
+            expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledTimes(2);
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+            expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+              [
+                "results-channel-1",
+                {
+                  "embeds": [
+                    {
+                      "color": 3447003,
+                      "description": "-# Start time: <t:1732617393:f> | End time: <t:1732618052:f>",
+                      "fields": [
+                        {
+                          "inline": true,
+                          "name": "Game",
+                          "value": "[CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+              [CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+                        },
+                        {
+                          "inline": true,
+                          "name": "Duration",
+                          "value": "10m 58s
+              10m 58s",
+                        },
+                        {
+                          "inline": true,
+                          "name": "Score (🦅:🐍)",
+                          "value": "3:0
+              3:0",
+                        },
+                      ],
+                      "title": "Series stats for queue #2",
+                      "url": "https://discord.com/channels/guild-id/1299532381308325949/1310523001611096064",
+                    },
+                  ],
+                },
+              ]
+            `);
+            expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(2, "thread-id-2", expect.any(Object));
+            expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(3, "thread-id-2", expect.any(Object));
+          });
+        });
+
+        describe('NeatQueueConfig.PostSeriesMode = MESSAGE"', () => {
+          beforeEach(() => {
+            neatQueueConfig.PostSeriesMode = NeatQueuePostSeriesDisplayMode.MESSAGE;
+          });
+
+          it("creates separate message, threads from that message, and clears timeline", async () => {
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
+              "results-channel-1",
+              "1314562775950954626",
+              `Queue #2 series stats`,
+            );
+
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+            expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          });
+
+          it("provides an end user embed error when no results message can be found", async () => {
+            const logServiceErrorSpy = vi.spyOn(logService, "error");
+
+            getTeamsFromQueueSpy.mockClear().mockResolvedValue(null);
+
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(logServiceErrorSpy).toHaveBeenCalledExactlyOnceWith(
+              new EndUserError("Failed to find the results message", {
+                data: {
+                  Channel: "<#results-channel-1>",
+                  Completed: "<t:1735689600:f>",
+                  Queue: "2",
+                },
+              }),
+              new Map([["reason", "Failed to post series data direct to channel"]]),
+            );
+            expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
+            expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+              [
+                "results-channel-1",
+                {
+                  "embeds": [
+                    {
+                      "color": 16711680,
+                      "description": "Failed to find the results message",
+                      "fields": [
+                        {
+                          "name": "Additional Information",
+                          "value": "**Channel**: <#results-channel-1>
+              **Queue**: 2
+              **Completed**: <t:1735689600:f>",
+                        },
+                      ],
+                      "title": "Something went wrong",
+                    },
+                  ],
+                },
+              ]
+            `);
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          });
+        });
+
+        describe('NeatQueueConfig.PostSeriesMode = CHANNEL"', () => {
+          beforeEach(() => {
+            neatQueueConfig.PostSeriesMode = NeatQueuePostSeriesDisplayMode.CHANNEL;
+            neatQueueConfig.PostSeriesChannelId = "other-channel-id";
+          });
+
+          it("creates separate message, threads from that message, and clears timeline", async () => {
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
+              "other-channel-id",
+              "1314562775950954626",
+              `Queue #2 series stats`,
+            );
+
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+            expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          });
+
+          it("provides an end user embed error when no results message can be found", async () => {
+            const logServiceErrorSpy = vi.spyOn(logService, "error");
+
+            getTeamsFromQueueSpy.mockClear().mockResolvedValue(null);
+
+            const { jobToComplete } = neatQueueService.handleRequest(
+              neatqueueFakes.matchCompletedData,
+              neatQueueConfig,
+            );
+
+            await jobToComplete?.();
+
+            expect(logServiceErrorSpy).toHaveBeenCalledExactlyOnceWith(
+              new EndUserError("Failed to find the results message", {
+                data: {
+                  Channel: "<#results-channel-1>",
+                  Completed: "<t:1735689600:f>",
+                  Queue: "2",
+                },
+              }),
+              new Map([["reason", "Failed to post series data direct to channel"]]),
+            );
+            expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
+            expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+              [
+                "other-channel-id",
+                {
+                  "embeds": [
+                    {
+                      "color": 16711680,
+                      "description": "Failed to find the results message",
+                      "fields": [
+                        {
+                          "name": "Additional Information",
+                          "value": "**Channel**: <#results-channel-1>
+              **Queue**: 2
+              **Completed**: <t:1735689600:f>",
+                        },
+                      ],
+                      "title": "Something went wrong",
+                    },
+                  ],
+                },
+              ]
+            `);
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          });
+        });
+      });
+    });
+
+    it("returns OK response for unknown action", () => {
+      const unknownRequest = {
+        ...neatqueueFakes.joinQueueData,
+        action: "UNKNOWN_ACTION",
+      } as unknown as NeatQueueRequest;
+      const { response, jobToComplete } = neatQueueService.handleRequest(unknownRequest, neatQueueConfig);
+
+      expect(response).toBeInstanceOf(Response);
+      expect(jobToComplete).toBeUndefined();
     });
   });
 });

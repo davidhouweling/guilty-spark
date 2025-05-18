@@ -496,7 +496,7 @@ export class NeatQueueService {
         request.match_number,
       );
       if (resultsMessage == null) {
-        throw new EndUserError("Failed to get results message");
+        throw new EndUserError("Failed to find the results message");
       }
 
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({

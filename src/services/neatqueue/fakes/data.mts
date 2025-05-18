@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type {
   NeatQueueJoinQueueRequest,
   NeatQueueLeaveQueueRequest,
+  NeatQueueMatchCancelledRequest,
   NeatQueueMatchCompletedRequest,
   NeatQueueMatchStartedRequest,
   NeatQueueSubstitutionRequest,
@@ -24,3 +25,4 @@ export const matchStartedData = await readFakeData<NeatQueueMatchStartedRequest>
 export const teamsCreatedData = await readFakeData<NeatQueueTeamsCreatedRequest>("teams-created.json");
 export const substitutionData = await readFakeData<NeatQueueSubstitutionRequest>("substitution.json");
 export const matchCompletedData = await readFakeData<NeatQueueMatchCompletedRequest>("match-completed.json");
+export const matchCancelledData = await readFakeData<NeatQueueMatchCancelledRequest>("match-cancelled.json");
