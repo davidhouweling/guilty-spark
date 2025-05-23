@@ -253,9 +253,13 @@ describe("Halo service", () => {
     it.each([
       { teamId: 0, teamName: "Eagle" },
       { teamId: 1, teamName: "Cobra" },
-      { teamId: 2, teamName: "Green" },
-      { teamId: 3, teamName: "Orange" },
-      { teamId: 4, teamName: "Unknown" },
+      { teamId: 2, teamName: "Hades" },
+      { teamId: 3, teamName: "Valkyrie" },
+      { teamId: 4, teamName: "Rampart" },
+      { teamId: 5, teamName: "Cutlass" },
+      { teamId: 6, teamName: "Valor" },
+      { teamId: 7, teamName: "Hazard" },
+      { teamId: 8, teamName: "Unknown" },
     ])("returns the team name for team $teamId", ({ teamId, teamName }) => {
       const result = haloService.getTeamName(teamId);
 
