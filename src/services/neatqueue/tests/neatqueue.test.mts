@@ -2,6 +2,7 @@ import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { APIChannel } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
+import { sub, subHours } from "date-fns";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import {
@@ -185,29 +186,28 @@ describe("NeatQueueService", () => {
       let appDataGetSpy: MockInstance;
       let appDataDeleteSpy: MockInstance;
       let getTeamsFromQueueSpy: MockInstance<typeof discordService.getTeamsFromQueue>;
+      let haloServiceGetSeriesFromDiscordQueueSpy: MockInstance<typeof haloService.getSeriesFromDiscordQueue>;
+      let haloServiceUpdateDiscordAssociationsSpy: MockInstance<typeof haloService.updateDiscordAssociations>;
       let discordServiceStartThreadFromMessageSpy: MockInstance;
       let discordServiceCreateMessageSpy: MockInstance;
 
       beforeEach(() => {
-        const timeline = [
+        appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
+        appDataGetSpy.mockResolvedValue([
           {
-            timestamp: new Date().toISOString(),
+            timestamp: sub(new Date(), { minutes: 10 }).toISOString(),
             event: neatqueueFakes.teamsCreatedData,
           },
-          {
-            timestamp: new Date().toISOString(),
-            event: neatqueueFakes.matchCompletedData,
-          },
-        ];
-        appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
-        appDataGetSpy.mockResolvedValueOnce(timeline);
+        ]);
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
 
-        const [realMatchStats] = Array.from(matchStats.values());
-        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
-          Preconditions.checkExists(realMatchStats),
-        ]);
-        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        const [match1, match2] = Array.from(matchStats.values());
+        haloServiceGetSeriesFromDiscordQueueSpy = vi
+          .spyOn(haloService, "getSeriesFromDiscordQueue")
+          .mockResolvedValue([Preconditions.checkExists(match1), Preconditions.checkExists(match2)]);
+        haloServiceUpdateDiscordAssociationsSpy = vi
+          .spyOn(haloService, "updateDiscordAssociations")
+          .mockResolvedValue();
 
         getTeamsFromQueueSpy = vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(discordNeatQueueData);
         discordServiceStartThreadFromMessageSpy = vi
@@ -256,6 +256,42 @@ describe("NeatQueueService", () => {
         expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
       });
 
+      it("discard neatqueue events that are not of concern", async () => {
+        const matchCompletedTimes = new Date();
+        const eventTimeline = [
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 5 }).toISOString(),
+            event: neatqueueFakes.joinQueueData,
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 4 }).toISOString(),
+            event: neatqueueFakes.leaveQueueData,
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            event: neatqueueFakes.matchStartedData,
+          },
+          {
+            timestamp: subHours(matchCompletedTimes, 1).toISOString(),
+            event: neatqueueFakes.teamsCreatedData,
+          },
+          {
+            timestamp: matchCompletedTimes.toISOString(),
+            event: neatqueueFakes.matchCompletedData,
+          },
+        ];
+        appDataGetSpy.mockClear().mockResolvedValue(eventTimeline);
+
+        const { response, jobToComplete } = neatQueueService.handleRequest(
+          neatqueueFakes.matchCompletedData,
+          neatQueueConfig,
+        );
+        expect(response).toBeInstanceOf(Response);
+        expect(response.status).toBe(200);
+
+        await expect(jobToComplete?.()).resolves.toBeUndefined();
+      });
+
       describe.each([
         {
           mode: NeatQueuePostSeriesDisplayMode.THREAD,
@@ -281,6 +317,31 @@ describe("NeatQueueService", () => {
           if (mode === NeatQueuePostSeriesDisplayMode.CHANNEL) {
             neatQueueConfig.PostSeriesChannelId = channelId;
           }
+        });
+
+        it("calls haloService.getSeriesFromDiscordQueue with expected parameters", async () => {
+          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          await jobToComplete?.();
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
+            endDateTime: new Date("2025-01-01T00:00:00.000Z"),
+            startDateTime: new Date("2024-12-31T23:50:00.000Z"),
+            teams: [
+              [
+                {
+                  globalName: "soundmanD",
+                  id: "000000000000000001",
+                  username: "soundmanD",
+                },
+              ],
+              [
+                {
+                  globalName: "discord_user_02",
+                  id: "000000000000000002",
+                  username: "discord_user_02",
+                },
+              ],
+            ],
+          });
         });
 
         it("creates the thread/message and posts overviews, clears timeline", async () => {
@@ -319,6 +380,12 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+        });
+
+        it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
+          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          await jobToComplete?.();
+          expect(haloServiceUpdateDiscordAssociationsSpy).toHaveBeenCalled();
         });
 
         it("handles missing results message", async () => {

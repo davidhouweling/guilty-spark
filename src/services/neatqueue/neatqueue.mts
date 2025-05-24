@@ -334,8 +334,9 @@ export class NeatQueueService {
           seriesData.push(...series);
           break;
         }
-        default:
+        default: {
           this.logService.warn("Unknown event action", new Map([["action", action]]));
+        }
       }
     }
 
