@@ -2,7 +2,7 @@ import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { APIChannel } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
-import { sub, subHours } from "date-fns";
+import { sub } from "date-fns";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import {
@@ -19,7 +19,7 @@ import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
-import * as neatqueueFakes from "../fakes/data.mjs";
+import { getFakeNeatQueueData } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest } from "../types.mjs";
 import { matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -142,9 +142,9 @@ describe("NeatQueueService", () => {
     });
 
     describe.each([
-      ["JOIN_QUEUE", neatqueueFakes.joinQueueData],
-      ["LEAVE_QUEUE", neatqueueFakes.leaveQueueData],
-      ["MATCH_CANCELLED", neatqueueFakes.matchCancelledData],
+      ["JOIN_QUEUE", getFakeNeatQueueData("joinQueue")],
+      ["LEAVE_QUEUE", getFakeNeatQueueData("leaveQueue")],
+      ["MATCH_CANCELLED", getFakeNeatQueueData("matchCancelled")],
     ] as const)("acknowledges: %s", (_action, request) => {
       it("returns OK response and no jobToComplete", () => {
         const { response, jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
@@ -156,9 +156,9 @@ describe("NeatQueueService", () => {
     });
 
     describe.each([
-      ["MATCH_STARTED", neatqueueFakes.matchStartedData],
-      ["TEAMS_CREATED", neatqueueFakes.teamsCreatedData],
-      ["SUBSTITUTION", neatqueueFakes.substitutionData],
+      ["MATCH_STARTED", getFakeNeatQueueData("matchStarted")],
+      ["TEAMS_CREATED", getFakeNeatQueueData("teamsCreated")],
+      ["SUBSTITUTION", getFakeNeatQueueData("substitution")],
     ])("timeline-extending actions: %s", (_action, request) => {
       it("returns OK response and jobToComplete that extends timeline", async () => {
         const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
@@ -188,15 +188,15 @@ describe("NeatQueueService", () => {
       let getTeamsFromQueueSpy: MockInstance<typeof discordService.getTeamsFromQueue>;
       let haloServiceGetSeriesFromDiscordQueueSpy: MockInstance<typeof haloService.getSeriesFromDiscordQueue>;
       let haloServiceUpdateDiscordAssociationsSpy: MockInstance<typeof haloService.updateDiscordAssociations>;
-      let discordServiceStartThreadFromMessageSpy: MockInstance;
-      let discordServiceCreateMessageSpy: MockInstance;
+      let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
+      let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
         appDataGetSpy.mockResolvedValue([
           {
             timestamp: sub(new Date(), { minutes: 10 }).toISOString(),
-            event: neatqueueFakes.teamsCreatedData,
+            event: getFakeNeatQueueData("teamsCreated"),
           },
         ]);
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
@@ -229,12 +229,19 @@ describe("NeatQueueService", () => {
             discriminator: "0002",
             avatar: "avatar2",
           },
+          {
+            id: "000000000000000003",
+            username: "discord_user_03",
+            global_name: "discord_user_03",
+            discriminator: "0003",
+            avatar: "avatar3",
+          },
         ]);
       });
 
       it("returns OK response and jobToComplete", () => {
         const { response, jobToComplete } = neatQueueService.handleRequest(
-          neatqueueFakes.matchCompletedData,
+          getFakeNeatQueueData("matchCompleted"),
           neatQueueConfig,
         );
         expect(response).toBeInstanceOf(Response);
@@ -244,7 +251,7 @@ describe("NeatQueueService", () => {
 
       it("handles no winning team event", async () => {
         const noWinningTeamData: NeatQueueMatchCompletedRequest = {
-          ...neatqueueFakes.matchCompletedData,
+          ...getFakeNeatQueueData("matchCompleted"),
           winning_team_index: -1,
         };
         const { response, jobToComplete } = neatQueueService.handleRequest(noWinningTeamData, neatQueueConfig);
@@ -261,35 +268,86 @@ describe("NeatQueueService", () => {
         const eventTimeline = [
           {
             timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 5 }).toISOString(),
-            event: neatqueueFakes.joinQueueData,
+            event: getFakeNeatQueueData("joinQueue"),
           },
           {
             timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 4 }).toISOString(),
-            event: neatqueueFakes.leaveQueueData,
+            event: getFakeNeatQueueData("leaveQueue"),
           },
           {
             timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
-            event: neatqueueFakes.matchStartedData,
+            event: getFakeNeatQueueData("matchStarted"),
           },
           {
-            timestamp: subHours(matchCompletedTimes, 1).toISOString(),
-            event: neatqueueFakes.teamsCreatedData,
-          },
-          {
-            timestamp: matchCompletedTimes.toISOString(),
-            event: neatqueueFakes.matchCompletedData,
+            timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+            event: getFakeNeatQueueData("teamsCreated"),
           },
         ];
-        appDataGetSpy.mockClear().mockResolvedValue(eventTimeline);
+        appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
 
         const { response, jobToComplete } = neatQueueService.handleRequest(
-          neatqueueFakes.matchCompletedData,
+          getFakeNeatQueueData("matchCompleted"),
           neatQueueConfig,
         );
         expect(response).toBeInstanceOf(Response);
         expect(response.status).toBe(200);
 
         await expect(jobToComplete?.()).resolves.toBeUndefined();
+      });
+
+      it("discards substitution event if it was before teams created", async () => {
+        const matchCompletedTimes = new Date();
+        const eventTimeline = [
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 5 }).toISOString(),
+            event: getFakeNeatQueueData("joinQueue"),
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 4 }).toISOString(),
+            event: getFakeNeatQueueData("leaveQueue"),
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            event: getFakeNeatQueueData("substitution"),
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            event: getFakeNeatQueueData("matchStarted"),
+          },
+          {
+            timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+            event: getFakeNeatQueueData("teamsCreated"),
+          },
+        ];
+        appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
+        const { response, jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        expect(response).toBeInstanceOf(Response);
+        expect(response.status).toBe(200);
+        await expect(jobToComplete?.()).resolves.toBeUndefined();
+
+        expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
+          endDateTime: new Date("2025-01-01T00:00:00.000Z"),
+          startDateTime: new Date("2024-12-31T23:00:00.000Z"),
+          teams: [
+            [
+              {
+                globalName: "soundmanD",
+                id: "000000000000000001",
+                username: "soundmanD",
+              },
+            ],
+            [
+              {
+                globalName: "discord_user_02",
+                id: "000000000000000002",
+                username: "discord_user_02",
+              },
+            ],
+          ],
+        });
       });
 
       describe.each([
@@ -320,8 +378,12 @@ describe("NeatQueueService", () => {
         });
 
         it("calls haloService.getSeriesFromDiscordQueue with expected parameters", async () => {
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
           await jobToComplete?.();
+
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
             endDateTime: new Date("2025-01-01T00:00:00.000Z"),
             startDateTime: new Date("2024-12-31T23:50:00.000Z"),
@@ -345,7 +407,10 @@ describe("NeatQueueService", () => {
         });
 
         it("creates the thread/message and posts overviews, clears timeline", async () => {
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
 
           await jobToComplete?.();
 
@@ -367,7 +432,10 @@ describe("NeatQueueService", () => {
             }),
           );
 
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
 
           await jobToComplete?.();
 
@@ -383,7 +451,10 @@ describe("NeatQueueService", () => {
         });
 
         it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
           await jobToComplete?.();
           expect(haloServiceUpdateDiscordAssociationsSpy).toHaveBeenCalled();
         });
@@ -394,9 +465,12 @@ describe("NeatQueueService", () => {
               ? vi.spyOn(logService, "warn")
               : vi.spyOn(logService, "error");
 
-          getTeamsFromQueueSpy.mockClear().mockResolvedValue(null);
+          getTeamsFromQueueSpy.mockReset().mockResolvedValue(null);
 
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
 
           await jobToComplete?.();
 
@@ -426,10 +500,13 @@ describe("NeatQueueService", () => {
         });
 
         it("handles corrupted timeline data by leveraging broader 6h approach", async () => {
-          appDataGetSpy.mockClear().mockRejectedValueOnce(new Error("Corrupted timeline data"));
+          appDataGetSpy.mockReset().mockRejectedValue(new Error("Corrupted timeline data"));
           const logServiceInfoSpy = vi.spyOn(logService, "info");
 
-          const { jobToComplete } = neatQueueService.handleRequest(neatqueueFakes.matchCompletedData, neatQueueConfig);
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
 
           await jobToComplete?.();
 
@@ -444,10 +521,10 @@ describe("NeatQueueService", () => {
 
         it("handles failure to clear timeline data (high level error handling)", async () => {
           const noWinningTeamData: NeatQueueMatchCompletedRequest = {
-            ...neatqueueFakes.matchCompletedData,
+            ...getFakeNeatQueueData("matchCompleted"),
             winning_team_index: -1,
           };
-          appDataDeleteSpy.mockClear().mockRejectedValueOnce(new Error("Failed to delete timeline data"));
+          appDataDeleteSpy.mockReset().mockRejectedValueOnce(new Error("Failed to delete timeline data"));
 
           const { jobToComplete } = neatQueueService.handleRequest(noWinningTeamData, neatQueueConfig);
 
@@ -465,13 +542,95 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
         });
 
+        it("handles substitution event by merging match data and displaying all players data", async () => {
+          const matchCompletedTimes = new Date();
+          const eventTimeline = [
+            {
+              timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 15 }).toISOString(),
+              event: getFakeNeatQueueData("teamsCreated"),
+            },
+            {
+              timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+              event: getFakeNeatQueueData("substitution"),
+            },
+          ];
+          appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
+
+          haloServiceGetSeriesFromDiscordQueueSpy.mockReset();
+          haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
+            if (queueData.startDateTime.getTime() === new Date("2024-12-31T22:45:00.000Z").getTime()) {
+              return Promise.resolve([
+                Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+              ]);
+            }
+            return Promise.resolve([Preconditions.checkExists(matchStats.get("cf0fb794-2df1-4ba1-9415-00000oddball"))]);
+          });
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+          await jobToComplete?.();
+
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledTimes(2);
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(1, {
+            startDateTime: new Date("2024-12-31T22:45:00.000Z"),
+            endDateTime: new Date("2024-12-31T23:00:00.000Z"),
+            teams: [
+              [
+                {
+                  globalName: "soundmanD",
+                  id: "000000000000000001",
+                  username: "soundmanD",
+                },
+              ],
+              [
+                {
+                  globalName: "discord_user_02",
+                  id: "000000000000000002",
+                  username: "discord_user_02",
+                },
+              ],
+            ],
+          });
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(2, {
+            endDateTime: new Date("2025-01-01T00:00:00.000Z"),
+            startDateTime: new Date("2024-12-31T23:00:00.000Z"),
+            teams: [
+              [
+                {
+                  globalName: "discord_user_03",
+                  id: "000000000000000003",
+                  username: "discord_user_03",
+                },
+              ],
+              [
+                {
+                  globalName: "discord_user_02",
+                  id: "000000000000000002",
+                  username: "discord_user_02",
+                },
+              ],
+            ],
+          });
+
+          expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
+            channelId,
+            messageId,
+            `Queue #2 series stats`,
+          );
+
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+          expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+        });
+
         if (mode === NeatQueuePostSeriesDisplayMode.THREAD) {
           it("falls back to creating a message in post series channel if it fails to create thread", async () => {
             const error = new Error("Failed to create thread");
             const logServiceWarnSpy = vi.spyOn(logService, "warn");
 
             discordServiceStartThreadFromMessageSpy
-              .mockClear()
+              .mockReset()
               .mockRejectedValueOnce(error)
               .mockResolvedValueOnce({
                 ...startThread,
@@ -479,7 +638,7 @@ describe("NeatQueueService", () => {
               });
 
             const { jobToComplete } = neatQueueService.handleRequest(
-              neatqueueFakes.matchCompletedData,
+              getFakeNeatQueueData("matchCompleted"),
               neatQueueConfig,
             );
 
@@ -502,7 +661,7 @@ describe("NeatQueueService", () => {
 
     it("returns OK response for unknown action", () => {
       const unknownRequest = {
-        ...neatqueueFakes.joinQueueData,
+        ...getFakeNeatQueueData("joinQueue"),
         action: "UNKNOWN_ACTION",
       } as unknown as NeatQueueRequest;
       const { response, jobToComplete } = neatQueueService.handleRequest(unknownRequest, neatQueueConfig);

@@ -286,12 +286,13 @@ export class NeatQueueService {
             this.logService.debug("Substitution event before teams created, skipping");
             break;
           }
+          endDateTime = new Date(timestamp);
 
           try {
             const series = await this.getSeriesData(
               Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
               startDateTime,
-              Preconditions.checkExists(endDateTime, "expected endDateTime"),
+              endDateTime,
             );
 
             seriesData.push(...series);

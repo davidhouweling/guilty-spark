@@ -1,10 +1,11 @@
-const fakeNamespace = {
-  getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
-  get: async () => Promise.resolve(null),
-  put: async () => Promise.resolve(),
-  list: async () => Promise.resolve({ list_complete: true, keys: [], cacheStatus: null }),
-  delete: async () => Promise.resolve(),
-} as unknown as KVNamespace;
+const fakeNamespace = (): KVNamespace =>
+  ({
+    getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
+    get: async () => Promise.resolve(null),
+    put: async () => Promise.resolve(),
+    list: async () => Promise.resolve({ list_complete: true, keys: [], cacheStatus: null }),
+    delete: async () => Promise.resolve(),
+  }) as unknown as KVNamespace;
 
 export const fakeD1Response: D1Response = {
   success: true,
@@ -40,7 +41,7 @@ export class FakePreparedStatement /* extends D1PreparedStatement */ {
   }
 }
 
-const fakeDb: D1Database = {
+const fakeDb = (): D1Database => ({
   prepare: () => new FakePreparedStatement(),
   batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
   exec: async () => Promise.resolve({ count: 1, duration: 1 }),
@@ -50,7 +51,7 @@ const fakeDb: D1Database = {
     batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
     getBookmark: () => null,
   }),
-};
+});
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const defaultOpts: Env = {
@@ -61,8 +62,8 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     DISCORD_TOKEN: "DISCORD_TOKEN",
     XBOX_USERNAME: "XBOX_USERNAME",
     XBOX_PASSWORD: "XBOX_PASSWORD",
-    APP_DATA: fakeNamespace,
-    DB: fakeDb,
+    APP_DATA: fakeNamespace(),
+    DB: fakeDb(),
   };
 
   return {
