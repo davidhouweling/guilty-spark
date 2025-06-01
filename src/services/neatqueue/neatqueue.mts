@@ -286,12 +286,13 @@ export class NeatQueueService {
             this.logService.debug("Substitution event before teams created, skipping");
             break;
           }
+          endDateTime = new Date(timestamp);
 
           try {
             const series = await this.getSeriesData(
               Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
               startDateTime,
-              Preconditions.checkExists(endDateTime, "expected endDateTime"),
+              endDateTime,
             );
 
             seriesData.push(...series);
@@ -334,8 +335,9 @@ export class NeatQueueService {
           seriesData.push(...series);
           break;
         }
-        default:
+        default: {
           this.logService.warn("Unknown event action", new Map([["action", action]]));
+        }
       }
     }
 
@@ -575,31 +577,33 @@ export class NeatQueueService {
       guildConfig,
       locale: this.locale,
     });
-    const seriesPlayersEmbedOutput = await seriesPlayersEmbed.getSeriesEmbed(seriesData, seriesPlayers, this.locale);
-    await discordService.createMessage(channelId, {
-      embeds: [seriesPlayersEmbedOutput],
-      components:
-        guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY
-          ? [
-              {
-                type: ComponentType.ActionRow,
-                components: [
-                  {
-                    type: ComponentType.Button,
-                    custom_id: StatsInteractionButton.LoadGames.toString(),
-                    label: "Load game stats",
-                    style: 1,
-                    emoji: {
-                      name: "🎮",
-                    },
-                  },
-                ],
-              },
-            ]
-          : [],
-    });
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(seriesData, seriesPlayers, this.locale);
+    for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
+      await discordService.createMessage(channelId, {
+        embeds: [seriesPlayersEmbedOutput],
+      });
+    }
 
-    if (guildConfig.StatsReturn === StatsReturnType.SERIES_AND_GAMES) {
+    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
+      await discordService.createMessage(channelId, {
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: StatsInteractionButton.LoadGames.toString(),
+                label: "Load game stats",
+                style: 1,
+                emoji: {
+                  name: "🎮",
+                },
+              },
+            ],
+          },
+        ],
+      });
+    } else {
       for (const match of seriesData) {
         const players = await haloService.getPlayerXuidsToGametags(match);
         const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);

@@ -150,19 +150,10 @@ export class HaloService {
     return scoreString;
   }
 
-  getTeamName(teamId: number): "Unknown" | "Eagle" | "Cobra" | "Green" | "Orange" {
-    switch (teamId) {
-      case 0:
-        return "Eagle";
-      case 1:
-        return "Cobra";
-      case 2:
-        return "Green";
-      case 3:
-        return "Orange";
-      default:
-        return "Unknown";
-    }
+  getTeamName(teamId: number): string {
+    const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
+
+    return teams[teamId] ?? "Unknown";
   }
 
   getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {

@@ -340,7 +340,7 @@ describe("StatsCommand", () => {
           await jobToComplete?.();
 
           expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-          expect(createMessageSpy).toHaveBeenCalledTimes(5);
+          expect(createMessageSpy).toHaveBeenCalledTimes(6);
           expect(createMessageSpy.mock.calls).toMatchSnapshot();
         });
 
@@ -354,7 +354,7 @@ describe("StatsCommand", () => {
           await jobToComplete?.();
 
           expect(getGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id");
-          expect(createMessageSpy).toHaveBeenCalledTimes(2);
+          expect(createMessageSpy).toHaveBeenCalledTimes(4);
         });
       });
 
@@ -379,9 +379,11 @@ describe("StatsCommand", () => {
         it("calls createMessage with the thread channel id", async () => {
           await jobToComplete?.();
 
-          expect(createMessageSpy).toHaveBeenCalledTimes(2);
+          expect(createMessageSpy).toHaveBeenCalledTimes(4);
           expect(createMessageSpy).toHaveBeenNthCalledWith(1, "thread-channel-id", expect.anything());
           expect(createMessageSpy).toHaveBeenNthCalledWith(2, "thread-channel-id", expect.anything());
+          expect(createMessageSpy).toHaveBeenNthCalledWith(3, "thread-channel-id", expect.anything());
+          expect(createMessageSpy).toHaveBeenNthCalledWith(4, "thread-channel-id", expect.anything());
         });
       });
 

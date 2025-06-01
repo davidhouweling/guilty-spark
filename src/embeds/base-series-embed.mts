@@ -41,11 +41,10 @@ export abstract class BaseSeriesEmbed extends BaseMatchEmbed<GameVariantCategory
           ...mergedCoreStats,
           [castKey]: Array.from(existingStatMap.values()),
         };
-      } else if (castKey === "AverageLifeDuration") {
+      } else if (castKey === "AverageLifeDuration" && typeof value === "string") {
         const averageLifeDuration = mergedCoreStats[castKey];
         mergedCoreStats = {
           ...mergedCoreStats,
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           [castKey]: [averageLifeDuration, value].join(","),
         };
       } else if (typeof value === "number" && typeof mergedCoreStats[castKey] === "number") {

@@ -260,32 +260,34 @@ export class StatsCommand extends BaseCommand {
       });
 
       const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
-      const seriesPlayers = await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(series[0]));
-      const seriesPlayersEmbedOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
-      await discordService.createMessage(thread.id, {
-        embeds: [seriesPlayersEmbedOutput],
-        components:
-          guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY
-            ? [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      custom_id: InteractionButton.LoadGames.toString(),
-                      label: "Load game stats",
-                      style: 1,
-                      emoji: {
-                        name: "🎮",
-                      },
-                    },
-                  ],
-                },
-              ]
-            : [],
-      });
+      const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
+      const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
+      for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
+        await discordService.createMessage(thread.id, {
+          embeds: [seriesPlayersEmbedOutput],
+        });
+      }
 
-      if (guildConfig.StatsReturn === StatsReturnType.SERIES_AND_GAMES) {
+      if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
+        await discordService.createMessage(thread.id, {
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  custom_id: InteractionButton.LoadGames.toString(),
+                  label: "Load game stats",
+                  style: 1,
+                  emoji: {
+                    name: "🎮",
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      } else {
         for (const match of series) {
           const players = await haloService.getPlayerXuidsToGametags(match);
           const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
