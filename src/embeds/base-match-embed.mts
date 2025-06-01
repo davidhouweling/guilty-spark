@@ -53,19 +53,17 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       ["KDA", { value: CoreStats.KDA, sortBy: StatsValueSortBy.DESC }],
       ["Headshot kills", { value: CoreStats.HeadshotKills, sortBy: StatsValueSortBy.DESC }],
       [
-        "Shots H:F",
+        "Shots H:F (acc)",
         [
           { value: CoreStats.ShotsHit, sortBy: StatsValueSortBy.DESC },
           { value: CoreStats.ShotsFired, sortBy: StatsValueSortBy.DESC },
+          {
+            value: CoreStats.Accuracy,
+            sortBy: StatsValueSortBy.DESC,
+            display: `(${this.formatStatValue(CoreStats.Accuracy)}%)`,
+            prefix: " ",
+          },
         ],
-      ],
-      [
-        "Accuracy",
-        {
-          value: CoreStats.Accuracy,
-          sortBy: StatsValueSortBy.DESC,
-          display: `${this.formatStatValue(CoreStats.Accuracy)}%`,
-        },
       ],
       [
         "Damage D:T (D/T)",
@@ -80,26 +78,26 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
                   ? Number.POSITIVE_INFINITY
                   : CoreStats.DamageDealt / CoreStats.DamageTaken,
             sortBy: StatsValueSortBy.DESC,
-            display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
+            display: `(${this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken)})`,
             prefix: " ",
           },
         ],
       ],
       [
-        "Av life duration",
-        {
-          value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
-          sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
-        },
-      ],
-      [
-        "Av damage/life",
-        {
-          value: CoreStats.DamageDealt / CoreStats.Deaths,
-          sortBy: StatsValueSortBy.DESC,
-          display: this.formatStatValue(CoreStats.DamageDealt / CoreStats.Deaths),
-        },
+        "Average life duration (damage/life)",
+        [
+          {
+            value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
+            sortBy: StatsValueSortBy.DESC,
+            display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
+          },
+          {
+            value: CoreStats.DamageDealt / CoreStats.Deaths,
+            sortBy: StatsValueSortBy.DESC,
+            display: `(${this.formatStatValue(CoreStats.DamageDealt / CoreStats.Deaths)})`,
+            prefix: " ",
+          },
+        ],
       ],
     ]);
   }
@@ -138,7 +136,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         inline: false,
       });
 
-      const teamPlayers = this.getTeamPlayers(match, team);
+      const teamPlayers = this.getTeamPlayers([match], team);
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       let playerFields = [];
@@ -191,25 +189,38 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return embed;
   }
 
-  protected getTeamPlayers(match: MatchStats, team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    return match.Players.filter(
-      (player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null,
-    ).sort((a, b) => {
-      const rankCalc = a.Rank - b.Rank;
-      if (rankCalc !== 0) {
-        return rankCalc;
+  protected getTeamPlayers(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
+    const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
+    for (const match of matches) {
+      for (const player of match.Players) {
+        if (!uniquePlayersMap.has(player.PlayerId)) {
+          uniquePlayersMap.set(player.PlayerId, player);
+        }
       }
+    }
 
-      const aStats = Preconditions.checkExists(a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
-      const bStats = Preconditions.checkExists(b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId));
+    return Array.from(uniquePlayersMap.values())
+      .filter((player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null)
+      .sort((a, b) => {
+        const rankCalc = a.Rank - b.Rank;
+        if (rankCalc !== 0) {
+          return rankCalc;
+        }
 
-      const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
-      if (scoreCalc !== 0) {
-        return scoreCalc;
-      }
+        const aStats = Preconditions.checkExists(
+          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+        );
+        const bStats = Preconditions.checkExists(
+          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
+        );
 
-      return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
-    });
+        const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
+        if (scoreCalc !== 0) {
+          return scoreCalc;
+        }
+
+        return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
+      });
   }
 
   protected playerStatsToFields(
@@ -289,14 +300,14 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
   private formatDamageRatio(damageDealt: number, damageTaken: number): string {
     if (damageDealt === 0) {
-      return "(0)";
+      return "0";
     }
 
     if (damageTaken === 0) {
-      return "(♾️)";
+      return "♾️";
     }
 
-    return `(${this.formatStatValue(damageDealt / damageTaken)})`;
+    return this.formatStatValue(damageDealt / damageTaken);
   }
 
   protected getBestTeamStatValues(

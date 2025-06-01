@@ -420,7 +420,7 @@ describe("NeatQueueService", () => {
             `Queue #2 series stats`,
           );
 
-          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
         });
@@ -445,7 +445,7 @@ describe("NeatQueueService", () => {
             `Queue #2 series stats`,
           );
 
-          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(6);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
         });
@@ -516,7 +516,7 @@ describe("NeatQueueService", () => {
             messageId,
             `Queue #2 series stats`,
           );
-          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
         });
 
         it("handles failure to clear timeline data (high level error handling)", async () => {
@@ -620,7 +620,7 @@ describe("NeatQueueService", () => {
             `Queue #2 series stats`,
           );
 
-          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
         });
 
@@ -650,7 +650,7 @@ describe("NeatQueueService", () => {
             );
 
             expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledTimes(2);
-            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(3);
+            expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
             expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(2, "thread-id-2", expect.any(Object));
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(3, "thread-id-2", expect.any(Object));

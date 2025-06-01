@@ -5,13 +5,9 @@ import type { EmbedPlayerStats, PlayerTeamStats } from "./base-match-embed.mjs";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 
 export class SeriesPlayersEmbed extends BaseSeriesEmbed {
-  async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>, locale: string): Promise<APIEmbed> {
+  async getSeriesEmbed(matches: MatchStats[], players: Map<string, string>, locale: string): Promise<APIEmbed[]> {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
-    const embed: APIEmbed = {
-      title: "Accumulated Series Stats by Players",
-      description: "-# Legend: **Best in team** | __**Best overall**__",
-      fields: [],
-    };
+    const embeds: APIEmbed[] = [];
 
     const playersCoreStats = this.aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
@@ -22,18 +18,18 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const seriesBestValues = this.getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
-      const teamPlayers = this.getTeamPlayers(firstMatch, team).sort(
+      const embed: APIEmbed = {
+        title: `Accumulated Series Stats by Players for ${this.haloService.getTeamName(team.TeamId)}`,
+        description: "-# Legend: **Best in team** | __**Best overall**__",
+        fields: [],
+      };
+
+      const teamPlayers = this.getTeamPlayers(matches, team).sort(
         (a, b) =>
           Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
           Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
       );
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
-
-      embed.fields?.push({
-        name: this.haloService.getTeamName(team.TeamId),
-        value: "",
-        inline: false,
-      });
 
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
@@ -52,10 +48,10 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
         let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
-        if (output.length > 675) {
+        if (output.length > 950) {
           // truncate text back to the last whitespace
 
-          const lastWhitespaceIndex = output.lastIndexOf(" ", 672); // Reserve 3 characters for "..."
+          const lastWhitespaceIndex = output.lastIndexOf(" ", 950 - 3); // Reserve 3 characters for "..."
           output = output.substring(0, lastWhitespaceIndex) + "...";
         }
 
@@ -80,9 +76,11 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
           });
         }
       }
+
+      embeds.push(embed);
     }
 
-    return embed;
+    return embeds;
   }
 
   private aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
