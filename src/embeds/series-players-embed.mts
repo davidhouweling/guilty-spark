@@ -9,6 +9,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embeds: APIEmbed[] = [];
 
+    const playerMatches = this.getPlayerMatches(matches);
     const playersCoreStats = this.aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
     for (const [playerId, stats] of playersCoreStats) {
@@ -56,9 +57,14 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         }
 
         const personalScore = playerCoreStats.PersonalScore.toLocaleString(locale);
+        const playedGames = playerMatches.get(teamPlayer.PlayerId)?.length ?? 0;
+        const games =
+          playedGames < matches.length
+            ? `, ${playedGames.toLocaleString(locale)}/${matches.length.toLocaleString(locale)} games)`
+            : "";
 
         playerFields.push({
-          name: `${playerGamertag} (Acc Score: ${personalScore})`,
+          name: `${playerGamertag} (Acc Score: ${personalScore}${games})`,
           value: output,
           inline: true,
         });
@@ -81,6 +87,19 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     }
 
     return embeds;
+  }
+
+  getPlayerMatches(matches: MatchStats[]): Map<string, MatchStats[]> {
+    const playerMatches = new Map<string, MatchStats[]>();
+    for (const match of matches) {
+      for (const player of match.Players) {
+        const pm = playerMatches.get(player.PlayerId) ?? [];
+        pm.push(match);
+        playerMatches.set(player.PlayerId, pm);
+      }
+    }
+
+    return playerMatches;
   }
 
   private aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
