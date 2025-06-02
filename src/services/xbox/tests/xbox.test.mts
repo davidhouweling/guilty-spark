@@ -1,9 +1,8 @@
 import { afterEach } from "node:test";
 import type { Mock } from "vitest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { CredentialsAuthenticateResponse } from "@xboxreplay/xboxlive-auth";
+import type { authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import type { XboxLiveAuthAuthenticate } from "../xbox.mjs";
 import { TokenInfoKey, XboxService } from "../xbox.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
@@ -11,26 +10,29 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 const validKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2025-01-01T03:00:00.000Z"]]`;
 const expiredKvToken = `[[${TokenInfoKey.XSTSToken.toString()},"token"],[${TokenInfoKey.expiresOn.toString()},"2024-12-31T23:59:00.000Z"]]`;
 const invalidKvToken = "invalid";
-const validAuthenticateResponse: CredentialsAuthenticateResponse = {
+const validAuthenticateResponse: Awaited<ReturnType<typeof xboxliveAuthenticate>> = {
   xsts_token: "xsts_token",
   expires_on: "2025-01-01T06:00:00.000Z",
   xuid: "xuid",
   user_hash: "user_hash",
-  display_claims: {},
+  display_claims: {
+    xui: [],
+  },
 };
 
 describe("Xbox Service", () => {
   let env: Env;
   let logService: LogService;
   let xboxService: XboxService;
-  let authenticate: Mock<XboxLiveAuthAuthenticate>;
+  let authenticate: Mock<typeof xboxliveAuthenticate>;
 
   beforeEach(() => {
     const fakeEnv = aFakeEnvWith();
     env = fakeEnv;
     logService = aFakeLogServiceWith();
     authenticate = vi.fn();
-    xboxService = new XboxService({ env, logService, authenticate });
+    const castAuthenticate = authenticate as unknown as typeof xboxliveAuthenticate;
+    xboxService = new XboxService({ env, logService, authenticate: castAuthenticate });
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));

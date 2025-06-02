@@ -1,8 +1,4 @@
-import type {
-  AuthenticateOptions,
-  CredentialsAuthenticateInitialResponse,
-  CredentialsAuthenticateResponse,
-} from "@xboxreplay/xboxlive-auth";
+import type { authenticate } from "@xboxreplay/xboxlive-auth";
 import type { LogService } from "../log/types.mjs";
 
 export enum TokenInfoKey {
@@ -13,19 +9,13 @@ export enum TokenInfoKey {
 export interface XboxServiceOpts {
   env: Env;
   logService: LogService;
-  authenticate: XboxLiveAuthAuthenticate;
+  authenticate: typeof authenticate;
 }
-
-export type XboxLiveAuthAuthenticate = (
-  email: string,
-  password: string,
-  options?: AuthenticateOptions,
-) => Promise<CredentialsAuthenticateResponse>;
 
 export class XboxService {
   private readonly env: Env;
   private readonly logService: LogService;
-  private readonly authenticate: XboxLiveAuthAuthenticate;
+  private readonly authenticate: typeof authenticate;
   private tokenInfoMap = new Map<TokenInfoKey, string>();
   private static readonly TOKEN_NAME = "xboxToken";
 
@@ -67,9 +57,13 @@ export class XboxService {
   }
 
   private async updateCredentials(): Promise<void> {
-    const credentialsResponse = (await this.authenticate(this.env.XBOX_USERNAME, this.env.XBOX_PASSWORD, {
-      XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
-    })) as CredentialsAuthenticateInitialResponse;
+    const credentialsResponse = await this.authenticate(
+      this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
+      this.env.XBOX_PASSWORD,
+      {
+        XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+      },
+    );
 
     this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
     this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
