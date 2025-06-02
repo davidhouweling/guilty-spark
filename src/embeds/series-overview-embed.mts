@@ -49,42 +49,36 @@ export class SeriesOverviewEmbed {
   }): Promise<APIEmbed> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
+    const subs = [...substitutions].sort((a, b) => a.date.getTime() - b.date.getTime());
+
     for (const seriesMatch of series) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = this.haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
       const gameScore = this.haloService.getMatchScore(seriesMatch, locale);
+
+      while (subs[0]) {
+        const [substitution] = subs;
+        const substitutionTime = substitution.date.getTime();
+        const matchStartTime = new Date(seriesMatch.MatchInfo.StartTime).getTime();
+        // If the first substitution happened before the match started, we can add it to the table
+        if (substitutionTime < matchStartTime) {
+          tableData.push([
+            `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
+            "",
+            "",
+          ]);
+          subs.shift();
+        } else {
+          // If the first substitution happened after the match started, we can stop checking
+          break;
+        }
+      }
 
       tableData.push([
         `[${gameTypeAndMap}](https://halodatahive.com/Infinite/Match/${seriesMatch.MatchId})`,
         gameDuration,
         gameScore,
       ]);
-    }
-
-    for (const substitution of substitutions) {
-      const substitutionTime = substitution.date.getTime();
-
-      for (let i = 0; i < series.length; i++) {
-        const match = Preconditions.checkExists(series[i]);
-        const matchStartTime = new Date(match.MatchInfo.StartTime).getTime();
-
-        const nextMatch = series[i + 1];
-        const nextMatchStartTime = nextMatch ? new Date(nextMatch.MatchInfo.StartTime).getTime() : Infinity;
-
-        // If the substitution happened before the first match, discard it
-        if (substitutionTime < matchStartTime && i === 0) {
-          break;
-        }
-
-        if (substitutionTime >= matchStartTime && substitutionTime < nextMatchStartTime) {
-          tableData.splice(i + 1, 0, [
-            `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
-            "",
-            "",
-          ]);
-          break;
-        }
-      }
     }
 
     const teamsDescription = finalTeams

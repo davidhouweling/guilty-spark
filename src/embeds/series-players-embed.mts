@@ -60,7 +60,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playedGames = playerMatches.get(teamPlayer.PlayerId)?.length ?? 0;
         const games =
           playedGames < matches.length
-            ? `, ${playedGames.toLocaleString(locale)}/${matches.length.toLocaleString(locale)} games)`
+            ? `, ${playedGames.toLocaleString(locale)}/${matches.length.toLocaleString(locale)} games`
             : "";
 
         playerFields.push({
