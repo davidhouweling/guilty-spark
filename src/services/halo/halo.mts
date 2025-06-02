@@ -475,44 +475,63 @@ export class HaloService {
 
   private getMatchVariant(matchInfo: MatchInfo): string {
     switch (matchInfo.GameVariantCategory) {
-      case GameVariantCategory.MultiplayerAttrition:
+      case GameVariantCategory.MultiplayerAttrition: {
         return "Attrition";
-      case GameVariantCategory.MultiplayerCtf:
+      }
+      case GameVariantCategory.MultiplayerCtf: {
         return "CTF";
-      case GameVariantCategory.MultiplayerElimination:
+      }
+      case GameVariantCategory.MultiplayerElimination: {
         return "Elimination";
-      case GameVariantCategory.MultiplayerEscalation:
+      }
+      case GameVariantCategory.MultiplayerEscalation: {
         return "Escalation";
-      case GameVariantCategory.MultiplayerExtraction:
+      }
+      case GameVariantCategory.MultiplayerExtraction: {
         return "Extraction";
-      case GameVariantCategory.MultiplayerFiesta:
+      }
+      case GameVariantCategory.MultiplayerFiesta: {
         return "Fiesta";
-      case GameVariantCategory.MultiplayerFirefight:
+      }
+      case GameVariantCategory.MultiplayerFirefight: {
         return "Firefight";
-      case GameVariantCategory.MultiplayerGrifball:
+      }
+      case GameVariantCategory.MultiplayerGrifball: {
         return "Grifball";
-      case GameVariantCategory.MultiplayerInfection:
+      }
+      case GameVariantCategory.MultiplayerInfection: {
         return "Infection";
-      case GameVariantCategory.MultiplayerKingOfTheHill:
+      }
+      case GameVariantCategory.MultiplayerKingOfTheHill: {
         return "KOTH";
-      case GameVariantCategory.MultiplayerLandGrab:
+      }
+      case GameVariantCategory.MultiplayerLandGrab: {
         return "Land Grab";
-      case GameVariantCategory.MultiplayerMinigame:
+      }
+      case GameVariantCategory.MultiplayerMinigame: {
         return "Minigame";
-      case GameVariantCategory.MultiplayerOddball:
+      }
+      case GameVariantCategory.MultiplayerOddball: {
         return "Oddball";
-      case GameVariantCategory.MultiplayerSlayer:
+      }
+      case GameVariantCategory.MultiplayerSlayer: {
         return "Slayer";
-      case GameVariantCategory.MultiplayerStockpile:
+      }
+      case GameVariantCategory.MultiplayerStockpile: {
         return "Stockpile";
-      case GameVariantCategory.MultiplayerStrongholds:
+      }
+      case GameVariantCategory.MultiplayerStrongholds: {
         return "Strongholds";
-      case GameVariantCategory.MultiplayerTotalControl:
+      }
+      case GameVariantCategory.MultiplayerTotalControl: {
         return "Total Control";
-      case GameVariantCategory.MultiplayerVIP:
+      }
+      case GameVariantCategory.MultiplayerVIP: {
         return "VIP";
-      default:
+      }
+      default: {
         return "Unknown";
+      }
     }
   }
 }

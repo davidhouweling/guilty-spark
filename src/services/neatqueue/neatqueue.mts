@@ -1,7 +1,6 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
-import type { MatchStats } from "halo-infinite-api";
-import { GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import type { RESTPostAPIChannelThreadsResult, APIEmbed } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
@@ -19,27 +18,9 @@ import type { GuildConfigRow } from "../database/types/guild_config.mjs";
 import { StatsReturnType } from "../database/types/guild_config.mjs";
 import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats.mjs";
 import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
-import { AttritionMatchEmbed } from "../../embeds/attrition-match-embed.mjs";
-import { CtfMatchEmbed } from "../../embeds/ctf-match-embed.mjs";
-import { EliminationMatchEmbed } from "../../embeds/elimination-match-embed.mjs";
-import { EscalationMatchEmbed } from "../../embeds/escalation-match-embed.mjs";
-import { ExtractionMatchEmbed } from "../../embeds/extraction-match-embed.mjs";
-import { FiestaMatchEmbed } from "../../embeds/fiesta-match-embed.mjs";
-import { FirefightMatchEmbed } from "../../embeds/firefight-match-embed.mjs";
-import { GrifballMatchEmbed } from "../../embeds/grifball-match-embed.mjs";
-import { InfectionMatchEmbed } from "../../embeds/infection-match-embed.mjs";
-import { KOTHMatchEmbed } from "../../embeds/koth-match-embed.mjs";
-import { LandGrabMatchEmbed } from "../../embeds/land-grab-match-embed.mjs";
-import { MinigameMatchEmbed } from "../../embeds/minigame-match-embed.mjs";
-import { OddballMatchEmbed } from "../../embeds/oddball-match-embed.mjs";
-import { SlayerMatchEmbed } from "../../embeds/slayer-match-embed.mjs";
-import { StockpileMatchEmbed } from "../../embeds/stockpile-match-embed.mjs";
-import { StrongholdsMatchEmbed } from "../../embeds/strongholds-match-embed.mjs";
-import { TotalControlMatchEmbed } from "../../embeds/total-control-match-embed.mjs";
-import { UnknownMatchEmbed } from "../../embeds/unknown-match-embed.mjs";
-import { VIPMatchEmbed } from "../../embeds/vip-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
+import { create } from "../../embeds/create.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -666,53 +647,13 @@ export class NeatQueueService {
     match: MatchStats,
     locale: string,
   ): BaseMatchEmbed<GameVariantCategory> {
-    const opts = {
+    return create({
       discordService: this.discordService,
       haloService: this.haloService,
       guildConfig,
+      gameVariantCategory: match.MatchInfo.GameVariantCategory,
       locale,
-    };
-
-    switch (match.MatchInfo.GameVariantCategory) {
-      case GameVariantCategory.MultiplayerAttrition:
-        return new AttritionMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerCtf:
-        return new CtfMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerElimination:
-        return new EliminationMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerEscalation:
-        return new EscalationMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerExtraction:
-        return new ExtractionMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerFiesta:
-        return new FiestaMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerFirefight:
-        return new FirefightMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerGrifball:
-        return new GrifballMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerInfection:
-        return new InfectionMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerKingOfTheHill:
-        return new KOTHMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerLandGrab:
-        return new LandGrabMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerMinigame:
-        return new MinigameMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerOddball:
-        return new OddballMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerSlayer:
-        return new SlayerMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerStockpile:
-        return new StockpileMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerStrongholds:
-        return new StrongholdsMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerTotalControl:
-        return new TotalControlMatchEmbed(opts);
-      case GameVariantCategory.MultiplayerVIP:
-        return new VIPMatchEmbed(opts);
-      default:
-        return new UnknownMatchEmbed(opts);
-    }
+    });
   }
 
   private getEndUserErrorEmbed(
