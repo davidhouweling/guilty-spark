@@ -60,16 +60,17 @@ export class SeriesOverviewEmbed {
         const [substitution] = subs;
         const substitutionTime = substitution.date.getTime();
         const matchStartTime = new Date(seriesMatch.MatchInfo.StartTime).getTime();
-        // If the first substitution happened before the match started, we can add it to the table
+
         if (substitutionTime < matchStartTime) {
-          tableData.push([
-            `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
-            "",
-            "",
-          ]);
+          if (tableData.length > 0) {
+            tableData.push([
+              `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
+              "",
+              "",
+            ]);
+          }
           subs.shift();
         } else {
-          // If the first substitution happened after the match started, we can stop checking
           break;
         }
       }

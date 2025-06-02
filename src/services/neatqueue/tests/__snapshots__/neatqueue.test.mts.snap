@@ -963,7 +963,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
               "inline": true,
               "name": "Game",
               "value": "[Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
-*<@000000000000000003> subbed in for <@000000000000000001> (Team 1)*
+*<@000000000000000003> subbed in for <@000000000000000001> (Team 2)*
 [CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
@@ -2230,7 +2230,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
               "inline": true,
               "name": "Game",
               "value": "[Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
-*<@000000000000000003> subbed in for <@000000000000000001> (Team 1)*
+*<@000000000000000003> subbed in for <@000000000000000001> (Team 2)*
 [CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
@@ -3510,7 +3510,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
               "inline": true,
               "name": "Game",
               "value": "[Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
-*<@000000000000000003> subbed in for <@000000000000000001> (Team 1)*
+*<@000000000000000003> subbed in for <@000000000000000001> (Team 2)*
 [CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
