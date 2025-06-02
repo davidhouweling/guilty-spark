@@ -35,7 +35,8 @@ const startThread: APIChannel = {
 };
 
 describe("NeatQueueService", () => {
-  const now = new Date("2025-01-01T00:00:00.000000+00:00").getTime();
+  // align this with time just after ctf.json match completed
+  const now = new Date("2024-11-26T10:48:00.000Z").getTime();
   let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
@@ -194,7 +195,7 @@ describe("NeatQueueService", () => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
         appDataGetSpy.mockResolvedValue([
           {
-            timestamp: sub(new Date(), { minutes: 10 }).toISOString(),
+            timestamp: sub(new Date(), { minutes: 15 }).toISOString(),
             event: getFakeNeatQueueData("teamsCreated"),
           },
         ]);
@@ -266,19 +267,19 @@ describe("NeatQueueService", () => {
         const matchCompletedTimes = new Date();
         const eventTimeline = [
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 5 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 20 }).toISOString(),
             event: getFakeNeatQueueData("joinQueue"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 4 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 19 }).toISOString(),
             event: getFakeNeatQueueData("leaveQueue"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 18 }).toISOString(),
             event: getFakeNeatQueueData("matchStarted"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 15 }).toISOString(),
             event: getFakeNeatQueueData("teamsCreated"),
           },
         ];
@@ -298,23 +299,23 @@ describe("NeatQueueService", () => {
         const matchCompletedTimes = new Date();
         const eventTimeline = [
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 5 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 19 }).toISOString(),
             event: getFakeNeatQueueData("joinQueue"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 4 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 18 }).toISOString(),
             event: getFakeNeatQueueData("leaveQueue"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 17 }).toISOString(),
             event: getFakeNeatQueueData("substitution"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 3 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 16 }).toISOString(),
             event: getFakeNeatQueueData("matchStarted"),
           },
           {
-            timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+            timestamp: sub(matchCompletedTimes, { minutes: 15 }).toISOString(),
             event: getFakeNeatQueueData("teamsCreated"),
           },
         ];
@@ -328,8 +329,8 @@ describe("NeatQueueService", () => {
         await expect(jobToComplete?.()).resolves.toBeUndefined();
 
         expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
-          endDateTime: new Date("2025-01-01T00:00:00.000Z"),
-          startDateTime: new Date("2024-12-31T23:00:00.000Z"),
+          startDateTime: new Date("2024-11-26T10:33:00.000Z"),
+          endDateTime: new Date("2024-11-26T10:48:00.000Z"),
           teams: [
             [
               {
@@ -384,8 +385,8 @@ describe("NeatQueueService", () => {
           await jobToComplete?.();
 
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
-            endDateTime: new Date("2025-01-01T00:00:00.000Z"),
-            startDateTime: new Date("2024-12-31T23:50:00.000Z"),
+            startDateTime: new Date("2024-11-26T10:33:00.000Z"),
+            endDateTime: new Date("2024-11-26T10:48:00.000Z"),
             teams: [
               [
                 {
@@ -485,7 +486,7 @@ describe("NeatQueueService", () => {
               new EndUserError("Failed to find the results message", {
                 data: {
                   Channel: `<#results-channel-1>`,
-                  Completed: "<t:1735689600:f>",
+                  Completed: "<t:1732618080:f>",
                   Queue: "2",
                 },
               }),
@@ -549,7 +550,7 @@ describe("NeatQueueService", () => {
               event: getFakeNeatQueueData("teamsCreated"),
             },
             {
-              timestamp: sub(matchCompletedTimes, { hours: 1 }).toISOString(),
+              timestamp: sub(matchCompletedTimes, { minutes: 45 }).toISOString(),
               event: getFakeNeatQueueData("substitution"),
             },
           ];
@@ -557,7 +558,7 @@ describe("NeatQueueService", () => {
 
           haloServiceGetSeriesFromDiscordQueueSpy.mockReset();
           haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
-            if (queueData.startDateTime.getTime() === new Date("2024-12-31T22:45:00.000Z").getTime()) {
+            if (queueData.startDateTime.getTime() === new Date("2024-11-26T10:03:00.000Z").getTime()) {
               return Promise.resolve([
                 Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
               ]);
@@ -573,8 +574,8 @@ describe("NeatQueueService", () => {
 
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledTimes(2);
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(1, {
-            startDateTime: new Date("2024-12-31T22:45:00.000Z"),
-            endDateTime: new Date("2024-12-31T23:00:00.000Z"),
+            startDateTime: new Date("2024-11-26T09:33:00.000Z"),
+            endDateTime: new Date("2024-11-26T10:03:00.000Z"),
             teams: [
               [
                 {
@@ -593,8 +594,8 @@ describe("NeatQueueService", () => {
             ],
           });
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(2, {
-            endDateTime: new Date("2025-01-01T00:00:00.000Z"),
-            startDateTime: new Date("2024-12-31T23:00:00.000Z"),
+            startDateTime: new Date("2024-11-26T10:03:00.000Z"),
+            endDateTime: new Date("2024-11-26T10:48:00.000Z"),
             teams: [
               [
                 {

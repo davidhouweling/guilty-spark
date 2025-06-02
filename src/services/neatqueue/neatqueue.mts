@@ -692,7 +692,7 @@ export class NeatQueueService {
         Substitutions: substitutionEvents
           .map(({ event, timestamp }) => {
             const { player_subbed_out, player_subbed_in } = event as NeatQueueSubstitutionRequest;
-            return `@${player_subbed_in.id} subbed in for @${player_subbed_out.id} on ${discordService.getTimestamp(timestamp)}`;
+            return `<@${player_subbed_in.id}> subbed in for <@${player_subbed_out.id}> on ${discordService.getTimestamp(timestamp)}`;
           })
           .join(", "),
       });
