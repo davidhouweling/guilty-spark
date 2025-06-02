@@ -373,7 +373,6 @@ export const threadChannel: APIThreadChannel = {
   parent_id: "parent-id",
   rate_limit_per_user: 0,
   applied_tags: [],
-  position: 0,
   owner_id: "thread-owner-id",
   thread_metadata: {
     archived: false,
@@ -666,5 +665,4 @@ export const channelThreadsResult: RESTPostAPIChannelMessagesThreadsResult = {
   name: "fake-thread-name",
   type: ChannelType.PublicThread,
   applied_tags: [],
-  position: 0,
 };
