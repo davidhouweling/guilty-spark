@@ -32,7 +32,6 @@ const startThread: APIChannel = {
   id: "thread-id",
   name: "Match Completed",
   applied_tags: [],
-  position: 0,
 };
 
 describe("NeatQueueService", () => {
