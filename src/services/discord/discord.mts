@@ -405,6 +405,15 @@ export class DiscordService {
     });
   }
 
+  async deleteMessage(channelId: string, messageId: string, reason: string): Promise<void> {
+    await this.fetch(Routes.channelMessage(channelId, messageId), {
+      method: "DELETE",
+      headers: {
+        "X-Audit-Log-Reason": reason,
+      },
+    });
+  }
+
   async getUsers(discordIds: string[]): Promise<APIUser[]> {
     // doing it sequentially to better handle rate limit
     const users: APIUser[] = [];
