@@ -610,6 +610,10 @@ export class NeatQueueService {
   }): Promise<APIEmbed> {
     const { discordService, haloService } = this;
     const seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
+    const finalTeams = request.teams.map((team, teamIndex) => ({
+      name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+      playerIds: team.map((player) => player.id),
+    }));
     const substitutions = timeline
       .filter((event) => event.event.action === "SUBSTITUTION")
       .map((event) => {
@@ -618,7 +622,11 @@ export class NeatQueueService {
           date: new Date(event.timestamp),
           playerOut: player_subbed_out.id,
           playerIn: player_subbed_in.id,
-          team: player_subbed_out.team_name ?? `Team ${player_subbed_out.team_num.toLocaleString()}`,
+          team:
+            player_subbed_out.team_name ??
+            // even though this says team_num, it is actually 0 based (index rather than number)
+            finalTeams[player_subbed_out.team_num]?.name ??
+            `Team ${player_subbed_out.team_num.toLocaleString()}`,
         };
       });
 
