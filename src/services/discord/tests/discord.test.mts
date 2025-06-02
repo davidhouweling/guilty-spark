@@ -94,6 +94,9 @@ describe("DiscordService", () => {
       if (path === `${prefix}/channels/fake-channel/messages/fake-message/threads`) {
         return Promise.resolve(new Response(JSON.stringify(apiMessage)));
       }
+      if (path === `${prefix}/channels/fake-channel/messages/fake-message-delete`) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
 
       console.log("no path defined:", path);
       return Promise.reject(new Error("Invalid path"));
@@ -633,6 +636,35 @@ describe("DiscordService", () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
       ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+    });
+  });
+
+  describe("deleteMessage", () => {
+    it("deletes a message", async () => {
+      await expect(
+        discordService.deleteMessage("fake-channel", "fake-message-delete", "Test reason"),
+      ).resolves.toBeUndefined();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel/messages/fake-message-delete",
+        {
+          body: null,
+          headers: new Headers({
+            Authorization: "Bot DISCORD_TOKEN",
+            "content-type": "application/json;charset=UTF-8",
+            "X-Audit-Log-Reason": "Test reason",
+          }),
+          method: "DELETE",
+        },
+      );
+    });
+
+    it("throws an error if the message cannot be deleted", async () => {
+      mockFetch.mockResolvedValue(new Response("some error", { status: 400, statusText: "Bad request" }));
+
+      await expect(discordService.deleteMessage("fake-channel", "fake-message-delete", "Test reason")).rejects.toThrow(
+        new Error(`Failed to fetch data from Discord API: 400 Bad request`),
+      );
     });
   });
 

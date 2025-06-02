@@ -334,6 +334,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async loadGamesJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { env } = this;
     const { databaseService, discordService, haloService } = this.services;
 
     try {
@@ -344,7 +345,19 @@ export class StatsCommand extends BaseCommand {
         throw new Error('Unexpected channel type, expected "PublicThread"');
       }
 
-      const parentMessage = await discordService.getMessage(Preconditions.checkExists(channel.parent_id), channel.id);
+      const parentId = Preconditions.checkExists(channel.parent_id, '"Missing parent id');
+      const loadGamesTried = await env.APP_DATA.get(`loadGames.${parentId}`);
+      if (loadGamesTried != null) {
+        return;
+      }
+
+      const [parentMessage] = await Promise.all([
+        discordService.getMessage(parentId, channel.id),
+        env.APP_DATA.put(`loadGames.${parentId}`, "true", {
+          expirationTtl: 60,
+        }),
+      ]);
+
       let statsOverviewEmbed: APIEmbed | undefined;
 
       if (parentMessage.author.id === this.env.DISCORD_APP_ID) {
@@ -396,10 +409,11 @@ export class StatsCommand extends BaseCommand {
       }
 
       // remove the buttons now that all the games are loaded
-      await this.services.discordService.updateDeferredReply(interaction.token, {
-        content: "",
-        components: [],
-      });
+      await this.services.discordService.deleteMessage(
+        channel.id,
+        interaction.message.id,
+        "Removing load games buttons",
+      );
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
