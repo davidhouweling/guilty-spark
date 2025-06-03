@@ -6,6 +6,8 @@
 
 A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
 
+https://github.com/user-attachments/assets/recording-20250603-discord.mp4
+
 ## ✨ Features
 
 - **🎮 Halo Infinite Stats Integration**: Pull match statistics directly from Halo Waypoint
@@ -166,15 +168,6 @@ Configure automated stats posting for NeatQueue-managed series:
 ## 🤝 NeatQueue Integration
 
 Guilty Spark provides deep integration with NeatQueue for match/series management:
-
-### Webhook Events
-
-The bot responds to various NeatQueue webhook events:
-
-- **MATCH_COMPLETED**: Automatically posts match statistics
-- **TEAMS_CREATED**: Updates with team information
-- **SUBSTITUTION**: Handles player substitutions
-- **TIMELINE**: Processes tournament timeline events
 
 ### Configuration Requirements
 
