@@ -624,8 +624,7 @@ export class NeatQueueService {
           playerIn: player_subbed_in.id,
           team:
             player_subbed_out.team_name ??
-            // even though this says team_num, it is actually 0 based (index rather than number)
-            finalTeams[player_subbed_out.team_num]?.name ??
+            finalTeams[player_subbed_out.team_num - 1]?.name ??
             `Team ${player_subbed_out.team_num.toLocaleString()}`,
         };
       });

@@ -62,7 +62,7 @@ export class SeriesOverviewEmbed {
         const matchStartTime = new Date(seriesMatch.MatchInfo.StartTime).getTime();
 
         if (substitutionTime < matchStartTime) {
-          if (tableData.length > 0) {
+          if (tableData.length > 1) {
             tableData.push([
               `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,
               "",
