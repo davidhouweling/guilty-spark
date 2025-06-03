@@ -6,7 +6,10 @@
 
 A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
 
-https://github.com/user-attachments/assets/recording-20250603-discord.mp4
+<video width="600" controls>
+  <source src="/docs/recording-20250603-discord.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ## ✨ Features
 
