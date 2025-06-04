@@ -455,6 +455,7 @@ describe("DiscordService", () => {
 
       expect(result).toEqual<QueueData>({
         message: queueMessage,
+        queue: 7,
         timestamp: new Date("2024-12-06T11:05:39.576Z"),
         teams: [
           {

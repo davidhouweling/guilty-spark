@@ -589,6 +589,7 @@ export const discordNeatQueueData: QueueData = {
     mention_everyone: false,
     tts: false,
   },
+  queue: 777,
   timestamp: new Date("2024-11-26T11:30:00.000Z"),
   teams: [
     {

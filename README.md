@@ -38,12 +38,15 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 The stats command supports multiple modes for retrieving Halo match data:
 
-#### `/stats neatqueue <channel> <queue_number>`
+#### `/stats neatqueue [channel] [queue_number]`
 
-Retrieves statistics for a completed NeatQueue series:
+Retrieves statistics for a completed NeatQueue series. Both channel and queue number parameters are optional:
 
 ```
-/stats neatqueue #results 777
+/stats neatqueue                 # Uses current channel and most recent queue
+/stats neatqueue #results        # Uses specified channel and most recent queue
+/stats neatqueue 777             # Uses current channel and specified queue number
+/stats neatqueue #results 777    # Uses specified channel and queue number
 ```
 
 **Process Flow:**

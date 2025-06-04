@@ -52,15 +52,13 @@ export class StatsCommand extends BaseCommand {
           options: [
             {
               name: "channel",
-              description: "The channel which has the NeatQueue result message",
-              required: true,
+              description: "The channel the NeatQueue result message is in (if not this channel)",
               type: ApplicationCommandOptionType.Channel,
             },
             {
               type: ApplicationCommandOptionType.Integer,
               name: "queue",
-              description: "The Queue number for the series",
-              required: true,
+              description: "The Queue number for the series (defaults to last queue result)",
             },
           ],
         },
@@ -104,9 +102,6 @@ export class StatsCommand extends BaseCommand {
         case InteractionType.ApplicationCommand: {
           const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
-          if (subcommand.mappedOptions == null || subcommand.mappedOptions.size === 0) {
-            throw new Error("Missing subcommand options");
-          }
           switch (subcommand.name) {
             case "neatqueue": {
               return this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
@@ -157,8 +152,8 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const channel = Preconditions.checkExists(options.get("channel") as string, "Missing channel");
-    const queue = Preconditions.checkExists(options.get("queue") as number, "Missing queue");
+    const channel = (options.get("channel") as string | undefined) ?? interaction.channel.id;
+    const queue = options.get("queue") as number | undefined;
 
     return {
       response: {
@@ -171,7 +166,7 @@ export class StatsCommand extends BaseCommand {
   private async neatQueueSubCommandJob(
     interaction: APIApplicationCommandInteraction,
     channel: string,
-    queue: number,
+    queue: number | undefined,
   ): Promise<void> {
     const { databaseService, discordService, haloService } = this.services;
     const locale = interaction.guild_locale ?? interaction.locale;
@@ -183,7 +178,7 @@ export class StatsCommand extends BaseCommand {
       ]);
       if (!queueData) {
         throw new EndUserError(
-          `No queue found within the last 100 messages of <#${channel}>, with queue number ${queue.toString()}`,
+          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}`,
           {
             errorType: EndUserErrorType.WARNING,
             handled: true,
@@ -208,7 +203,6 @@ export class StatsCommand extends BaseCommand {
         guildId: Preconditions.checkExists(interaction.guild_id, "No guild id"),
         channel,
         locale,
-        queue,
         queueData,
         series,
       });
@@ -226,7 +220,7 @@ export class StatsCommand extends BaseCommand {
         : await discordService.startThreadFromMessage(
             message.channel_id,
             message.id,
-            `Queue #${queue.toString()} series stats`,
+            `Queue #${queueData.queue.toString()} series stats`,
           );
 
       const seriesTeamsEmbed = new SeriesTeamsEmbed({
@@ -423,14 +417,12 @@ export class StatsCommand extends BaseCommand {
     guildId,
     channel,
     locale,
-    queue,
     queueData,
     series,
   }: {
     guildId: string;
     channel: string;
     locale: string;
-    queue: number;
     queueData: QueueData;
     series: MatchStats[];
   }): Promise<APIEmbed> {
@@ -441,7 +433,7 @@ export class StatsCommand extends BaseCommand {
       channel,
       messageId: queueData.message.id,
       locale,
-      queue,
+      queue: queueData.queue,
       series,
       finalTeams: queueData.teams.map((team) => ({
         name: team.name,
