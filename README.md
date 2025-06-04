@@ -6,11 +6,7 @@
 
 A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
 
-## 🎥 Demo
-
-| Stats Command                                                    | NeatQueue Integration                                                            |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| ![Stats Command Demo](docs/recording-20250604-stats-command.gif) | ![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif) |
+![Guilty Spark response on Discord](docs/screenshot20250604-queue-stats-command.png)
 
 ## ✨ Features
 
@@ -50,6 +46,8 @@ Retrieves statistics for a completed NeatQueue series. Both channel and queue nu
 /stats neatqueue 777             # Uses current channel and specified queue number
 /stats neatqueue #results 777    # Uses specified channel and queue number
 ```
+
+![Stats Command Demo](docs/recording-20250604-stats-command.gif)
 
 **Process Flow:**
 
@@ -108,6 +106,8 @@ Comprehensive server setup and configuration system with interactive menus:
 #### NeatQueue Integration Setup
 
 Configure automated stats posting for NeatQueue-managed series:
+
+![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif)
 
 **Configuration Options:**
 
