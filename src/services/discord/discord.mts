@@ -42,6 +42,7 @@ export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
 export interface QueueData {
   message: APIMessage;
+  queue: number;
   timestamp: Date;
   teams: {
     name: string;
@@ -59,7 +60,7 @@ export interface DiscordServiceOpts {
 export interface SubcommandData {
   name: string;
   options: APIApplicationCommandInteractionDataBasicOption[] | undefined;
-  mappedOptions: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]> | undefined;
+  mappedOptions: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>;
 }
 
 type VerifyDiscordResponse =
@@ -234,10 +235,12 @@ export class DiscordService {
     return {
       name: subcommand.name,
       options: options,
-      mappedOptions: options?.reduce((acc, option) => {
-        acc.set(option.name, option.value);
-        return acc;
-      }, new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>()),
+      mappedOptions:
+        options?.reduce((acc, option) => {
+          acc.set(option.name, option.value);
+          return acc;
+        }, new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>()) ??
+        new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
     };
   }
 
@@ -251,18 +254,22 @@ export class DiscordService {
     return data;
   }
 
-  async getTeamsFromQueue(channel: string, queue: number): Promise<QueueData | null> {
+  async getTeamsFromQueue(channel: string, queue: number | undefined): Promise<QueueData | null> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
       method: "GET",
       queryParameters: { limit: 100 },
     });
 
-    const queueMessage = messages
-      .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
-      .find(
-        (message): boolean =>
-          message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")) != null,
-      );
+    const neatQueueMessages = messages.filter(
+      (message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID,
+    );
+    const queueMessage =
+      queue != null
+        ? neatQueueMessages.find(
+            (message): boolean =>
+              message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")) != null,
+          )
+        : neatQueueMessages[0];
     if (!queueMessage) {
       return null;
     }
@@ -276,9 +283,12 @@ export class DiscordService {
       playerIdToUserMap.set(playerId, user);
     }
 
+    const extractedQueueNumber = embed.title != null ? Number(/\b#(\d+)\b/.exec(embed.title)?.[1] ?? 0) : 0;
+
     return {
       message: queueMessage,
       timestamp: new Date(Preconditions.checkExists(embed.timestamp, "No timestamp found")),
+      queue: queue ?? extractedQueueNumber,
       teams: fields.map((field) => ({
         name: field.name,
         players: this.extractUserIds(field.value).map((id) => Preconditions.checkExists(playerIdToUserMap.get(id))),

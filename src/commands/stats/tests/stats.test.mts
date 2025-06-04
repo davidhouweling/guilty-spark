@@ -143,48 +143,6 @@ describe("StatsCommand", () => {
       expect(jobToComplete).toBeInstanceOf(Function);
     });
 
-    it("returns an error state for missing options 'channel'", () => {
-      vi.spyOn(services.discordService, "extractSubcommand")
-        .mockReset()
-        .mockReturnValue({
-          name: "neatqueue",
-          mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([["queue", 5]]),
-          options: [],
-        });
-
-      const { response, jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
-      expect(response).toEqual({
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: {
-          content: "Error: Missing channel",
-          flags: MessageFlags.Ephemeral,
-        },
-      });
-      expect(jobToComplete).toBeUndefined();
-    });
-
-    it("returns an error state for missing options 'queue'", () => {
-      vi.spyOn(services.discordService, "extractSubcommand")
-        .mockReset()
-        .mockReturnValue({
-          name: "neatqueue",
-          mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
-            ["channel", "1234567890"],
-          ]),
-          options: [],
-        });
-
-      const { response, jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
-      expect(response).toEqual({
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: {
-          content: "Error: Missing queue",
-          flags: MessageFlags.Ephemeral,
-        },
-      });
-      expect(jobToComplete).toBeUndefined();
-    });
-
     describe("jobToComplete", () => {
       let jobToComplete: (() => Promise<void>) | undefined;
       let getTeamsFromQueueSpy: MockInstance<typeof services.discordService.getTeamsFromQueue>;
@@ -326,7 +284,7 @@ describe("StatsCommand", () => {
           expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
             "1299532381308325949",
             "1314562775950954626",
-            "Queue #5 series stats",
+            "Queue #777 series stats",
           );
         });
 
@@ -528,7 +486,7 @@ describe("StatsCommand", () => {
         response: {
           type: InteractionResponseType.ChannelMessageWithSource,
           data: {
-            content: "Error: Missing subcommand options",
+            content: "Error: Unknown subcommand",
             flags: MessageFlags.Ephemeral,
           },
         },
