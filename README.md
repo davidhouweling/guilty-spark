@@ -8,7 +8,9 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 ## 🎥 Demo
 
-![Guilty Spark Demo](docs/recording-20250603-discord.gif)
+| Stats Command                                                    | NeatQueue Integration                                                            |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ![Stats Command Demo](docs/recording-20250604-stats-command.gif) | ![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif) |
 
 ## ✨ Features
 
