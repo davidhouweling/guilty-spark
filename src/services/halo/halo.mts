@@ -70,6 +70,9 @@ export class HaloService {
     const usersToSearch = Array.from(this.userCache.values()).filter(
       (user) => user.GamesRetrievable === GamesRetrievable.YES,
     );
+    this.logService.debug(
+      `Found ${usersToSearch.length.toString()} users to search for matches in the series: ${usersToSearch.map((user) => user.DiscordId).join(", ")}`,
+    );
 
     if (!usersToSearch.length) {
       if (differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10) {
@@ -343,11 +346,7 @@ export class HaloService {
       ),
     );
     this.logService.debug(
-      `Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache`,
-    );
-    this.logService.debug(
-      "userCache",
-      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
+      `Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache: ${unresolvedUsersByDiscordUsername.map((user) => user.id).join(", ")}`,
     );
 
     const unresolvedUsersByDiscordGlobalName = users.filter((user) => {
@@ -374,11 +373,7 @@ export class HaloService {
       ),
     );
     this.logService.debug(
-      `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache`,
-    );
-    this.logService.debug(
-      "userCache",
-      new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
+      `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
     );
   }
 
@@ -414,6 +409,10 @@ export class HaloService {
         }
       }
     }
+
+    this.logService.debug(
+      `Found ${userMatches.size.toString()} users with matches in the series: ${JSON.stringify(userMatches.entries().map(([key, value]) => [key, value.map((match) => match.MatchId)]))}`,
+    );
 
     if (!userMatches.size) {
       throw new EndUserError(
