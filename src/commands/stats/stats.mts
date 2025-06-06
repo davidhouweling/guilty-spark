@@ -185,6 +185,7 @@ export class StatsCommand extends BaseCommand {
           },
         );
       }
+      this.services.logService.debug("Found queue data", new Map([["queueData", JSON.stringify(queueData)]]));
 
       const startDateTime = subHours(queueData.timestamp, 6);
       const endDateTime = queueData.timestamp;

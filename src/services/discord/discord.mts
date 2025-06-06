@@ -260,23 +260,32 @@ export class DiscordService {
       queryParameters: { limit: 100 },
     });
 
-    const neatQueueMessages = messages.filter(
-      (message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID,
-    );
-    const queueMessage =
-      queue != null
-        ? neatQueueMessages.find(
-            (message): boolean =>
-              message.embeds.find((embed) => new RegExp(`\\b#${queue.toString()}\\b`).test(embed.title ?? "")) != null,
-          )
-        : neatQueueMessages[0];
+    const queueMessage = messages
+      .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
+      .find(
+        (message): boolean =>
+          message.embeds.find((embed) =>
+            new RegExp(`Winner For Queue#${queue != null ? queue.toString() : ""}`).test(embed.title ?? ""),
+          ) != null,
+      );
     if (!queueMessage) {
+      this.logService.debug(
+        "No queue message found",
+        new Map([
+          ["channel", channel],
+          ["queue", queue ?? ""],
+        ]),
+      );
       return null;
     }
+
+    this.logService.debug("Found queue message", new Map([["queueMessage", JSON.stringify(queueMessage)]]));
 
     const embed = Preconditions.checkExists(queueMessage.embeds[0], "No embed found");
     const fields = Preconditions.checkExists(embed.fields, "No fields found");
     const playerIds = fields.flatMap((field) => this.extractUserIds(field.value));
+    this.logService.debug("Extracted player IDs", new Map([["playerIds", playerIds.map((id) => id).join(", ")]]));
+
     const playerIdToUserMap = new Map<string, APIUser>();
     for (const playerId of playerIds) {
       const user = await this.getUserInfo(playerId);

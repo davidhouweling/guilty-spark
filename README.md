@@ -4,7 +4,7 @@
 [![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D22.11.0-brightgreen)](https://nodejs.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange)](https://workers.cloudflare.com/)
 
-A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
+A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
 
 ![Guilty Spark response on Discord](docs/screenshot20250604-queue-stats-command.png)
 
@@ -22,7 +22,7 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 ### Add to Your Discord Server
 
-[**Invite Guilty Spark**](https://discord.com/oauth2/authorize?client_id=1290269474536034357) to your Discord server with the necessary permissions.
+[**Invite Guilty Spark**](https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands) to your Discord server with the necessary permissions.
 
 ### Basic Setup
 
