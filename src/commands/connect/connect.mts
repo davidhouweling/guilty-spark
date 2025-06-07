@@ -15,6 +15,7 @@ import {
   ComponentType,
   InteractionType,
 } from "discord-api-types/v10";
+import { MatchType } from "halo-infinite-api";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -279,8 +280,18 @@ export class ConnectCommand extends BaseCommand {
 
     embeds.push({
       title: "Connect Discord to Halo",
-      description:
+      description: [
         "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
+        "",
+        "To make sure this all works, open up Halo Infinite and follow these steps:",
+        "1. Open Settings",
+        "2. Navigate to Accessibility tab",
+        "3. Scroll down to Match History Privacy",
+        "4. Set the Matchmade Games option to Share",
+        "5. Set the Non-Matchmade Games option to Share",
+        "",
+        "Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+      ].join("\n"),
       fields: [
         {
           name: "What Guilty Spark knows",
@@ -586,10 +597,10 @@ export class ConnectCommand extends BaseCommand {
     description?: string,
   ): Promise<APIEmbed> {
     const { discordService, haloService } = this.services;
-    const recentHistory = await haloService.getRecentMatchHistory(gamertag);
+    const recentHistory = await haloService.getRecentMatchHistory(gamertag, MatchType.Custom);
 
     return {
-      title: title ?? `Recent matches for "${gamertag}"`,
+      title: title ?? `Recent custom game matches for "${gamertag}"`,
       description: description ?? "",
       fields: recentHistory.length
         ? [
@@ -628,9 +639,9 @@ export class ConnectCommand extends BaseCommand {
           ]
         : [
             {
-              name: "No matches found",
+              name: "No custom game matches found",
               value:
-                "Please ensure that your [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) are set to '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+                "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
             },
           ],
     };
