@@ -594,10 +594,10 @@ describe("DiscordService", () => {
     });
 
     it("throws an error if discord api returns an error", async () => {
-      mockFetch.mockResolvedValue(new Response("some error", { status: 400, statusText: "Bad request" }));
+      mockFetch.mockResolvedValue(new Response("Bad request", { status: 400, statusText: "Bad request" }));
 
       await expect(discordService.createMessage("fake-channel", { content: "fake-content" })).rejects.toThrow(
-        new Error(`Failed to fetch data from Discord API: 400 Bad request`),
+        new Error(`Failed to fetch data from Discord API (HTTP 400): Bad request`),
       );
     });
 
@@ -661,10 +661,10 @@ describe("DiscordService", () => {
     });
 
     it("throws an error if the message cannot be deleted", async () => {
-      mockFetch.mockResolvedValue(new Response("some error", { status: 400, statusText: "Bad request" }));
+      mockFetch.mockResolvedValue(new Response("Bad request", { status: 400, statusText: "Bad request" }));
 
       await expect(discordService.deleteMessage("fake-channel", "fake-message-delete", "Test reason")).rejects.toThrow(
-        new Error(`Failed to fetch data from Discord API: 400 Bad request`),
+        new Error(`Failed to fetch data from Discord API (HTTP 400): Bad request`),
       );
     });
   });
@@ -887,7 +887,7 @@ describe("DiscordService", () => {
           discordService.createMessage("fake-channel", { content: "fake-content" }),
           vi.advanceTimersByTimeAsync(100),
         ]),
-      ).rejects.toThrowError(new Error("Failed to fetch data from Discord API: 429 Too many requests"));
+      ).rejects.toThrowError(new Error("Failed to fetch data from Discord API (HTTP 429): Too many requests"));
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });

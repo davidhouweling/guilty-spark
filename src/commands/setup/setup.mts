@@ -24,6 +24,8 @@ import {
   MessageFlags,
   TextInputStyle,
   ChannelType,
+  RESTJSONErrorCodes,
+  PermissionFlagsBits,
 } from "discord-api-types/v10";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
@@ -33,6 +35,8 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import { escapeRegExp } from "../../base/regex.mjs";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config.mjs";
+import { DiscordError } from "../../services/discord/discord-error.mjs";
+import { EndUserError } from "../../base/end-user-error.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -1216,9 +1220,74 @@ export class SetupCommand extends BaseCommand {
         PostSeriesChannelId: postSeriesChannelId,
       };
 
-      await databaseService.upsertNeatQueueConfig(neatQueueConfig);
+      const guild = await discordService.getGuild(guildId);
+      const appInGuild = await discordService.getGuildMember(guildId, this.env.DISCORD_APP_ID);
+      const channels = [...new Set([queueChannelId, resultsChannelId, postSeriesChannelId].filter((id) => id != null))];
+      const errors = new Map<string, string>();
+      for (const channelId of channels) {
+        try {
+          const channel = await discordService.getChannel(channelId);
 
-      await this.setupSelectNeatQueueIntegrationJob(interaction);
+          if (channel.type !== ChannelType.GuildText) {
+            errors.set(channelId, `Channel <#${channelId}> is not a text channel, select a text channel.`);
+            continue;
+          }
+
+          const permissions = discordService.hasPermissions(guild, channel, appInGuild, [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.SendMessagesInThreads,
+            PermissionFlagsBits.CreatePublicThreads,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.UseApplicationCommands,
+          ]);
+
+          if (!permissions.hasAll) {
+            errors.set(
+              channelId,
+              `Missing permissions: ${permissions.missing.map((permission) => discordService.permissionToString(permission)).join(", ")}`,
+            );
+          }
+        } catch (error) {
+          const genericError =
+            "An unexpected error occurred trying to access this channel (it has been logged and will be investigated), try again later or try a different channel.";
+
+          if (error instanceof DiscordError) {
+            const errorMessages = new Map<RESTJSONErrorCodes, string>([
+              [RESTJSONErrorCodes.UnknownChannel, `Channel does not exist.`],
+              [
+                RESTJSONErrorCodes.MissingAccess,
+                `Missing access to channel. Add me to the channel and grant me permissions "View Channel", "Send Messages", "Send Messages in Threads", "Create Public Threads", "Embed Links", "Read Message History", and "Use Application Commands".`,
+              ],
+            ]);
+
+            errors.set(channelId, errorMessages.get(error.restError.code) ?? genericError);
+          } else {
+            errors.set(channelId, genericError);
+          }
+        }
+      }
+
+      if (errors.size === 0) {
+        await databaseService.upsertNeatQueueConfig(neatQueueConfig);
+        await this.setupSelectNeatQueueIntegrationJob(interaction);
+        return;
+      }
+
+      const error = new EndUserError(
+        Array.from(errors.entries())
+          .map(([channelId, message]) => `- <#${channelId}>: ${message}`)
+          .join("\n"),
+        {
+          title: "Unable to save due to the following errors",
+          handled: true,
+        },
+      );
+      await discordService.updateDeferredReply(interaction.token, {
+        embeds: [Preconditions.checkExists(interaction.message.embeds[0]), error.discordEmbed],
+        components: interaction.message.components,
+      });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }

@@ -5,12 +5,16 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIApplicationCommandSubcommandOption,
   APIChannel,
+  APIGuild,
+  APIGuildChannel,
+  APIGuildMember,
   APIInteraction,
   APIInteractionResponseChannelMessageWithSource,
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
   APIUser,
+  RESTError,
   RESTGetAPIUserResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
@@ -21,12 +25,15 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
+  ChannelType,
   MessageFlags,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
   Routes,
+  PermissionFlagsBits,
+  OverwriteType,
 } from "discord-api-types/v10";
 import type { BaseCommand, BaseInteraction } from "../../commands/base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -37,6 +44,7 @@ import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
+import { DiscordError } from "./discord-error.mjs";
 
 export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
 
@@ -362,10 +370,12 @@ export class DiscordService {
     }
   }
 
+  async getGuild(guildId: string): Promise<APIGuild> {
+    return this.fetch<APIGuild>(Routes.guild(guildId));
+  }
+
   async getChannel(channelId: string): Promise<APIChannel> {
-    return this.fetch<APIChannel>(Routes.channel(channelId), {
-      method: "GET",
-    });
+    return this.fetch<APIChannel>(Routes.channel(channelId));
   }
 
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {
@@ -375,10 +385,12 @@ export class DiscordService {
     });
   }
 
+  async getGuildMember(guildId: string, userId: string): Promise<APIGuildMember> {
+    return this.fetch<APIGuildMember>(Routes.guildMember(guildId, userId));
+  }
+
   async getMessage(channel: string, messageId: string): Promise<APIMessage> {
-    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
-      method: "GET",
-    });
+    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId));
   }
 
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
@@ -442,6 +454,152 @@ export class DiscordService {
     }
 
     return users;
+  }
+
+  hasPermissions(
+    guild: APIGuild,
+    channel: APIChannel,
+    guildMember: APIGuildMember,
+    requiredPermissions: bigint[],
+  ): { hasAll: boolean; missing: bigint[] } {
+    try {
+      if (channel.type !== ChannelType.GuildText) {
+        throw new Error("Channel is not a text channel");
+      }
+
+      const effectivePermissions = this.calculateEffectivePermissions(guild, guildMember, channel);
+
+      const missing: bigint[] = [];
+      for (const flag of requiredPermissions) {
+        const hasPermission = (effectivePermissions & flag) !== 0n;
+        if (!hasPermission) {
+          missing.push(flag);
+        }
+      }
+
+      return { hasAll: missing.length === 0, missing };
+    } catch (error) {
+      this.logService.warn(error as Error);
+      return { hasAll: false, missing: requiredPermissions };
+    }
+  }
+
+  permissionToString(permission: bigint): string {
+    // lifted from node_modules/discord-api-types/payloads/common.d.ts
+    const permissionFlagsBits = {
+      [PermissionFlagsBits.CreateInstantInvite.toString()]: "Create Instant Invite",
+      [PermissionFlagsBits.KickMembers.toString()]: "Kick Members",
+      [PermissionFlagsBits.BanMembers.toString()]: "Ban Members",
+      [PermissionFlagsBits.Administrator.toString()]: "Administrator",
+      [PermissionFlagsBits.ManageChannels.toString()]: "Manage Channels",
+      [PermissionFlagsBits.ManageGuild.toString()]: "Manage Guild",
+      [PermissionFlagsBits.AddReactions.toString()]: "Add Reactions",
+      [PermissionFlagsBits.ViewAuditLog.toString()]: "View Audit Log",
+      [PermissionFlagsBits.PrioritySpeaker.toString()]: "Priority Speaker",
+      [PermissionFlagsBits.Stream.toString()]: "Stream",
+      [PermissionFlagsBits.ViewChannel.toString()]: "View Channel",
+      [PermissionFlagsBits.SendMessages.toString()]: "Send Messages",
+      [PermissionFlagsBits.SendTTSMessages.toString()]: "Send TTS Messages",
+      [PermissionFlagsBits.ManageMessages.toString()]: "Manage Messages",
+      [PermissionFlagsBits.EmbedLinks.toString()]: "Embed Links",
+      [PermissionFlagsBits.AttachFiles.toString()]: "Attach Files",
+      [PermissionFlagsBits.ReadMessageHistory.toString()]: "Read Message History",
+      [PermissionFlagsBits.MentionEveryone.toString()]: "Mention Everyone",
+      [PermissionFlagsBits.UseExternalEmojis.toString()]: "Use External Emojis",
+      [PermissionFlagsBits.ViewGuildInsights.toString()]: "View Guild Insights",
+      [PermissionFlagsBits.Connect.toString()]: "Connect",
+      [PermissionFlagsBits.Speak.toString()]: "Speak",
+      [PermissionFlagsBits.MuteMembers.toString()]: "Mute Members",
+      [PermissionFlagsBits.DeafenMembers.toString()]: "Deafen Members",
+      [PermissionFlagsBits.MoveMembers.toString()]: "Move Members",
+      [PermissionFlagsBits.UseVAD.toString()]: "Use VAD",
+      [PermissionFlagsBits.ChangeNickname.toString()]: "Change Nickname",
+      [PermissionFlagsBits.ManageNicknames.toString()]: "Manage Nicknames",
+      [PermissionFlagsBits.ManageRoles.toString()]: "Manage Roles",
+      [PermissionFlagsBits.ManageWebhooks.toString()]: "Manage Webhooks",
+      [PermissionFlagsBits.ManageGuildExpressions.toString()]: "Manage Guild Expressions",
+      [PermissionFlagsBits.UseApplicationCommands.toString()]: "Use Application Commands",
+      [PermissionFlagsBits.RequestToSpeak.toString()]: "Request to Speak",
+      [PermissionFlagsBits.ManageEvents.toString()]: "Manage Events",
+      [PermissionFlagsBits.ManageThreads.toString()]: "Manage Threads",
+      [PermissionFlagsBits.CreatePublicThreads.toString()]: "Create Public Threads",
+      [PermissionFlagsBits.CreatePrivateThreads.toString()]: "Create Private Threads",
+      [PermissionFlagsBits.UseExternalStickers.toString()]: "Use External Stickers",
+      [PermissionFlagsBits.SendMessagesInThreads.toString()]: "Send Messages in Threads",
+      [PermissionFlagsBits.UseEmbeddedActivities.toString()]: "Use Embedded Activities",
+      [PermissionFlagsBits.ModerateMembers.toString()]: "Moderate Members",
+      [PermissionFlagsBits.ViewCreatorMonetizationAnalytics.toString()]: "View Creator Monetization Analytics",
+      [PermissionFlagsBits.UseSoundboard.toString()]: "Use Soundboard",
+      [PermissionFlagsBits.CreateGuildExpressions.toString()]: "Create Guild Expressions",
+      [PermissionFlagsBits.CreateEvents.toString()]: "Create Events",
+      [PermissionFlagsBits.UseExternalSounds.toString()]: "Use External Sounds",
+      [PermissionFlagsBits.SendVoiceMessages.toString()]: "Send Voice Messages",
+      [PermissionFlagsBits.SendPolls.toString()]: "Send Polls",
+      [PermissionFlagsBits.UseExternalApps.toString()]: "Use External Apps",
+    };
+
+    return Preconditions.checkExists(
+      permissionFlagsBits[permission.toString()],
+      `Unknown permission: ${permission.toString()}`,
+    );
+  }
+
+  private calculateEffectivePermissions(
+    guild: APIGuild,
+    member: APIGuildMember,
+    channel: APIGuildChannel<ChannelType.GuildText>,
+  ): bigint {
+    console.log("\n=== Permission Calculation ===");
+    const everyoneRole = guild.roles.find((role) => role.id === guild.id);
+    let permissions = BigInt(everyoneRole?.permissions ?? "0");
+
+    // Apply role-specific overwrites
+    for (const roleId of member.roles) {
+      if (roleId === guild.id) {
+        continue;
+      }
+
+      const role = guild.roles.find((r) => r.id === roleId);
+      if (role) {
+        permissions |= BigInt(role.permissions);
+      }
+    }
+
+    if ((permissions & PermissionFlagsBits.Administrator) !== 0n) {
+      return ~0n; // All permissions
+    }
+
+    if (channel.permission_overwrites && channel.permission_overwrites.length > 0) {
+      const everyoneOverwrite = channel.permission_overwrites.find(
+        (overwrite) => overwrite.id === guild.id && overwrite.type === OverwriteType.Role,
+      );
+      if (everyoneOverwrite) {
+        permissions &= ~BigInt(everyoneOverwrite.deny);
+        permissions |= BigInt(everyoneOverwrite.allow);
+      }
+
+      // Apply role-specific overwrites
+      for (const roleId of member.roles) {
+        const roleOverwrite = channel.permission_overwrites.find(
+          (overwrite) => overwrite.id === roleId && overwrite.type === OverwriteType.Role,
+        );
+        if (roleOverwrite) {
+          permissions &= ~BigInt(roleOverwrite.deny);
+          permissions |= BigInt(roleOverwrite.allow);
+        }
+      }
+
+      // Apply member-specific overwrite (highest priority)
+      const memberOverwrite = channel.permission_overwrites.find(
+        (overwrite) => overwrite.id === member.user.id && overwrite.type === OverwriteType.Member,
+      );
+      if (memberOverwrite) {
+        permissions &= ~BigInt(memberOverwrite.deny);
+        permissions |= BigInt(memberOverwrite.allow);
+      }
+    }
+
+    return permissions;
   }
 
   getDiscordUserId(interaction: BaseInteraction): string {
@@ -520,8 +678,13 @@ export class DiscordService {
         url.searchParams.set(key, value.toString());
       }
     }
-    this.logService.debug("Discord API request", new Map([["url", url.toString()]]));
-    this.logService.debug("Stored rate limit", new Map([["rateLimit", rateLimit ? { ...rateLimit } : null]]));
+    this.logService.debug(
+      "Discord API request",
+      new Map([
+        ["url", url.toString()],
+        ["rateLimit", JSON.stringify(rateLimit ? { ...rateLimit } : null)],
+      ]),
+    );
 
     const headers = new Headers(options.headers);
     headers.set("Authorization", `Bot ${this.env.DISCORD_TOKEN}`);
@@ -538,8 +701,14 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
-      this.logService.warn(`Discord API request failed: ${response.status.toString()} ${response.statusText}`);
       if (response.status === 429 && !retry) {
+        this.logService.warn(
+          "Discord API rate limit hit",
+          new Map([
+            ["path", path],
+            ["status", response.status.toString()],
+          ]),
+        );
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
 
         if (rateLimitFromResponse.reset != null) {
@@ -549,11 +718,14 @@ export class DiscordService {
         }
       }
 
-      const error = new Error(
-        `Failed to fetch data from Discord API: ${response.status.toString()} ${response.statusText}`,
-      );
       const body = await response.text();
-      this.logService.error(error, new Map([["body", body]]));
+      let error: DiscordError | Error;
+      try {
+        error = new DiscordError(response.status, JSON.parse(body) as RESTError);
+      } catch {
+        error = new Error(`Failed to fetch data from Discord API (HTTP ${response.status.toString()}): ${body}`);
+      }
+      this.logService.warn(error);
 
       throw error;
     }
