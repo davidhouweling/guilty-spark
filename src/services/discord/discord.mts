@@ -371,54 +371,26 @@ export class DiscordService {
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {
-    return this.fetch<APIGuild>(Routes.guild(guildId), {
-      method: "GET",
-      cf: {
-        cacheTtl: 5,
-        cacheEverything: true,
-      },
-    });
+    return this.fetch<APIGuild>(Routes.guild(guildId));
   }
 
   async getChannel(channelId: string): Promise<APIChannel> {
-    return this.fetch<APIChannel>(Routes.channel(channelId), {
-      method: "GET",
-      cf: {
-        cacheTtl: 5,
-        cacheEverything: true,
-      },
-    });
+    return this.fetch<APIChannel>(Routes.channel(channelId));
   }
 
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {
     return this.fetch<APIChannel[]>(Routes.guildChannels(guildId), {
       method: "GET",
       queryParameters: { limit: 100 },
-      cf: {
-        cacheTtl: 5,
-        cacheEverything: true,
-      },
     });
   }
 
   async getGuildMember(guildId: string, userId: string): Promise<APIGuildMember> {
-    return this.fetch<APIGuildMember>(Routes.guildMember(guildId, userId), {
-      method: "GET",
-      cf: {
-        cacheTtl: 5,
-        cacheEverything: true,
-      },
-    });
+    return this.fetch<APIGuildMember>(Routes.guildMember(guildId, userId));
   }
 
   async getMessage(channel: string, messageId: string): Promise<APIMessage> {
-    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
-      method: "GET",
-      cf: {
-        cacheTtl: 5,
-        cacheEverything: true,
-      },
-    });
+    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId));
   }
 
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
@@ -729,11 +701,14 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
-      const body = await response.json<RESTError>();
-      const error = new DiscordError(response.status, body);
-      this.logService.warn(error);
-
       if (response.status === 429 && !retry) {
+        this.logService.warn(
+          "Discord API rate limit hit",
+          new Map([
+            ["path", path],
+            ["status", response.status.toString()],
+          ]),
+        );
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
 
         if (rateLimitFromResponse.reset != null) {
@@ -742,6 +717,15 @@ export class DiscordService {
           return this.fetch<T>(path, options, true);
         }
       }
+
+      const body = await response.text();
+      let error: DiscordError | Error;
+      try {
+        error = new DiscordError(response.status, JSON.parse(body) as RESTError);
+      } catch {
+        error = new Error(`Failed to fetch data from Discord API (HTTP ${response.status.toString()}): ${body}`);
+      }
+      this.logService.warn(error);
 
       throw error;
     }
@@ -772,13 +756,7 @@ export class DiscordService {
 
   private async getUserInfo(userId: string): Promise<RESTGetAPIUserResult> {
     if (!this.userCache.has(userId)) {
-      const user = await this.fetch<RESTGetAPIUserResult>(Routes.user(userId), {
-        method: "GET",
-        cf: {
-          cacheTtl: 60,
-          cacheEverything: true,
-        },
-      });
+      const user = await this.fetch<RESTGetAPIUserResult>(Routes.user(userId));
       this.userCache.set(userId, user);
     }
 
