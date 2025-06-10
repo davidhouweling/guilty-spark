@@ -310,7 +310,7 @@ export class ConnectCommand extends BaseCommand {
       const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
 
       if (historyEmbed.fields && embeds[0]?.fields) {
-        embeds[0].fields.push({ name: "**Recent matches**", value: "" }, ...historyEmbed.fields);
+        embeds[0].fields.push({ name: "**Recent custom games**", value: "" }, ...historyEmbed.fields);
       }
 
       if (!hasHistory) {
