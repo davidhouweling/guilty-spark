@@ -1,10 +1,20 @@
-import type { APIEmbed } from "discord-api-types/v10";
+import {
+  ButtonStyle,
+  ComponentType,
+  type APIComponentInMessageActionRow,
+  type APIEmbed,
+  type APIMessageTopLevelComponent,
+} from "discord-api-types/v10";
+import { UnreachableError } from "./unreachable-error.mjs";
+
+type EndUserErrorAction = "connect";
 
 interface EndUserErrorOptions {
   title?: string;
   errorType?: EndUserErrorType;
   innerError?: Error;
   handled?: boolean;
+  actions?: EndUserErrorAction[] | undefined;
   callbackType?: "stats" | undefined;
   data?: Record<string, string>;
 }
@@ -24,6 +34,7 @@ export class EndUserError extends Error {
   readonly title: string;
   readonly errorType: EndUserErrorType;
   readonly handled: boolean;
+  readonly actions: EndUserErrorAction[] | undefined;
   readonly callbackType: "stats" | undefined;
   readonly data: Record<string, string>;
 
@@ -34,6 +45,7 @@ export class EndUserError extends Error {
       errorType = EndUserErrorType.ERROR,
       innerError,
       handled = false,
+      actions,
       callbackType,
       data = {},
     }: EndUserErrorOptions = {},
@@ -45,6 +57,7 @@ export class EndUserError extends Error {
     this.title = title;
     this.errorType = errorType;
     this.handled = handled;
+    this.actions = actions;
     this.callbackType = callbackType;
     this.data = data;
   }
@@ -69,6 +82,35 @@ export class EndUserError extends Error {
             ]
           : [],
     };
+  }
+
+  get discordActions(): APIMessageTopLevelComponent[] {
+    const components: APIComponentInMessageActionRow[] = [];
+    if (this.actions != null) {
+      for (const action of this.actions) {
+        switch (action) {
+          // leaving this here for future extensibility
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          case "connect": {
+            components.push({
+              type: ComponentType.Button,
+              label: "Connect",
+              style: ButtonStyle.Primary,
+              custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
+              emoji: {
+                name: "🔌",
+              },
+            });
+            break;
+          }
+          default: {
+            throw new UnreachableError(action);
+          }
+        }
+      }
+    }
+
+    return components.length > 0 ? [{ type: ComponentType.ActionRow, components }] : [];
   }
 
   static fromDiscordEmbed(embed: APIEmbed): EndUserError | undefined {
