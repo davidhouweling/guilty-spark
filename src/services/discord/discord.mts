@@ -436,6 +436,17 @@ export class DiscordService {
     });
   }
 
+  async editMessage(
+    channelId: string,
+    messageId: string,
+    data: RESTPostAPIChannelMessageJSONBody,
+  ): Promise<RESTPatchAPIChannelMessageResult> {
+    return this.fetch<RESTPatchAPIChannelMessageResult>(Routes.channelMessage(channelId, messageId), {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteMessage(channelId: string, messageId: string, reason: string): Promise<void> {
     await this.fetch(Routes.channelMessage(channelId, messageId), {
       method: "DELETE",
@@ -620,6 +631,16 @@ export class DiscordService {
     const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
 
     return `<t:${unixTime.toString()}:${format}>`;
+  }
+
+  getDateFromTimestamp(timestamp: string): Date {
+    const match = /<t:(\d+):[FfDdTtR]>/.exec(timestamp);
+    if (!match) {
+      throw new Error(`Invalid timestamp format: ${timestamp}`);
+    }
+
+    const unixTime = Number(match[1]);
+    return new Date(unixTime * 1000);
   }
 
   getReadableAssociationReason(association: DiscordAssociationsRow): string {

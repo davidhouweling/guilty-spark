@@ -22,8 +22,10 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
+import { EndUserError } from "../../base/end-user-error.mjs";
 
 export enum InteractionButton {
+  Initiate = "btn_connect_initiate",
   Confirm = "btn_connect_confirm",
   Change = "btn_connect_change",
   Remove = "btn_connect_remove",
@@ -41,6 +43,13 @@ export class ConnectCommand extends BaseCommand {
       description: "Connect your Discord account to your Halo account within Guilty Spark.",
       default_member_permissions: null,
       options: [],
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Initiate,
+      },
     },
     {
       type: InteractionType.MessageComponent,
@@ -352,6 +361,18 @@ export class ConnectCommand extends BaseCommand {
     const { custom_id } = interaction.data;
 
     switch (custom_id as InteractionButton) {
+      case InteractionButton.Initiate: {
+        return {
+          response: {
+            type: InteractionResponseType.ChannelMessageWithSource,
+            data: {
+              flags: MessageFlags.Ephemeral,
+              content: "Searching for your gamertag and recent game history...",
+            },
+          },
+          jobToComplete: async () => this.applicationCommandJob(interaction),
+        };
+      }
       case InteractionButton.Confirm: {
         return {
           response: {
@@ -420,7 +441,10 @@ export class ConnectCommand extends BaseCommand {
         locale,
       );
 
-      await discordService.updateDeferredReply(interaction.token, content);
+      await Promise.all([
+        discordService.updateDeferredReply(interaction.token, content),
+        this.maybeRetryLastCommand(interaction),
+      ]);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -646,5 +670,38 @@ export class ConnectCommand extends BaseCommand {
             },
           ],
     };
+  }
+
+  private async maybeRetryLastCommand(interaction: BaseInteraction): Promise<void> {
+    const { discordService, neatQueueService } = this.services;
+    const messageReference = interaction.message?.message_reference;
+
+    if (messageReference?.message_id == null) {
+      return;
+    }
+
+    try {
+      const message = await discordService.getMessage(messageReference.channel_id, messageReference.message_id);
+
+      if (message.embeds.length === 0) {
+        return;
+      }
+      const errorEmbed = message.embeds
+        .map((embed) => EndUserError.fromDiscordEmbed(embed))
+        .find((embed) => embed != null);
+      if (errorEmbed == null || !(errorEmbed instanceof EndUserError) || Object.entries(errorEmbed.data).length === 0) {
+        return;
+      }
+
+      if (errorEmbed.callbackType === "stats") {
+        await neatQueueService.handleRetry({
+          errorEmbed,
+          guildId: Preconditions.checkExists(interaction.guild_id, "expected guild id"),
+          message,
+        });
+      }
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error as Error);
+    }
   }
 }
