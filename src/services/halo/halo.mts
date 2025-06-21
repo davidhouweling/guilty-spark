@@ -55,12 +55,13 @@ export class HaloService {
     const noMatchError = new EndUserError(
       [
         "Unable to match any of the Discord users to their Xbox accounts.",
-        "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        "**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       ].join("\n"),
       {
         title: "No matches found",
         errorType: EndUserErrorType.WARNING,
         handled: true,
+        actions: ["connect"],
       },
     );
 
