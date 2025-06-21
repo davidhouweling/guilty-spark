@@ -344,8 +344,10 @@ export class DiscordService {
   async updateDeferredReplyWithError(interactionToken: string, error: unknown): Promise<APIMessage | undefined> {
     try {
       const endUserError = this.handleError(error as Error, this.logService);
+
       return await this.updateDeferredReply(interactionToken, {
         embeds: [endUserError.discordEmbed],
+        components: endUserError.discordActions,
       });
     } catch {
       return undefined;

@@ -178,7 +178,7 @@ export class StatsCommand extends BaseCommand {
       ]);
       if (!queueData) {
         throw new EndUserError(
-          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}`,
+          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
           {
             errorType: EndUserErrorType.WARNING,
             handled: true,

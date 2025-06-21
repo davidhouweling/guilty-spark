@@ -147,7 +147,7 @@ describe("Halo service", () => {
       );
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
 
@@ -156,7 +156,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
 
@@ -165,7 +165,7 @@ describe("Halo service", () => {
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
 
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
-        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
+        "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
   });

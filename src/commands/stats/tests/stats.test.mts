@@ -188,12 +188,12 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
-          "fake-token",
-          expect.objectContaining({
-            endUserMessage: "No queue found within the last 100 messages of <#1234567890>, with queue number 5",
-          }),
-        );
+        expect(updateDeferredReplyWithErrorSpy.mock.lastCall).toMatchInlineSnapshot(`
+          [
+            "fake-token",
+            [EndUserError: No queue found within the last 100 messages of <#1234567890>, with queue number 5. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.],
+          ]
+        `);
       });
 
       it('fetches series data from haloService using "getSeriesFromDiscordQueue" with expected data', async () => {
