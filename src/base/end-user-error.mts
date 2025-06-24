@@ -35,7 +35,7 @@ export class EndUserError extends Error {
   readonly errorType: EndUserErrorType;
   readonly handled: boolean;
   readonly actions: EndUserErrorAction[] | undefined;
-  readonly callbackType: "stats" | undefined;
+  callbackType: "stats" | undefined;
   readonly data: Record<string, string>;
 
   constructor(
@@ -98,7 +98,7 @@ export class EndUserError extends Error {
               style: ButtonStyle.Primary,
               custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
               emoji: {
-                name: "🔌",
+                name: "🔗",
               },
             });
             break;

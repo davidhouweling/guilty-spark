@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import type {
   APIButtonComponent,
   APIEmbed,
@@ -514,7 +515,7 @@ export class ConnectCommand extends BaseCommand {
         gamertag,
         locale,
         `Gamertag search for "${gamertag}"`,
-        "Please confirm the recent game history for yourself below:",
+        "Please confirm the recent custom game history for yourself below:",
       );
       const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
       const actions: APIButtonComponent[] = hasHistory
@@ -609,7 +610,10 @@ export class ConnectCommand extends BaseCommand {
         locale,
       );
 
-      await discordService.updateDeferredReply(interaction.token, content);
+      await Promise.all([
+        discordService.updateDeferredReply(interaction.token, content),
+        this.maybeRetryLastCommand(interaction),
+      ]);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -673,6 +677,8 @@ export class ConnectCommand extends BaseCommand {
   }
 
   private async maybeRetryLastCommand(interaction: BaseInteraction): Promise<void> {
+    console.log("maybeRetryLastCommand called");
+
     const { discordService, neatQueueService } = this.services;
     const messageReference = interaction.message?.message_reference;
 
@@ -680,8 +686,11 @@ export class ConnectCommand extends BaseCommand {
       return;
     }
 
+    console.log("message reference:", messageReference);
+
     try {
       const message = await discordService.getMessage(messageReference.channel_id, messageReference.message_id);
+      console.log("message:", inspect(message, { depth: null }));
 
       if (message.embeds.length === 0) {
         return;
@@ -689,6 +698,8 @@ export class ConnectCommand extends BaseCommand {
       const errorEmbed = message.embeds
         .map((embed) => EndUserError.fromDiscordEmbed(embed))
         .find((embed) => embed != null);
+      console.log("errorEmbed:", inspect(errorEmbed, { depth: null }));
+
       if (errorEmbed == null || !(errorEmbed instanceof EndUserError) || Object.entries(errorEmbed.data).length === 0) {
         return;
       }

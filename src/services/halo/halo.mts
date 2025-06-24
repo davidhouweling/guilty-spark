@@ -65,6 +65,8 @@ export class HaloService {
       },
     );
 
+    throw noMatchError;
+
     const users = queueData.teams.flat();
     await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 

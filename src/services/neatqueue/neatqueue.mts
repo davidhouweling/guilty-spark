@@ -146,9 +146,10 @@ export class NeatQueueService {
         -1,
       );
       const queue = parseInt(Preconditions.checkExists(errorEmbed.data["Queue"], "expected queue number"), 10);
-      const startedTimestamp = discordService.getDateFromTimestamp(
-        Preconditions.checkExists(errorEmbed.data["Started"], "expected Started timestamp"),
-      );
+      const startedTimestamp =
+        errorEmbed.data["Started"] != null
+          ? discordService.getDateFromTimestamp(errorEmbed.data["Started"])
+          : sub(new Date(), { hours: 6 });
       const completedTimestamp = discordService.getDateFromTimestamp(
         Preconditions.checkExists(errorEmbed.data["Completed"], "expected Completed timestamp"),
       );
