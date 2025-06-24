@@ -463,8 +463,8 @@ export class DiscordService {
     requiredPermissions: bigint[],
   ): { hasAll: boolean; missing: bigint[] } {
     try {
-      if (channel.type !== ChannelType.GuildText) {
-        throw new Error("Channel is not a text channel");
+      if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildAnnouncement) {
+        throw new Error("Channel is not a text channel or announcement channel");
       }
 
       const effectivePermissions = this.calculateEffectivePermissions(guild, guildMember, channel);
@@ -547,7 +547,7 @@ export class DiscordService {
   private calculateEffectivePermissions(
     guild: APIGuild,
     member: APIGuildMember,
-    channel: APIGuildChannel<ChannelType.GuildText>,
+    channel: APIGuildChannel<ChannelType.GuildText | ChannelType.GuildAnnouncement>,
   ): bigint {
     console.log("\n=== Permission Calculation ===");
     const everyoneRole = guild.roles.find((role) => role.id === guild.id);

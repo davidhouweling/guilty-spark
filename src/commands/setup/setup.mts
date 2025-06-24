@@ -146,7 +146,7 @@ const NeatQueueIntegrationWizardSteps: NeatQueueIntegrationWizardStep[] = [
     input: {
       type: ComponentType.ChannelSelect,
       custom_id: InteractionComponent.NeatQueueIntegrationAddWizardNext,
-      channel_types: [ChannelType.GuildText],
+      channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
       min_values: 1,
       max_values: 1,
       placeholder: "Select the queue channel",
@@ -180,7 +180,7 @@ const NeatQueueIntegrationWizardSteps: NeatQueueIntegrationWizardStep[] = [
     input: {
       type: ComponentType.ChannelSelect,
       custom_id: InteractionComponent.NeatQueueIntegrationAddWizardNext,
-      channel_types: [ChannelType.GuildText],
+      channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
       min_values: 1,
       max_values: 1,
       placeholder: "Select the results channel",
@@ -218,7 +218,7 @@ const NeatQueueIntegrationWizardSteps: NeatQueueIntegrationWizardStep[] = [
     input: {
       type: ComponentType.ChannelSelect,
       custom_id: InteractionComponent.NeatQueueIntegrationAddWizardNext,
-      channel_types: [ChannelType.GuildText],
+      channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
       min_values: 1,
       max_values: 1,
       placeholder: "Select the results post channel",
@@ -1228,7 +1228,7 @@ export class SetupCommand extends BaseCommand {
         try {
           const channel = await discordService.getChannel(channelId);
 
-          if (channel.type !== ChannelType.GuildText) {
+          if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildAnnouncement) {
             errors.set(channelId, `Channel <#${channelId}> is not a text channel, select a text channel.`);
             continue;
           }
