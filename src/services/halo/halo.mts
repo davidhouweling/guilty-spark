@@ -403,7 +403,11 @@ export class HaloService {
         userMatches.set(user.DiscordId, playerMatches);
       } else {
         const cachedUser = this.userCache.get(user.DiscordId);
-        if (cachedUser != null) {
+        if (
+          cachedUser != null &&
+          cachedUser.AssociationReason !== AssociationReason.CONNECTED &&
+          cachedUser.AssociationReason !== AssociationReason.MANUAL
+        ) {
           cachedUser.GamesRetrievable = GamesRetrievable.NO;
           this.userCache.set(user.DiscordId, cachedUser);
         }
