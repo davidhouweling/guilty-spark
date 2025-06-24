@@ -947,4 +947,51 @@ describe("DiscordService", () => {
       );
     });
   });
+
+  describe("editMessage()", () => {
+    it("edits a message", async () => {
+      const data = { content: "edited content" };
+      const mockResponse = { id: "message-id", content: "edited content" };
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(mockResponse)));
+
+      const result = await discordService.editMessage("channel-id", "message-id", data);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/channel-id/messages/message-id", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+      });
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe("getDateFromTimestamp()", () => {
+    it("converts a Discord timestamp to a Date", () => {
+      const timestamp = "<t:1733483139:f>";
+      const result = discordService.getDateFromTimestamp(timestamp);
+
+      expect(result).toEqual(new Date(1733483139 * 1000));
+    });
+
+    it("handles different timestamp formats", () => {
+      const formats = ["f", "F", "d", "D", "t", "T", "R"];
+
+      formats.forEach((format) => {
+        const timestamp = `<t:1733483139:${format}>`;
+        const result = discordService.getDateFromTimestamp(timestamp);
+        expect(result).toEqual(new Date(1733483139 * 1000));
+      });
+    });
+
+    it("throws an error for invalid timestamp format", () => {
+      expect(() => discordService.getDateFromTimestamp("invalid")).toThrow("Invalid timestamp format: invalid");
+    });
+
+    it("throws an error for malformed Discord timestamp", () => {
+      expect(() => discordService.getDateFromTimestamp("<t:abc:f>")).toThrow("Invalid timestamp format: <t:abc:f>");
+    });
+  });
 });

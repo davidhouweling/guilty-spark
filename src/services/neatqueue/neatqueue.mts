@@ -141,48 +141,49 @@ export class NeatQueueService {
         return;
       }
 
-      const queueChannel = Preconditions.checkExists(errorEmbed.data["Channel"], "expected queue channel").substring(
-        2,
-        -1,
+      console.log("errorEmbed", errorEmbed);
+      console.log("errorEmbed.data", errorEmbed.data);
+
+      const queueChannel = Preconditions.checkExists(
+        errorEmbed.data["Channel"]?.substring(2, errorEmbed.data["Channel"].length - 1),
+        "expected queue channel",
       );
+      console.log("queueChannel", queueChannel);
       const queue = parseInt(Preconditions.checkExists(errorEmbed.data["Queue"], "expected queue number"), 10);
-      const startedTimestamp = discordService.getDateFromTimestamp(
-        Preconditions.checkExists(errorEmbed.data["Started"], "expected Started timestamp"),
-      );
+      const startedTimestamp =
+        errorEmbed.data["Started"] != null
+          ? discordService.getDateFromTimestamp(errorEmbed.data["Started"])
+          : sub(new Date(), { hours: 6 });
       const completedTimestamp = discordService.getDateFromTimestamp(
         Preconditions.checkExists(errorEmbed.data["Completed"], "expected Completed timestamp"),
       );
-      const substitutions = (errorEmbed.data["Substitutions"] ?? "")
-        .split(", ")
-        .map((substitution) => {
-          const match = /<@(\d+)> subbed in for <@(\d+)> on (.+)/.exec(substitution);
-          if (match == null) {
-            logService.warn("Failed to parse substitution", new Map([["substitution", substitution]]));
-            return null;
-          }
-          const [, playerInId, playerOutId, date] = match;
-          return {
-            playerInId: Preconditions.checkExists(playerInId, "expected playerInId for substitution"),
-            playerOutId: Preconditions.checkExists(playerOutId, "expected playerOutId for substitution"),
-            date: discordService.getDateFromTimestamp(
-              Preconditions.checkExists(date, "expected date for substitution"),
-            ),
-          };
-        })
-        .filter((substitution) => substitution !== null)
-        .reverse();
+      const substitutions =
+        errorEmbed.data["Substitutions"]
+          ?.split(", ")
+          .map((substitution) => {
+            const match = /<@(\d+)> subbed in for <@(\d+)> on (.+)/.exec(substitution);
+            if (match == null) {
+              logService.warn("Failed to parse substitution", new Map([["substitution", substitution]]));
+              return null;
+            }
+            const [, playerInId, playerOutId, date] = match;
+            return {
+              playerInId: Preconditions.checkExists(playerInId, "expected playerInId for substitution"),
+              playerOutId: Preconditions.checkExists(playerOutId, "expected playerOutId for substitution"),
+              date: discordService.getDateFromTimestamp(
+                Preconditions.checkExists(date, "expected date for substitution"),
+              ),
+            };
+          })
+          .filter((substitution) => substitution !== null)
+          .reverse() ?? [];
 
       const queueMessage = await discordService.getTeamsFromQueue(queueChannel, queue);
       if (queueMessage == null) {
-        logService.warn(
-          "Failed to find queue message for retry",
-          new Map([
-            ["messageId", message.id],
-            ["messageChannel", message.channel_id],
-          ]),
-        );
-
-        return;
+        throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
+          handled: true,
+          data: { Channel: queueChannel, Queue: queue.toString() },
+        });
       }
 
       const series: MatchStats[] = [];
@@ -197,39 +198,53 @@ export class NeatQueueService {
       const substitutionsEmbed: SeriesOverviewEmbedSubstitution[] = [];
       for (const substitution of substitutions) {
         const { playerInId, playerOutId, date: startDateTime } = substitution;
-        const data = await haloService.getSeriesFromDiscordQueue({
-          teams,
-          startDateTime,
-          endDateTime,
-        });
-        series.unshift(...data);
-        endDateTime = startDateTime;
+        try {
+          const data = await haloService.getSeriesFromDiscordQueue({
+            teams,
+            startDateTime,
+            endDateTime,
+          });
+          series.unshift(...data);
+          endDateTime = startDateTime;
 
-        for (const team of teams) {
-          const playerIndex = team.findIndex((player) => player.id === playerOutId);
-          const users = await discordService.getUsers([playerInId]);
-          const user = Preconditions.checkExists(users[0], "expected user for substitution");
+          for (const team of teams) {
+            const playerIndex = team.findIndex((player) => player.id === playerOutId);
+            const users = await discordService.getUsers([playerInId]);
+            const user = Preconditions.checkExists(users[0], "expected user for substitution");
 
-          if (playerIndex !== -1) {
-            team[playerIndex] = { id: playerInId, username: user.username, globalName: user.global_name };
-            const teamIndex = queueMessage.teams.findIndex((t) => t.players.some((p) => p.id === playerOutId));
-            substitutionsEmbed.push({
-              playerIn: playerInId,
-              playerOut: playerOutId,
-              team: queueMessage.teams[teamIndex]?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
-              date: startDateTime,
-            });
-            break;
+            if (playerIndex !== -1) {
+              team[playerIndex] = { id: playerInId, username: user.username, globalName: user.global_name };
+              const teamIndex = queueMessage.teams.findIndex((t) => t.players.some((p) => p.id === playerOutId));
+              substitutionsEmbed.push({
+                playerIn: playerInId,
+                playerOut: playerOutId,
+                team: queueMessage.teams[teamIndex]?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+                date: startDateTime,
+              });
+              break;
+            }
+          }
+        } catch (error) {
+          this.logService.error(error as Error, new Map([["reason", "Failed to process substitution"]]));
+          if (series.length === 0) {
+            throw error;
           }
         }
       }
 
-      const startData = await haloService.getSeriesFromDiscordQueue({
-        teams,
-        startDateTime: startedTimestamp,
-        endDateTime,
-      });
-      series.unshift(...startData);
+      try {
+        const startData = await haloService.getSeriesFromDiscordQueue({
+          teams,
+          startDateTime: startedTimestamp,
+          endDateTime,
+        });
+        series.unshift(...startData);
+      } catch (error) {
+        this.logService.error(error as Error, new Map([["reason", "Failed to get series data from Discord queue"]]));
+        if (series.length === 0) {
+          throw error;
+        }
+      }
 
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
         guildId,
@@ -273,6 +288,7 @@ export class NeatQueueService {
         });
         await discordService.editMessage(message.channel_id, message.id, {
           embeds: [error.discordEmbed],
+          components: error.discordActions,
         });
 
         return;
@@ -286,6 +302,7 @@ export class NeatQueueService {
 
       await discordService.editMessage(message.channel_id, message.id, {
         embeds: [endUserError.discordEmbed],
+        components: endUserError.discordActions,
       });
     }
   }
