@@ -13,7 +13,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -25,14 +25,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -59,7 +52,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -71,14 +64,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -126,14 +112,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -215,14 +194,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -237,7 +209,11 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
           },
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -260,7 +236,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -272,14 +248,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -306,7 +275,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -318,14 +287,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -382,14 +344,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -471,14 +426,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -493,7 +441,11 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
           },
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -516,7 +468,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -528,14 +480,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -562,7 +507,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -574,14 +519,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -638,14 +576,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -727,14 +658,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -749,7 +673,11 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
           },
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -772,7 +700,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -784,14 +712,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -818,7 +739,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -830,14 +751,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -885,14 +799,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -974,14 +881,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -996,7 +896,11 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
           },
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -1019,7 +923,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1031,14 +935,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1065,7 +962,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1077,14 +974,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1111,7 +1001,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1123,14 +1013,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1157,7 +1040,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1169,14 +1052,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1233,14 +1109,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1322,14 +1191,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReaso
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1344,7 +1206,11 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
           },
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -1367,7 +1233,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > No Association >
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1379,14 +1245,7 @@ exports[`ConnectCommand > execute(): /command > jobToComplete > No Association >
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1461,14 +1320,7 @@ exports[`ConnectCommand > execute(): InteractionButton.Confirm > jobToComplete >
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1516,6 +1368,45 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
+exports[`ConnectCommand > execute(): InteractionButton.Initiate > jobToComplete > calls updateDeferredReply with the expected opts 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_connect_change",
+            "emoji": {
+              "name": "🔗",
+            },
+            "label": "Connect new account",
+            "style": 1,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "content": "",
+    "embeds": [
+      {
+        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
+
+Click the button below to search for your gamertag and recent game history.",
+        "fields": [
+          {
+            "name": "What Guilty Spark knows",
+            "value": "**Halo account:** *No account connected*",
+          },
+        ],
+        "title": "Connect Discord to Halo",
+      },
+    ],
+  },
+]
+`;
+
 exports[`ConnectCommand > execute(): InteractionButton.Remove > jobToComplete > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
@@ -1529,7 +1420,7 @@ exports[`ConnectCommand > execute(): InteractionButton.Remove > jobToComplete > 
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1541,14 +1432,7 @@ exports[`ConnectCommand > execute(): InteractionButton.Remove > jobToComplete > 
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1605,14 +1489,7 @@ exports[`ConnectCommand > execute(): InteractionButton.SearchCancel > jobToCompl
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1673,7 +1550,7 @@ exports[`ConnectCommand > execute(): InteractionButton.SearchCancel > jobToCompl
               "name": "🔗",
             },
             "label": "Connect new account",
-            "style": 2,
+            "style": 1,
             "type": 2,
           },
         ],
@@ -1685,14 +1562,7 @@ exports[`ConnectCommand > execute(): InteractionButton.SearchCancel > jobToCompl
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1740,14 +1610,7 @@ exports[`ConnectCommand > execute(): InteractionButton.SearchConfirm > jobToComp
       {
         "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
 
-To make sure this all works, open up Halo Infinite and follow these steps:
-1. Open Settings
-2. Navigate to Accessibility tab
-3. Scroll down to Match History Privacy
-4. Set the Matchmade Games option to Share
-5. Set the Non-Matchmade Games option to Share
-
-Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+Click the button below to search for your gamertag and recent game history.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1836,7 +1699,7 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
     "content": "",
     "embeds": [
       {
-        "description": "Please confirm the recent game history for yourself below:",
+        "description": "Please confirm the recent custom game history for yourself below:",
         "fields": [
           {
             "inline": true,
@@ -1905,11 +1768,15 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
     "content": "",
     "embeds": [
       {
-        "description": "Please confirm the recent game history for yourself below:",
+        "description": "Please confirm the recent custom game history for yourself below:",
         "fields": [
           {
             "name": "No custom game matches found",
-            "value": "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+            "value": "To resolve, either:
+In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+
+Once you have done this, try again.",
           },
         ],
         "title": "Gamertag search for "gamertag0000000000001"",

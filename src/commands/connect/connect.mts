@@ -281,7 +281,7 @@ export class ConnectCommand extends BaseCommand {
     } else {
       actions.push({
         type: ComponentType.Button,
-        style: ButtonStyle.Secondary,
+        style: ButtonStyle.Primary,
         label: "Connect new account",
         custom_id: InteractionButton.Change,
         emoji: { name: "🔗" },
@@ -293,14 +293,7 @@ export class ConnectCommand extends BaseCommand {
       description: [
         "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
         "",
-        "To make sure this all works, open up Halo Infinite and follow these steps:",
-        "1. Open Settings",
-        "2. Navigate to Accessibility tab",
-        "3. Scroll down to Match History Privacy",
-        "4. Set the Matchmade Games option to Share",
-        "5. Set the Non-Matchmade Games option to Share",
-        "",
-        "Or you can go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+        "Click the button below to search for your gamertag and recent game history.",
       ].join("\n"),
       fields: [
         {
@@ -367,7 +360,12 @@ export class ConnectCommand extends BaseCommand {
             type: InteractionResponseType.ChannelMessageWithSource,
             data: {
               flags: MessageFlags.Ephemeral,
-              content: "Searching for your gamertag and recent game history...",
+              embeds: [
+                {
+                  title: "Gamertag search...",
+                  description: "Searching for your gamertag and recent game history...",
+                },
+              ],
             },
           },
           jobToComplete: async () => this.applicationCommandJob(interaction),
@@ -514,7 +512,7 @@ export class ConnectCommand extends BaseCommand {
         gamertag,
         locale,
         `Gamertag search for "${gamertag}"`,
-        "Please confirm the recent game history for yourself below:",
+        "Please confirm the recent custom game history for yourself below:",
       );
       const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
       const actions: APIButtonComponent[] = hasHistory
@@ -609,7 +607,10 @@ export class ConnectCommand extends BaseCommand {
         locale,
       );
 
-      await discordService.updateDeferredReply(interaction.token, content);
+      await Promise.all([
+        discordService.updateDeferredReply(interaction.token, content),
+        this.maybeRetryLastCommand(interaction),
+      ]);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -665,8 +666,13 @@ export class ConnectCommand extends BaseCommand {
         : [
             {
               name: "No custom game matches found",
-              value:
-                "Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy) and ensure '**Show ...**' is set for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.",
+              value: [
+                "To resolve, either:",
+                'In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".',
+                'Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".',
+                "",
+                "Once you have done this, search for your gamertag again.",
+              ].join("\n"),
             },
           ],
     };
@@ -689,6 +695,7 @@ export class ConnectCommand extends BaseCommand {
       const errorEmbed = message.embeds
         .map((embed) => EndUserError.fromDiscordEmbed(embed))
         .find((embed) => embed != null);
+
       if (errorEmbed == null || !(errorEmbed instanceof EndUserError) || Object.entries(errorEmbed.data).length === 0) {
         return;
       }
