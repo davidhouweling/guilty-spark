@@ -218,7 +218,8 @@ export class ConnectCommand extends BaseCommand {
       if (usersByXuids[0] != null) {
         searchedGamertag = usersByXuids[0].gamertag;
 
-        const thirdPartySites = [`[Halo Data Hive](<https://halodatahive.com/Player/Infinite/${searchedGamertag}>)`];
+        const url = new URL(`https://halodatahive.com/Player/Infinite/${searchedGamertag}`);
+        const thirdPartySites = [`[Halo Data Hive](<${url.href}>)`];
 
         currentAssociation = [
           `**Halo account:** ${searchedGamertag}`,
