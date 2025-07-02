@@ -150,7 +150,6 @@ Configure automated stats posting for NeatQueue-managed series:
    ```
 
 3. **Configure environment**:
-
    - Follow [Discord/Cloudflare sample app guide](https://github.com/discord/cloudflare-sample-app) for initial setup
    - Create `.dev.vars` file with required environment variables
    - Set up Cloudflare D1 database and KV namespace

@@ -7,7 +7,7 @@ export default config(
   eslint.configs.recommended,
   configs.strictTypeChecked,
   configs.stylisticTypeChecked,
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
   importPlugin.flatConfigs.recommended,
   importPlugin.flatConfigs.typescript,
   {
