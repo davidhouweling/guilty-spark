@@ -1,59 +1,42 @@
 import type { authenticate } from "@xboxreplay/xboxlive-auth";
-import type { LogService } from "../log/types.mjs";
 
-export enum TokenInfoKey {
-  XSTSToken,
-  expiresOn,
+interface TokenInfo {
+  XSTSToken: string;
+  expiresOn: Date;
 }
 
 export interface XboxServiceOpts {
   env: Env;
-  logService: LogService;
   authenticate: typeof authenticate;
 }
 
 export class XboxService {
   private readonly env: Env;
-  private readonly logService: LogService;
   private readonly authenticate: typeof authenticate;
-  private tokenInfoMap = new Map<TokenInfoKey, string>();
   private static readonly TOKEN_NAME = "xboxToken";
 
-  constructor({ env, logService, authenticate }: XboxServiceOpts) {
+  tokenInfo: TokenInfo | null = null;
+
+  constructor({ env, authenticate }: XboxServiceOpts) {
     this.env = env;
-    this.logService = logService;
     this.authenticate = authenticate;
   }
 
   async loadCredentials(): Promise<void> {
-    const tokenInfo = await this.env.APP_DATA.get(XboxService.TOKEN_NAME);
-    if (tokenInfo != null) {
-      try {
-        this.tokenInfoMap = new Map(JSON.parse(tokenInfo) as [TokenInfoKey, string][]);
-      } catch (error) {
-        this.logService.warn(
-          error as Error,
-          new Map([["message", "Failed to parse cached Xbox credentials, Continuing without cached Xbox credentials"]]),
-        );
-      }
-    }
+    this.tokenInfo = await this.env.APP_DATA.get<TokenInfo>(XboxService.TOKEN_NAME, "json");
   }
 
-  get token(): string | undefined {
-    return this.tokenInfoMap.get(TokenInfoKey.XSTSToken);
-  }
+  async maybeRefreshXstsToken(): Promise<void> {
+    const expiresOn = this.tokenInfo?.expiresOn;
 
-  async maybeRefreshToken(): Promise<void> {
-    const expiresOn = this.tokenInfoMap.get(TokenInfoKey.expiresOn);
-
-    if (this.token == null || expiresOn == null || new Date() >= new Date(expiresOn)) {
+    if (this.tokenInfo?.XSTSToken == null || expiresOn == null || new Date() >= new Date(expiresOn)) {
       await this.updateCredentials();
     }
   }
 
-  clearToken(): void {
-    this.tokenInfoMap.clear();
-    void this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
+  async clearToken(): Promise<void> {
+    this.tokenInfo = null;
+    await this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
   }
 
   private async updateCredentials(): Promise<void> {
@@ -65,11 +48,13 @@ export class XboxService {
       },
     );
 
-    this.tokenInfoMap.set(TokenInfoKey.XSTSToken, credentialsResponse.xsts_token);
-    this.tokenInfoMap.set(TokenInfoKey.expiresOn, credentialsResponse.expires_on);
+    this.tokenInfo = {
+      XSTSToken: credentialsResponse.xsts_token,
+      expiresOn: new Date(credentialsResponse.expires_on),
+    };
 
-    await this.env.APP_DATA.put(XboxService.TOKEN_NAME, JSON.stringify(Array.from(this.tokenInfoMap.entries())), {
-      expirationTtl: Math.floor((new Date(credentialsResponse.expires_on).getTime() - new Date().getTime()) / 1000),
+    await this.env.APP_DATA.put(XboxService.TOKEN_NAME, JSON.stringify(this.tokenInfo), {
+      expirationTtl: Math.floor((this.tokenInfo.expiresOn.getTime() - new Date().getTime()) / 1000),
     });
   }
 }

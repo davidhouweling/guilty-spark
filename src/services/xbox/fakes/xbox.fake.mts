@@ -3,7 +3,6 @@ import { addHours } from "date-fns";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { XboxServiceOpts } from "../xbox.mjs";
 import { XboxService } from "../xbox.mjs";
-import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 
 const fakeAuthenticate = async (): Promise<AuthenticateResponse> => {
   const now = new Date();
@@ -35,12 +34,10 @@ const fakeAuthenticate = async (): Promise<AuthenticateResponse> => {
 
 export function aFakeXboxServiceWith(opts: Partial<XboxServiceOpts> = {}): XboxService {
   const env = opts.env ?? aFakeEnvWith();
-  const logService = opts.logService ?? aFakeLogServiceWith();
   const authenticateToUse = (opts.authenticate ?? fakeAuthenticate) as typeof authenticate;
 
   return new XboxService({
     env,
-    logService,
     authenticate: authenticateToUse,
   });
 }
