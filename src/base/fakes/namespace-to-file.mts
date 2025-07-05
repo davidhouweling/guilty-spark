@@ -28,31 +28,45 @@ interface KVNamespaceGetOptions<Type> {
   cacheTtl?: number;
 }
 
-export class FileBackedKVNamespace implements KVNamespace<string> {
-  private store: Map<string, string>;
-  private filePath: string;
-  private isWriting: boolean = false;
-  private writeQueue: (() => void)[] = [];
+type GetType = "text" | "json" | "arrayBuffer" | "stream";
+type GetOptions =
+  | Partial<KVNamespaceGetOptions<undefined>>
+  | KVNamespaceGetOptions<"text">
+  | KVNamespaceGetOptions<"json">
+  | KVNamespaceGetOptions<"arrayBuffer">
+  | KVNamespaceGetOptions<"stream">;
+
+type GetReturn<T> = T | null;
+type GetWithMetadataReturn<T, M> = KVNamespaceGetWithMetadataResult<T, M>;
+
+export class FileBackedKVNamespace implements KVNamespace {
+  private readonly store: Map<string, string>;
+  private readonly filePath: string;
+  private isWriting = false;
+  private readonly writeQueue: (() => void)[] = [];
 
   constructor(filePath: string) {
     this.filePath = filePath;
     this.store = new Map();
   }
 
-  async init() {
+  async init(): Promise<void> {
     try {
       const data = await fs.readFile(this.filePath, "utf-8");
-      const obj = JSON.parse(data);
-      for (const [key, value] of Object.entries(obj)) {
-        this.store.set(key, value as string);
+      const obj = JSON.parse(data) as Record<string, string>;
+      Object.entries(obj).forEach(([key, value]) => {
+        this.store.set(key, value);
+      });
+    } catch (e) {
+      if (typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "ENOENT") {
+        await this.persist();
+      } else {
+        throw e;
       }
-    } catch (e: any) {
-      if (e.code !== "ENOENT") throw e;
-      await this.persist();
     }
   }
 
-  private async persist() {
+  private async persist(): Promise<void> {
     const obj: Record<string, string> = {};
     for (const [key, value] of this.store.entries()) {
       obj[key] = value;
@@ -64,80 +78,76 @@ export class FileBackedKVNamespace implements KVNamespace<string> {
     try {
       await fs.writeFile(this.filePath, JSON.stringify(obj, null, 2), "utf-8");
     } finally {
+      const next = this.writeQueue.shift();
       this.isWriting = false;
-      if (this.writeQueue.length > 0) {
-        const next = this.writeQueue.shift();
-        if (next) {
-          next();
-        }
-      }
+      if (next) next();
     }
   }
 
-  // --- get overloads (matching interface) ---
-  get(key: string, options?: Partial<KVNamespaceGetOptions<undefined>>): Promise<string | null>;
-  get(key: string, type: "text"): Promise<string | null>;
-  get<ExpectedValue = unknown>(key: string, type: "json"): Promise<ExpectedValue | null>;
-  get(key: string, type: "arrayBuffer"): Promise<ArrayBuffer | null>;
-  get(key: string, type: "stream"): Promise<ReadableStream | null>;
-  get(key: string, options?: KVNamespaceGetOptions<"text">): Promise<string | null>;
-  get<ExpectedValue = unknown>(key: string, options?: KVNamespaceGetOptions<"json">): Promise<ExpectedValue | null>;
-  get(key: string, options?: KVNamespaceGetOptions<"arrayBuffer">): Promise<ArrayBuffer | null>;
-  get(key: string, options?: KVNamespaceGetOptions<"stream">): Promise<ReadableStream | null>;
-  get(key: string[], type: "text"): Promise<Map<string, string | null>>;
-  get<ExpectedValue = unknown>(key: string[], type: "json"): Promise<Map<string, ExpectedValue | null>>;
-  get(key: string[], options?: Partial<KVNamespaceGetOptions<undefined>>): Promise<Map<string, string | null>>;
-  get(key: string[], options?: KVNamespaceGetOptions<"text">): Promise<Map<string, string | null>>;
+  // --- get overloads (unified signatures) ---
+  get<ExpectedValue = unknown>(
+    key: string,
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<GetReturn<string | ExpectedValue | ArrayBuffer | ReadableStream>>;
   get<ExpectedValue = unknown>(
     key: string[],
-    options?: KVNamespaceGetOptions<"json">,
-  ): Promise<Map<string, ExpectedValue | null>>;
-  async get(key: string | string[], typeOrOptions?: any): Promise<any> {
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<Map<string, GetReturn<string | ExpectedValue | ArrayBuffer | ReadableStream>>>;
+  async get<ExpectedValue = unknown>(
+    key: string | string[],
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<
+    | GetReturn<string | ExpectedValue | ArrayBuffer | ReadableStream>
+    | Map<string, GetReturn<string | ExpectedValue | ArrayBuffer | ReadableStream>>
+  > {
     if (Array.isArray(key)) {
-      const result = new Map();
+      const result = new Map<string, GetReturn<string | ExpectedValue | ArrayBuffer | ReadableStream>>();
       for (const k of key) {
-        result.set(k, await this.get(k, typeOrOptions));
+        result.set(k, await this.get<ExpectedValue>(k, typeOrOptions));
       }
       return result;
     }
-
     if (!this.store.has(key)) {
       return null;
     }
-
-    const value = this.store.get(key)!;
-    const type = typeof typeOrOptions === "string" ? typeOrOptions : typeOrOptions?.type;
+    const value = this.store.get(key);
+    const type =
+      typeof typeOrOptions === "string"
+        ? typeOrOptions
+        : typeOrOptions && typeof typeOrOptions === "object"
+          ? (typeOrOptions as { type?: string }).type
+          : undefined;
     switch (type) {
       case undefined:
-      case "text": {
-        return value;
-      }
-      case "json": {
+      case "text":
+        return value ?? null;
+      case "json":
         try {
-          return JSON.parse(value);
+          return (JSON.parse(value ?? "") as ExpectedValue) ?? null;
         } catch {
           return null;
         }
-      }
-      case "arrayBuffer": {
-        return Buffer.from(value);
-      }
+      case "arrayBuffer":
+        if (typeof value === "string") {
+          const buf = new TextEncoder().encode(value);
+          return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+        }
+        return null;
       case "stream": {
-        const { Readable } = await import("stream");
-        return Readable.from([value]);
+        if (typeof value === "string") {
+          const { Readable } = await import("stream");
+          // @ts-expect-error: Node.js Readable is not a web ReadableStream
+          return Readable.from([value]);
+        }
+        return null;
       }
-      default: {
-        return value;
-      }
+      default:
+        return value ?? null;
     }
   }
 
   // --- put ---
-  async put(
-    key: string,
-    value: string | ArrayBuffer | ArrayBufferView | ReadableStream,
-    _options?: unknown,
-  ): Promise<void> {
+  async put(key: string, value: string | ArrayBuffer | ArrayBufferView | ReadableStream): Promise<void> {
     let strValue: string;
     if (typeof value === "string") {
       strValue = value;
@@ -146,7 +156,6 @@ export class FileBackedKVNamespace implements KVNamespace<string> {
     } else if (ArrayBuffer.isView(value)) {
       strValue = Buffer.from(value.buffer).toString();
     } else {
-      // ReadableStream not supported in Node.js by default
       throw new Error("ReadableStream not supported in this fake");
     }
     this.store.set(key, strValue);
@@ -164,12 +173,15 @@ export class FileBackedKVNamespace implements KVNamespace<string> {
     prefix?: string;
     limit?: number;
     cursor?: string | null;
-  }): Promise<KVNamespaceListResult<Metadata, string>> {
+  }): Promise<KVNamespaceListResult<Metadata>> {
+    // eslint-disable-next-line @typescript-eslint/await-thenable
+    await null;
     let keys = Array.from(this.store.keys());
-    if (options?.prefix) {
-      keys = keys.filter((k) => k.startsWith(options.prefix!));
+    const { prefix } = options ?? {};
+    if (typeof prefix === "string") {
+      keys = keys.filter((k) => k.startsWith(prefix));
     }
-    const result: KVNamespaceListKey<Metadata, string>[] = keys.map((name) => ({ name }));
+    const result: KVNamespaceListKey<Metadata>[] = keys.map((name) => ({ name }));
     return {
       list_complete: true,
       keys: result,
@@ -177,81 +189,38 @@ export class FileBackedKVNamespace implements KVNamespace<string> {
     };
   }
 
-  // --- getWithMetadata overloads (matching interface) ---
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    options?: Partial<KVNamespaceGetOptions<undefined>>,
-  ): Promise<KVNamespaceGetWithMetadataResult<string, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    type: "text",
-  ): Promise<KVNamespaceGetWithMetadataResult<string, Metadata>>;
+  // --- getWithMetadata overloads (unified signatures) ---
   getWithMetadata<ExpectedValue = unknown, Metadata = unknown>(
     key: string,
-    type: "json",
-  ): Promise<KVNamespaceGetWithMetadataResult<ExpectedValue, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    type: "arrayBuffer",
-  ): Promise<KVNamespaceGetWithMetadataResult<ArrayBuffer, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    type: "stream",
-  ): Promise<KVNamespaceGetWithMetadataResult<ReadableStream, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    options: KVNamespaceGetOptions<"text">,
-  ): Promise<KVNamespaceGetWithMetadataResult<string, Metadata>>;
-  getWithMetadata<ExpectedValue = unknown, Metadata = unknown>(
-    key: string,
-    options: KVNamespaceGetOptions<"json">,
-  ): Promise<KVNamespaceGetWithMetadataResult<ExpectedValue, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    options: KVNamespaceGetOptions<"arrayBuffer">,
-  ): Promise<KVNamespaceGetWithMetadataResult<ArrayBuffer, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string,
-    options: KVNamespaceGetOptions<"stream">,
-  ): Promise<KVNamespaceGetWithMetadataResult<ReadableStream, Metadata>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string[],
-    type: "text",
-  ): Promise<Map<string, KVNamespaceGetWithMetadataResult<string, Metadata>>>;
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<GetWithMetadataReturn<ExpectedValue, Metadata>>;
   getWithMetadata<ExpectedValue = unknown, Metadata = unknown>(
     key: string[],
-    type: "json",
-  ): Promise<Map<string, KVNamespaceGetWithMetadataResult<ExpectedValue, Metadata>>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string[],
-    options?: Partial<KVNamespaceGetOptions<undefined>>,
-  ): Promise<Map<string, KVNamespaceGetWithMetadataResult<string, Metadata>>>;
-  getWithMetadata<Metadata = unknown>(
-    key: string[],
-    options?: KVNamespaceGetOptions<"text">,
-  ): Promise<Map<string, KVNamespaceGetWithMetadataResult<string, Metadata>>>;
-  getWithMetadata<ExpectedValue = unknown, Metadata = unknown>(
-    key: string[],
-    options?: KVNamespaceGetOptions<"json">,
-  ): Promise<Map<string, KVNamespaceGetWithMetadataResult<ExpectedValue, Metadata>>>;
-  async getWithMetadata(key: string | string[], typeOrOptions?: any): Promise<any> {
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<Map<string, GetWithMetadataReturn<ExpectedValue, Metadata>>>;
+  async getWithMetadata<ExpectedValue = unknown, Metadata = unknown>(
+    key: string | string[],
+    typeOrOptions?: GetType | GetOptions,
+  ): Promise<
+    GetWithMetadataReturn<ExpectedValue, Metadata> | Map<string, GetWithMetadataReturn<ExpectedValue, Metadata>>
+  > {
     if (Array.isArray(key)) {
-      const result = new Map();
+      const result = new Map<string, GetWithMetadataReturn<ExpectedValue, Metadata>>();
       for (const k of key) {
-        result.set(k, await this.getWithMetadata(k, typeOrOptions));
+        result.set(k, await this.getWithMetadata<ExpectedValue, Metadata>(k, typeOrOptions));
       }
       return result;
     }
-    const value = await this.get(key, typeOrOptions);
+    const value = await this.get<ExpectedValue>(key, typeOrOptions);
     return {
-      value,
+      value: value as ExpectedValue | null,
       metadata: null,
       cacheStatus: null,
     };
   }
 }
 
-export async function createFileBackedKVNamespace(filePath: string): Promise<KVNamespace<string>> {
+export async function createFileBackedKVNamespace(filePath: string): Promise<KVNamespace> {
   const kv = new FileBackedKVNamespace(filePath);
   await kv.init();
   return kv;
