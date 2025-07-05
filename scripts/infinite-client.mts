@@ -8,16 +8,21 @@ import { XboxService } from "../src/services/xbox/xbox.mjs";
 import { CustomSpartanTokenProvider } from "../src/services/halo/custom-spartan-token-provider.mjs";
 import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
 import { Preconditions } from "../src/base/preconditions.mjs";
+import { createFileBackedKVNamespace } from "../src/base/fakes/namespace-to-file.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const fakeNamespace = await createFileBackedKVNamespace(path.join(__dirname, "app-data.json"));
 
 const env = aFakeEnvWith({
   XBOX_USERNAME: Preconditions.checkExists(process.env.XBOX_USERNAME),
   XBOX_PASSWORD: Preconditions.checkExists(process.env.XBOX_PASSWORD),
+  APP_DATA: fakeNamespace,
 });
 
+console.log("username", env.XBOX_USERNAME);
+
 const xboxService = new XboxService({ env, authenticate });
-await xboxService.maybeRefreshXstsToken();
 const client = new HaloInfiniteClient(new CustomSpartanTokenProvider({ env, xboxService }));
 
 const user = await client.getUser("soundmanD");

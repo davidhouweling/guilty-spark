@@ -20,6 +20,7 @@ export class CustomSpartanTokenProvider extends HaloAuthenticationClient impleme
   constructor({ env, xboxService }: CustomSpartanTokenProviderOpts) {
     super(
       async () => {
+        await xboxService.loadCredentials();
         await xboxService.maybeRefreshXstsToken();
         return Preconditions.checkExists(xboxService.tokenInfo?.XSTSToken);
       },

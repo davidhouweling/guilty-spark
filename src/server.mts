@@ -13,7 +13,7 @@ router.get("/", (_request, env: Env) => {
 
 router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
-    const services = await installServices({ env });
+    const services = installServices({ env });
     const { discordService } = services;
     const commands = getCommands(services, env);
     discordService.setCommands(commands);
@@ -40,7 +40,7 @@ router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, ""
 
 router.post("/neatqueue", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
   try {
-    const services = await installServices({ env });
+    const services = installServices({ env });
     const { neatQueueService } = services;
 
     const verifiedRequest = await neatQueueService.verifyRequest(request);

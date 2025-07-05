@@ -25,7 +25,7 @@ interface InstallServicesOpts {
   env: Env;
 }
 
-export async function installServices({ env }: InstallServicesOpts): Promise<Services> {
+export function installServices({ env }: InstallServicesOpts): Services {
   const logService = new AggregatorClient(
     env.MODE === "production" ? [new SentryLogClient(), new ConsoleLogClient()] : [new ConsoleLogClient()],
   );
@@ -39,8 +39,6 @@ export async function installServices({ env }: InstallServicesOpts): Promise<Ser
     infiniteClient,
   });
   const neatQueueService = new NeatQueueService({ env, logService, databaseService, discordService, haloService });
-
-  await xboxService.loadCredentials();
 
   return {
     logService,
