@@ -141,14 +141,10 @@ export class NeatQueueService {
         return;
       }
 
-      console.log("errorEmbed", errorEmbed);
-      console.log("errorEmbed.data", errorEmbed.data);
-
       const queueChannel = Preconditions.checkExists(
         errorEmbed.data["Channel"]?.substring(2, errorEmbed.data["Channel"].length - 1),
         "expected queue channel",
       );
-      console.log("queueChannel", queueChannel);
       const queue = parseInt(Preconditions.checkExists(errorEmbed.data["Queue"], "expected queue number"), 10);
       const startedTimestamp =
         errorEmbed.data["Started"] != null

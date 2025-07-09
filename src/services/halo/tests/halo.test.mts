@@ -106,11 +106,11 @@ describe("Halo service", () => {
           }),
         );
       });
-      infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
-        if (xboxUserId === "0000000000001") {
+      infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
+        if (xboxUserId === "0000000000001" && start === 0) {
           return Promise.resolve(playerMatches);
         }
-        if (xboxUserId === "0000000000003") {
+        if (xboxUserId === "0000000000003" && start === 0) {
           return Promise.resolve(playerMatches.slice(0, 3));
         }
 
@@ -119,10 +119,41 @@ describe("Halo service", () => {
 
       await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(3);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000001", 2, 40, 0);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000003", 2, 40, 0);
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000004", 2, 40, 0);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(5);
+      expect(infiniteClient.getPlayerMatches.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            "0000000000004",
+            2,
+            25,
+            0,
+          ],
+          [
+            "0000000000001",
+            2,
+            25,
+            0,
+          ],
+          [
+            "0000000000001",
+            2,
+            25,
+            5,
+          ],
+          [
+            "0000000000003",
+            2,
+            25,
+            0,
+          ],
+          [
+            "0000000000003",
+            2,
+            25,
+            3,
+          ],
+        ]
+      `);
     });
 
     it("throws an error when all users from database are not game retrievable", async () => {
@@ -527,14 +558,6 @@ describe("Halo service", () => {
             },
             {
               "AssociationDate": 1732622400000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
-              "DiscordId": "000000000000000001",
-              "GamesRetrievable": "Y",
-              "XboxId": "0000000000001",
-            },
-            {
-              "AssociationDate": 1732622400000,
               "AssociationReason": "D",
               "DiscordDisplayNameSearched": "DiscordUser02",
               "DiscordId": "000000000000000002",
@@ -580,6 +603,14 @@ describe("Halo service", () => {
               "DiscordId": "000000000000000008",
               "GamesRetrievable": "N",
               "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000001",
+              "GamesRetrievable": "Y",
+              "XboxId": "0000000000001",
             },
           ],
         ]

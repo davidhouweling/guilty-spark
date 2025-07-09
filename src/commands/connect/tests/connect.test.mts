@@ -256,7 +256,12 @@ describe("ConnectCommand", () => {
         type: InteractionResponseType.ChannelMessageWithSource,
         data: {
           flags: MessageFlags.Ephemeral,
-          content: "Searching for your gamertag and recent game history...",
+          embeds: [
+            {
+              description: "Searching for your gamertag and recent game history...",
+              title: "Gamertag search...",
+            },
+          ],
         },
       });
       expect(jobToComplete).toBeInstanceOf(Function);

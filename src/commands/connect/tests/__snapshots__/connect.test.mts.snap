@@ -211,9 +211,9 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -443,9 +443,9 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -675,9 +675,9 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -898,9 +898,9 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -1208,9 +1208,9 @@ View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/game
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Connect Discord to Halo",
@@ -1774,9 +1774,9 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
             "name": "No custom game matches found",
             "value": "To resolve, either:
 In game: open Settings, navigate to Accessibility tab, scroll down to Match History Privacy, set the "Matchmade Games" option to "Share", and set the "Non-Matchmade Games" option to "Share".
-Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): set '**Show ...**' for both 'Halo Infinite matchmade games' and 'Halo Infinite Non-Matchmade Games'.
+Go to [**Halo Waypoint Privacy settings**](https://www.halowaypoint.com/settings/privacy): select "Show Matchmade Game History" and "Show Non-Matchmade Game History".
 
-Once you have done this, try again.",
+Once you have done this, search for your gamertag again.",
           },
         ],
         "title": "Gamertag search for "gamertag0000000000001"",

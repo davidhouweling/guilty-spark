@@ -138,7 +138,7 @@ describe("EndUserError", () => {
             label: "Connect",
             custom_id: "btn_connect_initiate",
             emoji: {
-              name: "🔌",
+              name: "🔗",
             },
           },
         ],
