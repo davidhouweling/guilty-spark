@@ -687,7 +687,7 @@ describe("NeatQueueService", () => {
           Queue: "1",
           Started: "<t:1700000000:f>",
           Completed: "<t:1700003600:f>",
-          Substitutions: "<@user1> subbed in for <@user2> on <t:1700001800:f>",
+          Substitutions: "<@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
         },
       });
 
@@ -705,14 +705,14 @@ describe("NeatQueueService", () => {
             name: "Team 1",
             players: [
               {
-                id: "user1",
+                id: "000000000000000001",
                 username: "player1",
                 global_name: "Player 1",
                 discriminator: "0001",
                 avatar: "avatar1",
               },
               {
-                id: "user2",
+                id: "000000000000000002",
                 username: "player2",
                 global_name: "Player 2",
                 discriminator: "0002",
@@ -724,14 +724,14 @@ describe("NeatQueueService", () => {
             name: "Team 2",
             players: [
               {
-                id: "user3",
+                id: "000000000000000003",
                 username: "player3",
                 global_name: "Player 3",
                 discriminator: "0003",
                 avatar: "avatar3",
               },
               {
-                id: "user4",
+                id: "000000000000000004",
                 username: "player4",
                 global_name: "Player 4",
                 discriminator: "0004",
@@ -769,7 +769,7 @@ describe("NeatQueueService", () => {
 
     it("handles missing queue message gracefully", async () => {
       vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(null);
-      const logWarnSpy = vi.spyOn(logService, "warn");
+      const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
       await neatQueueService.handleRetry({
         errorEmbed: fakeErrorEmbed,
@@ -777,7 +777,33 @@ describe("NeatQueueService", () => {
         message: fakeMessage,
       });
 
-      expect(logWarnSpy).toHaveBeenCalledWith("Failed to find queue message for retry", expect.any(Map));
+      expect(editMessageSpy).toHaveBeenCalledOnce();
+      expect(editMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+        [
+          "channel-123",
+          "1314562775950954626",
+          {
+            "components": [],
+            "embeds": [
+              {
+                "color": 16711680,
+                "description": "Failed to find the queue message in the last 100 messages of the channel",
+                "fields": [
+                  {
+                    "name": "Additional Information",
+                    "value": "**Channel**: <#queue-channel-456>
+        **Queue**: 1
+        **Started**: <t:1700000000:f>
+        **Completed**: <t:1700003600:f>
+        **Substitutions**: <@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
+                  },
+                ],
+                "title": "Something went wrong",
+              },
+            ],
+          },
+        ]
+      `);
     });
 
     it("handles non-text channel gracefully", async () => {
