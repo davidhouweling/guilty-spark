@@ -9,6 +9,18 @@ interface SeriesOverviewEmbedOpts {
   haloService: HaloService;
 }
 
+export interface SeriesOverviewEmbedFinalTeams {
+  name: string;
+  playerIds: string[];
+}
+
+export interface SeriesOverviewEmbedSubstitution {
+  date: Date;
+  playerOut: string;
+  playerIn: string;
+  team: string;
+}
+
 export class SeriesOverviewEmbed {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
@@ -35,16 +47,8 @@ export class SeriesOverviewEmbed {
     locale: string;
     queue: number;
     series: MatchStats[];
-    finalTeams: {
-      name: string;
-      playerIds: string[];
-    }[];
-    substitutions: {
-      date: Date;
-      playerOut: string;
-      playerIn: string;
-      team: string;
-    }[];
+    finalTeams: SeriesOverviewEmbedFinalTeams[];
+    substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
   }): Promise<APIEmbed> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];

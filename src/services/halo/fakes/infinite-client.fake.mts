@@ -57,8 +57,8 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     );
   });
 
-  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId) => {
-    if (xboxUserId === "0000000000001") {
+  infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
+    if (xboxUserId === "0000000000001" && (start === 0 || start == null)) {
       return Promise.resolve(playerMatches);
     }
 
