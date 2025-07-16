@@ -80,7 +80,9 @@ export class FileBackedKVNamespace implements KVNamespace {
     } finally {
       const next = this.writeQueue.shift();
       this.isWriting = false;
-      if (next) next();
+      if (next) {
+        next();
+      }
     }
   }
 

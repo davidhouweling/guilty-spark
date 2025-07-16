@@ -66,6 +66,7 @@ export default config(
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "import/order": "error",
+      curly: "error",
     },
   },
 );

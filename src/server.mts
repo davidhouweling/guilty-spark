@@ -64,6 +64,67 @@ router.post("/neatqueue", async (request, env: Env, ctx: EventContext<Env, "", u
   }
 });
 
+router.post("/proxy/halo-infinite", async (request, env: Env) => {
+  try {
+    const authHeader = request.headers.get("x-proxy-auth");
+    if (authHeader == null || authHeader !== env.PROXY_WORKER_TOKEN) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response("Invalid JSON body", { status: 400 });
+    }
+
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      typeof (body as { method?: unknown }).method !== "string" ||
+      !Array.isArray((body as { args?: unknown[] }).args)
+    ) {
+      return new Response("Invalid request format", { status: 400 });
+    }
+
+    const { method, args } = body as { method: string; args: unknown[] };
+    const services = installServices({ env });
+    const { haloInfiniteClient } = services;
+
+    const isFunctionProperty = <T,>(
+      obj: T,
+      key: string,
+    ): obj is T & Record<string, (...args: unknown[]) => unknown> => {
+      return (
+        Object.prototype.hasOwnProperty.call(obj, key) && typeof (obj as Record<string, unknown>)[key] === "function"
+      );
+    };
+    if (!isFunctionProperty(haloInfiniteClient, method)) {
+      return new Response(`Method not found: ${method}`, { status: 404 });
+    }
+
+    const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
+
+    const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
+    return new Response(JSON.stringify({ result }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    let errorBody: Record<string, unknown> = {};
+    if (error instanceof Error) {
+      errorBody = {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      };
+    } else {
+      errorBody = { error: String(error) };
+    }
+    return new Response(JSON.stringify(errorBody), { status: 500, headers: { "content-type": "application/json" } });
+  }
+});
+
 router.all("*", () => new Response("Not Found.", { status: 404 }));
 
 const server: ExportedHandler = {
