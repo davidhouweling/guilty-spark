@@ -1,14 +1,4 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { Preconditions } from "../../base/preconditions.mjs";
-
-const proxyUrl = Preconditions.checkExists(
-  process.env.PROXY_WORKER_URL,
-  "PROXY_WORKER_URL must be set in environment variables",
-);
-const proxyToken = Preconditions.checkExists(
-  process.env.PROXY_WORKER_TOKEN,
-  "PROXY_WORKER_TOKEN must be set in environment variables",
-);
 
 function isProxyErrorResponse(
   data: unknown,
@@ -58,7 +48,7 @@ async function handleProxyResponse(response: Response): Promise<unknown> {
   throw new Error("Malformed proxy response");
 }
 
-export function createHaloInfiniteClientProxy(): HaloInfiniteClient {
+export function createHaloInfiniteClientProxy({ env }: { env: Env }): HaloInfiniteClient {
   return new Proxy(
     {},
     {
@@ -68,11 +58,11 @@ export function createHaloInfiniteClientProxy(): HaloInfiniteClient {
           return undefined;
         }
         return async (...args: unknown[]): Promise<unknown> => {
-          const response = await fetch(`${proxyUrl}/proxy/halo-infinite`, {
+          const response = await fetch(`${env.PROXY_WORKER_URL}/proxy/halo-infinite`, {
             method: "POST",
             headers: {
               "content-type": "application/json",
-              "x-proxy-auth": proxyToken,
+              "x-proxy-auth": env.PROXY_WORKER_TOKEN,
             },
             body: JSON.stringify({ method: prop, args }),
           });

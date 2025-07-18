@@ -37,7 +37,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const useProxy: boolean = typeof env.PROXY_WORKER_URL === "string" && env.PROXY_WORKER_URL.length > 0;
 
   const haloInfiniteClient: HaloInfiniteClient = useProxy
-    ? createHaloInfiniteClientProxy()
+    ? createHaloInfiniteClientProxy({ env })
     : new HaloInfiniteClient(new CustomSpartanTokenProvider({ env, xboxService }));
 
   const haloService = new HaloService({
