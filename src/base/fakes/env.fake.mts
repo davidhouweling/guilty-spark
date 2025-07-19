@@ -55,7 +55,7 @@ const fakeDb = (): D1Database => ({
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const defaultOpts: Env = {
-    HOST_URL: "https://guilty-spark-dev.howling-dev.workers.dev",
+    HOST_URL: "https://dev-api.guilty-spark.app",
     MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",
@@ -64,6 +64,8 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     XBOX_PASSWORD: "XBOX_PASSWORD",
     APP_DATA: fakeNamespace(),
     DB: fakeDb(),
+    PROXY_WORKER_URL: "https://api.guilty-spark.app",
+    PROXY_WORKER_TOKEN: "worker-token",
   };
 
   return {
