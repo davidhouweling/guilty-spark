@@ -2,28 +2,21 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
-import { HaloInfiniteClient } from "halo-infinite-api";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
-import { XboxService } from "../src/services/xbox/xbox.mjs";
-import { CustomSpartanTokenProvider } from "../src/services/halo/custom-spartan-token-provider.mjs";
 import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
-import { Preconditions } from "../src/base/preconditions.mjs";
 import { createFileBackedKVNamespace } from "../src/base/fakes/namespace-to-file.mjs";
+import { createHaloInfiniteClientProxy } from "../src/services/halo/halo-infinite-client-proxy.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const fakeNamespace = await createFileBackedKVNamespace(path.join(__dirname, "app-data.json"));
 
 const env = aFakeEnvWith({
-  XBOX_USERNAME: Preconditions.checkExists(process.env.XBOX_USERNAME),
-  XBOX_PASSWORD: Preconditions.checkExists(process.env.XBOX_PASSWORD),
   APP_DATA: fakeNamespace,
+  PROXY_WORKER_URL: process.env.PROXY_WORKER_URL,
+  PROXY_WORKER_TOKEN: process.env.PROXY_WORKER_TOKEN,
 });
 
-console.log("username", env.XBOX_USERNAME);
-
-const xboxService = new XboxService({ env, authenticate });
-const client = new HaloInfiniteClient(new CustomSpartanTokenProvider({ env, xboxService }));
+const client = createHaloInfiniteClientProxy({ env });
 
 const user = await client.getUser("soundmanD");
 await writeFile(path.join(__dirname, "user.json"), JSON.stringify(user, null, 2));
