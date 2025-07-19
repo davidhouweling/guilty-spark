@@ -59,7 +59,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           XBOX_USERNAME: ${{ vars.XBOX_USERNAME }}
           XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
-          PROXY_WORKER_URL: ${{ vars.PROXY_WORKER_URL || '' }}
+          PROXY_WORKER_URL: ${{ vars.PROXY_WORKER_URL }}
           PROXY_WORKER_TOKEN: ${{ secrets.PROXY_WORKER_TOKEN }}
 
   deploy-cancel:

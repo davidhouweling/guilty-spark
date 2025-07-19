@@ -27,6 +27,15 @@ interface InstallServicesOpts {
   env: Env;
 }
 
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function installServices({ env }: InstallServicesOpts): Services {
   const logService = new AggregatorClient(
     env.MODE === "production" ? [new SentryLogClient(), new ConsoleLogClient()] : [new ConsoleLogClient()],
@@ -34,7 +43,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });
-  const useProxy: boolean = typeof env.PROXY_WORKER_URL === "string" && env.PROXY_WORKER_URL.length > 0;
+  const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
   const haloInfiniteClient: HaloInfiniteClient = useProxy
     ? createHaloInfiniteClientProxy({ env })
