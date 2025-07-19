@@ -35,6 +35,19 @@ export interface HaloServiceOpts {
   infiniteClient: HaloInfiniteClient;
 }
 
+const noMatchError = new EndUserError(
+  [
+    "Unable to match any of the Discord users to their Xbox accounts.",
+    "**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
+  ].join("\n"),
+  {
+    title: "No matches found",
+    errorType: EndUserErrorType.WARNING,
+    handled: true,
+    actions: ["connect"],
+  },
+);
+
 export class HaloService {
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
@@ -52,18 +65,6 @@ export class HaloService {
   }
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
-    const noMatchError = new EndUserError(
-      [
-        "Unable to match any of the Discord users to their Xbox accounts.",
-        "**How to fix**: Players from the series, please run `/connect` to link your Xbox account, then try again.",
-      ].join("\n"),
-      {
-        title: "No matches found",
-        errorType: EndUserErrorType.WARNING,
-        handled: true,
-      },
-    );
-
     const users = queueData.teams.flat();
     await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 
@@ -378,9 +379,22 @@ export class HaloService {
   }
 
   private async getPlayerMatches(xboxUserId: string, startDate: Date, endDate: Date): Promise<PlayerMatchHistory[]> {
-    if (!this.playerMatchesCache.has(xboxUserId)) {
-      const playerMatches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 40, 0);
-      this.playerMatchesCache.set(xboxUserId, playerMatches);
+    const history = this.playerMatchesCache.get(xboxUserId) ?? [];
+
+    if (!this.playerMatchesCache.has(xboxUserId) || history.length > 0) {
+      while (
+        history.length == 0 ||
+        isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
+      ) {
+        const matches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length);
+        history.push(...matches);
+
+        if (matches.length === 0) {
+          break;
+        }
+      }
+
+      this.playerMatchesCache.set(xboxUserId, history);
     }
 
     const playerMatches = Preconditions.checkExists(this.playerMatchesCache.get(xboxUserId));
@@ -419,14 +433,15 @@ export class HaloService {
     );
 
     if (!userMatches.size) {
-      throw new EndUserError(
-        "No matches found either because discord users could not be resolved to xbox users or no matches visible in Halo Waypoint",
-        {
-          handled: true,
+      if (this.playerMatchesCache.values().some((matches) => matches.length > 0)) {
+        throw new EndUserError("No matches found for the series", {
           title: "No matches found",
           errorType: EndUserErrorType.WARNING,
-        },
-      );
+          handled: true,
+        });
+      } else {
+        throw noMatchError;
+      }
     }
 
     // Get first player's matches as initial set
