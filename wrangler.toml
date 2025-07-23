@@ -1,5 +1,5 @@
 name = "guilty-spark-dev"
-main = "./src/server.mts"
+main = "./src/worker.mts"
 compatibility_flags = [ "nodejs_compat" ]
 compatibility_date = "2025-04-01"
 upload_source_maps = true
