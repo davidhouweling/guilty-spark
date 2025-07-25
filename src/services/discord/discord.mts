@@ -701,23 +701,26 @@ export class DiscordService {
         url.searchParams.set(key, value.toString());
       }
     }
-    this.logService.debug(
-      "Discord API request",
-      new Map([
-        ["url", url.toString()],
-        ["rateLimit", JSON.stringify(rateLimit ? { ...rateLimit } : null)],
-      ]),
-    );
 
     const headers = new Headers(options.headers);
     headers.set("Authorization", `Bot ${this.env.DISCORD_TOKEN}`);
     headers.set("content-type", "application/json;charset=UTF-8");
 
-    const fetchOptions = {
+    const fetchOptions: RequestInit = {
       ...options,
       body: options.body ?? null,
       headers: headers,
     };
+
+    this.logService.debug(
+      "Discord API request",
+      new Map([
+        ["method", fetchOptions.method],
+        ["url", url.toString()],
+        ["rateLimit", JSON.stringify(rateLimit ? { ...rateLimit } : null)],
+        ["body", JSON.stringify(fetchOptions.body)],
+      ]),
+    );
 
     // having to rebind back to global fetch due to Cloudflare Workers
     // https://developers.cloudflare.com/workers/observability/errors/#illegal-invocation-errors
@@ -761,6 +764,7 @@ export class DiscordService {
     }
 
     const data = await response.json();
+    this.logService.debug("Discord API response", new Map([["data", JSON.stringify(data)]]));
     return data as T;
   }
 

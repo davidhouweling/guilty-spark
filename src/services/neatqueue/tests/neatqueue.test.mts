@@ -743,9 +743,15 @@ describe("NeatQueueService", () => {
       });
 
       vi.spyOn(discordService, "getDateFromTimestamp").mockImplementation((timestamp) => {
-        if (timestamp === "<t:1700000000:f>") return new Date(1700000000 * 1000);
-        if (timestamp === "<t:1700003600:f>") return new Date(1700003600 * 1000);
-        if (timestamp === "<t:1700001800:f>") return new Date(1700001800 * 1000);
+        if (timestamp === "<t:1700000000:f>") {
+          return new Date(1700000000 * 1000);
+        }
+        if (timestamp === "<t:1700003600:f>") {
+          return new Date(1700003600 * 1000);
+        }
+        if (timestamp === "<t:1700001800:f>") {
+          return new Date(1700001800 * 1000);
+        }
         return new Date();
       });
 

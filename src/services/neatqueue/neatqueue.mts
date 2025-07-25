@@ -136,7 +136,12 @@ export class NeatQueueService {
     try {
       const channel = await discordService.getChannel(message.channel_id);
 
-      if (channel.type != ChannelType.GuildText && channel.type != ChannelType.PublicThread) {
+      if (
+        channel.type !== ChannelType.GuildText &&
+        channel.type !== ChannelType.PublicThread &&
+        channel.type !== ChannelType.GuildAnnouncement &&
+        channel.type !== ChannelType.AnnouncementThread
+      ) {
         logService.warn("Expected channel for retry", new Map([["channel", channel.id]]));
         return;
       }
@@ -261,10 +266,10 @@ export class NeatQueueService {
       });
 
       let threadId = message.channel_id;
-      if (channel.type !== ChannelType.PublicThread) {
+      if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
         const thread = await discordService.startThreadFromMessage(
-          queueMessage.message.channel_id,
-          queueMessage.message.id,
+          message.channel_id,
+          message.id,
           `Queue #${queue.toString()} series stats`,
         );
         threadId = thread.id;
