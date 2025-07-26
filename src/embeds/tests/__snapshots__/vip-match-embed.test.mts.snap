@@ -72,8 +72,8 @@ VIP Assists: 0
 Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
-Longest Time as VIP: 
-Time as VIP: 
+Longest Time as VIP: 0s
+Time as VIP: 0s
 <:OfftheRack:1322884747881353279> <:Kong:1322873292180160604> <:LastShot:1322884170606972959>",
     },
     {
@@ -217,8 +217,8 @@ VIP Assists: 0
 Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
-Longest Time as VIP: 
-Time as VIP: ",
+Longest Time as VIP: 0s
+Time as VIP: 0s",
     },
     {
       "inline": true,
@@ -230,14 +230,14 @@ KDA: 0
 Headshot kills: 0
 Shots H:F (acc): 0:0 (0%)
 Damage D:T (D/T): 0:__**0**__ (0)
-Average life duration (damage/life):  (NaN)
+Average life duration (damage/life): 0s (NaN)
 VIP kills: 0
 VIP Assists: 0
 Kills as VIP: 0
 Times selected as VIP: 0
 Max killing spree as VIP: 0
-Longest Time as VIP: 
-Time as VIP: ",
+Longest Time as VIP: 0s
+Time as VIP: 0s",
     },
     {
       "inline": false,

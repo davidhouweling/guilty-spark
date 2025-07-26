@@ -452,6 +452,13 @@ describe("Halo service", () => {
 
       expect(result).toBe("3d 4h 30m 15s");
     });
+
+    it("returns '0s' when the duration is zero", () => {
+      const duration = "PT0S";
+      const result = haloService.getReadableDuration(duration, "en-US");
+
+      expect(result).toBe("0s");
+    });
   });
 
   describe("getMedal()", () => {
