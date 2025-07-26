@@ -1,6 +1,6 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
-import type { APIChannel } from "discord-api-types/v10";
+import type { APIChannel, APIMessage } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import { NeatQueueService } from "../neatqueue.mjs";
@@ -668,6 +668,164 @@ describe("NeatQueueService", () => {
 
       expect(response).toBeInstanceOf(Response);
       expect(jobToComplete).toBeUndefined();
+    });
+  });
+
+  describe("handleRetry", () => {
+    let fakeMessage: APIMessage;
+    let fakeErrorEmbed: EndUserError;
+
+    beforeEach(() => {
+      fakeMessage = {
+        ...apiMessage,
+        channel_id: "channel-123",
+      };
+
+      fakeErrorEmbed = new EndUserError("Retry test error", {
+        data: {
+          Channel: "<#queue-channel-456>",
+          Queue: "1",
+          Started: "<t:1700000000:f>",
+          Completed: "<t:1700003600:f>",
+          Substitutions: "<@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
+        },
+      });
+
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        type: ChannelType.GuildText,
+        id: "channel-123",
+      } as APIChannel);
+
+      vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue({
+        message: apiMessage,
+        queue: 1,
+        timestamp: new Date(),
+        teams: [
+          {
+            name: "Team 1",
+            players: [
+              {
+                id: "000000000000000001",
+                username: "player1",
+                global_name: "Player 1",
+                discriminator: "0001",
+                avatar: "avatar1",
+              },
+              {
+                id: "000000000000000002",
+                username: "player2",
+                global_name: "Player 2",
+                discriminator: "0002",
+                avatar: "avatar2",
+              },
+            ],
+          },
+          {
+            name: "Team 2",
+            players: [
+              {
+                id: "000000000000000003",
+                username: "player3",
+                global_name: "Player 3",
+                discriminator: "0003",
+                avatar: "avatar3",
+              },
+              {
+                id: "000000000000000004",
+                username: "player4",
+                global_name: "Player 4",
+                discriminator: "0004",
+                avatar: "avatar4",
+              },
+            ],
+          },
+        ],
+      });
+
+      vi.spyOn(discordService, "getDateFromTimestamp").mockImplementation((timestamp) => {
+        if (timestamp === "<t:1700000000:f>") {
+          return new Date(1700000000 * 1000);
+        }
+        if (timestamp === "<t:1700003600:f>") {
+          return new Date(1700003600 * 1000);
+        }
+        if (timestamp === "<t:1700001800:f>") {
+          return new Date(1700001800 * 1000);
+        }
+        return new Date();
+      });
+
+      vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+    });
+
+    it("processes retry for failed series fetch", async () => {
+      const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
+      const editMessageSpy = vi.spyOn(discordService, "editMessage");
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalled();
+      expect(editMessageSpy).toHaveBeenCalled();
+    });
+
+    it("handles missing queue message gracefully", async () => {
+      vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(null);
+      const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(editMessageSpy).toHaveBeenCalledOnce();
+      expect(editMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+        [
+          "channel-123",
+          "1314562775950954626",
+          {
+            "components": [],
+            "embeds": [
+              {
+                "color": 16711680,
+                "description": "Failed to find the queue message in the last 100 messages of the channel",
+                "fields": [
+                  {
+                    "name": "Additional Information",
+                    "value": "**Channel**: <#queue-channel-456>
+        **Queue**: 1
+        **Started**: <t:1700000000:f>
+        **Completed**: <t:1700003600:f>
+        **Substitutions**: <@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
+                  },
+                ],
+                "title": "Something went wrong",
+              },
+            ],
+          },
+        ]
+      `);
+    });
+
+    it("handles non-text channel gracefully", async () => {
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        type: ChannelType.GuildVoice,
+        id: "voice-channel-123",
+      } as APIChannel);
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(logWarnSpy).toHaveBeenCalledWith("Expected channel for retry", expect.any(Map));
     });
   });
 });

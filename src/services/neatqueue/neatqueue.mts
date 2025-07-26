@@ -1,15 +1,19 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
-import type { RESTPostAPIChannelThreadsResult, APIEmbed } from "discord-api-types/v10";
-import { ComponentType } from "discord-api-types/v10";
+import type { RESTPostAPIChannelThreadsResult, APIEmbed, APIMessage } from "discord-api-types/v10";
+import { ChannelType, ComponentType } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
-import type { HaloService } from "../halo/halo.mjs";
+import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import type {
+  SeriesOverviewEmbedFinalTeams,
+  SeriesOverviewEmbedSubstitution,
+} from "../../embeds/series-overview-embed.mjs";
 import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
 import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
@@ -118,6 +122,192 @@ export class NeatQueueService {
     }
   }
 
+  async handleRetry({
+    errorEmbed,
+    guildId,
+    message,
+  }: {
+    errorEmbed: EndUserError;
+    guildId: string;
+    message: APIMessage;
+  }): Promise<void> {
+    const { discordService, haloService, logService } = this;
+
+    try {
+      const channel = await discordService.getChannel(message.channel_id);
+
+      if (
+        channel.type !== ChannelType.GuildText &&
+        channel.type !== ChannelType.PublicThread &&
+        channel.type !== ChannelType.GuildAnnouncement &&
+        channel.type !== ChannelType.AnnouncementThread
+      ) {
+        logService.warn("Expected channel for retry", new Map([["channel", channel.id]]));
+        return;
+      }
+
+      const queueChannel = Preconditions.checkExists(
+        errorEmbed.data["Channel"]?.substring(2, errorEmbed.data["Channel"].length - 1),
+        "expected queue channel",
+      );
+      const queue = parseInt(Preconditions.checkExists(errorEmbed.data["Queue"], "expected queue number"), 10);
+      const startedTimestamp =
+        errorEmbed.data["Started"] != null
+          ? discordService.getDateFromTimestamp(errorEmbed.data["Started"])
+          : sub(new Date(), { hours: 6 });
+      const completedTimestamp = discordService.getDateFromTimestamp(
+        Preconditions.checkExists(errorEmbed.data["Completed"], "expected Completed timestamp"),
+      );
+      const substitutions =
+        errorEmbed.data["Substitutions"]
+          ?.split(", ")
+          .map((substitution) => {
+            const match = /<@(\d+)> subbed in for <@(\d+)> on (.+)/.exec(substitution);
+            if (match == null) {
+              logService.warn("Failed to parse substitution", new Map([["substitution", substitution]]));
+              return null;
+            }
+            const [, playerInId, playerOutId, date] = match;
+            return {
+              playerInId: Preconditions.checkExists(playerInId, "expected playerInId for substitution"),
+              playerOutId: Preconditions.checkExists(playerOutId, "expected playerOutId for substitution"),
+              date: discordService.getDateFromTimestamp(
+                Preconditions.checkExists(date, "expected date for substitution"),
+              ),
+            };
+          })
+          .filter((substitution) => substitution !== null)
+          .reverse() ?? [];
+
+      const queueMessage = await discordService.getTeamsFromQueue(queueChannel, queue);
+      if (queueMessage == null) {
+        throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
+          handled: true,
+          data: { Channel: queueChannel, Queue: queue.toString() },
+        });
+      }
+
+      const series: MatchStats[] = [];
+      const teams: MatchPlayer[][] = queueMessage.teams.map((team) =>
+        team.players.map((player) => ({
+          id: player.id,
+          username: player.username,
+          globalName: player.global_name,
+        })),
+      );
+      let endDateTime = completedTimestamp;
+      const substitutionsEmbed: SeriesOverviewEmbedSubstitution[] = [];
+      for (const substitution of substitutions) {
+        const { playerInId, playerOutId, date: startDateTime } = substitution;
+        try {
+          const data = await haloService.getSeriesFromDiscordQueue({
+            teams,
+            startDateTime,
+            endDateTime,
+          });
+          series.unshift(...data);
+          endDateTime = startDateTime;
+
+          for (const team of teams) {
+            const playerIndex = team.findIndex((player) => player.id === playerOutId);
+            const users = await discordService.getUsers([playerInId]);
+            const user = Preconditions.checkExists(users[0], "expected user for substitution");
+
+            if (playerIndex !== -1) {
+              team[playerIndex] = { id: playerInId, username: user.username, globalName: user.global_name };
+              const teamIndex = queueMessage.teams.findIndex((t) => t.players.some((p) => p.id === playerOutId));
+              substitutionsEmbed.push({
+                playerIn: playerInId,
+                playerOut: playerOutId,
+                team: queueMessage.teams[teamIndex]?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+                date: startDateTime,
+              });
+              break;
+            }
+          }
+        } catch (error) {
+          this.logService.error(error as Error, new Map([["reason", "Failed to process substitution"]]));
+          if (series.length === 0) {
+            throw error;
+          }
+        }
+      }
+
+      try {
+        const startData = await haloService.getSeriesFromDiscordQueue({
+          teams,
+          startDateTime: startedTimestamp,
+          endDateTime,
+        });
+        series.unshift(...startData);
+      } catch (error) {
+        this.logService.error(error as Error, new Map([["reason", "Failed to get series data from Discord queue"]]));
+        if (series.length === 0) {
+          throw error;
+        }
+      }
+
+      const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
+        guildId,
+        channelId: queueMessage.message.channel_id,
+        messageId: queueMessage.message.id,
+        queue,
+        series,
+        finalTeams: queueMessage.teams.map((team) => ({
+          name: team.name,
+          playerIds: team.players.map((player) => player.id),
+        })),
+        substitutions: substitutionsEmbed,
+      });
+      await discordService.editMessage(message.channel_id, message.id, {
+        content: "",
+        embeds: [seriesOverviewEmbed],
+        components: [],
+      });
+
+      let threadId = message.channel_id;
+      if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
+        const thread = await discordService.startThreadFromMessage(
+          message.channel_id,
+          message.id,
+          `Queue #${queue.toString()} series stats`,
+        );
+        threadId = thread.id;
+      }
+
+      await this.postSeriesDetailsToChannel(threadId, guildId, series);
+    } catch (error) {
+      if (error instanceof EndUserError) {
+        if (error.handled) {
+          this.logService.info("Handled end user error during retry", new Map([["error", error.message]]));
+        } else {
+          this.logService.error(error, new Map([["reason", "Unhandled end user error during retry"]]));
+        }
+
+        error.appendData({
+          ...errorEmbed.data,
+        });
+        await discordService.editMessage(message.channel_id, message.id, {
+          embeds: [error.discordEmbed],
+          components: error.discordActions,
+        });
+
+        return;
+      }
+
+      this.logService.error(error as Error, new Map([["reason", "Unhandled error during retry"]]));
+      const endUserError = new EndUserError("An unexpected error occurred while retrying the neat queue job");
+      endUserError.appendData({
+        ...errorEmbed.data,
+      });
+
+      await discordService.editMessage(message.channel_id, message.id, {
+        embeds: [endUserError.discordEmbed],
+        components: endUserError.discordActions,
+      });
+    }
+  }
+
   private async findNeatQueueConfig(
     body: NeatQueueRequest,
     authorization: string,
@@ -138,11 +328,11 @@ export class NeatQueueService {
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-    let seriesData: MatchStats[] = [];
+    let series: MatchStats[] = [];
     let errorOccurred = false;
 
     try {
-      seriesData = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+      series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
     } catch (error) {
       this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
@@ -151,8 +341,8 @@ export class NeatQueueService {
       await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
     }
 
-    if (!errorOccurred && seriesData.length > 0) {
-      const opts = { request, neatQueueConfig, seriesData, timeline };
+    if (!errorOccurred && series.length > 0) {
+      const opts = { request, neatQueueConfig, series, timeline };
       await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
@@ -186,7 +376,7 @@ export class NeatQueueService {
     opts: {
       request: NeatQueueMatchCompletedRequest;
       neatQueueConfig: NeatQueueConfigRow;
-      seriesData: MatchStats[];
+      series: MatchStats[];
       timeline: NeatQueueTimelineEvent[];
     },
   ): Promise<void> {
@@ -240,7 +430,7 @@ export class NeatQueueService {
     timeline: NeatQueueTimelineEvent[],
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<MatchStats[]> {
-    const seriesData: MatchStats[] = [];
+    const series: MatchStats[] = [];
     let seriesTeams: NeatQueuePlayer[][] = [];
     let startDateTime: Date | null = null;
     let endDateTime: Date | null = null;
@@ -270,13 +460,10 @@ export class NeatQueueService {
           endDateTime = new Date(timestamp);
 
           try {
-            const series = await this.getSeriesData(
-              Preconditions.checkExists(seriesTeams, "expected seriesTeams"),
-              startDateTime,
-              endDateTime,
-            );
+            const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(seriesTeams);
+            const subSeries = await this.getSeriesData(mappedTeams, startDateTime, endDateTime);
 
-            seriesData.push(...series);
+            series.push(...subSeries);
           } catch (error) {
             // don't fail if its just a substitution
             this.logService.info(error as Error, new Map([["reason", "No series data from substitution"]]));
@@ -308,12 +495,13 @@ export class NeatQueueService {
             seriesTeams = event.teams;
           }
 
-          const series = await this.getSeriesData(
-            seriesTeams,
+          const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(seriesTeams);
+          const subSeries = await this.getSeriesData(
+            mappedTeams,
             startDateTime ?? sub(endDateTime, { hours: 6 }),
             endDateTime,
           );
-          seriesData.push(...series);
+          series.push(...subSeries);
           break;
         }
         default: {
@@ -322,14 +510,28 @@ export class NeatQueueService {
       }
     }
 
-    return seriesData;
+    return series;
   }
 
-  private async getSeriesData(
-    teams: NeatQueuePlayer[][],
-    startDateTime: Date,
-    endDateTime: Date,
-  ): Promise<MatchStats[]> {
+  private async mapNeatQueueTeamsToMatchPlayers(seriesTeams: NeatQueuePlayer[][]): Promise<MatchPlayer[][]> {
+    const mappedTeams: MatchPlayer[][] = [];
+    for (const team of seriesTeams) {
+      const mappedTeam: MatchPlayer[] = [];
+      for (const player of team) {
+        const users = await this.discordService.getUsers([player.id]);
+        const user = Preconditions.checkExists(users[0], "expected user for match completed");
+        mappedTeam.push({
+          id: player.id,
+          username: user.username,
+          globalName: user.global_name,
+        });
+      }
+      mappedTeams.push(mappedTeam);
+    }
+    return mappedTeams;
+  }
+
+  private async getSeriesData(teams: MatchPlayer[][], startDateTime: Date, endDateTime: Date): Promise<MatchStats[]> {
     const { haloService, discordService } = this;
     const users = await discordService.getUsers(teams.flatMap((team) => team.map((player) => player.id)));
 
@@ -353,12 +555,12 @@ export class NeatQueueService {
   private async postSeriesDataByThread({
     request,
     neatQueueConfig,
-    seriesData,
+    series,
     timeline,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
-    seriesData: MatchStats[];
+    series: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
@@ -383,25 +585,29 @@ export class NeatQueueService {
       );
       useFallback = false;
 
+      const finalTeams = this.getTeams(request);
+      const substitutions = this.getSubstitutionsFromTimeline(timeline, finalTeams);
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
-        request,
+        guildId: request.guild,
         channelId,
         messageId,
-        seriesData,
-        timeline,
+        queue: request.match_number,
+        series,
+        finalTeams,
+        substitutions,
       });
       await discordService.createMessage(thread.id, {
         embeds: [seriesOverviewEmbed],
       });
 
-      await this.postSeriesDetailsToChannel(thread.id, request.guild, seriesData);
+      await this.postSeriesDetailsToChannel(thread.id, request.guild, series);
     } catch (error) {
       this.logService.warn(error as Error, new Map([["reason", "Failed to post series data to thread"]]));
 
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
 
-        await this.postSeriesDataByChannel({ request, neatQueueConfig, seriesData, timeline });
+        await this.postSeriesDataByChannel({ request, neatQueueConfig, series, timeline });
       } else if (thread != null) {
         this.logService.info("Attempting to post error to thread");
 
@@ -462,12 +668,12 @@ export class NeatQueueService {
   private async postSeriesDataByChannel({
     request,
     neatQueueConfig,
-    seriesData,
+    series,
     timeline,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
-    seriesData: MatchStats[];
+    series: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
@@ -482,12 +688,16 @@ export class NeatQueueService {
         throw new EndUserError("Failed to find the results message");
       }
 
+      const finalTeams = this.getTeams(request);
+      const substitutions = this.getSubstitutionsFromTimeline(timeline, finalTeams);
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
-        request,
+        guildId: request.guild,
         channelId: resultsMessage.message.channel_id,
         messageId: resultsMessage.message.id,
-        seriesData,
-        timeline,
+        queue: request.match_number,
+        series: series,
+        finalTeams,
+        substitutions,
       });
 
       const createdMessage = await discordService.createMessage(channelId, {
@@ -501,7 +711,7 @@ export class NeatQueueService {
       );
 
       channelId = thread.id;
-      await this.postSeriesDetailsToChannel(channelId, request.guild, seriesData);
+      await this.postSeriesDetailsToChannel(channelId, request.guild, series);
     } catch (error) {
       this.logService.error(error as Error, new Map([["reason", "Failed to post series data direct to channel"]]));
 
@@ -510,6 +720,33 @@ export class NeatQueueService {
         embeds: [endUserError.discordEmbed],
       });
     }
+  }
+
+  private getTeams(request: NeatQueueMatchCompletedRequest): SeriesOverviewEmbedFinalTeams[] {
+    return request.teams.map((team, teamIndex) => ({
+      name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+      playerIds: team.map((player) => player.id),
+    }));
+  }
+
+  private getSubstitutionsFromTimeline(
+    timeline: NeatQueueTimelineEvent[],
+    finalTeams: SeriesOverviewEmbedFinalTeams[],
+  ): SeriesOverviewEmbedSubstitution[] {
+    return timeline
+      .filter((event) => event.event.action === "SUBSTITUTION")
+      .map((event) => {
+        const { player_subbed_out, player_subbed_in } = event.event as NeatQueueSubstitutionRequest;
+        return {
+          date: new Date(event.timestamp),
+          playerOut: player_subbed_out.id,
+          playerIn: player_subbed_in.id,
+          team:
+            player_subbed_out.team_name ??
+            finalTeams[player_subbed_out.team_num - 1]?.name ??
+            `Team ${player_subbed_out.team_num.toLocaleString()}`,
+        };
+      });
   }
 
   private async postErrorByChannel({
@@ -536,29 +773,25 @@ export class NeatQueueService {
     }
   }
 
-  private async postSeriesDetailsToChannel(
-    channelId: string,
-    guildId: string,
-    seriesData: MatchStats[],
-  ): Promise<void> {
+  private async postSeriesDetailsToChannel(channelId: string, guildId: string, series: MatchStats[]): Promise<void> {
     const { databaseService, discordService, haloService } = this;
 
     const guildConfig = await databaseService.getGuildConfig(guildId);
 
     const seriesTeamsEmbed = new SeriesTeamsEmbed({ discordService, haloService, guildConfig, locale: this.locale });
-    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(seriesData);
+    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
     await discordService.createMessage(channelId, {
       embeds: [seriesTeamsEmbedOutput],
     });
 
-    const seriesPlayers = await haloService.getPlayerXuidsToGametags(seriesData);
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
     const seriesPlayersEmbed = new SeriesPlayersEmbed({
       discordService,
       haloService,
       guildConfig,
       locale: this.locale,
     });
-    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(seriesData, seriesPlayers, this.locale);
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, this.locale);
     for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
       await discordService.createMessage(channelId, {
         embeds: [seriesPlayersEmbedOutput],
@@ -585,7 +818,7 @@ export class NeatQueueService {
         ],
       });
     } else {
-      for (const match of seriesData) {
+      for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match);
         const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);
         const embed = await matchEmbed.getEmbed(match, players);
@@ -596,50 +829,32 @@ export class NeatQueueService {
   }
 
   private async getSeriesOverviewEmbed({
-    request,
+    guildId,
     channelId,
     messageId,
-    seriesData,
-    timeline,
+    queue,
+    series,
+    finalTeams,
+    substitutions,
   }: {
-    request: NeatQueueMatchCompletedRequest;
+    guildId: string;
     channelId: string;
     messageId: string;
-    seriesData: MatchStats[];
-    timeline: NeatQueueTimelineEvent[];
+    queue: number;
+    series: MatchStats[];
+    finalTeams: SeriesOverviewEmbedFinalTeams[];
+    substitutions: SeriesOverviewEmbedSubstitution[];
   }): Promise<APIEmbed> {
     const { discordService, haloService } = this;
     const seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
-    const finalTeams = request.teams.map((team, teamIndex) => ({
-      name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
-      playerIds: team.map((player) => player.id),
-    }));
-    const substitutions = timeline
-      .filter((event) => event.event.action === "SUBSTITUTION")
-      .map((event) => {
-        const { player_subbed_out, player_subbed_in } = event.event as NeatQueueSubstitutionRequest;
-        return {
-          date: new Date(event.timestamp),
-          playerOut: player_subbed_out.id,
-          playerIn: player_subbed_in.id,
-          team:
-            player_subbed_out.team_name ??
-            finalTeams[player_subbed_out.team_num - 1]?.name ??
-            `Team ${player_subbed_out.team_num.toLocaleString()}`,
-        };
-      });
-
     return await seriesOverviewEmbed.getEmbed({
-      guildId: request.guild,
+      guildId,
       channel: channelId,
       messageId,
       locale: this.locale,
-      queue: request.match_number,
-      series: seriesData,
-      finalTeams: request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
-        playerIds: team.map((player) => player.id),
-      })),
+      queue,
+      series,
+      finalTeams,
       substitutions,
       hideTeamsDescription: true,
     });

@@ -170,6 +170,8 @@ export class StatsCommand extends BaseCommand {
   ): Promise<void> {
     const { databaseService, discordService, haloService } = this.services;
     const locale = interaction.guild_locale ?? interaction.locale;
+    let computedQueue = queue;
+    let endDateTime: Date | undefined;
 
     try {
       const [guildConfig, queueData] = await Promise.all([
@@ -178,7 +180,7 @@ export class StatsCommand extends BaseCommand {
       ]);
       if (!queueData) {
         throw new EndUserError(
-          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}`,
+          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
           {
             errorType: EndUserErrorType.WARNING,
             handled: true,
@@ -187,8 +189,9 @@ export class StatsCommand extends BaseCommand {
       }
       this.services.logService.debug("Found queue data", new Map([["queueData", JSON.stringify(queueData)]]));
 
+      computedQueue = queueData.queue;
       const startDateTime = subHours(queueData.timestamp, 6);
-      const endDateTime = queueData.timestamp;
+      endDateTime = queueData.timestamp;
       const series = await haloService.getSeriesFromDiscordQueue({
         teams: queueData.teams.map((team) =>
           team.players.map((player) => ({
@@ -275,6 +278,14 @@ export class StatsCommand extends BaseCommand {
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
+      if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
+        error.callbackType = "stats";
+        error.appendData({
+          Channel: `<#${channel}>`,
+          Queue: computedQueue.toString(),
+          Completed: discordService.getTimestamp(endDateTime.toISOString()),
+        });
+      }
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
