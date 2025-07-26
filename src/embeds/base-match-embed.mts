@@ -84,7 +84,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         ],
       ],
       [
-        "Average life duration (damage/life)",
+        "Avg life time (damage/life)",
         [
           {
             value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
