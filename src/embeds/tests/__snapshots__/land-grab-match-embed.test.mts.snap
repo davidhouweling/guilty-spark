@@ -19,7 +19,7 @@ KDA: -5
 Headshot kills: 1
 Shots H:F (acc): 66:404 (16.33%)
 Damage D:T (D/T): 1,715:2,612 (0.66)
-Average life duration (damage/life): 27s (190.56)",
+Avg life time (damage/life): 27s (190.56)",
     },
     {
       "inline": true,
@@ -31,7 +31,7 @@ KDA: **4**
 Headshot kills: 1
 Shots H:F (acc): 123:285 (43.15%)
 Damage D:T (D/T): 2,418:**2,024** (1.19)
-Average life duration (damage/life): **36s** (345.43)
+Avg life time (damage/life): **36s** (345.43)
 <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129> <:BackSmack:1322872596135546891>",
     },
     {
@@ -51,7 +51,7 @@ KDA: 0.33
 Headshot kills: **4**
 Shots H:F (acc): 114:237 **(48.1%)**
 Damage D:T (D/T): 2,253:2,526 (0.89)
-Average life duration (damage/life): 23s (225.3)
+Avg life time (damage/life): 23s (225.3)
 <:TripleKill:1322814228477906944> <:DoubleKill:1322814147980689430> <:Killjoy:1322802841039147129>",
     },
     {
@@ -64,7 +64,7 @@ KDA: 1
 Headshot kills: 3
 Shots H:F (acc): **158**:__**723**__ (21.85%)
 Damage D:T (D/T): **3,774**:2,186 **(1.73)**
-Average life duration (damage/life): 36s **(471.75)**
+Avg life time (damage/life): 36s **(471.75)**
 <:Grapplejack:1322884573906075729>",
     },
     {
@@ -84,7 +84,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F (acc): 61:161 (37.88%)
 Damage D:T (D/T): 1,322:2,416 (0.55)
-Average life duration (damage/life): 23s (132.2)
+Avg life time (damage/life): 23s (132.2)
 <:Killjoy:1322802841039147129> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351>",
     },
     {
@@ -97,7 +97,7 @@ KDA: -5
 Headshot kills: 2
 Shots H:F (acc): 75:207 (36.23%)
 Damage D:T (D/T): 1,846:3,332 (0.55)
-Average life duration (damage/life): 14s (131.86)
+Avg life time (damage/life): 14s (131.86)
 <:DoubleKill:1322814147980689430>",
     },
     {
@@ -117,7 +117,7 @@ KDA: 0
 Headshot kills: 1
 Shots H:F (acc): 123:316 (38.92%)
 Damage D:T (D/T): 2,825:2,306 (1.23)
-Average life duration (damage/life): 31s (353.13)",
+Avg life time (damage/life): 31s (353.13)",
     },
     {
       "inline": true,
@@ -129,7 +129,7 @@ KDA: -7
 Headshot kills: 0
 Shots H:F (acc): 76:305 (24.91%)
 Damage D:T (D/T): 1,243:3,058 (0.41)
-Average life duration (damage/life): 16s (95.62)
+Avg life time (damage/life): 16s (95.62)
 2x<:DoubleKill:1322814147980689430> <:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129>",
     },
     {
@@ -154,7 +154,7 @@ KDA: 6
 Headshot kills: 4
 Shots H:F (acc): 107:299 (35.78%)
 Damage D:T (D/T): 2,255:1,904 (1.18)
-Average life duration (damage/life): 43s (375.83)
+Avg life time (damage/life): 43s (375.83)
 <:KillingSpree:1322803050347499541> <:Stick:1322871787695898676> <:BackSmack:1322872596135546891> <:GuardianAngel:1322873057928286248>",
     },
     {
@@ -167,7 +167,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F (acc): 94:233 (40.34%)
 Damage D:T (D/T): 1,847:2,873 (0.64)
-Average life duration (damage/life): 27s (184.7)",
+Avg life time (damage/life): 27s (184.7)",
     },
     {
       "inline": false,
@@ -186,7 +186,7 @@ KDA: -4.33
 Headshot kills: 1
 Shots H:F (acc): 65:170 (38.23%)
 Damage D:T (D/T): 1,131:2,237 (0.51)
-Average life duration (damage/life): 31s (141.38)",
+Avg life time (damage/life): 31s (141.38)",
     },
     {
       "inline": true,
@@ -198,7 +198,7 @@ KDA: __**24.33**__
 Headshot kills: __**20**__
 Shots H:F (acc): 197:314 __**(62.73%)**__
 Damage D:T (D/T): __**7,623**__:1,989 __**(3.83)**__
-Average life duration (damage/life): 43s __**(1,270.5)**__
+Avg life time (damage/life): 43s __**(1,270.5)**__
 <:AutopilotEngaged:1322883411660243016> 2x<:TripleKill:1322814228477906944> <:KillingFrenzy:1322803174238584853> 4x<:DoubleKill:1322814147980689430> <:OfftheRack:1322884747881353279> 3x<:Perfect:1322879561515532308> 2x<:KillingSpree:1322803050347499541> 5x<:Snipe:1322872969571340370> <:Sharpshooter:1322866954457055242> <:Rifleman:1322860656399220828> <:GuardianAngel:1322873057928286248> <:Reversal:1322872797701083166> <:Stick:1322871787695898676>",
     },
     {
@@ -218,7 +218,7 @@ KDA: 0.66
 Headshot kills: 3
 Shots H:F (acc): 160:386 (41.45%)
 Damage D:T (D/T): 1,552:2,026 (0.77)
-Average life duration (damage/life): 43s (258.67)",
+Avg life time (damage/life): 43s (258.67)",
     },
     {
       "inline": true,
@@ -230,7 +230,7 @@ KDA: -1
 Headshot kills: 0
 Shots H:F (acc): 118:**596** (19.79%)
 Damage D:T (D/T): 1,975:1,869 (1.06)
-Average life duration (damage/life): 36s (282.14)
+Avg life time (damage/life): 36s (282.14)
 <:Splatter:1322872682592735242>",
     },
     {
@@ -250,7 +250,7 @@ KDA: 3
 Headshot kills: 2
 Shots H:F (acc): 147:450 (32.66%)
 Damage D:T (D/T): 1,051:__**1,202**__ (0.87)
-Average life duration (damage/life): __**1m 23s**__ (350.33)",
+Avg life time (damage/life): __**1m 23s**__ (350.33)",
     },
     {
       "inline": true,
@@ -262,7 +262,7 @@ KDA: 12
 Headshot kills: 7
 Shots H:F (acc): __**202**__:418 (48.32%)
 Damage D:T (D/T): 3,961:2,231 (1.78)
-Average life duration (damage/life): 43s (660.17)
+Avg life time (damage/life): 43s (660.17)
 <:TripleKill:1322814228477906944> 3x<:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:HailMary:1322882032103325768> <:Reversal:1322872797701083166> <:Gunslinger:1322866262736637992> <:QuickDraw:1322884127212699660>",
     },
     {

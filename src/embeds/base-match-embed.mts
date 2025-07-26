@@ -84,7 +84,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         ],
       ],
       [
-        "Average life duration (damage/life)",
+        "Avg life time (damage/life)",
         [
           {
             value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
@@ -92,9 +92,14 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
             display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
           },
           {
-            value: CoreStats.DamageDealt / CoreStats.Deaths,
+            value:
+              CoreStats.DamageDealt === 0
+                ? 0
+                : CoreStats.Deaths === 0
+                  ? Number.POSITIVE_INFINITY
+                  : CoreStats.DamageDealt / CoreStats.Deaths,
             sortBy: StatsValueSortBy.DESC,
-            display: `(${this.formatStatValue(CoreStats.DamageDealt / CoreStats.Deaths)})`,
+            display: `(${this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths)})`,
             prefix: " ",
           },
         ],

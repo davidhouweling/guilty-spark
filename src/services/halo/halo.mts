@@ -241,7 +241,7 @@ export class HaloService {
       output.push(`${Math.floor(seconds).toLocaleString(locale)}s`);
     }
 
-    return output.join(" ");
+    return output.length ? output.join(" ") : "0s";
   }
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
