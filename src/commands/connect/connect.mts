@@ -1,6 +1,7 @@
 import type {
   APIButtonComponent,
   APIEmbed,
+  APIEmbedField,
   APIInteractionResponse,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
@@ -34,6 +35,12 @@ export enum InteractionButton {
 }
 
 export const GamertagSearchModal = "gamertag_search_modal";
+
+export const ConfirmSuccessEmbed: APIEmbed = {
+  title: "Discord account connected to Halo",
+  description: "Your Discord account has been successfully connected to your Halo account.",
+  color: 0x28a745, // Success green color
+};
 
 export class ConnectCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -217,7 +224,10 @@ export class ConnectCommand extends BaseCommand {
   ): Promise<RESTPostAPIWebhookWithTokenJSONBody> {
     const { haloService, discordService } = this.services;
 
-    let currentAssociation = "**Halo account:** *No account connected*";
+    let whatGuiltySparkKnowsField: APIEmbedField = {
+      name: "What Guilty Spark knows",
+      value: "**Halo account:** *No account connected*",
+    };
     let searchedGamertag = "";
     const actions: APIButtonComponent[] = [];
     const embeds: APIEmbed[] = [];
@@ -226,15 +236,7 @@ export class ConnectCommand extends BaseCommand {
       const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
       if (usersByXuids[0] != null) {
         searchedGamertag = usersByXuids[0].gamertag;
-
-        const url = new URL(`https://halodatahive.com/Player/Infinite/${searchedGamertag}`);
-        const thirdPartySites = [`[Halo Data Hive](<${url.href}>)`];
-
-        currentAssociation = [
-          `**Halo account:** ${searchedGamertag}`,
-          `**How:** ${discordService.getReadableAssociationReason(association)}\n`,
-          `View profile on: ${thirdPartySites.join(" | ")}`,
-        ].join("\n");
+        whatGuiltySparkKnowsField = this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService);
       }
 
       if (
@@ -295,12 +297,7 @@ export class ConnectCommand extends BaseCommand {
         "",
         "Click the button below to search for your gamertag and recent game history.",
       ].join("\n"),
-      fields: [
-        {
-          name: "What Guilty Spark knows",
-          value: currentAssociation,
-        },
-      ],
+      fields: [whatGuiltySparkKnowsField],
     });
 
     if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
@@ -415,8 +412,7 @@ export class ConnectCommand extends BaseCommand {
   }
 
   private async handleConfirmButton(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const { databaseService, discordService } = this.services;
-    const locale = interaction.guild_locale ?? interaction.locale;
+    const { databaseService, discordService, haloService } = this.services;
 
     try {
       const oldAssociation = Preconditions.checkExists(
@@ -434,10 +430,31 @@ export class ConnectCommand extends BaseCommand {
         await this.getAssociationFromInteraction(interaction),
         "Connection not found",
       );
-      const content: RESTPostAPIWebhookWithTokenJSONBody = await this.interactionAssociateDiscordToHalo(
-        association,
-        locale,
-      );
+
+      const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
+      const searchedGamertag = Preconditions.checkExists(usersByXuids[0]?.gamertag, "Expected gamertag");
+      const content: RESTPostAPIWebhookWithTokenJSONBody = {
+        embeds: [
+          {
+            ...ConfirmSuccessEmbed,
+            fields: [this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService)],
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                label: "Back",
+                custom_id: InteractionButton.SearchCancel,
+                emoji: { name: "🔙" },
+              },
+            ],
+          },
+        ],
+      };
 
       await Promise.all([
         discordService.updateDeferredReply(interaction.token, content),
@@ -575,7 +592,6 @@ export class ConnectCommand extends BaseCommand {
 
   private async handleConfirmSearchButton(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     const { databaseService, discordService, haloService } = this.services;
-    const locale = interaction.guild_locale ?? interaction.locale;
 
     try {
       const discordId = discordService.getDiscordUserId(interaction);
@@ -602,10 +618,30 @@ export class ConnectCommand extends BaseCommand {
         await this.getAssociationFromInteraction(interaction),
         "Connection not found",
       );
-      const content: RESTPostAPIWebhookWithTokenJSONBody = await this.interactionAssociateDiscordToHalo(
-        association,
-        locale,
-      );
+      const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
+      const searchedGamertag = Preconditions.checkExists(usersByXuids[0]?.gamertag, "Expected gamertag");
+      const content: RESTPostAPIWebhookWithTokenJSONBody = {
+        embeds: [
+          {
+            ...ConfirmSuccessEmbed,
+            fields: [this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService)],
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                label: "Back",
+                custom_id: InteractionButton.SearchCancel,
+                emoji: { name: "🔙" },
+              },
+            ],
+          },
+        ],
+      };
 
       await Promise.all([
         discordService.updateDeferredReply(interaction.token, content),
@@ -614,6 +650,23 @@ export class ConnectCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private getWhatGuiltySparkKnowsField(
+    searchedGamertag: string,
+    association: DiscordAssociationsRow,
+    discordService: typeof this.services.discordService,
+  ): APIEmbedField {
+    const url = new URL(`https://halodatahive.com/Player/Infinite/${searchedGamertag}`);
+    const thirdPartySites = [`[Halo Data Hive](<${url.href}>)`];
+    return {
+      name: "What Guilty Spark knows",
+      value: [
+        `**Halo account:** ${searchedGamertag}`,
+        `**How:** ${discordService.getReadableAssociationReason(association)}\n`,
+        `View profile on: ${thirdPartySites.join(" | ")}`,
+      ].join("\n"),
+    };
   }
 
   private async getHistoryEmbed(

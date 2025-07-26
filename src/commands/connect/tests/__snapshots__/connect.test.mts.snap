@@ -1294,33 +1294,22 @@ exports[`ConnectCommand > execute(): InteractionButton.Confirm > jobToComplete >
       {
         "components": [
           {
-            "custom_id": "btn_connect_change",
+            "custom_id": "btn_connect_search_cancel",
             "emoji": {
-              "name": "🔄",
+              "name": "🔙",
             },
-            "label": "Change",
+            "label": "Back",
             "style": 2,
-            "type": 2,
-          },
-          {
-            "custom_id": "btn_connect_remove",
-            "emoji": {
-              "name": "🗑️",
-            },
-            "label": "Remove",
-            "style": 4,
             "type": 2,
           },
         ],
         "type": 1,
       },
     ],
-    "content": "",
     "embeds": [
       {
-        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
-
-Click the button below to search for your gamertag and recent game history.",
+        "color": 2664261,
+        "description": "Your Discord account has been successfully connected to your Halo account.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1329,39 +1318,8 @@ Click the button below to search for your gamertag and recent game history.",
 
 View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>)",
           },
-          {
-            "name": "**Recent custom games**",
-            "value": "",
-          },
-          {
-            "inline": true,
-            "name": "Game",
-            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
-KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
-CTF: Empyrean - Ranked
-Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
-Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
-          },
-          {
-            "inline": true,
-            "name": "Result",
-            "value": "Loss - 44:50
-Win - 3:2
-Win - 3:0
-Loss - 175:250
-Loss - 1:2 (198:256)",
-          },
-          {
-            "inline": true,
-            "name": "When",
-            "value": "<t:1732619665:R>
-<t:1732619016:R>
-<t:1732618052:R>
-<t:1732616814:R>
-<t:1732615353:R>",
-          },
         ],
-        "title": "Connect Discord to Halo",
+        "title": "Discord account connected to Halo",
       },
     ],
   },
@@ -1584,33 +1542,22 @@ exports[`ConnectCommand > execute(): InteractionButton.SearchConfirm > jobToComp
       {
         "components": [
           {
-            "custom_id": "btn_connect_change",
+            "custom_id": "btn_connect_search_cancel",
             "emoji": {
-              "name": "🔄",
+              "name": "🔙",
             },
-            "label": "Change",
+            "label": "Back",
             "style": 2,
-            "type": 2,
-          },
-          {
-            "custom_id": "btn_connect_remove",
-            "emoji": {
-              "name": "🗑️",
-            },
-            "label": "Remove",
-            "style": 4,
             "type": 2,
           },
         ],
         "type": 1,
       },
     ],
-    "content": "",
     "embeds": [
       {
-        "description": "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.
-
-Click the button below to search for your gamertag and recent game history.",
+        "color": 2664261,
+        "description": "Your Discord account has been successfully connected to your Halo account.",
         "fields": [
           {
             "name": "What Guilty Spark knows",
@@ -1619,39 +1566,8 @@ Click the button below to search for your gamertag and recent game history.",
 
 View profile on: [Halo Data Hive](<https://halodatahive.com/Player/Infinite/gamertag0000000000001>)",
           },
-          {
-            "name": "**Recent custom games**",
-            "value": "",
-          },
-          {
-            "inline": true,
-            "name": "Game",
-            "value": "Slayer: Fake name for asset e23ea388-9bcb-4180-a0dc-fbe987751b9e
-KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628
-CTF: Empyrean - Ranked
-Strongholds: Fake name for asset 309253f8-7a75-48ff-83e1-e7fb3db2ac47
-Oddball: Fake name for asset f15f19b4-9652-452a-b8ae-117df0a0074d",
-          },
-          {
-            "inline": true,
-            "name": "Result",
-            "value": "Loss - 44:50
-Win - 3:2
-Win - 3:0
-Loss - 175:250
-Loss - 1:2 (198:256)",
-          },
-          {
-            "inline": true,
-            "name": "When",
-            "value": "<t:1732619665:R>
-<t:1732619016:R>
-<t:1732618052:R>
-<t:1732616814:R>
-<t:1732615353:R>",
-          },
         ],
-        "title": "Connect Discord to Halo",
+        "title": "Discord account connected to Halo",
       },
     ],
   },
