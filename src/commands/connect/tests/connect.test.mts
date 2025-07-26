@@ -29,6 +29,7 @@ import type { DiscordAssociationsRow } from "../../../services/database/types/di
 import { AssociationReason, GamesRetrievable } from "../../../services/database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { EndUserErrorColor } from "../../../base/end-user-error.mjs";
 
 const applicationCommandInteractionConnect: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -420,16 +421,73 @@ describe("ConnectCommand", () => {
             expect(getMessageSpy).toHaveBeenCalledWith("fake-channel-id", "fake-message-id");
           });
 
-          it("calls handleRetry when error embed with stats callback is found", () => {
-            // This test is commented out because the handleRetry functionality requires complex
-            // mocking of the neatQueue service internals that would make the test brittle.
-            // The core logic is tested by the other tests in this suite that verify:
-            // 1. getMessage is called when message_reference exists
-            // 2. handleRetry is not called when no error embed is found
-            // 3. handleRetry is not called when callback type is not 'stats'
+          it("calls handleRetry when connect embed with stats callback is found", async () => {
+            const embed = {
+              title: "Test Error",
+              description: "Test description",
+              color: EndUserErrorColor.WARNING,
+              fields: [
+                {
+                  name: "Additional Information",
+                  value: "Callback: stats\n**key**: value", // Note: Callback without markdown bold for the current parser
+                },
+              ],
+            };
 
-            // TODO: Consider adding integration tests for the full handleRetry flow
-            expect(true).toBe(true);
+            const messageWithErrorEmbed: APIMessage = {
+              ...apiMessage,
+              embeds: [embed],
+            };
+
+            getMessageSpy.mockResolvedValue(messageWithErrorEmbed);
+
+            await jobToCompleteWithRef?.();
+
+            expect(handleRetrySpy).toHaveBeenCalledOnce();
+            expect(handleRetrySpy.mock.lastCall).toMatchInlineSnapshot(`
+              [
+                {
+                  "errorEmbed": [EndUserError: Test description],
+                  "guildId": "fake-guild-id",
+                  "message": {
+                    "attachments": [],
+                    "author": {
+                      "avatar": "e803b2f163fda5aeba2cf4820e3a6535",
+                      "discriminator": "0850",
+                      "global_name": null,
+                      "id": "000000000000000001",
+                      "username": "soundmanD",
+                    },
+                    "channel_id": "1299532381308325949",
+                    "components": [],
+                    "content": "Hello, world!",
+                    "edited_timestamp": null,
+                    "embeds": [
+                      {
+                        "color": 16776960,
+                        "description": "Test description",
+                        "fields": [
+                          {
+                            "name": "Additional Information",
+                            "value": "Callback: stats
+              **key**: value",
+                          },
+                        ],
+                        "title": "Test Error",
+                      },
+                    ],
+                    "id": "1314562775950954626",
+                    "mention_everyone": false,
+                    "mention_roles": [],
+                    "mentions": [],
+                    "pinned": false,
+                    "timestamp": "2024-12-06T12:03:09.182000+00:00",
+                    "tts": false,
+                    "type": 0,
+                  },
+                },
+              ]
+            `);
           });
 
           it("does not call handleRetry when no error embed is found", async () => {

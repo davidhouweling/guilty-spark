@@ -110,6 +110,12 @@ export const fakeButtonClickInteraction: APIMessageComponentButtonInteraction = 
     type: ChannelType.GuildText,
   },
   channel_id: "fake-channel-id",
+  guild: {
+    id: "fake-guild-id",
+    features: [],
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "fake-guild-id",
   data: { component_type: ComponentType.Button, custom_id: "btn_yes" },
   message: {
     application_id: "fake-application-id",
