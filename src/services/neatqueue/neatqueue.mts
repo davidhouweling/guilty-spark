@@ -614,6 +614,7 @@ export class NeatQueueService {
         const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
         await discordService.createMessage(thread.id, {
           embeds: [endUserError.discordEmbed],
+components: endUserError.discordActions,
         });
       }
     }
@@ -653,6 +654,7 @@ export class NeatQueueService {
       const endUserError = this.getEndUserErrorEmbed(handledError, request, neatQueueConfig, timeline);
       await discordService.createMessage(thread.id, {
         embeds: [endUserError.discordEmbed],
+components: endUserError.discordActions,
       });
     } catch (error) {
       this.logService.warn(error as Error, new Map([["reason", "Failed to post error to thread"]]));
@@ -718,6 +720,7 @@ export class NeatQueueService {
       const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
       await discordService.createMessage(channelId, {
         embeds: [endUserError.discordEmbed],
+        components: endUserError.discordActions,
       });
     }
   }
@@ -767,6 +770,7 @@ export class NeatQueueService {
       const channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
       await discordService.createMessage(channelId, {
         embeds: [endUserError.discordEmbed],
+        components: endUserError.discordActions,
       });
     } catch (error) {
       this.logService.error(error as Error, new Map([["reason", "Failed to post error direct to channel"]]));
