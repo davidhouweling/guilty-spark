@@ -907,6 +907,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "other-channel-id",
   {
+    "components": [],
     "embeds": [
       {
         "color": 16711680,
@@ -930,6 +931,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "other-channel-id",
   {
+    "components": [],
     "embeds": [
       {
         "color": 16711680,
@@ -2174,6 +2176,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "results-channel-1",
   {
+    "components": [],
     "embeds": [
       {
         "color": 16711680,
@@ -2197,6 +2200,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "results-channel-1",
   {
+    "components": [],
     "embeds": [
       {
         "color": 16711680,
@@ -3477,6 +3481,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "thread-id",
   {
+    "components": [],
     "embeds": [
       {
         "color": 16711680,
