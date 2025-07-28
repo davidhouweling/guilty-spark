@@ -614,7 +614,7 @@ export class NeatQueueService {
         const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
         await discordService.createMessage(thread.id, {
           embeds: [endUserError.discordEmbed],
-components: endUserError.discordActions,
+          components: endUserError.discordActions,
         });
       }
     }
@@ -654,7 +654,7 @@ components: endUserError.discordActions,
       const endUserError = this.getEndUserErrorEmbed(handledError, request, neatQueueConfig, timeline);
       await discordService.createMessage(thread.id, {
         embeds: [endUserError.discordEmbed],
-components: endUserError.discordActions,
+        components: endUserError.discordActions,
       });
     } catch (error) {
       this.logService.warn(error as Error, new Map([["reason", "Failed to post error to thread"]]));
