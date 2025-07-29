@@ -312,11 +312,12 @@ export class HaloService {
       const fulfilled = result.status === "fulfilled";
       const { id: discordId, globalName } = Preconditions.checkExists(processedUsers[index]);
       const gamertag = associationReason === AssociationReason.DISPLAY_NAME_SEARCH ? globalName : null;
-      const playerMatches = fulfilled ? await this.getPlayerMatches(result.value.xuid, startDate, endDate) : [];
+      const xboxId = fulfilled && result.value.xuid ? result.value.xuid : "";
+      const playerMatches = xboxId != "" ? await this.getPlayerMatches(xboxId, startDate, endDate) : [];
 
       this.userCache.set(discordId, {
         DiscordId: discordId,
-        XboxId: fulfilled ? result.value.xuid : "",
+        XboxId: xboxId,
         AssociationReason: associationReason,
         AssociationDate: Date.now(),
         GamesRetrievable: playerMatches.length ? GamesRetrievable.YES : GamesRetrievable.NO,
@@ -411,7 +412,7 @@ export class HaloService {
     const userMatches = new Map<string, PlayerMatchHistory[]>();
 
     for (const user of users) {
-      const playerMatches = await this.getPlayerMatches(user.XboxId, startDate, endDate);
+      const playerMatches = user.XboxId ? await this.getPlayerMatches(user.XboxId, startDate, endDate) : [];
 
       if (playerMatches.length) {
         userMatches.set(user.DiscordId, playerMatches);
