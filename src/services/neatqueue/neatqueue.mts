@@ -1,8 +1,14 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
-import type { RESTPostAPIChannelThreadsResult, APIEmbed, APIMessage } from "discord-api-types/v10";
-import { ChannelType, ComponentType } from "discord-api-types/v10";
+import type {
+  RESTPostAPIChannelThreadsResult,
+  APIEmbed,
+  APIMessage,
+  APIEmbedField,
+  RESTPostAPIChannelMessageJSONBody,
+} from "discord-api-types/v10";
+import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
@@ -25,6 +31,7 @@ import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { create } from "../../embeds/create.mjs";
+import { GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -33,6 +40,7 @@ import type {
   NeatQueueTimelineRequest,
   NeatQueueSubstitutionRequest,
   NeatQueuePlayer,
+  NeatQueueMatchStartedRequest,
 } from "./types.mjs";
 
 export interface NeatQueueServiceOpts {
@@ -104,7 +112,13 @@ export class NeatQueueService {
       case "SUBSTITUTION": {
         return {
           response: new Response("OK"),
-          jobToComplete: async () => this.extendTimeline(request, neatQueueConfig),
+          jobToComplete: async (): Promise<void> => {
+            await this.extendTimeline(request, neatQueueConfig);
+
+            if (request.action === "MATCH_STARTED") {
+              await this.matchStartedJob(request, neatQueueConfig);
+            }
+          },
         };
       }
       case "MATCH_COMPLETED": {
@@ -308,6 +322,40 @@ export class NeatQueueService {
     }
   }
 
+  async updatePlayersEmbed(guildId: string, channelId: string, messageId: string): Promise<void> {
+    try {
+      const kvList = await this.env.APP_DATA.list<null>({
+        prefix: `neatqueue:${guildId}:`,
+      });
+      const key = kvList.keys.find((kv) => kv.name.endsWith(`:${channelId}`));
+      if (!key) {
+        throw new Error("Unable to update players embed, no key found for channel");
+      }
+
+      const timeline = await this.env.APP_DATA.get<NeatQueueTimelineEvent[]>(key.name, {
+        type: "json",
+      });
+      if (!Array.isArray(timeline)) {
+        throw new Error("Unable to update players embed, timeline is not an array");
+      }
+
+      const matchStartedEvent = timeline.find((event) => event.event.action === "MATCH_STARTED");
+      if (!matchStartedEvent) {
+        throw new Error("Unable to update players embed, no match started event found in timeline");
+      }
+
+      const request = matchStartedEvent.event as NeatQueueMatchStartedRequest;
+      const playersPostMessage = await this.getPlayersPostMessage(request.players);
+      if (!playersPostMessage) {
+        throw new Error("Unable to update players embed, no players found in match started event");
+      }
+
+      await this.discordService.editMessage(channelId, messageId, playersPostMessage);
+    } catch (error) {
+      this.logService.error(error as Error, new Map([["reason", "Failed to update players embed"]]));
+    }
+  }
+
   private async findNeatQueueConfig(
     body: NeatQueueRequest,
     authorization: string,
@@ -319,6 +367,38 @@ export class NeatQueueService {
     });
 
     return neatQueueConfig;
+  }
+
+  private async matchStartedJob(
+    request: NeatQueueMatchStartedRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { discordService, logService } = this;
+
+    try {
+      const [guild, channel] = await Promise.all([
+        discordService.getGuild(request.guild),
+        discordService.getChannel(request.channel),
+      ]);
+      const appInGuild = await discordService.getGuildMember(request.guild, this.env.DISCORD_APP_ID);
+      const permissions = discordService.hasPermissions(guild, channel, appInGuild, [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+      ]);
+      if (!permissions.hasAll) {
+        throw new Error("Insufficient permissions to post in the channel");
+      }
+
+      const playersPostMessage = await this.getPlayersPostMessage(request.players);
+      if (!playersPostMessage) {
+        return;
+      }
+
+      await discordService.createMessage(request.channel, playersPostMessage);
+    } catch (error) {
+      logService.warn(error as Error, new Map([["reason", "Failed to post players message"]]));
+    }
   }
 
   private async matchCompletedJob(
@@ -424,6 +504,104 @@ export class NeatQueueService {
     await this.env.APP_DATA.put(this.getTimelineKey(request, neatQueueConfig), JSON.stringify(timeline), {
       expirationTtl: 60 * 60 * 24, // 1 day
     });
+  }
+
+  private async getPlayersPostMessage(players: NeatQueuePlayer[]): Promise<RESTPostAPIChannelMessageJSONBody | null> {
+    const { databaseService, discordService, haloService } = this;
+
+    const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
+    const playerIds = sortedPlayers.map((player) => player.id);
+    if (playerIds.length === 0) {
+      return null;
+    }
+
+    const discordAssociations = await databaseService.getDiscordAssociations(playerIds);
+    this.logService.debug("Discord associations", new Map([["associations", JSON.stringify(discordAssociations)]]));
+    const xboxIds = discordAssociations
+      .filter((association) => association.GamesRetrievable === GamesRetrievable.YES)
+      .map((assoc) => assoc.XboxId);
+    this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
+    const haloPlayers = await haloService.getUsersByXuids(xboxIds);
+    this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
+    const haloPlayersMap = new Map(haloPlayers.map((player) => [player.xuid, player]));
+    const rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
+    this.logService.debug("Ranked Arena CSRs", new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs)]]));
+
+    const titles = ["Player", "Halo Profile", "Current Rank (Season Peak, All Time Peak)"];
+    const tableData = [titles];
+
+    for (const player of sortedPlayers) {
+      const association = discordAssociations.find((assoc) => assoc.DiscordId === player.id);
+      if (association?.XboxId == null || !haloPlayersMap.has(association.XboxId)) {
+        tableData.push([`<@${player.id}>`, "*Not Connected*", "*-*"]);
+        continue;
+      }
+
+      const rankData = rankedArenaCsrs.get(association.XboxId);
+      const gamertag = Preconditions.checkExists(haloPlayersMap.get(association.XboxId)?.gamertag);
+      const url = new URL(`https://halodatahive.com/Player/Infinite/${gamertag}`);
+      const gamertagUrl = `[${gamertag}](${url.href})`;
+      if (!rankData) {
+        tableData.push([`<@${player.id}>`, gamertagUrl, "Unranked"]);
+        continue;
+      }
+
+      const getRank = (value: number): string => (value >= 0 ? value.toString() : "Unranked");
+      const { Current, SeasonMax, AllTimeMax } = rankData;
+      const currentRank = getRank(Current.Value);
+      const currentRankEmoji = discordService.getRankEmoji(Current.Tier, Current.SubTier);
+      const seasonPeakRank = getRank(SeasonMax.Value);
+      const seasonPeakRankEmoji = discordService.getRankEmoji(SeasonMax.Tier, SeasonMax.SubTier);
+      const allTimePeakRank = getRank(AllTimeMax.Value);
+      const allTimePeakRankEmoji = discordService.getRankEmoji(AllTimeMax.Tier, AllTimeMax.SubTier);
+
+      tableData.push([
+        player.name,
+        gamertagUrl,
+        `${currentRankEmoji}${currentRank} (${seasonPeakRankEmoji}${seasonPeakRank}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
+      ]);
+    }
+
+    const fields: APIEmbedField[] = [];
+    for (let column = 0; column < titles.length; column++) {
+      fields.push({
+        name: Preconditions.checkExists(titles[column]),
+        value: tableData
+          .slice(1)
+          .map((row) => row[column])
+          .join("\n"),
+        inline: true,
+      });
+    }
+
+    const embed: APIEmbed = {
+      title: "Players in queue",
+      color: 3447003,
+      fields,
+      footer: {
+        text: "Something not right? Click the 'Connect my Halo account' button below to connect your Halo account.",
+      },
+    };
+
+    return {
+      embeds: [embed],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Primary,
+              label: "Connect my Halo account",
+              custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
+              emoji: {
+                name: "🔗",
+              },
+            },
+          ],
+        },
+      ],
+    };
   }
 
   private async getSeriesDataFromTimeline(

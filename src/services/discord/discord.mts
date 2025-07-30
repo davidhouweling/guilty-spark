@@ -629,6 +629,17 @@ export class DiscordService {
     return `<:${appEmojiName}:${emojiId}>`;
   }
 
+  getRankEmoji(rankTier: string, subTier: number): string {
+    if (rankTier === "Onyx") {
+      return this.getEmojiFromName(`Onyx`);
+    }
+    if (rankTier === "") {
+      return this.getEmojiFromName(`Unranked${subTier.toString()}`);
+    }
+
+    return this.getEmojiFromName(`${rankTier}${subTier.toString()}`);
+  }
+
   getTimestamp(isoDate: string, format: "F" | "f" | "D" | "d" | "T" | "t" | "R" = "f"): string {
     const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
 
