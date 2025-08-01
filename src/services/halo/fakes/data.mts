@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HaloInfiniteClient, MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
-import type { SeriesData } from "../halo.mjs";
+import type { HaloService, SeriesData } from "../halo.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -135,3 +135,50 @@ export const neatQueueSeriesData: SeriesData = {
     ],
   ],
 };
+
+export const getRankedArenaCsrsData: Awaited<ReturnType<HaloService["getRankedArenaCsrs"]>> = new Map([
+  [
+    "0000000000001",
+    {
+      Current: {
+        Value: 1451,
+        MeasurementMatchesRemaining: 0,
+        Tier: "Diamond",
+        TierStart: 1450,
+        SubTier: 5,
+        NextTier: "Onyx",
+        NextTierStart: 1500,
+        NextSubTier: 0,
+        InitialMeasurementMatches: 5,
+        DemotionProtectionMatchesRemaining: 0,
+        InitialDemotionProtectionMatches: 3,
+      },
+      SeasonMax: {
+        Value: 1482,
+        MeasurementMatchesRemaining: 0,
+        Tier: "Diamond",
+        TierStart: 1450,
+        SubTier: 5,
+        NextTier: "Onyx",
+        NextTierStart: 1500,
+        NextSubTier: 0,
+        InitialMeasurementMatches: 5,
+        DemotionProtectionMatchesRemaining: 0,
+        InitialDemotionProtectionMatches: 3,
+      },
+      AllTimeMax: {
+        Value: 1565,
+        MeasurementMatchesRemaining: 0,
+        Tier: "Onyx",
+        TierStart: 1500,
+        SubTier: 0,
+        NextTier: "Onyx",
+        NextTierStart: 1500,
+        NextSubTier: 0,
+        InitialMeasurementMatches: 5,
+        DemotionProtectionMatchesRemaining: 0,
+        InitialDemotionProtectionMatches: 3,
+      },
+    },
+  ],
+]);

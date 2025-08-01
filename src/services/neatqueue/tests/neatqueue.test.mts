@@ -7,6 +7,7 @@ import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import {
   aFakeDatabaseServiceWith,
+  aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake.mjs";
@@ -21,9 +22,9 @@ import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
 import { getFakeNeatQueueData } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest } from "../types.mjs";
-import { matchStats } from "../../halo/fakes/data.mjs";
+import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import { apiMessage, discordNeatQueueData } from "../../discord/fakes/data.mjs";
+import { apiMessage, discordNeatQueueData, guild, guildMember, textChannel } from "../../discord/fakes/data.mjs";
 import { EndUserError } from "../../../base/end-user-error.mjs";
 import { StatsReturnType } from "../../database/types/guild_config.mjs";
 
@@ -182,6 +183,129 @@ describe("NeatQueueService", () => {
       });
     });
 
+    describe("MATCH_STARTED", () => {
+      let discordAssociationsSpy: MockInstance<typeof databaseService.getDiscordAssociations>;
+      let guildIdSpy: MockInstance<typeof discordService.getGuild>;
+      let getChannelSpy: MockInstance<typeof discordService.getChannel>;
+      let getGuildMemberSpy: MockInstance<typeof discordService.getGuildMember>;
+      let hasPermissionsSpy: MockInstance<typeof discordService.hasPermissions>;
+      let createMessageSpy: MockInstance<typeof discordService.createMessage>;
+      let getRankedArenaCsrsSpy: MockInstance<typeof haloService.getRankedArenaCsrs>;
+      let jobToComplete: () => Promise<void>;
+
+      beforeEach(() => {
+        discordAssociationsSpy = vi
+          .spyOn(databaseService, "getDiscordAssociations")
+          .mockResolvedValue([aFakeDiscordAssociationsRow()]);
+        guildIdSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+        getChannelSpy = vi.spyOn(discordService, "getChannel").mockResolvedValue(textChannel);
+        getGuildMemberSpy = vi.spyOn(discordService, "getGuildMember").mockResolvedValue(guildMember);
+        hasPermissionsSpy = vi.spyOn(discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
+        createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+        getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+
+        const request = getFakeNeatQueueData("matchStarted");
+        jobToComplete = Preconditions.checkExists(
+          neatQueueService.handleRequest(request, neatQueueConfig).jobToComplete,
+        );
+      });
+
+      it("creates a message if permissions are present", async () => {
+        await jobToComplete();
+
+        expect(discordAssociationsSpy).toHaveBeenCalledOnce();
+        expect(discordAssociationsSpy).toHaveBeenCalledWith(["discord_user_02", "discord_user_01"]);
+        expect(guildIdSpy).toHaveBeenCalledOnce();
+        expect(guildIdSpy).toHaveBeenCalledWith("guild-id");
+        expect(getChannelSpy).toHaveBeenCalledOnce();
+        expect(getChannelSpy).toHaveBeenCalledWith("1299532381308325949");
+        expect(getGuildMemberSpy).toHaveBeenCalledOnce();
+        expect(getGuildMemberSpy).toHaveBeenCalledWith("guild-id", "DISCORD_APP_ID");
+        expect(createMessageSpy).toHaveBeenCalledOnce();
+        expect(createMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+          [
+            "1299532381308325949",
+            {
+              "components": [
+                {
+                  "components": [
+                    {
+                      "custom_id": "btn_connect_initiate",
+                      "emoji": {
+                        "name": "🔗",
+                      },
+                      "label": "Connect my Halo account",
+                      "style": 1,
+                      "type": 2,
+                    },
+                  ],
+                  "type": 1,
+                },
+              ],
+              "embeds": [
+                {
+                  "color": 3447003,
+                  "fields": [
+                    {
+                      "inline": true,
+                      "name": "Player",
+                      "value": "<@discord_user_02>
+          <@discord_user_01>",
+                    },
+                    {
+                      "inline": true,
+                      "name": "Halo Profile",
+                      "value": "*Not Connected*
+          [gamertag0000000000001](https://halodatahive.com/Player/Infinite/gamertag0000000000001)",
+                    },
+                    {
+                      "inline": true,
+                      "name": "Current Rank (Season Peak, All Time Peak)",
+                      "value": "*-*
+          <:Diamond5:1398928173990940775>1451 (<:Diamond5:1398928173990940775>1482, <:Onyx:1398928229087182992>1565)",
+                    },
+                  ],
+                  "footer": {
+                    "text": "Something not right? Click the 'Connect my Halo account' button below to connect your Halo account.",
+                  },
+                  "title": "Players in queue",
+                },
+              ],
+            },
+          ]
+        `);
+      });
+
+      it("logs a warning if permissions are missing", async () => {
+        hasPermissionsSpy.mockReset().mockReturnValue({ hasAll: false, missing: [1n] });
+
+        const warnSpy = vi.spyOn(logService, "warn");
+        await jobToComplete();
+        expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("logs a warning if haloService.getUsersByXuids throws", async () => {
+        const error = new Error("Failed to fetch users");
+        vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(error);
+
+        const warnSpy = vi.spyOn(logService, "warn");
+        await jobToComplete();
+        expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("logs a warning if haloService.getRankedArenaCsrs throws", async () => {
+        const error = new Error("Failed to fetch ranked arena CSRs");
+        getRankedArenaCsrsSpy.mockRejectedValue(error);
+
+        const warnSpy = vi.spyOn(logService, "warn");
+        await jobToComplete();
+        expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+    });
+
     describe("MATCH_COMPLETED", () => {
       let appDataGetSpy: MockInstance;
       let appDataDeleteSpy: MockInstance;
@@ -216,21 +340,21 @@ describe("NeatQueueService", () => {
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
           {
-            id: "000000000000000001",
+            id: "discord_user_01",
             username: "soundmanD",
             global_name: "soundmanD",
             discriminator: "0001",
             avatar: "avatar1",
           },
           {
-            id: "000000000000000002",
+            id: "discord_user_02",
             username: "discord_user_02",
             global_name: "discord_user_02",
             discriminator: "0002",
             avatar: "avatar2",
           },
           {
-            id: "000000000000000003",
+            id: "discord_user_03",
             username: "discord_user_03",
             global_name: "discord_user_03",
             discriminator: "0003",
@@ -335,14 +459,14 @@ describe("NeatQueueService", () => {
             [
               {
                 globalName: "soundmanD",
-                id: "000000000000000001",
+                id: "discord_user_01",
                 username: "soundmanD",
               },
             ],
             [
               {
                 globalName: "discord_user_02",
-                id: "000000000000000002",
+                id: "discord_user_02",
                 username: "discord_user_02",
               },
             ],
@@ -391,14 +515,14 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "soundmanD",
-                  id: "000000000000000001",
+                  id: "discord_user_01",
                   username: "soundmanD",
                 },
               ],
               [
                 {
                   globalName: "discord_user_02",
-                  id: "000000000000000002",
+                  id: "discord_user_02",
                   username: "discord_user_02",
                 },
               ],
@@ -580,14 +704,14 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "soundmanD",
-                  id: "000000000000000001",
+                  id: "discord_user_01",
                   username: "soundmanD",
                 },
               ],
               [
                 {
                   globalName: "discord_user_02",
-                  id: "000000000000000002",
+                  id: "discord_user_02",
                   username: "discord_user_02",
                 },
               ],
@@ -600,14 +724,14 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "discord_user_03",
-                  id: "000000000000000003",
+                  id: "discord_user_03",
                   username: "discord_user_03",
                 },
               ],
               [
                 {
                   globalName: "discord_user_02",
-                  id: "000000000000000002",
+                  id: "discord_user_02",
                   username: "discord_user_02",
                 },
               ],
@@ -687,7 +811,7 @@ describe("NeatQueueService", () => {
           Queue: "1",
           Started: "<t:1700000000:f>",
           Completed: "<t:1700003600:f>",
-          Substitutions: "<@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
+          Substitutions: "<@discord_user_01> subbed in for <@discord_user_02> on <t:1700001800:f>",
         },
       });
 
@@ -705,14 +829,14 @@ describe("NeatQueueService", () => {
             name: "Team 1",
             players: [
               {
-                id: "000000000000000001",
+                id: "discord_user_01",
                 username: "player1",
                 global_name: "Player 1",
                 discriminator: "0001",
                 avatar: "avatar1",
               },
               {
-                id: "000000000000000002",
+                id: "discord_user_02",
                 username: "player2",
                 global_name: "Player 2",
                 discriminator: "0002",
@@ -724,14 +848,14 @@ describe("NeatQueueService", () => {
             name: "Team 2",
             players: [
               {
-                id: "000000000000000003",
+                id: "discord_user_03",
                 username: "player3",
                 global_name: "Player 3",
                 discriminator: "0003",
                 avatar: "avatar3",
               },
               {
-                id: "000000000000000004",
+                id: "discord_user_04",
                 username: "player4",
                 global_name: "Player 4",
                 discriminator: "0004",
@@ -801,7 +925,7 @@ describe("NeatQueueService", () => {
         **Queue**: 1
         **Started**: <t:1700000000:f>
         **Completed**: <t:1700003600:f>
-        **Substitutions**: <@000000000000000001> subbed in for <@000000000000000002> on <t:1700001800:f>",
+        **Substitutions**: <@discord_user_01> subbed in for <@discord_user_02> on <t:1700001800:f>",
                   },
                 ],
                 "title": "Something went wrong",
@@ -826,6 +950,135 @@ describe("NeatQueueService", () => {
       });
 
       expect(logWarnSpy).toHaveBeenCalledWith("Expected channel for retry", expect.any(Map));
+    });
+  });
+
+  describe("updatePlayersEmbed", () => {
+    let discordAssociationsSpy: MockInstance<typeof databaseService.getDiscordAssociations>;
+    let getRankedArenaCsrsSpy: MockInstance<typeof haloService.getRankedArenaCsrs>;
+
+    beforeEach(() => {
+      discordAssociationsSpy = vi
+        .spyOn(databaseService, "getDiscordAssociations")
+        .mockResolvedValue([aFakeDiscordAssociationsRow()]);
+      getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+    });
+
+    it("updates the players embed when timeline and match started event exist", async () => {
+      const channelId = "channel-123";
+      const messageId = "message-123";
+      const guildId = "guild-123";
+      const timeline = [
+        {
+          timestamp: new Date().toISOString(),
+          event: getFakeNeatQueueData("matchStarted"),
+        },
+      ];
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({
+        keys: [{ name: `neatqueue:${guildId}:${channelId}` }],
+        list_complete: true,
+        cacheStatus: null,
+      });
+      const appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
+      appDataGetSpy.mockResolvedValue(timeline);
+      const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await neatQueueService.updatePlayersEmbed(guildId, channelId, messageId);
+
+      expect(appDataGetSpy).toHaveBeenCalledOnce();
+      expect(appDataGetSpy).toHaveBeenCalledWith(`neatqueue:${guildId}:${channelId}`, { type: "json" });
+      expect(discordAssociationsSpy).toHaveBeenCalledOnce();
+      expect(discordAssociationsSpy).toHaveBeenCalledWith(["discord_user_02", "discord_user_01"]);
+      expect(getRankedArenaCsrsSpy).toHaveBeenCalledOnce();
+      expect(getRankedArenaCsrsSpy).toHaveBeenCalledWith(["0000000000001"]);
+      expect(editMessageSpy).toHaveBeenCalledOnce();
+      expect(editMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+        [
+          "channel-123",
+          "message-123",
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "custom_id": "btn_connect_initiate",
+                    "emoji": {
+                      "name": "🔗",
+                    },
+                    "label": "Connect my Halo account",
+                    "style": 1,
+                    "type": 2,
+                  },
+                ],
+                "type": 1,
+              },
+            ],
+            "embeds": [
+              {
+                "color": 3447003,
+                "fields": [
+                  {
+                    "inline": true,
+                    "name": "Player",
+                    "value": "<@discord_user_02>
+        <@discord_user_01>",
+                  },
+                  {
+                    "inline": true,
+                    "name": "Halo Profile",
+                    "value": "*Not Connected*
+        [gamertag0000000000001](https://halodatahive.com/Player/Infinite/gamertag0000000000001)",
+                  },
+                  {
+                    "inline": true,
+                    "name": "Current Rank (Season Peak, All Time Peak)",
+                    "value": "*-*
+        <:Diamond5:1398928173990940775>1451 (<:Diamond5:1398928173990940775>1482, <:Onyx:1398928229087182992>1565)",
+                  },
+                ],
+                "footer": {
+                  "text": "Something not right? Click the 'Connect my Halo account' button below to connect your Halo account.",
+                },
+                "title": "Players in queue",
+              },
+            ],
+          },
+        ]
+      `);
+    });
+
+    it("logs error if no key found for channel", async () => {
+      const logErrorSpy = vi.spyOn(logService, "error");
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+      await neatQueueService.updatePlayersEmbed("guild-123", "channel-123", "message-123");
+
+      expect(logErrorSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    });
+
+    it("logs error if timeline is not an array", async () => {
+      const logErrorSpy = vi.spyOn(logService, "error");
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({
+        keys: [{ name: "neatqueue:guild-123:channel-123" }],
+        list_complete: true,
+        cacheStatus: null,
+      });
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(new Map());
+      await neatQueueService.updatePlayersEmbed("guild-123", "channel-123", "message-123");
+
+      expect(logErrorSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    });
+
+    it("logs error if no match started event found", async () => {
+      const logErrorSpy = vi.spyOn(logService, "error");
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({
+        keys: [{ name: "neatqueue:guild-123:channel-123" }],
+        list_complete: true,
+        cacheStatus: null,
+      });
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(new Map([["timeline", []]]));
+      await neatQueueService.updatePlayersEmbed("guild-123", "channel-123", "message-123");
+
+      expect(logErrorSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
     });
   });
 });

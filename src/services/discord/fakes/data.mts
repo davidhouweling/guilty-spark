@@ -1,5 +1,7 @@
 import type {
   APIApplicationCommandInteraction,
+  APIGuild,
+  APIGuildMember,
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
@@ -9,6 +11,7 @@ import type {
   RESTPostAPIChannelMessagesThreadsResult,
 } from "discord-api-types/v10";
 import {
+  GuildSystemChannelFlags,
   ButtonStyle,
   ComponentType,
   MessageFlags,
@@ -18,6 +21,7 @@ import {
   Locale,
   MessageType,
   ThreadMemberFlags,
+  RoleFlags,
 } from "discord-api-types/v10";
 import type { QueueData } from "../discord.mjs";
 
@@ -356,6 +360,67 @@ function aFakeNeatQueueMessageWith(opts: Partial<APIMessage> = {}): APIMessage {
   };
 }
 
+export const guild: APIGuild = {
+  id: "9999999999999999999",
+  name: "Guilty Spark Test Server",
+  icon: null,
+  description: null,
+  splash: null,
+  discovery_splash: null,
+  features: [],
+  banner: null,
+  owner_id: "777777777777777777",
+  application_id: null,
+  region: "au-east",
+  afk_channel_id: null,
+  afk_timeout: 300,
+  system_channel_id: "1111111111111111111",
+  system_channel_flags: GuildSystemChannelFlags.SuppressJoinNotifications,
+  widget_enabled: false,
+  widget_channel_id: null,
+  verification_level: 0,
+  roles: [
+    {
+      id: "9999999999999999999",
+      name: "@everyone",
+      permissions: "2248473465835073",
+      position: 0,
+      color: 0,
+      colors: {
+        primary_color: 0,
+        secondary_color: null,
+        tertiary_color: null,
+      },
+      hoist: false,
+      managed: false,
+      mentionable: false,
+      icon: null,
+      unicode_emoji: null,
+      flags: RoleFlags.InPrompt,
+    },
+  ],
+  default_message_notifications: 0,
+  mfa_level: 0,
+  explicit_content_filter: 0,
+  max_presences: null,
+  max_members: 25000000,
+  max_stage_video_channel_users: 50,
+  max_video_channel_users: 25,
+  vanity_url_code: null,
+  premium_tier: 0,
+  premium_subscription_count: 0,
+  preferred_locale: Locale.EnglishUS,
+  rules_channel_id: null,
+  safety_alerts_channel_id: null,
+  public_updates_channel_id: null,
+  hub_type: null,
+  premium_progress_bar_enabled: false,
+  nsfw_level: 0,
+  emojis: [],
+  stickers: [],
+  incidents_data: null,
+};
+
 export const textChannel: APITextChannel = {
   id: "channel-id",
   type: ChannelType.GuildText,
@@ -672,4 +737,33 @@ export const channelThreadsResult: RESTPostAPIChannelMessagesThreadsResult = {
   name: "fake-thread-name",
   type: ChannelType.PublicThread,
   applied_tags: [],
+};
+
+export const guildMember: APIGuildMember = {
+  avatar: null,
+  banner: null,
+  communication_disabled_until: null,
+  flags: GuildMemberFlags.CompletedOnboarding,
+  joined_at: "2024-10-27T07:56:02.094000+00:00",
+  nick: null,
+  pending: false,
+  premium_since: null,
+  roles: ["1300005071773237291"],
+  user: {
+    id: "discord_user_01",
+    username: "soundmanD",
+    avatar: "",
+    discriminator: "2015",
+    public_flags: 524288,
+    flags: 524288,
+    bot: false,
+    banner: null,
+    accent_color: null,
+    global_name: null,
+    avatar_decoration_data: null,
+    collectibles: null,
+    primary_guild: null,
+  },
+  mute: false,
+  deaf: false,
 };

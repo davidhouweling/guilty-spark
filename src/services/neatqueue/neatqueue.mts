@@ -556,7 +556,7 @@ export class NeatQueueService {
       const allTimePeakRankEmoji = discordService.getRankEmoji(AllTimeMax.Tier, AllTimeMax.SubTier);
 
       tableData.push([
-        player.name,
+        `<@${player.id}>`,
         gamertagUrl,
         `${currentRankEmoji}${currentRank} (${seasonPeakRankEmoji}${seasonPeakRank}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
       ]);
