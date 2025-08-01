@@ -262,7 +262,7 @@ describe("NeatQueueService", () => {
                       "inline": true,
                       "name": "Current Rank (Season Peak, All Time Peak)",
                       "value": "*-*
-          <:Diamond5:1398928173990940775>1451 (<:Diamond5:1398928173990940775>1482, <:Onyx:1398928229087182992>1565)",
+          <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
                     },
                   ],
                   "footer": {
@@ -1033,7 +1033,7 @@ describe("NeatQueueService", () => {
                     "inline": true,
                     "name": "Current Rank (Season Peak, All Time Peak)",
                     "value": "*-*
-        <:Diamond5:1398928173990940775>1451 (<:Diamond5:1398928173990940775>1482, <:Onyx:1398928229087182992>1565)",
+        <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
                   },
                 ],
                 "footer": {

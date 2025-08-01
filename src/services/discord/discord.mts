@@ -633,11 +633,14 @@ export class DiscordService {
     if (rankTier === "Onyx") {
       return this.getEmojiFromName(`Onyx`);
     }
+
+    // subTier is 0 indexed, so we add 1 to it
+
     if (rankTier === "") {
-      return this.getEmojiFromName(`Unranked${subTier.toString()}`);
+      return this.getEmojiFromName(`Unranked${(subTier + 1).toString()}`);
     }
 
-    return this.getEmojiFromName(`${rankTier}${subTier.toString()}`);
+    return this.getEmojiFromName(`${rankTier}${(subTier + 1).toString()}`);
   }
 
   getTimestamp(isoDate: string, format: "F" | "f" | "D" | "d" | "T" | "t" | "R" = "f"): string {
