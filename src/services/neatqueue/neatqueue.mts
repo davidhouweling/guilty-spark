@@ -527,7 +527,7 @@ export class NeatQueueService {
     const rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
     this.logService.debug("Ranked Arena CSRs", new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs)]]));
 
-    const titles = ["Player", "Halo Profile", "Current Rank (Season Peak, All Time Peak)"];
+    const titles = ["Player", "Halo Profile", "Current Rank (SP, ATP)"];
     const tableData = [titles];
 
     for (const player of sortedPlayers) {
@@ -576,6 +576,7 @@ export class NeatQueueService {
 
     const embed: APIEmbed = {
       title: "Players in queue",
+      description: "-# Legend: SP = season peak | ATP = all time peak",
       color: 3447003,
       fields,
       footer: {

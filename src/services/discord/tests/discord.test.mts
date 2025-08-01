@@ -1005,12 +1005,12 @@ describe("DiscordService", () => {
     });
 
     it("returns Unranked emoji for empty tier", () => {
-      expect(discordService.getRankEmoji("", 3)).toBe("<:Unranked3:id>");
+      expect(discordService.getRankEmoji("", 2)).toBe("<:Unranked3:id>");
     });
 
     it("returns correct emoji for other tiers", () => {
-      expect(discordService.getRankEmoji("Diamond", 6)).toBe("<:Diamond6:id>");
-      expect(discordService.getRankEmoji("Gold", 2)).toBe("<:Gold2:id>");
+      expect(discordService.getRankEmoji("Diamond", 5)).toBe("<:Diamond6:id>");
+      expect(discordService.getRankEmoji("Gold", 1)).toBe("<:Gold2:id>");
     });
   });
 });
