@@ -1,7 +1,7 @@
 {
   "player_subbed_out": {
     "name": "soundmanD",
-    "id": "000000000000000001",
+    "id": "discord_user_01",
     "mmr": 1033.3333333333333,
     "role": null,
     "team_num": 1,
@@ -23,7 +23,7 @@
   },
   "player_subbed_in": {
     "name": "discord_user_03",
-    "id": "000000000000000003",
+    "id": "discord_user_03",
     "mmr": 966.6666666666666,
     "role": null,
     "team_num": 1,

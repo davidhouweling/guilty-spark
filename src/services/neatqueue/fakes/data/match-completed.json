@@ -3,7 +3,7 @@
     [
       {
         "name": "soundmanD",
-        "id": "000000000000000001",
+        "id": "discord_user_01",
         "mmr": 1000,
         "role": null,
         "team_num": 0,
@@ -27,7 +27,7 @@
     [
       {
         "name": "discord_user_02",
-        "id": "000000000000000002",
+        "id": "discord_user_02",
         "mmr": 1000,
         "role": null,
         "team_num": 1,

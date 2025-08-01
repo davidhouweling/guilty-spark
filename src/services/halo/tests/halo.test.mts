@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import { MatchOutcome, RequestError, type HaloInfiniteClient } from "halo-infinite-api";
+import { MatchOutcome, RequestError } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService } from "../halo.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
@@ -678,6 +679,57 @@ describe("Halo service", () => {
       ).rejects.toThrow();
 
       expect(upsertDiscordAssociationsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("wrapPlayerXuid", () => {
+    it("wraps a xuid in xuid() format", () => {
+      expect(haloService.wrapPlayerXuid("1234567890")).toBe("xuid(1234567890)");
+    });
+  });
+
+  describe("getRankedArenaCsrs", () => {
+    it("returns an empty map if no xuids provided", async () => {
+      const result = await haloService.getRankedArenaCsrs([]);
+      expect(result.size).toBe(0);
+    });
+
+    it("returns a map of xuid to CSR if found", async () => {
+      const fakeCsr: PlaylistCsr = {
+        Value: 1500,
+        Tier: "Diamond",
+        SubTier: 6,
+        MeasurementMatchesRemaining: 0,
+        TierStart: 0,
+        NextTier: "Onyx",
+        NextTierStart: 1600,
+        InitialMeasurementMatches: 10,
+        DemotionProtectionMatchesRemaining: 0,
+        InitialDemotionProtectionMatches: 5,
+        NextSubTier: 0,
+      };
+      infiniteClient.getPlaylistCsr.mockResolvedValue([
+        { Id: "xuid(123)", ResultCode: 0, Result: { Current: fakeCsr, SeasonMax: fakeCsr, AllTimeMax: fakeCsr } },
+        {
+          Id: "xuid(456)",
+          ResultCode: 0,
+          Result: { Current: { ...fakeCsr, Value: 1400 }, SeasonMax: fakeCsr, AllTimeMax: fakeCsr },
+        },
+      ]);
+      const result = await haloService.getRankedArenaCsrs(["123", "456"]);
+      expect(result.get("123")).toEqual({ Current: fakeCsr, SeasonMax: fakeCsr, AllTimeMax: fakeCsr });
+      expect(result.get("456")).toEqual({
+        Current: { ...fakeCsr, Value: 1400 },
+        SeasonMax: fakeCsr,
+        AllTimeMax: fakeCsr,
+      });
+    });
+
+    it("logs a warning if no CSR found for a xuid", async () => {
+      const warnSpy = vi.spyOn(logService, "warn");
+      infiniteClient.getPlaylistCsr.mockResolvedValue([]);
+      await haloService.getRankedArenaCsrs(["789"]);
+      expect(warnSpy).toHaveBeenCalledWith("No CSR found for xuid 789");
     });
   });
 });

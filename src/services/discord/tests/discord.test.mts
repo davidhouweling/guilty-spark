@@ -994,4 +994,23 @@ describe("DiscordService", () => {
       expect(() => discordService.getDateFromTimestamp("<t:abc:f>")).toThrow("Invalid timestamp format: <t:abc:f>");
     });
   });
+
+  describe("getRankEmoji", () => {
+    beforeEach(() => {
+      vi.spyOn(discordService, "getEmojiFromName").mockImplementation((name: string) => `<:${name}:id>`);
+    });
+
+    it("returns Onyx emoji for Onyx tier", () => {
+      expect(discordService.getRankEmoji("Onyx", 1)).toBe("<:Onyx:id>");
+    });
+
+    it("returns Unranked emoji for empty tier", () => {
+      expect(discordService.getRankEmoji("", 3)).toBe("<:Unranked3:id>");
+    });
+
+    it("returns correct emoji for other tiers", () => {
+      expect(discordService.getRankEmoji("Diamond", 6)).toBe("<:Diamond6:id>");
+      expect(discordService.getRankEmoji("Gold", 2)).toBe("<:Gold2:id>");
+    });
+  });
 });

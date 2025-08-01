@@ -1,5 +1,12 @@
 import * as tinyduration from "tinyduration";
-import type { HaloInfiniteClient, MatchInfo, MatchStats, PlayerMatchHistory, UserInfo } from "halo-infinite-api";
+import type {
+  HaloInfiniteClient,
+  MatchInfo,
+  MatchStats,
+  PlayerMatchHistory,
+  PlaylistCsrContainer,
+  UserInfo,
+} from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -164,6 +171,10 @@ export class HaloService {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
   }
 
+  wrapPlayerXuid(xuid: string): string {
+    return `xuid(${xuid})`;
+  }
+
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
@@ -292,6 +303,31 @@ export class HaloService {
 
       throw new EndUserError("Unable to retrieve match history");
     }
+  }
+
+  async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {
+    if (xuids.length === 0) {
+      this.logService.debug("No xuids provided for ranked arena CSRs");
+      return new Map();
+    }
+
+    const wrappedXuidsMap = new Map(xuids.map((xuid) => [xuid, this.wrapPlayerXuid(xuid)]));
+    const playlistCsr = await this.infiniteClient.getPlaylistCsr(
+      "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+      wrappedXuidsMap.values().toArray(),
+    );
+
+    const rankedArenaCsrs = new Map<string, PlaylistCsrContainer>();
+    for (const [xuid, wrappedXuid] of wrappedXuidsMap.entries()) {
+      const csr = playlistCsr.find((container) => container.Id === wrappedXuid)?.Result;
+      if (csr != null) {
+        rankedArenaCsrs.set(xuid, csr);
+      } else {
+        this.logService.warn(`No CSR found for xuid ${xuid}`);
+      }
+    }
+
+    return rankedArenaCsrs;
   }
 
   async updateDiscordAssociations(): Promise<void> {

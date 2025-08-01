@@ -509,6 +509,7 @@ export class ConnectCommand extends BaseCommand {
       );
 
       await discordService.updateDeferredReply(interaction.token, content);
+      await this.maybeRetryLastCommand(interaction);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -745,6 +746,17 @@ export class ConnectCommand extends BaseCommand {
       if (message.embeds.length === 0) {
         return;
       }
+
+      if (message.embeds[0]?.title === "Players in queue") {
+        await neatQueueService.updatePlayersEmbed(
+          Preconditions.checkExists(interaction.guild?.id, "expected guild id"),
+          message.channel_id,
+          message.id,
+        );
+
+        return;
+      }
+
       const errorEmbed = message.embeds
         .map((embed) => EndUserError.fromDiscordEmbed(embed))
         .find((embed) => embed != null);

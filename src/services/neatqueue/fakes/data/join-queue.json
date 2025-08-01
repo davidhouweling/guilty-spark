@@ -2,7 +2,7 @@
   "players": [
     {
       "name": "soundmanD",
-      "id": "000000000000000001",
+      "id": "discord_user_01",
       "mmr": 1000,
       "role": null,
       "team_num": -1,
@@ -26,7 +26,7 @@
   "new_players": [
     {
       "name": "soundmanD",
-      "id": "000000000000000001",
+      "id": "discord_user_01",
       "mmr": 1000,
       "role": null,
       "team_num": -1,
