@@ -245,6 +245,7 @@ describe("NeatQueueService", () => {
               "embeds": [
                 {
                   "color": 3447003,
+                  "description": "-# Legend: SP = season peak | ATP = all time peak",
                   "fields": [
                     {
                       "inline": true,
@@ -260,7 +261,7 @@ describe("NeatQueueService", () => {
                     },
                     {
                       "inline": true,
-                      "name": "Current Rank (Season Peak, All Time Peak)",
+                      "name": "Current Rank (SP, ATP)",
                       "value": "*-*
           <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
                     },
@@ -1016,6 +1017,7 @@ describe("NeatQueueService", () => {
             "embeds": [
               {
                 "color": 3447003,
+                "description": "-# Legend: SP = season peak | ATP = all time peak",
                 "fields": [
                   {
                     "inline": true,
@@ -1031,7 +1033,7 @@ describe("NeatQueueService", () => {
                   },
                   {
                     "inline": true,
-                    "name": "Current Rank (Season Peak, All Time Peak)",
+                    "name": "Current Rank (SP, ATP)",
                     "value": "*-*
         <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
                   },
