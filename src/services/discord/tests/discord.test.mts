@@ -1005,7 +1005,7 @@ describe("DiscordService", () => {
     });
 
     it("returns Unranked emoji for empty tier", () => {
-      expect(discordService.getRankEmoji("", 2)).toBe("<:Unranked3:id>");
+      expect(discordService.getRankEmoji("", 2)).toBe("<:Unranked2:id>");
     });
 
     it("returns correct emoji for other tiers", () => {

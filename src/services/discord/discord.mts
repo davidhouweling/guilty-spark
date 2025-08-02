@@ -634,12 +634,11 @@ export class DiscordService {
       return this.getEmojiFromName(`Onyx`);
     }
 
-    // subTier is 0 indexed, so we add 1 to it
-
     if (rankTier === "") {
-      return this.getEmojiFromName(`Unranked${(subTier + 1).toString()}`);
+      return this.getEmojiFromName(`Unranked${subTier.toString()}`);
     }
 
+    // subTier is 0 indexed, so we add 1 to it
     return this.getEmojiFromName(`${rankTier}${(subTier + 1).toString()}`);
   }
 
