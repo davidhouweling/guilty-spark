@@ -41,6 +41,7 @@ import { EndUserError } from "../../base/end-user-error.mjs";
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
   NeatQueueIntegration = "neatqueue_integration",
+  NeatQueueInformer = "neatqueue_informer",
 }
 
 enum SetupStatsDisplayModeOption {
@@ -67,6 +68,7 @@ export enum InteractionComponent {
   NeatQueueIntegrationEditChannelResultsPostChannel = "setup_neat_queue_edit_results_post_channel",
   NeatQueueIntegrationEditChannelDelete = "setup_neat_queue_edit_delete",
   NeatQueueIntegrationEditChannelBack = "setup_neat_queue_edit_channel_back",
+  NeatQueueInformerPlayersOnStart = "setup_neat_queue_informer_players_on_start",
 }
 
 const displayModeOptions = [
@@ -310,6 +312,16 @@ const ActionButtons = new Map<InteractionComponent, APIButtonComponentWithCustom
     },
   ],
   [
+    InteractionComponent.NeatQueueInformerPlayersOnStart,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerPlayersOnStart,
+      label: "Toggle Player Connections",
+      style: ButtonStyle.Primary,
+      emoji: { name: "🔌" },
+    },
+  ],
+  [
     InteractionComponent.MainMenu,
     {
       type: ComponentType.Button,
@@ -468,6 +480,13 @@ export class SetupCommand extends BaseCommand {
       data: {
         component_type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueIntegrationEditChannelBack,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerPlayersOnStart,
       },
     },
     {
@@ -699,6 +718,15 @@ export class SetupCommand extends BaseCommand {
             this.setupNeatQueueIntegrationEditChannelDeleteJob(interaction as APIMessageComponentButtonInteraction),
         };
       }
+      case InteractionComponent.NeatQueueInformerPlayersOnStart: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
+            this.setupNeatQueueInformerTogglePlayerConnectionsJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
       case InteractionComponent.MainMenu: {
         return {
           response: {
@@ -738,6 +766,7 @@ export class SetupCommand extends BaseCommand {
       const configDisplay = [
         `**Stats Display Mode:** ${statsDisplays.join(", ")}`,
         `**NeatQueue Integrations:** ${neatQueueIntegrationsCount}`,
+        `**NeatQueue Informer:** Player connections ${config.PlayerConnections == "Y" ? "enabled" : "disabled"}`,
       ].join("\n");
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -770,6 +799,11 @@ export class SetupCommand extends BaseCommand {
                     label: "Configure NeatQueue Integration",
                     value: SetupSelectOption.NeatQueueIntegration,
                     description: "Configure the NeatQueue integration for your server",
+                  },
+                  {
+                    label: "Configure NeatQueue Informer",
+                    value: SetupSelectOption.NeatQueueInformer,
+                    description: "Configure the NeatQueue informer - info when queues start and in play",
                   },
                 ],
                 placeholder: "Select an option to configure",
@@ -805,6 +839,14 @@ export class SetupCommand extends BaseCommand {
             type: InteractionResponseType.DeferredMessageUpdate,
           },
           jobToComplete: async () => this.setupSelectNeatQueueIntegrationJob(interaction),
+        };
+      }
+      case SetupSelectOption.NeatQueueInformer: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () => this.setupSelectNeatQueueInformerJob(interaction),
         };
       }
       case undefined:
@@ -944,6 +986,55 @@ export class SetupCommand extends BaseCommand {
         {
           type: ComponentType.ActionRow,
           components: actions,
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [this.getActionButton(InteractionComponent.MainMenu)],
+        },
+      ],
+    };
+
+    await discordService.updateDeferredReply(interaction.token, content);
+  }
+
+  private async setupSelectNeatQueueInformerJob(interaction: APIMessageComponentInteraction): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const config = await databaseService.getGuildConfig(guildId, true);
+
+    const description = [
+      "This feature works in conjunction with NeatQueue integration and applies to the whole server.",
+      "",
+      "To enable this feature:",
+      '1. Give "Guilty Spark" a role',
+      "2. Run the two commands",
+      '  - `/tempchannels permissions set role="<role>" permission="View Channel" value="Allow"`',
+      '  - `/tempchannels permissions set role="<role>" permission="Send Messages" value="Allow"`',
+      "",
+      '-# If Guilty Spark does not have permissions when it tries to interact with the queue channel, the settings will switch to "Disabled"',
+    ].join("\n");
+    const configDisplay = [
+      `**Player Connections on queue start:** ${config.PlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
+    ].join("\n");
+
+    const content: RESTPostAPIWebhookWithTokenJSONBody = {
+      content: "",
+      embeds: [
+        {
+          title: "NeatQueue Informer",
+          description,
+          fields: [
+            {
+              name: "",
+              value: configDisplay,
+            },
+          ],
+        },
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [this.getActionButton(InteractionComponent.NeatQueueInformerPlayersOnStart)],
         },
         {
           type: ComponentType.ActionRow,
@@ -1671,6 +1762,23 @@ export class SetupCommand extends BaseCommand {
     try {
       await databaseService.deleteNeatQueueConfig(guildId, channelId);
       await this.setupNeatQueueIntegrationEditJob(interaction, "NeatQueue integration deleted");
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async setupNeatQueueInformerTogglePlayerConnectionsJob(
+    interaction: APIMessageComponentButtonInteraction,
+  ): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const config = await databaseService.getGuildConfig(guildId, true);
+
+    try {
+      await databaseService.updateGuildConfig(guildId, {
+        PlayerConnections: config.PlayerConnections === "Y" ? "N" : "Y",
+      });
+      await this.setupSelectNeatQueueInformerJob(interaction);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
