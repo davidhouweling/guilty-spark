@@ -27,6 +27,7 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 import { apiMessage, discordNeatQueueData, guild, guildMember, textChannel } from "../../discord/fakes/data.mjs";
 import { EndUserError } from "../../../base/end-user-error.mjs";
 import { StatsReturnType } from "../../database/types/guild_config.mjs";
+import { DiscordError } from "../../discord/discord-error.mjs";
 
 const startThread: APIChannel = {
   type: ChannelType.PublicThread,
@@ -191,6 +192,9 @@ describe("NeatQueueService", () => {
       let hasPermissionsSpy: MockInstance<typeof discordService.hasPermissions>;
       let createMessageSpy: MockInstance<typeof discordService.createMessage>;
       let getRankedArenaCsrsSpy: MockInstance<typeof haloService.getRankedArenaCsrs>;
+      let getGuildConfigSpy: MockInstance<typeof databaseService.getGuildConfig>;
+      let updateGuildConfigSpy: MockInstance<typeof databaseService.updateGuildConfig>;
+      let warnSpy: MockInstance<typeof logService.warn>;
       let jobToComplete: () => Promise<void>;
 
       beforeEach(() => {
@@ -203,6 +207,11 @@ describe("NeatQueueService", () => {
         hasPermissionsSpy = vi.spyOn(discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
         createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+        getGuildConfigSpy = vi
+          .spyOn(databaseService, "getGuildConfig")
+          .mockResolvedValue(aFakeGuildConfigRow({ PlayerConnections: "Y" }));
+        updateGuildConfigSpy = vi.spyOn(databaseService, "updateGuildConfig").mockResolvedValue();
+        warnSpy = vi.spyOn(logService, "warn");
 
         const request = getFakeNeatQueueData("matchStarted");
         jobToComplete = Preconditions.checkExists(
@@ -280,7 +289,6 @@ describe("NeatQueueService", () => {
       it("logs a warning if permissions are missing", async () => {
         hasPermissionsSpy.mockReset().mockReturnValue({ hasAll: false, missing: [1n] });
 
-        const warnSpy = vi.spyOn(logService, "warn");
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
@@ -290,7 +298,6 @@ describe("NeatQueueService", () => {
         const error = new Error("Failed to fetch users");
         vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(error);
 
-        const warnSpy = vi.spyOn(logService, "warn");
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
@@ -300,9 +307,48 @@ describe("NeatQueueService", () => {
         const error = new Error("Failed to fetch ranked arena CSRs");
         getRankedArenaCsrsSpy.mockRejectedValue(error);
 
-        const warnSpy = vi.spyOn(logService, "warn");
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("skips message creation when PlayerConnections is disabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(aFakeGuildConfigRow({ PlayerConnections: "N" }));
+
+        await jobToComplete();
+
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it("updates config and logs warning when Discord getChannel fails with missing access", async () => {
+        getChannelSpy.mockReset().mockRejectedValue(
+          new DiscordError(403, {
+            code: 50001,
+            message: "Missing Access",
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith(
+          "guild-id",
+          expect.objectContaining({ PlayerConnections: "N" }),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("updates config and logs warning when Discord permission calculation returns false", async () => {
+        hasPermissionsSpy.mockReset().mockReturnValue({ hasAll: false, missing: [1n] });
+
+        await jobToComplete();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith(
+          "guild-id",
+          expect.objectContaining({ PlayerConnections: "N" }),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
       });
     });
