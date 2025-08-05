@@ -20,23 +20,23 @@ export const fakeD1Response: D1Response = {
   },
 };
 
-export class FakePreparedStatement /* extends D1PreparedStatement */ {
+export class FakePreparedStatement<T> /* extends D1PreparedStatement */ {
   bind(): D1PreparedStatement {
     return this as unknown as D1PreparedStatement;
   }
-  async first(): Promise<null> {
-    return Promise.resolve(null);
+  async first(): Promise<T> {
+    return Promise.resolve(null as T);
   }
   async run(): Promise<{ results: never[]; success: true; meta: D1Meta & Record<string, unknown>; error?: never }> {
     return Promise.resolve({ ...fakeD1Response, results: [] });
   }
-  async all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
-    return Promise.resolve({ ...fakeD1Response, results: [] as T[] });
+  async all<U = Record<string, unknown>>(): Promise<D1Result<U>> {
+    return Promise.resolve({ ...fakeD1Response, results: [] as U[] });
   }
-  raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
-  raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
+  raw<V = unknown[]>(options: { columnNames: true }): Promise<[string[], ...V[]]>;
+  raw<V = unknown[]>(options?: { columnNames?: false }): Promise<V[]>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/require-await
-  async raw<T = unknown[]>(_options?: { columnNames?: boolean }): Promise<T[] | [string[], ...T[]]> {
+  async raw<V = unknown[]>(_options?: { columnNames?: boolean }): Promise<V[] | [string[], ...V[]]> {
     throw new Error("Not implemented");
   }
 }

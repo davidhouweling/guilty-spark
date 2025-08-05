@@ -116,6 +116,16 @@ export class DatabaseService {
     const query = `UPDATE GuildConfig SET ${setStatements.join(", ")} WHERE GuildId = ?`;
     const stmt = this.DB.prepare(query).bind(...values);
     await stmt.run();
+
+    const cachedConfig = this.guildConfigCache.get(guildId);
+    if (cachedConfig) {
+      const updatedConfig: GuildConfigRow = {
+        ...cachedConfig,
+        ...updates,
+        GuildId: guildId,
+      };
+      this.guildConfigCache.set(guildId, updatedConfig);
+    }
   }
 
   async getNeatQueueConfig(guildId: string, channelId: string): Promise<NeatQueueConfigRow> {
