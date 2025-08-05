@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake.mjs";
 import { DatabaseService } from "../database.mjs";
 import { aFakeDiscordAssociationsRow } from "../fakes/database.fake.mjs";
+import { StatsReturnType } from "../types/guild_config.mjs";
 
 describe("Database Service", () => {
   let env: Env;
@@ -89,6 +90,150 @@ describe("Database Service", () => {
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM DiscordAssociations WHERE DiscordId IN (?,?)");
       expect(bindSpy).toHaveBeenCalledWith("discordId", "discordId2");
       expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("getGuildConfig()", () => {
+    const fakeD1Meta = {
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 0,
+      last_row_id: 0,
+      changes: 0,
+      last_insert_rowid: 0,
+      changed_db: false,
+    };
+
+    it("returns default GuildConfig with PlayerConnections when not found", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+      vi.spyOn(fakePreparedStatement, "run").mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      const config = await databaseService.getGuildConfig(guildId);
+
+      expect(config).toEqual({
+        GuildId: guildId,
+        StatsReturn: StatsReturnType.SERIES_ONLY,
+        Medals: "Y",
+        PlayerConnections: "Y",
+      });
+    });
+
+    it("auto-creates GuildConfig with PlayerConnections when requested", async () => {
+      const guildId = "guild-456";
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+      const runSpy = vi
+        .spyOn(fakePreparedStatement, "run")
+        .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      const config = await databaseService.getGuildConfig(guildId, true);
+
+      expect(runSpy).toHaveBeenCalled();
+      expect(config.PlayerConnections).toBe("Y");
+    });
+  });
+
+  describe("updateGuildConfig()", () => {
+    const fakeD1Meta = {
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 0,
+      last_row_id: 0,
+      changes: 0,
+      last_insert_rowid: 0,
+      changed_db: false,
+    };
+
+    it("updates PlayerConnections only", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const runSpy = vi
+        .spyOn(fakePreparedStatement, "run")
+        .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      await databaseService.updateGuildConfig(guildId, { PlayerConnections: "N" });
+
+      expect(prepareSpy).toHaveBeenCalledWith("UPDATE GuildConfig SET PlayerConnections = ? WHERE GuildId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("N", guildId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("updates StatsReturn only", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const runSpy = vi
+        .spyOn(fakePreparedStatement, "run")
+        .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      await databaseService.updateGuildConfig(guildId, { StatsReturn: StatsReturnType.SERIES_ONLY });
+
+      expect(prepareSpy).toHaveBeenCalledWith("UPDATE GuildConfig SET StatsReturn = ? WHERE GuildId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(StatsReturnType.SERIES_ONLY, guildId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("updates Medals only", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const runSpy = vi
+        .spyOn(fakePreparedStatement, "run")
+        .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      await databaseService.updateGuildConfig(guildId, { Medals: "N" });
+
+      expect(prepareSpy).toHaveBeenCalledWith("UPDATE GuildConfig SET Medals = ? WHERE GuildId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("N", guildId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("updates multiple fields", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const runSpy = vi
+        .spyOn(fakePreparedStatement, "run")
+        .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
+
+      await databaseService.updateGuildConfig(guildId, {
+        StatsReturn: StatsReturnType.SERIES_ONLY,
+        Medals: "N",
+        PlayerConnections: "N",
+      });
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "UPDATE GuildConfig SET StatsReturn = ?, Medals = ?, PlayerConnections = ? WHERE GuildId = ?",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(StatsReturnType.SERIES_ONLY, "N", "N", guildId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("does nothing if no updates provided", async () => {
+      const guildId = "guild-123";
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.updateGuildConfig(guildId, {});
+
+      expect(prepareSpy).not.toHaveBeenCalled();
+      expect(bindSpy).not.toHaveBeenCalled();
+      expect(runSpy).not.toHaveBeenCalled();
     });
   });
 });

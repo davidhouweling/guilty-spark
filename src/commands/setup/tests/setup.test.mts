@@ -1,12 +1,17 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
-import type { APIApplicationCommandInteraction, APIInteractionResponse } from "discord-api-types/v10";
 import {
   ApplicationCommandType,
   InteractionResponseType,
   MessageFlags,
   InteractionType,
   Locale,
+  ComponentType,
+} from "discord-api-types/v10";
+import type {
+  APIApplicationCommandInteraction,
+  APIInteractionResponse,
+  APIMessageComponentButtonInteraction,
 } from "discord-api-types/v10";
 import { SetupCommand } from "../setup.mjs";
 import type { Services } from "../../../services/install.mjs";
@@ -103,6 +108,7 @@ describe("SetupCommand", () => {
           GuildId: "fake-guild-id",
           StatsReturn: StatsReturnType.SERIES_ONLY,
           Medals: "Y",
+          PlayerConnections: "Y",
         };
 
         getGuildConfigSpy.mockResolvedValue(mockConfig);
@@ -130,6 +136,11 @@ describe("SetupCommand", () => {
                           "label": "Configure NeatQueue Integration",
                           "value": "neatqueue_integration",
                         },
+                        {
+                          "description": "Configure the NeatQueue informer - info when queues start and in play",
+                          "label": "Configure NeatQueue Informer",
+                          "value": "neatqueue_informer",
+                        },
                       ],
                       "placeholder": "Select an option to configure",
                       "type": 3,
@@ -145,7 +156,8 @@ describe("SetupCommand", () => {
                     {
                       "name": "",
                       "value": "**Stats Display Mode:** Series Stats Only, Medals
-          **NeatQueue Integrations:** *None*",
+          **NeatQueue Integrations:** *None*
+          **NeatQueue Informer:** Player connections enabled",
                     },
                   ],
                   "title": "Server Configuration",
@@ -164,6 +176,61 @@ describe("SetupCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
           content: "Failed to fetch configuration: Database error",
         });
+      });
+
+      it("toggles PlayerConnections when NeatQueue Informer button is pressed", async () => {
+        const mockConfig: GuildConfigRow = {
+          GuildId: "fake-guild-id",
+          StatsReturn: StatsReturnType.SERIES_ONLY,
+          Medals: "Y",
+          PlayerConnections: "Y",
+        };
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+        const updateGuildConfigSpy = vi.spyOn(services.databaseService, "updateGuildConfig").mockResolvedValue();
+
+        // Simulate pressing the NeatQueue Informer button
+        const informerButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_players_on_start",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: informerJob } = setupCommand.execute(informerButtonInteraction);
+        await Preconditions.checkExists(informerJob)();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { PlayerConnections: "N" });
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+      });
+
+      it("enables PlayerConnections when NeatQueue Informer button is pressed and currently disabled", async () => {
+        const mockConfig: GuildConfigRow = {
+          GuildId: "fake-guild-id",
+          StatsReturn: StatsReturnType.SERIES_ONLY,
+          Medals: "Y",
+          PlayerConnections: "N",
+        };
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+        const updateGuildConfigSpy = vi.spyOn(services.databaseService, "updateGuildConfig").mockResolvedValue();
+
+        const informerButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_players_on_start",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: informerJob } = setupCommand.execute(informerButtonInteraction);
+        await Preconditions.checkExists(informerJob)();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { PlayerConnections: "Y" });
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
     });
   });

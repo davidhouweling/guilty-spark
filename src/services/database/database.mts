@@ -73,12 +73,13 @@ export class DatabaseService {
       GuildId: guildId,
       StatsReturn: StatsReturnType.SERIES_ONLY,
       Medals: "Y",
+      PlayerConnections: "Y",
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals) VALUES (?, ?, ?)",
-      ).bind(defaultConfig.GuildId, defaultConfig.StatsReturn, defaultConfig.Medals);
+        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, PlayerConnections) VALUES (?, ?, ?, ?)",
+      ).bind(defaultConfig.GuildId, defaultConfig.StatsReturn, defaultConfig.Medals, defaultConfig.PlayerConnections);
 
       await insertStmt.run();
     }
@@ -99,6 +100,11 @@ export class DatabaseService {
     if (updates.Medals !== undefined) {
       setStatements.push("Medals = ?");
       values.push(updates.Medals);
+    }
+
+    if (updates.PlayerConnections !== undefined) {
+      setStatements.push("PlayerConnections = ?");
+      values.push(updates.PlayerConnections);
     }
 
     if (setStatements.length === 0) {

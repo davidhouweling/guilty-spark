@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS DiscordAssociations (
 CREATE TABLE IF NOT EXISTS GuildConfig (
     GuildId TEXT PRIMARY KEY,
     StatsReturn CHAR(1) CHECK(StatsReturn IN ('S', 'A')) NOT NULL DEFAULT 'S',
-    Medals CHAR(1) CHECK(Medals IN ('Y', 'N')) NOT NULL DEFAULT 'Y'
+    Medals CHAR(1) CHECK(Medals IN ('Y', 'N')) NOT NULL DEFAULT 'Y',
+    PlayerConnections CHAR(1) CHECK(PlayerConnections IN ('Y', 'N')) NOT NULL DEFAULT 'Y'
 );
 
 CREATE TABLE IF NOT EXISTS NeatQueueConfig (

@@ -30,6 +30,7 @@ import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -289,11 +290,11 @@ describe("StatsCommand", () => {
         });
 
         it("adds series summary and game stats to the thread when guildConfig StatsReturn is SERIES_AND_GAMES", async () => {
-          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
-            GuildId: "fake-guild-id",
-            Medals: "Y",
-            StatsReturn: StatsReturnType.SERIES_AND_GAMES,
-          });
+          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+            aFakeGuildConfigRow({
+              StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+            }),
+          );
 
           await jobToComplete?.();
 
@@ -303,11 +304,11 @@ describe("StatsCommand", () => {
         });
 
         it("does not add games to the thread when guildConfig StatsReturn is SERIES_ONLY", async () => {
-          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue({
-            GuildId: "fake-guild-id",
-            Medals: "Y",
-            StatsReturn: StatsReturnType.SERIES_ONLY,
-          });
+          const getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+            aFakeGuildConfigRow({
+              StatsReturn: StatsReturnType.SERIES_ONLY,
+            }),
+          );
 
           await jobToComplete?.();
 

@@ -32,6 +32,7 @@ import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { create } from "../../embeds/create.mjs";
 import { GamesRetrievable } from "../database/types/discord_associations.mjs";
+import { DiscordError } from "../discord/discord-error.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -374,9 +375,16 @@ export class NeatQueueService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    const { discordService, logService } = this;
+    const { databaseService, discordService, logService } = this;
+    const insufficientPermissionsError = new Error("Insufficient permissions to post in the channel");
 
     try {
+      const guildConfig = await databaseService.getGuildConfig(request.guild);
+      if (guildConfig.PlayerConnections !== "Y") {
+        logService.debug("Player connections are disabled, skipping players post message");
+        return;
+      }
+
       const [guild, channel] = await Promise.all([
         discordService.getGuild(request.guild),
         discordService.getChannel(request.channel),
@@ -387,7 +395,7 @@ export class NeatQueueService {
         PermissionFlagsBits.SendMessages,
       ]);
       if (!permissions.hasAll) {
-        throw new Error("Insufficient permissions to post in the channel");
+        throw insufficientPermissionsError;
       }
 
       const playersPostMessage = await this.getPlayersPostMessage(request.players);
@@ -398,6 +406,12 @@ export class NeatQueueService {
       await discordService.createMessage(request.channel, playersPostMessage);
     } catch (error) {
       logService.warn(error as Error, new Map([["reason", "Failed to post players message"]]));
+
+      if ((error instanceof DiscordError && error.restError.code === 50001) || error === insufficientPermissionsError) {
+        await databaseService.updateGuildConfig(request.guild, {
+          PlayerConnections: "N",
+        });
+      }
     }
   }
 
