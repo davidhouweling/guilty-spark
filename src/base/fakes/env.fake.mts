@@ -20,12 +20,12 @@ export const fakeD1Response: D1Response = {
   },
 };
 
-export class FakePreparedStatement /* extends D1PreparedStatement */ {
+export class FakePreparedStatement<T> /* extends D1PreparedStatement */ {
   bind(): D1PreparedStatement {
     return this as unknown as D1PreparedStatement;
   }
-  async first(): Promise<null> {
-    return Promise.resolve(null);
+  async first(): Promise<T> {
+    return Promise.resolve(null as T);
   }
   async run(): Promise<{ results: never[]; success: true; meta: D1Meta & Record<string, unknown>; error?: never }> {
     return Promise.resolve({ ...fakeD1Response, results: [] });
