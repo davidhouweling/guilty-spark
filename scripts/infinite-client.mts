@@ -22,8 +22,49 @@ const user = await client.getUser("soundmanD");
 await writeFile(path.join(__dirname, "user.json"), JSON.stringify(user, null, 2));
 
 /*
+const serviceRecord = await client.getUserServiceRecord(`xuid(${user.xuid})`);
+await writeFile(path.join(__dirname, "service-record.json"), JSON.stringify(serviceRecord, null, 2));
+*/
+
+/*
 const playerMatches = await client.getPlayerMatches(user.xuid, MatchType.Custom);
 await writeFile(path.join(__dirname, "player-matches.json"), JSON.stringify(playerMatches, null, 2));
+*/
+
+/*
+for (const playlistAssetId of serviceRecord.Subqueries.PlaylistAssetIds) {
+  try {
+    const playlist = await client.getPlaylist(playlistAssetId);
+    await writeFile(path.join(__dirname, `playlist-${playlistAssetId}.json`), JSON.stringify(playlist, null, 2));
+  } catch (error) {
+    console.error(`Failed to fetch playlist asset ID ${playlistAssetId}:`, error);
+  }
+}
+*/
+
+/*
+for (const seasonId of serviceRecord.Subqueries.SeasonIds) {
+  const match = /^Csr\/Seasons\/(.+)\.json$/.exec(seasonId);
+  if (!match) {
+    continue;
+  }
+  const [, season] = match;
+  if (season == null || season === "") {
+    continue;
+  }
+
+  try {
+    const playlistCsr = await client.getPlaylistCsr("edfef3ac-9cbe-4fa2-b949-8f29deafd483", [user.xuid], season);
+    await writeFile(path.join(__dirname, `playlist-csr-${season}.json`), JSON.stringify(playlistCsr, null, 2));
+  } catch (error) {
+    console.error(`Failed to fetch playlist CSR for season ${season}:`, error);
+  }
+}
+*/
+
+/*
+const playlistCsr = await client.getPlaylistCsr("edfef3ac-9cbe-4fa2-b949-8f29deafd483", [user.xuid], "CsrSeason9-1");
+await writeFile(path.join(__dirname, "playlist-csr-season9-1.json"), JSON.stringify(playlistCsr, null, 2));
 */
 
 /*

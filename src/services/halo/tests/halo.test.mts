@@ -12,6 +12,7 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
+import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 
 describe("Halo service", () => {
   let logService: LogService;
@@ -533,8 +534,15 @@ describe("Halo service", () => {
 
       infiniteClient.getUser.mockRejectedValue(new RequestError(new URL("https://example.com"), response));
 
-      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrow(
-        `No user found with gamertag "${gamertag}"`,
+      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrowError(
+        new EndUserError(`No user found with gamertag "${gamertag}"`, {
+          title: "User Not Found",
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+          data: {
+            gamertag,
+          },
+        }),
       );
     });
 
