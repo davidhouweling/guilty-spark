@@ -1,4 +1,4 @@
-import type { HaloInfiniteClient } from "halo-infinite-api";
+import { RequestError, type HaloInfiniteClient } from "halo-infinite-api";
 
 function isProxyErrorResponse(
   data: unknown,
@@ -18,29 +18,24 @@ async function handleProxyResponse(response: Response): Promise<unknown> {
   const data: unknown = await response.json();
   if (!response.ok) {
     let errorMessage = "Proxy error";
-    let errorStack: string | undefined;
-    let errorName: string | undefined;
     if (isProxyErrorResponse(data)) {
       if (typeof data.message === "string") {
         errorMessage = data.message;
       } else if (typeof data.error === "string") {
         errorMessage = data.error;
       }
-      if (typeof data.stack === "string") {
-        errorStack = data.stack;
-      }
-      if (typeof data.name === "string") {
-        errorName = data.name;
-      }
     }
-    const error = new Error(errorMessage);
-    if (errorStack != null) {
-      error.stack = errorStack;
-    }
-    if (errorName != null) {
-      error.name = errorName;
-    }
-    throw error;
+
+    const httpStatus = /^(\d{3})/.exec(errorMessage);
+    const fixedResponse = new Response(JSON.stringify(data), {
+      status: parseInt(httpStatus?.[1] ?? response.status.toString(), 10),
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+    const requestError = new RequestError(new URL(response.url), fixedResponse);
+    console.error(requestError, data);
+
+    throw requestError;
   }
   if (isProxySuccessResponse(data)) {
     return data.result;

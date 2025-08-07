@@ -587,6 +587,40 @@ export class ConnectCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
+      if (error instanceof EndUserError && error.title === "User not found") {
+        await discordService.updateDeferredReply(interaction.token, {
+          embeds: [error.discordEmbed],
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  style: ButtonStyle.Primary,
+                  label: "Try again",
+                  custom_id: InteractionButton.Change,
+                  emoji: { name: "🔄" },
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  style: ButtonStyle.Secondary,
+                  label: "Back",
+                  custom_id: InteractionButton.SearchCancel,
+                  emoji: { name: "🔙" },
+                },
+              ],
+            },
+          ],
+        });
+
+        return;
+      }
+
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }

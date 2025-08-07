@@ -153,7 +153,7 @@ describe("EndUserError", () => {
         title: "No matches found",
         description:
           "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
-        color: 16776960,
+        color: 0xffa500,
         fields: [
           {
             name: "Additional Information",
@@ -247,7 +247,7 @@ describe("EndUserError", () => {
   describe("EndUserErrorColor enum", () => {
     it("has correct color values", () => {
       expect(EndUserErrorColor.ERROR).toBe(0xff0000); // Red
-      expect(EndUserErrorColor.WARNING).toBe(0xffff00); // Yellow
+      expect(EndUserErrorColor.WARNING).toBe(0xffa500); // Orange
     });
   });
 });

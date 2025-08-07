@@ -464,7 +464,7 @@ describe("ConnectCommand", () => {
                     "edited_timestamp": null,
                     "embeds": [
                       {
-                        "color": 16776960,
+                        "color": 16753920,
                         "description": "Test description",
                         "fields": [
                           {

@@ -45,10 +45,12 @@ describe("createHaloInfiniteClientProxy", () => {
       ok: false,
       json: async () =>
         Promise.resolve({
-          message: "Proxy error message",
+          message: "400 from https://example.com/halo-infinite",
           stack: "proxy-stack",
           name: "ProxyError",
         }),
+      status: 500,
+      url: "https://example.com/halo-infinite",
     } as Response);
 
     const proxy = createHaloInfiniteClientProxy({ env });
@@ -62,9 +64,9 @@ describe("createHaloInfiniteClientProxy", () => {
     }
 
     expect(thrown).toBeInstanceOf(Error);
-    expect(thrown?.message).toBe("Proxy error message");
-    expect(thrown?.stack).toBe("proxy-stack");
-    expect(thrown?.name).toBe("ProxyError");
+    expect(thrown?.message).toBe("400 from https://example.com/halo-infinite");
+    expect(thrown?.stack).toBeDefined();
+    expect(thrown?.name).toBe("RequestError");
   });
 
   it("throws an error with the 'error' property if present in proxy error response", async () => {
