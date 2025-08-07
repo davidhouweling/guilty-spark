@@ -291,7 +291,7 @@ export class HaloService {
         this.logService.debug(error as Error);
 
         throw new EndUserError(`No user found with gamertag "${gamertag}"`, {
-          title: "User Not Found",
+          title: "User not found",
           handled: true,
           errorType: EndUserErrorType.WARNING,
           data: {

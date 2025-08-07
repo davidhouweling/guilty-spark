@@ -536,7 +536,7 @@ describe("Halo service", () => {
 
       return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrowError(
         new EndUserError(`No user found with gamertag "${gamertag}"`, {
-          title: "User Not Found",
+          title: "User not found",
           handled: true,
           errorType: EndUserErrorType.WARNING,
           data: {

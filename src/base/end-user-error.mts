@@ -26,7 +26,7 @@ export enum EndUserErrorType {
 
 export enum EndUserErrorColor {
   ERROR = 0xff0000,
-  WARNING = 0xffff00,
+  WARNING = 0xffa500,
 }
 
 export class EndUserError extends Error {
