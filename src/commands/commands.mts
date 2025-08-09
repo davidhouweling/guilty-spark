@@ -5,11 +5,13 @@ import type { BaseCommand } from "./base/base.mjs";
 import { ConnectCommand } from "./connect/connect.mjs";
 import { StatsCommand } from "./stats/stats.mjs";
 import { SetupCommand } from "./setup/setup.mjs";
+import { MapsCommand } from "./maps/maps.mjs";
 
 export function getCommands(services: Services, env: Env): Map<string, BaseCommand> {
   const commandMap = new Map<string, BaseCommand>();
   const commands = [
     new ConnectCommand(services, env),
+    new MapsCommand(services, env),
     new StatsCommand(services, env),
     new SetupCommand(services, env),
   ];

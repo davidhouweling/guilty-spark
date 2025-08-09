@@ -209,4 +209,5 @@ export const AppEmojis = new Map<string, string>([
   ["Unranked2", "1398926812108820500"],
   ["Unranked1", "1398926769712529448"],
   ["Unranked0", "1398926705426563143"],
+  ["GameCoachGG", "1403351860609552434"],
 ]);
