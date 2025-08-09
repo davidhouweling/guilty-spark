@@ -17,7 +17,7 @@ import {
   MessageFlags,
   ButtonStyle,
 } from "discord-api-types/v10";
-import { MapsCommand, PlaylistType, InteractionButton } from "../maps.mjs";
+import { MapsCommand, PlaylistType, InteractionComponent } from "../maps.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -35,6 +35,17 @@ interface LocalButtonComponent {
 interface LocalActionRow {
   type: ComponentType.ActionRow;
   components: LocalButtonComponent[];
+}
+interface LocalStringSelectOption {
+  label: string;
+  value: string;
+  default?: boolean;
+}
+interface LocalStringSelectComponent {
+  type: ComponentType.StringSelect;
+  custom_id: string;
+  options: LocalStringSelectOption[];
+  placeholder?: string;
 }
 type LocalComponent = LocalActionRow | LocalButtonComponent | { type: ComponentType };
 
@@ -79,6 +90,28 @@ function isActionRow(component: unknown): component is { type: ComponentType.Act
     Array.isArray((component as { components: unknown[] }).components)
   );
 }
+function isStringSelectComponent(component: unknown): component is LocalStringSelectComponent {
+  return (
+    typeof component === "object" &&
+    component !== null &&
+    "type" in component &&
+    "custom_id" in component &&
+    "options" in component &&
+    Array.isArray((component as { options: unknown[] }).options)
+  );
+}
+function getSelectMenu(components: LocalComponent[] | undefined): LocalStringSelectComponent | undefined {
+  for (const row of components ?? []) {
+    if (row.type === ComponentType.ActionRow && "components" in row && Array.isArray(row.components)) {
+      for (const c of row.components) {
+        if (isStringSelectComponent(c)) {
+          return c;
+        }
+      }
+    }
+  }
+  return undefined;
+}
 
 describe("MapsCommand", () => {
   let command: MapsCommand;
@@ -110,7 +143,7 @@ describe("MapsCommand", () => {
       const buttonRow = getButtonRow(data.components);
       expect(buttonRow).toBeDefined();
       expect(buttonRow?.components).toHaveLength(4);
-      expect(getButtonById(buttonRow, InteractionButton.Roll5)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll5)?.style).toBe(ButtonStyle.Primary);
     });
 
     it("returns a set of 3 maps when count=3", () => {
@@ -124,7 +157,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(3);
 
       const buttonRow3 = getButtonRow(data.components);
-      expect(getButtonById(buttonRow3, InteractionButton.Roll3)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow3, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
     });
 
     it("returns a set of 7 maps when count=7", () => {
@@ -138,7 +171,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(7);
 
       const buttonRow7 = getButtonRow(data.components);
-      expect(getButtonById(buttonRow7, InteractionButton.Roll7)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow7, InteractionComponent.Roll7)?.style).toBe(ButtonStyle.Primary);
     });
   });
 
@@ -147,7 +180,9 @@ describe("MapsCommand", () => {
       const interaction = aFakeMapsInteractionWith([
         { name: "playlist", value: PlaylistType.HcsHistorical, type: ApplicationCommandOptionType.String },
       ]);
+
       const { response } = command.execute(interaction);
+
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
@@ -158,7 +193,9 @@ describe("MapsCommand", () => {
 
     it("returns maps from the current playlist by default", () => {
       const interaction = aFakeMapsInteractionWith();
+
       const { response } = command.execute(interaction);
+
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
@@ -187,7 +224,7 @@ describe("MapsCommand", () => {
     }
 
     it("regenerates maps with correct count and playlist when button is pressed", () => {
-      const interaction = aFakeButtonInteraction(InteractionButton.Roll3, PlaylistType.HcsHistorical);
+      const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, PlaylistType.HcsHistorical);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
@@ -196,7 +233,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(3);
 
       const buttonRowHist = getButtonRow(data.components);
-      expect(getButtonById(buttonRowHist, InteractionButton.Roll3)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRowHist, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
     });
 
     it("throws for unknown button id", () => {
@@ -204,12 +241,12 @@ describe("MapsCommand", () => {
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
 
-      expect(data.content).toMatch(/Unknown button interaction/);
+      expect(data.content).toMatch(/Unreachable code with specified value/);
       expect(data.flags).toBe(MessageFlags.Ephemeral);
     });
 
     it("throws for unknown playlist in embed", () => {
-      const interaction = aFakeButtonInteraction(InteractionButton.Roll1, "NotAPlaylist" as PlaylistType);
+      const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as PlaylistType);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
 
@@ -218,7 +255,7 @@ describe("MapsCommand", () => {
     });
 
     it("returns DeferredMessageUpdate and jobToComplete for Initiate button", async () => {
-      const interaction = aFakeButtonInteraction(InteractionButton.Initiate);
+      const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
       const { response, jobToComplete } = command.execute(interaction);
       expect(response).toEqual({ type: 6 }); // InteractionResponseType.UpdateMessage
       expect(typeof jobToComplete).toBe("function");
@@ -235,6 +272,87 @@ describe("MapsCommand", () => {
         | APIActionRowComponent<APIComponentInMessageActionRow>
         | undefined;
       expect(actionRow?.components).toHaveLength(4);
+    });
+  });
+
+  describe("/maps playlist select interaction", () => {
+    function aFakePlaylistSelectInteraction(
+      playlist: PlaylistType,
+      count: 1 | 3 | 5 | 7 = 5,
+    ): APIMessageComponentButtonInteraction {
+      // Simulate a select menu interaction with the given playlist and a message with the correct button row
+      const buttonRow = {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Roll1,
+            style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Roll3,
+            style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Roll5,
+            style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Roll7,
+            style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+          },
+        ],
+      };
+      return {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.MapsPlaylistSelect,
+          component_type: ComponentType.StringSelect,
+          values: [playlist],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [buttonRow],
+          embeds: [{ title: `Maps: ${PlaylistType.HcsCurrent}` }],
+        },
+      } as unknown as APIMessageComponentButtonInteraction;
+    }
+
+    it("updates the embed and buttons when playlist is switched to historical", () => {
+      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsHistorical, 3);
+      const { response } = command.execute(interaction);
+      const { data } = response as APIInteractionResponseChannelMessageWithSource;
+      const embed = data.embeds?.[0];
+
+      expect(embed?.title).toContain(PlaylistType.HcsHistorical);
+
+      const buttonRow = getButtonRow(data.components);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
+
+      const select = getSelectMenu(data.components);
+      expect(select?.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
+      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(true);
+      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(false);
+    });
+
+    it("updates the embed and buttons when playlist is switched to current", () => {
+      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsCurrent, 7);
+      const { response } = command.execute(interaction);
+      const { data } = response as APIInteractionResponseChannelMessageWithSource;
+      const embed = data.embeds?.[0];
+      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
+
+      const buttonRow = getButtonRow(data.components);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll7)?.style).toBe(ButtonStyle.Primary);
+
+      const select = getSelectMenu(data.components);
+      expect(select?.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
+      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
+      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
     });
   });
 
@@ -263,7 +381,7 @@ describe("MapsCommand", () => {
       const uniqueMaps = new Set(maps);
 
       expect(uniqueMaps.size).toBeLessThanOrEqual(maps.length);
-      expect(uniqueMaps.size).toBeGreaterThanOrEqual(5); // At least 5 unique maps in a Bo7
+      expect(uniqueMaps.size).toBeGreaterThanOrEqual(5);
     });
   });
 

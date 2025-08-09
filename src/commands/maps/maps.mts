@@ -1,8 +1,11 @@
 import type {
+  APIActionRowComponent,
   APIApplicationCommandInteraction,
+  APIButtonComponentWithCustomId,
   APIEmbed,
   APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandType,
@@ -26,12 +29,13 @@ export enum PlaylistType {
   HcsHistorical = "HCS - historical",
 }
 
-export enum InteractionButton {
+export enum InteractionComponent {
   Initiate = "btn_maps_initiate",
   Roll1 = "btn_maps_roll_1",
   Roll3 = "btn_maps_roll_3",
   Roll5 = "btn_maps_roll_5",
   Roll7 = "btn_maps_roll_7",
+  MapsPlaylistSelect = "select_maps_playlist",
 }
 
 export class MapsCommand extends BaseCommand {
@@ -61,8 +65,11 @@ export class MapsCommand extends BaseCommand {
           description: "Which playlist to use (default: HCS - Current)",
           required: false,
           choices: [
-            { name: "HCS - Current", value: PlaylistType.HcsCurrent },
-            { name: "HCS - Historical (all maps + modes played in any HCS major)", value: PlaylistType.HcsHistorical },
+            { name: PlaylistType.HcsCurrent, value: PlaylistType.HcsCurrent },
+            {
+              name: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
+              value: PlaylistType.HcsHistorical,
+            },
           ],
         },
       ],
@@ -71,35 +78,43 @@ export class MapsCommand extends BaseCommand {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
-        custom_id: InteractionButton.Initiate,
+        custom_id: InteractionComponent.Initiate,
       },
     },
     {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
-        custom_id: InteractionButton.Roll1,
+        custom_id: InteractionComponent.Roll1,
       },
     },
     {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
-        custom_id: InteractionButton.Roll3,
+        custom_id: InteractionComponent.Roll3,
       },
     },
     {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
-        custom_id: InteractionButton.Roll5,
+        custom_id: InteractionComponent.Roll5,
       },
     },
     {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
-        custom_id: InteractionButton.Roll7,
+        custom_id: InteractionComponent.Roll7,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.MapsPlaylistSelect,
+        values: [],
       },
     },
   ];
@@ -161,27 +176,52 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private messageComponentResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const customId = interaction.data.custom_id;
+  private messageComponentResponse(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): ExecuteResponse {
+    const customId = interaction.data.custom_id as InteractionComponent;
 
-    if (customId === InteractionButton.Initiate.toString()) {
-      const count = 5; // Default count
-      const playlist = PlaylistType.HcsCurrent; // Default playlist
-      const maps = this.generateHcsSet(count, playlist);
-
-      return {
-        response: {
-          type: InteractionResponseType.DeferredMessageUpdate,
-        },
-        jobToComplete: async (): Promise<void> => {
-          await this.services.discordService.createMessage(
-            interaction.channel.id,
-            this.createMapsResponse(interaction, count, playlist, maps),
-          );
-        },
-      };
+    switch (customId) {
+      case InteractionComponent.Initiate: {
+        return this.initiateResponse(interaction as APIMessageComponentButtonInteraction);
+      }
+      case InteractionComponent.Roll1:
+      case InteractionComponent.Roll3:
+      case InteractionComponent.Roll5:
+      case InteractionComponent.Roll7: {
+        return this.rollResponse(interaction as APIMessageComponentButtonInteraction, customId);
+      }
+      case InteractionComponent.MapsPlaylistSelect: {
+        return this.playlistSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
+      }
+      default: {
+        throw new UnreachableError(customId);
+      }
     }
+  }
 
+  private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+    const count = 5; // Default count
+    const playlist = PlaylistType.HcsCurrent; // Default playlist
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.createMessage(
+          interaction.channel.id,
+          this.createMapsResponse(interaction, count, playlist, maps),
+        );
+      },
+    };
+  }
+
+  private rollResponse(
+    interaction: APIMessageComponentButtonInteraction,
+    customId: InteractionComponent,
+  ): ExecuteResponse {
     const count = this.getCountFromInteractionButton(customId);
     const playlist = this.getPlaylistTypeFromEmbed(
       Preconditions.checkExists(interaction.message.embeds[0], "Embed not found"),
@@ -196,18 +236,43 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private getCountFromInteractionButton(customId: string): 1 | 3 | 5 | 7 {
-    switch (customId as Omit<InteractionButton, "Initiate">) {
-      case InteractionButton.Roll1: {
+  private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    const playlist = interaction.data.values[0] as PlaylistType;
+    const actionRow = Preconditions.checkExists(
+      interaction.message.components?.find(
+        (row) => row.type === ComponentType.ActionRow && row.components.every((c) => c.type === ComponentType.Button),
+      ),
+      "Action row not found",
+    ) as APIActionRowComponent<APIButtonComponentWithCustomId>;
+    const primaryRegenButton = Preconditions.checkExists(
+      actionRow.components.find((c) => c.style === ButtonStyle.Primary),
+      "Button not found",
+    );
+    const count = this.getCountFromInteractionButton(primaryRegenButton.custom_id as InteractionComponent);
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private getCountFromInteractionButton(customId: InteractionComponent): 1 | 3 | 5 | 7 {
+    switch (
+      customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.MapsPlaylistSelect>
+    ) {
+      case InteractionComponent.Roll1: {
         return 1;
       }
-      case InteractionButton.Roll3: {
+      case InteractionComponent.Roll3: {
         return 3;
       }
-      case InteractionButton.Roll5: {
+      case InteractionComponent.Roll5: {
         return 5;
       }
-      case InteractionButton.Roll7: {
+      case InteractionComponent.Roll7: {
         return 7;
       }
       default: {
@@ -228,7 +293,10 @@ export class MapsCommand extends BaseCommand {
   }
 
   private createMapsResponse(
-    interaction: APIApplicationCommandInteraction | APIMessageComponentButtonInteraction,
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
     count: 1 | 3 | 5 | 7,
     playlist: PlaylistType,
     maps: {
@@ -269,27 +337,49 @@ export class MapsCommand extends BaseCommand {
           components: [
             {
               type: ComponentType.Button,
-              custom_id: InteractionButton.Roll1,
+              custom_id: InteractionComponent.Roll1,
               label: "Regen maps (count: 1)",
               style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
             },
             {
               type: ComponentType.Button,
-              custom_id: InteractionButton.Roll3,
+              custom_id: InteractionComponent.Roll3,
               label: "Regen maps (count: 3)",
               style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
             },
             {
               type: ComponentType.Button,
-              custom_id: InteractionButton.Roll5,
+              custom_id: InteractionComponent.Roll5,
               label: "Regen maps (count: 5)",
               style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
             },
             {
               type: ComponentType.Button,
-              custom_id: InteractionButton.Roll7,
+              custom_id: InteractionComponent.Roll7,
               label: "Regen maps (count: 7)",
               style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionComponent.MapsPlaylistSelect,
+              options: [
+                {
+                  label: PlaylistType.HcsCurrent,
+                  value: PlaylistType.HcsCurrent,
+                  default: playlist === PlaylistType.HcsCurrent,
+                },
+                {
+                  label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
+                  value: PlaylistType.HcsHistorical,
+                  default: playlist === PlaylistType.HcsHistorical,
+                },
+              ],
+              placeholder: "Select a playlist",
             },
           ],
         },
