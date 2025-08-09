@@ -1,4 +1,9 @@
-import type { APIApplicationCommandInteraction, APIEmbed } from "discord-api-types/v10";
+import type {
+  APIApplicationCommandInteraction,
+  APIEmbed,
+  APIInteractionResponseCallbackData,
+  APIMessageComponentButtonInteraction,
+} from "discord-api-types/v10";
 import {
   ApplicationCommandType,
   ApplicationCommandOptionType,
@@ -6,6 +11,8 @@ import {
   InteractionResponseType,
   MessageFlags,
   InteractionType,
+  ComponentType,
+  ButtonStyle,
 } from "discord-api-types/v10";
 import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
@@ -14,7 +21,17 @@ import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
 import type { MapMode } from "./hcs.mjs";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT, OBJECTIVE_MODES } from "./hcs.mjs";
 
-export type PlaylistType = "hcs-current" | "hcs-historical";
+export enum PlaylistType {
+  HcsCurrent = "HCS - current",
+  HcsHistorical = "HCS - historical",
+}
+
+export enum InteractionButton {
+  Roll1 = "btn_maps_roll_1",
+  Roll3 = "btn_maps_roll_3",
+  Roll5 = "btn_maps_roll_5",
+  Roll7 = "btn_maps_roll_7",
+}
 
 export class MapsCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -43,11 +60,39 @@ export class MapsCommand extends BaseCommand {
           description: "Which playlist to use (default: HCS - Current)",
           required: false,
           choices: [
-            { name: "HCS - Current", value: "hcs-current" },
-            { name: "HCS - Historical (all maps + modes played in any HCS major)", value: "hcs-historical" },
+            { name: "HCS - Current", value: PlaylistType.HcsCurrent },
+            { name: "HCS - Historical (all maps + modes played in any HCS major)", value: PlaylistType.HcsHistorical },
           ],
         },
       ],
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Roll1,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Roll3,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Roll5,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Roll7,
+      },
     },
   ];
 
@@ -56,9 +101,11 @@ export class MapsCommand extends BaseCommand {
     try {
       switch (type) {
         case InteractionType.ApplicationCommand: {
-          return this.handleMapsJob(interaction);
+          return this.applicationCommandJob(interaction);
         }
-        case InteractionType.MessageComponent:
+        case InteractionType.MessageComponent: {
+          return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
+        }
         case InteractionType.ModalSubmit: {
           throw new Error("This command cannot be used in this context.");
         }
@@ -80,7 +127,7 @@ export class MapsCommand extends BaseCommand {
     }
   }
 
-  private handleMapsJob(interaction: APIApplicationCommandInteraction): ExecuteResponse {
+  private applicationCommandJob(interaction: APIApplicationCommandInteraction): ExecuteResponse {
     if (interaction.data.type !== ApplicationCommandType.ChatInput) {
       throw new Error("This command can only be used as a chat input command.");
     }
@@ -91,13 +138,79 @@ export class MapsCommand extends BaseCommand {
     const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as 1 | 3 | 5 | 7) : 5;
     const playlist: PlaylistType =
       playlistOption?.type === ApplicationCommandOptionType.String &&
-      (playlistOption.value === "hcs-current" || playlistOption.value === "hcs-historical")
-        ? playlistOption.value
-        : "hcs-current";
+      (playlistOption.value === PlaylistType.HcsCurrent.toString() ||
+        playlistOption.value === PlaylistType.HcsHistorical.toString())
+        ? (playlistOption.value as PlaylistType)
+        : PlaylistType.HcsCurrent;
 
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private messageComponentResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+    const customId = interaction.data.custom_id;
+    const count = this.getCountFromInteractionButton(customId);
+    const playlist = this.getPlaylistTypeFromEmbed(
+      Preconditions.checkExists(interaction.message.embeds[0], "Embed not found"),
+    );
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private getCountFromInteractionButton(customId: string): 1 | 3 | 5 | 7 {
+    switch (customId as InteractionButton) {
+      case InteractionButton.Roll1: {
+        return 1;
+      }
+      case InteractionButton.Roll3: {
+        return 3;
+      }
+      case InteractionButton.Roll5: {
+        return 5;
+      }
+      case InteractionButton.Roll7: {
+        return 7;
+      }
+      default: {
+        throw new Error(`Unknown button interaction: ${customId}`);
+      }
+    }
+  }
+
+  private getPlaylistTypeFromEmbed(embed: APIEmbed): PlaylistType {
+    const title = embed.title?.split(": ")[1];
+    if (title === PlaylistType.HcsCurrent) {
+      return PlaylistType.HcsCurrent;
+    }
+    if (title === PlaylistType.HcsHistorical) {
+      return PlaylistType.HcsHistorical;
+    }
+    throw new Error(`Unknown playlist type in embed: ${title?.toString() ?? "undefined"}`);
+  }
+
+  private createMapsResponse(
+    interaction: APIApplicationCommandInteraction | APIMessageComponentButtonInteraction,
+    count: 1 | 3 | 5 | 7,
+    playlist: PlaylistType,
+    maps: {
+      mode: MapMode;
+      map: string;
+    }[],
+  ): APIInteractionResponseCallbackData {
     const titles = ["#", "Mode", "Map"];
     const tableData = [titles];
-    const maps = this.generateHcsSet(count, playlist);
     for (const [index, { mode, map }] of maps.entries()) {
       const gamecoachGgUrl = GAMECOACH_GG_URLS[map];
       const mapString =
@@ -108,18 +221,52 @@ export class MapsCommand extends BaseCommand {
     }
 
     const embed: APIEmbed = {
-      title: `Maps`,
+      title: `Maps: ${playlist}`,
       color: 0x5865f2,
+      fields: [],
     };
     this.addEmbedFields(embed, titles, tableData);
 
+    if (interaction.member?.user.id != null) {
+      embed.fields?.push({
+        name: "",
+        value: `-# Generated by <@${interaction.member.user.id}>`,
+      });
+    }
+
     return {
-      response: {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: {
-          embeds: [embed],
+      embeds: [embed],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.Roll1,
+              label: "Regen maps (count: 1)",
+              style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.Roll3,
+              label: "Regen maps (count: 3)",
+              style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.Roll5,
+              label: "Regen maps (count: 5)",
+              style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.Roll7,
+              label: "Regen maps (count: 7)",
+              style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+          ],
         },
-      },
+      ],
     };
   }
 
@@ -137,9 +284,10 @@ export class MapsCommand extends BaseCommand {
     return el;
   }
 
-  private getAllHcsModeMapPairs(playlist: PlaylistType = "hcs-current"): { mode: MapMode; map: string }[] {
+  private getAllHcsModeMapPairs(playlist: PlaylistType = PlaylistType.HcsCurrent): { mode: MapMode; map: string }[] {
     const pairs: { mode: MapMode; map: string }[] = [];
-    const mapSet: Record<MapMode, string[]> = playlist === "hcs-historical" ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+    const mapSet: Record<MapMode, string[]> =
+      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
     const modes = Object.keys(mapSet) as MapMode[];
     for (const mode of modes) {
       for (const map of mapSet[mode]) {
@@ -178,7 +326,7 @@ export class MapsCommand extends BaseCommand {
 
   private generateHcsSet(
     count: 1 | 3 | 5 | 7,
-    playlist: PlaylistType = "hcs-current",
+    playlist: PlaylistType = PlaylistType.HcsCurrent,
   ): { mode: MapMode; map: string }[] {
     const format = Preconditions.checkExists(HCS_SET_FORMAT[count]);
     const result: { mode: MapMode; map: string }[] = [];
@@ -186,7 +334,8 @@ export class MapsCommand extends BaseCommand {
     const usedObjectiveModes = new Set<MapMode>();
     const mapHistory: string[] = [];
     const objectiveHistory: { mode: MapMode; map: string }[] = [];
-    const mapSet: Record<MapMode, string[]> = playlist === "hcs-historical" ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+    const mapSet: Record<MapMode, string[]> =
+      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
     for (const type of format) {
       if (type === "slayer") {
         const allSlayerMaps: string[] = mapSet.Slayer;
