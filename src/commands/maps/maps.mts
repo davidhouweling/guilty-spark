@@ -10,7 +10,6 @@ import type {
 import {
   ApplicationCommandType,
   ApplicationCommandOptionType,
-  InteractionContextType,
   InteractionResponseType,
   MessageFlags,
   InteractionType,
@@ -44,7 +43,6 @@ export class MapsCommand extends BaseCommand {
       type: ApplicationCommandType.ChatInput,
       name: "maps",
       description: "Generate a random set of Halo maps (default: HCS)",
-      contexts: [InteractionContextType.Guild, InteractionContextType.PrivateChannel],
       default_member_permissions: null,
       options: [
         {
