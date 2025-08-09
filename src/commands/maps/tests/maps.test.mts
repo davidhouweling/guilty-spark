@@ -4,9 +4,11 @@ import type {
   APIApplicationCommandInteraction,
   APIMessageComponentButtonInteraction,
   APIInteractionResponseCallbackData,
-  APIMessage,
   APIActionRowComponent,
-  APIComponentInMessageActionRow,
+  APIMessageTopLevelComponent,
+  APIButtonComponentWithCustomId,
+  APIMessageComponentSelectMenuInteraction,
+  APIStringSelectComponent,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -16,38 +18,18 @@ import {
   ComponentType,
   MessageFlags,
   ButtonStyle,
+  InteractionResponseType,
 } from "discord-api-types/v10";
 import { MapsCommand, PlaylistType, InteractionComponent } from "../maps.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import {
+  apiMessage,
   fakeBaseAPIApplicationCommandInteraction,
   fakeButtonClickInteraction,
 } from "../../../services/discord/fakes/data.mjs";
-
-// Local types for Discord components (since discord-api-types does not export them)
-interface LocalButtonComponent {
-  type: ComponentType.Button;
-  custom_id: string;
-  style: number;
-}
-interface LocalActionRow {
-  type: ComponentType.ActionRow;
-  components: LocalButtonComponent[];
-}
-interface LocalStringSelectOption {
-  label: string;
-  value: string;
-  default?: boolean;
-}
-interface LocalStringSelectComponent {
-  type: ComponentType.StringSelect;
-  custom_id: string;
-  options: LocalStringSelectOption[];
-  placeholder?: string;
-}
-type LocalComponent = LocalActionRow | LocalButtonComponent | { type: ComponentType };
+import { Preconditions } from "../../../base/preconditions.mjs";
 
 function aFakeMapsInteractionWith(
   options: { name: string; value: unknown; type: number }[] = [],
@@ -73,44 +55,35 @@ function aFakeMapsInteractionWith(
   return applicationCommandInteractionMap;
 }
 
-function getButtonRow(components: LocalComponent[] | undefined): LocalActionRow | undefined {
+function getButtonRow(
+  components: APIMessageTopLevelComponent[] | undefined,
+): APIActionRowComponent<APIButtonComponentWithCustomId> {
   return components?.find(
-    (c): c is LocalActionRow => c.type === ComponentType.ActionRow && "components" in c && Array.isArray(c.components),
-  );
+    (c) =>
+      c.type === ComponentType.ActionRow &&
+      c.components.every((subComponent) => subComponent.type === ComponentType.Button),
+  ) as APIActionRowComponent<APIButtonComponentWithCustomId>;
 }
-function getButtonById(row: LocalActionRow | undefined, custom_id: string): LocalButtonComponent | undefined {
-  return row?.components.find((b): b is LocalButtonComponent => b.custom_id === custom_id);
+
+function getButtonById(
+  row: APIActionRowComponent<APIButtonComponentWithCustomId> | undefined,
+  custom_id: string,
+): APIButtonComponentWithCustomId {
+  return Preconditions.checkExists(row?.components.find((b) => b.custom_id === custom_id));
 }
-function isActionRow(component: unknown): component is { type: ComponentType.ActionRow; components: unknown[] } {
-  return (
-    typeof component === "object" &&
-    component !== null &&
-    "type" in component &&
-    "components" in component &&
-    Array.isArray((component as { components: unknown[] }).components)
-  );
-}
-function isStringSelectComponent(component: unknown): component is LocalStringSelectComponent {
-  return (
-    typeof component === "object" &&
-    component !== null &&
-    "type" in component &&
-    "custom_id" in component &&
-    "options" in component &&
-    Array.isArray((component as { options: unknown[] }).options)
-  );
-}
-function getSelectMenu(components: LocalComponent[] | undefined): LocalStringSelectComponent | undefined {
+
+function getSelectMenu(components: APIMessageTopLevelComponent[] | undefined): APIStringSelectComponent {
   for (const row of components ?? []) {
     if (row.type === ComponentType.ActionRow && "components" in row && Array.isArray(row.components)) {
       for (const c of row.components) {
-        if (isStringSelectComponent(c)) {
+        if (c.type === ComponentType.StringSelect) {
           return c;
         }
       }
     }
   }
-  return undefined;
+
+  throw new Error("No select menu found in components");
 }
 
 describe("MapsCommand", () => {
@@ -142,8 +115,8 @@ describe("MapsCommand", () => {
 
       const buttonRow = getButtonRow(data.components);
       expect(buttonRow).toBeDefined();
-      expect(buttonRow?.components).toHaveLength(4);
-      expect(getButtonById(buttonRow, InteractionComponent.Roll5)?.style).toBe(ButtonStyle.Primary);
+      expect(buttonRow.components).toHaveLength(4);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll5).style).toBe(ButtonStyle.Primary);
     });
 
     it("returns a set of 3 maps when count=3", () => {
@@ -157,7 +130,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(3);
 
       const buttonRow3 = getButtonRow(data.components);
-      expect(getButtonById(buttonRow3, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow3, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
     });
 
     it("returns a set of 7 maps when count=7", () => {
@@ -171,7 +144,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(7);
 
       const buttonRow7 = getButtonRow(data.components);
-      expect(getButtonById(buttonRow7, InteractionComponent.Roll7)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow7, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
     });
   });
 
@@ -233,7 +206,7 @@ describe("MapsCommand", () => {
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(3);
 
       const buttonRowHist = getButtonRow(data.components);
-      expect(getButtonById(buttonRowHist, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRowHist, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
     });
 
     it("throws for unknown button id", () => {
@@ -257,21 +230,17 @@ describe("MapsCommand", () => {
     it("returns DeferredMessageUpdate and jobToComplete for Initiate button", async () => {
       const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
       const { response, jobToComplete } = command.execute(interaction);
-      expect(response).toEqual({ type: 6 }); // InteractionResponseType.UpdateMessage
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
       expect(typeof jobToComplete).toBe("function");
 
-      // Spy on createMessage
-      const createMessageSpy = vi
-        .spyOn(services.discordService, "createMessage")
-        .mockResolvedValue(undefined as unknown as APIMessage);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       await jobToComplete?.();
       const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
       expect(channelId).toBe(interaction.channel.id);
       expect(data.embeds?.[0]?.title).toContain("Maps: HCS - current");
-      const actionRow = data.components?.find(isActionRow) as
-        | APIActionRowComponent<APIComponentInMessageActionRow>
-        | undefined;
-      expect(actionRow?.components).toHaveLength(4);
+
+      const actionRow = getButtonRow(data.components);
+      expect(actionRow.components).toHaveLength(4);
     });
   });
 
@@ -279,9 +248,9 @@ describe("MapsCommand", () => {
     function aFakePlaylistSelectInteraction(
       playlist: PlaylistType,
       count: 1 | 3 | 5 | 7 = 5,
-    ): APIMessageComponentButtonInteraction {
+    ): APIMessageComponentSelectMenuInteraction {
       // Simulate a select menu interaction with the given playlist and a message with the correct button row
-      const buttonRow = {
+      const buttonRow: APIMessageTopLevelComponent = {
         type: ComponentType.ActionRow,
         components: [
           {
@@ -309,7 +278,6 @@ describe("MapsCommand", () => {
       return {
         ...fakeButtonClickInteraction,
         data: {
-          ...fakeButtonClickInteraction.data,
           custom_id: InteractionComponent.MapsPlaylistSelect,
           component_type: ComponentType.StringSelect,
           values: [playlist],
@@ -319,7 +287,7 @@ describe("MapsCommand", () => {
           components: [buttonRow],
           embeds: [{ title: `Maps: ${PlaylistType.HcsCurrent}` }],
         },
-      } as unknown as APIMessageComponentButtonInteraction;
+      };
     }
 
     it("updates the embed and buttons when playlist is switched to historical", () => {
@@ -331,12 +299,12 @@ describe("MapsCommand", () => {
       expect(embed?.title).toContain(PlaylistType.HcsHistorical);
 
       const buttonRow = getButtonRow(data.components);
-      expect(getButtonById(buttonRow, InteractionComponent.Roll3)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
 
       const select = getSelectMenu(data.components);
-      expect(select?.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
-      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(true);
-      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(false);
+      expect(select.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
+      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(true);
+      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(false);
     });
 
     it("updates the embed and buttons when playlist is switched to current", () => {
@@ -347,12 +315,12 @@ describe("MapsCommand", () => {
       expect(embed?.title).toContain(PlaylistType.HcsCurrent);
 
       const buttonRow = getButtonRow(data.components);
-      expect(getButtonById(buttonRow, InteractionComponent.Roll7)?.style).toBe(ButtonStyle.Primary);
+      expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
 
       const select = getSelectMenu(data.components);
-      expect(select?.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
-      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
-      expect(select?.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
+      expect(select.custom_id).toBe(InteractionComponent.MapsPlaylistSelect);
+      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
+      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
     });
   });
 
