@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { inspect } from "util";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import { APIVersion, ApplicationCommandType, Routes } from "discord-api-types/v10";
 import { getCommands } from "../src/commands/commands.mjs";
@@ -33,7 +34,7 @@ const commandsToDeployMap = new Map<string, ApplicationCommandData>(
 );
 const commandsToDeploy = Array.from(commandsToDeployMap.values());
 
-console.log("Commands to deploy:", commandsToDeploy);
+console.log("Commands to deploy:", inspect(commandsToDeploy, { depth: null, colors: true }));
 
 // The put method is used to fully refresh all commands in the guild with the current set
 const response = await fetch(url, {
@@ -52,6 +53,6 @@ if (!response.ok) {
 }
 
 const data = await response.json<RESTPutAPIApplicationCommandsResult>();
-console.log(data);
+console.log(inspect(data), { depth: null, colors: true });
 
 console.log(`Successfully reloaded ${data.length.toString()} application (/) commands.`);
