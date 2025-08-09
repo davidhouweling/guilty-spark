@@ -1,0 +1,512 @@
+import type {
+  APIActionRowComponent,
+  APIApplicationCommandInteraction,
+  APIButtonComponentWithCustomId,
+  APIEmbed,
+  APIInteractionResponseCallbackData,
+  APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
+} from "discord-api-types/v10";
+import {
+  ApplicationCommandType,
+  ApplicationCommandOptionType,
+  InteractionContextType,
+  InteractionResponseType,
+  MessageFlags,
+  InteractionType,
+  ComponentType,
+  ButtonStyle,
+} from "discord-api-types/v10";
+import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
+import { UnreachableError } from "../../base/unreachable-error.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
+import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
+import type { MapMode } from "./hcs.mjs";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT, OBJECTIVE_MODES } from "./hcs.mjs";
+
+export enum PlaylistType {
+  HcsCurrent = "HCS - current",
+  HcsHistorical = "HCS - historical",
+}
+
+export enum InteractionComponent {
+  Initiate = "btn_maps_initiate",
+  Roll1 = "btn_maps_roll_1",
+  Roll3 = "btn_maps_roll_3",
+  Roll5 = "btn_maps_roll_5",
+  Roll7 = "btn_maps_roll_7",
+  MapsPlaylistSelect = "select_maps_playlist",
+}
+
+export class MapsCommand extends BaseCommand {
+  readonly data: CommandData[] = [
+    {
+      type: ApplicationCommandType.ChatInput,
+      name: "maps",
+      description: "Generate a random set of Halo maps (default: HCS)",
+      contexts: [InteractionContextType.Guild, InteractionContextType.PrivateChannel],
+      default_member_permissions: null,
+      options: [
+        {
+          type: ApplicationCommandOptionType.Integer,
+          name: "count",
+          description: "Number of maps to generate (1, 3, 5, 7)",
+          required: false,
+          choices: [
+            { name: "1", value: 1 },
+            { name: "3", value: 3 },
+            { name: "5", value: 5 },
+            { name: "7", value: 7 },
+          ],
+        },
+        {
+          type: ApplicationCommandOptionType.String,
+          name: "playlist",
+          description: "Which playlist to use (default: HCS - Current)",
+          required: false,
+          choices: [
+            { name: PlaylistType.HcsCurrent, value: PlaylistType.HcsCurrent },
+            {
+              name: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
+              value: PlaylistType.HcsHistorical,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Initiate,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Roll1,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Roll3,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Roll5,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Roll7,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.MapsPlaylistSelect,
+        values: [],
+      },
+    },
+  ];
+
+  execute(interaction: BaseInteraction): ExecuteResponse {
+    const { type } = interaction;
+    try {
+      switch (type) {
+        case InteractionType.ApplicationCommand: {
+          return this.applicationCommandJob(interaction);
+        }
+        case InteractionType.MessageComponent: {
+          return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
+        }
+        case InteractionType.ModalSubmit: {
+          throw new Error("This command cannot be used in this context.");
+        }
+        default:
+          throw new UnreachableError(type);
+      }
+    } catch (error) {
+      this.services.logService.error(error as Error);
+
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+  }
+
+  private applicationCommandJob(interaction: APIApplicationCommandInteraction): ExecuteResponse {
+    if (interaction.data.type !== ApplicationCommandType.ChatInput) {
+      throw new Error("This command can only be used as a chat input command.");
+    }
+
+    const { options } = interaction.data;
+    const countOption = options?.find((opt) => opt.name === "count");
+    const playlistOption = options?.find((opt) => opt.name === "playlist");
+    const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as 1 | 3 | 5 | 7) : 5;
+    const playlist: PlaylistType =
+      playlistOption?.type === ApplicationCommandOptionType.String &&
+      (playlistOption.value === PlaylistType.HcsCurrent.toString() ||
+        playlistOption.value === PlaylistType.HcsHistorical.toString())
+        ? (playlistOption.value as PlaylistType)
+        : PlaylistType.HcsCurrent;
+
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private messageComponentResponse(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): ExecuteResponse {
+    const customId = interaction.data.custom_id as InteractionComponent;
+
+    switch (customId) {
+      case InteractionComponent.Initiate: {
+        return this.initiateResponse(interaction as APIMessageComponentButtonInteraction);
+      }
+      case InteractionComponent.Roll1:
+      case InteractionComponent.Roll3:
+      case InteractionComponent.Roll5:
+      case InteractionComponent.Roll7: {
+        return this.rollResponse(interaction as APIMessageComponentButtonInteraction, customId);
+      }
+      case InteractionComponent.MapsPlaylistSelect: {
+        return this.playlistSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
+      }
+      default: {
+        throw new UnreachableError(customId);
+      }
+    }
+  }
+
+  private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+    const count = 5; // Default count
+    const playlist = PlaylistType.HcsCurrent; // Default playlist
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.createMessage(
+          interaction.channel.id,
+          this.createMapsResponse(interaction, count, playlist, maps),
+        );
+      },
+    };
+  }
+
+  private rollResponse(
+    interaction: APIMessageComponentButtonInteraction,
+    customId: InteractionComponent,
+  ): ExecuteResponse {
+    const count = this.getCountFromInteractionButton(customId);
+    const playlist = this.getPlaylistTypeFromEmbed(
+      Preconditions.checkExists(interaction.message.embeds[0], "Embed not found"),
+    );
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    const playlist = interaction.data.values[0] as PlaylistType;
+    const actionRow = Preconditions.checkExists(
+      interaction.message.components?.find(
+        (row) => row.type === ComponentType.ActionRow && row.components.every((c) => c.type === ComponentType.Button),
+      ),
+      "Action row not found",
+    ) as APIActionRowComponent<APIButtonComponentWithCustomId>;
+    const primaryRegenButton = Preconditions.checkExists(
+      actionRow.components.find((c) => c.style === ButtonStyle.Primary),
+      "Button not found",
+    );
+    const count = this.getCountFromInteractionButton(primaryRegenButton.custom_id as InteractionComponent);
+    const maps = this.generateHcsSet(count, playlist);
+
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: this.createMapsResponse(interaction, count, playlist, maps),
+      },
+    };
+  }
+
+  private getCountFromInteractionButton(customId: InteractionComponent): 1 | 3 | 5 | 7 {
+    switch (
+      customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.MapsPlaylistSelect>
+    ) {
+      case InteractionComponent.Roll1: {
+        return 1;
+      }
+      case InteractionComponent.Roll3: {
+        return 3;
+      }
+      case InteractionComponent.Roll5: {
+        return 5;
+      }
+      case InteractionComponent.Roll7: {
+        return 7;
+      }
+      default: {
+        throw new Error(`Unknown button interaction: ${customId}`);
+      }
+    }
+  }
+
+  private getPlaylistTypeFromEmbed(embed: APIEmbed): PlaylistType {
+    const title = embed.title?.split(": ")[1];
+    if (title === PlaylistType.HcsCurrent) {
+      return PlaylistType.HcsCurrent;
+    }
+    if (title === PlaylistType.HcsHistorical) {
+      return PlaylistType.HcsHistorical;
+    }
+    throw new Error(`Unknown playlist type in embed: ${title?.toString() ?? "undefined"}`);
+  }
+
+  private createMapsResponse(
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
+    count: 1 | 3 | 5 | 7,
+    playlist: PlaylistType,
+    maps: {
+      mode: MapMode;
+      map: string;
+    }[],
+  ): APIInteractionResponseCallbackData {
+    const titles = ["#", "Mode", "Map"];
+    const tableData = [titles];
+    for (const [index, { mode, map }] of maps.entries()) {
+      const gamecoachGgUrl = GAMECOACH_GG_URLS[map];
+      const mapString =
+        gamecoachGgUrl != null
+          ? `[${map} ${this.services.discordService.getEmojiFromName("GameCoachGG")}](${gamecoachGgUrl})`
+          : map;
+      tableData.push([String(index + 1), mode, mapString]);
+    }
+
+    const embed: APIEmbed = {
+      title: `Maps: ${playlist}`,
+      color: 0x5865f2,
+      fields: [],
+    };
+    this.addEmbedFields(embed, titles, tableData);
+
+    if (interaction.member?.user.id != null) {
+      embed.fields?.push({
+        name: "",
+        value: `-# Generated by <@${interaction.member.user.id}>`,
+      });
+    }
+
+    return {
+      embeds: [embed],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Roll1,
+              label: "Regen maps (count: 1)",
+              style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Roll3,
+              label: "Regen maps (count: 3)",
+              style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Roll5,
+              label: "Regen maps (count: 5)",
+              style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Roll7,
+              label: "Regen maps (count: 7)",
+              style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionComponent.MapsPlaylistSelect,
+              options: [
+                {
+                  label: PlaylistType.HcsCurrent,
+                  value: PlaylistType.HcsCurrent,
+                  default: playlist === PlaylistType.HcsCurrent,
+                },
+                {
+                  label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
+                  value: PlaylistType.HcsHistorical,
+                  default: playlist === PlaylistType.HcsHistorical,
+                },
+              ],
+              placeholder: "Select a playlist",
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private getRandomElement<T>(arr: T[]): T {
+    if (arr.length === 0) {
+      throw new Error("Array is empty");
+    }
+
+    const idx = Math.floor(Math.random() * arr.length);
+    const el = arr[idx];
+    if (el === undefined) {
+      throw new Error("Random element is undefined");
+    }
+
+    return el;
+  }
+
+  private getAllHcsModeMapPairs(playlist: PlaylistType = PlaylistType.HcsCurrent): { mode: MapMode; map: string }[] {
+    const pairs: { mode: MapMode; map: string }[] = [];
+    const mapSet: Record<MapMode, string[]> =
+      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+    const modes = Object.keys(mapSet) as MapMode[];
+    for (const mode of modes) {
+      for (const map of mapSet[mode]) {
+        pairs.push({ mode, map });
+      }
+    }
+    return pairs;
+  }
+
+  private pickWithPreference<T>(
+    all: T[],
+    usedSet: Set<string>,
+    history: string[],
+    getKey: (item: T) => string,
+    recentWindow: number,
+  ): T {
+    const available = all.filter((item) => !usedSet.has(getKey(item)));
+    let picked: T;
+
+    if (available.length > 0) {
+      picked = this.getRandomElement(available);
+    } else {
+      const recent = new Set(history.slice(0, recentWindow));
+      const candidates = all.filter((item) => !recent.has(getKey(item)));
+      picked = this.getRandomElement(candidates.length > 0 ? candidates : all);
+    }
+
+    usedSet.add(getKey(picked));
+    history.unshift(getKey(picked));
+    if (history.length > all.length) {
+      history.length = all.length;
+    }
+
+    return picked;
+  }
+
+  private generateHcsSet(
+    count: 1 | 3 | 5 | 7,
+    playlist: PlaylistType = PlaylistType.HcsCurrent,
+  ): { mode: MapMode; map: string }[] {
+    const format = Preconditions.checkExists(HCS_SET_FORMAT[count]);
+    const result: { mode: MapMode; map: string }[] = [];
+    const usedMaps = new Set<string>();
+    const usedObjectiveModes = new Set<MapMode>();
+    const mapHistory: string[] = [];
+    const objectiveHistory: { mode: MapMode; map: string }[] = [];
+    const mapSet: Record<MapMode, string[]> =
+      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+    for (const type of format) {
+      if (type === "slayer") {
+        const allSlayerMaps: string[] = mapSet.Slayer;
+        const map: string = this.pickWithPreference(
+          allSlayerMaps,
+          usedMaps,
+          mapHistory,
+          (m) => m,
+          allSlayerMaps.length,
+        );
+        result.push({ mode: "Slayer", map });
+      } else if (type === "objective") {
+        const allPairs: { mode: MapMode; map: string }[] = [];
+        for (const mode of OBJECTIVE_MODES as MapMode[]) {
+          if (!usedObjectiveModes.has(mode)) {
+            for (const map of mapSet[mode]) {
+              allPairs.push({ mode, map });
+            }
+          }
+        }
+        if (allPairs.length === 0) {
+          for (const mode of OBJECTIVE_MODES as MapMode[]) {
+            for (const map of mapSet[mode]) {
+              allPairs.push({ mode, map });
+            }
+          }
+        }
+        const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
+        usedObjectiveModes.add(pair.mode);
+        objectiveHistory.unshift(pair);
+        if (objectiveHistory.length > OBJECTIVE_MODES.length * 2) {
+          objectiveHistory.length = OBJECTIVE_MODES.length * 2;
+        }
+        result.push(pair);
+      } else {
+        const allPairs = this.getAllHcsModeMapPairs(playlist);
+        const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
+        result.push(pair);
+      }
+    }
+    return result;
+  }
+
+  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
+    for (let column = 0; column < titles.length; column++) {
+      embed.fields ??= [];
+      embed.fields.push({
+        name: Preconditions.checkExists(titles[column]),
+        value: data
+          .slice(1)
+          .map((row) => row[column])
+          .join("\n"),
+        inline: true,
+      });
+    }
+  }
+}
