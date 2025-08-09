@@ -12,6 +12,7 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 - **🎮 Halo Infinite Stats Integration**: Pull match statistics directly from Halo Waypoint
 - **🤖 NeatQueue Integration**: Automated webhook-based stats posting for custom game series
+- **🗺️ HCS Maps Generator**: Generate random HCS map sets with playlist and count selection, interactive UI, and user attribution
 - **🔗 Discord-Halo Account Linking**: Connect Discord users to their Xbox gamertags
 - **📊 Rich Match Embeds**: Beautiful, game-mode-specific stat displays
 - **⚙️ Comprehensive Setup System**: Interactive configuration for servers and NeatQueue integration
@@ -28,7 +29,8 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 1. **Configure the bot**: Use `/setup` to configure server settings and NeatQueue integration
 2. **Link accounts**: Users can use `/connect` to link their Discord accounts to Xbox gamertags
-3. **Pull stats**: Use `/stats` commands to retrieve match statistics
+3. **Retrieve match statistics**: Use the `/stats` command to get Halo Infinite match and series stats
+4. **Generate map sets**: Use the `/maps` command to generate random HCS map sets for your games
 
 ## 📋 Commands
 
@@ -125,6 +127,40 @@ Configure automated stats posting for NeatQueue-managed series:
 2. Guilty Spark automatically retrieves match statistics
 3. Posts formatted stats according to configured display mode
 4. Supports multiple queue channels per server
+
+#### NeatQueue Informer
+
+Configure the NeatQueue Informer to provide real-time updates about player connections when a queue starts. This feature works alongside NeatQueue integration and applies to the whole server.
+
+**Features:**
+- Announces which players are in the queue as soon as a queue starts
+- Can be enabled/disabled via the setup menu
+- Requires the bot to have appropriate channel permissions (View Channel, Send Messages)
+- If permissions are missing, the feature will automatically disable itself
+
+**How to enable:**
+- Open `/setup` and select "Configure NeatQueue Informer"
+- Follow the instructions to grant the bot the required permissions
+- Toggle player connection announcements as desired
+
+---
+
+### `/maps` - Generate HCS Map Sets
+
+Generate a random set of Halo maps for HCS play, with interactive playlist and count selection:
+
+```
+/maps [count] [playlist]
+```
+
+- **count**: Number of maps (1, 3, 5, 7; default: 5)
+- **playlist**: Playlist to use (`HCS - current` or `HCS - historical`; default: current)
+
+**Features:**
+- Interactive buttons to re-roll map sets for different counts
+- Playlist select menu to switch between current and historical HCS map pools
+- User attribution in embed footer
+- Robust error handling for unknown playlists or button interactions
 
 ## 🛠️ Development Setup
 
