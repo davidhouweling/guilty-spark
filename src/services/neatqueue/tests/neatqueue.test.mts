@@ -247,6 +247,15 @@ describe("NeatQueueService", () => {
                       "style": 1,
                       "type": 2,
                     },
+                    {
+                      "custom_id": "btn_maps_initiate",
+                      "emoji": {
+                        "name": "🗺️",
+                      },
+                      "label": "Generate maps",
+                      "style": 2,
+                      "type": 2,
+                    },
                   ],
                   "type": 1,
                 },
@@ -1054,6 +1063,15 @@ describe("NeatQueueService", () => {
                     },
                     "label": "Connect my Halo account",
                     "style": 1,
+                    "type": 2,
+                  },
+                  {
+                    "custom_id": "btn_maps_initiate",
+                    "emoji": {
+                      "name": "🗺️",
+                    },
+                    "label": "Generate maps",
+                    "style": 2,
                     "type": 2,
                   },
                 ],

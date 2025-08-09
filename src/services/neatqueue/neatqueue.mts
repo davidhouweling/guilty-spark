@@ -613,6 +613,15 @@ export class NeatQueueService {
                 name: "🔗",
               },
             },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Secondary,
+              label: "Generate maps",
+              custom_id: "btn_maps_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
+              emoji: {
+                name: "🗺️",
+              },
+            },
           ],
         },
       ],
