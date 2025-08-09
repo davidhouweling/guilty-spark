@@ -27,6 +27,7 @@ export enum PlaylistType {
 }
 
 export enum InteractionButton {
+  Initiate = "btn_maps_initiate",
   Roll1 = "btn_maps_roll_1",
   Roll3 = "btn_maps_roll_3",
   Roll5 = "btn_maps_roll_5",
@@ -65,6 +66,13 @@ export class MapsCommand extends BaseCommand {
           ],
         },
       ],
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionButton.Initiate,
+      },
     },
     {
       type: InteractionType.MessageComponent,
@@ -155,6 +163,25 @@ export class MapsCommand extends BaseCommand {
 
   private messageComponentResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     const customId = interaction.data.custom_id;
+
+    if (customId === InteractionButton.Initiate.toString()) {
+      const count = 5; // Default count
+      const playlist = PlaylistType.HcsCurrent; // Default playlist
+      const maps = this.generateHcsSet(count, playlist);
+
+      return {
+        response: {
+          type: InteractionResponseType.DeferredMessageUpdate,
+        },
+        jobToComplete: async (): Promise<void> => {
+          await this.services.discordService.createMessage(
+            interaction.channel.id,
+            this.createMapsResponse(interaction, count, playlist, maps),
+          );
+        },
+      };
+    }
+
     const count = this.getCountFromInteractionButton(customId);
     const playlist = this.getPlaylistTypeFromEmbed(
       Preconditions.checkExists(interaction.message.embeds[0], "Embed not found"),
@@ -170,7 +197,7 @@ export class MapsCommand extends BaseCommand {
   }
 
   private getCountFromInteractionButton(customId: string): 1 | 3 | 5 | 7 {
-    switch (customId as InteractionButton) {
+    switch (customId as Omit<InteractionButton, "Initiate">) {
       case InteractionButton.Roll1: {
         return 1;
       }
