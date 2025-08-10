@@ -286,7 +286,7 @@ describe("MapsCommand", () => {
       const embed = data.embeds?.[0];
       expect(embed).toBeDefined();
       expect(embed?.fields?.length).toBeGreaterThanOrEqual(3);
-      // The embed should render the mockRoundRobin maps as Markdown links or plain names
+
       const modes = embed?.fields?.[1]?.value.split("\n") ?? [];
       const maps = embed?.fields?.[2]?.value.split("\n") ?? [];
       expect(modes).toEqual(["Slayer", "Oddball", "Strongholds", "CTF", "Slayer"]);
@@ -305,9 +305,7 @@ describe("MapsCommand", () => {
       const interaction = aFakeMapsInteractionWith([
         { name: "playlist", value: PlaylistType.HcsHistorical, type: ApplicationCommandOptionType.String },
       ]);
-
       const { response } = command.execute(interaction);
-
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
@@ -318,9 +316,7 @@ describe("MapsCommand", () => {
 
     it("returns maps from the current playlist by default", () => {
       const interaction = aFakeMapsInteractionWith();
-
       const { response } = command.execute(interaction);
-
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
@@ -338,7 +334,7 @@ describe("MapsCommand", () => {
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
-      expect(typeof embed?.title).toBe("string");
+      expect(embed?.title).toBeDefined();
       expect(embed?.title ?? "").toContain(PlaylistType.HcsHistorical);
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
 
@@ -368,17 +364,44 @@ describe("MapsCommand", () => {
     it("returns DeferredMessageUpdate and jobToComplete for Initiate button", async () => {
       const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
       const { response, jobToComplete } = command.execute(interaction);
+
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(typeof jobToComplete).toBe("function");
+      expect(jobToComplete).toBeDefined();
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       await jobToComplete?.();
       const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+
       expect(channelId).toBe(interaction.channel.id);
       expect(data.embeds?.[0]?.title).toContain("Maps: HCS - current");
 
       const actionRow = getButtonRow(data.components);
       expect(actionRow.components).toHaveLength(4);
+    });
+  });
+
+  describe("/maps repost button interaction", () => {
+    it("returns DeferredMessageUpdate and reposts the maps, then deletes the original message", async () => {
+      const interaction = aFakeButtonInteraction(InteractionComponent.Repost);
+      const { response, jobToComplete } = command.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+      expect(jobToComplete).toBeDefined();
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledTimes(1);
+      expect(deleteMessageSpy).toHaveBeenCalledTimes(1);
+
+      const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+      expect(channelId).toBe(interaction.channel.id);
+      expect(data.embeds?.[0]?.title).toContain("Maps: HCS - current");
+
+      const [delChannelId, delMessageId, delReason] = deleteMessageSpy.mock.calls[0] as [string, string, string];
+      expect(delChannelId).toBe(interaction.channel.id);
+      expect(delMessageId).toBe(interaction.message.id);
+      expect(delReason).toBe("Reposting maps");
     });
   });
 
@@ -407,9 +430,10 @@ describe("MapsCommand", () => {
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
+
       expect(embed).toBeDefined();
-      expect(typeof embed?.title).toBe("string");
-      expect(embed?.title ?? "").toContain(PlaylistType.HcsCurrent);
+      expect(embed?.title).toBeDefined();
+      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
 
       const buttonRow = getButtonRow(data.components);
       expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
@@ -428,6 +452,7 @@ describe("MapsCommand", () => {
       format: FormatType.Hcs,
     });
     expect(mockRoundRobin.mock.calls.length).toBe(1);
+
     const [call] = mockRoundRobin.mock.calls[0] as [RoundRobinArgs];
     expect(call.count).toBe(5);
     expect(Array.isArray(call.pool)).toBe(true);

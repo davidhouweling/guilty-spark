@@ -48,6 +48,7 @@ export enum InteractionComponent {
   Roll7 = "btn_maps_roll_7",
   PlaylistSelect = "select_maps_playlist",
   FormatSelect = "select_maps_format",
+  Repost = "btn_maps_repost",
 }
 
 export class MapsCommand extends BaseCommand {
@@ -206,6 +207,13 @@ export class MapsCommand extends BaseCommand {
         values: [],
       },
     },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Repost,
+      },
+    },
   ];
 
   execute(interaction: BaseInteraction): ExecuteResponse {
@@ -291,6 +299,9 @@ export class MapsCommand extends BaseCommand {
       case InteractionComponent.FormatSelect: {
         return this.formatSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
       }
+      case InteractionComponent.Repost: {
+        return this.repostResponse(interaction as APIMessageComponentButtonInteraction);
+      }
       default: {
         throw new UnreachableError(customId);
       }
@@ -356,6 +367,29 @@ export class MapsCommand extends BaseCommand {
       response: {
         type: InteractionResponseType.UpdateMessage,
         data: this.createMapsResponse({ interaction, ...state, format, maps }),
+      },
+    };
+  }
+
+  private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+    const state = this.getStateFromEmbed(interaction);
+    const maps = this.generateMaps(state);
+
+    return {
+      response: {
+        type: InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.createMessage(
+          interaction.channel.id,
+          this.createMapsResponse({ interaction, ...state, maps }),
+        );
+
+        await this.services.discordService.deleteMessage(
+          interaction.channel.id,
+          interaction.message.id,
+          "Reposting maps",
+        );
       },
     };
   }
@@ -550,6 +584,20 @@ export class MapsCommand extends BaseCommand {
                   default: format === FormatType.RandomSlayer,
                 },
               ],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Repost,
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: {
+                name: "⏬",
+              },
             },
           ],
         },
