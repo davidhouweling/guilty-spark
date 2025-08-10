@@ -105,7 +105,7 @@ export class MapsCommand extends BaseCommand {
       count,
       pool: allPairs,
       formatSequence: formatSequence.map((f: Format) =>
-        f === "random" ? (Math.random() < 0.5 ? "slayer" : "objective") : f,
+        f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
       ),
     });
   }
@@ -372,18 +372,16 @@ export class MapsCommand extends BaseCommand {
   }
 
   private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const state = this.getStateFromEmbed(interaction);
-    const maps = this.generateMaps(state);
-
     return {
       response: {
         type: InteractionResponseType.DeferredMessageUpdate,
       },
       jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.createMessage(
-          interaction.channel.id,
-          this.createMapsResponse({ interaction, ...state, maps }),
-        );
+        await this.services.discordService.createMessage(interaction.channel.id, {
+          embeds: interaction.message.embeds,
+          components: interaction.message.components,
+          content: interaction.message.content,
+        });
 
         await this.services.discordService.deleteMessage(
           interaction.channel.id,
