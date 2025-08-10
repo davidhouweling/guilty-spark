@@ -133,12 +133,14 @@ Configure automated stats posting for NeatQueue-managed series:
 Configure the NeatQueue Informer to provide real-time updates about player connections when a queue starts. This feature works alongside NeatQueue integration and applies to the whole server.
 
 **Features:**
+
 - Announces which players are in the queue as soon as a queue starts
 - Can be enabled/disabled via the setup menu
 - Requires the bot to have appropriate channel permissions (View Channel, Send Messages)
 - If permissions are missing, the feature will automatically disable itself
 
 **How to enable:**
+
 - Open `/setup` and select "Configure NeatQueue Informer"
 - Follow the instructions to grant the bot the required permissions
 - Toggle player connection announcements as desired
@@ -157,6 +159,7 @@ Generate a random set of Halo maps for HCS play, with interactive playlist and c
 - **playlist**: Playlist to use (`HCS - current` or `HCS - historical`; default: current)
 
 **Features:**
+
 - Interactive buttons to re-roll map sets for different counts
 - Playlist select menu to switch between current and historical HCS map pools
 - User attribution in embed footer

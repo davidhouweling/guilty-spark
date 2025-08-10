@@ -1,11 +1,11 @@
 import type {
-  APIActionRowComponent,
   APIApplicationCommandInteraction,
   APIButtonComponentWithCustomId,
   APIEmbed,
   APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APIStringSelectComponent,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandType,
@@ -20,12 +20,21 @@ import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseComma
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
-import type { MapMode } from "./hcs.mjs";
+import type { Format, MapMode } from "./hcs.mjs";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT, OBJECTIVE_MODES } from "./hcs.mjs";
+
+type CountType = 1 | 3 | 5 | 7;
 
 export enum PlaylistType {
   HcsCurrent = "HCS - current",
   HcsHistorical = "HCS - historical",
+}
+
+export enum FormatType {
+  Hcs = "HCS (obj slayer obj obj slayer...)",
+  Random = "Random",
+  RandomObjective = "Random Objective only",
+  RandomSlayer = "Random Slayer only",
 }
 
 export enum InteractionComponent {
@@ -34,7 +43,8 @@ export enum InteractionComponent {
   Roll3 = "btn_maps_roll_3",
   Roll5 = "btn_maps_roll_5",
   Roll7 = "btn_maps_roll_7",
-  MapsPlaylistSelect = "select_maps_playlist",
+  PlaylistSelect = "select_maps_playlist",
+  FormatSelect = "select_maps_format",
 }
 
 export class MapsCommand extends BaseCommand {
@@ -68,6 +78,18 @@ export class MapsCommand extends BaseCommand {
               name: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
               value: PlaylistType.HcsHistorical,
             },
+          ],
+        },
+        {
+          type: ApplicationCommandOptionType.String,
+          name: "format",
+          description: "Format of the map set (default: HCS)",
+          required: false,
+          choices: [
+            { name: FormatType.Hcs, value: FormatType.Hcs },
+            { name: FormatType.Random, value: FormatType.Random },
+            { name: FormatType.RandomObjective, value: FormatType.RandomObjective },
+            { name: FormatType.RandomSlayer, value: FormatType.RandomSlayer },
           ],
         },
       ],
@@ -111,7 +133,15 @@ export class MapsCommand extends BaseCommand {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.StringSelect,
-        custom_id: InteractionComponent.MapsPlaylistSelect,
+        custom_id: InteractionComponent.PlaylistSelect,
+        values: [],
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.FormatSelect,
         values: [],
       },
     },
@@ -154,22 +184,27 @@ export class MapsCommand extends BaseCommand {
     }
 
     const { options } = interaction.data;
+
     const countOption = options?.find((opt) => opt.name === "count");
+    const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as CountType) : 5;
+
     const playlistOption = options?.find((opt) => opt.name === "playlist");
-    const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as 1 | 3 | 5 | 7) : 5;
     const playlist: PlaylistType =
-      playlistOption?.type === ApplicationCommandOptionType.String &&
-      (playlistOption.value === PlaylistType.HcsCurrent.toString() ||
-        playlistOption.value === PlaylistType.HcsHistorical.toString())
+      playlistOption?.type === ApplicationCommandOptionType.String
         ? (playlistOption.value as PlaylistType)
         : PlaylistType.HcsCurrent;
 
-    const maps = this.generateHcsSet(count, playlist);
+    const formatOption = options?.find((opt) => opt.name === "format");
+    const format: FormatType =
+      formatOption?.type === ApplicationCommandOptionType.String ? (formatOption.value as FormatType) : FormatType.Hcs;
+
+    const state = { count, playlist, format };
+    const maps = this.generateHcsSet(state);
 
     return {
       response: {
         type: InteractionResponseType.ChannelMessageWithSource,
-        data: this.createMapsResponse(interaction, count, playlist, maps),
+        data: this.createMapsResponse({ interaction, ...state, maps }),
       },
     };
   }
@@ -189,8 +224,11 @@ export class MapsCommand extends BaseCommand {
       case InteractionComponent.Roll7: {
         return this.rollResponse(interaction as APIMessageComponentButtonInteraction, customId);
       }
-      case InteractionComponent.MapsPlaylistSelect: {
+      case InteractionComponent.PlaylistSelect: {
         return this.playlistSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
+      }
+      case InteractionComponent.FormatSelect: {
+        return this.formatSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
       }
       default: {
         throw new UnreachableError(customId);
@@ -199,9 +237,10 @@ export class MapsCommand extends BaseCommand {
   }
 
   private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const count = 5; // Default count
-    const playlist = PlaylistType.HcsCurrent; // Default playlist
-    const maps = this.generateHcsSet(count, playlist);
+    const count = 5;
+    const playlist = PlaylistType.HcsCurrent;
+    const format = FormatType.Hcs;
+    const maps = this.generateHcsSet({ count, playlist, format });
 
     return {
       response: {
@@ -210,7 +249,7 @@ export class MapsCommand extends BaseCommand {
       jobToComplete: async (): Promise<void> => {
         await this.services.discordService.createMessage(
           interaction.channel.id,
-          this.createMapsResponse(interaction, count, playlist, maps),
+          this.createMapsResponse({ interaction, count, playlist, format, maps }),
         );
       },
     };
@@ -220,46 +259,49 @@ export class MapsCommand extends BaseCommand {
     interaction: APIMessageComponentButtonInteraction,
     customId: InteractionComponent,
   ): ExecuteResponse {
+    const state = this.getStateFromEmbed(interaction);
     const count = this.getCountFromInteractionButton(customId);
-    const playlist = this.getPlaylistTypeFromEmbed(
-      Preconditions.checkExists(interaction.message.embeds[0], "Embed not found"),
-    );
-    const maps = this.generateHcsSet(count, playlist);
+    const maps = this.generateHcsSet({ ...state, count });
 
     return {
       response: {
         type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse(interaction, count, playlist, maps),
+        data: this.createMapsResponse({ interaction, ...state, count, maps }),
       },
     };
   }
 
   private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    const state = this.getStateFromEmbed(interaction);
     const playlist = interaction.data.values[0] as PlaylistType;
-    const actionRow = Preconditions.checkExists(
-      interaction.message.components?.find(
-        (row) => row.type === ComponentType.ActionRow && row.components.every((c) => c.type === ComponentType.Button),
-      ),
-      "Action row not found",
-    ) as APIActionRowComponent<APIButtonComponentWithCustomId>;
-    const primaryRegenButton = Preconditions.checkExists(
-      actionRow.components.find((c) => c.style === ButtonStyle.Primary),
-      "Button not found",
-    );
-    const count = this.getCountFromInteractionButton(primaryRegenButton.custom_id as InteractionComponent);
-    const maps = this.generateHcsSet(count, playlist);
+
+    const maps = this.generateHcsSet({ ...state, playlist });
 
     return {
       response: {
         type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse(interaction, count, playlist, maps),
+        data: this.createMapsResponse({ interaction, ...state, playlist, maps }),
       },
     };
   }
 
-  private getCountFromInteractionButton(customId: InteractionComponent): 1 | 3 | 5 | 7 {
+  private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    const state = this.getStateFromEmbed(interaction);
+    const format = interaction.data.values[0] as FormatType;
+
+    const maps = this.generateHcsSet({ ...state, format });
+
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: this.createMapsResponse({ interaction, ...state, format, maps }),
+      },
+    };
+  }
+
+  private getCountFromInteractionButton(customId: InteractionComponent): CountType {
     switch (
-      customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.MapsPlaylistSelect>
+      customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.PlaylistSelect>
     ) {
       case InteractionComponent.Roll1: {
         return 1;
@@ -279,29 +321,67 @@ export class MapsCommand extends BaseCommand {
     }
   }
 
-  private getPlaylistTypeFromEmbed(embed: APIEmbed): PlaylistType {
-    const title = embed.title?.split(": ")[1];
-    if (title === PlaylistType.HcsCurrent) {
-      return PlaylistType.HcsCurrent;
-    }
-    if (title === PlaylistType.HcsHistorical) {
-      return PlaylistType.HcsHistorical;
-    }
-    throw new Error(`Unknown playlist type in embed: ${title?.toString() ?? "undefined"}`);
+  private getStateFromEmbed(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): {
+    count: CountType;
+    playlist: PlaylistType;
+    format: FormatType;
+  } {
+    const components =
+      interaction.message.components?.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : [])) ??
+      [];
+
+    const primaryRegenButton = Preconditions.checkExists(
+      components.find((c) => c.type === ComponentType.Button && c.style === ButtonStyle.Primary),
+      "Primary button not found",
+    ) as APIButtonComponentWithCustomId;
+    const count = this.getCountFromInteractionButton(primaryRegenButton.custom_id as InteractionComponent);
+    const playlistSelect = Preconditions.checkExists(
+      components.find(
+        (c) =>
+          c.type === ComponentType.StringSelect &&
+          (c.custom_id as InteractionComponent) === InteractionComponent.PlaylistSelect,
+      ),
+      "Playlist select not found",
+    ) as APIStringSelectComponent;
+    const playlist = playlistSelect.options.find((opt) => opt.default === true)?.value as PlaylistType;
+    const formatSelect = Preconditions.checkExists(
+      components.find(
+        (c) =>
+          c.type === ComponentType.StringSelect &&
+          (c.custom_id as InteractionComponent) === InteractionComponent.FormatSelect,
+      ),
+      "Format select not found",
+    ) as APIStringSelectComponent;
+    const format = formatSelect.options.find((opt) => opt.default === true)?.value as FormatType;
+
+    return {
+      count,
+      playlist: Preconditions.checkExists(playlist, "Playlist not found"),
+      format: Preconditions.checkExists(format, "Format not found"),
+    };
   }
 
-  private createMapsResponse(
+  private createMapsResponse({
+    interaction,
+    count,
+    playlist,
+    format,
+    maps,
+  }: {
     interaction:
       | APIApplicationCommandInteraction
       | APIMessageComponentButtonInteraction
-      | APIMessageComponentSelectMenuInteraction,
-    count: 1 | 3 | 5 | 7,
-    playlist: PlaylistType,
+      | APIMessageComponentSelectMenuInteraction;
+    count: CountType;
+    playlist: PlaylistType;
+    format: FormatType;
     maps: {
       mode: MapMode;
       map: string;
-    }[],
-  ): APIInteractionResponseCallbackData {
+    }[];
+  }): APIInteractionResponseCallbackData {
     const titles = ["#", "Mode", "Map"];
     const tableData = [titles];
     for (const [index, { mode, map }] of maps.entries()) {
@@ -314,7 +394,7 @@ export class MapsCommand extends BaseCommand {
     }
 
     const embed: APIEmbed = {
-      title: `Maps: ${playlist}`,
+      title: `Maps: ${playlist} (${format})`,
       color: 0x5865f2,
       fields: [],
     };
@@ -364,7 +444,7 @@ export class MapsCommand extends BaseCommand {
           components: [
             {
               type: ComponentType.StringSelect,
-              custom_id: InteractionComponent.MapsPlaylistSelect,
+              custom_id: InteractionComponent.PlaylistSelect,
               options: [
                 {
                   label: PlaylistType.HcsCurrent,
@@ -378,6 +458,37 @@ export class MapsCommand extends BaseCommand {
                 },
               ],
               placeholder: "Select a playlist",
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionComponent.FormatSelect,
+              options: [
+                {
+                  label: FormatType.Hcs,
+                  value: FormatType.Hcs,
+                  default: format === FormatType.Hcs,
+                },
+                {
+                  label: FormatType.Random,
+                  value: FormatType.Random,
+                  default: format === FormatType.Random,
+                },
+                {
+                  label: FormatType.RandomObjective,
+                  value: FormatType.RandomObjective,
+                  default: format === FormatType.RandomObjective,
+                },
+                {
+                  label: FormatType.RandomSlayer,
+                  value: FormatType.RandomSlayer,
+                  default: format === FormatType.RandomSlayer,
+                },
+              ],
             },
           ],
         },
@@ -439,11 +550,36 @@ export class MapsCommand extends BaseCommand {
     return picked;
   }
 
-  private generateHcsSet(
-    count: 1 | 3 | 5 | 7,
-    playlist: PlaylistType = PlaylistType.HcsCurrent,
-  ): { mode: MapMode; map: string }[] {
-    const format = Preconditions.checkExists(HCS_SET_FORMAT[count]);
+  private getMapModeFormat(format: FormatType, count: CountType): Format[] {
+    switch (format) {
+      case FormatType.Hcs: {
+        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
+      }
+      case FormatType.Random: {
+        return Array(count).fill("random") as Format[];
+      }
+      case FormatType.RandomObjective: {
+        return Array(count).fill("objective") as Format[];
+      }
+      case FormatType.RandomSlayer: {
+        return Array(count).fill("slayer") as Format[];
+      }
+      default: {
+        throw new UnreachableError(format);
+      }
+    }
+  }
+
+  private generateHcsSet({
+    count,
+    playlist,
+    format,
+  }: {
+    count: CountType;
+    playlist: PlaylistType;
+    format: FormatType;
+  }): { mode: MapMode; map: string }[] {
+    const mapModeFormat = this.getMapModeFormat(format, count);
     const result: { mode: MapMode; map: string }[] = [];
     const usedMaps = new Set<string>();
     const usedObjectiveModes = new Set<MapMode>();
@@ -451,44 +587,55 @@ export class MapsCommand extends BaseCommand {
     const objectiveHistory: { mode: MapMode; map: string }[] = [];
     const mapSet: Record<MapMode, string[]> =
       playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
-    for (const type of format) {
-      if (type === "slayer") {
-        const allSlayerMaps: string[] = mapSet.Slayer;
-        const map: string = this.pickWithPreference(
-          allSlayerMaps,
-          usedMaps,
-          mapHistory,
-          (m) => m,
-          allSlayerMaps.length,
-        );
-        result.push({ mode: "Slayer", map });
-      } else if (type === "objective") {
-        const allPairs: { mode: MapMode; map: string }[] = [];
-        for (const mode of OBJECTIVE_MODES as MapMode[]) {
-          if (!usedObjectiveModes.has(mode)) {
-            for (const map of mapSet[mode]) {
-              allPairs.push({ mode, map });
-            }
-          }
+
+    for (const type of mapModeFormat) {
+      switch (type) {
+        case "slayer": {
+          const allSlayerMaps: string[] = mapSet.Slayer;
+          const map: string = this.pickWithPreference(
+            allSlayerMaps,
+            usedMaps,
+            mapHistory,
+            (m) => m,
+            allSlayerMaps.length,
+          );
+          result.push({ mode: "Slayer", map });
+          break;
         }
-        if (allPairs.length === 0) {
+        case "objective": {
+          const allPairs: { mode: MapMode; map: string }[] = [];
           for (const mode of OBJECTIVE_MODES as MapMode[]) {
-            for (const map of mapSet[mode]) {
-              allPairs.push({ mode, map });
+            if (!usedObjectiveModes.has(mode)) {
+              for (const map of mapSet[mode]) {
+                allPairs.push({ mode, map });
+              }
             }
           }
+          if (allPairs.length === 0) {
+            for (const mode of OBJECTIVE_MODES as MapMode[]) {
+              for (const map of mapSet[mode]) {
+                allPairs.push({ mode, map });
+              }
+            }
+          }
+          const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
+          usedObjectiveModes.add(pair.mode);
+          objectiveHistory.unshift(pair);
+          if (objectiveHistory.length > OBJECTIVE_MODES.length * 2) {
+            objectiveHistory.length = OBJECTIVE_MODES.length * 2;
+          }
+          result.push(pair);
+          break;
         }
-        const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
-        usedObjectiveModes.add(pair.mode);
-        objectiveHistory.unshift(pair);
-        if (objectiveHistory.length > OBJECTIVE_MODES.length * 2) {
-          objectiveHistory.length = OBJECTIVE_MODES.length * 2;
+        case "random": {
+          const allPairs = this.getAllHcsModeMapPairs(playlist);
+          const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
+          result.push(pair);
+          break;
         }
-        result.push(pair);
-      } else {
-        const allPairs = this.getAllHcsModeMapPairs(playlist);
-        const pair = this.pickWithPreference(allPairs, usedMaps, mapHistory, (p) => p.map, allPairs.length);
-        result.push(pair);
+        default: {
+          throw new UnreachableError(type);
+        }
       }
     }
     return result;
