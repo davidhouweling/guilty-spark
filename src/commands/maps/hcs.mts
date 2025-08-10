@@ -1,6 +1,7 @@
 // HCS map/mode pool
 
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
+export type Format = "random" | "objective" | "slayer";
 
 export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
   Slayer: ["Aquarius", "Live Fire", "Origin", "Recharge", "Solitude", "Streets"],
@@ -19,7 +20,7 @@ export const OBJECTIVE_MODES: Omit<MapMode, "Slayer">[] = [
   "Neutral Bomb",
 ];
 
-export const HCS_SET_FORMAT: Record<number, ("random" | "objective" | "slayer")[]> = {
+export const HCS_SET_FORMAT: Record<number, Format[]> = {
   1: ["random"],
   3: ["objective", "slayer", "objective"],
   5: ["objective", "slayer", "objective", "objective", "slayer"],
@@ -34,3 +35,12 @@ export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {
   "King of the Hill": ["Live Fire", "Recharge", "Streets", "Solitude", "Lattice"],
   "Neutral Bomb": ["Aquarius", "Fortress"],
 };
+
+export const ALL_MODES: MapMode[] = [
+  "Slayer",
+  "Capture the Flag",
+  "Strongholds",
+  "Oddball",
+  "King of the Hill",
+  "Neutral Bomb",
+];

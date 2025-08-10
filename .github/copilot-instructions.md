@@ -13,6 +13,15 @@
 - **No TypeScript Suppression:** Never use `@ts-expect-error` to bypass TypeScript errors.
 - **Explicit Types:** Always define variables and function signatures with explicit types. Prefer direct type imports over type extraction from function signatures.
 - **No Inline Imports:** Do not use inline `import()` type annotations in variable declarations. Always import types at the top of the file.
+- **No ! Operator:** Avoid using the non-null assertion operator (`!`) in TypeScript. Use `Preconditions.checkExists` for null checks instead.
+- **Importing Types:** Always import types directly from their source files (e.g., `import type { MyType } from "./my-type.mjs"`) separately from the functional import. Do not use `import { MyType } from "./my-type.mjs"` for types.
+- **Import path extensions:** Always use `.mjs` for import paths, never `.mts`. This is consistent with the Node ESM module system.
+
+## Coding Conventions
+
+- **for loops:** Prefer `for...of` loops instead of `for...in`, traditional `for` loops, or `[].forEach`.
+- **enum branching:** Use `switch` statements for enum branching instead of `if...else` chains, where `default` should `throw new UnreachableError()` (located in `src/base/unreachable-error.mts`).
+- **readability:** Write code for readability, not for cleverness. Avoid complex one-liners. Add blank lines between logical sections of code to enhance clarity.
 
 ## Module System & Imports
 
@@ -25,7 +34,7 @@
 - **Source Code:** Place all source files in the `src/` directory.
 - **Tests:** Place all tests in a sibling `tests/` folder to the code being tested.
 - **Fakes:** Place all fakes in a sibling `fakes/` folder to the code being tested. Fakes are for tests only, never for production code.
-- **Naming:** The main file in a folder should match the folder name (e.g., `src/services/discord/discord.mts`).
+- **Naming:** The main file in a folder should match the folder name (e.g., `src/services/discord/discord.mts`). When creating files, use lowercase kebab-case for file names (e.g., `discord.mts`, `round-robin.mts`).
 
 ## Testing Conventions
 
