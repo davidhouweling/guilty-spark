@@ -35,3 +35,12 @@ export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {
   "King of the Hill": ["Live Fire", "Recharge", "Streets", "Solitude", "Lattice"],
   "Neutral Bomb": ["Aquarius", "Fortress"],
 };
+
+export const ALL_MODES: MapMode[] = [
+  "Slayer",
+  "Capture the Flag",
+  "Strongholds",
+  "Oddball",
+  "King of the Hill",
+  "Neutral Bomb",
+];
