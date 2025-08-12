@@ -116,7 +116,7 @@ export class StatsCommand extends BaseCommand {
         }
         case InteractionType.MessageComponent: {
           const { custom_id } = interaction.data;
-          if (custom_id === InteractionButton.LoadGames.toString()) {
+          if (custom_id === InteractionButton.LoadGames) {
             return {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
@@ -279,7 +279,6 @@ export class StatsCommand extends BaseCommand {
       await haloService.updateDiscordAssociations();
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
-        error.callbackType = "stats";
         error.appendData({
           Channel: `<#${channel}>`,
           Queue: computedQueue.toString(),

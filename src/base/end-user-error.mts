@@ -15,7 +15,6 @@ interface EndUserErrorOptions {
   innerError?: Error;
   handled?: boolean;
   actions?: EndUserErrorAction[] | undefined;
-  callbackType?: "stats" | undefined;
   data?: Record<string, string>;
 }
 
@@ -35,7 +34,6 @@ export class EndUserError extends Error {
   readonly errorType: EndUserErrorType;
   readonly handled: boolean;
   readonly actions: EndUserErrorAction[] | undefined;
-  callbackType: "stats" | undefined;
   readonly data: Record<string, string>;
 
   constructor(
@@ -46,7 +44,6 @@ export class EndUserError extends Error {
       innerError,
       handled = false,
       actions,
-      callbackType,
       data = {},
     }: EndUserErrorOptions = {},
   ) {
@@ -58,15 +55,11 @@ export class EndUserError extends Error {
     this.errorType = errorType;
     this.handled = handled;
     this.actions = actions;
-    this.callbackType = callbackType;
     this.data = data;
   }
 
   get discordEmbed(): APIEmbed {
     const data = Object.entries(this.data);
-    if (this.callbackType) {
-      data.unshift(["Callback", this.callbackType]);
-    }
 
     return {
       title: this.title,
@@ -125,18 +118,13 @@ export class EndUserError extends Error {
     const { title, description: endUserMessage } = embed;
     const errorType = embed.color === EndUserErrorColor.ERROR ? EndUserErrorType.ERROR : EndUserErrorType.WARNING;
     const data: Record<string, string> = {};
-    let callbackType: "stats" | undefined;
     if (embed.fields?.[0]?.name === "Additional Information") {
       const fields = embed.fields[0].value.split("\n");
       for (const field of fields) {
         const [key, value] = field.split(": ");
         if (key != null && value != null) {
           const formattedKey = key.replace(/\*\*/g, "").trim();
-          if (formattedKey === "Callback") {
-            callbackType = value.trim() as "stats";
-          } else {
-            data[formattedKey] = value.trim();
-          }
+          data[formattedKey] = value.trim();
         }
       }
     }
@@ -144,7 +132,6 @@ export class EndUserError extends Error {
     return new EndUserError(endUserMessage, {
       title,
       errorType,
-      callbackType,
       data,
     });
   }
