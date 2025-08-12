@@ -13,7 +13,6 @@ describe("EndUserError", () => {
       expect(error.errorType).toBe(EndUserErrorType.ERROR);
       expect(error.handled).toBe(false);
       expect(error.actions).toBeUndefined();
-      expect(error.callbackType).toBeUndefined();
       expect(error.data).toEqual({});
     });
 
@@ -23,7 +22,6 @@ describe("EndUserError", () => {
         errorType: EndUserErrorType.WARNING,
         handled: true,
         actions: ["connect"],
-        callbackType: "stats",
         data: { key: "value" },
       });
 
@@ -32,7 +30,6 @@ describe("EndUserError", () => {
       expect(error.errorType).toBe(EndUserErrorType.WARNING);
       expect(error.handled).toBe(true);
       expect(error.actions).toEqual(["connect"]);
-      expect(error.callbackType).toBe("stats");
       expect(error.data).toEqual({ key: "value" });
     });
 
@@ -99,16 +96,6 @@ describe("EndUserError", () => {
       expect(embed.fields?.[0]?.value).toContain("**user**: 123");
       expect(embed.fields?.[0]?.value).toContain("**action**: test");
     });
-
-    it("includes callback type in fields", () => {
-      const error = new EndUserError("Error with callback", {
-        callbackType: "stats",
-      });
-      const embed = error.discordEmbed;
-
-      expect(embed.fields).toHaveLength(1);
-      expect(embed.fields?.[0]?.value).toContain("**Callback**: stats");
-    });
   });
 
   describe("discordActions getter", () => {
@@ -153,12 +140,11 @@ describe("EndUserError", () => {
         title: "No matches found",
         description:
           "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
-        color: 0xffa500,
+        color: EndUserErrorColor.WARNING,
         fields: [
           {
             name: "Additional Information",
-            value:
-              "**Callback**: stats\n**Channel**: <#1000000000000000000>\n**Queue**: 2\n**Completed**: <t:1742634297:f>",
+            value: "**Channel**: <#1000000000000000000>\n**Queue**: 2\n**Completed**: <t:1742634297:f>",
             inline: false,
           },
         ],
@@ -171,7 +157,6 @@ describe("EndUserError", () => {
       expect(error?.title).toBe(embed.title);
       expect(error?.errorType).toBe(EndUserErrorType.WARNING);
       expect(error?.handled).toBe(false);
-      expect(error?.callbackType).toBe("stats");
       expect(error?.data).toEqual({
         Channel: "<#1000000000000000000>",
         Completed: "<t:1742634297:f>",
@@ -189,25 +174,6 @@ describe("EndUserError", () => {
       const error = EndUserError.fromDiscordEmbed(embed);
 
       expect(error).toBeUndefined();
-    });
-
-    it("handles callback type from embed", () => {
-      const embed = {
-        title: "Test Error",
-        description: "Test description",
-        color: EndUserErrorColor.WARNING,
-        fields: [
-          {
-            name: "Additional Information",
-            value: "Callback: stats\n**key**: value", // Note: Callback without markdown bold for the current parser
-          },
-        ],
-      };
-
-      const error = EndUserError.fromDiscordEmbed(embed);
-
-      expect(error?.callbackType).toBe("stats");
-      expect(error?.data).toEqual({ key: "value" });
     });
   });
 

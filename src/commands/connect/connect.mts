@@ -807,13 +807,17 @@ export class ConnectCommand extends BaseCommand {
         return;
       }
 
-      if (errorEmbed.callbackType === "stats") {
+      if (errorEmbed.title === "No matches found") {
         await neatQueueService.handleRetry({
           errorEmbed,
           guildId: Preconditions.checkExists(interaction.guild_id, "expected guild id"),
           message,
         });
+
+        return;
       }
+
+      this.services.logService.warn(`Unexpected error embed: ${errorEmbed.title}`);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error as Error);
     }

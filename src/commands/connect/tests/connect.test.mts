@@ -421,15 +421,18 @@ describe("ConnectCommand", () => {
             expect(getMessageSpy).toHaveBeenCalledWith("fake-channel-id", "fake-message-id");
           });
 
-          it("calls handleRetry when connect embed with stats callback is found", async () => {
+          it("calls handleRetry when connect embed is found", async () => {
             const embed = {
-              title: "Test Error",
-              description: "Test description",
+              title: "No matches found",
+              description:
+                "Unable to match any of the Discord users to their Xbox accounts.\\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
               color: EndUserErrorColor.WARNING,
               fields: [
                 {
                   name: "Additional Information",
-                  value: "Callback: stats\n**key**: value", // Note: Callback without markdown bold for the current parser
+                  value:
+                    "**Channel**: <#1251448849298362419>\\n**Queue**: 4435\\n**Started**: <t:1754832154:f>\\n**Completed**: <t:1754835655:f>",
+                  inline: false,
                 },
               ],
             };
@@ -447,7 +450,7 @@ describe("ConnectCommand", () => {
             expect(handleRetrySpy.mock.lastCall).toMatchInlineSnapshot(`
               [
                 {
-                  "errorEmbed": [EndUserError: Test description],
+                  "errorEmbed": [EndUserError: Unable to match any of the Discord users to their Xbox accounts.\\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.],
                   "guildId": "fake-guild-id",
                   "message": {
                     "attachments": [],
@@ -465,15 +468,15 @@ describe("ConnectCommand", () => {
                     "embeds": [
                       {
                         "color": 16753920,
-                        "description": "Test description",
+                        "description": "Unable to match any of the Discord users to their Xbox accounts.\\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
                         "fields": [
                           {
+                            "inline": false,
                             "name": "Additional Information",
-                            "value": "Callback: stats
-              **key**: value",
+                            "value": "**Channel**: <#1251448849298362419>\\n**Queue**: 4435\\n**Started**: <t:1754832154:f>\\n**Completed**: <t:1754835655:f>",
                           },
                         ],
-                        "title": "Test Error",
+                        "title": "No matches found",
                       },
                     ],
                     "id": "1314562775950954626",

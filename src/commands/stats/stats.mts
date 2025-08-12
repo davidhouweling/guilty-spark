@@ -116,15 +116,20 @@ export class StatsCommand extends BaseCommand {
         }
         case InteractionType.MessageComponent: {
           const { custom_id } = interaction.data;
-          if (custom_id === InteractionButton.LoadGames.toString()) {
-            return {
-              response: {
-                type: InteractionResponseType.DeferredMessageUpdate,
-              },
-              jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
-            };
+          switch (custom_id) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+            case InteractionButton.LoadGames: {
+              return {
+                response: {
+                  type: InteractionResponseType.DeferredMessageUpdate,
+                },
+                jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
+              };
+            }
+            default: {
+              throw new Error(`Unknown interaction: ${custom_id}`);
+            }
           }
-          throw new Error("Unknown interaction");
         }
         case InteractionType.ModalSubmit: {
           throw new Error("Modals not supported");
@@ -255,7 +260,7 @@ export class StatsCommand extends BaseCommand {
               components: [
                 {
                   type: ComponentType.Button,
-                  custom_id: InteractionButton.LoadGames.toString(),
+                  custom_id: InteractionButton.LoadGames,
                   label: "Load game stats",
                   style: 1,
                   emoji: {
@@ -279,7 +284,6 @@ export class StatsCommand extends BaseCommand {
       await haloService.updateDiscordAssociations();
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
-        error.callbackType = "stats";
         error.appendData({
           Channel: `<#${channel}>`,
           Queue: computedQueue.toString(),
