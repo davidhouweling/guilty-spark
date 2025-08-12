@@ -9,7 +9,7 @@ export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
   Strongholds: ["Live Fire", "Lattice", "Recharge"],
   Oddball: ["Live Fire", "Recharge", "Lattice"],
   "King of the Hill": ["Live Fire", "Recharge", "Lattice"],
-  "Neutral Bomb": [],
+  "Neutral Bomb": ["Aquarius", "Fortress"],
 };
 
 export const OBJECTIVE_MODES: Omit<MapMode, "Slayer">[] = [
