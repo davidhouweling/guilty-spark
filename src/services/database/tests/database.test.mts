@@ -106,7 +106,7 @@ describe("Database Service", () => {
       changed_db: false,
     };
 
-    it("returns default GuildConfig with PlayerConnections when not found", async () => {
+    it("returns default GuildConfig with NeatQueueInformerPlayerConnections when not found", async () => {
       const guildId = "guild-123";
       const fakePreparedStatement = new FakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
@@ -120,11 +120,11 @@ describe("Database Service", () => {
         GuildId: guildId,
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "Y",
-        PlayerConnections: "Y",
+        NeatQueueInformerPlayerConnections: "Y",
       });
     });
 
-    it("auto-creates GuildConfig with PlayerConnections when requested", async () => {
+    it("auto-creates GuildConfig with NeatQueueInformerPlayerConnections when requested", async () => {
       const guildId = "guild-456";
       const fakePreparedStatement = new FakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
@@ -137,7 +137,7 @@ describe("Database Service", () => {
       const config = await databaseService.getGuildConfig(guildId, true);
 
       expect(runSpy).toHaveBeenCalled();
-      expect(config.PlayerConnections).toBe("Y");
+      expect(config.NeatQueueInformerPlayerConnections).toBe("Y");
     });
   });
 
@@ -153,7 +153,7 @@ describe("Database Service", () => {
       changed_db: false,
     };
 
-    it("updates PlayerConnections only", async () => {
+    it("updates NeatQueueInformerPlayerConnections only", async () => {
       const guildId = "guild-123";
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
@@ -162,9 +162,11 @@ describe("Database Service", () => {
         .spyOn(fakePreparedStatement, "run")
         .mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
 
-      await databaseService.updateGuildConfig(guildId, { PlayerConnections: "N" });
+      await databaseService.updateGuildConfig(guildId, { NeatQueueInformerPlayerConnections: "N" });
 
-      expect(prepareSpy).toHaveBeenCalledWith("UPDATE GuildConfig SET PlayerConnections = ? WHERE GuildId = ?");
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "UPDATE GuildConfig SET NeatQueueInformerPlayerConnections = ? WHERE GuildId = ?",
+      );
       expect(bindSpy).toHaveBeenCalledWith("N", guildId);
       expect(runSpy).toHaveBeenCalled();
     });
@@ -213,11 +215,11 @@ describe("Database Service", () => {
       await databaseService.updateGuildConfig(guildId, {
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "N",
-        PlayerConnections: "N",
+        NeatQueueInformerPlayerConnections: "N",
       });
 
       expect(prepareSpy).toHaveBeenCalledWith(
-        "UPDATE GuildConfig SET StatsReturn = ?, Medals = ?, PlayerConnections = ? WHERE GuildId = ?",
+        "UPDATE GuildConfig SET StatsReturn = ?, Medals = ?, NeatQueueInformerPlayerConnections = ? WHERE GuildId = ?",
       );
       expect(bindSpy).toHaveBeenCalledWith(StatsReturnType.SERIES_ONLY, "N", "N", guildId);
       expect(runSpy).toHaveBeenCalled();
@@ -244,7 +246,7 @@ describe("Database Service", () => {
         GuildId: guildId,
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "Y",
-        PlayerConnections: "Y",
+        NeatQueueInformerPlayerConnections: "Y",
       };
       vi.spyOn(fakeGetPreparedStatement, "first").mockResolvedValue(initialConfig);
       await databaseService.getGuildConfig(guildId);
@@ -255,7 +257,7 @@ describe("Database Service", () => {
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "run").mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
 
-      await databaseService.updateGuildConfig(guildId, { Medals: "N", PlayerConnections: "N" });
+      await databaseService.updateGuildConfig(guildId, { Medals: "N", NeatQueueInformerPlayerConnections: "N" });
 
       // Use public API to get updated config
       const updatedConfig = await databaseService.getGuildConfig(guildId);
@@ -263,7 +265,7 @@ describe("Database Service", () => {
         GuildId: guildId,
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "N",
-        PlayerConnections: "N",
+        NeatQueueInformerPlayerConnections: "N",
       });
     });
   });

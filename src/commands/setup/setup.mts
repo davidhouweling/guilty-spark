@@ -766,7 +766,7 @@ export class SetupCommand extends BaseCommand {
       const configDisplay = [
         `**Stats Display Mode:** ${statsDisplays.join(", ")}`,
         `**NeatQueue Integrations:** ${neatQueueIntegrationsCount}`,
-        `**NeatQueue Informer:** Player connections ${config.PlayerConnections == "Y" ? "enabled" : "disabled"}`,
+        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}`,
       ].join("\n");
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -1014,7 +1014,7 @@ export class SetupCommand extends BaseCommand {
       '-# If Guilty Spark does not have permissions when it tries to interact with the queue channel, the settings will switch to "Disabled"',
     ].join("\n");
     const configDisplay = [
-      `**Player Connections on queue start:** ${config.PlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
+      `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
     ].join("\n");
 
     const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -1776,7 +1776,7 @@ export class SetupCommand extends BaseCommand {
 
     try {
       await databaseService.updateGuildConfig(guildId, {
-        PlayerConnections: config.PlayerConnections === "Y" ? "N" : "Y",
+        NeatQueueInformerPlayerConnections: config.NeatQueueInformerPlayerConnections === "Y" ? "N" : "Y",
       });
       await this.setupSelectNeatQueueInformerJob(interaction);
     } catch (error) {

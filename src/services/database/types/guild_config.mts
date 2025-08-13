@@ -7,5 +7,5 @@ export interface GuildConfigRow {
   GuildId: string;
   StatsReturn: StatsReturnType;
   Medals: "Y" | "N";
-  PlayerConnections: "Y" | "N";
+  NeatQueueInformerPlayerConnections: "Y" | "N";
 }

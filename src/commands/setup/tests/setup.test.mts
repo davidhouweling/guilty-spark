@@ -108,7 +108,7 @@ describe("SetupCommand", () => {
           GuildId: "fake-guild-id",
           StatsReturn: StatsReturnType.SERIES_ONLY,
           Medals: "Y",
-          PlayerConnections: "Y",
+          NeatQueueInformerPlayerConnections: "Y",
         };
 
         getGuildConfigSpy.mockResolvedValue(mockConfig);
@@ -178,12 +178,12 @@ describe("SetupCommand", () => {
         });
       });
 
-      it("toggles PlayerConnections when NeatQueue Informer button is pressed", async () => {
+      it("toggles NeatQueueInformerPlayerConnections when NeatQueue Informer button is pressed", async () => {
         const mockConfig: GuildConfigRow = {
           GuildId: "fake-guild-id",
           StatsReturn: StatsReturnType.SERIES_ONLY,
           Medals: "Y",
-          PlayerConnections: "Y",
+          NeatQueueInformerPlayerConnections: "Y",
         };
 
         getGuildConfigSpy.mockResolvedValue(mockConfig);
@@ -202,16 +202,16 @@ describe("SetupCommand", () => {
         const { jobToComplete: informerJob } = setupCommand.execute(informerButtonInteraction);
         await Preconditions.checkExists(informerJob)();
 
-        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { PlayerConnections: "N" });
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { NeatQueueInformerPlayerConnections: "N" });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
 
-      it("enables PlayerConnections when NeatQueue Informer button is pressed and currently disabled", async () => {
+      it("enables NeatQueueInformerPlayerConnections when NeatQueue Informer button is pressed and currently disabled", async () => {
         const mockConfig: GuildConfigRow = {
           GuildId: "fake-guild-id",
           StatsReturn: StatsReturnType.SERIES_ONLY,
           Medals: "Y",
-          PlayerConnections: "N",
+          NeatQueueInformerPlayerConnections: "N",
         };
 
         getGuildConfigSpy.mockResolvedValue(mockConfig);
@@ -229,7 +229,7 @@ describe("SetupCommand", () => {
         const { jobToComplete: informerJob } = setupCommand.execute(informerButtonInteraction);
         await Preconditions.checkExists(informerJob)();
 
-        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { PlayerConnections: "Y" });
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { NeatQueueInformerPlayerConnections: "Y" });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
     });

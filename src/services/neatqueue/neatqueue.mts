@@ -380,7 +380,7 @@ export class NeatQueueService {
 
     try {
       const guildConfig = await databaseService.getGuildConfig(request.guild);
-      if (guildConfig.PlayerConnections !== "Y") {
+      if (guildConfig.NeatQueueInformerPlayerConnections !== "Y") {
         logService.debug("Player connections are disabled, skipping players post message");
         return;
       }
@@ -409,7 +409,7 @@ export class NeatQueueService {
 
       if ((error instanceof DiscordError && error.restError.code === 50001) || error === insufficientPermissionsError) {
         await databaseService.updateGuildConfig(request.guild, {
-          PlayerConnections: "N",
+          NeatQueueInformerPlayerConnections: "N",
         });
       }
     }
