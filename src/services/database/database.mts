@@ -73,13 +73,18 @@ export class DatabaseService {
       GuildId: guildId,
       StatsReturn: StatsReturnType.SERIES_ONLY,
       Medals: "Y",
-      PlayerConnections: "Y",
+      NeatQueueInformerPlayerConnections: "Y",
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, PlayerConnections) VALUES (?, ?, ?, ?)",
-      ).bind(defaultConfig.GuildId, defaultConfig.StatsReturn, defaultConfig.Medals, defaultConfig.PlayerConnections);
+        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections) VALUES (?, ?, ?, ?)",
+      ).bind(
+        defaultConfig.GuildId,
+        defaultConfig.StatsReturn,
+        defaultConfig.Medals,
+        defaultConfig.NeatQueueInformerPlayerConnections,
+      );
 
       await insertStmt.run();
     }
@@ -102,9 +107,9 @@ export class DatabaseService {
       values.push(updates.Medals);
     }
 
-    if (updates.PlayerConnections !== undefined) {
-      setStatements.push("PlayerConnections = ?");
-      values.push(updates.PlayerConnections);
+    if (updates.NeatQueueInformerPlayerConnections !== undefined) {
+      setStatements.push("NeatQueueInformerPlayerConnections = ?");
+      values.push(updates.NeatQueueInformerPlayerConnections);
     }
 
     if (setStatements.length === 0) {

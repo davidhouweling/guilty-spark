@@ -209,7 +209,7 @@ describe("NeatQueueService", () => {
         getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
         getGuildConfigSpy = vi
           .spyOn(databaseService, "getGuildConfig")
-          .mockResolvedValue(aFakeGuildConfigRow({ PlayerConnections: "Y" }));
+          .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "Y" }));
         updateGuildConfigSpy = vi.spyOn(databaseService, "updateGuildConfig").mockResolvedValue();
         warnSpy = vi.spyOn(logService, "warn");
 
@@ -321,8 +321,10 @@ describe("NeatQueueService", () => {
         expect(createMessageSpy).not.toHaveBeenCalled();
       });
 
-      it("skips message creation when PlayerConnections is disabled", async () => {
-        getGuildConfigSpy.mockReset().mockResolvedValue(aFakeGuildConfigRow({ PlayerConnections: "N" }));
+      it("skips message creation when NeatQueueInformerPlayerConnections is disabled", async () => {
+        getGuildConfigSpy
+          .mockReset()
+          .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }));
 
         await jobToComplete();
 
@@ -342,7 +344,7 @@ describe("NeatQueueService", () => {
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith(
           "guild-id",
-          expect.objectContaining({ PlayerConnections: "N" }),
+          expect.objectContaining({ NeatQueueInformerPlayerConnections: "N" }),
         );
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
@@ -355,7 +357,7 @@ describe("NeatQueueService", () => {
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith(
           "guild-id",
-          expect.objectContaining({ PlayerConnections: "N" }),
+          expect.objectContaining({ NeatQueueInformerPlayerConnections: "N" }),
         );
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();

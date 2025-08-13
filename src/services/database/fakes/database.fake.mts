@@ -29,7 +29,7 @@ export function aFakeGuildConfigRow(opts: Partial<GuildConfigRow> = {}): GuildCo
     GuildId: "discord_guild_01",
     Medals: "Y",
     StatsReturn: StatsReturnType.SERIES_ONLY,
-    PlayerConnections: "Y",
+    NeatQueueInformerPlayerConnections: "Y",
   };
 
   return {
