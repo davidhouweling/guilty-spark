@@ -1,5 +1,7 @@
 // HCS map/mode pool
 
+export const HCS_LAST_UPDATED = "14 August 2025";
+
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type Format = "random" | "objective" | "slayer";
 

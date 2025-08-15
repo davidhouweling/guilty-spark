@@ -29,7 +29,13 @@ import {
 } from "discord-api-types/v10";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
-import { StatsReturnType } from "../../services/database/types/guild_config.mjs";
+import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
+import {
+  NeatQueueInformerMapsFormatType,
+  NeatQueueInformerMapsPlaylistType,
+  NeatQueueInformerMapsPostType,
+  StatsReturnType,
+} from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { escapeRegExp } from "../../base/regex.mjs";
@@ -37,6 +43,7 @@ import type { NeatQueueConfigRow } from "../../services/database/types/neat_queu
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
+import { HCS_LAST_UPDATED } from "../maps/hcs.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -69,6 +76,12 @@ export enum InteractionComponent {
   NeatQueueIntegrationEditChannelDelete = "setup_neat_queue_edit_delete",
   NeatQueueIntegrationEditChannelBack = "setup_neat_queue_edit_channel_back",
   NeatQueueInformerPlayersOnStart = "setup_neat_queue_informer_players_on_start",
+  NeatQueueInformerMaps = "setup_neat_queue_informer_maps",
+  NeatQueueInformerMapsPost = "setup_neat_queue_informer_maps_post",
+  NeatQueueInformerMapsPlaylist = "setup_neat_queue_informer_maps_playlist",
+  NeatQueueInformerMapsFormat = "setup_neat_queue_informer_maps_format",
+  NeatQueueInformerMapsCount = "setup_neat_queue_informer_maps_count",
+  NeatQueueInformerMapsBack = "setup_neat_queue_informer_maps_back",
 }
 
 const displayModeOptions = [
@@ -322,6 +335,28 @@ const ActionButtons = new Map<InteractionComponent, APIButtonComponentWithCustom
     },
   ],
   [
+    InteractionComponent.NeatQueueInformerMaps,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerMaps,
+      label: "Configure maps generation",
+      style: ButtonStyle.Primary,
+      emoji: { name: "🗺️" },
+    },
+  ],
+  [
+    InteractionComponent.NeatQueueInformerMapsBack,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerMapsBack,
+      label: "Back",
+      style: ButtonStyle.Secondary,
+      emoji: {
+        name: "🔙",
+      },
+    },
+  ],
+  [
     InteractionComponent.MainMenu,
     {
       type: ComponentType.Button,
@@ -487,6 +522,52 @@ export class SetupCommand extends BaseCommand {
       data: {
         component_type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueInformerPlayersOnStart,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerMaps,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.NeatQueueInformerMapsPost,
+        values: [],
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.NeatQueueInformerMapsPlaylist,
+        values: [],
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.NeatQueueInformerMapsFormat,
+        values: [],
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: InteractionComponent.NeatQueueInformerMapsCount,
+        values: [],
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerMapsBack,
       },
     },
     {
@@ -727,6 +808,35 @@ export class SetupCommand extends BaseCommand {
             this.setupNeatQueueInformerTogglePlayerConnectionsJob(interaction as APIMessageComponentButtonInteraction),
         };
       }
+      case InteractionComponent.NeatQueueInformerMaps: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
+            this.setupNeatQueueInformerConfigureMapsJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
+      case InteractionComponent.NeatQueueInformerMapsPost:
+      case InteractionComponent.NeatQueueInformerMapsPlaylist:
+      case InteractionComponent.NeatQueueInformerMapsFormat:
+      case InteractionComponent.NeatQueueInformerMapsCount: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () => this.updateMapsConfig(interaction as APIMessageComponentSelectMenuInteraction),
+        };
+      }
+      case InteractionComponent.NeatQueueInformerMapsBack: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
+            this.setupSelectNeatQueueInformerJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
       case InteractionComponent.MainMenu: {
         return {
           response: {
@@ -766,7 +876,7 @@ export class SetupCommand extends BaseCommand {
       const configDisplay = [
         `**Stats Display Mode:** ${statsDisplays.join(", ")}`,
         `**NeatQueue Integrations:** ${neatQueueIntegrationsCount}`,
-        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}`,
+        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
       ].join("\n");
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -999,51 +1109,60 @@ export class SetupCommand extends BaseCommand {
 
   private async setupSelectNeatQueueInformerJob(interaction: APIMessageComponentInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
-    const config = await databaseService.getGuildConfig(guildId, true);
 
-    const description = [
-      "This feature works in conjunction with NeatQueue integration and applies to the whole server.",
-      "",
-      "To enable this feature:",
-      '1. Give "Guilty Spark" a role',
-      "2. Run the two commands",
-      '  - `/tempchannels permissions set role="<role>" permission="View Channel" value="Allow"`',
-      '  - `/tempchannels permissions set role="<role>" permission="Send Messages" value="Allow"`',
-      "",
-      '-# If Guilty Spark does not have permissions when it tries to interact with the queue channel, the settings will switch to "Disabled"',
-    ].join("\n");
-    const configDisplay = [
-      `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
-    ].join("\n");
+    try {
+      const guildId = Preconditions.checkExists(interaction.guild_id);
+      const config = await databaseService.getGuildConfig(guildId, true);
 
-    const content: RESTPostAPIWebhookWithTokenJSONBody = {
-      content: "",
-      embeds: [
-        {
-          title: "NeatQueue Informer",
-          description,
-          fields: [
-            {
-              name: "",
-              value: configDisplay,
-            },
-          ],
-        },
-      ],
-      components: [
-        {
-          type: ComponentType.ActionRow,
-          components: [this.getActionButton(InteractionComponent.NeatQueueInformerPlayersOnStart)],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [this.getActionButton(InteractionComponent.MainMenu)],
-        },
-      ],
-    };
+      const description = [
+        "This feature works in conjunction with NeatQueue integration and applies to the whole server.",
+        "",
+        "To enable this feature:",
+        '1. Give "Guilty Spark" a role',
+        "2. Run the two commands",
+        '  - `/tempchannels permissions set role="<role>" permission="View Channel" value="Allow"`',
+        '  - `/tempchannels permissions set role="<role>" permission="Send Messages" value="Allow"`',
+        "",
+        '-# If Guilty Spark does not have permissions when it tries to interact with the queue channel, the settings will switch to "Disabled"',
+      ].join("\n");
+      const configDisplay = [
+        `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
+        `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} maps`,
+      ].join("\n");
 
-    await discordService.updateDeferredReply(interaction.token, content);
+      const content: RESTPostAPIWebhookWithTokenJSONBody = {
+        content: "",
+        embeds: [
+          {
+            title: "NeatQueue Informer",
+            description,
+            fields: [
+              {
+                name: "",
+                value: configDisplay,
+              },
+            ],
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              this.getActionButton(InteractionComponent.NeatQueueInformerPlayersOnStart),
+              this.getActionButton(InteractionComponent.NeatQueueInformerMaps),
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [this.getActionButton(InteractionComponent.MainMenu)],
+          },
+        ],
+      };
+
+      await discordService.updateDeferredReply(interaction.token, content);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
   private neatQueueIntegrationAddWizardBack(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
@@ -1779,6 +1898,256 @@ export class SetupCommand extends BaseCommand {
         NeatQueueInformerPlayerConnections: config.NeatQueueInformerPlayerConnections === "Y" ? "N" : "Y",
       });
       await this.setupSelectNeatQueueInformerJob(interaction);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async setupNeatQueueInformerConfigureMapsJob(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+
+    try {
+      const config = await databaseService.getGuildConfig(guildId, true);
+
+      const configDisplay = [
+        `**Trigger:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}`,
+        `**Playlist:** ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}`,
+        `**Format:** ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}`,
+        `**Count:** ${config.NeatQueueInformerMapsCount.toString()}`,
+      ].join("\n");
+
+      const content: RESTPostAPIWebhookWithTokenJSONBody = {
+        content: "",
+        embeds: [
+          {
+            title: "NeatQueue Informer Maps Configuration",
+            description: "",
+            fields: [
+              {
+                name: "",
+                value: configDisplay,
+              },
+            ],
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: InteractionComponent.NeatQueueInformerMapsPost,
+                options: [
+                  {
+                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.AUTO),
+                    value: NeatQueueInformerMapsPostType.AUTO,
+                    description: "Automatically generate maps as soon as the queue channel is created",
+                  },
+                  {
+                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.BUTTON),
+                    value: NeatQueueInformerMapsPostType.BUTTON,
+                    description: "Display a button for players to manually generate the maps",
+                  },
+                  {
+                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.OFF),
+                    value: NeatQueueInformerMapsPostType.OFF,
+                    description: "No maps generated or button displayed, players can still use /maps command",
+                  },
+                ],
+                placeholder: "Configure trigger",
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: InteractionComponent.NeatQueueInformerMapsPlaylist,
+                options: [
+                  {
+                    label: this.configMapPlaylistToString(NeatQueueInformerMapsPlaylistType.HCS_CURRENT),
+                    value: NeatQueueInformerMapsPlaylistType.HCS_CURRENT,
+                    description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
+                  },
+                  {
+                    label: this.configMapPlaylistToString(NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL),
+                    value: NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL,
+                    description: "All maps and modes that have been played at any HCS major event",
+                  },
+                ],
+                placeholder: "Configure playlist",
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: InteractionComponent.NeatQueueInformerMapsFormat,
+                options: [
+                  {
+                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.HCS),
+                    value: NeatQueueInformerMapsFormatType.HCS,
+                    description: "Obj, slayer, obj, obj, slayer, ...",
+                  },
+                  {
+                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.RANDOM),
+                    value: NeatQueueInformerMapsFormatType.RANDOM,
+                    description: "Randomly pick objective or slayer for each map",
+                  },
+                  {
+                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.OBJECTIVE),
+                    value: NeatQueueInformerMapsFormatType.OBJECTIVE,
+                    description: "Only pick objective modes",
+                  },
+                  {
+                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.SLAYER),
+                    value: NeatQueueInformerMapsFormatType.SLAYER,
+                    description: "Only pick slayer modes",
+                  },
+                ],
+                placeholder: "Configure format",
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: InteractionComponent.NeatQueueInformerMapsCount,
+                options: [
+                  {
+                    label: "1",
+                    value: "1",
+                  },
+                  {
+                    label: "3",
+                    value: "3",
+                  },
+                  {
+                    label: "5",
+                    value: "5",
+                  },
+                  {
+                    label: "7",
+                    value: "7",
+                  },
+                ],
+                placeholder: "Configure count",
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              this.getActionButton(InteractionComponent.NeatQueueInformerMapsBack),
+              this.getActionButton(InteractionComponent.MainMenu),
+            ],
+          },
+        ],
+      };
+
+      await discordService.updateDeferredReply(interaction.token, content);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private configMapPostToString(mapPostType: NeatQueueInformerMapsPostType): string {
+    switch (mapPostType) {
+      case NeatQueueInformerMapsPostType.AUTO: {
+        return "Automatic";
+      }
+      case NeatQueueInformerMapsPostType.BUTTON: {
+        return "As a button";
+      }
+      case NeatQueueInformerMapsPostType.OFF: {
+        return "Off";
+      }
+      default: {
+        throw new UnreachableError(mapPostType);
+      }
+    }
+  }
+
+  private configMapPlaylistToString(playlistType: NeatQueueInformerMapsPlaylistType): string {
+    switch (playlistType) {
+      case NeatQueueInformerMapsPlaylistType.HCS_CURRENT: {
+        return "HCS - Current";
+      }
+      case NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL: {
+        return "HCS - Historical";
+      }
+      default: {
+        throw new UnreachableError(playlistType);
+      }
+    }
+  }
+
+  private configMapFormatToString(formatType: NeatQueueInformerMapsFormatType): string {
+    switch (formatType) {
+      case NeatQueueInformerMapsFormatType.HCS: {
+        return "HCS";
+      }
+      case NeatQueueInformerMapsFormatType.RANDOM: {
+        return "Random";
+      }
+      case NeatQueueInformerMapsFormatType.OBJECTIVE: {
+        return "Objective only";
+      }
+      case NeatQueueInformerMapsFormatType.SLAYER: {
+        return "Slayer only";
+      }
+      default: {
+        throw new UnreachableError(formatType);
+      }
+    }
+  }
+
+  private async updateMapsConfig(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+    try {
+      const guildId = Preconditions.checkExists(interaction.guild_id);
+      const config: Partial<GuildConfigRow> = {};
+
+      const value = Preconditions.checkExists(interaction.data.values[0]);
+      type SupportedMapsConfigComponent =
+        | InteractionComponent.NeatQueueInformerMapsPost
+        | InteractionComponent.NeatQueueInformerMapsPlaylist
+        | InteractionComponent.NeatQueueInformerMapsFormat
+        | InteractionComponent.NeatQueueInformerMapsCount;
+      const customId = interaction.data.custom_id as SupportedMapsConfigComponent;
+
+      switch (customId) {
+        case InteractionComponent.NeatQueueInformerMapsPost: {
+          config.NeatQueueInformerMapsPost = value as NeatQueueInformerMapsPostType;
+          break;
+        }
+        case InteractionComponent.NeatQueueInformerMapsPlaylist: {
+          config.NeatQueueInformerMapsPlaylist = value as NeatQueueInformerMapsPlaylistType;
+          break;
+        }
+        case InteractionComponent.NeatQueueInformerMapsFormat: {
+          config.NeatQueueInformerMapsFormat = value as NeatQueueInformerMapsFormatType;
+          break;
+        }
+        case InteractionComponent.NeatQueueInformerMapsCount: {
+          config.NeatQueueInformerMapsCount = parseInt(value, 10);
+          break;
+        }
+        default: {
+          throw new UnreachableError(customId);
+        }
+      }
+
+      await databaseService.updateGuildConfig(guildId, config);
+      await this.setupNeatQueueInformerConfigureMapsJob(interaction);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }

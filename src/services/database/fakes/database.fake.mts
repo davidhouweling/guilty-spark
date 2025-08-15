@@ -4,7 +4,12 @@ import { DatabaseService } from "../database.mjs";
 import type { DiscordAssociationsRow } from "../types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../types/discord_associations.mjs";
 import type { GuildConfigRow } from "../types/guild_config.mjs";
-import { StatsReturnType } from "../types/guild_config.mjs";
+import {
+  StatsReturnType,
+  NeatQueueInformerMapsPostType,
+  NeatQueueInformerMapsPlaylistType,
+  NeatQueueInformerMapsFormatType,
+} from "../types/guild_config.mjs";
 import type { NeatQueueConfigRow } from "../types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config.mjs";
 
@@ -30,6 +35,10 @@ export function aFakeGuildConfigRow(opts: Partial<GuildConfigRow> = {}): GuildCo
     Medals: "Y",
     StatsReturn: StatsReturnType.SERIES_ONLY,
     NeatQueueInformerPlayerConnections: "Y",
+    NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType.BUTTON,
+    NeatQueueInformerMapsPlaylist: NeatQueueInformerMapsPlaylistType.HCS_CURRENT,
+    NeatQueueInformerMapsFormat: NeatQueueInformerMapsFormatType.HCS,
+    NeatQueueInformerMapsCount: 5,
   };
 
   return {
