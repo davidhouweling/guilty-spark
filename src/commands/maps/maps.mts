@@ -19,26 +19,10 @@ import {
 import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { Services } from "../../services/install.mjs";
+import type { CountType } from "../../services/halo/halo.mjs";
+import { PlaylistType, FormatType } from "../../services/halo/halo.mjs";
+import type { MapMode } from "../../services/halo/hcs.mjs";
 import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
-import type { Format, MapMode } from "./hcs.mjs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
-import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
-import { generateRoundRobinMaps } from "./round-robin.mjs";
-
-type CountType = 1 | 3 | 5 | 7;
-
-export enum PlaylistType {
-  HcsCurrent = "HCS - current",
-  HcsHistorical = "HCS - historical",
-}
-
-export enum FormatType {
-  Hcs = "HCS (obj slayer obj obj slayer...)",
-  Random = "Random",
-  RandomObjective = "Random Objective only",
-  RandomSlayer = "Random Slayer only",
-}
 
 export enum InteractionComponent {
   Initiate = "btn_maps_initiate",
@@ -52,64 +36,6 @@ export enum InteractionComponent {
 }
 
 export class MapsCommand extends BaseCommand {
-  private readonly roundRobinFn: generateRoundRobinMapsFn;
-
-  constructor(services: Services, env: Env, roundRobinFn: generateRoundRobinMapsFn = generateRoundRobinMaps) {
-    super(services, env);
-    this.roundRobinFn = roundRobinFn;
-  }
-
-  public getMapModeFormat(format: FormatType, count: CountType): Format[] {
-    switch (format) {
-      case FormatType.Hcs: {
-        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
-      }
-      case FormatType.Random: {
-        return Array(count).fill("random") as Format[];
-      }
-      case FormatType.RandomObjective: {
-        return Array(count).fill("objective") as Format[];
-      }
-      case FormatType.RandomSlayer: {
-        return Array(count).fill("slayer") as Format[];
-      }
-      default: {
-        throw new UnreachableError(format);
-      }
-    }
-  }
-
-  public generateMaps({
-    count,
-    playlist,
-    format,
-  }: {
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
-  }): { mode: MapMode; map: string }[] {
-    const mapSet: Record<MapMode, string[]> =
-      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
-
-    const formatSequence = this.getMapModeFormat(format, count);
-
-    // Build all possible (mode, map) pairs
-    const allPairs: { mode: MapMode; map: string }[] = [];
-    for (const mode of ALL_MODES) {
-      for (const map of mapSet[mode]) {
-        allPairs.push({ mode, map });
-      }
-    }
-
-    return this.roundRobinFn({
-      count,
-      pool: allPairs,
-      formatSequence: formatSequence.map((f: Format) =>
-        f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
-      ),
-    });
-  }
-
   readonly data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
@@ -268,7 +194,7 @@ export class MapsCommand extends BaseCommand {
       formatOption?.type === ApplicationCommandOptionType.String ? (formatOption.value as FormatType) : FormatType.Hcs;
 
     const state = { count, playlist, format };
-    const maps = this.generateMaps(state);
+    const maps = this.services.haloService.generateMaps(state);
 
     return {
       response: {
@@ -312,7 +238,7 @@ export class MapsCommand extends BaseCommand {
     const count = 5;
     const playlist = PlaylistType.HcsCurrent;
     const format = FormatType.Hcs;
-    const maps = this.generateMaps({ count, playlist, format });
+    const maps = this.services.haloService.generateMaps({ count, playlist, format });
 
     return {
       response: {
@@ -333,7 +259,7 @@ export class MapsCommand extends BaseCommand {
   ): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const count = this.getCountFromInteractionButton(customId);
-    const maps = this.generateMaps({ ...state, count });
+    const maps = this.services.haloService.generateMaps({ ...state, count });
 
     return {
       response: {
@@ -347,7 +273,7 @@ export class MapsCommand extends BaseCommand {
     const state = this.getStateFromEmbed(interaction);
     const playlist = interaction.data.values[0] as PlaylistType;
 
-    const maps = this.generateMaps({ ...state, playlist });
+    const maps = this.services.haloService.generateMaps({ ...state, playlist });
 
     return {
       response: {
@@ -361,7 +287,7 @@ export class MapsCommand extends BaseCommand {
     const state = this.getStateFromEmbed(interaction);
     const format = interaction.data.values[0] as FormatType;
 
-    const maps = this.generateMaps({ ...state, format });
+    const maps = this.services.haloService.generateMaps({ ...state, format });
 
     return {
       response: {

@@ -43,7 +43,7 @@ import type { NeatQueueConfigRow } from "../../services/database/types/neat_queu
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
-import { HCS_LAST_UPDATED } from "../maps/hcs.mjs";
+import { HCS_LAST_UPDATED } from "../../services/halo/hcs.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",

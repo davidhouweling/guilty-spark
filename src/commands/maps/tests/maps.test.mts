@@ -1,4 +1,3 @@
-import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import type {
   APIInteractionResponseChannelMessageWithSource,
@@ -23,14 +22,14 @@ import {
   ButtonStyle,
   InteractionResponseType,
 } from "discord-api-types/v10";
-import type { MapMode } from "../hcs.mjs";
-import { MapsCommand, PlaylistType, InteractionComponent, FormatType } from "../maps.mjs";
+import type { MapMode } from "../../../services/halo/hcs.mjs";
+import { PlaylistType, FormatType } from "../../../services/halo/halo.mjs";
+import { MapsCommand, InteractionComponent } from "../maps.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import type { generateRoundRobinMapsFn, RoundRobinArgs } from "../round-robin.mjs";
 
 function aFakeMapsInteractionWith(
   options: { name: string; value: unknown; type: number }[] = [],
@@ -260,20 +259,20 @@ describe("MapsCommand", () => {
   let command: MapsCommand;
   let services: Services;
   const env = aFakeEnvWith();
-  let mockRoundRobin: MockInstance<generateRoundRobinMapsFn>;
+  const mockMaps = [
+    { mode: "Slayer" as MapMode, map: "Live Fire" },
+    { mode: "Oddball" as MapMode, map: "Streets" },
+    { mode: "Strongholds" as MapMode, map: "Bazaar" },
+    { mode: "CTF" as MapMode, map: "Aquarius" },
+    { mode: "Slayer" as MapMode, map: "Recharge" },
+  ];
 
   beforeEach(() => {
     services = installFakeServicesWith({ env });
-    mockRoundRobin = vi.fn<generateRoundRobinMapsFn>(() => [
-      { mode: "Slayer" as MapMode, map: "Live Fire" },
-      { mode: "Oddball" as MapMode, map: "Streets" },
-      { mode: "Strongholds" as MapMode, map: "Bazaar" },
-      { mode: "CTF" as MapMode, map: "Aquarius" },
-      { mode: "Slayer" as MapMode, map: "Recharge" },
-    ]);
-    command = new MapsCommand(services, env, mockRoundRobin as unknown as generateRoundRobinMapsFn);
+    command = new MapsCommand(services, env);
     vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
     vi.spyOn(services.discordService, "getEmojiFromName").mockReturnValue(":GameCoachGG:");
+    vi.spyOn(services.haloService, "generateMaps").mockReturnValue(mockMaps);
   });
 
   describe("/maps basic usage", () => {
@@ -443,19 +442,5 @@ describe("MapsCommand", () => {
       expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
       expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
     });
-  });
-
-  it("calls the injected roundRobinFn with correct arguments", () => {
-    command.generateMaps({
-      count: 5,
-      playlist: PlaylistType.HcsCurrent,
-      format: FormatType.Hcs,
-    });
-    expect(mockRoundRobin.mock.calls.length).toBe(1);
-
-    const [call] = mockRoundRobin.mock.calls[0] as [RoundRobinArgs];
-    expect(call.count).toBe(5);
-    expect(Array.isArray(call.pool)).toBe(true);
-    expect(Array.isArray(call.formatSequence)).toBe(true);
   });
 });
