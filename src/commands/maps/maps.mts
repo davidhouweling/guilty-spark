@@ -21,7 +21,7 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { CountType } from "../../services/halo/halo.mjs";
 import { PlaylistType, FormatType } from "../../services/halo/halo.mjs";
-import type { MapMode } from "../../services/halo/hcs.mjs";
+import { HCS_LAST_UPDATED, type MapMode } from "../../services/halo/hcs.mjs";
 import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
 
 export enum InteractionComponent {
@@ -468,11 +468,13 @@ export class MapsCommand extends BaseCommand {
                 {
                   label: PlaylistType.HcsCurrent,
                   value: PlaylistType.HcsCurrent,
+                  description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
                   default: playlist === PlaylistType.HcsCurrent,
                 },
                 {
-                  label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
+                  label: PlaylistType.HcsHistorical,
                   value: PlaylistType.HcsHistorical,
+                  description: "All maps and modes that have been played at any HCS major event",
                   default: playlist === PlaylistType.HcsHistorical,
                 },
               ],
@@ -490,21 +492,25 @@ export class MapsCommand extends BaseCommand {
                 {
                   label: FormatType.Hcs,
                   value: FormatType.Hcs,
+                  description: "Obj, slayer, obj, obj, slayer, ...",
                   default: format === FormatType.Hcs,
                 },
                 {
                   label: FormatType.Random,
                   value: FormatType.Random,
+                  description: "Randomly pick objective or slayer for each map",
                   default: format === FormatType.Random,
                 },
                 {
                   label: FormatType.RandomObjective,
                   value: FormatType.RandomObjective,
+                  description: "Only pick objective modes",
                   default: format === FormatType.RandomObjective,
                 },
                 {
                   label: FormatType.RandomSlayer,
                   value: FormatType.RandomSlayer,
+                  description: "Only pick slayer modes",
                   default: format === FormatType.RandomSlayer,
                 },
               ],
