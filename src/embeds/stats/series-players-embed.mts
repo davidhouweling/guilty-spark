@@ -1,6 +1,6 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
-import { Preconditions } from "../base/preconditions.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 import type { EmbedPlayerStats, PlayerTeamStats } from "./base-match-embed.mjs";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 

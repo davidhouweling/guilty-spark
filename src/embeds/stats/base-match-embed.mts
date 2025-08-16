@@ -1,9 +1,9 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
-import type { HaloService, Medal } from "../services/halo/halo.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
-import type { DiscordService } from "../services/discord/discord.mjs";
-import type { GuildConfigRow } from "../services/database/types/guild_config.mjs";
+import type { HaloService, Medal } from "../../services/halo/halo.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
+import type { DiscordService } from "../../services/discord/discord.mjs";
+import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];

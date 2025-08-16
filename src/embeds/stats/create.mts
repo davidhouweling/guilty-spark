@@ -1,7 +1,7 @@
 import { GameVariantCategory } from "halo-infinite-api";
-import type { GuildConfigRow } from "../services/database/types/guild_config.mjs";
-import type { DiscordService } from "../services/discord/discord.mjs";
-import type { HaloService } from "../services/halo/halo.mjs";
+import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
+import type { DiscordService } from "../../services/discord/discord.mjs";
+import type { HaloService } from "../../services/halo/halo.mjs";
 import { AttritionMatchEmbed } from "./attrition-match-embed.mjs";
 import type { BaseMatchEmbed } from "./base-match-embed.mjs";
 import { CtfMatchEmbed } from "./ctf-match-embed.mjs";

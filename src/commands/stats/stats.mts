@@ -22,15 +22,15 @@ import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { NEAT_QUEUE_BOT_USER_ID, type QueueData } from "../../services/discord/discord.mjs";
-import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
-import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
-import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
-import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
+import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed.mjs";
+import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
+import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
+import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 import { StatsReturnType } from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
-import { create } from "../../embeds/create.mjs";
+import { create } from "../../embeds/stats/create.mjs";
 
 export enum InteractionButton {
   LoadGames = "btn_stats_load_games",

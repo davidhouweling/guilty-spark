@@ -19,18 +19,18 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   SeriesOverviewEmbedFinalTeams,
   SeriesOverviewEmbedSubstitution,
-} from "../../embeds/series-overview-embed.mjs";
-import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
-import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
-import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
+} from "../../embeds/stats/series-overview-embed.mjs";
+import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
+import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
+import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { GuildConfigRow } from "../database/types/guild_config.mjs";
 import { StatsReturnType } from "../database/types/guild_config.mjs";
 import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats.mjs";
-import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
+import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
-import { create } from "../../embeds/create.mjs";
+import { create } from "../../embeds/stats/create.mjs";
 import { GamesRetrievable } from "../database/types/discord_associations.mjs";
 import { DiscordError } from "../discord/discord-error.mjs";
 import type {
