@@ -24,7 +24,8 @@ import {
 } from "discord-api-types/v10";
 import type { MapMode } from "../../../services/halo/hcs.mjs";
 import { PlaylistType, FormatType } from "../../../services/halo/halo.mjs";
-import { MapsCommand, InteractionComponent } from "../maps.mjs";
+import { MapsCommand } from "../maps.mjs";
+import { InteractionComponent } from "../../../embeds/maps-embed.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";

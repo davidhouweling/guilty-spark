@@ -1,7 +1,6 @@
 import type {
   APIApplicationCommandInteraction,
   APIButtonComponentWithCustomId,
-  APIEmbed,
   APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
@@ -21,19 +20,8 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { CountType } from "../../services/halo/halo.mjs";
 import { PlaylistType, FormatType } from "../../services/halo/halo.mjs";
-import { HCS_LAST_UPDATED, type MapMode } from "../../services/halo/hcs.mjs";
-import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
-
-export enum InteractionComponent {
-  Initiate = "btn_maps_initiate",
-  Roll1 = "btn_maps_roll_1",
-  Roll3 = "btn_maps_roll_3",
-  Roll5 = "btn_maps_roll_5",
-  Roll7 = "btn_maps_roll_7",
-  PlaylistSelect = "select_maps_playlist",
-  FormatSelect = "select_maps_format",
-  Repost = "btn_maps_repost",
-}
+import { type MapMode } from "../../services/halo/hcs.mjs";
+import { MapsEmbed, InteractionComponent } from "../../embeds/maps-embed.mjs";
 
 export class MapsCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -199,7 +187,14 @@ export class MapsCommand extends BaseCommand {
     return {
       response: {
         type: InteractionResponseType.ChannelMessageWithSource,
-        data: this.createMapsResponse({ interaction, ...state, maps }),
+        data: this.createMapsResponse({
+          userId: Preconditions.checkExists(
+            interaction.member?.user.id ?? interaction.user?.id,
+            "expected either an interaction member id or user id but none found",
+          ),
+          ...state,
+          maps,
+        }),
       },
     };
   }
@@ -247,7 +242,16 @@ export class MapsCommand extends BaseCommand {
       jobToComplete: async (): Promise<void> => {
         await this.services.discordService.createMessage(
           interaction.channel.id,
-          this.createMapsResponse({ interaction, count, playlist, format, maps }),
+          this.createMapsResponse({
+            userId: Preconditions.checkExists(
+              interaction.member?.user.id ?? interaction.user?.id,
+              "expected either an interaction member id or user id but none found",
+            ),
+            count,
+            playlist,
+            format,
+            maps,
+          }),
         );
       },
     };
@@ -264,7 +268,15 @@ export class MapsCommand extends BaseCommand {
     return {
       response: {
         type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, count, maps }),
+        data: this.createMapsResponse({
+          userId: Preconditions.checkExists(
+            interaction.member?.user.id ?? interaction.user?.id,
+            "expected either an interaction member id or user id but none found",
+          ),
+          ...state,
+          count,
+          maps,
+        }),
       },
     };
   }
@@ -278,7 +290,15 @@ export class MapsCommand extends BaseCommand {
     return {
       response: {
         type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, playlist, maps }),
+        data: this.createMapsResponse({
+          userId: Preconditions.checkExists(
+            interaction.member?.user.id ?? interaction.user?.id,
+            "expected either an interaction member id or user id but none found",
+          ),
+          ...state,
+          playlist,
+          maps,
+        }),
       },
     };
   }
@@ -292,7 +312,15 @@ export class MapsCommand extends BaseCommand {
     return {
       response: {
         type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, format, maps }),
+        data: this.createMapsResponse({
+          userId: Preconditions.checkExists(
+            interaction.member?.user.id ?? interaction.user?.id,
+            "expected either an interaction member id or user id but none found",
+          ),
+          ...state,
+          format,
+          maps,
+        }),
       },
     };
   }
@@ -383,16 +411,13 @@ export class MapsCommand extends BaseCommand {
   }
 
   private createMapsResponse({
-    interaction,
+    userId,
     count,
     playlist,
     format,
     maps,
   }: {
-    interaction:
-      | APIApplicationCommandInteraction
-      | APIMessageComponentButtonInteraction
-      | APIMessageComponentSelectMenuInteraction;
+    userId: string;
     count: CountType;
     playlist: PlaylistType;
     format: FormatType;
@@ -401,151 +426,17 @@ export class MapsCommand extends BaseCommand {
       map: string;
     }[];
   }): APIInteractionResponseCallbackData {
-    const titles = ["#", "Mode", "Map"];
-    const tableData = [titles];
-    for (const [index, { mode, map }] of maps.entries()) {
-      const gamecoachGgUrl = GAMECOACH_GG_URLS[map];
-      const mapString =
-        gamecoachGgUrl != null
-          ? `[${map} ${this.services.discordService.getEmojiFromName("GameCoachGG")}](${gamecoachGgUrl})`
-          : map;
-      tableData.push([String(index + 1), mode, mapString]);
-    }
+    const mapsEmbed = new MapsEmbed(
+      { discordService: this.services.discordService },
+      {
+        userId,
+        count,
+        playlist,
+        format,
+        maps,
+      },
+    );
 
-    const embed: APIEmbed = {
-      title: `Maps: ${playlist}`,
-      color: 0x5865f2,
-      fields: [],
-    };
-    this.addEmbedFields(embed, titles, tableData);
-
-    if (interaction.member?.user.id != null) {
-      embed.fields?.push({
-        name: "",
-        value: `-# Generated by <@${interaction.member.user.id}>`,
-      });
-    }
-
-    return {
-      embeds: [embed],
-      components: [
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll1,
-              label: "Regen maps (count: 1)",
-              style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll3,
-              label: "Regen maps (count: 3)",
-              style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll5,
-              label: "Regen maps (count: 5)",
-              style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll7,
-              label: "Regen maps (count: 7)",
-              style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.StringSelect,
-              custom_id: InteractionComponent.PlaylistSelect,
-              options: [
-                {
-                  label: PlaylistType.HcsCurrent,
-                  value: PlaylistType.HcsCurrent,
-                  description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
-                  default: playlist === PlaylistType.HcsCurrent,
-                },
-                {
-                  label: PlaylistType.HcsHistorical,
-                  value: PlaylistType.HcsHistorical,
-                  description: "All maps and modes that have been played at any HCS major event",
-                  default: playlist === PlaylistType.HcsHistorical,
-                },
-              ],
-              placeholder: "Select a playlist",
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.StringSelect,
-              custom_id: InteractionComponent.FormatSelect,
-              options: [
-                {
-                  label: FormatType.Hcs,
-                  value: FormatType.Hcs,
-                  description: "Obj, slayer, obj, obj, slayer, ...",
-                  default: format === FormatType.Hcs,
-                },
-                {
-                  label: FormatType.Random,
-                  value: FormatType.Random,
-                  description: "Randomly pick objective or slayer for each map",
-                  default: format === FormatType.Random,
-                },
-                {
-                  label: FormatType.RandomObjective,
-                  value: FormatType.RandomObjective,
-                  description: "Only pick objective modes",
-                  default: format === FormatType.RandomObjective,
-                },
-                {
-                  label: FormatType.RandomSlayer,
-                  value: FormatType.RandomSlayer,
-                  description: "Only pick slayer modes",
-                  default: format === FormatType.RandomSlayer,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Repost,
-              label: "Move to bottom of chat",
-              style: ButtonStyle.Secondary,
-              emoji: {
-                name: "⏬",
-              },
-            },
-          ],
-        },
-      ],
-    };
-  }
-
-  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
-    for (let column = 0; column < titles.length; column++) {
-      embed.fields ??= [];
-      embed.fields.push({
-        name: Preconditions.checkExists(titles[column]),
-        value: data
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
-    }
+    return mapsEmbed.toMessageData();
   }
 }
