@@ -7,32 +7,34 @@ import type {
   APIMessage,
   APIEmbedField,
   RESTPostAPIChannelMessageJSONBody,
+  APIComponentInMessageActionRow,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
-import type { DiscordService } from "../discord/discord.mjs";
+import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.mjs";
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   SeriesOverviewEmbedFinalTeams,
   SeriesOverviewEmbedSubstitution,
-} from "../../embeds/series-overview-embed.mjs";
-import { SeriesOverviewEmbed } from "../../embeds/series-overview-embed.mjs";
-import { SeriesTeamsEmbed } from "../../embeds/series-teams-embed.mjs";
-import { SeriesPlayersEmbed } from "../../embeds/series-players-embed.mjs";
+} from "../../embeds/stats/series-overview-embed.mjs";
+import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
+import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
+import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { GuildConfigRow } from "../database/types/guild_config.mjs";
-import { StatsReturnType } from "../database/types/guild_config.mjs";
+import { MapsPostType, StatsReturnType } from "../database/types/guild_config.mjs";
 import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats.mjs";
-import type { BaseMatchEmbed } from "../../embeds/base-match-embed.mjs";
+import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
-import { create } from "../../embeds/create.mjs";
+import { create } from "../../embeds/stats/create.mjs";
 import { GamesRetrievable } from "../database/types/discord_associations.mjs";
 import { DiscordError } from "../discord/discord-error.mjs";
+import { MapsEmbed } from "../../embeds/maps-embed.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -325,9 +327,12 @@ export class NeatQueueService {
 
   async updatePlayersEmbed(guildId: string, channelId: string, messageId: string): Promise<void> {
     try {
-      const kvList = await this.env.APP_DATA.list<null>({
-        prefix: `neatqueue:${guildId}:`,
-      });
+      const [config, kvList] = await Promise.all([
+        this.databaseService.getGuildConfig(guildId),
+        this.env.APP_DATA.list<null>({
+          prefix: `neatqueue:${guildId}:`,
+        }),
+      ]);
       const key = kvList.keys.find((kv) => kv.name.endsWith(`:${channelId}`));
       if (!key) {
         throw new Error("Unable to update players embed, no key found for channel");
@@ -346,7 +351,7 @@ export class NeatQueueService {
       }
 
       const request = matchStartedEvent.event as NeatQueueMatchStartedRequest;
-      const playersPostMessage = await this.getPlayersPostMessage(request.players);
+      const playersPostMessage = await this.getPlayersPostMessage(config, request.players);
       if (!playersPostMessage) {
         throw new Error("Unable to update players embed, no players found in match started event");
       }
@@ -380,8 +385,11 @@ export class NeatQueueService {
 
     try {
       const guildConfig = await databaseService.getGuildConfig(request.guild);
-      if (guildConfig.NeatQueueInformerPlayerConnections !== "Y") {
-        logService.debug("Player connections are disabled, skipping players post message");
+      if (
+        guildConfig.NeatQueueInformerPlayerConnections !== "Y" &&
+        guildConfig.NeatQueueInformerMapsPost === MapsPostType.OFF
+      ) {
+        logService.debug("Player connections are disabled and map posts are turned off, skipping players post message");
         return;
       }
 
@@ -398,12 +406,29 @@ export class NeatQueueService {
         throw insufficientPermissionsError;
       }
 
-      const playersPostMessage = await this.getPlayersPostMessage(request.players);
-      if (!playersPostMessage) {
-        return;
+      if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
+        const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players);
+        if (playersPostMessage) {
+          await discordService.createMessage(request.channel, playersPostMessage);
+        }
       }
 
-      await discordService.createMessage(request.channel, playersPostMessage);
+      if (guildConfig.NeatQueueInformerMapsPost === MapsPostType.AUTO) {
+        const mapOpts = {
+          playlist: guildConfig.NeatQueueInformerMapsPlaylist,
+          format: guildConfig.NeatQueueInformerMapsFormat,
+          count: guildConfig.NeatQueueInformerMapsCount,
+        };
+        const embed = new MapsEmbed(
+          { discordService },
+          {
+            userId: NEAT_QUEUE_BOT_USER_ID,
+            maps: this.haloService.generateMaps(mapOpts),
+            ...mapOpts,
+          },
+        );
+        await discordService.createMessage(request.channel, embed.toMessageData());
+      }
     } catch (error) {
       logService.warn(error as Error, new Map([["reason", "Failed to post players message"]]));
 
@@ -520,7 +545,10 @@ export class NeatQueueService {
     });
   }
 
-  private async getPlayersPostMessage(players: NeatQueuePlayer[]): Promise<RESTPostAPIChannelMessageJSONBody | null> {
+  private async getPlayersPostMessage(
+    config: GuildConfigRow,
+    players: NeatQueuePlayer[],
+  ): Promise<RESTPostAPIChannelMessageJSONBody | null> {
     const { databaseService, discordService, haloService } = this;
 
     const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
@@ -598,31 +626,35 @@ export class NeatQueueService {
       },
     };
 
+    const actions: APIComponentInMessageActionRow[] = [
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Primary,
+        label: "Connect my Halo account",
+        custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
+        emoji: {
+          name: "🔗",
+        },
+      },
+    ];
+    if (config.NeatQueueInformerMapsPost === MapsPostType.BUTTON) {
+      actions.push({
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        label: "Generate maps",
+        custom_id: "btn_maps_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
+        emoji: {
+          name: "🗺️",
+        },
+      });
+    }
+
     return {
       embeds: [embed],
       components: [
         {
           type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Primary,
-              label: "Connect my Halo account",
-              custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
-              emoji: {
-                name: "🔗",
-              },
-            },
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Secondary,
-              label: "Generate maps",
-              custom_id: "btn_maps_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
-              emoji: {
-                name: "🗺️",
-              },
-            },
-          ],
+          components: actions,
         },
       ],
     };

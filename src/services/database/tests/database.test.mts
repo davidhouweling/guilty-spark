@@ -3,7 +3,7 @@ import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../ba
 import { DatabaseService } from "../database.mjs";
 import { aFakeDiscordAssociationsRow } from "../fakes/database.fake.mjs";
 import type { GuildConfigRow } from "../types/guild_config.mjs";
-import { StatsReturnType } from "../types/guild_config.mjs";
+import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config.mjs";
 
 describe("Database Service", () => {
   let env: Env;
@@ -121,6 +121,10 @@ describe("Database Service", () => {
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "Y",
         NeatQueueInformerPlayerConnections: "Y",
+        NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+        NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
+        NeatQueueInformerMapsFormat: MapsFormatType.HCS,
+        NeatQueueInformerMapsCount: 5,
       });
     });
 
@@ -247,6 +251,10 @@ describe("Database Service", () => {
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "Y",
         NeatQueueInformerPlayerConnections: "Y",
+        NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+        NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
+        NeatQueueInformerMapsFormat: MapsFormatType.HCS,
+        NeatQueueInformerMapsCount: 5,
       };
       vi.spyOn(fakeGetPreparedStatement, "first").mockResolvedValue(initialConfig);
       await databaseService.getGuildConfig(guildId);
@@ -266,6 +274,10 @@ describe("Database Service", () => {
         StatsReturn: StatsReturnType.SERIES_ONLY,
         Medals: "N",
         NeatQueueInformerPlayerConnections: "N",
+        NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+        NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
+        NeatQueueInformerMapsFormat: MapsFormatType.HCS,
+        NeatQueueInformerMapsCount: 5,
       });
     });
   });

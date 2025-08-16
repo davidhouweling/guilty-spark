@@ -1,9 +1,11 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
+import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { MatchOutcome, RequestError } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService } from "../halo.mjs";
+import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import { matchStats, playerMatches, neatQueueSeriesData } from "../fakes/data.mjs";
@@ -13,6 +15,7 @@ import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 
 describe("Halo service", () => {
   let logService: LogService;
@@ -738,6 +741,95 @@ describe("Halo service", () => {
       infiniteClient.getPlaylistCsr.mockResolvedValue([]);
       await haloService.getRankedArenaCsrs(["789"]);
       expect(warnSpy).toHaveBeenCalledWith("No CSR found for xuid 789");
+    });
+  });
+
+  describe("generateMaps", () => {
+    let mockRoundRobinFn: MockedFunction<generateRoundRobinMapsFn>;
+    let serviceWithMockRoundRobin: HaloService;
+
+    beforeEach(() => {
+      mockRoundRobinFn = vi.fn<generateRoundRobinMapsFn>().mockReturnValue([
+        { mode: "Slayer", map: "Live Fire" },
+        { mode: "Strongholds", map: "Recharge" },
+        { mode: "Capture the Flag", map: "Aquarius" },
+      ]);
+      serviceWithMockRoundRobin = new HaloService({
+        logService,
+        databaseService,
+        infiniteClient,
+        roundRobinFn: mockRoundRobinFn,
+      });
+    });
+
+    it("generates maps using HCS format", () => {
+      const result = serviceWithMockRoundRobin.generateMaps({
+        count: 3,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+      });
+
+      expect(result).toHaveLength(3);
+      expect(mockRoundRobinFn).toHaveBeenCalledOnce();
+
+      const [actualArgs] = Preconditions.checkExists(mockRoundRobinFn.mock.calls[0]);
+
+      expect(actualArgs.count).toBe(3);
+      expect(actualArgs.formatSequence).toEqual(["objective", "slayer", "objective"]);
+
+      // Validate pool structure
+      expect(Array.isArray(actualArgs.pool)).toBe(true);
+      expect(actualArgs.pool.length).toBeGreaterThan(0);
+
+      for (const item of actualArgs.pool) {
+        expect(typeof item).toBe("object");
+        expect(item).toHaveProperty("mode");
+        expect(item).toHaveProperty("map");
+        expect(typeof item.mode).toBe("string");
+        expect(typeof item.map).toBe("string");
+        expect(["Slayer", "Capture the Flag", "Strongholds", "Oddball", "King of the Hill", "Neutral Bomb"]).toContain(
+          item.mode,
+        );
+        expect(item.map.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("generates maps using Random format", () => {
+      const result = serviceWithMockRoundRobin.generateMaps({
+        count: 5,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.RANDOM,
+      });
+
+      expect(result).toHaveLength(3);
+      expect(mockRoundRobinFn).toHaveBeenCalledOnce();
+
+      const [actualArgs] = Preconditions.checkExists(mockRoundRobinFn.mock.calls[0]);
+
+      expect(actualArgs.count).toBe(5);
+
+      // Validate pool structure
+      expect(Array.isArray(actualArgs.pool)).toBe(true);
+      expect(actualArgs.pool.length).toBeGreaterThan(0);
+
+      for (const item of actualArgs.pool) {
+        expect(typeof item).toBe("object");
+        expect(item).toHaveProperty("mode");
+        expect(item).toHaveProperty("map");
+        expect(typeof item.mode).toBe("string");
+        expect(typeof item.map).toBe("string");
+        expect(["Slayer", "Capture the Flag", "Strongholds", "Oddball", "King of the Hill", "Neutral Bomb"]).toContain(
+          item.mode,
+        );
+        expect(item.map.length).toBeGreaterThan(0);
+      }
+
+      // Validate formatSequence structure
+      expect(Array.isArray(actualArgs.formatSequence)).toBe(true);
+      expect(actualArgs.formatSequence.length).toBeGreaterThan(0);
+      for (const format of actualArgs.formatSequence) {
+        expect(["slayer", "objective"]).toContain(format);
+      }
     });
   });
 });

@@ -16,6 +16,11 @@ import type { DatabaseService } from "../database/database.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
+import type { Format, MapMode } from "./hcs.mjs";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
+import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
+import { generateRoundRobinMaps } from "./round-robin.mjs";
 
 export interface MatchPlayer {
   id: string;
@@ -40,6 +45,7 @@ export interface HaloServiceOpts {
   logService: LogService;
   databaseService: DatabaseService;
   infiniteClient: HaloInfiniteClient;
+  roundRobinFn?: generateRoundRobinMapsFn;
 }
 
 const noMatchError = new EndUserError(
@@ -59,16 +65,18 @@ export class HaloService {
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly infiniteClient: HaloInfiniteClient;
+  private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly mapNameCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
-  constructor({ logService, databaseService, infiniteClient }: HaloServiceOpts) {
+  constructor({ logService, databaseService, infiniteClient, roundRobinFn = generateRoundRobinMaps }: HaloServiceOpts) {
     this.logService = logService;
     this.databaseService = databaseService;
     this.infiniteClient = infiniteClient;
+    this.roundRobinFn = roundRobinFn;
   }
 
   async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
@@ -335,6 +343,57 @@ export class HaloService {
     }
 
     return rankedArenaCsrs;
+  }
+
+  public getMapModeFormat(format: MapsFormatType, count: number): Format[] {
+    switch (format) {
+      case MapsFormatType.HCS: {
+        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
+      }
+      case MapsFormatType.RANDOM: {
+        return Array(count).fill("random") as Format[];
+      }
+      case MapsFormatType.OBJECTIVE: {
+        return Array(count).fill("objective") as Format[];
+      }
+      case MapsFormatType.SLAYER: {
+        return Array(count).fill("slayer") as Format[];
+      }
+      default: {
+        throw new UnreachableError(format);
+      }
+    }
+  }
+
+  public generateMaps({
+    playlist,
+    format,
+    count,
+  }: {
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
+    count: number;
+  }): { mode: MapMode; map: string }[] {
+    const mapSet: Record<MapMode, string[]> =
+      playlist === MapsPlaylistType.HCS_HISTORICAL ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+
+    const formatSequence = this.getMapModeFormat(format, count);
+
+    // Build all possible (mode, map) pairs
+    const allPairs: { mode: MapMode; map: string }[] = [];
+    for (const mode of ALL_MODES) {
+      for (const map of mapSet[mode]) {
+        allPairs.push({ mode, map });
+      }
+    }
+
+    return this.roundRobinFn({
+      count,
+      pool: allPairs,
+      formatSequence: formatSequence.map((f: Format) =>
+        f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
+      ),
+    });
   }
 
   async updateDiscordAssociations(): Promise<void> {

@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { SeriesOverviewEmbed } from "../series-overview-embed.mjs";
 import type { SeriesOverviewEmbedFinalTeams, SeriesOverviewEmbedSubstitution } from "../series-overview-embed.mjs";
-import type { DiscordService } from "../../services/discord/discord.mjs";
-import type { HaloService } from "../../services/halo/halo.mjs";
-import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
-import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake.mjs";
-import { matchStats } from "../../services/halo/fakes/data.mjs";
+import type { DiscordService } from "../../../services/discord/discord.mjs";
+import type { HaloService } from "../../../services/halo/halo.mjs";
+import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
+import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
+import { matchStats } from "../../../services/halo/fakes/data.mjs";
 
 describe("SeriesOverviewEmbed", () => {
   let discordService: DiscordService;

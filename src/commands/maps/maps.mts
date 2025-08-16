@@ -1,7 +1,6 @@
 import type {
   APIApplicationCommandInteraction,
   APIButtonComponentWithCustomId,
-  APIEmbed,
   APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
@@ -19,97 +18,11 @@ import {
 import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { Services } from "../../services/install.mjs";
-import { GAMECOACH_GG_URLS } from "./gamecoachgg.mjs";
-import type { Format, MapMode } from "./hcs.mjs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
-import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
-import { generateRoundRobinMaps } from "./round-robin.mjs";
-
-type CountType = 1 | 3 | 5 | 7;
-
-export enum PlaylistType {
-  HcsCurrent = "HCS - current",
-  HcsHistorical = "HCS - historical",
-}
-
-export enum FormatType {
-  Hcs = "HCS (obj slayer obj obj slayer...)",
-  Random = "Random",
-  RandomObjective = "Random Objective only",
-  RandomSlayer = "Random Slayer only",
-}
-
-export enum InteractionComponent {
-  Initiate = "btn_maps_initiate",
-  Roll1 = "btn_maps_roll_1",
-  Roll3 = "btn_maps_roll_3",
-  Roll5 = "btn_maps_roll_5",
-  Roll7 = "btn_maps_roll_7",
-  PlaylistSelect = "select_maps_playlist",
-  FormatSelect = "select_maps_format",
-  Repost = "btn_maps_repost",
-}
+import { type MapMode } from "../../services/halo/hcs.mjs";
+import { MapsEmbed, InteractionComponent } from "../../embeds/maps-embed.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config.mjs";
 
 export class MapsCommand extends BaseCommand {
-  private readonly roundRobinFn: generateRoundRobinMapsFn;
-
-  constructor(services: Services, env: Env, roundRobinFn: generateRoundRobinMapsFn = generateRoundRobinMaps) {
-    super(services, env);
-    this.roundRobinFn = roundRobinFn;
-  }
-
-  public getMapModeFormat(format: FormatType, count: CountType): Format[] {
-    switch (format) {
-      case FormatType.Hcs: {
-        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
-      }
-      case FormatType.Random: {
-        return Array(count).fill("random") as Format[];
-      }
-      case FormatType.RandomObjective: {
-        return Array(count).fill("objective") as Format[];
-      }
-      case FormatType.RandomSlayer: {
-        return Array(count).fill("slayer") as Format[];
-      }
-      default: {
-        throw new UnreachableError(format);
-      }
-    }
-  }
-
-  public generateMaps({
-    count,
-    playlist,
-    format,
-  }: {
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
-  }): { mode: MapMode; map: string }[] {
-    const mapSet: Record<MapMode, string[]> =
-      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
-
-    const formatSequence = this.getMapModeFormat(format, count);
-
-    // Build all possible (mode, map) pairs
-    const allPairs: { mode: MapMode; map: string }[] = [];
-    for (const mode of ALL_MODES) {
-      for (const map of mapSet[mode]) {
-        allPairs.push({ mode, map });
-      }
-    }
-
-    return this.roundRobinFn({
-      count,
-      pool: allPairs,
-      formatSequence: formatSequence.map((f: Format) =>
-        f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
-      ),
-    });
-  }
-
   readonly data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
@@ -135,10 +48,10 @@ export class MapsCommand extends BaseCommand {
           description: "Which playlist to use (default: HCS - Current)",
           required: false,
           choices: [
-            { name: PlaylistType.HcsCurrent, value: PlaylistType.HcsCurrent },
+            { name: MapsPlaylistType.HCS_CURRENT, value: MapsPlaylistType.HCS_CURRENT },
             {
-              name: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
-              value: PlaylistType.HcsHistorical,
+              name: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
+              value: MapsPlaylistType.HCS_HISTORICAL,
             },
           ],
         },
@@ -148,10 +61,10 @@ export class MapsCommand extends BaseCommand {
           description: "Format of the map set (default: HCS)",
           required: false,
           choices: [
-            { name: FormatType.Hcs, value: FormatType.Hcs },
-            { name: FormatType.Random, value: FormatType.Random },
-            { name: FormatType.RandomObjective, value: FormatType.RandomObjective },
-            { name: FormatType.RandomSlayer, value: FormatType.RandomSlayer },
+            { name: MapsFormatType.HCS, value: MapsFormatType.HCS },
+            { name: MapsFormatType.RANDOM, value: MapsFormatType.RANDOM },
+            { name: MapsFormatType.OBJECTIVE, value: MapsFormatType.OBJECTIVE },
+            { name: MapsFormatType.SLAYER, value: MapsFormatType.SLAYER },
           ],
         },
       ],
@@ -247,6 +160,37 @@ export class MapsCommand extends BaseCommand {
     }
   }
 
+  private generateDeferredResponse(
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
+    state: { count: number; playlist: MapsPlaylistType; format: MapsFormatType },
+    maps: { mode: MapMode; map: string }[],
+  ): ExecuteResponse {
+    return {
+      response: {
+        type:
+          interaction.type === InteractionType.ApplicationCommand
+            ? InteractionResponseType.DeferredChannelMessageWithSource
+            : InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.updateDeferredReply(
+          interaction.token,
+          this.createMapsResponse({
+            userId: Preconditions.checkExists(
+              interaction.member?.user.id ?? interaction.user?.id,
+              "expected either an interaction member id or user id but none found",
+            ),
+            ...state,
+            maps,
+          }),
+        );
+      },
+    };
+  }
+
   private applicationCommandJob(interaction: APIApplicationCommandInteraction): ExecuteResponse {
     if (interaction.data.type !== ApplicationCommandType.ChatInput) {
       throw new Error("This command can only be used as a chat input command.");
@@ -255,27 +199,24 @@ export class MapsCommand extends BaseCommand {
     const { options } = interaction.data;
 
     const countOption = options?.find((opt) => opt.name === "count");
-    const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as CountType) : 5;
+    const count = countOption?.type === ApplicationCommandOptionType.Integer ? countOption.value : 5;
 
     const playlistOption = options?.find((opt) => opt.name === "playlist");
-    const playlist: PlaylistType =
+    const playlist: MapsPlaylistType =
       playlistOption?.type === ApplicationCommandOptionType.String
-        ? (playlistOption.value as PlaylistType)
-        : PlaylistType.HcsCurrent;
+        ? (playlistOption.value as MapsPlaylistType)
+        : MapsPlaylistType.HCS_CURRENT;
 
     const formatOption = options?.find((opt) => opt.name === "format");
-    const format: FormatType =
-      formatOption?.type === ApplicationCommandOptionType.String ? (formatOption.value as FormatType) : FormatType.Hcs;
+    const format: MapsFormatType =
+      formatOption?.type === ApplicationCommandOptionType.String
+        ? (formatOption.value as MapsFormatType)
+        : MapsFormatType.HCS;
 
     const state = { count, playlist, format };
-    const maps = this.generateMaps(state);
+    const maps = this.services.haloService.generateMaps(state);
 
-    return {
-      response: {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: this.createMapsResponse({ interaction, ...state, maps }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, state, maps);
   }
 
   private messageComponentResponse(
@@ -310,21 +251,12 @@ export class MapsCommand extends BaseCommand {
 
   private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     const count = 5;
-    const playlist = PlaylistType.HcsCurrent;
-    const format = FormatType.Hcs;
-    const maps = this.generateMaps({ count, playlist, format });
+    const playlist = MapsPlaylistType.HCS_CURRENT;
+    const format = MapsFormatType.HCS;
+    const newState = { count, playlist, format };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    return {
-      response: {
-        type: InteractionResponseType.DeferredMessageUpdate,
-      },
-      jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.createMessage(
-          interaction.channel.id,
-          this.createMapsResponse({ interaction, count, playlist, format, maps }),
-        );
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private rollResponse(
@@ -333,42 +265,28 @@ export class MapsCommand extends BaseCommand {
   ): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const count = this.getCountFromInteractionButton(customId);
-    const maps = this.generateMaps({ ...state, count });
+    const newState = { ...state, count };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, count, maps }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
-    const playlist = interaction.data.values[0] as PlaylistType;
+    const playlist = interaction.data.values[0] as MapsPlaylistType;
+    const newState = { ...state, playlist };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    const maps = this.generateMaps({ ...state, playlist });
-
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, playlist, maps }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
-    const format = interaction.data.values[0] as FormatType;
+    const format = interaction.data.values[0] as MapsFormatType;
+    const newState = { ...state, format };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    const maps = this.generateMaps({ ...state, format });
-
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({ interaction, ...state, format, maps }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
@@ -392,7 +310,7 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private getCountFromInteractionButton(customId: InteractionComponent): CountType {
+  private getCountFromInteractionButton(customId: InteractionComponent): number {
     switch (
       customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.PlaylistSelect>
     ) {
@@ -417,9 +335,9 @@ export class MapsCommand extends BaseCommand {
   private getStateFromEmbed(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): {
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
+    count: number;
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
   } {
     const components =
       interaction.message.components?.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : [])) ??
@@ -438,7 +356,7 @@ export class MapsCommand extends BaseCommand {
       ),
       "Playlist select not found",
     ) as APIStringSelectComponent;
-    const playlist = playlistSelect.options.find((opt) => opt.default === true)?.value as PlaylistType;
+    const playlist = playlistSelect.options.find((opt) => opt.default === true)?.value as MapsPlaylistType;
     const formatSelect = Preconditions.checkExists(
       components.find(
         (c) =>
@@ -447,7 +365,7 @@ export class MapsCommand extends BaseCommand {
       ),
       "Format select not found",
     ) as APIStringSelectComponent;
-    const format = formatSelect.options.find((opt) => opt.default === true)?.value as FormatType;
+    const format = formatSelect.options.find((opt) => opt.default === true)?.value as MapsFormatType;
 
     return {
       count,
@@ -457,163 +375,32 @@ export class MapsCommand extends BaseCommand {
   }
 
   private createMapsResponse({
-    interaction,
+    userId,
     count,
     playlist,
     format,
     maps,
   }: {
-    interaction:
-      | APIApplicationCommandInteraction
-      | APIMessageComponentButtonInteraction
-      | APIMessageComponentSelectMenuInteraction;
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
+    userId: string;
+    count: number;
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
     maps: {
       mode: MapMode;
       map: string;
     }[];
   }): APIInteractionResponseCallbackData {
-    const titles = ["#", "Mode", "Map"];
-    const tableData = [titles];
-    for (const [index, { mode, map }] of maps.entries()) {
-      const gamecoachGgUrl = GAMECOACH_GG_URLS[map];
-      const mapString =
-        gamecoachGgUrl != null
-          ? `[${map} ${this.services.discordService.getEmojiFromName("GameCoachGG")}](${gamecoachGgUrl})`
-          : map;
-      tableData.push([String(index + 1), mode, mapString]);
-    }
+    const mapsEmbed = new MapsEmbed(
+      { discordService: this.services.discordService },
+      {
+        userId,
+        count,
+        playlist,
+        format,
+        maps,
+      },
+    );
 
-    const embed: APIEmbed = {
-      title: `Maps: ${playlist}`,
-      color: 0x5865f2,
-      fields: [],
-    };
-    this.addEmbedFields(embed, titles, tableData);
-
-    if (interaction.member?.user.id != null) {
-      embed.fields?.push({
-        name: "",
-        value: `-# Generated by <@${interaction.member.user.id}>`,
-      });
-    }
-
-    return {
-      embeds: [embed],
-      components: [
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll1,
-              label: "Regen maps (count: 1)",
-              style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll3,
-              label: "Regen maps (count: 3)",
-              style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll5,
-              label: "Regen maps (count: 5)",
-              style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Roll7,
-              label: "Regen maps (count: 7)",
-              style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.StringSelect,
-              custom_id: InteractionComponent.PlaylistSelect,
-              options: [
-                {
-                  label: PlaylistType.HcsCurrent,
-                  value: PlaylistType.HcsCurrent,
-                  default: playlist === PlaylistType.HcsCurrent,
-                },
-                {
-                  label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
-                  value: PlaylistType.HcsHistorical,
-                  default: playlist === PlaylistType.HcsHistorical,
-                },
-              ],
-              placeholder: "Select a playlist",
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.StringSelect,
-              custom_id: InteractionComponent.FormatSelect,
-              options: [
-                {
-                  label: FormatType.Hcs,
-                  value: FormatType.Hcs,
-                  default: format === FormatType.Hcs,
-                },
-                {
-                  label: FormatType.Random,
-                  value: FormatType.Random,
-                  default: format === FormatType.Random,
-                },
-                {
-                  label: FormatType.RandomObjective,
-                  value: FormatType.RandomObjective,
-                  default: format === FormatType.RandomObjective,
-                },
-                {
-                  label: FormatType.RandomSlayer,
-                  value: FormatType.RandomSlayer,
-                  default: format === FormatType.RandomSlayer,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionComponent.Repost,
-              label: "Move to bottom of chat",
-              style: ButtonStyle.Secondary,
-              emoji: {
-                name: "⏬",
-              },
-            },
-          ],
-        },
-      ],
-    };
-  }
-
-  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
-    for (let column = 0; column < titles.length; column++) {
-      embed.fields ??= [];
-      embed.fields.push({
-        name: Preconditions.checkExists(titles[column]),
-        value: data
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
-    }
+    return mapsEmbed.toMessageData();
   }
 }

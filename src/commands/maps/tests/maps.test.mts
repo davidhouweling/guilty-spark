@@ -1,7 +1,7 @@
 import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import type {
-  APIInteractionResponseChannelMessageWithSource,
+  APIInteractionResponse,
   APIApplicationCommandInteraction,
   APIMessageComponentButtonInteraction,
   APIInteractionResponseCallbackData,
@@ -23,14 +23,15 @@ import {
   ButtonStyle,
   InteractionResponseType,
 } from "discord-api-types/v10";
-import type { MapMode } from "../hcs.mjs";
-import { MapsCommand, PlaylistType, InteractionComponent, FormatType } from "../maps.mjs";
+import type { MapMode } from "../../../services/halo/hcs.mjs";
+import { MapsCommand } from "../maps.mjs";
+import { InteractionComponent } from "../../../embeds/maps-embed.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import type { generateRoundRobinMapsFn, RoundRobinArgs } from "../round-robin.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config.mjs";
 
 function aFakeMapsInteractionWith(
   options: { name: string; value: unknown; type: number }[] = [],
@@ -87,17 +88,17 @@ function getSelectMenu(components: APIMessageTopLevelComponent[] | undefined): A
 }
 
 function aFakeMapsMessage({
-  playlist = PlaylistType.HcsCurrent,
-  format = FormatType.Hcs,
+  playlist = MapsPlaylistType.HCS_CURRENT,
+  format = MapsFormatType.HCS,
   count = 5,
   selectedPlaylist,
   selectedFormat,
 }: {
-  playlist?: PlaylistType;
-  format?: string;
+  playlist?: MapsPlaylistType;
+  format?: MapsFormatType;
   count?: 1 | 3 | 5 | 7;
-  selectedPlaylist?: PlaylistType | undefined;
-  selectedFormat?: string | undefined;
+  selectedPlaylist?: MapsPlaylistType | undefined;
+  selectedFormat?: MapsFormatType | undefined;
 }): {
   embeds: APIEmbed[];
   components: APIMessageTopLevelComponent[];
@@ -150,14 +151,14 @@ function aFakeMapsMessage({
             custom_id: InteractionComponent.PlaylistSelect,
             options: [
               {
-                label: PlaylistType.HcsCurrent,
-                value: PlaylistType.HcsCurrent,
-                default: String(selectedPlaylist ?? playlist) === String(PlaylistType.HcsCurrent),
+                label: MapsPlaylistType.HCS_CURRENT,
+                value: MapsPlaylistType.HCS_CURRENT,
+                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_CURRENT),
               },
               {
-                label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
-                value: PlaylistType.HcsHistorical,
-                default: String(selectedPlaylist ?? playlist) === String(PlaylistType.HcsHistorical),
+                label: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
+                value: MapsPlaylistType.HCS_HISTORICAL,
+                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_HISTORICAL),
               },
             ],
             placeholder: "Select a playlist",
@@ -172,24 +173,24 @@ function aFakeMapsMessage({
             custom_id: InteractionComponent.FormatSelect,
             options: [
               {
-                label: FormatType.Hcs,
-                value: FormatType.Hcs,
-                default: String(selectedFormat ?? format) === String(FormatType.Hcs),
+                label: MapsFormatType.HCS,
+                value: MapsFormatType.HCS,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.HCS),
               },
               {
-                label: FormatType.Random,
-                value: FormatType.Random,
-                default: String(selectedFormat ?? format) === String(FormatType.Random),
+                label: MapsFormatType.RANDOM,
+                value: MapsFormatType.RANDOM,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.RANDOM),
               },
               {
-                label: FormatType.RandomObjective,
-                value: FormatType.RandomObjective,
-                default: String(selectedFormat ?? format) === String(FormatType.RandomObjective),
+                label: MapsFormatType.OBJECTIVE,
+                value: MapsFormatType.OBJECTIVE,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.OBJECTIVE),
               },
               {
-                label: FormatType.RandomSlayer,
-                value: FormatType.RandomSlayer,
-                default: String(selectedFormat ?? format) === String(FormatType.RandomSlayer),
+                label: MapsFormatType.SLAYER,
+                value: MapsFormatType.SLAYER,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.SLAYER),
               },
             ],
           },
@@ -200,17 +201,17 @@ function aFakeMapsMessage({
 }
 
 function aFakeApiMessage({
-  playlist = PlaylistType.HcsCurrent,
-  format = FormatType.Hcs,
+  playlist = MapsPlaylistType.HCS_CURRENT,
+  format = MapsFormatType.HCS,
   count = 5,
   selectedPlaylist,
   selectedFormat,
 }: {
-  playlist?: PlaylistType;
-  format?: string;
+  playlist?: MapsPlaylistType;
+  format?: MapsFormatType | undefined;
   count?: 1 | 3 | 5 | 7;
-  selectedPlaylist?: PlaylistType | undefined;
-  selectedFormat?: string | undefined;
+  selectedPlaylist?: MapsPlaylistType | undefined;
+  selectedFormat?: MapsFormatType | undefined;
 }): APIMessage {
   return {
     ...apiMessage,
@@ -221,8 +222,8 @@ function aFakeApiMessage({
 
 function aFakeButtonInteraction(
   customId: string,
-  playlist: PlaylistType = PlaylistType.HcsCurrent,
-  format: string = FormatType.Hcs,
+  playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
+  format: MapsFormatType = MapsFormatType.HCS,
   count: 1 | 3 | 5 | 7 = 5,
 ): APIMessageComponentButtonInteraction {
   return {
@@ -238,10 +239,10 @@ function aFakeButtonInteraction(
 }
 
 function aFakePlaylistSelectInteraction(
-  selectedPlaylist: PlaylistType,
+  selectedPlaylist: MapsPlaylistType,
   count: 1 | 3 | 5 | 7 = 5,
-  playlist: PlaylistType = PlaylistType.HcsCurrent,
-  format: string = FormatType.Hcs,
+  playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
+  format: MapsFormatType = MapsFormatType.HCS,
 ): APIMessageComponentSelectMenuInteraction {
   return {
     ...fakeBaseAPIApplicationCommandInteraction,
@@ -259,203 +260,312 @@ function aFakePlaylistSelectInteraction(
 describe("MapsCommand", () => {
   let command: MapsCommand;
   let services: Services;
-  const env = aFakeEnvWith();
-  let mockRoundRobin: MockInstance<generateRoundRobinMapsFn>;
+  let env: Env;
+  let updateDeferredReplySpy: MockInstance;
+  const mockMaps = [
+    { mode: "Slayer" as MapMode, map: "Live Fire" },
+    { mode: "Oddball" as MapMode, map: "Streets" },
+    { mode: "Strongholds" as MapMode, map: "Bazaar" },
+    { mode: "CTF" as MapMode, map: "Aquarius" },
+    { mode: "Slayer" as MapMode, map: "Recharge" },
+  ];
 
   beforeEach(() => {
-    services = installFakeServicesWith({ env });
-    mockRoundRobin = vi.fn<generateRoundRobinMapsFn>(() => [
-      { mode: "Slayer" as MapMode, map: "Live Fire" },
-      { mode: "Oddball" as MapMode, map: "Streets" },
-      { mode: "Strongholds" as MapMode, map: "Bazaar" },
-      { mode: "CTF" as MapMode, map: "Aquarius" },
-      { mode: "Slayer" as MapMode, map: "Recharge" },
-    ]);
-    command = new MapsCommand(services, env, mockRoundRobin as unknown as generateRoundRobinMapsFn);
+    services = installFakeServicesWith();
+    env = aFakeEnvWith();
+    command = new MapsCommand(services, env);
+
+    updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
     vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
     vi.spyOn(services.discordService, "getEmojiFromName").mockReturnValue(":GameCoachGG:");
+    vi.spyOn(services.haloService, "generateMaps").mockReturnValue(mockMaps);
   });
 
-  describe("/maps basic usage", () => {
-    it("renders the mock maps in the embed", () => {
+  describe("execute(): application command", () => {
+    it("returns response and jobToComplete", () => {
       const interaction = aFakeMapsInteractionWith();
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      expect(data).toHaveProperty("embeds");
 
-      const embed = data.embeds?.[0];
-      expect(embed).toBeDefined();
-      expect(embed?.fields?.length).toBeGreaterThanOrEqual(3);
-
-      const modes = embed?.fields?.[1]?.value.split("\n") ?? [];
-      const maps = embed?.fields?.[2]?.value.split("\n") ?? [];
-      expect(modes).toEqual(["Slayer", "Oddball", "Strongholds", "CTF", "Slayer"]);
-      expect(maps).toEqual([
-        "[Live Fire :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/livefire)",
-        "[Streets :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/streets)",
-        "Bazaar",
-        "[Aquarius :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/aquarius)",
-        "[Recharge :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/recharge)",
-      ]);
-    });
-  });
-
-  describe("/maps playlist option", () => {
-    it("returns maps from the historical playlist when selected", () => {
-      const interaction = aFakeMapsInteractionWith([
-        { name: "playlist", value: PlaylistType.HcsHistorical, type: ApplicationCommandOptionType.String },
-      ]);
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      const embed = data.embeds?.[0];
-
-      expect(embed).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsHistorical);
-      expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
-    });
-
-    it("returns maps from the current playlist by default", () => {
-      const interaction = aFakeMapsInteractionWith();
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      const embed = data.embeds?.[0];
-
-      expect(embed).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
-      expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
-    });
-  });
-
-  describe("/maps button interaction", () => {
-    it("regenerates maps with correct count and playlist when button is pressed", () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, PlaylistType.HcsHistorical);
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      const embed = data.embeds?.[0];
-
-      expect(embed).toBeDefined();
-      expect(embed?.title).toBeDefined();
-      expect(embed?.title ?? "").toContain(PlaylistType.HcsHistorical);
-      expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
-
-      const buttonRowHist = getButtonRow(data.components);
-      expect(getButtonById(buttonRowHist, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
-    });
-
-    it("throws for unknown button id", () => {
-      const interaction = aFakeButtonInteraction("btn_maps_roll_unknown");
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-
-      expect(data.content).toMatch(/Unreachable code with specified value/);
-      expect(data.flags).toBe(MessageFlags.Ephemeral);
-    });
-
-    it("throws for unknown playlist in embed", () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as PlaylistType);
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-
-      expect(typeof data.content).toBe("string");
-      expect(data.content).toMatch(/Playlist not found/i);
-      expect(data.flags).toBe(MessageFlags.Ephemeral);
-    });
-
-    it("returns DeferredMessageUpdate and jobToComplete for Initiate button", async () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
       const { response, jobToComplete } = command.execute(interaction);
 
-      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(jobToComplete).toBeDefined();
+      expect(response).toEqual<APIInteractionResponse>({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+      });
+      expect(jobToComplete).toBeInstanceOf(Function);
+    });
 
-      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
-      await jobToComplete?.();
-      const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+    describe("jobToComplete", () => {
+      let jobToComplete: (() => Promise<void>) | undefined;
 
-      expect(channelId).toBe(interaction.channel.id);
-      expect(data.embeds?.[0]?.title).toContain("Maps: HCS - current");
+      beforeEach(() => {
+        const interaction = aFakeMapsInteractionWith();
+        const { jobToComplete: jtc } = command.execute(interaction);
+        jobToComplete = jtc;
+      });
 
-      const actionRow = getButtonRow(data.components);
-      expect(actionRow.components).toHaveLength(4);
+      it("calls discordService.updateDeferredReply with maps embed", async () => {
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy.mock.lastCall).toMatchSnapshot();
+      });
+
+      it("renders the mock maps in the embed", async () => {
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(data).toHaveProperty("embeds");
+
+        const embed = data.embeds?.[0];
+        expect(embed).toBeDefined();
+        expect(embed?.fields?.length).toBeGreaterThanOrEqual(3);
+
+        const modes = embed?.fields?.[1]?.value.split("\n") ?? [];
+        const maps = embed?.fields?.[2]?.value.split("\n") ?? [];
+        expect(modes).toEqual(["Slayer", "Oddball", "Strongholds", "CTF", "Slayer"]);
+        expect(maps).toEqual([
+          "[Live Fire :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/livefire)",
+          "[Streets :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/streets)",
+          "Bazaar",
+          "[Aquarius :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/aquarius)",
+          "[Recharge :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/recharge)",
+        ]);
+      });
     });
   });
 
-  describe("/maps repost button interaction", () => {
-    it("returns DeferredMessageUpdate and reposts the maps, then deletes the original message", async () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Repost);
-      const { response, jobToComplete } = command.execute(interaction);
-      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(jobToComplete).toBeDefined();
+  describe("execute(): application command with options", () => {
+    describe("playlist option", () => {
+      it("returns deferred response and jobToComplete for historical playlist", () => {
+        const interaction = aFakeMapsInteractionWith([
+          { name: "playlist", value: MapsPlaylistType.HCS_HISTORICAL, type: ApplicationCommandOptionType.String },
+        ]);
 
-      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
-      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
-      await jobToComplete?.();
+        const { response, jobToComplete } = command.execute(interaction);
 
-      expect(createMessageSpy).toHaveBeenCalledTimes(1);
-      expect(deleteMessageSpy).toHaveBeenCalledTimes(1);
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredChannelMessageWithSource,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
 
-      const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
-      expect(channelId).toBe(interaction.channel.id);
-      expect(data.embeds?.[0]?.title).toContain("Maps:"); // Allow flexible title format after manual edits
+      it("calls updateDeferredReply with historical playlist embed", async () => {
+        const interaction = aFakeMapsInteractionWith([
+          { name: "playlist", value: MapsPlaylistType.HCS_HISTORICAL, type: ApplicationCommandOptionType.String },
+        ]);
+        const { jobToComplete } = command.execute(interaction);
 
-      const [delChannelId, delMessageId, delReason] = deleteMessageSpy.mock.calls[0] as [string, string, string];
-      expect(delChannelId).toBe(interaction.channel.id);
-      expect(delMessageId).toBe(interaction.message.id);
-      expect(delReason).toBe("Reposting maps");
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
+        expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
+      });
+
+      it("calls updateDeferredReply with current playlist embed by default", async () => {
+        const interaction = aFakeMapsInteractionWith();
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_CURRENT);
+        expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
+      });
     });
   });
 
-  describe("/maps playlist select interaction", () => {
-    it("updates the embed and buttons when playlist is switched to historical", () => {
-      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsHistorical, 3, PlaylistType.HcsHistorical);
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      const embed = data.embeds?.[0];
+  describe("execute(): message component interactions", () => {
+    describe("button interactions", () => {
+      it("returns deferred response and jobToComplete for roll button", () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, MapsPlaylistType.HCS_HISTORICAL);
 
-      expect(embed).toBeDefined();
-      expect(typeof embed?.title).toBe("string");
-      expect(embed?.title ?? "").toContain(PlaylistType.HcsHistorical);
+        const { response, jobToComplete } = command.execute(interaction);
 
-      const buttonRow = getButtonRow(data.components);
-      expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
 
-      const select = getSelectMenu(data.components);
-      expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(true);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(false);
+      it("calls updateDeferredReply with regenerated maps", async () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, MapsPlaylistType.HCS_HISTORICAL);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toBeDefined();
+        expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
+        expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
+
+        const buttonRowHist = getButtonRow(data.components);
+        expect(getButtonById(buttonRowHist, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+      });
+
+      it("throws for unknown button id", () => {
+        const interaction = aFakeButtonInteraction("btn_maps_roll_unknown");
+
+        const { response } = command.execute(interaction);
+
+        expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
+        if (response.type === InteractionResponseType.ChannelMessageWithSource) {
+          expect(response.data.content).toMatch(/Unreachable code with specified value/);
+          expect(response.data.flags).toBe(MessageFlags.Ephemeral);
+        }
+      });
+
+      it("throws for unknown playlist in embed", () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as MapsPlaylistType);
+
+        const { response } = command.execute(interaction);
+
+        expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
+        if (response.type === InteractionResponseType.ChannelMessageWithSource) {
+          expect(typeof response.data.content).toBe("string");
+          expect(response.data.content).toMatch(/Playlist not found/i);
+          expect(response.data.flags).toBe(MessageFlags.Ephemeral);
+        }
+      });
+
+      describe("initiate button", () => {
+        it("returns deferred response and jobToComplete", () => {
+          const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
+
+          const { response, jobToComplete } = command.execute(interaction);
+
+          expect(response).toEqual<APIInteractionResponse>({
+            type: InteractionResponseType.DeferredMessageUpdate,
+          });
+          expect(jobToComplete).toBeInstanceOf(Function);
+        });
+
+        it("calls updateDeferredReply with default maps", async () => {
+          const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
+          const { jobToComplete } = command.execute(interaction);
+
+          await jobToComplete?.();
+
+          const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+
+          expect(data.embeds?.[0]?.title).toContain("Maps: HCS - Current");
+
+          const actionRow = getButtonRow(data.components);
+          expect(actionRow.components).toHaveLength(4);
+        });
+      });
     });
 
-    it("updates the embed and buttons when playlist is switched to current", () => {
-      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsCurrent, 7, PlaylistType.HcsCurrent);
-      const { response } = command.execute(interaction);
-      const { data } = response as APIInteractionResponseChannelMessageWithSource;
-      const embed = data.embeds?.[0];
+    describe("repost button", () => {
+      it("returns deferred response and jobToComplete", () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Repost);
 
-      expect(embed).toBeDefined();
-      expect(embed?.title).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
+        const { response, jobToComplete } = command.execute(interaction);
 
-      const buttonRow = getButtonRow(data.components);
-      expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
 
-      const select = getSelectMenu(data.components);
-      expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
+      it("reposts the maps, then deletes the original message", async () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Repost);
+        const { jobToComplete } = command.execute(interaction);
+
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        expect(deleteMessageSpy).toHaveBeenCalledTimes(1);
+
+        const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(channelId).toBe(interaction.channel.id);
+        expect(data.embeds?.[0]?.title).toContain("Maps:");
+
+        const [delChannelId, delMessageId, delReason] = deleteMessageSpy.mock.calls[0] as [string, string, string];
+        expect(delChannelId).toBe(interaction.channel.id);
+        expect(delMessageId).toBe(interaction.message.id);
+        expect(delReason).toBe("Reposting maps");
+      });
     });
-  });
 
-  it("calls the injected roundRobinFn with correct arguments", () => {
-    command.generateMaps({
-      count: 5,
-      playlist: PlaylistType.HcsCurrent,
-      format: FormatType.Hcs,
+    describe("playlist select", () => {
+      it("returns deferred response and jobToComplete", () => {
+        const interaction = aFakePlaylistSelectInteraction(
+          MapsPlaylistType.HCS_HISTORICAL,
+          3,
+          MapsPlaylistType.HCS_HISTORICAL,
+        );
+
+        const { response, jobToComplete } = command.execute(interaction);
+
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
+
+      it("calls updateDeferredReply when playlist is switched to historical", async () => {
+        const interaction = aFakePlaylistSelectInteraction(
+          MapsPlaylistType.HCS_HISTORICAL,
+          3,
+          MapsPlaylistType.HCS_HISTORICAL,
+        );
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(typeof embed?.title).toBe("string");
+        expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+
+        const select = getSelectMenu(data.components);
+        expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
+        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(true);
+        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(false);
+      });
+
+      it("calls updateDeferredReply when playlist is switched to current", async () => {
+        const interaction = aFakePlaylistSelectInteraction(
+          MapsPlaylistType.HCS_CURRENT,
+          7,
+          MapsPlaylistType.HCS_CURRENT,
+        );
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toBeDefined();
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_CURRENT);
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
+
+        const select = getSelectMenu(data.components);
+        expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
+        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(true);
+        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(false);
+      });
     });
-    expect(mockRoundRobin.mock.calls.length).toBe(1);
-
-    const [call] = mockRoundRobin.mock.calls[0] as [RoundRobinArgs];
-    expect(call.count).toBe(5);
-    expect(Array.isArray(call.pool)).toBe(true);
-    expect(Array.isArray(call.formatSequence)).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ import { instrumentD1WithSentry } from "@sentry/cloudflare";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 import type { GuildConfigRow } from "./types/guild_config.mjs";
-import { StatsReturnType } from "./types/guild_config.mjs";
+import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "./types/guild_config.mjs";
 import type { NeatQueueConfigRow, NeatQueuePostSeriesDisplayMode } from "./types/neat_queue_config.mjs";
 
 export interface DatabaseServiceOpts {
@@ -74,16 +74,24 @@ export class DatabaseService {
       StatsReturn: StatsReturnType.SERIES_ONLY,
       Medals: "Y",
       NeatQueueInformerPlayerConnections: "Y",
+      NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+      NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
+      NeatQueueInformerMapsFormat: MapsFormatType.HCS,
+      NeatQueueInformerMapsCount: 5,
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections) VALUES (?, ?, ?, ?)",
+        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections, NeatQueueInformerMapsPost, NeatQueueInformerMapsPlaylist, NeatQueueInformerMapsFormat, NeatQueueInformerMapsCount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       ).bind(
         defaultConfig.GuildId,
         defaultConfig.StatsReturn,
         defaultConfig.Medals,
         defaultConfig.NeatQueueInformerPlayerConnections,
+        defaultConfig.NeatQueueInformerMapsPost,
+        defaultConfig.NeatQueueInformerMapsPlaylist,
+        defaultConfig.NeatQueueInformerMapsFormat,
+        defaultConfig.NeatQueueInformerMapsCount,
       );
 
       await insertStmt.run();
@@ -97,19 +105,28 @@ export class DatabaseService {
     const setStatements: string[] = [];
     const values: (StatsReturnType | string | number | null)[] = [];
 
-    if (updates.StatsReturn !== undefined) {
-      setStatements.push("StatsReturn = ?");
-      values.push(updates.StatsReturn);
-    }
+    type UpdatableKeys = keyof Omit<GuildConfigRow, "GuildId">;
+    const createUpdateKeysArray = <T extends readonly UpdatableKeys[]>(
+      keys: T &
+        (UpdatableKeys extends T[number] ? unknown : "Missing keys") &
+        (T[number] extends UpdatableKeys ? unknown : "Extra keys"),
+    ): T => keys;
 
-    if (updates.Medals !== undefined) {
-      setStatements.push("Medals = ?");
-      values.push(updates.Medals);
-    }
+    const updateKeys = createUpdateKeysArray([
+      "StatsReturn",
+      "Medals",
+      "NeatQueueInformerPlayerConnections",
+      "NeatQueueInformerMapsPost",
+      "NeatQueueInformerMapsPlaylist",
+      "NeatQueueInformerMapsFormat",
+      "NeatQueueInformerMapsCount",
+    ] as const);
 
-    if (updates.NeatQueueInformerPlayerConnections !== undefined) {
-      setStatements.push("NeatQueueInformerPlayerConnections = ?");
-      values.push(updates.NeatQueueInformerPlayerConnections);
+    for (const key of updateKeys) {
+      if (updates[key] !== undefined) {
+        setStatements.push(`${key} = ?`);
+        values.push(updates[key]);
+      }
     }
 
     if (setStatements.length === 0) {

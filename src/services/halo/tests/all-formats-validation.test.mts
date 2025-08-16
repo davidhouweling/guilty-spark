@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { MapMode } from "../../../services/halo/hcs.mjs";
-import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
-import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config.mjs";
+import type { MapMode } from "../hcs.mjs";
+import { installFakeServicesWith } from "../../fakes/services.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 
 describe("All Format Types - Distribution Analysis", () => {
   const services = installFakeServicesWith();
