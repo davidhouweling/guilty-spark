@@ -160,6 +160,37 @@ export class MapsCommand extends BaseCommand {
     }
   }
 
+  private generateDeferredResponse(
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
+    state: { count: number; playlist: MapsPlaylistType; format: MapsFormatType },
+    maps: { mode: MapMode; map: string }[],
+  ): ExecuteResponse {
+    return {
+      response: {
+        type:
+          interaction.type === InteractionType.ApplicationCommand
+            ? InteractionResponseType.DeferredChannelMessageWithSource
+            : InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.updateDeferredReply(
+          interaction.token,
+          this.createMapsResponse({
+            userId: Preconditions.checkExists(
+              interaction.member?.user.id ?? interaction.user?.id,
+              "expected either an interaction member id or user id but none found",
+            ),
+            ...state,
+            maps,
+          }),
+        );
+      },
+    };
+  }
+
   private applicationCommandJob(interaction: APIApplicationCommandInteraction): ExecuteResponse {
     if (interaction.data.type !== ApplicationCommandType.ChatInput) {
       throw new Error("This command can only be used as a chat input command.");
@@ -185,19 +216,7 @@ export class MapsCommand extends BaseCommand {
     const state = { count, playlist, format };
     const maps = this.services.haloService.generateMaps(state);
 
-    return {
-      response: {
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: this.createMapsResponse({
-          userId: Preconditions.checkExists(
-            interaction.member?.user.id ?? interaction.user?.id,
-            "expected either an interaction member id or user id but none found",
-          ),
-          ...state,
-          maps,
-        }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, state, maps);
   }
 
   private messageComponentResponse(
@@ -234,28 +253,10 @@ export class MapsCommand extends BaseCommand {
     const count = 5;
     const playlist = MapsPlaylistType.HCS_CURRENT;
     const format = MapsFormatType.HCS;
-    const maps = this.services.haloService.generateMaps({ count, playlist, format });
+    const newState = { count, playlist, format };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    return {
-      response: {
-        type: InteractionResponseType.DeferredMessageUpdate,
-      },
-      jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.createMessage(
-          interaction.channel.id,
-          this.createMapsResponse({
-            userId: Preconditions.checkExists(
-              interaction.member?.user.id ?? interaction.user?.id,
-              "expected either an interaction member id or user id but none found",
-            ),
-            count,
-            playlist,
-            format,
-            maps,
-          }),
-        );
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private rollResponse(
@@ -264,66 +265,28 @@ export class MapsCommand extends BaseCommand {
   ): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const count = this.getCountFromInteractionButton(customId);
-    const maps = this.services.haloService.generateMaps({ ...state, count });
+    const newState = { ...state, count };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({
-          userId: Preconditions.checkExists(
-            interaction.member?.user.id ?? interaction.user?.id,
-            "expected either an interaction member id or user id but none found",
-          ),
-          ...state,
-          count,
-          maps,
-        }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const playlist = interaction.data.values[0] as MapsPlaylistType;
+    const newState = { ...state, playlist };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    const maps = this.services.haloService.generateMaps({ ...state, playlist });
-
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({
-          userId: Preconditions.checkExists(
-            interaction.member?.user.id ?? interaction.user?.id,
-            "expected either an interaction member id or user id but none found",
-          ),
-          ...state,
-          playlist,
-          maps,
-        }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const format = interaction.data.values[0] as MapsFormatType;
+    const newState = { ...state, format };
+    const maps = this.services.haloService.generateMaps(newState);
 
-    const maps = this.services.haloService.generateMaps({ ...state, format });
-
-    return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: this.createMapsResponse({
-          userId: Preconditions.checkExists(
-            interaction.member?.user.id ?? interaction.user?.id,
-            "expected either an interaction member id or user id but none found",
-          ),
-          ...state,
-          format,
-          maps,
-        }),
-      },
-    };
+    return this.generateDeferredResponse(interaction, newState, maps);
   }
 
   private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
