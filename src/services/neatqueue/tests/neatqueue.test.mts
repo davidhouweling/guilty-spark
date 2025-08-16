@@ -26,7 +26,7 @@ import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { apiMessage, discordNeatQueueData, guild, guildMember, textChannel } from "../../discord/fakes/data.mjs";
 import { EndUserError } from "../../../base/end-user-error.mjs";
-import { StatsReturnType } from "../../database/types/guild_config.mjs";
+import { StatsReturnType, MapsPostType } from "../../database/types/guild_config.mjs";
 import { DiscordError } from "../../discord/discord-error.mjs";
 
 const startThread: APIChannel = {
@@ -361,6 +361,143 @@ describe("NeatQueueService", () => {
         );
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("skips all posting when both player connections and maps are disabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(guildIdSpy).not.toHaveBeenCalled();
+        expect(getChannelSpy).not.toHaveBeenCalled();
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it("posts players message when player connections are enabled and maps are disabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "Y",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        const [, messageData] = createMessageSpy.mock.calls[0] as [
+          string,
+          { embeds: unknown[]; components: unknown[] },
+        ];
+        expect(messageData.embeds).toBeDefined();
+        expect(messageData.components).toBeDefined();
+
+        // Check that only connect button is present, not maps button
+        const messageString = JSON.stringify(messageData);
+        expect(messageString).toContain("btn_connect_initiate");
+        expect(messageString).not.toContain("btn_maps_initiate");
+      });
+
+      it("posts maps message when maps are set to AUTO and player connections are disabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.AUTO,
+          }),
+        );
+        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockReturnValue([
+          { map: "Map 1", mode: "Slayer" },
+          { map: "Map 2", mode: "Capture the Flag" },
+        ]);
+
+        await jobToComplete();
+
+        expect(generateMapsSpy).toHaveBeenCalledWith({
+          playlist: expect.any(String) as string,
+          format: expect.any(String) as string,
+          count: expect.any(Number) as number,
+        });
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        const [, messageData] = createMessageSpy.mock.calls[0] as [
+          string,
+          { embeds: unknown[]; components: unknown[] },
+        ];
+        expect(messageData.embeds).toBeDefined();
+        expect(messageData.components).toBeDefined();
+      });
+
+      it("posts both players message and maps message when both are enabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "Y",
+            NeatQueueInformerMapsPost: MapsPostType.AUTO,
+          }),
+        );
+        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockReturnValue([
+          { map: "Map 1", mode: "Slayer" },
+          { map: "Map 2", mode: "Capture the Flag" },
+        ]);
+
+        await jobToComplete();
+
+        expect(generateMapsSpy).toHaveBeenCalledWith({
+          playlist: expect.any(String) as string,
+          format: expect.any(String) as string,
+          count: expect.any(Number) as number,
+        });
+        expect(createMessageSpy).toHaveBeenCalledTimes(2);
+
+        // First call should be players message
+        const [, firstMessageData] = createMessageSpy.mock.calls[0] as [string, { embeds: unknown[] }];
+        const firstMessageString = JSON.stringify(firstMessageData);
+        expect(firstMessageString).toContain("Players in queue");
+
+        // Second call should be maps message
+        const [, secondMessageData] = createMessageSpy.mock.calls[1] as [
+          string,
+          { embeds: unknown[]; components: unknown[] },
+        ];
+        expect(secondMessageData.embeds).toBeDefined();
+        expect(secondMessageData.components).toBeDefined();
+      });
+
+      it("includes maps button in players message when maps are set to BUTTON", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "Y",
+            NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        const [, messageData] = createMessageSpy.mock.calls[0] as [string, { components: unknown[] }];
+        const messageString = JSON.stringify(messageData);
+        expect(messageString).toContain("btn_connect_initiate");
+        expect(messageString).toContain("btn_maps_initiate");
+      });
+
+      it("does not include maps button in players message when maps are set to OFF", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "Y",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        const [, messageData] = createMessageSpy.mock.calls[0] as [string, { components: unknown[] }];
+        const messageString = JSON.stringify(messageData);
+        expect(messageString).toContain("btn_connect_initiate");
+        expect(messageString).not.toContain("btn_maps_initiate");
       });
     });
 
@@ -1147,6 +1284,33 @@ describe("NeatQueueService", () => {
       await neatQueueService.updatePlayersEmbed("guild-123", "channel-123", "message-123");
 
       expect(logErrorSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    });
+
+    it("fetches guild config when updating players embed", async () => {
+      const guildId = "guild-123";
+      const channelId = "channel-123";
+      const messageId = "message-123";
+      const timeline = [
+        {
+          timestamp: new Date().toISOString(),
+          event: getFakeNeatQueueData("matchStarted"),
+        },
+      ];
+
+      const getGuildConfigSpy = vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(aFakeGuildConfigRow());
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({
+        keys: [{ name: `neatqueue:${guildId}:${channelId}` }],
+        list_complete: true,
+        cacheStatus: null,
+      });
+      const appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
+      appDataGetSpy.mockResolvedValue(timeline);
+      vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await neatQueueService.updatePlayersEmbed(guildId, channelId, messageId);
+
+      expect(getGuildConfigSpy).toHaveBeenCalledOnce();
+      expect(getGuildConfigSpy).toHaveBeenCalledWith(guildId);
     });
   });
 });
