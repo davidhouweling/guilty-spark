@@ -4,7 +4,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { MatchOutcome, RequestError } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient } from "halo-infinite-api";
 import { sub } from "date-fns";
-import { HaloService, PlaylistType, FormatType } from "../halo.mjs";
+import { HaloService } from "../halo.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -15,6 +15,7 @@ import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 
 describe("Halo service", () => {
   let logService: LogService;
@@ -764,8 +765,8 @@ describe("Halo service", () => {
     it("generates maps using HCS format", () => {
       const result = serviceWithMockRoundRobin.generateMaps({
         count: 3,
-        playlist: PlaylistType.HcsCurrent,
-        format: FormatType.Hcs,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
       });
 
       expect(result).toHaveLength(3);
@@ -796,8 +797,8 @@ describe("Halo service", () => {
     it("generates maps using Random format", () => {
       const result = serviceWithMockRoundRobin.generateMaps({
         count: 5,
-        playlist: PlaylistType.HcsCurrent,
-        format: FormatType.Random,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.RANDOM,
       });
 
       expect(result).toHaveLength(3);

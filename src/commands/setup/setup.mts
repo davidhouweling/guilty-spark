@@ -31,9 +31,9 @@ import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base
 import { BaseCommand } from "../base/base.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 import {
-  NeatQueueInformerMapsFormatType,
-  NeatQueueInformerMapsPlaylistType,
-  NeatQueueInformerMapsPostType,
+  MapsFormatType,
+  MapsPlaylistType,
+  MapsPostType,
   StatsReturnType,
 } from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
@@ -1942,18 +1942,18 @@ export class SetupCommand extends BaseCommand {
                 custom_id: InteractionComponent.NeatQueueInformerMapsPost,
                 options: [
                   {
-                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.AUTO),
-                    value: NeatQueueInformerMapsPostType.AUTO,
+                    label: this.configMapPostToString(MapsPostType.AUTO),
+                    value: MapsPostType.AUTO,
                     description: "Automatically generate maps as soon as the queue channel is created",
                   },
                   {
-                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.BUTTON),
-                    value: NeatQueueInformerMapsPostType.BUTTON,
+                    label: this.configMapPostToString(MapsPostType.BUTTON),
+                    value: MapsPostType.BUTTON,
                     description: "Display a button for players to manually generate the maps",
                   },
                   {
-                    label: this.configMapPostToString(NeatQueueInformerMapsPostType.OFF),
-                    value: NeatQueueInformerMapsPostType.OFF,
+                    label: this.configMapPostToString(MapsPostType.OFF),
+                    value: MapsPostType.OFF,
                     description: "No maps generated or button displayed, players can still use /maps command",
                   },
                 ],
@@ -1969,13 +1969,13 @@ export class SetupCommand extends BaseCommand {
                 custom_id: InteractionComponent.NeatQueueInformerMapsPlaylist,
                 options: [
                   {
-                    label: this.configMapPlaylistToString(NeatQueueInformerMapsPlaylistType.HCS_CURRENT),
-                    value: NeatQueueInformerMapsPlaylistType.HCS_CURRENT,
+                    label: this.configMapPlaylistToString(MapsPlaylistType.HCS_CURRENT),
+                    value: MapsPlaylistType.HCS_CURRENT,
                     description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
                   },
                   {
-                    label: this.configMapPlaylistToString(NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL),
-                    value: NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL,
+                    label: this.configMapPlaylistToString(MapsPlaylistType.HCS_HISTORICAL),
+                    value: MapsPlaylistType.HCS_HISTORICAL,
                     description: "All maps and modes that have been played at any HCS major event",
                   },
                 ],
@@ -1991,23 +1991,23 @@ export class SetupCommand extends BaseCommand {
                 custom_id: InteractionComponent.NeatQueueInformerMapsFormat,
                 options: [
                   {
-                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.HCS),
-                    value: NeatQueueInformerMapsFormatType.HCS,
+                    label: this.configMapFormatToString(MapsFormatType.HCS),
+                    value: MapsFormatType.HCS,
                     description: "Obj, slayer, obj, obj, slayer, ...",
                   },
                   {
-                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.RANDOM),
-                    value: NeatQueueInformerMapsFormatType.RANDOM,
+                    label: this.configMapFormatToString(MapsFormatType.RANDOM),
+                    value: MapsFormatType.RANDOM,
                     description: "Randomly pick objective or slayer for each map",
                   },
                   {
-                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.OBJECTIVE),
-                    value: NeatQueueInformerMapsFormatType.OBJECTIVE,
+                    label: this.configMapFormatToString(MapsFormatType.OBJECTIVE),
+                    value: MapsFormatType.OBJECTIVE,
                     description: "Only pick objective modes",
                   },
                   {
-                    label: this.configMapFormatToString(NeatQueueInformerMapsFormatType.SLAYER),
-                    value: NeatQueueInformerMapsFormatType.SLAYER,
+                    label: this.configMapFormatToString(MapsFormatType.SLAYER),
+                    value: MapsFormatType.SLAYER,
                     description: "Only pick slayer modes",
                   },
                 ],
@@ -2059,15 +2059,15 @@ export class SetupCommand extends BaseCommand {
     }
   }
 
-  private configMapPostToString(mapPostType: NeatQueueInformerMapsPostType): string {
+  private configMapPostToString(mapPostType: MapsPostType): string {
     switch (mapPostType) {
-      case NeatQueueInformerMapsPostType.AUTO: {
+      case MapsPostType.AUTO: {
         return "Automatic";
       }
-      case NeatQueueInformerMapsPostType.BUTTON: {
+      case MapsPostType.BUTTON: {
         return "As a button";
       }
-      case NeatQueueInformerMapsPostType.OFF: {
+      case MapsPostType.OFF: {
         return "Off";
       }
       default: {
@@ -2076,12 +2076,12 @@ export class SetupCommand extends BaseCommand {
     }
   }
 
-  private configMapPlaylistToString(playlistType: NeatQueueInformerMapsPlaylistType): string {
+  private configMapPlaylistToString(playlistType: MapsPlaylistType): string {
     switch (playlistType) {
-      case NeatQueueInformerMapsPlaylistType.HCS_CURRENT: {
+      case MapsPlaylistType.HCS_CURRENT: {
         return "HCS - Current";
       }
-      case NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL: {
+      case MapsPlaylistType.HCS_HISTORICAL: {
         return "HCS - Historical";
       }
       default: {
@@ -2090,18 +2090,18 @@ export class SetupCommand extends BaseCommand {
     }
   }
 
-  private configMapFormatToString(formatType: NeatQueueInformerMapsFormatType): string {
+  private configMapFormatToString(formatType: MapsFormatType): string {
     switch (formatType) {
-      case NeatQueueInformerMapsFormatType.HCS: {
+      case MapsFormatType.HCS: {
         return "HCS";
       }
-      case NeatQueueInformerMapsFormatType.RANDOM: {
+      case MapsFormatType.RANDOM: {
         return "Random";
       }
-      case NeatQueueInformerMapsFormatType.OBJECTIVE: {
+      case MapsFormatType.OBJECTIVE: {
         return "Objective only";
       }
-      case NeatQueueInformerMapsFormatType.SLAYER: {
+      case MapsFormatType.SLAYER: {
         return "Slayer only";
       }
       default: {
@@ -2126,15 +2126,15 @@ export class SetupCommand extends BaseCommand {
 
       switch (customId) {
         case InteractionComponent.NeatQueueInformerMapsPost: {
-          config.NeatQueueInformerMapsPost = value as NeatQueueInformerMapsPostType;
+          config.NeatQueueInformerMapsPost = value as MapsPostType;
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsPlaylist: {
-          config.NeatQueueInformerMapsPlaylist = value as NeatQueueInformerMapsPlaylistType;
+          config.NeatQueueInformerMapsPlaylist = value as MapsPlaylistType;
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsFormat: {
-          config.NeatQueueInformerMapsFormat = value as NeatQueueInformerMapsFormatType;
+          config.NeatQueueInformerMapsFormat = value as MapsFormatType;
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsCount: {

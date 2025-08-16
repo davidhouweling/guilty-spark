@@ -3,18 +3,18 @@ export enum StatsReturnType {
   SERIES_AND_GAMES = "A",
 }
 
-export enum NeatQueueInformerMapsPostType {
+export enum MapsPostType {
   AUTO = "A",
   BUTTON = "B",
   OFF = "O",
 }
 
-export enum NeatQueueInformerMapsPlaylistType {
+export enum MapsPlaylistType {
   HCS_CURRENT = "C",
   HCS_HISTORICAL = "H",
 }
 
-export enum NeatQueueInformerMapsFormatType {
+export enum MapsFormatType {
   HCS = "H",
   RANDOM = "R",
   OBJECTIVE = "O",
@@ -26,8 +26,8 @@ export interface GuildConfigRow {
   StatsReturn: StatsReturnType;
   Medals: "Y" | "N";
   NeatQueueInformerPlayerConnections: "Y" | "N";
-  NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType;
-  NeatQueueInformerMapsPlaylist: NeatQueueInformerMapsPlaylistType;
-  NeatQueueInformerMapsFormat: NeatQueueInformerMapsFormatType;
+  NeatQueueInformerMapsPost: MapsPostType;
+  NeatQueueInformerMapsPlaylist: MapsPlaylistType;
+  NeatQueueInformerMapsFormat: MapsFormatType;
   NeatQueueInformerMapsCount: number;
 }

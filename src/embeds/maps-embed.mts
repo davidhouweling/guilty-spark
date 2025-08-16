@@ -1,10 +1,10 @@
 import type { APIEmbed, APIInteractionResponseCallbackData, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import type { CountType } from "../services/halo/halo.mjs";
-import { PlaylistType, FormatType } from "../services/halo/halo.mjs";
 import { HCS_LAST_UPDATED, type MapMode } from "../services/halo/hcs.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { GAMECOACH_GG_URLS } from "../commands/maps/gamecoachgg.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../services/database/types/guild_config.mjs";
+import { UnreachableError } from "../base/unreachable-error.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 
 export enum InteractionComponent {
@@ -20,9 +20,9 @@ export enum InteractionComponent {
 
 interface MapsEmbedData {
   userId: string;
-  count: CountType;
-  playlist: PlaylistType;
-  format: FormatType;
+  playlist: MapsPlaylistType;
+  format: MapsFormatType;
+  count: number;
   maps: {
     mode: MapMode;
     map: string;
@@ -50,7 +50,7 @@ export class MapsEmbed extends BaseTableEmbed {
     const userDisplay = `<@${userId}>`;
 
     const embed: APIEmbed = {
-      title: `Maps: ${playlist}`,
+      title: `Maps: ${this.playlistToString(playlist)}`,
       color: 0x5865f2,
       timestamp: HCS_LAST_UPDATED,
       footer: {
@@ -124,16 +124,16 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.PlaylistSelect,
             options: [
               {
-                label: PlaylistType.HcsCurrent,
-                value: PlaylistType.HcsCurrent,
+                label: "HCS - Current",
+                value: MapsPlaylistType.HCS_CURRENT,
                 description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
-                default: playlist === PlaylistType.HcsCurrent,
+                default: playlist === MapsPlaylistType.HCS_CURRENT,
               },
               {
-                label: PlaylistType.HcsHistorical,
-                value: PlaylistType.HcsHistorical,
+                label: "HCS - Historical",
+                value: MapsPlaylistType.HCS_HISTORICAL,
                 description: "All maps and modes that have been played at any HCS major event",
-                default: playlist === PlaylistType.HcsHistorical,
+                default: playlist === MapsPlaylistType.HCS_HISTORICAL,
               },
             ],
             placeholder: "Select a playlist",
@@ -148,28 +148,28 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.FormatSelect,
             options: [
               {
-                label: FormatType.Hcs,
-                value: FormatType.Hcs,
+                label: "HCS",
+                value: MapsFormatType.HCS,
                 description: "Obj, slayer, obj, obj, slayer, ...",
-                default: format === FormatType.Hcs,
+                default: format === MapsFormatType.HCS,
               },
               {
-                label: FormatType.Random,
-                value: FormatType.Random,
+                label: "Random",
+                value: MapsFormatType.RANDOM,
                 description: "Randomly pick objective or slayer for each map",
-                default: format === FormatType.Random,
+                default: format === MapsFormatType.RANDOM,
               },
               {
-                label: FormatType.RandomObjective,
-                value: FormatType.RandomObjective,
+                label: "Objective only",
+                value: MapsFormatType.OBJECTIVE,
                 description: "Only pick objective modes",
-                default: format === FormatType.RandomObjective,
+                default: format === MapsFormatType.OBJECTIVE,
               },
               {
-                label: FormatType.RandomSlayer,
-                value: FormatType.RandomSlayer,
+                label: "Slayer only",
+                value: MapsFormatType.SLAYER,
                 description: "Only pick slayer modes",
-                default: format === FormatType.RandomSlayer,
+                default: format === MapsFormatType.SLAYER,
               },
             ],
           },
@@ -197,5 +197,19 @@ export class MapsEmbed extends BaseTableEmbed {
       embeds: [this.embed],
       components: this.actions,
     };
+  }
+
+  private playlistToString(playlistType: MapsPlaylistType): string {
+    switch (playlistType) {
+      case MapsPlaylistType.HCS_CURRENT: {
+        return "HCS - Current";
+      }
+      case MapsPlaylistType.HCS_HISTORICAL: {
+        return "HCS - Historical";
+      }
+      default: {
+        throw new UnreachableError(playlistType);
+      }
+    }
   }
 }

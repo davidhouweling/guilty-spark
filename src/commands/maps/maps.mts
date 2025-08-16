@@ -18,10 +18,9 @@ import {
 import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { CountType } from "../../services/halo/halo.mjs";
-import { PlaylistType, FormatType } from "../../services/halo/halo.mjs";
 import { type MapMode } from "../../services/halo/hcs.mjs";
 import { MapsEmbed, InteractionComponent } from "../../embeds/maps-embed.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config.mjs";
 
 export class MapsCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -49,10 +48,10 @@ export class MapsCommand extends BaseCommand {
           description: "Which playlist to use (default: HCS - Current)",
           required: false,
           choices: [
-            { name: PlaylistType.HcsCurrent, value: PlaylistType.HcsCurrent },
+            { name: MapsPlaylistType.HCS_CURRENT, value: MapsPlaylistType.HCS_CURRENT },
             {
-              name: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
-              value: PlaylistType.HcsHistorical,
+              name: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
+              value: MapsPlaylistType.HCS_HISTORICAL,
             },
           ],
         },
@@ -62,10 +61,10 @@ export class MapsCommand extends BaseCommand {
           description: "Format of the map set (default: HCS)",
           required: false,
           choices: [
-            { name: FormatType.Hcs, value: FormatType.Hcs },
-            { name: FormatType.Random, value: FormatType.Random },
-            { name: FormatType.RandomObjective, value: FormatType.RandomObjective },
-            { name: FormatType.RandomSlayer, value: FormatType.RandomSlayer },
+            { name: MapsFormatType.HCS, value: MapsFormatType.HCS },
+            { name: MapsFormatType.RANDOM, value: MapsFormatType.RANDOM },
+            { name: MapsFormatType.OBJECTIVE, value: MapsFormatType.OBJECTIVE },
+            { name: MapsFormatType.SLAYER, value: MapsFormatType.SLAYER },
           ],
         },
       ],
@@ -169,17 +168,19 @@ export class MapsCommand extends BaseCommand {
     const { options } = interaction.data;
 
     const countOption = options?.find((opt) => opt.name === "count");
-    const count = countOption?.type === ApplicationCommandOptionType.Integer ? (countOption.value as CountType) : 5;
+    const count = countOption?.type === ApplicationCommandOptionType.Integer ? countOption.value : 5;
 
     const playlistOption = options?.find((opt) => opt.name === "playlist");
-    const playlist: PlaylistType =
+    const playlist: MapsPlaylistType =
       playlistOption?.type === ApplicationCommandOptionType.String
-        ? (playlistOption.value as PlaylistType)
-        : PlaylistType.HcsCurrent;
+        ? (playlistOption.value as MapsPlaylistType)
+        : MapsPlaylistType.HCS_CURRENT;
 
     const formatOption = options?.find((opt) => opt.name === "format");
-    const format: FormatType =
-      formatOption?.type === ApplicationCommandOptionType.String ? (formatOption.value as FormatType) : FormatType.Hcs;
+    const format: MapsFormatType =
+      formatOption?.type === ApplicationCommandOptionType.String
+        ? (formatOption.value as MapsFormatType)
+        : MapsFormatType.HCS;
 
     const state = { count, playlist, format };
     const maps = this.services.haloService.generateMaps(state);
@@ -231,8 +232,8 @@ export class MapsCommand extends BaseCommand {
 
   private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     const count = 5;
-    const playlist = PlaylistType.HcsCurrent;
-    const format = FormatType.Hcs;
+    const playlist = MapsPlaylistType.HCS_CURRENT;
+    const format = MapsFormatType.HCS;
     const maps = this.services.haloService.generateMaps({ count, playlist, format });
 
     return {
@@ -283,7 +284,7 @@ export class MapsCommand extends BaseCommand {
 
   private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
-    const playlist = interaction.data.values[0] as PlaylistType;
+    const playlist = interaction.data.values[0] as MapsPlaylistType;
 
     const maps = this.services.haloService.generateMaps({ ...state, playlist });
 
@@ -305,7 +306,7 @@ export class MapsCommand extends BaseCommand {
 
   private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
-    const format = interaction.data.values[0] as FormatType;
+    const format = interaction.data.values[0] as MapsFormatType;
 
     const maps = this.services.haloService.generateMaps({ ...state, format });
 
@@ -346,7 +347,7 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private getCountFromInteractionButton(customId: InteractionComponent): CountType {
+  private getCountFromInteractionButton(customId: InteractionComponent): number {
     switch (
       customId as Omit<InteractionComponent, InteractionComponent.Initiate | InteractionComponent.PlaylistSelect>
     ) {
@@ -371,9 +372,9 @@ export class MapsCommand extends BaseCommand {
   private getStateFromEmbed(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): {
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
+    count: number;
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
   } {
     const components =
       interaction.message.components?.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : [])) ??
@@ -392,7 +393,7 @@ export class MapsCommand extends BaseCommand {
       ),
       "Playlist select not found",
     ) as APIStringSelectComponent;
-    const playlist = playlistSelect.options.find((opt) => opt.default === true)?.value as PlaylistType;
+    const playlist = playlistSelect.options.find((opt) => opt.default === true)?.value as MapsPlaylistType;
     const formatSelect = Preconditions.checkExists(
       components.find(
         (c) =>
@@ -401,7 +402,7 @@ export class MapsCommand extends BaseCommand {
       ),
       "Format select not found",
     ) as APIStringSelectComponent;
-    const format = formatSelect.options.find((opt) => opt.default === true)?.value as FormatType;
+    const format = formatSelect.options.find((opt) => opt.default === true)?.value as MapsFormatType;
 
     return {
       count,
@@ -418,9 +419,9 @@ export class MapsCommand extends BaseCommand {
     maps,
   }: {
     userId: string;
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
+    count: number;
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
     maps: {
       mode: MapMode;
       map: string;

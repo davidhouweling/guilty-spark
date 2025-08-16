@@ -17,11 +17,7 @@ import type {
 import { SetupCommand } from "../setup.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
-import {
-  NeatQueueInformerMapsPostType,
-  NeatQueueInformerMapsPlaylistType,
-  NeatQueueInformerMapsFormatType,
-} from "../../../services/database/types/guild_config.mjs";
+import { MapsPostType, MapsPlaylistType, MapsFormatType } from "../../../services/database/types/guild_config.mjs";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -260,7 +256,7 @@ describe("SetupCommand", () => {
           data: {
             component_type: ComponentType.StringSelect,
             custom_id: "setup_neat_queue_informer_maps_post",
-            values: [NeatQueueInformerMapsPostType.AUTO],
+            values: [MapsPostType.AUTO],
           },
         } as APIMessageComponentSelectMenuInteraction;
 
@@ -268,7 +264,7 @@ describe("SetupCommand", () => {
         await Preconditions.checkExists(postJob)();
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
-          NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType.AUTO,
+          NeatQueueInformerMapsPost: MapsPostType.AUTO,
         });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
@@ -285,7 +281,7 @@ describe("SetupCommand", () => {
           data: {
             component_type: ComponentType.StringSelect,
             custom_id: "setup_neat_queue_informer_maps_playlist",
-            values: [NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL],
+            values: [MapsPlaylistType.HCS_HISTORICAL],
           },
         } as APIMessageComponentSelectMenuInteraction;
 
@@ -293,7 +289,7 @@ describe("SetupCommand", () => {
         await Preconditions.checkExists(playlistJob)();
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
-          NeatQueueInformerMapsPlaylist: NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL,
+          NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_HISTORICAL,
         });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
@@ -310,7 +306,7 @@ describe("SetupCommand", () => {
           data: {
             component_type: ComponentType.StringSelect,
             custom_id: "setup_neat_queue_informer_maps_format",
-            values: [NeatQueueInformerMapsFormatType.RANDOM],
+            values: [MapsFormatType.RANDOM],
           },
         } as APIMessageComponentSelectMenuInteraction;
 
@@ -318,7 +314,7 @@ describe("SetupCommand", () => {
         await Preconditions.checkExists(formatJob)();
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
-          NeatQueueInformerMapsFormat: NeatQueueInformerMapsFormatType.RANDOM,
+          NeatQueueInformerMapsFormat: MapsFormatType.RANDOM,
         });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
@@ -350,9 +346,9 @@ describe("SetupCommand", () => {
 
       it("navigates back to NeatQueue Informer from maps configuration when back button is pressed", async () => {
         const mockConfig = aFakeGuildConfigRow({
-          NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType.AUTO,
-          NeatQueueInformerMapsPlaylist: NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL,
-          NeatQueueInformerMapsFormat: NeatQueueInformerMapsFormatType.OBJECTIVE,
+          NeatQueueInformerMapsPost: MapsPostType.AUTO,
+          NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_HISTORICAL,
+          NeatQueueInformerMapsFormat: MapsFormatType.OBJECTIVE,
           NeatQueueInformerMapsCount: 3,
         });
 
@@ -381,9 +377,9 @@ describe("SetupCommand", () => {
       it("displays correct configuration values in NeatQueue Informer overview", async () => {
         const mockConfig = aFakeGuildConfigRow({
           NeatQueueInformerPlayerConnections: "N",
-          NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType.OFF,
-          NeatQueueInformerMapsPlaylist: NeatQueueInformerMapsPlaylistType.HCS_HISTORICAL,
-          NeatQueueInformerMapsFormat: NeatQueueInformerMapsFormatType.SLAYER,
+          NeatQueueInformerMapsPost: MapsPostType.OFF,
+          NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_HISTORICAL,
+          NeatQueueInformerMapsFormat: MapsFormatType.SLAYER,
           NeatQueueInformerMapsCount: 1,
         });
 
@@ -411,7 +407,7 @@ describe("SetupCommand", () => {
 
       it("displays updated configuration in main menu", async () => {
         const mockConfig = aFakeGuildConfigRow({
-          NeatQueueInformerMapsPost: NeatQueueInformerMapsPostType.AUTO,
+          NeatQueueInformerMapsPost: MapsPostType.AUTO,
           NeatQueueInformerMapsCount: 7,
         });
 

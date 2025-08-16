@@ -23,7 +23,6 @@ import {
   InteractionResponseType,
 } from "discord-api-types/v10";
 import type { MapMode } from "../../../services/halo/hcs.mjs";
-import { PlaylistType, FormatType } from "../../../services/halo/halo.mjs";
 import { MapsCommand } from "../maps.mjs";
 import { InteractionComponent } from "../../../embeds/maps-embed.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -31,6 +30,7 @@ import type { Services } from "../../../services/install.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config.mjs";
 
 function aFakeMapsInteractionWith(
   options: { name: string; value: unknown; type: number }[] = [],
@@ -87,17 +87,17 @@ function getSelectMenu(components: APIMessageTopLevelComponent[] | undefined): A
 }
 
 function aFakeMapsMessage({
-  playlist = PlaylistType.HcsCurrent,
-  format = FormatType.Hcs,
+  playlist = MapsPlaylistType.HCS_CURRENT,
+  format = MapsFormatType.HCS,
   count = 5,
   selectedPlaylist,
   selectedFormat,
 }: {
-  playlist?: PlaylistType;
-  format?: string;
+  playlist?: MapsPlaylistType;
+  format?: MapsFormatType;
   count?: 1 | 3 | 5 | 7;
-  selectedPlaylist?: PlaylistType | undefined;
-  selectedFormat?: string | undefined;
+  selectedPlaylist?: MapsPlaylistType | undefined;
+  selectedFormat?: MapsFormatType | undefined;
 }): {
   embeds: APIEmbed[];
   components: APIMessageTopLevelComponent[];
@@ -150,14 +150,14 @@ function aFakeMapsMessage({
             custom_id: InteractionComponent.PlaylistSelect,
             options: [
               {
-                label: PlaylistType.HcsCurrent,
-                value: PlaylistType.HcsCurrent,
-                default: String(selectedPlaylist ?? playlist) === String(PlaylistType.HcsCurrent),
+                label: MapsPlaylistType.HCS_CURRENT,
+                value: MapsPlaylistType.HCS_CURRENT,
+                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_CURRENT),
               },
               {
-                label: `${PlaylistType.HcsHistorical} (all maps + modes played in any HCS major)`,
-                value: PlaylistType.HcsHistorical,
-                default: String(selectedPlaylist ?? playlist) === String(PlaylistType.HcsHistorical),
+                label: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
+                value: MapsPlaylistType.HCS_HISTORICAL,
+                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_HISTORICAL),
               },
             ],
             placeholder: "Select a playlist",
@@ -172,24 +172,24 @@ function aFakeMapsMessage({
             custom_id: InteractionComponent.FormatSelect,
             options: [
               {
-                label: FormatType.Hcs,
-                value: FormatType.Hcs,
-                default: String(selectedFormat ?? format) === String(FormatType.Hcs),
+                label: MapsFormatType.HCS,
+                value: MapsFormatType.HCS,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.HCS),
               },
               {
-                label: FormatType.Random,
-                value: FormatType.Random,
-                default: String(selectedFormat ?? format) === String(FormatType.Random),
+                label: MapsFormatType.RANDOM,
+                value: MapsFormatType.RANDOM,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.RANDOM),
               },
               {
-                label: FormatType.RandomObjective,
-                value: FormatType.RandomObjective,
-                default: String(selectedFormat ?? format) === String(FormatType.RandomObjective),
+                label: MapsFormatType.OBJECTIVE,
+                value: MapsFormatType.OBJECTIVE,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.OBJECTIVE),
               },
               {
-                label: FormatType.RandomSlayer,
-                value: FormatType.RandomSlayer,
-                default: String(selectedFormat ?? format) === String(FormatType.RandomSlayer),
+                label: MapsFormatType.SLAYER,
+                value: MapsFormatType.SLAYER,
+                default: String(selectedFormat ?? format) === String(MapsFormatType.SLAYER),
               },
             ],
           },
@@ -200,17 +200,17 @@ function aFakeMapsMessage({
 }
 
 function aFakeApiMessage({
-  playlist = PlaylistType.HcsCurrent,
-  format = FormatType.Hcs,
+  playlist = MapsPlaylistType.HCS_CURRENT,
+  format = MapsFormatType.HCS,
   count = 5,
   selectedPlaylist,
   selectedFormat,
 }: {
-  playlist?: PlaylistType;
-  format?: string;
+  playlist?: MapsPlaylistType;
+  format?: MapsFormatType | undefined;
   count?: 1 | 3 | 5 | 7;
-  selectedPlaylist?: PlaylistType | undefined;
-  selectedFormat?: string | undefined;
+  selectedPlaylist?: MapsPlaylistType | undefined;
+  selectedFormat?: MapsFormatType | undefined;
 }): APIMessage {
   return {
     ...apiMessage,
@@ -221,8 +221,8 @@ function aFakeApiMessage({
 
 function aFakeButtonInteraction(
   customId: string,
-  playlist: PlaylistType = PlaylistType.HcsCurrent,
-  format: string = FormatType.Hcs,
+  playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
+  format: MapsFormatType = MapsFormatType.HCS,
   count: 1 | 3 | 5 | 7 = 5,
 ): APIMessageComponentButtonInteraction {
   return {
@@ -238,10 +238,10 @@ function aFakeButtonInteraction(
 }
 
 function aFakePlaylistSelectInteraction(
-  selectedPlaylist: PlaylistType,
+  selectedPlaylist: MapsPlaylistType,
   count: 1 | 3 | 5 | 7 = 5,
-  playlist: PlaylistType = PlaylistType.HcsCurrent,
-  format: string = FormatType.Hcs,
+  playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
+  format: MapsFormatType = MapsFormatType.HCS,
 ): APIMessageComponentSelectMenuInteraction {
   return {
     ...fakeBaseAPIApplicationCommandInteraction,
@@ -303,14 +303,14 @@ describe("MapsCommand", () => {
   describe("/maps playlist option", () => {
     it("returns maps from the historical playlist when selected", () => {
       const interaction = aFakeMapsInteractionWith([
-        { name: "playlist", value: PlaylistType.HcsHistorical, type: ApplicationCommandOptionType.String },
+        { name: "playlist", value: MapsPlaylistType.HCS_HISTORICAL, type: ApplicationCommandOptionType.String },
       ]);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsHistorical);
+      expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
     });
 
@@ -321,21 +321,21 @@ describe("MapsCommand", () => {
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
+      expect(embed?.title).toContain(MapsPlaylistType.HCS_CURRENT);
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
     });
   });
 
   describe("/maps button interaction", () => {
     it("regenerates maps with correct count and playlist when button is pressed", () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, PlaylistType.HcsHistorical);
+      const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, MapsPlaylistType.HCS_HISTORICAL);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
       expect(embed?.title).toBeDefined();
-      expect(embed?.title ?? "").toContain(PlaylistType.HcsHistorical);
+      expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
       expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
 
       const buttonRowHist = getButtonRow(data.components);
@@ -352,7 +352,7 @@ describe("MapsCommand", () => {
     });
 
     it("throws for unknown playlist in embed", () => {
-      const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as PlaylistType);
+      const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as MapsPlaylistType);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
 
@@ -373,7 +373,7 @@ describe("MapsCommand", () => {
       const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
 
       expect(channelId).toBe(interaction.channel.id);
-      expect(data.embeds?.[0]?.title).toContain("Maps: HCS - current");
+      expect(data.embeds?.[0]?.title).toContain("Maps: HCS - Current");
 
       const actionRow = getButtonRow(data.components);
       expect(actionRow.components).toHaveLength(4);
@@ -407,41 +407,45 @@ describe("MapsCommand", () => {
 
   describe("/maps playlist select interaction", () => {
     it("updates the embed and buttons when playlist is switched to historical", () => {
-      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsHistorical, 3, PlaylistType.HcsHistorical);
+      const interaction = aFakePlaylistSelectInteraction(
+        MapsPlaylistType.HCS_HISTORICAL,
+        3,
+        MapsPlaylistType.HCS_HISTORICAL,
+      );
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
       expect(typeof embed?.title).toBe("string");
-      expect(embed?.title ?? "").toContain(PlaylistType.HcsHistorical);
+      expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
 
       const buttonRow = getButtonRow(data.components);
       expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
 
       const select = getSelectMenu(data.components);
       expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(true);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(false);
+      expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(true);
+      expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(false);
     });
 
     it("updates the embed and buttons when playlist is switched to current", () => {
-      const interaction = aFakePlaylistSelectInteraction(PlaylistType.HcsCurrent, 7, PlaylistType.HcsCurrent);
+      const interaction = aFakePlaylistSelectInteraction(MapsPlaylistType.HCS_CURRENT, 7, MapsPlaylistType.HCS_CURRENT);
       const { response } = command.execute(interaction);
       const { data } = response as APIInteractionResponseChannelMessageWithSource;
       const embed = data.embeds?.[0];
 
       expect(embed).toBeDefined();
       expect(embed?.title).toBeDefined();
-      expect(embed?.title).toContain(PlaylistType.HcsCurrent);
+      expect(embed?.title).toContain(MapsPlaylistType.HCS_CURRENT);
 
       const buttonRow = getButtonRow(data.components);
       expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
 
       const select = getSelectMenu(data.components);
       expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsCurrent))?.default).toBe(true);
-      expect(select.options.find((o) => o.value === String(PlaylistType.HcsHistorical))?.default).toBe(false);
+      expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(true);
+      expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(false);
     });
   });
 });

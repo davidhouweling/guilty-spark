@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { FormatType, PlaylistType } from "../halo.mjs";
 import type { MapMode } from "../hcs.mjs";
 import { installFakeServicesWith } from "../../fakes/services.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 
 describe("All Format Types - Distribution Analysis", () => {
   const services = installFakeServicesWith();
@@ -112,8 +112,8 @@ describe("All Format Types - Distribution Analysis", () => {
       for (let i = 0; i < iterations; i++) {
         const result = services.haloService.generateMaps({
           count,
-          playlist: PlaylistType.HcsCurrent,
-          format: FormatType.Hcs,
+          playlist: MapsPlaylistType.HCS_CURRENT,
+          format: MapsFormatType.HCS,
         });
         results.push(result);
       }
@@ -134,8 +134,8 @@ describe("All Format Types - Distribution Analysis", () => {
       for (let i = 0; i < iterations; i++) {
         const result = services.haloService.generateMaps({
           count,
-          playlist: PlaylistType.HcsCurrent,
-          format: FormatType.Random,
+          playlist: MapsPlaylistType.HCS_CURRENT,
+          format: MapsFormatType.RANDOM,
         });
         results.push(result);
       }
@@ -164,8 +164,8 @@ describe("All Format Types - Distribution Analysis", () => {
       for (let i = 0; i < iterations; i++) {
         const result = services.haloService.generateMaps({
           count,
-          playlist: PlaylistType.HcsCurrent,
-          format: FormatType.RandomObjective,
+          playlist: MapsPlaylistType.HCS_CURRENT,
+          format: MapsFormatType.OBJECTIVE,
         });
         results.push(result);
       }
@@ -194,8 +194,8 @@ describe("All Format Types - Distribution Analysis", () => {
       for (let i = 0; i < iterations; i++) {
         const result = services.haloService.generateMaps({
           count,
-          playlist: PlaylistType.HcsCurrent,
-          format: FormatType.RandomSlayer,
+          playlist: MapsPlaylistType.HCS_CURRENT,
+          format: MapsFormatType.SLAYER,
         });
         results.push(result);
       }
@@ -237,10 +237,10 @@ describe("All Format Types - Distribution Analysis", () => {
 
     // Test each format
     const formats = [
-      { type: FormatType.Hcs, name: "HCS" },
-      { type: FormatType.Random, name: "Random" },
-      { type: FormatType.RandomObjective, name: "Random Objective" },
-      { type: FormatType.RandomSlayer, name: "Random Slayer" },
+      { type: MapsFormatType.HCS, name: "HCS" },
+      { type: MapsFormatType.RANDOM, name: "Random" },
+      { type: MapsFormatType.OBJECTIVE, name: "Random Objective" },
+      { type: MapsFormatType.SLAYER, name: "Random Slayer" },
     ];
 
     for (const format of formats) {
@@ -250,7 +250,7 @@ describe("All Format Types - Distribution Analysis", () => {
         // 50 iterations for comparison
         const result = services.haloService.generateMaps({
           count,
-          playlist: PlaylistType.HcsCurrent,
+          playlist: MapsPlaylistType.HCS_CURRENT,
           format: format.type,
         });
         results.push(result);

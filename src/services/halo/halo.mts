@@ -16,6 +16,7 @@ import type { DatabaseService } from "../database/database.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
+import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
 import type { Format, MapMode } from "./hcs.mjs";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
@@ -45,20 +46,6 @@ export interface HaloServiceOpts {
   databaseService: DatabaseService;
   infiniteClient: HaloInfiniteClient;
   roundRobinFn?: generateRoundRobinMapsFn;
-}
-
-export type CountType = 1 | 3 | 5 | 7;
-
-export enum PlaylistType {
-  HcsCurrent = "HCS - current",
-  HcsHistorical = "HCS - historical",
-}
-
-export enum FormatType {
-  Hcs = "HCS (obj slayer obj obj slayer...)",
-  Random = "Random",
-  RandomObjective = "Random Objective only",
-  RandomSlayer = "Random Slayer only",
 }
 
 const noMatchError = new EndUserError(
@@ -358,18 +345,18 @@ export class HaloService {
     return rankedArenaCsrs;
   }
 
-  public getMapModeFormat(format: FormatType, count: CountType): Format[] {
+  public getMapModeFormat(format: MapsFormatType, count: number): Format[] {
     switch (format) {
-      case FormatType.Hcs: {
+      case MapsFormatType.HCS: {
         return Preconditions.checkExists(HCS_SET_FORMAT[count]);
       }
-      case FormatType.Random: {
+      case MapsFormatType.RANDOM: {
         return Array(count).fill("random") as Format[];
       }
-      case FormatType.RandomObjective: {
+      case MapsFormatType.OBJECTIVE: {
         return Array(count).fill("objective") as Format[];
       }
-      case FormatType.RandomSlayer: {
+      case MapsFormatType.SLAYER: {
         return Array(count).fill("slayer") as Format[];
       }
       default: {
@@ -379,16 +366,16 @@ export class HaloService {
   }
 
   public generateMaps({
-    count,
     playlist,
     format,
+    count,
   }: {
-    count: CountType;
-    playlist: PlaylistType;
-    format: FormatType;
+    playlist: MapsPlaylistType;
+    format: MapsFormatType;
+    count: number;
   }): { mode: MapMode; map: string }[] {
     const mapSet: Record<MapMode, string[]> =
-      playlist === PlaylistType.HcsHistorical ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
+      playlist === MapsPlaylistType.HCS_HISTORICAL ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
 
     const formatSequence = this.getMapModeFormat(format, count);
 
