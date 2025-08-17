@@ -322,9 +322,12 @@ describe("NeatQueueService", () => {
       });
 
       it("skips message creation when NeatQueueInformerPlayerConnections is disabled", async () => {
-        getGuildConfigSpy
-          .mockReset()
-          .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }));
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
+        );
 
         await jobToComplete();
 
@@ -344,7 +347,10 @@ describe("NeatQueueService", () => {
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith(
           "guild-id",
-          expect.objectContaining({ NeatQueueInformerPlayerConnections: "N" }),
+          expect.objectContaining({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
         );
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
@@ -357,7 +363,10 @@ describe("NeatQueueService", () => {
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith(
           "guild-id",
-          expect.objectContaining({ NeatQueueInformerPlayerConnections: "N" }),
+          expect.objectContaining({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.OFF,
+          }),
         );
         expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
         expect(createMessageSpy).not.toHaveBeenCalled();
@@ -498,6 +507,24 @@ describe("NeatQueueService", () => {
         const messageString = JSON.stringify(messageData);
         expect(messageString).toContain("btn_connect_initiate");
         expect(messageString).not.toContain("btn_maps_initiate");
+      });
+
+      it("posts maps button when maps are set to BUTTON and player connections are disabled", async () => {
+        getGuildConfigSpy.mockReset().mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerPlayerConnections: "N",
+            NeatQueueInformerMapsPost: MapsPostType.BUTTON,
+          }),
+        );
+
+        await jobToComplete();
+
+        expect(createMessageSpy).toHaveBeenCalledTimes(1);
+        const [, messageData] = createMessageSpy.mock.calls[0] as [string, { components: unknown[] }];
+        const messageString = JSON.stringify(messageData);
+        expect(messageString).toContain("btn_maps_initiate");
+        expect(messageString).not.toContain("btn_connect_initiate");
+        expect(messageString).not.toContain("Players in queue");
       });
     });
 
