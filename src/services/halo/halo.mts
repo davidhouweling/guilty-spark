@@ -26,6 +26,7 @@ export interface MatchPlayer {
   id: string;
   username: string;
   globalName: string | null;
+  guildNickname: string | null;
 }
 
 export interface SeriesData {

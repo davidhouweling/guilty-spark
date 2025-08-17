@@ -48,7 +48,7 @@ describe("SeriesOverviewEmbed", () => {
 
       const embed = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
-        channel: "channel123",
+        channelId: "channel123",
         messageId: "message123",
         locale: "en-US",
         queue: 1,
@@ -88,7 +88,7 @@ describe("SeriesOverviewEmbed", () => {
 
       const embed = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
-        channel: "channel123",
+        channelId: "channel123",
         messageId: "message123",
         locale: "en-US",
         queue: 1,
@@ -117,7 +117,7 @@ describe("SeriesOverviewEmbed", () => {
 
       const embed = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
-        channel: "channel123",
+        channelId: "channel123",
         messageId: "message123",
         locale: "en-US",
         queue: 1,
@@ -147,7 +147,7 @@ describe("SeriesOverviewEmbed", () => {
 
       const embed = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
-        channel: "channel123",
+        channelId: "channel123",
         messageId: "message123",
         locale: "en-US",
         queue: 1,
@@ -180,7 +180,7 @@ describe("SeriesOverviewEmbed", () => {
 
       const embed = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
-        channel: "channel123",
+        channelId: "channel123",
         messageId: "message123",
         locale: "en-US",
         queue: 1,
