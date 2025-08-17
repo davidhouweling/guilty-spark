@@ -569,12 +569,17 @@ export class HaloService {
       return matches;
     }
 
+    // we only care about players who were present at the beginning, as people can join mid way, throwing off the match
     const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
+    const lastMatchPresentAtBeginningPlayers = lastMatch.Players.filter(
+      (player) => player.ParticipationInfo.PresentAtBeginning,
+    );
     return matches.filter((match) => {
+      const presentAtBeginningPlayers = match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning);
       return (
-        lastMatch.Players.length === match.Players.length &&
-        match.Players.every((player) =>
-          lastMatch.Players.some(
+        lastMatchPresentAtBeginningPlayers.length === presentAtBeginningPlayers.length &&
+        presentAtBeginningPlayers.every((player) =>
+          lastMatchPresentAtBeginningPlayers.some(
             (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
           ),
         )
