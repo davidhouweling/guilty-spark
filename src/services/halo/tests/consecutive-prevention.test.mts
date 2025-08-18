@@ -195,11 +195,11 @@ describe("Consecutive Prevention Tests", () => {
 
     console.log(`📊 Consecutive Analysis (50 runs):`);
     console.log(
-      `  Back-to-back modes: ${String(totalBackToBackModes)} (avg ${String((totalBackToBackModes / 50).toFixed(2))} per run)`,
+      `  Back-to-back modes: ${String(totalBackToBackModes)} (avg ${(totalBackToBackModes / 50).toFixed(2)} per run)`,
     );
     console.log(`  Triple+ modes: ${String(totalTripleModes)}`);
     console.log(
-      `  Back-to-back maps: ${String(totalBackToBackMaps)} (avg ${String((totalBackToBackMaps / 50).toFixed(2))} per run)`,
+      `  Back-to-back maps: ${String(totalBackToBackMaps)} (avg ${(totalBackToBackMaps / 50).toFixed(2)} per run)`,
     );
     console.log(`  Triple+ maps: ${String(totalTripleMaps)}`);
   });
@@ -253,10 +253,10 @@ describe("Consecutive Prevention Tests", () => {
 
     console.log(`📊 Clustering Analysis (30 runs of 7 games):`);
     console.log(
-      `  Excessive mode clustering (>3 uses): ${String(excessiveModeClustering)}/30 (${String(((excessiveModeClustering / 30) * 100).toFixed(1))}%)`,
+      `  Excessive mode clustering (>3 uses): ${String(excessiveModeClustering)}/30 (${((excessiveModeClustering / 30) * 100).toFixed(1)}%)`,
     );
     console.log(
-      `  Excessive map clustering (>3 uses): ${String(excessiveMapClustering)}/30 (${String(((excessiveMapClustering / 30) * 100).toFixed(1))}%)`,
+      `  Excessive map clustering (>3 uses): ${String(excessiveMapClustering)}/30 (${((excessiveMapClustering / 30) * 100).toFixed(1)}%)`,
     );
   });
 

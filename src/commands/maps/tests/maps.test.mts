@@ -153,12 +153,12 @@ function aFakeMapsMessage({
               {
                 label: MapsPlaylistType.HCS_CURRENT,
                 value: MapsPlaylistType.HCS_CURRENT,
-                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_CURRENT),
+                default: (selectedPlaylist ?? playlist) === MapsPlaylistType.HCS_CURRENT,
               },
               {
                 label: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
                 value: MapsPlaylistType.HCS_HISTORICAL,
-                default: String(selectedPlaylist ?? playlist) === String(MapsPlaylistType.HCS_HISTORICAL),
+                default: (selectedPlaylist ?? playlist) === MapsPlaylistType.HCS_HISTORICAL,
               },
             ],
             placeholder: "Select a playlist",
@@ -175,22 +175,22 @@ function aFakeMapsMessage({
               {
                 label: MapsFormatType.HCS,
                 value: MapsFormatType.HCS,
-                default: String(selectedFormat ?? format) === String(MapsFormatType.HCS),
+                default: (selectedFormat ?? format) === MapsFormatType.HCS,
               },
               {
                 label: MapsFormatType.RANDOM,
                 value: MapsFormatType.RANDOM,
-                default: String(selectedFormat ?? format) === String(MapsFormatType.RANDOM),
+                default: (selectedFormat ?? format) === MapsFormatType.RANDOM,
               },
               {
                 label: MapsFormatType.OBJECTIVE,
                 value: MapsFormatType.OBJECTIVE,
-                default: String(selectedFormat ?? format) === String(MapsFormatType.OBJECTIVE),
+                default: (selectedFormat ?? format) === MapsFormatType.OBJECTIVE,
               },
               {
                 label: MapsFormatType.SLAYER,
                 value: MapsFormatType.SLAYER,
-                default: String(selectedFormat ?? format) === String(MapsFormatType.SLAYER),
+                default: (selectedFormat ?? format) === MapsFormatType.SLAYER,
               },
             ],
           },
@@ -537,8 +537,10 @@ describe("MapsCommand", () => {
 
         const select = getSelectMenu(data.components);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(true);
-        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(false);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL)?.default).toBe(true);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT)?.default).toBe(false);
       });
 
       it("calls updateDeferredReply when playlist is switched to current", async () => {
@@ -563,8 +565,10 @@ describe("MapsCommand", () => {
 
         const select = getSelectMenu(data.components);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_CURRENT))?.default).toBe(true);
-        expect(select.options.find((o) => o.value === String(MapsPlaylistType.HCS_HISTORICAL))?.default).toBe(false);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT)?.default).toBe(true);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL)?.default).toBe(false);
       });
     });
   });

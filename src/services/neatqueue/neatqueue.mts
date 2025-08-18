@@ -1067,7 +1067,7 @@ export class NeatQueueService {
             components: [
               {
                 type: ComponentType.Button,
-                custom_id: StatsInteractionButton.LoadGames.toString(),
+                custom_id: StatsInteractionButton.LoadGames,
                 label: "Load game stats",
                 style: 1,
                 emoji: {

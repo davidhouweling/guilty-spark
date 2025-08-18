@@ -36,7 +36,7 @@ const analyzeDistribution = (
   for (const { mode, map } of results) {
     mapCounts.set(map, (mapCounts.get(map) ?? 0) + 1);
     modeCounts.set(mode, (modeCounts.get(mode) ?? 0) + 1);
-    comboCounts.set(`${String(mode)}:${map}`, (comboCounts.get(`${String(mode)}:${map}`) ?? 0) + 1);
+    comboCounts.set(`${mode}:${map}`, (comboCounts.get(`${mode}:${map}`) ?? 0) + 1);
   }
 
   return {
