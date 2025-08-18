@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@sentry/cli": "^2.52.0",
-    "@sentry/cloudflare": "^9.42.0",
+    "@sentry/cloudflare": "^10.5.0",
     "@xboxreplay/xboxlive-auth": "^5.0.2",
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.38.20",
