@@ -76,18 +76,18 @@ describe("All Format Types - Distribution Analysis", () => {
 
     console.log(`\n📊 ${formatName} (${String(gameCount)} games) - ${String(iterations)} iterations:`);
     console.log(
-      `  Average unique maps per run: ${String(avgUniqueMapsPer.toFixed(2))}/${String(gameCount)} (${String(((avgUniqueMapsPer / gameCount) * 100).toFixed(1))}%)`,
+      `  Average unique maps per run: ${avgUniqueMapsPer.toFixed(2)}/${String(gameCount)} (${((avgUniqueMapsPer / gameCount) * 100).toFixed(1)}%)`,
     );
     console.log(
-      `  Average unique modes per run: ${String(avgUniqueModePer.toFixed(2))}/${String(gameCount)} (${String(((avgUniqueModePer / gameCount) * 100).toFixed(1))}%)`,
+      `  Average unique modes per run: ${avgUniqueModePer.toFixed(2)}/${String(gameCount)} (${((avgUniqueModePer / gameCount) * 100).toFixed(1)}%)`,
     );
     console.log(`  Total unique maps used: ${String(allMapsUsed.size)}`);
     console.log(`  Total unique modes used: ${String(allModesUsed.size)}`);
     console.log(
-      `  Map repeat rate: ${String((mapRepeatRate * 100).toFixed(1))}% (${String(totalMapRepeats)}/${String(totalGames)})`,
+      `  Map repeat rate: ${(mapRepeatRate * 100).toFixed(1)}% (${String(totalMapRepeats)}/${String(totalGames)})`,
     );
     console.log(
-      `  Mode repeat rate: ${String((modeRepeatRate * 100).toFixed(1))}% (${String(totalModeRepeats)}/${String(totalGames)})`,
+      `  Mode repeat rate: ${(modeRepeatRate * 100).toFixed(1)}% (${String(totalModeRepeats)}/${String(totalGames)})`,
     );
     console.log(`  Max map repeats in single run: ${String(maxMapRepeatsAcrossRuns)}`);
     console.log(`  Max mode repeats in single run: ${String(maxModeRepeatsAcrossRuns)}`);
@@ -266,7 +266,7 @@ describe("All Format Types - Distribution Analysis", () => {
 
     for (const [formatName, metrics] of Object.entries(formatResults)) {
       console.log(
-        `${formatName.padEnd(6)} | ${String(metrics.avgUniqueMapsPer.toFixed(1)).padStart(8)} | ${String(metrics.avgUniqueModePer.toFixed(1)).padStart(9)} | ${String((metrics.mapRepeatRate * 100).toFixed(1)).padStart(11)}% | ${String((metrics.modeRepeatRate * 100).toFixed(1)).padStart(12)}%`,
+        `${formatName.padEnd(6)} | ${metrics.avgUniqueMapsPer.toFixed(1).padStart(8)} | ${metrics.avgUniqueModePer.toFixed(1).padStart(9)} | ${(metrics.mapRepeatRate * 100).toFixed(1).padStart(11)}% | ${(metrics.modeRepeatRate * 100).toFixed(1).padStart(12)}%`,
       );
     }
 

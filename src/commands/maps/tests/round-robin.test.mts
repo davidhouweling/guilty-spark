@@ -45,7 +45,7 @@ const analyzeDistribution = (
   for (const { mode, map } of results) {
     mapCounts.set(map, (mapCounts.get(map) ?? 0) + 1);
     modeCounts.set(mode, (modeCounts.get(mode) ?? 0) + 1);
-    comboCounts.set(`${String(mode)}:${map}`, (comboCounts.get(`${String(mode)}:${map}`) ?? 0) + 1);
+    comboCounts.set(`${mode}:${map}`, (comboCounts.get(`${mode}:${map}`) ?? 0) + 1);
   }
 
   return {
@@ -69,7 +69,7 @@ describe("generateRoundRobinMaps", () => {
       pool: fakePool,
       formatSequence,
     });
-    const seen = new Set(result.map(({ mode, map }) => `${String(mode)}:${map}`));
+    const seen = new Set(result.map(({ mode, map }) => `${mode}:${map}`));
     expect(seen.size).toBe(5);
   });
 
@@ -95,7 +95,7 @@ describe("generateRoundRobinMaps", () => {
       if (!entry) {
         continue;
       }
-      const key = `${String(entry.mode)}:${entry.map}`;
+      const key = `${entry.mode}:${entry.map}`;
       if (seen.has(key)) {
         firstRepeat = i;
         break;
@@ -133,7 +133,7 @@ describe("generateRoundRobinMaps", () => {
         pool: fakePool,
         formatSequence,
       })
-        .map(({ mode, map }) => `${String(mode)}:${map}`)
+        .map(({ mode, map }) => `${mode}:${map}`)
         .join(","),
     );
     const uniqueRuns = new Set(runs);

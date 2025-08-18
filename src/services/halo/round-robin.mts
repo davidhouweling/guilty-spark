@@ -193,7 +193,7 @@ function calculateCandidateScore({
   formatSequence: ("slayer" | "objective")[];
   type: "slayer" | "objective";
 }): number {
-  const comboKey = `${String(candidate.mode)}:${candidate.map}`;
+  const comboKey = `${candidate.mode}:${candidate.map}`;
   const modeCount = usedModes.get(candidate.mode) ?? 0;
   let score = 0;
 
@@ -309,7 +309,7 @@ export const generateRoundRobinMaps: generateRoundRobinMapsFn = ({ count, pool, 
     result.push(bestPick);
     usedMaps.add(bestPick.map);
     usedModes.set(bestPick.mode, (usedModes.get(bestPick.mode) ?? 0) + 1);
-    usedCombos.add(`${String(bestPick.mode)}:${bestPick.map}`);
+    usedCombos.add(`${bestPick.mode}:${bestPick.map}`);
 
     // Reset map tracking when all unique maps in current candidate pool are exhausted
     const uniqueAvailableMaps = new Set(candidates.map((c) => c.map));
