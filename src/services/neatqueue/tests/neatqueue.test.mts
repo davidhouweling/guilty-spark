@@ -24,14 +24,7 @@ import { getFakeNeatQueueData } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest } from "../types.mjs";
 import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import {
-  aGuildMemberWith,
-  apiMessage,
-  discordNeatQueueData,
-  guild,
-  guildMember,
-  textChannel,
-} from "../../discord/fakes/data.mjs";
+import { apiMessage, discordNeatQueueData, guild, guildMember, textChannel } from "../../discord/fakes/data.mjs";
 import { EndUserError } from "../../../base/end-user-error.mjs";
 import { StatsReturnType, MapsPostType } from "../../database/types/guild_config.mjs";
 import { DiscordError } from "../../discord/discord-error.mjs";
@@ -568,33 +561,27 @@ describe("NeatQueueService", () => {
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
-          aGuildMemberWith({
-            user: {
-              id: "discord_user_01",
-              username: "soundmanD",
-              global_name: "soundmanD",
-              discriminator: "0001",
-              avatar: "avatar1",
-            },
-          }),
-          aGuildMemberWith({
-            user: {
-              id: "discord_user_02",
-              username: "discord_user_02",
-              global_name: "discord_user_02",
-              discriminator: "0002",
-              avatar: "avatar2",
-            },
-          }),
-          aGuildMemberWith({
-            user: {
-              id: "discord_user_03",
-              username: "discord_user_03",
-              global_name: "discord_user_03",
-              discriminator: "0003",
-              avatar: "avatar3",
-            },
-          }),
+          {
+            id: "discord_user_01",
+            username: "soundmanD",
+            global_name: "soundmanD",
+            discriminator: "0001",
+            avatar: "avatar1",
+          },
+          {
+            id: "discord_user_02",
+            username: "discord_user_02",
+            global_name: "discord_user_02",
+            discriminator: "0002",
+            avatar: "avatar2",
+          },
+          {
+            id: "discord_user_03",
+            username: "discord_user_03",
+            global_name: "discord_user_03",
+            discriminator: "0003",
+            avatar: "avatar3",
+          },
         ]);
       });
 
@@ -694,7 +681,6 @@ describe("NeatQueueService", () => {
             [
               {
                 globalName: "soundmanD",
-                guildNickname: null,
                 id: "discord_user_01",
                 username: "soundmanD",
               },
@@ -702,7 +688,6 @@ describe("NeatQueueService", () => {
             [
               {
                 globalName: "discord_user_02",
-                guildNickname: null,
                 id: "discord_user_02",
                 username: "discord_user_02",
               },
@@ -752,7 +737,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "soundmanD",
-                  guildNickname: null,
                   id: "discord_user_01",
                   username: "soundmanD",
                 },
@@ -760,7 +744,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "discord_user_02",
-                  guildNickname: null,
                   id: "discord_user_02",
                   username: "discord_user_02",
                 },
@@ -943,7 +926,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "soundmanD",
-                  guildNickname: null,
                   id: "discord_user_01",
                   username: "soundmanD",
                 },
@@ -951,7 +933,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "discord_user_02",
-                  guildNickname: null,
                   id: "discord_user_02",
                   username: "discord_user_02",
                 },
@@ -965,7 +946,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "discord_user_03",
-                  guildNickname: null,
                   id: "discord_user_03",
                   username: "discord_user_03",
                 },
@@ -973,7 +953,6 @@ describe("NeatQueueService", () => {
               [
                 {
                   globalName: "discord_user_02",
-                  guildNickname: null,
                   id: "discord_user_02",
                   username: "discord_user_02",
                 },
@@ -1071,47 +1050,39 @@ describe("NeatQueueService", () => {
           {
             name: "Team 1",
             players: [
-              aGuildMemberWith({
-                user: {
-                  id: "discord_user_01",
-                  username: "player1",
-                  global_name: "Player 1",
-                  discriminator: "0001",
-                  avatar: "avatar1",
-                },
-              }),
-              aGuildMemberWith({
-                user: {
-                  id: "discord_user_02",
-                  username: "player2",
-                  global_name: "Player 2",
-                  discriminator: "0002",
-                  avatar: "avatar2",
-                },
-              }),
+              {
+                id: "discord_user_01",
+                username: "player1",
+                global_name: "Player 1",
+                discriminator: "0001",
+                avatar: "avatar1",
+              },
+              {
+                id: "discord_user_02",
+                username: "player2",
+                global_name: "Player 2",
+                discriminator: "0002",
+                avatar: "avatar2",
+              },
             ],
           },
           {
             name: "Team 2",
             players: [
-              aGuildMemberWith({
-                user: {
-                  id: "discord_user_03",
-                  username: "player3",
-                  global_name: "Player 3",
-                  discriminator: "0003",
-                  avatar: "avatar3",
-                },
-              }),
-              aGuildMemberWith({
-                user: {
-                  id: "discord_user_04",
-                  username: "player4",
-                  global_name: "Player 4",
-                  discriminator: "0004",
-                  avatar: "avatar4",
-                },
-              }),
+              {
+                id: "discord_user_03",
+                username: "player3",
+                global_name: "Player 3",
+                discriminator: "0003",
+                avatar: "avatar3",
+              },
+              {
+                id: "discord_user_04",
+                username: "player4",
+                global_name: "Player 4",
+                discriminator: "0004",
+                avatar: "avatar4",
+              },
             ],
           },
         ],
