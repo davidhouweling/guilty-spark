@@ -411,6 +411,27 @@ describe("MapsCommand", () => {
         expect(getButtonById(buttonRowHist, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
       });
 
+      it("calls updateDeferredReply for non-initiate roll buttons", async () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Roll1);
+        const { jobToComplete } = command.execute(interaction);
+
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledTimes(1);
+        expect(createMessageSpy).not.toHaveBeenCalled();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toBeDefined();
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll1).style).toBe(ButtonStyle.Primary);
+      });
+
       it("throws for unknown button id", () => {
         const interaction = aFakeButtonInteraction("btn_maps_roll_unknown");
 
@@ -448,14 +469,19 @@ describe("MapsCommand", () => {
           expect(jobToComplete).toBeInstanceOf(Function);
         });
 
-        it("calls updateDeferredReply with default maps", async () => {
+        it("calls createMessage instead of updateDeferredReply for initiate button", async () => {
           const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
           const { jobToComplete } = command.execute(interaction);
 
+          const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+
           await jobToComplete?.();
 
-          const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+          expect(createMessageSpy).toHaveBeenCalledTimes(1);
+          expect(updateDeferredReplySpy).not.toHaveBeenCalled();
 
+          const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+          expect(channelId).toBe(interaction.channel.id);
           expect(data.embeds?.[0]?.title).toContain("Maps: HCS - Current");
 
           const actionRow = getButtonRow(data.components);
