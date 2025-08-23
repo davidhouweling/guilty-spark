@@ -1,7 +1,7 @@
 import type { Mock, MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
-import type { APIApplicationCommandInteraction, APIGuildMember, APIInteraction } from "discord-api-types/v10";
+import type { APIApplicationCommandInteraction, APIInteraction, APIUser } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -9,6 +9,7 @@ import {
   InteractionType,
   Locale,
 } from "discord-api-types/v10";
+import type { QueueData } from "../discord.mjs";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import {
@@ -18,7 +19,6 @@ import {
   fakeButtonClickInteraction,
   modalSubmitInteraction,
   fakeBaseAPIApplicationCommandInteraction,
-  aGuildMemberWith,
 } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import type { BaseCommand } from "../../../commands/base/base.mjs";
@@ -69,24 +69,19 @@ describe("DiscordService", () => {
     env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     mockFetch = vi.fn<typeof fetch>().mockImplementation(async (path) => {
-      if (typeof path !== "string") {
-        throw new Error("unexpected path type");
-      }
       const prefix = "https://discord.com/api/v10";
       if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
         return Promise.resolve(new Response(JSON.stringify(channelMessages)));
       }
-      if (typeof path === "string" && path.startsWith(`${prefix}/guilds/fake-guild-id/members/`)) {
+      if (typeof path === "string" && path.startsWith(`${prefix}/users/`)) {
         const id = path.slice(-2);
-        const apiUser: APIGuildMember = aGuildMemberWith({
-          user: {
-            id: `fake-id-${id}`,
-            username: `fake-username-${id}`,
-            global_name: `fake-global-name-${id}`,
-            discriminator: "1234",
-            avatar: "fake-avatar",
-          },
-        });
+        const apiUser: APIUser = {
+          id: `fake-id-${id}`,
+          username: `fake-username-${id}`,
+          global_name: `fake-global-name-${id}`,
+          discriminator: "1234",
+          avatar: "fake-avatar",
+        };
 
         return Promise.resolve(new Response(JSON.stringify(apiUser)));
       }
@@ -103,7 +98,8 @@ describe("DiscordService", () => {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
 
-      return Promise.reject(new Error(`Invalid path: ${path}`));
+      console.log("no path defined:", path);
+      return Promise.reject(new Error("Invalid path"));
     });
 
     mockVerifyKey = vi.fn().mockResolvedValue(true);
@@ -442,9 +438,7 @@ describe("DiscordService", () => {
 
   describe("getTeamsFromQueue()", () => {
     it("returns QueueData of the found queue", async () => {
-      const result = Preconditions.checkExists(
-        await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 7),
-      );
+      const result = await discordService.getTeamsFromQueue("fake-channel", 7);
       const queueMessage = Preconditions.checkExists(channelMessages[1]);
 
       expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages?limit=100", {
@@ -459,18 +453,83 @@ describe("DiscordService", () => {
         },
       });
 
-      expect(result.message).toEqual(queueMessage);
-      expect(result.queue).toEqual(7);
-      expect(result.timestamp).toEqual(new Date("2024-12-06T11:05:39.576Z"));
-      expect(result.teams).toHaveLength(2);
-      expect(result.teams[0]?.name).toBe("Eagle");
-      expect(result.teams[0]?.players).toHaveLength(4);
-      expect(result.teams[1]?.name).toBe("__Cobra__");
-      expect(result.teams[1]?.players).toHaveLength(4);
+      expect(result).toEqual<QueueData>({
+        message: queueMessage,
+        queue: 7,
+        timestamp: new Date("2024-12-06T11:05:39.576Z"),
+        teams: [
+          {
+            name: "Eagle",
+            players: [
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-09",
+                id: "fake-id-09",
+                username: "fake-username-09",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-08",
+                id: "fake-id-08",
+                username: "fake-username-08",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-07",
+                id: "fake-id-07",
+                username: "fake-username-07",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-06",
+                id: "fake-id-06",
+                username: "fake-username-06",
+              },
+            ],
+          },
+          {
+            name: "__Cobra__",
+            players: [
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-10",
+                id: "fake-id-10",
+                username: "fake-username-10",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-11",
+                id: "fake-id-11",
+                username: "fake-username-11",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-12",
+                id: "fake-id-12",
+                username: "fake-username-12",
+              },
+              {
+                avatar: "fake-avatar",
+                discriminator: "1234",
+                global_name: "fake-global-name-13",
+                id: "fake-id-13",
+                username: "fake-username-13",
+              },
+            ],
+          },
+        ],
+      });
     });
 
     it("returns null if no queue is found", async () => {
-      const result = await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 1000);
+      const result = await discordService.getTeamsFromQueue("fake-channel", 1000);
 
       expect(result).toBeNull();
     });
@@ -732,16 +791,12 @@ describe("DiscordService", () => {
     });
 
     describe("path grouping", () => {
-      it("groups /guilds/fake-guild-id/members/* calls under the same rate limit path", async () => {
-        await discordService.getUsers("fake-guild-id", ["fake-id-01", "fake-id-02"]);
+      it("groups /users/* calls under the same rate limit path", async () => {
+        await discordService.getUsers(["fake-id-01", "fake-id-02"]);
 
         expect(appConfigGetSpy).toHaveBeenCalledTimes(2);
-        expect(appConfigGetSpy).toHaveBeenNthCalledWith(1, "rateLimit./guilds/fake-guild-id/members/*", {
-          type: "json",
-        });
-        expect(appConfigGetSpy).toHaveBeenNthCalledWith(2, "rateLimit./guilds/fake-guild-id/members/*", {
-          type: "json",
-        });
+        expect(appConfigGetSpy).toHaveBeenNthCalledWith(1, "rateLimit./users/*", { type: "json" });
+        expect(appConfigGetSpy).toHaveBeenNthCalledWith(2, "rateLimit./users/*", { type: "json" });
       });
     });
 

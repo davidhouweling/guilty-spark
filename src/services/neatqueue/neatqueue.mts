@@ -196,7 +196,7 @@ export class NeatQueueService {
           .filter((substitution) => substitution !== null)
           .reverse() ?? [];
 
-      const queueMessage = await discordService.getTeamsFromQueue(guildId, queueChannel, queue);
+      const queueMessage = await discordService.getTeamsFromQueue(queueChannel, queue);
       if (queueMessage == null) {
         throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
           handled: true,
@@ -207,10 +207,9 @@ export class NeatQueueService {
       const series: MatchStats[] = [];
       const teams: MatchPlayer[][] = queueMessage.teams.map((team) =>
         team.players.map((player) => ({
-          id: player.user.id,
-          username: player.user.username,
-          globalName: player.user.global_name,
-          guildNickname: player.nick ?? null,
+          id: player.id,
+          username: player.username,
+          globalName: player.global_name,
         })),
       );
       let endDateTime = completedTimestamp;
@@ -228,17 +227,12 @@ export class NeatQueueService {
 
           for (const team of teams) {
             const playerIndex = team.findIndex((player) => player.id === playerOutId);
-            const users = await discordService.getUsers(guildId, [playerInId]);
-            const member = Preconditions.checkExists(users[0], "expected user for substitution");
+            const users = await discordService.getUsers([playerInId]);
+            const user = Preconditions.checkExists(users[0], "expected user for substitution");
 
             if (playerIndex !== -1) {
-              team[playerIndex] = {
-                id: playerInId,
-                username: member.user.username,
-                globalName: member.user.global_name,
-                guildNickname: member.nick ?? null,
-              };
-              const teamIndex = queueMessage.teams.findIndex((t) => t.players.some((p) => p.user.id === playerOutId));
+              team[playerIndex] = { id: playerInId, username: user.username, globalName: user.global_name };
+              const teamIndex = queueMessage.teams.findIndex((t) => t.players.some((p) => p.id === playerOutId));
               substitutionsEmbed.push({
                 playerIn: playerInId,
                 playerOut: playerOutId,
@@ -278,7 +272,7 @@ export class NeatQueueService {
         series,
         finalTeams: queueMessage.teams.map((team) => ({
           name: team.name,
-          playerIds: team.players.map((player) => player.user.id),
+          playerIds: team.players.map((player) => player.id),
         })),
         substitutions: substitutionsEmbed,
       });
@@ -723,16 +717,8 @@ export class NeatQueueService {
           endDateTime = new Date(timestamp);
 
           try {
-            const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(
-              neatQueueConfig.GuildId,
-              seriesTeams,
-            );
-            const subSeries = await this.getSeriesData(
-              neatQueueConfig.GuildId,
-              mappedTeams,
-              startDateTime,
-              endDateTime,
-            );
+            const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(seriesTeams);
+            const subSeries = await this.getSeriesData(mappedTeams, startDateTime, endDateTime);
 
             series.push(...subSeries);
           } catch (error) {
@@ -766,12 +752,8 @@ export class NeatQueueService {
             seriesTeams = event.teams;
           }
 
-          const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(
-            neatQueueConfig.GuildId,
-            seriesTeams,
-          );
+          const mappedTeams: MatchPlayer[][] = await this.mapNeatQueueTeamsToMatchPlayers(seriesTeams);
           const subSeries = await this.getSeriesData(
-            neatQueueConfig.GuildId,
             mappedTeams,
             startDateTime ?? sub(endDateTime, { hours: 6 }),
             endDateTime,
@@ -788,21 +770,17 @@ export class NeatQueueService {
     return series;
   }
 
-  private async mapNeatQueueTeamsToMatchPlayers(
-    guildId: string,
-    seriesTeams: NeatQueuePlayer[][],
-  ): Promise<MatchPlayer[][]> {
+  private async mapNeatQueueTeamsToMatchPlayers(seriesTeams: NeatQueuePlayer[][]): Promise<MatchPlayer[][]> {
     const mappedTeams: MatchPlayer[][] = [];
     for (const team of seriesTeams) {
       const mappedTeam: MatchPlayer[] = [];
       for (const player of team) {
-        const users = await this.discordService.getUsers(guildId, [player.id]);
-        const member = Preconditions.checkExists(users[0], "expected user for match completed");
+        const users = await this.discordService.getUsers([player.id]);
+        const user = Preconditions.checkExists(users[0], "expected user for match completed");
         mappedTeam.push({
           id: player.id,
-          username: member.user.username,
-          globalName: member.user.global_name,
-          guildNickname: member.nick ?? null,
+          username: user.username,
+          globalName: user.global_name,
         });
       }
       mappedTeams.push(mappedTeam);
@@ -810,28 +788,19 @@ export class NeatQueueService {
     return mappedTeams;
   }
 
-  private async getSeriesData(
-    guildId: string,
-    teams: MatchPlayer[][],
-    startDateTime: Date,
-    endDateTime: Date,
-  ): Promise<MatchStats[]> {
+  private async getSeriesData(teams: MatchPlayer[][], startDateTime: Date, endDateTime: Date): Promise<MatchStats[]> {
     const { haloService, discordService } = this;
-    const users = await discordService.getUsers(
-      guildId,
-      teams.flatMap((team) => team.map((player) => player.id)),
-    );
+    const users = await discordService.getUsers(teams.flatMap((team) => team.map((player) => player.id)));
 
     return await haloService.getSeriesFromDiscordQueue({
       teams: teams.map((team) =>
         team.map(({ id: playerId }) => {
-          const member = Preconditions.checkExists(users.find(({ user: { id } }) => id === playerId));
+          const user = Preconditions.checkExists(users.find(({ id }) => id === playerId));
 
           return {
             id: playerId,
-            username: member.user.username,
-            globalName: member.user.global_name,
-            guildNickname: member.nick ?? null,
+            username: user.username,
+            globalName: user.global_name,
           };
         }),
       ),
@@ -857,7 +826,6 @@ export class NeatQueueService {
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueue(
-        neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
@@ -925,7 +893,6 @@ export class NeatQueueService {
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueue(
-        neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
@@ -973,7 +940,6 @@ export class NeatQueueService {
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueue(
-        neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
@@ -1144,7 +1110,7 @@ export class NeatQueueService {
     const seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
     return await seriesOverviewEmbed.getEmbed({
       guildId,
-      channelId,
+      channel: channelId,
       messageId,
       locale: this.locale,
       queue,
