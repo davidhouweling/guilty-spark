@@ -702,9 +702,12 @@ export class DiscordService {
 
     if (rateLimit != null && rateLimit.remaining === 0 && rateLimit.reset != null) {
       const now = Date.now();
-      if (now < rateLimit.reset) {
-        const timeUntilReset = rateLimit.reset - now;
-        await new Promise((resolve) => setTimeout(resolve, timeUntilReset));
+      const resetTimeMs = rateLimit.reset * 1000;
+      if (now < resetTimeMs) {
+        const timeUntilReset = resetTimeMs - now;
+        const maxWaitTime = 90 * 1000;
+        const waitTime = Math.min(timeUntilReset, maxWaitTime);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
 
