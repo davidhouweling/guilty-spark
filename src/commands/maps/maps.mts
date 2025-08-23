@@ -176,17 +176,24 @@ export class MapsCommand extends BaseCommand {
             : InteractionResponseType.DeferredMessageUpdate,
       },
       jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.updateDeferredReply(
-          interaction.token,
-          this.createMapsResponse({
-            userId: Preconditions.checkExists(
-              interaction.member?.user.id ?? interaction.user?.id,
-              "expected either an interaction member id or user id but none found",
-            ),
-            ...state,
-            maps,
-          }),
-        );
+        const { discordService } = this.services;
+        const response = this.createMapsResponse({
+          userId: Preconditions.checkExists(
+            interaction.member?.user.id ?? interaction.user?.id,
+            "expected either an interaction member id or user id but none found",
+          ),
+          ...state,
+          maps,
+        });
+        if (
+          interaction.type === InteractionType.MessageComponent &&
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+          interaction.data.custom_id === InteractionComponent.Initiate
+        ) {
+          await discordService.createMessage(interaction.channel.id, response);
+        } else {
+          await discordService.updateDeferredReply(interaction.token, response);
+        }
       },
     };
   }
