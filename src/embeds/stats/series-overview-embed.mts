@@ -32,7 +32,7 @@ export class SeriesOverviewEmbed {
 
   async getEmbed({
     guildId,
-    channel,
+    channelId,
     messageId,
     locale,
     queue,
@@ -42,7 +42,7 @@ export class SeriesOverviewEmbed {
     hideTeamsDescription,
   }: {
     guildId: string;
-    channel: string;
+    channelId: string;
     messageId: string;
     locale: string;
     queue: number;
@@ -96,7 +96,7 @@ export class SeriesOverviewEmbed {
     const embed: APIEmbed = {
       title: `Series stats for queue #${queue.toString()}`,
       description: `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
-      url: `https://discord.com/channels/${guildId}/${channel}/${messageId}`,
+      url: `https://discord.com/channels/${guildId}/${channelId}/${messageId}`,
       color: 3447003,
     };
 
