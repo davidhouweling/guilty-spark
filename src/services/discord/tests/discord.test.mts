@@ -801,13 +801,13 @@ describe("DiscordService", () => {
     });
 
     it("puts rate limit in app config when headers are present", async () => {
-      const reset = now + 100;
+      const resetSeconds = Math.floor((now + 100 * 1000) / 1000);
       const response = new Response(null, {
         status: 204,
         headers: {
           "x-ratelimit-reset-after": "1",
           "x-ratelimit-remaining": "0",
-          "x-ratelimit-reset": reset.toString(),
+          "x-ratelimit-reset": resetSeconds.toString(),
         },
       });
 
@@ -818,7 +818,7 @@ describe("DiscordService", () => {
 
       expect(appConfigPutSpy).toHaveBeenCalledWith(
         "rateLimit./channels/fake-channel/messages",
-        `{"remaining":0,"reset":${reset.toString()},"resetAfter":1}`,
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":1}`,
         {
           expirationTtl: 60,
         },
@@ -826,17 +826,18 @@ describe("DiscordService", () => {
     });
 
     it("waits for the rate limit to reset", async () => {
-      const delay = 100;
+      const delayMs = 100;
+      const resetSeconds = Math.floor((now + delayMs) / 1000);
       appConfigKv.set(
         "rateLimit./channels/fake-channel/messages",
-        `{"remaining":0,"reset":${(now + delay).toString()},"resetAfter":1}`,
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":1}`,
       );
 
       const promise = discordService.createMessage("fake-channel", { content: "fake-content" });
 
       expect(mockFetch).not.toHaveBeenCalled();
 
-      vi.advanceTimersByTime(delay - 10);
+      vi.advanceTimersByTime(delayMs - 10);
       expect(mockFetch).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(10);
@@ -845,13 +846,13 @@ describe("DiscordService", () => {
     });
 
     it("handles http status 429 response with rate limit headers and retries once", async () => {
-      const reset = now + 100;
+      const resetSeconds = Math.floor((now + 100) / 1000);
       const response = new Response(null, {
         status: 429,
         headers: {
           "x-ratelimit-reset-after": "1",
           "x-ratelimit-remaining": "0",
-          "x-ratelimit-reset": reset.toString(),
+          "x-ratelimit-reset": resetSeconds.toString(),
         },
       });
 
@@ -869,14 +870,14 @@ describe("DiscordService", () => {
     });
 
     it("throws an error if http 429 is returned twice", async () => {
-      const reset = now + 100;
+      const resetSeconds = Math.floor((now + 100) / 1000);
       const response = new Response("Too many requests", {
         status: 429,
         statusText: "Too many requests",
         headers: {
           "x-ratelimit-reset-after": "1",
           "x-ratelimit-remaining": "0",
-          "x-ratelimit-reset": reset.toString(),
+          "x-ratelimit-reset": resetSeconds.toString(),
         },
       });
 
@@ -893,13 +894,13 @@ describe("DiscordService", () => {
     });
 
     it("handles rate limit headers correctly", async () => {
-      const reset = now + 200;
+      const resetSeconds = Math.floor((now + 200) / 1000);
       const response = new Response(null, {
         status: 204,
         headers: {
           "x-ratelimit-reset-after": "2",
           "x-ratelimit-remaining": "0",
-          "x-ratelimit-reset": reset.toString(),
+          "x-ratelimit-reset": resetSeconds.toString(),
         },
       });
 
@@ -910,7 +911,7 @@ describe("DiscordService", () => {
 
       expect(appConfigPutSpy).toHaveBeenCalledWith(
         "rateLimit./channels/fake-channel/messages",
-        `{"remaining":0,"reset":${reset.toString()},"resetAfter":2}`,
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":2}`,
         {
           expirationTtl: 60,
         },
@@ -918,13 +919,13 @@ describe("DiscordService", () => {
     });
 
     it("debounces rate limit writes to app config", async () => {
-      const reset = now + 300;
+      const resetSeconds = Math.floor((now + 300) / 1000);
       const response = new Response(null, {
         status: 204,
         headers: {
           "x-ratelimit-reset-after": "3",
           "x-ratelimit-remaining": "0",
-          "x-ratelimit-reset": reset.toString(),
+          "x-ratelimit-reset": resetSeconds.toString(),
         },
       });
 
@@ -935,16 +936,52 @@ describe("DiscordService", () => {
 
       await Promise.all([promise1, promise2]);
 
-      vi.advanceTimersByTime(1000); // Advance timers to trigger debounce
+      vi.advanceTimersByTime(1000);
 
       expect(appConfigPutSpy).toHaveBeenCalledTimes(1);
       expect(appConfigPutSpy).toHaveBeenCalledWith(
         "rateLimit./channels/fake-channel/messages",
-        `{"remaining":0,"reset":${reset.toString()},"resetAfter":3}`,
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":3}`,
         {
           expirationTtl: 60,
         },
       );
+    });
+
+    it("properly converts Discord rate limit reset time from seconds to milliseconds", async () => {
+      const delayMs = 5000;
+      const resetSeconds = Math.floor((now + delayMs) / 1000);
+      appConfigKv.set(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":5}`,
+      );
+
+      const promise = discordService.createMessage("fake-channel", { content: "fake-content" });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(4900);
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(100);
+      await promise;
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("respects the 90 second maximum wait time for worker environment", async () => {
+      const resetSeconds = Math.floor((now + 120 * 1000) / 1000);
+      appConfigKv.set(
+        "rateLimit./channels/fake-channel/messages",
+        `{"remaining":0,"reset":${resetSeconds.toString()},"resetAfter":120}`,
+      );
+
+      const promise = discordService.createMessage("fake-channel", { content: "fake-content" });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(90 * 1000);
+      await promise;
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
