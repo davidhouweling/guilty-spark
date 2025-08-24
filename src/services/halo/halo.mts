@@ -300,7 +300,7 @@ export class HaloService {
       user = await this.getUserByGamertag(gamertag);
     } catch (error) {
       if (error instanceof RequestError && error.response.status === 400) {
-        this.logService.debug(error as Error);
+        this.logService.warn(error as Error);
 
         throw new EndUserError(`No user found with gamertag "${gamertag}"`, {
           title: "User not found",
@@ -326,7 +326,7 @@ export class HaloService {
 
   async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {
     if (xuids.length === 0) {
-      this.logService.debug("No xuids provided for ranked arena CSRs");
+      this.logService.info("No xuids provided for ranked arena CSRs");
       return new Map();
     }
 
@@ -774,7 +774,7 @@ export class HaloService {
       }
 
       this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
-      this.logService.debug(`Direct assignment: Discord user ${discordUser.id} → Xbox ${xboxGamertag} (${xuid})`);
+      this.logService.info(`Direct assignment: Discord user ${discordUser.id} → Xbox ${xboxGamertag} (${xuid})`);
       return;
     }
 
@@ -785,7 +785,7 @@ export class HaloService {
     for (const { discordUserId, xuid, score, bestMatchingDiscordName } of assignments) {
       this.updateUserCacheWithFuzzyMatch(discordUserId, xuid, bestMatchingDiscordName);
       const gamertag = xboxGamertagMap.get(xuid);
-      this.logService.debug(
+      this.logService.info(
         `Fuzzy match: Discord user ${discordUserId} → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)}`,
       );
     }
