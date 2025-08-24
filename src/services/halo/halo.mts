@@ -26,6 +26,7 @@ export interface MatchPlayer {
   id: string;
   username: string;
   globalName: string | null;
+  guildNickname: string | null;
 }
 
 export interface SeriesData {
@@ -117,6 +118,9 @@ export class HaloService {
       return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
     });
     const seriesMatches = this.filterMatchesToMatchingTeams(matchDetails);
+
+    // Attempt fuzzy matching for unassociated users
+    await this.fuzzyMatchUnassociatedUsers(queueData.teams, seriesMatches);
 
     return seriesMatches;
   }
@@ -659,5 +663,367 @@ export class HaloService {
         return "Unknown";
       }
     }
+  }
+
+  private async fuzzyMatchUnassociatedUsers(teams: MatchPlayer[][], seriesMatches: MatchStats[]): Promise<void> {
+    if (seriesMatches.length === 0) {
+      return;
+    }
+
+    // Get Xbox players from the first match (all matches should have same players due to filterMatchesToMatchingTeams)
+    const firstMatch = Preconditions.checkExists(seriesMatches[0]);
+    const xboxPlayersByTeam = this.groupXboxPlayersByTeam(firstMatch);
+
+    for (const [teamIndex, discordTeam] of teams.entries()) {
+      const xboxTeam = xboxPlayersByTeam.get(teamIndex);
+      if (!xboxTeam) {
+        continue;
+      }
+
+      await this.fuzzyMatchTeam(discordTeam, xboxTeam);
+    }
+  }
+
+  private groupXboxPlayersByTeam(match: MatchStats): Map<number, string[]> {
+    const xboxPlayersByTeam = new Map<number, string[]>();
+
+    for (const player of match.Players) {
+      if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
+        const teamId = player.LastTeamId;
+        const xuid = this.getPlayerXuid(player);
+
+        if (!xboxPlayersByTeam.has(teamId)) {
+          xboxPlayersByTeam.set(teamId, []);
+        }
+        Preconditions.checkExists(xboxPlayersByTeam.get(teamId)).push(xuid);
+      }
+    }
+
+    return xboxPlayersByTeam;
+  }
+
+  private async fuzzyMatchTeam(discordTeam: MatchPlayer[], xboxXuids: string[]): Promise<void> {
+    // Get unassociated Discord users (those with NO or UNKNOWN games retrievable)
+    const unassociatedUsers = discordTeam.filter((player) => {
+      const cachedUser = this.userCache.get(player.id);
+      return (
+        cachedUser == null ||
+        cachedUser.GamesRetrievable === GamesRetrievable.NO ||
+        cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
+      );
+    });
+
+    if (unassociatedUsers.length === 0) {
+      return;
+    }
+
+    // Create a map of xuid to gamertag
+    const xboxGamertagMap = new Map<string, string>();
+
+    // Get Xbox gamertags for the xuids
+    const xboxGamertags: string[] = [];
+    for (const xuid of xboxXuids) {
+      const gamertag = this.xuidToGamerTagCache.get(xuid);
+      if (gamertag != null) {
+        xboxGamertags.push(gamertag);
+        xboxGamertagMap.set(xuid, gamertag);
+      }
+    }
+
+    // If no cached gamertags, fetch them
+    if (xboxGamertags.length === 0) {
+      try {
+        const users = await this.getUsersByXuids(xboxXuids);
+        for (const user of users) {
+          this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+          xboxGamertags.push(user.gamertag);
+          xboxGamertagMap.set(user.xuid, user.gamertag);
+        }
+      } catch (error) {
+        this.logService.warn(`Failed to fetch Xbox gamertags for fuzzy matching: ${(error as Error).message}`);
+        return;
+      }
+    }
+
+    if (xboxGamertags.length === 0) {
+      return;
+    }
+
+    // If only one unassociated user and one Xbox player, directly assign
+    if (unassociatedUsers.length === 1 && xboxGamertags.length === 1) {
+      const discordUser = Preconditions.checkExists(unassociatedUsers[0]);
+      const xboxGamertag = Preconditions.checkExists(xboxGamertags[0]);
+      const xuid = Preconditions.checkExists(
+        Array.from(xboxGamertagMap.entries()).find(([, gamertag]) => gamertag === xboxGamertag)?.[0],
+      );
+
+      // Find the best matching Discord name for the direct assignment
+      const discordNames = [discordUser.username, discordUser.globalName, discordUser.guildNickname].filter(
+        (name): name is string => name != null && name !== "",
+      );
+
+      let bestScore = 0;
+      let bestMatchingDiscordName = discordNames[0] ?? discordUser.username;
+
+      for (const discordName of discordNames) {
+        const score = this.calculateStringMatchScore(xboxGamertag, discordName);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatchingDiscordName = discordName;
+        }
+      }
+
+      this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
+      this.logService.debug(`Direct assignment: Discord user ${discordUser.id} → Xbox ${xboxGamertag} (${xuid})`);
+      return;
+    }
+
+    // Perform fuzzy matching for multiple candidates
+    const matchScores = this.calculateFuzzyMatchScores(unassociatedUsers, xboxGamertags, xboxGamertagMap);
+    const assignments = this.selectBestMatches(matchScores);
+
+    for (const { discordUserId, xuid, score, bestMatchingDiscordName } of assignments) {
+      this.updateUserCacheWithFuzzyMatch(discordUserId, xuid, bestMatchingDiscordName);
+      const gamertag = xboxGamertagMap.get(xuid);
+      this.logService.debug(
+        `Fuzzy match: Discord user ${discordUserId} → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)}`,
+      );
+    }
+  }
+
+  private calculateFuzzyMatchScores(
+    discordUsers: MatchPlayer[],
+    xboxGamertags: string[],
+    xboxGamertagMap: Map<string, string>,
+  ): { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] {
+    const scores: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] = [];
+
+    for (const discordUser of discordUsers) {
+      const discordNames = [discordUser.username, discordUser.globalName, discordUser.guildNickname].filter(
+        (name): name is string => name != null && name !== "",
+      );
+
+      for (const xboxGamertag of xboxGamertags) {
+        const xuid = Preconditions.checkExists(
+          Array.from(xboxGamertagMap.entries()).find(([, gamertag]) => gamertag === xboxGamertag)?.[0],
+        );
+
+        // Calculate scores for each Discord name and find the best one
+        let maxScore = 0;
+        let bestMatchingDiscordName = "";
+
+        for (const discordName of discordNames) {
+          const score = this.calculateStringMatchScore(xboxGamertag, discordName);
+          if (score > maxScore) {
+            maxScore = score;
+            bestMatchingDiscordName = discordName;
+          }
+        }
+
+        scores.push({
+          discordUserId: discordUser.id,
+          xuid,
+          score: maxScore,
+          bestMatchingDiscordName,
+        });
+      }
+    }
+
+    return scores;
+  }
+
+  private calculateStringMatchScore(xboxGamertag: string, discordName: string): number {
+    const normalizedXbox = this.normalizeString(xboxGamertag);
+    const normalizedDiscord = this.normalizeString(discordName);
+
+    // Exact match
+    if (normalizedXbox === normalizedDiscord) {
+      return 1.0;
+    }
+
+    // Calculate similarity scores
+    const substringScore = this.calculateSubstringScore(normalizedXbox, normalizedDiscord);
+    const levenshteinScore = this.calculateLevenshteinScore(normalizedXbox, normalizedDiscord);
+    const tokenScore = this.calculateTokenScore(normalizedXbox, normalizedDiscord);
+
+    // Weighted combination of scores
+    return Math.max(substringScore * 0.4 + levenshteinScore * 0.4 + tokenScore * 0.2, 0);
+  }
+
+  private normalizeString(str: string): string {
+    return str
+      .toLowerCase()
+      .normalize("NFD") // Decompose accented characters
+      .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+      .replace(/[^a-z0-9]/g, ""); // Remove non-alphanumeric characters
+  }
+
+  private calculateSubstringScore(str1: string, str2: string): number {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+
+    if (longer.length === 0) {
+      return 1.0;
+    }
+
+    // Check if shorter string is contained in longer string
+    if (longer.includes(shorter)) {
+      return shorter.length / longer.length;
+    }
+
+    // Check for longest common substring
+    let longestMatch = 0;
+    for (let i = 0; i < shorter.length; i++) {
+      for (let j = i + 1; j <= shorter.length; j++) {
+        const substring = shorter.substring(i, j);
+        if (longer.includes(substring) && substring.length > longestMatch) {
+          longestMatch = substring.length;
+        }
+      }
+    }
+
+    return longestMatch / longer.length;
+  }
+
+  private calculateLevenshteinScore(str1: string, str2: string): number {
+    const maxLength = Math.max(str1.length, str2.length);
+    if (maxLength === 0) {
+      return 1.0;
+    }
+
+    const distance = this.levenshteinDistance(str1, str2);
+    return 1 - distance / maxLength;
+  }
+
+  private levenshteinDistance(str1: string, str2: string): number {
+    // Create properly typed matrix
+    const matrix: number[][] = [];
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [];
+      for (let j = 0; j <= str1.length; j++) {
+        Preconditions.checkExists(matrix[i])[j] = 0;
+      }
+    }
+
+    // Initialize first row and column
+    for (let i = 0; i <= str1.length; i++) {
+      Preconditions.checkExists(matrix[0])[i] = i;
+    }
+
+    for (let j = 0; j <= str2.length; j++) {
+      Preconditions.checkExists(matrix[j])[0] = j;
+    }
+
+    // Fill matrix
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        const currentRow = Preconditions.checkExists(matrix[j]);
+        const prevRow = Preconditions.checkExists(matrix[j - 1]);
+
+        const deletion = Preconditions.checkExists(currentRow[i - 1]) + 1;
+        const insertion = Preconditions.checkExists(prevRow[i]) + 1;
+        const substitution = Preconditions.checkExists(prevRow[i - 1]) + indicator;
+
+        currentRow[i] = Math.min(deletion, insertion, substitution);
+      }
+    }
+
+    return Preconditions.checkExists(Preconditions.checkExists(matrix[str2.length])[str1.length]);
+  }
+
+  private calculateTokenScore(str1: string, str2: string): number {
+    // Split strings into tokens and compare
+    const tokens1 = this.extractTokens(str1);
+    const tokens2 = this.extractTokens(str2);
+
+    if (tokens1.length === 0 && tokens2.length === 0) {
+      return 1.0;
+    }
+
+    if (tokens1.length === 0 || tokens2.length === 0) {
+      return 0.0;
+    }
+
+    let matchingTokens = 0;
+    const used = new Set<number>();
+
+    for (const token1 of tokens1) {
+      for (const [index, token2] of tokens2.entries()) {
+        if (!used.has(index) && (token1 === token2 || token1.includes(token2) || token2.includes(token1))) {
+          matchingTokens++;
+          used.add(index);
+          break;
+        }
+      }
+    }
+
+    return matchingTokens / Math.max(tokens1.length, tokens2.length);
+  }
+
+  private extractTokens(str: string): string[] {
+    // Extract meaningful tokens (words, numbers)
+    const tokens: string[] = [];
+    let currentToken = "";
+
+    for (const char of str) {
+      if (/[a-z0-9]/.test(char)) {
+        currentToken += char;
+      } else if (currentToken) {
+        tokens.push(currentToken);
+        currentToken = "";
+      }
+    }
+
+    if (currentToken) {
+      tokens.push(currentToken);
+    }
+
+    return tokens.filter((token) => token.length > 1); // Filter out single characters
+  }
+
+  private selectBestMatches(
+    scores: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[],
+  ): { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] {
+    // Minimum confidence threshold
+    const MIN_CONFIDENCE = 0.3;
+
+    // Filter out low-confidence matches
+    const viableScores = scores.filter((score) => score.score >= MIN_CONFIDENCE);
+
+    if (viableScores.length === 0) {
+      return [];
+    }
+
+    // Sort by score descending
+    viableScores.sort((a, b) => b.score - a.score);
+
+    const assignments: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] = [];
+    const usedDiscordUsers = new Set<string>();
+    const usedXuids = new Set<string>();
+
+    // Greedy assignment - pick highest scoring matches that don't conflict
+    for (const scoreEntry of viableScores) {
+      if (!usedDiscordUsers.has(scoreEntry.discordUserId) && !usedXuids.has(scoreEntry.xuid)) {
+        assignments.push(scoreEntry);
+        usedDiscordUsers.add(scoreEntry.discordUserId);
+        usedXuids.add(scoreEntry.xuid);
+      }
+    }
+
+    return assignments;
+  }
+
+  // eslint-disable-next-line
+  private updateUserCacheWithFuzzyMatch(_discordUserId: string, _xuid: string, _bestMatchingDiscordName: string): void {
+    // TODO: enable when confident
+    // this.userCache.set(discordUserId, {
+    //   DiscordId: discordUserId,
+    //   XboxId: xuid,
+    //   AssociationReason: AssociationReason.GAME_SIMILARITY,
+    //   AssociationDate: Date.now(),
+    //   GamesRetrievable: GamesRetrievable.UNKNOWN,
+    //   DiscordDisplayNameSearched: bestMatchingDiscordName,
+    // });
   }
 }

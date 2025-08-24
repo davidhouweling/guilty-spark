@@ -13,9 +13,8 @@ import type {
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
-  APIUser,
   RESTError,
-  RESTGetAPIUserResult,
+  RESTGetAPIGuildMemberResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
   RESTPostAPIChannelMessageJSONBody,
@@ -54,7 +53,7 @@ export interface QueueData {
   timestamp: Date;
   teams: {
     name: string;
-    players: APIUser[];
+    players: APIGuildMember[];
   }[];
 }
 
@@ -124,7 +123,7 @@ export class DiscordService {
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
-  private readonly userCache = new Map<string, APIUser>();
+  private readonly userCache = new Map<string, APIGuildMember>();
   private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
@@ -262,8 +261,8 @@ export class DiscordService {
     return data;
   }
 
-  async getTeamsFromQueue(channel: string, queue: number | undefined): Promise<QueueData | null> {
-    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
+  async getTeamsFromQueue(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData | null> {
+    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
       queryParameters: { limit: 100 },
     });
@@ -280,7 +279,7 @@ export class DiscordService {
       this.logService.debug(
         "No queue message found",
         new Map([
-          ["channel", channel],
+          ["channel", channelId],
           ["queue", queue ?? ""],
         ]),
       );
@@ -294,9 +293,9 @@ export class DiscordService {
     const playerIds = fields.flatMap((field) => this.extractUserIds(field.value));
     this.logService.debug("Extracted player IDs", new Map([["playerIds", playerIds.map((id) => id).join(", ")]]));
 
-    const playerIdToUserMap = new Map<string, APIUser>();
+    const playerIdToUserMap = new Map<string, APIGuildMember>();
     for (const playerId of playerIds) {
-      const user = await this.getUserInfo(playerId);
+      const user = await this.getGuildMember(guildId, playerId);
       playerIdToUserMap.set(playerId, user);
     }
 
@@ -355,13 +354,13 @@ export class DiscordService {
   }
 
   async updateMessageWithError(
-    channel: string,
+    channelId: string,
     messageId: string,
     error: EndUserError | Error,
   ): Promise<APIMessage | undefined> {
     try {
       const endUserError = this.handleError(error, this.logService);
-      return await this.fetch<APIMessage>(Routes.channelMessage(channel, messageId), {
+      return await this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
         method: "PATCH",
         body: JSON.stringify({
           embeds: [endUserError.discordEmbed],
@@ -387,12 +386,17 @@ export class DiscordService {
     });
   }
 
-  async getGuildMember(guildId: string, userId: string): Promise<APIGuildMember> {
-    return this.fetch<APIGuildMember>(Routes.guildMember(guildId, userId));
+  async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
+    if (!this.userCache.has(userId)) {
+      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId));
+      this.userCache.set(userId, user);
+    }
+
+    return Preconditions.checkExists(this.userCache.get(userId));
   }
 
-  async getMessage(channel: string, messageId: string): Promise<APIMessage> {
-    return this.fetch<APIMessage>(Routes.channelMessage(channel, messageId));
+  async getMessage(channelId: string, messageId: string): Promise<APIMessage> {
+    return this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId));
   }
 
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
@@ -401,24 +405,24 @@ export class DiscordService {
     );
   }
 
-  async getMessages(channel: string): Promise<APIMessage[]> {
-    return this.fetch<APIMessage[]>(Routes.channelMessages(channel), {
+  async getMessages(channelId: string): Promise<APIMessage[]> {
+    return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
     });
   }
 
   async createMessage(
-    channel: string,
+    channelId: string,
     data: RESTPostAPIChannelMessageJSONBody,
   ): Promise<RESTPostAPIChannelMessageResult> {
-    return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channel), {
+    return this.fetch<RESTPostAPIChannelMessageResult>(Routes.channelMessages(channelId), {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async startThreadFromMessage(
-    channel: string,
+    channelId: string,
     message: string,
     name: string,
     autoArchiveDuration: 60 | 1440 | 4320 | 10080 = 60,
@@ -432,7 +436,7 @@ export class DiscordService {
       auto_archive_duration: autoArchiveDuration,
     };
 
-    return this.fetch<RESTPostAPIChannelThreadsResult>(Routes.threads(channel, message), {
+    return this.fetch<RESTPostAPIChannelThreadsResult>(Routes.threads(channelId, message), {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -458,11 +462,11 @@ export class DiscordService {
     });
   }
 
-  async getUsers(discordIds: string[]): Promise<APIUser[]> {
+  async getUsers(guildId: string, discordIds: string[]): Promise<APIGuildMember[]> {
     // doing it sequentially to better handle rate limit
-    const users: APIUser[] = [];
+    const users: APIGuildMember[] = [];
     for (const discordId of discordIds) {
-      const user = await this.getUserInfo(discordId);
+      const user = await this.getGuildMember(guildId, discordId);
       users.push(user);
     }
 
@@ -797,15 +801,6 @@ export class DiscordService {
     return ids;
   }
 
-  private async getUserInfo(userId: string): Promise<RESTGetAPIUserResult> {
-    if (!this.userCache.has(userId)) {
-      const user = await this.fetch<RESTGetAPIUserResult>(Routes.user(userId));
-      this.userCache.set(userId, user);
-    }
-
-    return Preconditions.checkExists(this.userCache.get(userId));
-  }
-
   private getRateLimitFromHeader(headers: Headers, key: string): number | undefined {
     const value = headers.get(key);
     if (value == null) {
@@ -830,6 +825,32 @@ export class DiscordService {
     const prefix = "rateLimit";
     if (path.startsWith(Routes.user("*").replace("*", ""))) {
       return `${prefix}./users/*`;
+    }
+
+    const matchesGuildMember = (): string | null => {
+      const guildMemberPattern = Routes.guildMember("GUILD_ID", "USER_ID")
+        .replace("GUILD_ID", "([^/]+)")
+        .replace("USER_ID", "([^/]+)");
+
+      const regex = new RegExp(`^${guildMemberPattern}$`);
+      const matches = regex.exec(path);
+
+      if (matches) {
+        const [, guildId, memberId] = matches;
+
+        Preconditions.checkExists(guildId, "guildId");
+        const validMemberId = Preconditions.checkExists(memberId, "memberId");
+
+        // Extract the base path: "/guilds/{guildId}/members"
+        return path.replace(`/${validMemberId}`, "");
+      }
+
+      return null;
+    };
+    const guildMemberKey = matchesGuildMember();
+
+    if (guildMemberKey != null) {
+      return `${prefix}.${guildMemberKey}/*`;
     }
 
     return `${prefix}.${path}`;
