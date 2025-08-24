@@ -180,7 +180,7 @@ describe("StatsCommand", () => {
       it("fetches queue data from discordService", async () => {
         await jobToComplete?.();
 
-        expect(getTeamsFromQueueSpy).toHaveBeenCalledWith("1234567890", 5);
+        expect(getTeamsFromQueueSpy).toHaveBeenCalledWith("fake-guild-id", "1234567890", 5);
       });
 
       it("calls discordService.updateDeferredReplyWithError with an error when no data is returned from getTeamsFromQueue", async () => {
@@ -210,21 +210,25 @@ describe("StatsCommand", () => {
                 [
                   {
                     "globalName": "DiscordUser01",
+                    "guildNickname": null,
                     "id": "000000000000000001",
                     "username": "discord_user_01",
                   },
                   {
                     "globalName": "DiscordUser02",
+                    "guildNickname": null,
                     "id": "000000000000000002",
                     "username": "discord_user_02",
                   },
                   {
                     "globalName": null,
+                    "guildNickname": null,
                     "id": "000000000000000003",
                     "username": "discord_user_03",
                   },
                   {
                     "globalName": "gamertag0000000000004",
+                    "guildNickname": null,
                     "id": "000000000000000004",
                     "username": "not_discord_user_04",
                   },
@@ -232,21 +236,25 @@ describe("StatsCommand", () => {
                 [
                   {
                     "globalName": "DiscordUser05",
+                    "guildNickname": null,
                     "id": "000000000000000005",
                     "username": "discord_user_05",
                   },
                   {
                     "globalName": "DiscordUser06",
+                    "guildNickname": null,
                     "id": "000000000000000006",
                     "username": "discord_user_06",
                   },
                   {
                     "globalName": "DiscordUser07",
+                    "guildNickname": null,
                     "id": "000000000000000007",
                     "username": "discord_user_07",
                   },
                   {
                     "globalName": "DiscordUser08",
+                    "guildNickname": null,
                     "id": "000000000000000008",
                     "username": "discord_user_08",
                   },

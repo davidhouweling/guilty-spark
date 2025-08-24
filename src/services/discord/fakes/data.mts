@@ -607,6 +607,42 @@ export const channelMessages: APIMessage[] = [
   },
 ];
 
+export const guildMember: APIGuildMember = {
+  avatar: null,
+  banner: null,
+  communication_disabled_until: null,
+  flags: GuildMemberFlags.CompletedOnboarding,
+  joined_at: "2024-10-27T07:56:02.094000+00:00",
+  nick: null,
+  pending: false,
+  premium_since: null,
+  roles: ["1300005071773237291"],
+  user: {
+    id: "discord_user_01",
+    username: "soundmanD",
+    avatar: "",
+    discriminator: "2015",
+    public_flags: 524288,
+    flags: 524288,
+    bot: false,
+    banner: null,
+    accent_color: null,
+    global_name: null,
+    avatar_decoration_data: null,
+    collectibles: null,
+    primary_guild: null,
+  },
+  mute: false,
+  deaf: false,
+};
+
+export function aGuildMemberWith(opts: Partial<APIGuildMember> = {}): APIGuildMember {
+  return {
+    ...guildMember,
+    ...opts,
+  };
+}
+
 export const discordNeatQueueData: QueueData = {
   message: {
     type: 0,
@@ -666,67 +702,83 @@ export const discordNeatQueueData: QueueData = {
     {
       name: "Eagle",
       players: [
-        {
-          id: "000000000000000001",
-          username: "discord_user_01",
-          avatar: "157e517cdbf371a47aaead44675714a3",
-          discriminator: "0",
-          global_name: "DiscordUser01",
-        },
-        {
-          id: "000000000000000002",
-          username: "discord_user_02",
-          avatar: null,
-          discriminator: "0",
-          global_name: "DiscordUser02",
-        },
-        {
-          id: "000000000000000003",
-          username: "discord_user_03",
-          avatar: null,
-          discriminator: "0",
-          global_name: null,
-        },
-        {
-          id: "000000000000000004",
-          username: "not_discord_user_04",
-          avatar: "6f9ef56a174047263d9c81e9b2559fdc",
-          discriminator: "0",
-          global_name: "gamertag0000000000004",
-        },
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000001",
+            username: "discord_user_01",
+            avatar: "157e517cdbf371a47aaead44675714a3",
+            discriminator: "0",
+            global_name: "DiscordUser01",
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000002",
+            username: "discord_user_02",
+            avatar: null,
+            discriminator: "0",
+            global_name: "DiscordUser02",
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000003",
+            username: "discord_user_03",
+            avatar: null,
+            discriminator: "0",
+            global_name: null,
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000004",
+            username: "not_discord_user_04",
+            avatar: "6f9ef56a174047263d9c81e9b2559fdc",
+            discriminator: "0",
+            global_name: "gamertag0000000000004",
+          },
+        }),
       ],
     },
     {
       name: "Cobra",
       players: [
-        {
-          id: "000000000000000005",
-          username: "discord_user_05",
-          avatar: "4081ed914ba463a1374b2b1b11f7bf60",
-          discriminator: "0",
-          global_name: "DiscordUser05",
-        },
-        {
-          id: "000000000000000006",
-          username: "discord_user_06",
-          avatar: null,
-          discriminator: "0",
-          global_name: "DiscordUser06",
-        },
-        {
-          id: "000000000000000007",
-          username: "discord_user_07",
-          avatar: "d354460036abf8fcddd1282b353bfcd9",
-          discriminator: "0",
-          global_name: "DiscordUser07",
-        },
-        {
-          id: "000000000000000008",
-          username: "discord_user_08",
-          avatar: "15c79840f18f08defc64793b55afc2b9",
-          discriminator: "0",
-          global_name: "DiscordUser08",
-        },
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000005",
+            username: "discord_user_05",
+            avatar: "4081ed914ba463a1374b2b1b11f7bf60",
+            discriminator: "0",
+            global_name: "DiscordUser05",
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000006",
+            username: "discord_user_06",
+            avatar: null,
+            discriminator: "0",
+            global_name: "DiscordUser06",
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000007",
+            username: "discord_user_07",
+            avatar: "d354460036abf8fcddd1282b353bfcd9",
+            discriminator: "0",
+            global_name: "DiscordUser07",
+          },
+        }),
+        aGuildMemberWith({
+          user: {
+            id: "000000000000000008",
+            username: "discord_user_08",
+            avatar: "15c79840f18f08defc64793b55afc2b9",
+            discriminator: "0",
+            global_name: "DiscordUser08",
+          },
+        }),
       ],
     },
   ],
@@ -737,33 +789,4 @@ export const channelThreadsResult: RESTPostAPIChannelMessagesThreadsResult = {
   name: "fake-thread-name",
   type: ChannelType.PublicThread,
   applied_tags: [],
-};
-
-export const guildMember: APIGuildMember = {
-  avatar: null,
-  banner: null,
-  communication_disabled_until: null,
-  flags: GuildMemberFlags.CompletedOnboarding,
-  joined_at: "2024-10-27T07:56:02.094000+00:00",
-  nick: null,
-  pending: false,
-  premium_since: null,
-  roles: ["1300005071773237291"],
-  user: {
-    id: "discord_user_01",
-    username: "soundmanD",
-    avatar: "",
-    discriminator: "2015",
-    public_flags: 524288,
-    flags: 524288,
-    bot: false,
-    banner: null,
-    accent_color: null,
-    global_name: null,
-    avatar_decoration_data: null,
-    collectibles: null,
-    primary_guild: null,
-  },
-  mute: false,
-  deaf: false,
 };

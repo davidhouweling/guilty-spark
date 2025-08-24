@@ -170,7 +170,7 @@ export class StatsCommand extends BaseCommand {
 
   private async neatQueueSubCommandJob(
     interaction: APIApplicationCommandInteraction,
-    channel: string,
+    channelId: string,
     queue: number | undefined,
   ): Promise<void> {
     const { databaseService, discordService, haloService } = this.services;
@@ -179,13 +179,14 @@ export class StatsCommand extends BaseCommand {
     let endDateTime: Date | undefined;
 
     try {
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
       const [guildConfig, queueData] = await Promise.all([
-        databaseService.getGuildConfig(Preconditions.checkExists(interaction.guild_id)),
-        discordService.getTeamsFromQueue(channel, queue),
+        databaseService.getGuildConfig(guildId),
+        discordService.getTeamsFromQueue(guildId, channelId, queue),
       ]);
       if (!queueData) {
         throw new EndUserError(
-          `No queue found within the last 100 messages of <#${channel}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
+          `No queue found within the last 100 messages of <#${channelId}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
           {
             errorType: EndUserErrorType.WARNING,
             handled: true,
@@ -200,9 +201,10 @@ export class StatsCommand extends BaseCommand {
       const series = await haloService.getSeriesFromDiscordQueue({
         teams: queueData.teams.map((team) =>
           team.players.map((player) => ({
-            id: player.id,
-            username: player.username,
-            globalName: player.global_name,
+            id: player.user.id,
+            username: player.user.username,
+            globalName: player.user.global_name,
+            guildNickname: player.nick ?? null,
           })),
         ),
         startDateTime,
@@ -210,7 +212,7 @@ export class StatsCommand extends BaseCommand {
       });
       const seriesEmbed = await this.createSeriesEmbed({
         guildId: Preconditions.checkExists(interaction.guild_id, "No guild id"),
-        channel,
+        channelId,
         locale,
         queueData,
         series,
@@ -285,7 +287,7 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
         error.appendData({
-          Channel: `<#${channel}>`,
+          Channel: `<#${channelId}>`,
           Queue: computedQueue.toString(),
           Completed: discordService.getTimestamp(endDateTime.toISOString()),
         });
@@ -431,13 +433,13 @@ export class StatsCommand extends BaseCommand {
 
   private async createSeriesEmbed({
     guildId,
-    channel,
+    channelId,
     locale,
     queueData,
     series,
   }: {
     guildId: string;
-    channel: string;
+    channelId: string;
     locale: string;
     queueData: QueueData;
     series: MatchStats[];
@@ -446,14 +448,14 @@ export class StatsCommand extends BaseCommand {
     const seriesOverview = new SeriesOverviewEmbed({ discordService, haloService });
     const seriesEmbed = await seriesOverview.getEmbed({
       guildId,
-      channel,
+      channelId,
       messageId: queueData.message.id,
       locale,
       queue: queueData.queue,
       series,
       finalTeams: queueData.teams.map((team) => ({
         name: team.name,
-        playerIds: team.players.map(({ id }) => id),
+        playerIds: team.players.map(({ user: { id } }) => id),
       })),
       substitutions: [],
       hideTeamsDescription: false,
