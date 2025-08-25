@@ -717,6 +717,56 @@ export class HaloService {
       return;
     }
 
+    const { xboxGamertags, xboxGamertagMap } = await this.getXboxGamertagMap(xboxXuids);
+
+    if (xboxGamertags.length === 0) {
+      return;
+    }
+
+    // If only one unassociated user and one Xbox player, directly assign
+    if (unassociatedUsers.length === 1 && xboxGamertags.length === 1) {
+      const discordUser = Preconditions.checkExists(unassociatedUsers[0]);
+      const xboxGamertag = Preconditions.checkExists(xboxGamertags[0]);
+      const xuid = this.getXuidFromGamertag(xboxGamertag, xboxGamertagMap);
+
+      const { bestScore, bestMatchingDiscordName, nameScores } = this.findBestMatchingDiscordName(
+        discordUser,
+        xboxGamertag,
+      );
+
+      this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
+      this.logService.info(
+        `Direct assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${xboxGamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")}`,
+      );
+      return;
+    }
+
+    // Perform fuzzy matching for multiple candidates
+    const matchScores = this.calculateFuzzyMatchScores(unassociatedUsers, xboxGamertags, xboxGamertagMap);
+    const assignments = this.selectBestMatches(matchScores);
+
+    // Log detailed assignment information
+    for (const { discordUserId, xuid, score, bestMatchingDiscordName, discordNameScores } of assignments) {
+      const discordUser = unassociatedUsers.find((user) => user.id === discordUserId);
+      this.updateUserCacheWithFuzzyMatch(discordUserId, xuid, bestMatchingDiscordName);
+      const gamertag = xboxGamertagMap.get(xuid);
+
+      this.logService.info(
+        `Fuzzy match: Discord user ${discordUser?.username ?? discordUserId} (${discordUser?.globalName ?? "N/A"} | ${discordUser?.guildNickname ?? "N/A"}) → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)} | Name scores: ${discordNameScores}`,
+      );
+    }
+
+    // Handle low confidence assignments - if only 1 unassociated user remains, assign to remaining Xbox player
+    this.handleLowConfidenceAssignments(unassociatedUsers, xboxXuids, assignments, xboxGamertagMap);
+  }
+
+  /**
+   * Gets Xbox gamertag map for the given xuids, using cache first then fetching if needed
+   */
+  private async getXboxGamertagMap(xboxXuids: string[]): Promise<{
+    xboxGamertags: string[];
+    xboxGamertagMap: Map<string, string>;
+  }> {
     // Create a map of xuid to gamertag
     const xboxGamertagMap = new Map<string, string>();
 
@@ -741,52 +791,85 @@ export class HaloService {
         }
       } catch (error) {
         this.logService.warn(`Failed to fetch Xbox gamertags for fuzzy matching: ${(error as Error).message}`);
-        return;
       }
     }
 
-    if (xboxGamertags.length === 0) {
-      return;
+    return { xboxGamertags, xboxGamertagMap };
+  }
+
+  /**
+   * Gets xuid from gamertag using the provided map
+   */
+  private getXuidFromGamertag(xboxGamertag: string, xboxGamertagMap: Map<string, string>): string {
+    return Preconditions.checkExists(
+      Array.from(xboxGamertagMap.entries()).find(([, gamertag]) => gamertag === xboxGamertag)?.[0],
+    );
+  }
+
+  /**
+   * Finds the best matching Discord name for a user against an Xbox gamertag
+   */
+  private findBestMatchingDiscordName(
+    discordUser: MatchPlayer,
+    xboxGamertag: string,
+  ): {
+    bestScore: number;
+    bestMatchingDiscordName: string;
+    nameScores: string[];
+  } {
+    const discordNames = [discordUser.username, discordUser.globalName, discordUser.guildNickname].filter(
+      (name): name is string => name != null && name !== "",
+    );
+
+    let bestScore = 0;
+    let bestMatchingDiscordName = discordNames[0] ?? discordUser.username;
+    const nameScores: string[] = [];
+
+    for (const discordName of discordNames) {
+      const score = this.calculateStringMatchScore(xboxGamertag, discordName);
+      nameScores.push(`${discordName}:${score.toFixed(2)}`);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatchingDiscordName = discordName;
+      }
     }
 
-    // If only one unassociated user and one Xbox player, directly assign
-    if (unassociatedUsers.length === 1 && xboxGamertags.length === 1) {
-      const discordUser = Preconditions.checkExists(unassociatedUsers[0]);
-      const xboxGamertag = Preconditions.checkExists(xboxGamertags[0]);
-      const xuid = Preconditions.checkExists(
-        Array.from(xboxGamertagMap.entries()).find(([, gamertag]) => gamertag === xboxGamertag)?.[0],
+    return { bestScore, bestMatchingDiscordName, nameScores };
+  }
+
+  /**
+   * Handles low confidence assignments when only one Discord user and one Xbox player remain
+   */
+  private handleLowConfidenceAssignments(
+    unassociatedUsers: MatchPlayer[],
+    xboxXuids: string[],
+    assignments: {
+      discordUserId: string;
+      xuid: string;
+      score: number;
+      bestMatchingDiscordName: string;
+      discordNameScores: string;
+    }[],
+    xboxGamertagMap: Map<string, string>,
+  ): void {
+    const assignedDiscordUsers = new Set(assignments.map((a) => a.discordUserId));
+    const assignedXuids = new Set(assignments.map((a) => a.xuid));
+    const remainingDiscordUsers = unassociatedUsers.filter((user) => !assignedDiscordUsers.has(user.id));
+    const remainingXuids = xboxXuids.filter((xuid) => !assignedXuids.has(xuid));
+
+    if (remainingDiscordUsers.length === 1 && remainingXuids.length === 1) {
+      const discordUser = Preconditions.checkExists(remainingDiscordUsers[0]);
+      const xuid = Preconditions.checkExists(remainingXuids[0]);
+      const gamertag = xboxGamertagMap.get(xuid) ?? "Unknown";
+
+      const { bestScore, bestMatchingDiscordName, nameScores } = this.findBestMatchingDiscordName(
+        discordUser,
+        gamertag,
       );
-
-      // Find the best matching Discord name for the direct assignment
-      const discordNames = [discordUser.username, discordUser.globalName, discordUser.guildNickname].filter(
-        (name): name is string => name != null && name !== "",
-      );
-
-      let bestScore = 0;
-      let bestMatchingDiscordName = discordNames[0] ?? discordUser.username;
-
-      for (const discordName of discordNames) {
-        const score = this.calculateStringMatchScore(xboxGamertag, discordName);
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatchingDiscordName = discordName;
-        }
-      }
 
       this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
-      this.logService.info(`Direct assignment: Discord user ${discordUser.id} → Xbox ${xboxGamertag} (${xuid})`);
-      return;
-    }
-
-    // Perform fuzzy matching for multiple candidates
-    const matchScores = this.calculateFuzzyMatchScores(unassociatedUsers, xboxGamertags, xboxGamertagMap);
-    const assignments = this.selectBestMatches(matchScores);
-
-    for (const { discordUserId, xuid, score, bestMatchingDiscordName } of assignments) {
-      this.updateUserCacheWithFuzzyMatch(discordUserId, xuid, bestMatchingDiscordName);
-      const gamertag = xboxGamertagMap.get(xuid);
       this.logService.info(
-        `Fuzzy match: Discord user ${discordUserId} → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)}`,
+        `Low confidence assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${gamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")} | Reason: Only remaining player`,
       );
     }
   }
@@ -795,36 +878,37 @@ export class HaloService {
     discordUsers: MatchPlayer[],
     xboxGamertags: string[],
     xboxGamertagMap: Map<string, string>,
-  ): { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] {
-    const scores: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] = [];
+  ): {
+    discordUserId: string;
+    xuid: string;
+    score: number;
+    bestMatchingDiscordName: string;
+    discordNameScores: string;
+  }[] {
+    const scores: {
+      discordUserId: string;
+      xuid: string;
+      score: number;
+      bestMatchingDiscordName: string;
+      discordNameScores: string;
+    }[] = [];
 
     for (const discordUser of discordUsers) {
-      const discordNames = [discordUser.username, discordUser.globalName, discordUser.guildNickname].filter(
-        (name): name is string => name != null && name !== "",
-      );
-
       for (const xboxGamertag of xboxGamertags) {
-        const xuid = Preconditions.checkExists(
-          Array.from(xboxGamertagMap.entries()).find(([, gamertag]) => gamertag === xboxGamertag)?.[0],
-        );
+        const xuid = this.getXuidFromGamertag(xboxGamertag, xboxGamertagMap);
 
         // Calculate scores for each Discord name and find the best one
-        let maxScore = 0;
-        let bestMatchingDiscordName = "";
-
-        for (const discordName of discordNames) {
-          const score = this.calculateStringMatchScore(xboxGamertag, discordName);
-          if (score > maxScore) {
-            maxScore = score;
-            bestMatchingDiscordName = discordName;
-          }
-        }
+        const { bestScore, bestMatchingDiscordName, nameScores } = this.findBestMatchingDiscordName(
+          discordUser,
+          xboxGamertag,
+        );
 
         scores.push({
           discordUserId: discordUser.id,
           xuid,
-          score: maxScore,
+          score: bestScore,
           bestMatchingDiscordName,
+          discordNameScores: nameScores.join(", "),
         });
       }
     }
@@ -983,8 +1067,20 @@ export class HaloService {
   }
 
   private selectBestMatches(
-    scores: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[],
-  ): { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] {
+    scores: {
+      discordUserId: string;
+      xuid: string;
+      score: number;
+      bestMatchingDiscordName: string;
+      discordNameScores: string;
+    }[],
+  ): {
+    discordUserId: string;
+    xuid: string;
+    score: number;
+    bestMatchingDiscordName: string;
+    discordNameScores: string;
+  }[] {
     // Minimum confidence threshold
     const MIN_CONFIDENCE = 0.3;
 
@@ -998,7 +1094,13 @@ export class HaloService {
     // Sort by score descending
     viableScores.sort((a, b) => b.score - a.score);
 
-    const assignments: { discordUserId: string; xuid: string; score: number; bestMatchingDiscordName: string }[] = [];
+    const assignments: {
+      discordUserId: string;
+      xuid: string;
+      score: number;
+      bestMatchingDiscordName: string;
+      discordNameScores: string;
+    }[] = [];
     const usedDiscordUsers = new Set<string>();
     const usedXuids = new Set<string>();
 
