@@ -37,6 +37,10 @@ export class Server {
 
         const { isValid, interaction } = await discordService.verifyDiscordRequest(request);
         if (!isValid || !interaction) {
+          services.logService.warn(
+            "Invalid Discord request (failed verification)",
+            new Map([["request", JSON.stringify(request)]]),
+          );
           return new Response("Bad request signature.", { status: 401 });
         }
 
@@ -62,6 +66,10 @@ export class Server {
 
         const verifiedRequest = await neatQueueService.verifyRequest(request);
         if (!verifiedRequest.isValid) {
+          services.logService.warn(
+            "Invalid NeatQueue request (failed verification)",
+            new Map([["request", JSON.stringify(request)]]),
+          );
           return new Response("Bad request signature.", { status: 401 });
         }
 
