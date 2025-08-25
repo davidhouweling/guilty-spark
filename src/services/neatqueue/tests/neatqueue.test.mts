@@ -110,6 +110,7 @@ describe("NeatQueueService", () => {
       expect(result).toEqual({
         isValid: true,
         interaction: { type: "neatqueue", guild: "guild-1", channel: "channel-1" },
+        rawBody: '{"type":"neatqueue","guild":"guild-1","channel":"channel-1"}',
         neatQueueConfig: fakeConfig,
       });
     });
@@ -119,7 +120,11 @@ describe("NeatQueueService", () => {
 
       const result = await neatQueueService.verifyRequest(request);
 
-      expect(result).toEqual({ isValid: false, error: "Missing Authorization header" });
+      expect(result).toEqual({
+        isValid: false,
+        rawBody: '{"type":"neatqueue","guild":"guild-1","channel":"channel-1"}',
+        error: "Missing Authorization header",
+      });
     });
 
     it("returns isValid: false and error when request body is invalid JSON", async () => {
@@ -131,7 +136,7 @@ describe("NeatQueueService", () => {
 
       const result = await neatQueueService.verifyRequest(request);
 
-      expect(result).toEqual({ isValid: false, error: "Invalid JSON" });
+      expect(result).toEqual({ isValid: false, rawBody: "not-json", error: "Invalid JSON" });
     });
 
     it("returns isValid: false when config is not found", async () => {
@@ -139,7 +144,10 @@ describe("NeatQueueService", () => {
 
       const result = await neatQueueService.verifyRequest(request);
 
-      expect(result).toEqual({ isValid: false });
+      expect(result).toEqual({
+        isValid: false,
+        rawBody: '{"type":"neatqueue","guild":"guild-1","channel":"channel-1"}',
+      });
     });
   });
 

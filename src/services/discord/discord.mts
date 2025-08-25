@@ -71,9 +71,9 @@ export interface SubcommandData {
 }
 
 type VerifyDiscordResponse =
-  | { isValid: boolean; interaction?: never; error?: never }
-  | { interaction: APIInteraction; isValid: boolean; error?: never }
-  | { isValid: boolean; error: string; interaction?: never };
+  | { isValid: boolean; rawBody: string; interaction?: never; error?: never }
+  | { interaction: APIInteraction; isValid: boolean; rawBody: string; error?: never }
+  | { isValid: boolean; rawBody: string; error: string; interaction?: never };
 
 interface InteractionResponse {
   response: JsonResponse;
@@ -147,21 +147,27 @@ export class DiscordService {
       (await this.verifyKey(body, signature, timestamp, this.env.DISCORD_PUBLIC_KEY));
 
     if (!isValidRequest) {
-      return { isValid: false };
+      return { isValid: false, rawBody: body };
     }
 
     try {
       const parsedInteraction = JSON.parse(body) as APIInteraction;
-      return { interaction: parsedInteraction, isValid: true };
+      return { interaction: parsedInteraction, isValid: true, rawBody: body };
     } catch (error) {
       this.logService.error(error as Error, new Map([["body", body]]));
 
-      return { isValid: false, error: "Invalid JSON" };
+      return { isValid: false, error: "Invalid JSON", rawBody: body };
     }
   }
 
   handleInteraction(interaction: APIInteraction): InteractionResponse {
-    this.logService.info(inspect(interaction, { depth: null, colors: this.env.MODE === "development" }));
+    this.logService.info(
+      inspect(interaction, {
+        depth: null,
+        colors: this.env.MODE === "development",
+        compact: this.env.MODE !== "development",
+      }),
+    );
 
     const { type } = interaction;
     switch (type) {

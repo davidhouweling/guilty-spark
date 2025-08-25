@@ -134,7 +134,12 @@ describe("DiscordService", () => {
       const result = await discordService.verifyDiscordRequest(request);
 
       expect(mockVerifyKey).toHaveBeenCalledWith(requestBody, "fake-signature", "fake-timestamp", "DISCORD_PUBLIC_KEY");
-      expect(result).toEqual({ interaction: pingInteraction, isValid: true });
+      expect(result).toEqual({
+        interaction: pingInteraction,
+        isValid: true,
+        rawBody:
+          '{"id":"fake-id","type":1,"application_id":"fake-application-id","token":"fake-token","version":1,"app_permissions":"","authorizing_integration_owners":{},"entitlements":[],"attachment_size_limit":10000}',
+      });
     });
 
     it("returns 'isValid: false' if no signature is provided in request header", async () => {
@@ -142,7 +147,11 @@ describe("DiscordService", () => {
 
       const result = await discordService.verifyDiscordRequest(request);
 
-      expect(result).toEqual({ isValid: false });
+      expect(result).toEqual({
+        isValid: false,
+        rawBody:
+          '{"id":"fake-id","type":1,"application_id":"fake-application-id","token":"fake-token","version":1,"app_permissions":"","authorizing_integration_owners":{},"entitlements":[],"attachment_size_limit":10000}',
+      });
     });
 
     it("returns 'isValid: false' if no timestamp is provided in request header", async () => {
@@ -150,7 +159,11 @@ describe("DiscordService", () => {
 
       const result = await discordService.verifyDiscordRequest(request);
 
-      expect(result).toEqual({ isValid: false });
+      expect(result).toEqual({
+        isValid: false,
+        rawBody:
+          '{"id":"fake-id","type":1,"application_id":"fake-application-id","token":"fake-token","version":1,"app_permissions":"","authorizing_integration_owners":{},"entitlements":[],"attachment_size_limit":10000}',
+      });
     });
 
     it("returns 'isValid: false' if the request is invalid", async () => {
@@ -158,7 +171,11 @@ describe("DiscordService", () => {
 
       const result = await discordService.verifyDiscordRequest(request);
 
-      expect(result).toEqual({ isValid: false });
+      expect(result).toEqual({
+        isValid: false,
+        rawBody:
+          '{"id":"fake-id","type":1,"application_id":"fake-application-id","token":"fake-token","version":1,"app_permissions":"","authorizing_integration_owners":{},"entitlements":[],"attachment_size_limit":10000}',
+      });
     });
 
     it("returns 'isValid: false' if the request is invalid JSON", async () => {
@@ -173,7 +190,7 @@ describe("DiscordService", () => {
 
       const result = await discordService.verifyDiscordRequest(request);
 
-      expect(result).toEqual({ isValid: false, error: "Invalid JSON" });
+      expect(result).toEqual({ isValid: false, rawBody: "invalid-json", error: "Invalid JSON" });
     });
   });
 

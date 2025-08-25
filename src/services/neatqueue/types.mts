@@ -93,10 +93,12 @@ export type VerifyNeatQueueResponse =
   | {
       isValid: true;
       interaction: NeatQueueRequest;
+      rawBody: string;
       neatQueueConfig: NeatQueueConfigRow;
     }
   | {
       isValid: false;
+      rawBody: string;
       error?: string;
     };
 

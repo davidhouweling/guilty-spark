@@ -78,23 +78,26 @@ export class NeatQueueService {
 
   async verifyRequest(request: Request): Promise<VerifyNeatQueueResponse> {
     const authorization = request.headers.get("authorization");
+    let rawBody = "";
     try {
+      rawBody = await request.text();
+
       if (authorization == null) {
-        return { isValid: false, error: "Missing Authorization header" };
+        return { isValid: false, rawBody, error: "Missing Authorization header" };
       }
 
-      const body = await request.json<NeatQueueRequest>();
+      const body = JSON.parse(rawBody) as NeatQueueRequest;
 
       const neatQueueConfig = await this.findNeatQueueConfig(body, authorization);
       if (neatQueueConfig == null) {
-        return { isValid: false };
+        return { isValid: false, rawBody };
       }
 
-      return { isValid: true, interaction: body, neatQueueConfig };
+      return { isValid: true, rawBody, interaction: body, neatQueueConfig };
     } catch (error) {
       this.logService.error(error as Error);
 
-      return { isValid: false, error: "Invalid JSON" };
+      return { isValid: false, rawBody, error: "Invalid JSON" };
     }
   }
 
@@ -102,7 +105,13 @@ export class NeatQueueService {
     request: NeatQueueRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): { response: Response; jobToComplete?: () => Promise<void> } {
-    this.logService.info(inspect(request, { depth: null, colors: this.env.MODE === "development" }));
+    this.logService.info(
+      inspect(request, {
+        depth: null,
+        colors: this.env.MODE === "development",
+        compact: this.env.MODE !== "development",
+      }),
+    );
 
     switch (request.action) {
       case "JOIN_QUEUE":
