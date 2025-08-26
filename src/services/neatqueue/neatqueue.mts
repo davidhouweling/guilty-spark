@@ -32,7 +32,7 @@ import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { create } from "../../embeds/stats/create.mjs";
-import { GamesRetrievable } from "../database/types/discord_associations.mjs";
+import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import { DiscordError } from "../discord/discord-error.mjs";
 import { MapsEmbed } from "../../embeds/maps-embed.mjs";
 import type {
@@ -605,7 +605,10 @@ export class NeatQueueService {
     this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
     const haloPlayersMap = new Map(haloPlayers.map((player) => [player.xuid, player]));
     const rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
-    this.logService.debug("Ranked Arena CSRs", new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs)]]));
+    this.logService.debug(
+      "Ranked Arena CSRs",
+      new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
+    );
 
     const titles = ["Player", "Halo Profile", "Current Rank (SP, ATP)"];
     const tableData = [titles];
@@ -620,13 +623,13 @@ export class NeatQueueService {
       const rankData = rankedArenaCsrs.get(association.XboxId);
       const gamertag = Preconditions.checkExists(haloPlayersMap.get(association.XboxId)?.gamertag);
       const url = new URL(`https://halodatahive.com/Player/Infinite/${gamertag}`);
-      const gamertagUrl = `[${gamertag}](${url.href})`;
+      const gamertagUrl = `[${gamertag}](${url.href})${association.AssociationReason === AssociationReason.GAME_SIMILARITY ? " *" : ""}`;
       if (!rankData) {
-        tableData.push([`<@${player.id}>`, gamertagUrl, "Unranked"]);
+        tableData.push([`<@${player.id}>`, gamertagUrl, "-"]);
         continue;
       }
 
-      const getRank = (value: number): string => (value >= 0 ? value.toString() : "Unranked");
+      const getRank = (value: number): string => (value >= 0 ? value.toString() : "-");
       const { Current, SeasonMax, AllTimeMax } = rankData;
       const currentRank = getRank(Current.Value);
       const currentRankEmoji = discordService.getRankEmoji(Current.Tier, Current.SubTier);
@@ -656,7 +659,7 @@ export class NeatQueueService {
 
     const embed: APIEmbed = {
       title: "Players in queue",
-      description: "-# Legend: SP = season peak | ATP = all time peak",
+      description: `-# Legend: SP = season peak | ATP = all time peak ${discordAssociations.some((association) => association.AssociationReason === AssociationReason.GAME_SIMILARITY) ? "| * = guessed gamertag" : ""}`,
       color: 3447003,
       fields,
       footer: {

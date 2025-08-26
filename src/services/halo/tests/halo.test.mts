@@ -569,11 +569,11 @@ describe("Halo service", () => {
           [
             {
               "AssociationDate": 1732622400000,
-              "AssociationReason": "D",
+              "AssociationReason": "G",
               "DiscordDisplayNameSearched": "gamertag0000000000004",
               "DiscordId": "000000000000000004",
-              "GamesRetrievable": "N",
-              "XboxId": "0000000000004",
+              "GamesRetrievable": "?",
+              "XboxId": "0200000000000000",
             },
             {
               "AssociationDate": 1732622400000,
