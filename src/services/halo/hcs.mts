@@ -1,6 +1,6 @@
 // HCS map/mode pool
 
-export const HCS_LAST_UPDATED = "14 August 2025";
+export const HCS_LAST_UPDATED = "26 August 2025";
 
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type Format = "random" | "objective" | "slayer";
@@ -11,7 +11,7 @@ export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
   Strongholds: ["Live Fire", "Lattice", "Recharge"],
   Oddball: ["Live Fire", "Recharge", "Lattice"],
   "King of the Hill": ["Live Fire", "Recharge", "Lattice"],
-  "Neutral Bomb": ["Aquarius", "Fortress"],
+  "Neutral Bomb": ["Aquarius"],
 };
 
 export const OBJECTIVE_MODES: Omit<MapMode, "Slayer">[] = [
