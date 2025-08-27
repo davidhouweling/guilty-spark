@@ -598,7 +598,11 @@ export class NeatQueueService {
     const discordAssociations = await databaseService.getDiscordAssociations(playerIds);
     this.logService.debug("Discord associations", new Map([["associations", JSON.stringify(discordAssociations)]]));
     const xboxIds = discordAssociations
-      .filter((association) => association.GamesRetrievable === GamesRetrievable.YES)
+      .filter(
+        (association) =>
+          association.GamesRetrievable === GamesRetrievable.YES ||
+          association.AssociationReason === AssociationReason.GAME_SIMILARITY,
+      )
       .map((assoc) => assoc.XboxId);
     this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
     const haloPlayers = await haloService.getUsersByXuids(xboxIds);
