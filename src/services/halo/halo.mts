@@ -524,11 +524,7 @@ export class HaloService {
         userMatches.set(user.DiscordId, playerMatches);
       } else {
         const cachedUser = this.userCache.get(user.DiscordId);
-        if (
-          cachedUser != null &&
-          cachedUser.AssociationReason !== AssociationReason.CONNECTED &&
-          cachedUser.AssociationReason !== AssociationReason.MANUAL
-        ) {
+        if (cachedUser != null && cachedUser.AssociationReason !== AssociationReason.CONNECTED) {
           cachedUser.GamesRetrievable = GamesRetrievable.NO;
           this.userCache.set(user.DiscordId, cachedUser);
         }
@@ -1116,16 +1112,18 @@ export class HaloService {
     return assignments;
   }
 
-  // eslint-disable-next-line
-  private updateUserCacheWithFuzzyMatch(_discordUserId: string, _xuid: string, _bestMatchingDiscordName: string): void {
-    // TODO: enable when confident
-    // this.userCache.set(discordUserId, {
-    //   DiscordId: discordUserId,
-    //   XboxId: xuid,
-    //   AssociationReason: AssociationReason.GAME_SIMILARITY,
-    //   AssociationDate: Date.now(),
-    //   GamesRetrievable: GamesRetrievable.UNKNOWN,
-    //   DiscordDisplayNameSearched: bestMatchingDiscordName,
-    // });
+  private updateUserCacheWithFuzzyMatch(discordUserId: string, xuid: string, bestMatchingDiscordName: string): void {
+    const currentEntry = this.userCache.get(discordUserId);
+    this.userCache.set(discordUserId, {
+      DiscordId: discordUserId,
+      XboxId: xuid,
+      AssociationReason: AssociationReason.GAME_SIMILARITY,
+      AssociationDate: Date.now(),
+      GamesRetrievable:
+        currentEntry?.AssociationReason === AssociationReason.GAME_SIMILARITY
+          ? currentEntry.GamesRetrievable
+          : GamesRetrievable.UNKNOWN,
+      DiscordDisplayNameSearched: bestMatchingDiscordName,
+    });
   }
 }
