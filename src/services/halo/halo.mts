@@ -417,7 +417,12 @@ export class HaloService {
     ): Promise<void> => {
       const fulfilled = result.status === "fulfilled";
       const { id: discordId, globalName } = Preconditions.checkExists(processedUsers[index]);
-      const gamertag = associationReason === AssociationReason.DISPLAY_NAME_SEARCH ? globalName : null;
+      const gamertag =
+        associationReason === AssociationReason.DISPLAY_NAME_SEARCH
+          ? globalName
+          : associationReason === AssociationReason.GAME_SIMILARITY
+            ? Preconditions.checkExists(this.userCache.get(discordId)).DiscordDisplayNameSearched
+            : null;
       const xboxId = fulfilled && result.value.xuid ? result.value.xuid : "";
       const playerMatches = xboxId != "" ? await this.getPlayerMatches(xboxId, startDate, endDate) : [];
 
@@ -443,6 +448,29 @@ export class HaloService {
       new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
 
+    const unknownGameSimilarityUsers = users.filter((user) => {
+      const cachedUser = this.userCache.get(user.id);
+      return (
+        cachedUser != null &&
+        cachedUser.AssociationReason === AssociationReason.GAME_SIMILARITY &&
+        cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
+      );
+    });
+    const unknownGameSimilarityUsersResult = await this.getUsersByXuids(
+      unknownGameSimilarityUsers.map((user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId),
+    );
+    await Promise.all(
+      unknownGameSimilarityUsersResult.map(async (result, index) =>
+        processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
+          status: "fulfilled",
+          value: result,
+        }),
+      ),
+    );
+    this.logService.debug(
+      `Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,
+    );
+
     const unresolvedUsersByDiscordUsername = users.filter((user) => !this.userCache.has(user.id));
     // we can assume that xbox has already been searched for before
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
@@ -461,7 +489,8 @@ export class HaloService {
       const cachedUser = this.userCache.get(user.id);
       return (
         cachedUser == null ||
-        (cachedUser.GamesRetrievable !== GamesRetrievable.YES &&
+        (cachedUser.AssociationReason !== AssociationReason.GAME_SIMILARITY &&
+          cachedUser.GamesRetrievable !== GamesRetrievable.YES &&
           user.globalName != null &&
           user.globalName !== "" &&
           user.username.toLowerCase() !== user.globalName.toLowerCase() &&
@@ -480,6 +509,7 @@ export class HaloService {
         processResult(unresolvedUsersByDiscordGlobalName, AssociationReason.DISPLAY_NAME_SEARCH, index, result),
       ),
     );
+
     this.logService.debug(
       `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
     );

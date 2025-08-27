@@ -598,7 +598,11 @@ export class NeatQueueService {
     const discordAssociations = await databaseService.getDiscordAssociations(playerIds);
     this.logService.debug("Discord associations", new Map([["associations", JSON.stringify(discordAssociations)]]));
     const xboxIds = discordAssociations
-      .filter((association) => association.GamesRetrievable === GamesRetrievable.YES)
+      .filter(
+        (association) =>
+          association.GamesRetrievable === GamesRetrievable.YES ||
+          association.AssociationReason === AssociationReason.GAME_SIMILARITY,
+      )
       .map((assoc) => assoc.XboxId);
     this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
     const haloPlayers = await haloService.getUsersByXuids(xboxIds);
@@ -623,7 +627,7 @@ export class NeatQueueService {
       const rankData = rankedArenaCsrs.get(association.XboxId);
       const gamertag = Preconditions.checkExists(haloPlayersMap.get(association.XboxId)?.gamertag);
       const url = new URL(`https://halodatahive.com/Player/Infinite/${gamertag}`);
-      const gamertagUrl = `[${gamertag}](${url.href})${association.AssociationReason === AssociationReason.GAME_SIMILARITY ? " *" : ""}`;
+      const gamertagUrl = `[${gamertag}](${url.href})${association.AssociationReason === AssociationReason.GAME_SIMILARITY && association.GamesRetrievable !== GamesRetrievable.YES ? "*" : ""}`;
       if (!rankData) {
         tableData.push([`<@${player.id}>`, gamertagUrl, "-"]);
         continue;
@@ -659,7 +663,7 @@ export class NeatQueueService {
 
     const embed: APIEmbed = {
       title: "Players in queue",
-      description: `-# Legend: SP = season peak | ATP = all time peak ${discordAssociations.some((association) => association.AssociationReason === AssociationReason.GAME_SIMILARITY) ? "| * = guessed gamertag" : ""}`,
+      description: `-# Legend: SP = season peak | ATP = all time peak ${discordAssociations.some((association) => association.AssociationReason === AssociationReason.GAME_SIMILARITY && association.GamesRetrievable !== GamesRetrievable.YES) ? "| * = guessed gamertag" : ""}`,
       color: 3447003,
       fields,
       footer: {
