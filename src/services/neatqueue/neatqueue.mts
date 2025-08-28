@@ -636,11 +636,26 @@ export class NeatQueueService {
       const getRank = (value: number): string => (value >= 0 ? value.toString() : "-");
       const { Current, SeasonMax, AllTimeMax } = rankData;
       const currentRank = getRank(Current.Value);
-      const currentRankEmoji = discordService.getRankEmoji(Current.Tier, Current.SubTier);
+      const currentRankEmoji = discordService.getRankEmoji({
+        rankTier: Current.Tier,
+        subTier: Current.SubTier,
+        measurementMatchesRemaining: Current.MeasurementMatchesRemaining,
+        initialMeasurementMatches: Current.InitialMeasurementMatches,
+      });
       const seasonPeakRank = getRank(SeasonMax.Value);
-      const seasonPeakRankEmoji = discordService.getRankEmoji(SeasonMax.Tier, SeasonMax.SubTier);
+      const seasonPeakRankEmoji = discordService.getRankEmoji({
+        rankTier: SeasonMax.Tier,
+        subTier: SeasonMax.SubTier,
+        measurementMatchesRemaining: SeasonMax.MeasurementMatchesRemaining,
+        initialMeasurementMatches: SeasonMax.InitialMeasurementMatches,
+      });
       const allTimePeakRank = getRank(AllTimeMax.Value);
-      const allTimePeakRankEmoji = discordService.getRankEmoji(AllTimeMax.Tier, AllTimeMax.SubTier);
+      const allTimePeakRankEmoji = discordService.getRankEmoji({
+        rankTier: AllTimeMax.Tier,
+        subTier: AllTimeMax.SubTier,
+        measurementMatchesRemaining: AllTimeMax.MeasurementMatchesRemaining,
+        initialMeasurementMatches: AllTimeMax.InitialMeasurementMatches,
+      });
 
       tableData.push([
         `<@${player.id}>`,

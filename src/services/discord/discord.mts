@@ -630,22 +630,31 @@ export class DiscordService {
   }
 
   getEmojiFromName(name: string): string {
-    const appEmojiName = name.replace(/[^a-z0-9]/gi, "");
-    const emojiId = Preconditions.checkExists(
-      AppEmojis.get(name.replace(/[^a-z0-9]/gi, "")),
-      `Emoji not found: ${name}`,
-    );
+    const appEmojiName = name.replace(/[^a-z0-9_]/gi, "");
+    const emojiId = Preconditions.checkExists(AppEmojis.get(appEmojiName), `Emoji not found: ${name}`);
 
     return `<:${appEmojiName}:${emojiId}>`;
   }
 
-  getRankEmoji(rankTier: string, subTier: number): string {
+  getRankEmoji({
+    rankTier,
+    subTier,
+    measurementMatchesRemaining,
+    initialMeasurementMatches,
+  }: {
+    rankTier: string;
+    subTier: number;
+    measurementMatchesRemaining: number;
+    initialMeasurementMatches: number;
+  }): string {
     if (rankTier === "Onyx") {
       return this.getEmojiFromName(`Onyx`);
     }
 
     if (rankTier === "") {
-      return this.getEmojiFromName(`Unranked${subTier.toString()}`);
+      return this.getEmojiFromName(
+        `Unranked_${(initialMeasurementMatches - measurementMatchesRemaining).toString()}of${initialMeasurementMatches.toString()}`,
+      );
     }
 
     // subTier is 0 indexed, so we add 1 to it
