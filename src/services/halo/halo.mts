@@ -80,7 +80,12 @@ export class HaloService {
     this.roundRobinFn = roundRobinFn;
   }
 
-  async getSeriesFromDiscordQueue(queueData: SeriesData): Promise<MatchStats[]> {
+  async getSeriesFromDiscordQueue(
+    queueData: SeriesData,
+    doNotUpdateDiscordAssociations = false,
+  ): Promise<MatchStats[]> {
+    const shouldUpdateDiscordAssociations =
+      !doNotUpdateDiscordAssociations && differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10;
     const users = queueData.teams.flat();
     await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 
@@ -92,7 +97,7 @@ export class HaloService {
     );
 
     if (!usersToSearch.length) {
-      if (differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10) {
+      if (shouldUpdateDiscordAssociations) {
         await this.updateDiscordAssociations();
       }
 
@@ -105,7 +110,7 @@ export class HaloService {
       queueData.endDateTime,
     );
     if (!matchesForUsers.length) {
-      if (differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10) {
+      if (shouldUpdateDiscordAssociations) {
         await this.updateDiscordAssociations();
       }
 
@@ -406,6 +411,10 @@ export class HaloService {
       new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
+  }
+
+  public clearUserCache(): void {
+    this.userCache.clear();
   }
 
   private async populateUserCache(users: MatchPlayer[], startDate: Date, endDate: Date): Promise<void> {

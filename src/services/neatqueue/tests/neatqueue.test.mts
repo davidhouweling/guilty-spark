@@ -695,28 +695,31 @@ describe("NeatQueueService", () => {
         expect(response.status).toBe(200);
         await expect(jobToComplete?.()).resolves.toBeUndefined();
 
-        expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
-          startDateTime: new Date("2024-11-26T10:33:00.000Z"),
-          endDateTime: new Date("2024-11-26T10:48:00.000Z"),
-          teams: [
-            [
-              {
-                globalName: "soundmanD",
-                guildNickname: null,
-                id: "discord_user_01",
-                username: "soundmanD",
-              },
+        expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith(
+          {
+            startDateTime: new Date("2024-11-26T10:33:00.000Z"),
+            endDateTime: new Date("2024-11-26T10:48:00.000Z"),
+            teams: [
+              [
+                {
+                  globalName: "soundmanD",
+                  guildNickname: null,
+                  id: "discord_user_01",
+                  username: "soundmanD",
+                },
+              ],
+              [
+                {
+                  globalName: "discord_user_02",
+                  guildNickname: null,
+                  id: "discord_user_02",
+                  username: "discord_user_02",
+                },
+              ],
             ],
-            [
-              {
-                globalName: "discord_user_02",
-                guildNickname: null,
-                id: "discord_user_02",
-                username: "discord_user_02",
-              },
-            ],
-          ],
-        });
+          },
+          false,
+        );
       });
 
       describe.each([
@@ -753,28 +756,31 @@ describe("NeatQueueService", () => {
           );
           await jobToComplete?.();
 
-          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith({
-            startDateTime: new Date("2024-11-26T10:33:00.000Z"),
-            endDateTime: new Date("2024-11-26T10:48:00.000Z"),
-            teams: [
-              [
-                {
-                  globalName: "soundmanD",
-                  guildNickname: null,
-                  id: "discord_user_01",
-                  username: "soundmanD",
-                },
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledWith(
+            {
+              startDateTime: new Date("2024-11-26T10:33:00.000Z"),
+              endDateTime: new Date("2024-11-26T10:48:00.000Z"),
+              teams: [
+                [
+                  {
+                    globalName: "soundmanD",
+                    guildNickname: null,
+                    id: "discord_user_01",
+                    username: "soundmanD",
+                  },
+                ],
+                [
+                  {
+                    globalName: "discord_user_02",
+                    guildNickname: null,
+                    id: "discord_user_02",
+                    username: "discord_user_02",
+                  },
+                ],
               ],
-              [
-                {
-                  globalName: "discord_user_02",
-                  guildNickname: null,
-                  id: "discord_user_02",
-                  username: "discord_user_02",
-                },
-              ],
-            ],
-          });
+            },
+            false,
+          );
         });
 
         it("creates the thread/message and posts overviews, clears timeline", async () => {
@@ -944,50 +950,58 @@ describe("NeatQueueService", () => {
           await jobToComplete?.();
 
           expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenCalledTimes(2);
-          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(1, {
-            startDateTime: new Date("2024-11-26T09:33:00.000Z"),
-            endDateTime: new Date("2024-11-26T10:03:00.000Z"),
-            teams: [
-              [
-                {
-                  globalName: "soundmanD",
-                  guildNickname: null,
-                  id: "discord_user_01",
-                  username: "soundmanD",
-                },
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(
+            1,
+            {
+              startDateTime: new Date("2024-11-26T09:33:00.000Z"),
+              endDateTime: new Date("2024-11-26T10:03:00.000Z"),
+              teams: [
+                [
+                  {
+                    globalName: "soundmanD",
+                    guildNickname: null,
+                    id: "discord_user_01",
+                    username: "soundmanD",
+                  },
+                ],
+                [
+                  {
+                    globalName: "discord_user_02",
+                    guildNickname: null,
+                    id: "discord_user_02",
+                    username: "discord_user_02",
+                  },
+                ],
               ],
-              [
-                {
-                  globalName: "discord_user_02",
-                  guildNickname: null,
-                  id: "discord_user_02",
-                  username: "discord_user_02",
-                },
+            },
+            true,
+          );
+          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(
+            2,
+            {
+              startDateTime: new Date("2024-11-26T10:03:00.000Z"),
+              endDateTime: new Date("2024-11-26T10:48:00.000Z"),
+              teams: [
+                [
+                  {
+                    globalName: "discord_user_03",
+                    guildNickname: null,
+                    id: "discord_user_03",
+                    username: "discord_user_03",
+                  },
+                ],
+                [
+                  {
+                    globalName: "discord_user_02",
+                    guildNickname: null,
+                    id: "discord_user_02",
+                    username: "discord_user_02",
+                  },
+                ],
               ],
-            ],
-          });
-          expect(haloServiceGetSeriesFromDiscordQueueSpy).toHaveBeenNthCalledWith(2, {
-            startDateTime: new Date("2024-11-26T10:03:00.000Z"),
-            endDateTime: new Date("2024-11-26T10:48:00.000Z"),
-            teams: [
-              [
-                {
-                  globalName: "discord_user_03",
-                  guildNickname: null,
-                  id: "discord_user_03",
-                  username: "discord_user_03",
-                },
-              ],
-              [
-                {
-                  globalName: "discord_user_02",
-                  guildNickname: null,
-                  id: "discord_user_02",
-                  username: "discord_user_02",
-                },
-              ],
-            ],
-          });
+            },
+            false,
+          );
 
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,

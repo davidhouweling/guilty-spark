@@ -748,7 +748,7 @@ export class NeatQueueService {
         }
         case "SUBSTITUTION": {
           if (!startDateTime) {
-            this.logService.debug("Substitution event before teams created, skipping");
+            this.logService.info("Substitution event before teams created, skipping");
             break;
           }
           endDateTime = new Date(timestamp);
@@ -763,12 +763,14 @@ export class NeatQueueService {
               mappedTeams,
               startDateTime,
               endDateTime,
+              true,
             );
 
             series.push(...subSeries);
           } catch (error) {
             // don't fail if its just a substitution
             this.logService.info(error as Error, new Map([["reason", "No series data from substitution"]]));
+            this.haloService.clearUserCache();
           }
 
           const { player_subbed_out, player_subbed_in } = event;
@@ -806,6 +808,7 @@ export class NeatQueueService {
             mappedTeams,
             startDateTime ?? sub(endDateTime, { hours: 6 }),
             endDateTime,
+            false,
           );
           series.push(...subSeries);
           break;
@@ -846,6 +849,7 @@ export class NeatQueueService {
     teams: MatchPlayer[][],
     startDateTime: Date,
     endDateTime: Date,
+    isSubstitution: boolean,
   ): Promise<MatchStats[]> {
     const { haloService, discordService } = this;
     const users = await discordService.getUsers(
@@ -853,22 +857,25 @@ export class NeatQueueService {
       teams.flatMap((team) => team.map((player) => player.id)),
     );
 
-    return await haloService.getSeriesFromDiscordQueue({
-      teams: teams.map((team) =>
-        team.map(({ id: playerId }) => {
-          const member = Preconditions.checkExists(users.find(({ user: { id } }) => id === playerId));
+    return await haloService.getSeriesFromDiscordQueue(
+      {
+        teams: teams.map((team) =>
+          team.map(({ id: playerId }) => {
+            const member = Preconditions.checkExists(users.find(({ user: { id } }) => id === playerId));
 
-          return {
-            id: playerId,
-            username: member.user.username,
-            globalName: member.user.global_name,
-            guildNickname: member.nick ?? null,
-          };
-        }),
-      ),
-      startDateTime,
-      endDateTime,
-    });
+            return {
+              id: playerId,
+              username: member.user.username,
+              globalName: member.user.global_name,
+              guildNickname: member.nick ?? null,
+            };
+          }),
+        ),
+        startDateTime,
+        endDateTime,
+      },
+      isSubstitution,
+    );
   }
 
   private async postSeriesDataByThread({
