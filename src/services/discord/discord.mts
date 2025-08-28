@@ -572,7 +572,6 @@ export class DiscordService {
     member: APIGuildMember,
     channel: APIGuildChannel<ChannelType.GuildText | ChannelType.GuildAnnouncement>,
   ): bigint {
-    console.log("\n=== Permission Calculation ===");
     const everyoneRole = guild.roles.find((role) => role.id === guild.id);
     let permissions = BigInt(everyoneRole?.permissions ?? "0");
 
