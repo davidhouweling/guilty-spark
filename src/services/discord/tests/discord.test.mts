@@ -1000,16 +1000,44 @@ describe("DiscordService", () => {
     });
 
     it("returns Onyx emoji for Onyx tier", () => {
-      expect(discordService.getRankEmoji("Onyx", 1)).toBe("<:Onyx:id>");
+      expect(
+        discordService.getRankEmoji({
+          rankTier: "Onyx",
+          subTier: 1,
+          initialMeasurementMatches: 5,
+          measurementMatchesRemaining: 0,
+        }),
+      ).toBe("<:Onyx:id>");
     });
 
     it("returns Unranked emoji for empty tier", () => {
-      expect(discordService.getRankEmoji("", 2)).toBe("<:Unranked2:id>");
+      expect(
+        discordService.getRankEmoji({
+          rankTier: "",
+          subTier: 2,
+          initialMeasurementMatches: 5,
+          measurementMatchesRemaining: 3,
+        }),
+      ).toBe("<:Unranked_2of5:id>");
     });
 
     it("returns correct emoji for other tiers", () => {
-      expect(discordService.getRankEmoji("Diamond", 5)).toBe("<:Diamond6:id>");
-      expect(discordService.getRankEmoji("Gold", 1)).toBe("<:Gold2:id>");
+      expect(
+        discordService.getRankEmoji({
+          rankTier: "Diamond",
+          subTier: 5,
+          initialMeasurementMatches: 5,
+          measurementMatchesRemaining: 0,
+        }),
+      ).toBe("<:Diamond6:id>");
+      expect(
+        discordService.getRankEmoji({
+          rankTier: "Gold",
+          subTier: 1,
+          initialMeasurementMatches: 5,
+          measurementMatchesRemaining: 0,
+        }),
+      ).toBe("<:Gold2:id>");
     });
   });
 });

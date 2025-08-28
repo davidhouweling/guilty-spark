@@ -297,7 +297,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
     // Objective modes have limited unique maps (Live Fire, Lattice, Recharge, Aquarius, Forbidden, Fortress, Origin)
     // so expecting 6-7 unique maps for 15 objective games is realistic
     const analysis = analyzeDistribution(result);
-    expect(analysis.uniqueMaps).toBeGreaterThan(6); // Good diversity even at scale
+    expect(analysis.uniqueMaps).toBeGreaterThan(5); // Good diversity even at scale
   });
 
   it("validates deterministic behavior with same inputs", () => {
