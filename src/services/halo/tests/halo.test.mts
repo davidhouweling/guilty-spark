@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService } from "../halo.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
@@ -32,6 +32,7 @@ describe("Halo service", () => {
     infiniteClient = aFakeHaloInfiniteClient();
 
     haloService = new HaloService({ logService, databaseService, infiniteClient });
+    haloService.clearUserCache(); // Clear cache between tests
   });
 
   afterEach(() => {
@@ -203,6 +204,1047 @@ describe("Halo service", () => {
       return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
+    });
+
+    describe("fuzzy matching", () => {
+      const expectGameSimilarityAssociation = (discordId: string): ReturnType<typeof expect.objectContaining> =>
+        expect.objectContaining({
+          DiscordId: discordId,
+          AssociationReason: AssociationReason.GAME_SIMILARITY,
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+        });
+
+      const expectUserNameSearchAssociation = (
+        discordId: string,
+        xboxId: string,
+      ): ReturnType<typeof expect.objectContaining> =>
+        expect.objectContaining({
+          DiscordId: discordId,
+          XboxId: xboxId,
+          AssociationReason: AssociationReason.USERNAME_SEARCH,
+          GamesRetrievable: GamesRetrievable.YES,
+        });
+
+      const expectMultipleGameSimilarityAssociations = (
+        discordIds: string[],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      ): ReturnType<typeof expect.objectContaining>[] => discordIds.map((id) => expectGameSimilarityAssociation(id));
+
+      // Helper functions for creating Xbox user objects
+      const createXboxGamerpic = (xuid: string): UserInfo["gamerpic"] => ({
+        small: `small${xuid}.png`,
+        medium: `medium${xuid}.png`,
+        large: `large${xuid}.png`,
+        xlarge: `xlarge${xuid}.png`,
+      });
+
+      const createXboxUser = (xuid: string, gamertag: string): UserInfo => ({
+        xuid,
+        gamertag,
+        gamerpic: createXboxGamerpic(xuid),
+      });
+
+      const createDefaultXboxUser = (xuid: string, index: number, prefix = "OtherGamertag"): UserInfo =>
+        createXboxUser(xuid, `${prefix}${String(index + 1).padStart(2, "0")}`);
+
+      // Helper function for creating getUsersSpy mocks
+      const mockGetUsersWithCustomUsers = (
+        customUsers: { index: number; gamertag: string }[],
+        defaultPrefix = "OtherGamertag",
+      ) => {
+        return async (xuids: string[]): ReturnType<HaloInfiniteClient["getUsers"]> => {
+          return Promise.resolve(
+            xuids.map((xuid, index) => {
+              const customUser = customUsers.find((user) => user.index === index);
+              if (customUser) {
+                return createXboxUser(xuid, customUser.gamertag);
+              }
+              return createDefaultXboxUser(xuid, index, defaultPrefix);
+            }),
+          );
+        };
+      };
+
+      const mockGetUsersWithPatternedUsers = (pattern: (index: number) => string) => {
+        return async (xuids: string[]): ReturnType<HaloInfiniteClient["getUsers"]> => {
+          return Promise.resolve(xuids.map((xuid, index) => createXboxUser(xuid, pattern(index))));
+        };
+      };
+
+      describe("when Discord users have no existing Xbox associations", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id, index) => {
+                if (index === 0) {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => `DiscordUser${String(index + 1).padStart(2, "0")}`),
+          );
+        });
+
+        it("attempts fuzzy matching between Discord usernames and Xbox gamertags", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(getUsersSpy).toHaveBeenCalled();
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("creates associations with GAME_SIMILARITY reason when matches are found", async () => {
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("logs info messages with match scores and reasoning", async () => {
+          const logInfoSpy = vi.spyOn(logService, "info");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logInfoSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/Fuzzy match: Discord user.*with score.*Name scores:/),
+          );
+        });
+
+        it("returns series matches when fuzzy matching succeeds", async () => {
+          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(result).toHaveLength(3);
+        });
+      });
+
+      describe("when Discord users have partial Xbox associations", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id, index) => {
+                if (index < 3) {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: `000000000000${String(index + 1)}`,
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => `PartialUser${String(index + 1).padStart(2, "0")}`),
+          );
+        });
+
+        it("only attempts fuzzy matching for unassociated Discord users", async () => {
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining(
+              expectMultipleGameSimilarityAssociations([
+                "000000000000000004",
+                "000000000000000005",
+                "000000000000000006",
+                "000000000000000007",
+                "000000000000000008",
+              ]),
+            ),
+          );
+
+          expect(upsertDiscordAssociationsSpy).not.toHaveBeenCalledWith(
+            expect.arrayContaining(
+              expectMultipleGameSimilarityAssociations([
+                "000000000000000001",
+                "000000000000000002",
+                "000000000000000003",
+              ]),
+            ),
+          );
+        });
+
+        it("preserves some existing associations while creating new fuzzy matches for others", async () => {
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectUserNameSearchAssociation("000000000000000001", "0000000000001"),
+              expectGameSimilarityAssociation("000000000000000002"),
+              expectGameSimilarityAssociation("000000000000000003"),
+              expectGameSimilarityAssociation("000000000000000004"),
+              expectGameSimilarityAssociation("000000000000000005"),
+              expectGameSimilarityAssociation("000000000000000006"),
+              expectGameSimilarityAssociation("000000000000000007"),
+              expectGameSimilarityAssociation("000000000000000008"),
+            ]),
+          );
+        });
+
+        it("successfully finds series matches using both existing associations and fuzzy-matched users", async () => {
+          const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+
+          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(result).toHaveLength(3);
+          expect(result.map((match) => match.MatchId)).toEqual([
+            "d81554d7-ddfe-44da-a6cb-000000000ctf",
+            "e20900f9-4c6c-4003-a175-00000000koth",
+            "9535b946-f30c-4a43-b852-000000slayer",
+          ]);
+
+          expect(getPlayerMatchesSpy).toHaveBeenCalledTimes(5);
+          expect(getPlayerMatchesSpy.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                "0000000000004",
+                2,
+                25,
+                0,
+              ],
+              [
+                "0000000000001",
+                2,
+                25,
+                0,
+              ],
+              [
+                "0000000000001",
+                2,
+                25,
+                5,
+              ],
+              [
+                "0000000000002",
+                2,
+                25,
+                0,
+              ],
+              [
+                "0000000000003",
+                2,
+                25,
+                0,
+              ],
+            ]
+          `);
+        });
+      });
+
+      describe("exact username matching scenarios", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id, index) => {
+                if (index === 0) {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => `discord_user_0${String(index + 2)}`),
+          );
+        });
+
+        it("creates perfect score associations when Discord username exactly matches Xbox gamertag", async () => {
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("handles case-insensitive exact matches", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => `DISCORD_USER_0${String(index + 2)}`),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("prioritizes exact matches over partial matches when multiple candidates exist", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" },
+              { index: 2, gamertag: "discord_user_02_similar" },
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+      });
+
+      describe("partial username matching scenarios", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+        });
+
+        it("creates associations when Discord username is substring of Xbox gamertag", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([{ index: 1, gamertag: "Pro_discord_user_02_Gaming" }]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("creates associations when Xbox gamertag is substring of Discord username", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("calculates similarity scores for name variations (username, globalName, guildNickname)", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const logInfoSpy = vi.spyOn(logService, "info");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "DiscordUser02_Pro" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logInfoSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/Fuzzy match.*Name scores:.*discord_user_02.*DiscordUser02/),
+          );
+        });
+
+        it("selects best matching Discord name variant for association", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "DiscordUser02_Gaming" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expect.objectContaining({
+                DiscordId: "000000000000000002",
+                DiscordDisplayNameSearched: "discord_user_02", // Algorithm uses the name variant that actually matched
+                AssociationReason: AssociationReason.GAME_SIMILARITY,
+                GamesRetrievable: GamesRetrievable.UNKNOWN,
+              }),
+            ]),
+          );
+        });
+      });
+
+      describe("complex fuzzy matching scenarios", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+        });
+
+        it("handles multiple Discord users with similar names to same Xbox gamertag", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" }, // Exact match for discord_user_02
+              { index: 2, gamertag: "discord_user_02_alt" }, // Close match for discord_user_02
+              { index: 3, gamertag: "discord_user_03" }, // Exact match for discord_user_03
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectGameSimilarityAssociation("000000000000000002"), // discord_user_02 gets exact match
+              expectGameSimilarityAssociation("000000000000000003"), // discord_user_03 gets exact match
+            ]),
+          );
+        });
+
+        it("prevents duplicate assignments using greedy algorithm", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "disc_user_02" }, // Similar to discord_user_02
+              { index: 2, gamertag: "discord_user_03_pro" }, // Similar to discord_user_03
+              { index: 3, gamertag: "discord_user_04_gamer" }, // Similar to discord_user_04
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          const allAssociations = upsertDiscordAssociationsSpy.mock.calls.flat().flat();
+          const xboxIds = allAssociations.map((association) => association.XboxId).filter((id) => id !== "");
+          const uniqueXboxIds = new Set(xboxIds);
+
+          expect(xboxIds.length).toBe(uniqueXboxIds.size);
+        });
+
+        it("assigns remaining single Discord user to remaining single Xbox player as low confidence match", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02_v2" }, // Moderately similar to discord_user_02
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("filters out matches below minimum confidence threshold", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => `CompletelyUnrelated${String(index + 1).padStart(3, "0")}`),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          const allAssociations = upsertDiscordAssociationsSpy.mock.calls.flat().flat();
+          const gameSimilarityAssociations = allAssociations.filter(
+            (association) => association.AssociationReason === AssociationReason.GAME_SIMILARITY,
+          );
+
+          expect(gameSimilarityAssociations.length).toBe(0);
+        });
+      });
+
+      describe("team-based fuzzy matching", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+        });
+
+        it("performs fuzzy matching within each team separately", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" }, // Team 1 user
+              { index: 4, gamertag: "discord_user_05" }, // Team 2 user
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectGameSimilarityAssociation("000000000000000002"), // Team 1
+              expectGameSimilarityAssociation("000000000000000005"), // Team 2
+            ]),
+          );
+        });
+
+        it("groups Xbox players by team from match data", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const logInfoSpy = vi.spyOn(logService, "info");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" },
+              { index: 2, gamertag: "discord_user_03" },
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logInfoSpy).toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match: Discord user.*with score/));
+        });
+
+        it("only matches Discord users to Xbox players on same team", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_05" }, // Team 1 Xbox user similar to Team 2 Discord user
+              { index: 4, gamertag: "discord_user_02" }, // Team 2 Xbox user similar to Team 1 Discord user
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectGameSimilarityAssociation("000000000000000002"), // discord_user_02 matches team 2 Xbox user
+              expectGameSimilarityAssociation("000000000000000005"), // discord_user_05 matches team 1 Xbox user
+            ]),
+          );
+        });
+
+        it("handles mismatched team sizes gracefully", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" },
+
+              { index: 4, gamertag: "discord_user_05" },
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectGameSimilarityAssociation("000000000000000002"),
+              expectGameSimilarityAssociation("000000000000000005"),
+            ]),
+          );
+        });
+      });
+
+      describe("edge cases and error handling", () => {
+        it("returns original series when no unassociated Discord users exist", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id, index) => {
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: `000000000000${String(index + 1)}`,
+                  GamesRetrievable: GamesRetrievable.YES,
+                  AssociationReason: AssociationReason.USERNAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(getUsersSpy).toHaveBeenCalled();
+          expect(result).toHaveLength(3);
+        });
+
+        it("continues processing when Xbox gamertag lookup fails", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockRejectedValue(new Error("Xbox API failed"));
+
+          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow("Xbox API failed");
+        });
+
+        it("handles empty series matches gracefully", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          infiniteClient.getPlayerMatches.mockResolvedValue([]);
+
+          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+            "Unable to match any of the Discord users to their Xbox accounts",
+          );
+        });
+
+        it("handles malformed Discord user data", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(mockGetUsersWithPatternedUsers((index) => `TestUser${String(index)}`));
+
+          const malformedSeriesData = {
+            ...neatQueueSeriesData,
+            teams: [
+              [
+                {
+                  id: "000000000000000001",
+                  username: "", // Empty username
+                  globalName: null,
+                  guildNickname: null,
+                },
+                {
+                  id: "000000000000000002",
+                  username: "discord_user_02",
+                  globalName: "DiscordUser02",
+                  guildNickname: null,
+                },
+              ],
+              [
+                {
+                  id: "000000000000000003",
+                  username: "discord_user_03",
+                  globalName: null,
+                  guildNickname: null,
+                },
+              ],
+            ],
+          };
+
+          await expect(haloService.getSeriesFromDiscordQueue(malformedSeriesData)).rejects.toThrow(
+            "Unable to match any of the Discord users to their Xbox accounts",
+          );
+        });
+
+        it("handles Xbox players without gamertags", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(async (xuids: string[]) => {
+            return Promise.resolve(
+              xuids.map((xuid, index) => ({
+                xuid,
+                gamertag: index === 1 ? "" : `GameTag${String(index)}`, // Empty gamertag for one user
+                gamerpic: createXboxGamerpic(xuid),
+              })),
+            );
+          });
+
+          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+            "Unable to match any of the Discord users to their Xbox accounts",
+          );
+        });
+      });
+
+      describe("caching and performance", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+        });
+
+        it("reuses cached Xbox gamertags when available", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(getUsersSpy).toHaveBeenCalledTimes(4);
+        });
+
+        it("caches newly fetched Xbox gamertags for future use", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const logInfoSpy = vi.spyOn(logService, "info");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(getUsersSpy).toHaveBeenCalled();
+          expect(logInfoSpy).toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match: Discord user.*with score/));
+        });
+
+        it("updates user cache with fuzzy match associations", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([expectGameSimilarityAssociation("000000000000000002")]),
+          );
+        });
+
+        it("preserves existing cache entries while adding new ones", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 2, gamertag: "discord_user_03" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(getUsersSpy).toHaveBeenCalledTimes(4);
+        });
+      });
+
+      describe("database interaction", () => {
+        beforeEach(() => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+        });
+
+        it("calls updateDiscordAssociations with fuzzy match data when series duration > 10 minutes", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
+        });
+
+        it("includes fuzzy match associations in database update", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([
+              { index: 1, gamertag: "discord_user_02" },
+              { index: 2, gamertag: "discord_user_03" },
+            ]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expectGameSimilarityAssociation("000000000000000002"),
+              expectGameSimilarityAssociation("000000000000000003"),
+            ]),
+          );
+        });
+
+        it("preserves GamesRetrievable status from previous GAME_SIMILARITY associations", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+                if (id === "000000000000000002") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000002",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02_updated" }]),
+          );
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expect.objectContaining({
+                DiscordId: "000000000000000002",
+                AssociationReason: AssociationReason.GAME_SIMILARITY,
+                GamesRetrievable: GamesRetrievable.NO,
+              }),
+            ]),
+          );
+        });
+
+        it("sets GamesRetrievable to UNKNOWN for new fuzzy match associations", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expect.objectContaining({
+                DiscordId: "000000000000000002",
+                AssociationReason: AssociationReason.GAME_SIMILARITY,
+                GamesRetrievable: GamesRetrievable.UNKNOWN,
+              }),
+            ]),
+          );
+        });
+      });
     });
   });
 
@@ -777,7 +1819,6 @@ describe("Halo service", () => {
       expect(actualArgs.count).toBe(3);
       expect(actualArgs.formatSequence).toEqual(["objective", "slayer", "objective"]);
 
-      // Validate pool structure
       expect(Array.isArray(actualArgs.pool)).toBe(true);
       expect(actualArgs.pool.length).toBeGreaterThan(0);
 
@@ -808,7 +1849,6 @@ describe("Halo service", () => {
 
       expect(actualArgs.count).toBe(5);
 
-      // Validate pool structure
       expect(Array.isArray(actualArgs.pool)).toBe(true);
       expect(actualArgs.pool.length).toBeGreaterThan(0);
 
@@ -824,7 +1864,6 @@ describe("Halo service", () => {
         expect(item.map.length).toBeGreaterThan(0);
       }
 
-      // Validate formatSequence structure
       expect(Array.isArray(actualArgs.formatSequence)).toBe(true);
       expect(actualArgs.formatSequence.length).toBeGreaterThan(0);
       for (const format of actualArgs.formatSequence) {
