@@ -1,3 +1,25 @@
+# AI Assistance Behavior
+
+Rules of engagement:
+
+- Never agree with me unless my reasoning is watertight.
+- If the input is vague or there is any uncertainty, always ask clarifying questions to understand true intent and direction.
+- Never use friendly or encouraging language. Do not flatter or encourage.
+- Avoid unqualified statements about the value of an idea.
+- Identify the major assumptions and then inspect them carefully before proceeding.
+- If information or explanations are asked for, break down the concepts as systematically as possible, i.e. begin with a list of the core terms, and build upon it.
+- When considering approaches, always look at files that are adjacent to the ones you are modifying to understand structures, patterns, and practices leveraged and follow those conventions.
+  - When this isn't available, ask for clarification or additional context and guidance before proceeding.
+
+Execution of system commands in terminal:
+
+- Assume the current directory is the root of the node project, there is no need to prefix command runs with `cd <project path>`
+- As this is a node project, the default package manager is `npm`
+- Do your best to stick with the listed scripts in the `package.json` file for testing, linting, formatting, etc.
+- Do not try and build the project, but instead rely on tests, and type checking (`npm run typecheck`) to validate that things run.
+- You are permitted to execute `node` commands in the terminal but they must not be destructive.
+- You are only permitted to run deletion commands on files that you have created in the session, if you need to remove other files, you must ask for permission first and justify why.
+
 # Project Coding & Testing Standards
 
 ## Linting & Formatting
@@ -163,6 +185,67 @@ When creating test helper functions:
 <root>/src/services/example/tests/example.test.mts
 <root>/src/services/example/fakes/aFakeExampleWith.mts
 ```
+
+## Known Issues & Workarounds
+
+### halo-infinite-api ESM Import Issues
+
+**Problem:** When running `npm run register`, you may encounter `SyntaxError: The requested module 'halo-infinite-api' does not provide an export named 'MatchType'` or similar errors for other exports like `GameVariantCategory`.
+
+**Root Cause:** The `halo-infinite-api` package was compiled for CommonJS but the project uses ESM. The package's JavaScript files have import statements without `.js` extensions, which are required for Node.js ESM. This works fine with TypeScript compilation but fails with TSX runtime execution.
+
+**Diagnosis Steps:**
+
+1. Verify `npm run typecheck` and `npm run build` work fine (TypeScript compilation succeeds)
+2. Verify the error only occurs with `npm run register` (TSX runtime execution)
+3. Confirm the exports exist in `node_modules/halo-infinite-api/dist/index.js`
+4. Check that the issue persists even without the `halo-infinite-api` patch
+
+**Solution:** Replace problematic imports with local constants that match the enum values:
+
+1. **For MatchType imports:**
+
+   ```typescript
+   // Replace: import { MatchType } from "halo-infinite-api";
+   // With:
+   const MatchType = {
+     Custom: 2, // From halo-infinite-api MatchType enum
+   } as const;
+   ```
+
+2. **For GameVariantCategory imports:**
+   ```typescript
+   // Replace: import { GameVariantCategory } from "halo-infinite-api";
+   // With:
+   const GameVariantCategory = {
+     MultiplayerSlayer: 6,
+     MultiplayerAttrition: 7,
+     MultiplayerElimination: 8,
+     MultiplayerFiesta: 9,
+     MultiplayerStrongholds: 11,
+     MultiplayerKingOfTheHill: 12,
+     MultiplayerTotalControl: 14,
+     MultiplayerCtf: 15,
+     MultiplayerExtraction: 17,
+     MultiplayerOddball: 18,
+     MultiplayerStockpile: 19,
+     MultiplayerInfection: 22,
+     MultiplayerVIP: 23,
+     MultiplayerEscalation: 24,
+     MultiplayerGrifball: 25,
+     MultiplayerLandGrab: 39,
+     MultiplayerMinigame: 41,
+     MultiplayerFirefight: 42,
+   } as const;
+   type GameVariantCategory = (typeof GameVariantCategory)[keyof typeof GameVariantCategory];
+   ```
+
+**Files Typically Affected:**
+
+- `src/commands/connect/connect.mts` (MatchType)
+- `src/embeds/stats/create.mts` (GameVariantCategory)
+
+**Note:** These workarounds should be temporary and not committed to the repository. They allow `npm run register` to work while maintaining full functionality since the local constants match the exact values from the halo-infinite-api package.
 
 ---
 
