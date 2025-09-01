@@ -13,6 +13,14 @@ routes = [
   { pattern = "api.guilty-spark.app", custom_domain = true }
 ]
 
+[[durable_objects.bindings]]
+name = "LIVE_TRACKER_DO"
+class_name = "LiveTrackerDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = [ "LiveTrackerDO" ]
+
 [vars]
 HOST_URL = "https://dev-api.guilty-spark.app"
 MODE = "development"
