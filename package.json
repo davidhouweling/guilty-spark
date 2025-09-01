@@ -40,7 +40,7 @@
     "@sentry/cloudflare": "^9.42.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.38.21",
+    "discord-api-types": "^0.38.22",
     "discord-interactions": "^4.3.0",
     "halo-infinite-api": "^10.0.0",
     "itty-router": "^5.0.22",
@@ -66,6 +66,6 @@
     "typescript-eslint": "^8.41.0",
     "vitest": "^3.0.4",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.33.0"
+    "wrangler": "^4.33.1"
   }
 }
