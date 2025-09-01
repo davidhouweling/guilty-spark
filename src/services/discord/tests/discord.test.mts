@@ -457,10 +457,10 @@ describe("DiscordService", () => {
     });
   });
 
-  describe("getTeamsFromQueue()", () => {
+  describe("getTeamsFromQueueResult()", () => {
     it("returns QueueData of the found queue", async () => {
       const result = Preconditions.checkExists(
-        await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 7),
+        await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7),
       );
       const queueMessage = Preconditions.checkExists(channelMessages[1]);
 
@@ -487,7 +487,7 @@ describe("DiscordService", () => {
     });
 
     it("returns null if no queue is found", async () => {
-      const result = await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 1000);
+      const result = await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000);
 
       expect(result).toBeNull();
     });

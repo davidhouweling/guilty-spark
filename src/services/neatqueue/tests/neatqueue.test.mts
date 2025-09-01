@@ -546,7 +546,7 @@ describe("NeatQueueService", () => {
     describe("MATCH_COMPLETED", () => {
       let appDataGetSpy: MockInstance;
       let appDataDeleteSpy: MockInstance;
-      let getTeamsFromQueueSpy: MockInstance<typeof discordService.getTeamsFromQueue>;
+      let getTeamsFromQueueSpy: MockInstance<typeof discordService.getTeamsFromQueueResult>;
       let haloServiceGetSeriesFromDiscordQueueSpy: MockInstance<typeof haloService.getSeriesFromDiscordQueue>;
       let haloServiceUpdateDiscordAssociationsSpy: MockInstance<typeof haloService.updateDiscordAssociations>;
       let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
@@ -570,7 +570,9 @@ describe("NeatQueueService", () => {
           .spyOn(haloService, "updateDiscordAssociations")
           .mockResolvedValue();
 
-        getTeamsFromQueueSpy = vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(discordNeatQueueData);
+        getTeamsFromQueueSpy = vi
+          .spyOn(discordService, "getTeamsFromQueueResult")
+          .mockResolvedValue(discordNeatQueueData);
         discordServiceStartThreadFromMessageSpy = vi
           .spyOn(discordService, "startThreadFromMessage")
           .mockResolvedValue(startThread);
@@ -1085,7 +1087,7 @@ describe("NeatQueueService", () => {
         id: "channel-123",
       } as APIChannel);
 
-      vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue({
+      vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue({
         message: apiMessage,
         queue: 1,
         timestamp: new Date(),
@@ -1171,7 +1173,7 @@ describe("NeatQueueService", () => {
     });
 
     it("handles missing queue message gracefully", async () => {
-      vi.spyOn(discordService, "getTeamsFromQueue").mockResolvedValue(null);
+      vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(null);
       const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
       await neatQueueService.handleRetry({

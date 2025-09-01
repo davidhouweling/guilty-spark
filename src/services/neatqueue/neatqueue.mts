@@ -205,7 +205,7 @@ export class NeatQueueService {
           .filter((substitution) => substitution !== null)
           .reverse() ?? [];
 
-      const queueMessage = await discordService.getTeamsFromQueue(guildId, queueChannel, queue);
+      const queueMessage = await discordService.getTeamsFromQueueResult(guildId, queueChannel, queue);
       if (queueMessage == null) {
         throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
           handled: true,
@@ -894,7 +894,7 @@ export class NeatQueueService {
     let thread: RESTPostAPIChannelThreadsResult | undefined;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
@@ -962,7 +962,7 @@ export class NeatQueueService {
     let useFallback = true;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
@@ -1010,7 +1010,7 @@ export class NeatQueueService {
     let channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
