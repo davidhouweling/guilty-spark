@@ -267,7 +267,7 @@ export class DiscordService {
     return data;
   }
 
-  async getTeamsFromQueue(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData | null> {
+  async getTeamsFromQueueResult(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData | null> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
       queryParameters: { limit: 100 },

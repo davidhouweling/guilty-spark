@@ -182,7 +182,7 @@ export class StatsCommand extends BaseCommand {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
       const [guildConfig, queueData] = await Promise.all([
         databaseService.getGuildConfig(guildId),
-        discordService.getTeamsFromQueue(guildId, channelId, queue),
+        discordService.getTeamsFromQueueResult(guildId, channelId, queue),
       ]);
       if (!queueData) {
         throw new EndUserError(

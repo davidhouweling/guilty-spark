@@ -146,7 +146,7 @@ describe("StatsCommand", () => {
 
     describe("jobToComplete", () => {
       let jobToComplete: (() => Promise<void>) | undefined;
-      let getTeamsFromQueueSpy: MockInstance<typeof services.discordService.getTeamsFromQueue>;
+      let getTeamsFromQueueSpy: MockInstance<typeof services.discordService.getTeamsFromQueueResult>;
       let getSeriesFromDiscordQueueSpy: MockInstance<typeof services.haloService.getSeriesFromDiscordQueue>;
       let getMessageFromInteractionTokenSpy: MockInstance<
         typeof services.discordService.getMessageFromInteractionToken
@@ -158,7 +158,7 @@ describe("StatsCommand", () => {
 
       beforeEach(() => {
         getTeamsFromQueueSpy = vi
-          .spyOn(services.discordService, "getTeamsFromQueue")
+          .spyOn(services.discordService, "getTeamsFromQueueResult")
           .mockResolvedValue(discordNeatQueueData);
         getSeriesFromDiscordQueueSpy = vi
           .spyOn(services.haloService, "getSeriesFromDiscordQueue")
