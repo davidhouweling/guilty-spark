@@ -3,5 +3,18 @@
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "cSpell.words": ["Csrs", "gamertag", "Gametags", "Xuid", "Xuids"],
-  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "chat.tools.terminal.autoApprove": {
+    "/npm run (lint|format|test|build|typecheck)/": true,
+    "rm": false,
+    "rmdir": false,
+    "del": false,
+    "kill": false,
+    "curl": false,
+    "wget": false,
+    "eval": false,
+    "chmod": false,
+    "chown": false,
+    "/^Remove-Item\\b/i": false
+  }
 }

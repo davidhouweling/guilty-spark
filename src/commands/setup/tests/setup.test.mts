@@ -153,7 +153,7 @@ describe("SetupCommand", () => {
                       "name": "",
                       "value": "**Stats Display Mode:** Series Stats Only, Medals
           **NeatQueue Integrations:** *None*
-          **NeatQueue Informer:** Player connections enabled, Maps as a button",
+          **NeatQueue Informer:** Player connections enabled, Live tracking disabled, Maps as a button",
                     },
                   ],
                   "title": "Server Configuration",
@@ -418,7 +418,7 @@ describe("SetupCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalled();
         const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
         const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
-        expect(fieldValue).toContain("Player connections enabled, Maps automatic");
+        expect(fieldValue).toContain("Player connections enabled, Live tracking disabled, Maps automatic");
       });
 
       it("handles errors in maps configuration gracefully", async () => {

@@ -30,4 +30,5 @@ export interface GuildConfigRow {
   NeatQueueInformerMapsPlaylist: MapsPlaylistType;
   NeatQueueInformerMapsFormat: MapsFormatType;
   NeatQueueInformerMapsCount: number;
+  NeatQueueInformerLiveTracking: "Y" | "N";
 }
