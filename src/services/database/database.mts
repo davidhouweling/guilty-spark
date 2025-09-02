@@ -78,11 +78,12 @@ export class DatabaseService {
       NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
       NeatQueueInformerMapsFormat: MapsFormatType.HCS,
       NeatQueueInformerMapsCount: 5,
+      NeatQueueInformerLiveTracking: "N",
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections, NeatQueueInformerMapsPost, NeatQueueInformerMapsPlaylist, NeatQueueInformerMapsFormat, NeatQueueInformerMapsCount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections, NeatQueueInformerMapsPost, NeatQueueInformerMapsPlaylist, NeatQueueInformerMapsFormat, NeatQueueInformerMapsCount, NeatQueueInformerLiveTracking) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ).bind(
         defaultConfig.GuildId,
         defaultConfig.StatsReturn,
@@ -92,6 +93,7 @@ export class DatabaseService {
         defaultConfig.NeatQueueInformerMapsPlaylist,
         defaultConfig.NeatQueueInformerMapsFormat,
         defaultConfig.NeatQueueInformerMapsCount,
+        defaultConfig.NeatQueueInformerLiveTracking,
       );
 
       await insertStmt.run();
@@ -120,6 +122,7 @@ export class DatabaseService {
       "NeatQueueInformerMapsPlaylist",
       "NeatQueueInformerMapsFormat",
       "NeatQueueInformerMapsCount",
+      "NeatQueueInformerLiveTracking",
     ] as const);
 
     for (const key of updateKeys) {

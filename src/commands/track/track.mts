@@ -17,6 +17,7 @@ import {
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { LiveTrackerEmbed, InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
 
@@ -152,14 +153,25 @@ export class TrackCommand extends BaseCommand {
         );
 
         const guildId = interaction.guild_id ?? "";
-        const queueNumber = 42; // Mock queue number for POC
-
-        // Create Durable Object instance
-        const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${targetChannelId}:${queueNumber.toString()}`);
-        const doStub = this.env.LIVE_TRACKER_DO.get(doId);
 
         try {
-          // Start the live tracker and let it handle the initial message
+          // Discover active queue data from the target channel
+          const activeQueueData = await this.services.discordService.getTeamsFromQueueChannel(guildId, targetChannelId);
+
+          if (!activeQueueData) {
+            throw new EndUserError("No active queue found in the specified channel.", {
+              errorType: EndUserErrorType.WARNING,
+              handled: true,
+            });
+          }
+
+          const queueNumber = activeQueueData.queue;
+
+          // Create Durable Object instance
+          const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${targetChannelId}:${queueNumber.toString()}`);
+          const doStub = this.env.LIVE_TRACKER_DO.get(doId);
+
+          // Start the live tracker with real queue data
           const startResponse = await doStub.fetch("http://do/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -169,6 +181,8 @@ export class TrackCommand extends BaseCommand {
               channelId: targetChannelId,
               queueNumber,
               interactionToken: interaction.token,
+              teams: activeQueueData.teams,
+              queueStartTime: activeQueueData.timestamp.toISOString(),
             }),
           });
 
@@ -181,7 +195,16 @@ export class TrackCommand extends BaseCommand {
             throw new Error("Durable Object failed to start tracking");
           }
         } catch (error) {
-          // Handle error and send error response
+          if (error instanceof EndUserError) {
+            // Send user-friendly error
+            await this.services.discordService.updateDeferredReply(interaction.token, {
+              embeds: [error.discordEmbed],
+              components: error.discordActions,
+            });
+            return;
+          }
+
+          // Handle unexpected error
           this.services.logService.error("Failed to start live tracker", new Map([["error", String(error)]]));
 
           const errorEmbed = new LiveTrackerEmbed(
@@ -190,7 +213,7 @@ export class TrackCommand extends BaseCommand {
               userId,
               guildId,
               channelId: targetChannelId,
-              queueNumber,
+              queueNumber: 0,
               status: "stopped",
               isPaused: false,
             },

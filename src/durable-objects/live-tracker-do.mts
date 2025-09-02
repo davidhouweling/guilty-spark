@@ -1,11 +1,16 @@
+import type { APIGuildMember } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
+import type { HaloService } from "../services/halo/halo.mjs";
 import { installServices } from "../services/install.mjs";
-import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
+import { LiveTrackerEmbed, type EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 
-// For POC: 10 seconds for testing, production should be 3 minutes
-const ALARM_INTERVAL_MS = 10 * 1000; // 10 seconds
-// const ALARM_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes (production)
+// Production: 3 minutes for live tracking (user-facing display)
+const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
+const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for processing time
+const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
+// const ALARM_INTERVAL_MS = 10 * 1000; // 10 seconds (POC testing)
 
 export interface LiveTrackerState {
   userId: string;
@@ -15,22 +20,30 @@ export interface LiveTrackerState {
   isPaused: boolean;
   status: "active" | "paused" | "stopped";
   liveMessageId?: string | undefined;
-  startTime: string; // ISO string
-  lastUpdateTime: string; // ISO string
+  startTime: string;
+  lastUpdateTime: string;
+  queueStartTime: string;
   checkCount: number;
   errorCount: number;
+  teams: {
+    name: string;
+    players: APIGuildMember[];
+  }[];
+  seriesData: MatchStats[];
 }
 
 export class LiveTrackerDO {
   private readonly state: DurableObjectState;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
+  private readonly haloService: HaloService;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     const services = installServices({ env });
     this.logService = services.logService;
     this.discordService = services.discordService;
+    this.haloService = services.haloService;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -74,10 +87,9 @@ export class LiveTrackerDO {
     try {
       const trackerState = await this.getState();
       if (!trackerState || trackerState.status !== "active" || trackerState.isPaused) {
-        return; // Don't process alarm if not active
+        return;
       }
 
-      // For POC: Just log that alarm fired
       this.logService.info(
         `LiveTracker alarm fired for queue ${trackerState.queueNumber.toString()}`,
         new Map([
@@ -88,16 +100,53 @@ export class LiveTrackerDO {
         ]),
       );
 
-      // Update state to show we processed an alarm
+      let newMatches: MatchStats[] = [];
+      try {
+        const teams = trackerState.teams.map((team) =>
+          team.players.map((player) => ({
+            id: player.user.id,
+            username: player.user.username,
+            globalName: player.user.global_name ?? null,
+            guildNickname: player.nick ?? null,
+          })),
+        );
+        const startDateTime = new Date(trackerState.lastUpdateTime);
+        const endDateTime = new Date();
+
+        newMatches = await this.haloService.getSeriesFromDiscordQueue(
+          {
+            teams,
+            startDateTime,
+            endDateTime,
+          },
+          true,
+        );
+
+        trackerState.seriesData = [...trackerState.seriesData, ...newMatches];
+
+        this.logService.info(
+          `Fetched ${newMatches.length.toString()} new matches for queue ${trackerState.queueNumber.toString()}. Total: ${trackerState.seriesData.length.toString()}`,
+          new Map([
+            ["newMatches", newMatches.length.toString()],
+            ["totalMatches", trackerState.seriesData.length.toString()],
+            ["startTime", startDateTime.toISOString()],
+            ["endTime", endDateTime.toISOString()],
+          ]),
+        );
+      } catch (error) {
+        this.logService.warn("Failed to fetch series data, using existing data", new Map([["error", String(error)]]));
+        trackerState.errorCount += 1;
+      }
+
       trackerState.checkCount += 1;
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
       await this.setState(trackerState);
 
-      // Update Discord message with new embed if we have a message ID
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
         try {
-          const nextCheckTime = new Date(currentTime.getTime() + ALARM_INTERVAL_MS);
+          const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+          const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.discordService },
             {
@@ -109,6 +158,8 @@ export class LiveTrackerDO {
               isPaused: false,
               lastUpdated: currentTime,
               nextCheck: nextCheckTime,
+              enrichedMatches: enrichedMatches,
+              teams: trackerState.teams,
             },
           );
 
@@ -135,7 +186,6 @@ export class LiveTrackerDO {
         }
       }
 
-      // Schedule next alarm
       await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
     } catch (error) {
       this.logService.error("LiveTracker alarm error:", new Map([["error", String(error)]]));
@@ -151,6 +201,8 @@ export class LiveTrackerDO {
       queueNumber: number;
       interactionToken?: string;
       liveMessageId?: string | undefined;
+      teams: { name: string; players: APIGuildMember[] }[];
+      queueStartTime: string;
     };
 
     const trackerState: LiveTrackerState = {
@@ -163,16 +215,17 @@ export class LiveTrackerDO {
       liveMessageId: typedBody.liveMessageId,
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
+      queueStartTime: typedBody.queueStartTime,
       checkCount: 0,
       errorCount: 0,
+      teams: typedBody.teams,
+      seriesData: [],
     };
 
     await this.setState(trackerState);
 
-    // If we have an interaction token, create the initial live tracker message
     if (typedBody.interactionToken != null && typedBody.interactionToken !== "") {
       try {
-        // First, send a loading message
         const loadingMessage = await this.discordService.updateDeferredReply(typedBody.interactionToken, {
           embeds: [
             {
@@ -183,14 +236,13 @@ export class LiveTrackerDO {
           ],
         });
 
-        // Store the message ID immediately
         trackerState.liveMessageId = loadingMessage.id;
         await this.setState(trackerState);
 
-        // Then update with the actual live tracker embed
         const currentTime = new Date();
-        const nextCheckTime = new Date(currentTime.getTime() + ALARM_INTERVAL_MS);
+        const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
 
+        const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
         const liveTrackerEmbed = new LiveTrackerEmbed(
           { discordService: this.discordService },
           {
@@ -202,10 +254,11 @@ export class LiveTrackerDO {
             isPaused: false,
             lastUpdated: currentTime,
             nextCheck: nextCheckTime,
+            enrichedMatches: enrichedMatches,
+            teams: trackerState.teams,
           },
         );
 
-        // Update the message with the live tracker
         await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
 
         this.logService.info(
@@ -218,7 +271,6 @@ export class LiveTrackerDO {
       }
     }
 
-    // Set first alarm
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
     return Response.json({ success: true, state: trackerState });
   }
@@ -248,7 +300,6 @@ export class LiveTrackerDO {
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
 
-    // Resume alarms
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
 
     return Response.json({ success: true, state: trackerState });
@@ -264,7 +315,6 @@ export class LiveTrackerDO {
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
 
-    // Cancel any existing alarms
     await this.state.storage.deleteAlarm();
 
     return Response.json({ success: true, state: trackerState });
@@ -276,23 +326,20 @@ export class LiveTrackerDO {
       return new Response("Not Found", { status: 404 });
     }
 
-    // Only allow refresh for active or paused trackers
     if (trackerState.status === "stopped") {
       return new Response("Cannot refresh stopped tracker", { status: 400 });
     }
 
     try {
-      // Update state to show manual refresh
       trackerState.checkCount += 1;
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
       await this.setState(trackerState);
 
-      // Update Discord message if we have a message ID
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-        const nextCheckTime = new Date(currentTime.getTime() + ALARM_INTERVAL_MS);
+        const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
 
-        // Create embed data based on tracker state
+        const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
         const embedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
@@ -301,6 +348,8 @@ export class LiveTrackerDO {
           status: trackerState.status,
           isPaused: trackerState.isPaused,
           lastUpdated: currentTime,
+          teams: trackerState.teams,
+          enrichedMatches: enrichedMatches,
           ...(trackerState.status === "active" && !trackerState.isPaused && { nextCheck: nextCheckTime }),
         };
 
@@ -346,5 +395,42 @@ export class LiveTrackerDO {
 
   private async setState(state: LiveTrackerState): Promise<void> {
     await this.state.storage.put("trackerState", state);
+  }
+
+  private async createEnrichedMatchData(matches: MatchStats[]): Promise<EnrichedMatchData[]> {
+    const enrichedMatches: EnrichedMatchData[] = [];
+
+    for (const match of matches) {
+      try {
+        const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
+        const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+        const teamScores = match.Teams.map((team) => team.Stats.CoreStats.Score);
+        enrichedMatches.push({
+          matchId: match.MatchId,
+          gameTypeAndMap,
+          gameDuration,
+          teamScores,
+        });
+      } catch (error) {
+        this.logService.warn(
+          "Failed to enrich match data, using fallback",
+          new Map([
+            ["matchId", match.MatchId],
+            ["error", String(error)],
+          ]),
+        );
+
+        const teamScores = match.Teams.map((team) => team.Stats.CoreStats.Score);
+
+        enrichedMatches.push({
+          matchId: match.MatchId,
+          gameTypeAndMap: "Unknown Map - Unknown Mode",
+          gameDuration: "Unknown",
+          teamScores,
+        });
+      }
+    }
+
+    return enrichedMatches;
   }
 }
