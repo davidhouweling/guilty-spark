@@ -15,7 +15,7 @@ import {
   InteractionContextType,
 } from "discord-api-types/v10";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import type { LiveTrackerStartData } from "../../durable-objects/live-tracker-do.mjs";
+import type { LiveTrackerStartData, LiveTrackerState } from "../../durable-objects/live-tracker-do.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
@@ -263,9 +263,17 @@ export class TrackCommand extends BaseCommand {
 
         const guildId = interaction.guild_id ?? "";
         const channelId = interaction.channel.id;
-        const queueNumber = 42; // Mock queue number for POC
+
+        // Get current state to extract queue number
+        let queueNumber = 0; // Default fallback
 
         try {
+          const statusResponse = await this.getTrackerStatus(guildId, channelId);
+          if (!statusResponse?.state) {
+            throw new Error("No active live tracker found");
+          }
+
+          ({ queueNumber } = statusResponse.state);
           // Get the Durable Object instance
           const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
           const doStub = this.env.LIVE_TRACKER_DO.get(doId);
@@ -349,9 +357,17 @@ export class TrackCommand extends BaseCommand {
 
         const guildId = interaction.guild_id ?? "";
         const channelId = interaction.channel.id;
-        const queueNumber = 42; // Mock queue number for POC
+
+        // Get current state to extract queue number
+        let queueNumber = 0; // Default fallback
 
         try {
+          const statusResponse = await this.getTrackerStatus(guildId, channelId);
+          if (!statusResponse?.state) {
+            throw new Error("No active live tracker found");
+          }
+
+          ({ queueNumber } = statusResponse.state);
           // Get the Durable Object instance
           const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
           const doStub = this.env.LIVE_TRACKER_DO.get(doId);
@@ -367,7 +383,7 @@ export class TrackCommand extends BaseCommand {
 
           // Update embed to show active state
           const currentTime = new Date();
-          const nextCheckTime = new Date(currentTime.getTime() + 10 * 1000); // 10 seconds for POC
+          const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
 
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.services.discordService },
@@ -437,9 +453,17 @@ export class TrackCommand extends BaseCommand {
 
         const guildId = interaction.guild_id ?? "";
         const channelId = interaction.channel.id;
-        const queueNumber = 42; // Mock queue number for POC
+
+        // Get current state to extract queue number
+        let queueNumber = 0; // Default fallback
 
         try {
+          const statusResponse = await this.getTrackerStatus(guildId, channelId);
+          if (!statusResponse?.state) {
+            throw new Error("No active live tracker found");
+          }
+
+          ({ queueNumber } = statusResponse.state);
           // Get the Durable Object instance
           const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
           const doStub = this.env.LIVE_TRACKER_DO.get(doId);
@@ -526,9 +550,17 @@ export class TrackCommand extends BaseCommand {
 
         const guildId = interaction.guild_id ?? "";
         const channelId = interaction.channel.id;
-        const queueNumber = 42; // Mock queue number for POC
+
+        // Get current state to extract queue number
+        let queueNumber = 0; // Default fallback
 
         try {
+          const statusResponse = await this.getTrackerStatus(guildId, channelId);
+          if (!statusResponse?.state) {
+            throw new Error("No active live tracker found");
+          }
+
+          ({ queueNumber } = statusResponse.state);
           // Get the Durable Object instance
           const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
           const doStub = this.env.LIVE_TRACKER_DO.get(doId);
@@ -556,7 +588,7 @@ export class TrackCommand extends BaseCommand {
 
           // On error, still try to update the message with current state
           const currentTime = new Date();
-          const nextCheckTime = new Date(currentTime.getTime() + 10 * 1000); // 10 seconds for POC
+          const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
 
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.services.discordService },
@@ -580,5 +612,36 @@ export class TrackCommand extends BaseCommand {
         }
       },
     };
+  }
+
+  private async getTrackerStatus(guildId: string, channelId: string): Promise<{ state: LiveTrackerState } | null> {
+    try {
+      // We need to try different queue numbers to find the active one
+      // In production, we'd store this mapping or iterate through possible values
+      // For now, check against the Durable Object storage directly
+
+      // First try to get active queue data to determine the queue number
+      const activeQueueData = await this.services.discordService.getTeamsFromQueueChannel(guildId, channelId);
+      if (!activeQueueData) {
+        return null;
+      }
+
+      const queueNumber = activeQueueData.queue;
+      const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
+      const doStub = this.env.LIVE_TRACKER_DO.get(doId);
+
+      const statusResponse = await doStub.fetch("http://do/status", {
+        method: "GET",
+      });
+
+      if (!statusResponse.ok) {
+        return null;
+      }
+
+      return (await statusResponse.json()) as { state: LiveTrackerState };
+    } catch (error) {
+      this.services.logService.error("Failed to get tracker status", new Map([["error", String(error)]]));
+      return null;
+    }
   }
 }
