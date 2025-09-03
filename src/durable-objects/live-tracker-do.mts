@@ -12,6 +12,13 @@ const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for process
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
 // const ALARM_INTERVAL_MS = 10 * 1000; // 10 seconds (POC testing)
 
+// Error handling constants for exponential backoff
+const NORMAL_INTERVAL_MINUTES = 3;
+const FIRST_ERROR_INTERVAL_MINUTES = 3;
+const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
+const MAX_BACKOFF_INTERVAL_MINUTES = 10;
+const ERROR_THRESHOLD_MINUTES = 10;
+
 export interface LiveTrackerStartData {
   userId: string;
   guildId: string;
@@ -35,12 +42,26 @@ export interface LiveTrackerState {
   lastUpdateTime: string;
   queueStartTime: string;
   checkCount: number;
-  errorCount: number;
   teams: {
     name: string;
     players: APIGuildMember[];
   }[];
   seriesData: MatchStats[];
+  // Enhanced error handling for exponential backoff
+  errorState: {
+    consecutiveErrors: number;
+    backoffMinutes: number;
+    lastSuccessTime: string;
+    lastErrorMessage?: string | undefined;
+  };
+  // Performance metrics for Phase 4
+  metrics: {
+    totalChecks: number;
+    totalMatches: number;
+    totalErrors: number;
+    averageCheckDurationMs?: number;
+    lastCheckDurationMs?: number;
+  };
 }
 
 export class LiveTrackerDO {
@@ -95,6 +116,8 @@ export class LiveTrackerDO {
   }
 
   async alarm(): Promise<void> {
+    const alarmStartTime = Date.now();
+
     try {
       const trackerState = await this.getState();
       if (!trackerState || trackerState.status !== "active" || trackerState.isPaused) {
@@ -108,10 +131,14 @@ export class LiveTrackerDO {
           ["channelId", trackerState.channelId],
           ["queueNumber", trackerState.queueNumber.toString()],
           ["checkCount", trackerState.checkCount.toString()],
+          ["errorCount", trackerState.errorState.consecutiveErrors.toString()],
+          ["backoffMinutes", trackerState.errorState.backoffMinutes.toString()],
         ]),
       );
 
       let newMatches: MatchStats[] = [];
+      const fetchStartTime = Date.now();
+
       try {
         const teams = trackerState.teams.map((team) =>
           team.players.map((player) => ({
@@ -135,28 +162,69 @@ export class LiveTrackerDO {
 
         trackerState.seriesData = [...trackerState.seriesData, ...newMatches];
 
+        // Update metrics on success
+        trackerState.metrics.totalMatches += newMatches.length;
+        const fetchDurationMs = Date.now() - fetchStartTime;
+
         this.logService.info(
-          `Fetched ${newMatches.length.toString()} new matches for queue ${trackerState.queueNumber.toString()}. Total: ${trackerState.seriesData.length.toString()}`,
+          `Fetched ${newMatches.length.toString()} new matches for queue ${trackerState.queueNumber.toString()}. Total: ${trackerState.seriesData.length.toString()} (took ${fetchDurationMs.toString()}ms)`,
           new Map([
             ["newMatches", newMatches.length.toString()],
             ["totalMatches", trackerState.seriesData.length.toString()],
+            ["fetchDurationMs", fetchDurationMs.toString()],
             ["startTime", startDateTime.toISOString()],
             ["endTime", endDateTime.toISOString()],
           ]),
         );
+
+        // Success: reset error state
+        this.handleSuccess(trackerState);
       } catch (error) {
         this.logService.warn("Failed to fetch series data, using existing data", new Map([["error", String(error)]]));
-        trackerState.errorCount += 1;
+        trackerState.metrics.totalErrors += 1;
+        this.handleError(trackerState, String(error));
+
+        // Check if we should stop due to persistent errors
+        if (this.shouldStopDueToErrors(trackerState)) {
+          this.logService.error(
+            `Stopping live tracker due to persistent errors (${trackerState.errorState.consecutiveErrors.toString()} consecutive errors)`,
+            new Map([
+              ["queueNumber", trackerState.queueNumber.toString()],
+              ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
+            ]),
+          );
+          trackerState.status = "stopped";
+          await this.setState(trackerState);
+          await this.state.storage.deleteAlarm();
+          return;
+        }
       }
 
       trackerState.checkCount += 1;
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
+
+      // Update performance metrics
+      trackerState.metrics.totalChecks += 1;
+      const totalAlarmDurationMs = Date.now() - alarmStartTime;
+      trackerState.metrics.lastCheckDurationMs = totalAlarmDurationMs;
+
+      // Calculate rolling average check duration
+      if (trackerState.metrics.averageCheckDurationMs != null) {
+        trackerState.metrics.averageCheckDurationMs =
+          (trackerState.metrics.averageCheckDurationMs + totalAlarmDurationMs) / 2;
+      } else {
+        trackerState.metrics.averageCheckDurationMs = totalAlarmDurationMs;
+      }
+
       await this.setState(trackerState);
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
         try {
-          const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+          // Calculate next check time based on error state
+          const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+          const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+
           const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.discordService },
@@ -171,6 +239,7 @@ export class LiveTrackerDO {
               nextCheck: nextCheckTime,
               enrichedMatches: enrichedMatches,
               teams: trackerState.teams,
+              errorState: trackerState.errorState, // Pass error state to embed
             },
           );
 
@@ -192,12 +261,32 @@ export class LiveTrackerDO {
               ["messageId", trackerState.liveMessageId],
             ]),
           );
-          trackerState.errorCount += 1;
+          this.handleError(trackerState, `Discord update failed: ${String(error)}`);
           await this.setState(trackerState);
         }
       }
 
-      await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+      // Use dynamic interval based on error state
+      const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+      await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
+
+      // Log performance metrics periodically
+      if (trackerState.checkCount % 10 === 0) {
+        this.logService.info(
+          `Live Tracker Performance Metrics (Queue ${trackerState.queueNumber.toString()})`,
+          new Map([
+            ["totalChecks", trackerState.metrics.totalChecks.toString()],
+            ["totalMatches", trackerState.metrics.totalMatches.toString()],
+            ["totalErrors", trackerState.metrics.totalErrors.toString()],
+            ["avgCheckDurationMs", trackerState.metrics.averageCheckDurationMs.toString()],
+            ["lastCheckDurationMs", trackerState.metrics.lastCheckDurationMs.toString()],
+            [
+              "errorRate",
+              ((trackerState.metrics.totalErrors / trackerState.metrics.totalChecks) * 100).toFixed(1) + "%",
+            ],
+          ]),
+        );
+      }
     } catch (error) {
       this.logService.error("LiveTracker alarm error:", new Map([["error", String(error)]]));
     }
@@ -219,9 +308,19 @@ export class LiveTrackerDO {
       lastUpdateTime: new Date().toISOString(),
       queueStartTime: typedBody.queueStartTime,
       checkCount: 0,
-      errorCount: 0,
       teams: typedBody.teams,
       seriesData: [],
+      errorState: {
+        consecutiveErrors: 0,
+        backoffMinutes: NORMAL_INTERVAL_MINUTES,
+        lastSuccessTime: new Date().toISOString(),
+        lastErrorMessage: undefined,
+      },
+      metrics: {
+        totalChecks: 0,
+        totalMatches: 0,
+        totalErrors: 0,
+      },
     };
 
     await this.setState(trackerState);
@@ -258,6 +357,7 @@ export class LiveTrackerDO {
             nextCheck: nextCheckTime,
             enrichedMatches: enrichedMatches,
             teams: trackerState.teams,
+            errorState: trackerState.errorState,
           },
         );
 
@@ -339,7 +439,9 @@ export class LiveTrackerDO {
       await this.setState(trackerState);
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-        const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+        // Calculate next check time based on error state for refresh too
+        const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+        const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
         const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
         const embedData = {
@@ -352,6 +454,7 @@ export class LiveTrackerDO {
           lastUpdated: currentTime,
           teams: trackerState.teams,
           enrichedMatches: enrichedMatches,
+          errorState: trackerState.errorState,
           ...(trackerState.status === "active" && !trackerState.isPaused && { nextCheck: nextCheckTime }),
         };
 
@@ -375,7 +478,7 @@ export class LiveTrackerDO {
       return Response.json({ success: true, state: trackerState });
     } catch (error) {
       this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
-      trackerState.errorCount += 1;
+      this.handleError(trackerState, `Refresh failed: ${String(error)}`);
       await this.setState(trackerState);
       return new Response("Internal Server Error", { status: 500 });
     }
@@ -397,6 +500,72 @@ export class LiveTrackerDO {
 
   private async setState(state: LiveTrackerState): Promise<void> {
     await this.state.storage.put("trackerState", state);
+  }
+
+  /**
+   * Handle error with exponential backoff strategy
+   * Success: 3 minutes (normal interval)
+   * First error: 3 minutes (show warning in embed)
+   * Consecutive errors: 5 minutes → 10 minutes
+   * After 10 minutes of failures: Stop with error message
+   */
+  private handleError(trackerState: LiveTrackerState, errorMessage: string): void {
+    trackerState.errorState.consecutiveErrors += 1;
+    trackerState.errorState.lastErrorMessage = errorMessage;
+
+    if (trackerState.errorState.consecutiveErrors === 1) {
+      // First error: continue with 3 minutes (normal interval)
+      trackerState.errorState.backoffMinutes = FIRST_ERROR_INTERVAL_MINUTES;
+    } else {
+      // Consecutive errors: exponential backoff 5 → 10 minutes
+      trackerState.errorState.backoffMinutes = Math.min(
+        CONSECUTIVE_ERROR_INTERVAL_MINUTES * trackerState.errorState.consecutiveErrors,
+        MAX_BACKOFF_INTERVAL_MINUTES,
+      );
+    }
+
+    this.logService.warn(
+      `Error in live tracker, backoff: ${trackerState.errorState.backoffMinutes.toString()} minutes`,
+      new Map([
+        ["consecutiveErrors", trackerState.errorState.consecutiveErrors.toString()],
+        ["errorMessage", errorMessage],
+        ["queueNumber", trackerState.queueNumber.toString()],
+      ]),
+    );
+  }
+
+  /**
+   * Handle success - reset error state
+   */
+  private handleSuccess(trackerState: LiveTrackerState): void {
+    trackerState.errorState.consecutiveErrors = 0;
+    trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
+    trackerState.errorState.lastSuccessTime = new Date().toISOString();
+    trackerState.errorState.lastErrorMessage = undefined;
+  }
+
+  /**
+   * Check if tracker should stop due to persistent errors
+   */
+  private shouldStopDueToErrors(trackerState: LiveTrackerState): boolean {
+    if (trackerState.errorState.consecutiveErrors === 0) {
+      return false;
+    }
+
+    const errorDurationMinutes = trackerState.errorState.backoffMinutes * trackerState.errorState.consecutiveErrors;
+    return errorDurationMinutes >= ERROR_THRESHOLD_MINUTES;
+  }
+
+  /**
+   * Get next alarm interval based on error state
+   */
+  private getNextAlarmInterval(trackerState: LiveTrackerState): number {
+    if (trackerState.errorState.consecutiveErrors === 0) {
+      return ALARM_INTERVAL_MS;
+    }
+
+    // Convert backoff minutes to milliseconds, subtract execution buffer
+    return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
   }
 
   private async createEnrichedMatchData(matches: MatchStats[]): Promise<EnrichedMatchData[]> {
