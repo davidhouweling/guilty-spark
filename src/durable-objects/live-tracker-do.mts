@@ -12,6 +12,17 @@ const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for process
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
 // const ALARM_INTERVAL_MS = 10 * 1000; // 10 seconds (POC testing)
 
+export interface LiveTrackerStartData {
+  userId: string;
+  guildId: string;
+  channelId: string;
+  queueNumber: number;
+  interactionToken?: string;
+  liveMessageId?: string | undefined;
+  teams: { name: string; players: APIGuildMember[] }[];
+  queueStartTime: string;
+}
+
 export interface LiveTrackerState {
   userId: string;
   guildId: string;
@@ -194,16 +205,7 @@ export class LiveTrackerDO {
 
   private async handleStart(request: Request): Promise<Response> {
     const body = await request.json();
-    const typedBody = body as {
-      userId: string;
-      guildId: string;
-      channelId: string;
-      queueNumber: number;
-      interactionToken?: string;
-      liveMessageId?: string | undefined;
-      teams: { name: string; players: APIGuildMember[] }[];
-      queueStartTime: string;
-    };
+    const typedBody = body as LiveTrackerStartData;
 
     const trackerState: LiveTrackerState = {
       userId: typedBody.userId,

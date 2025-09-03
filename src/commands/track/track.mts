@@ -15,6 +15,7 @@ import {
   InteractionContextType,
 } from "discord-api-types/v10";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
+import type { LiveTrackerStartData } from "../../durable-objects/live-tracker-do.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
@@ -172,18 +173,20 @@ export class TrackCommand extends BaseCommand {
           const doStub = this.env.LIVE_TRACKER_DO.get(doId);
 
           // Start the live tracker with real queue data
+          const startData: LiveTrackerStartData = {
+            userId,
+            guildId,
+            channelId: targetChannelId,
+            queueNumber,
+            interactionToken: interaction.token,
+            teams: activeQueueData.teams,
+            queueStartTime: activeQueueData.timestamp.toISOString(),
+          };
+
           const startResponse = await doStub.fetch("http://do/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId,
-              guildId,
-              channelId: targetChannelId,
-              queueNumber,
-              interactionToken: interaction.token,
-              teams: activeQueueData.teams,
-              queueStartTime: activeQueueData.timestamp.toISOString(),
-            }),
+            body: JSON.stringify(startData),
           });
 
           if (!startResponse.ok) {
