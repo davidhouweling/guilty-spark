@@ -43,6 +43,13 @@ interface LiveTrackerEmbedData {
     name: string;
     players: APIGuildMember[];
   }[];
+  // Enhanced error handling for exponential backoff display
+  errorState?: {
+    consecutiveErrors: number;
+    backoffMinutes: number;
+    lastSuccessTime: string;
+    lastErrorMessage?: string | undefined;
+  };
 }
 
 interface LiveTrackerEmbedServices {
@@ -184,6 +191,17 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       value: nextCheckText,
       inline: true,
     });
+
+    // Add error state information if there are errors
+    if (this.data.errorState && this.data.errorState.consecutiveErrors > 0) {
+      const errorMessage = this.getErrorMessage(this.data.errorState);
+      embed.fields.push({
+        name: "⚠️ Status Alert",
+        value: errorMessage,
+        inline: false,
+      });
+    }
+
     embed.fields.push({
       name: "",
       value: `-# Live tracking started by ${userDisplay}`,
@@ -285,5 +303,20 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
   private formatGameScore(teamScores: number[]): string {
     return teamScores.join(" - ");
+  }
+
+  private getErrorMessage(errorState: NonNullable<LiveTrackerEmbedData["errorState"]>): string {
+    const { consecutiveErrors, backoffMinutes, lastErrorMessage } = errorState;
+
+    if (consecutiveErrors === 1) {
+      // First error: show warning but continue normal interval
+      return `Having trouble fetching data, will retry in ${backoffMinutes.toString()} minutes`;
+    } else {
+      // Multiple consecutive errors: show backoff
+      return (
+        `**${consecutiveErrors.toString()} consecutive errors** - retrying in ${backoffMinutes.toString()} minutes\n` +
+        `Last error: ${lastErrorMessage ?? "unknown"}`
+      );
+    }
   }
 }
