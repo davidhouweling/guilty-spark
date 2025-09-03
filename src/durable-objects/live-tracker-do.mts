@@ -10,7 +10,6 @@ import { LiveTrackerEmbed, type EnrichedMatchData } from "../embeds/live-tracker
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
 const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for processing time
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
-// const ALARM_INTERVAL_MS = 10 * 1000; // 10 seconds (POC testing)
 
 // Error handling constants for exponential backoff
 const NORMAL_INTERVAL_MINUTES = 3;

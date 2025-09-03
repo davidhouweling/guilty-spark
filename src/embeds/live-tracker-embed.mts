@@ -11,7 +11,6 @@ import { BaseTableEmbed } from "./base-table-embed.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
-// const DISPLAY_INTERVAL_MS = 10 * 1000; // 10 seconds (POC testing)
 
 export enum InteractionComponent {
   Pause = "btn_track_pause",
