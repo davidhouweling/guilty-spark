@@ -539,6 +539,13 @@ export class SetupCommand extends BaseCommand {
       type: InteractionType.MessageComponent,
       data: {
         component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueInformerMaps,
       },
     },
