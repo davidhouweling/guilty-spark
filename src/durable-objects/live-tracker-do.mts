@@ -5,6 +5,7 @@ import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
 import { installServices } from "../services/install.mjs";
 import { LiveTrackerEmbed, type EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import { EndUserError } from "../base/end-user-error.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -150,14 +151,28 @@ export class LiveTrackerDO {
         const startDateTime = new Date(trackerState.lastUpdateTime);
         const endDateTime = new Date();
 
-        newMatches = await this.haloService.getSeriesFromDiscordQueue(
-          {
-            teams,
-            startDateTime,
-            endDateTime,
-          },
-          true,
-        );
+        try {
+          newMatches = await this.haloService.getSeriesFromDiscordQueue(
+            {
+              teams,
+              startDateTime,
+              endDateTime,
+            },
+            true,
+          );
+        } catch (error) {
+          if (error instanceof EndUserError && error.message === "No matches found for the series") {
+            this.logService.info(
+              "No new matches found for time window",
+              new Map([
+                ["startDateTime", startDateTime.toISOString()],
+                ["endDateTime", endDateTime.toISOString()],
+              ]),
+            );
+          } else {
+            throw error;
+          }
+        }
 
         trackerState.seriesData = [...trackerState.seriesData, ...newMatches];
 

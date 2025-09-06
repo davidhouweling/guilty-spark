@@ -98,6 +98,11 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     }
 
     embed.fields ??= [];
+    embed.fields.push({
+      name: "\n",
+      value: "\n",
+      inline: false,
+    });
 
     const currentTime = new Date();
     const lastUpdateText = lastUpdated
@@ -118,7 +123,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     })();
 
     // Calculate current series score if we have data
-    let seriesScoreText = "⏳ No matches yet";
+    let seriesScoreText = teams && teams.length > 0 ? teams.map(() => 0).join(":") : "-";
     if (enrichedMatches && enrichedMatches.length > 0 && teams && teams.length >= 2) {
       // Group matches by game type and map, keeping only the last (final) result for each
       const gameResults = new Map<string, EnrichedMatchData>();
@@ -176,17 +181,17 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     }
 
     embed.fields.push({
-      name: "Current Series",
+      name: "Series score",
       value: seriesScoreText,
       inline: true,
     });
     embed.fields.push({
-      name: "Last Updated",
+      name: "Last updated",
       value: lastUpdateText,
       inline: true,
     });
     embed.fields.push({
-      name: "Next Check",
+      name: "Next check",
       value: nextCheckText,
       inline: true,
     });
