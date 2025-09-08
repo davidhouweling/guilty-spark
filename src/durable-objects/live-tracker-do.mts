@@ -7,6 +7,7 @@ import { installServices } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { EndUserError } from "../base/end-user-error.mjs";
+import { DiscordError } from "../services/discord/discord-error.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -168,9 +169,8 @@ export class LiveTrackerDO {
               ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
             ]),
           );
-          trackerState.status = "stopped";
-          await this.setState(trackerState);
           await this.state.storage.deleteAlarm();
+          await this.state.storage.deleteAll();
           return;
         }
       }
@@ -227,6 +227,20 @@ export class LiveTrackerDO {
             new Map([["messageId", trackerState.liveMessageId]]),
           );
         } catch (error) {
+          // 10003 = Unknown channel
+          if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+            this.logService.warn(
+              "Live tracker channel not found, likely finished",
+              new Map([
+                ["channelId", trackerState.channelId],
+                ["messageId", trackerState.liveMessageId],
+              ]),
+            );
+            await this.state.storage.deleteAlarm();
+            await this.state.storage.deleteAll();
+            return;
+          }
+
           this.logService.error(
             "Failed to update live tracker message",
             new Map([
@@ -340,6 +354,20 @@ export class LiveTrackerDO {
           new Map([["messageId", loadingMessage.id]]),
         );
       } catch (error) {
+        // 10003 = Unknown channel
+        if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+          this.logService.warn(
+            "Live tracker channel not found, likely finished",
+            new Map([
+              ["channelId", trackerState.channelId],
+              ["messageId", trackerState.liveMessageId],
+            ]),
+          );
+          await this.state.storage.deleteAlarm();
+          await this.state.storage.deleteAll();
+          return Response.json({ success: false, state: trackerState });
+        }
+
         this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
         // Continue anyway - the DO is still started, just without the message
       }
@@ -385,11 +413,8 @@ export class LiveTrackerDO {
       return new Response("Not Found", { status: 404 });
     }
 
-    trackerState.status = "stopped";
-    trackerState.lastUpdateTime = new Date().toISOString();
-    await this.setState(trackerState);
-
     await this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAll();
 
     return Response.json({ success: true, state: trackerState });
   }
@@ -450,6 +475,20 @@ export class LiveTrackerDO {
 
       return Response.json({ success: true, state: trackerState });
     } catch (error) {
+      // 10003 = Unknown channel
+      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+        this.logService.warn(
+          "Live tracker channel not found, likely finished",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["messageId", trackerState.liveMessageId],
+          ]),
+        );
+        await this.state.storage.deleteAlarm();
+        await this.state.storage.deleteAll();
+        return Response.json({ success: false, state: trackerState });
+      }
+
       this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
       this.handleError(trackerState, `Refresh failed: ${String(error)}`);
       await this.setState(trackerState);
