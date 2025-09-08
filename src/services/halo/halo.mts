@@ -178,6 +178,32 @@ export class HaloService {
     return scoreString;
   }
 
+  getSeriesScore(matches: MatchStats[], locale: string): string {
+    const teamScores: Record<number, number> = {};
+    for (const [index, match] of matches.entries()) {
+      const nextMatch = matches[index + 1];
+      if (
+        nextMatch &&
+        nextMatch.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
+        nextMatch.MatchInfo.MapVariant.VersionId === match.MatchInfo.MapVariant.VersionId &&
+        nextMatch.MatchInfo.GameVariantCategory === match.MatchInfo.GameVariantCategory
+      ) {
+        // we only want the final game of the same map + game type
+        continue;
+      }
+      for (const [teamIndex, team] of match.Teams.entries()) {
+        teamScores[teamIndex] = (teamScores[teamIndex] ?? 0) + (team.Outcome === MatchOutcome.Win.valueOf() ? 1 : 0);
+      }
+    }
+
+    const values = Object.values(teamScores);
+    const score = values.map((value) => value.toLocaleString(locale)).join(":") || "-";
+    if (values.length === 2) {
+      return `🦅${score}🐍`;
+    }
+    return score;
+  }
+
   getTeamName(teamId: number): string {
     const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
 

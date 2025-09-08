@@ -219,6 +219,11 @@ export class TrackCommand extends BaseCommand {
               queueNumber: 0,
               status: "stopped",
               isPaused: false,
+              lastUpdated: undefined,
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -299,7 +304,10 @@ export class TrackCommand extends BaseCommand {
               status: "paused",
               isPaused: true,
               lastUpdated: currentTime,
-              // No nextCheck when paused
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -331,6 +339,11 @@ export class TrackCommand extends BaseCommand {
               queueNumber,
               status: "stopped", // Show as stopped if we can't pause
               isPaused: false,
+              lastUpdated: undefined,
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -396,6 +409,9 @@ export class TrackCommand extends BaseCommand {
               isPaused: false,
               lastUpdated: currentTime,
               nextCheck: nextCheckTime,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -427,6 +443,11 @@ export class TrackCommand extends BaseCommand {
               queueNumber,
               status: "stopped", // Show as stopped if we can't resume
               isPaused: false,
+              lastUpdated: undefined,
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -489,7 +510,10 @@ export class TrackCommand extends BaseCommand {
               status: "stopped",
               isPaused: false,
               lastUpdated: currentTime,
-              // nextCheck omitted when stopped
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -523,7 +547,10 @@ export class TrackCommand extends BaseCommand {
               status: "stopped",
               isPaused: false,
               lastUpdated: currentTime,
-              // nextCheck omitted when stopped
+              nextCheck: undefined,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 
@@ -601,6 +628,9 @@ export class TrackCommand extends BaseCommand {
               isPaused: false,
               lastUpdated: currentTime,
               nextCheck: nextCheckTime,
+              enrichedMatches: undefined,
+              seriesScore: undefined,
+              errorState: undefined,
             },
           );
 

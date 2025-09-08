@@ -4,7 +4,8 @@ import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
 import { installServices } from "../services/install.mjs";
-import { LiveTrackerEmbed, type EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { EndUserError } from "../base/end-user-error.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
@@ -46,7 +47,6 @@ export interface LiveTrackerState {
     name: string;
     players: APIGuildMember[];
   }[];
-  seriesData: MatchStats[];
   // Enhanced error handling for exponential backoff
   errorState: {
     consecutiveErrors: number;
@@ -136,69 +136,30 @@ export class LiveTrackerDO {
         ]),
       );
 
-      let newMatches: MatchStats[] = [];
+      let allMatches: MatchStats[] = [];
       const fetchStartTime = Date.now();
 
       try {
-        const teams = trackerState.teams.map((team) =>
-          team.players.map((player) => ({
-            id: player.user.id,
-            username: player.user.username,
-            globalName: player.user.global_name ?? null,
-            guildNickname: player.nick ?? null,
-          })),
-        );
-        const startDateTime = new Date(trackerState.lastUpdateTime);
-        const endDateTime = new Date();
-
-        try {
-          newMatches = await this.haloService.getSeriesFromDiscordQueue(
-            {
-              teams,
-              startDateTime,
-              endDateTime,
-            },
-            true,
-          );
-        } catch (error) {
-          if (error instanceof EndUserError && error.message === "No matches found for the series") {
-            this.logService.info(
-              "No new matches found for time window",
-              new Map([
-                ["startDateTime", startDateTime.toISOString()],
-                ["endDateTime", endDateTime.toISOString()],
-              ]),
-            );
-          } else {
-            throw error;
-          }
-        }
-
-        trackerState.seriesData = [...trackerState.seriesData, ...newMatches];
-
-        // Update metrics on success
-        trackerState.metrics.totalMatches += newMatches.length;
+        allMatches = await this.fetchCurrentSeriesData(trackerState);
+        trackerState.metrics.totalMatches = allMatches.length;
         const fetchDurationMs = Date.now() - fetchStartTime;
 
         this.logService.info(
-          `Fetched ${newMatches.length.toString()} new matches for queue ${trackerState.queueNumber.toString()}. Total: ${trackerState.seriesData.length.toString()} (took ${fetchDurationMs.toString()}ms)`,
+          `Fetched ${allMatches.length.toString()} total matches for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
           new Map([
-            ["newMatches", newMatches.length.toString()],
-            ["totalMatches", trackerState.seriesData.length.toString()],
+            ["totalMatches", allMatches.length.toString()],
             ["fetchDurationMs", fetchDurationMs.toString()],
-            ["startTime", startDateTime.toISOString()],
-            ["endTime", endDateTime.toISOString()],
+            ["queueStartTime", new Date(trackerState.queueStartTime).toISOString()],
+            ["currentTime", new Date().toISOString()],
           ]),
         );
 
-        // Success: reset error state
         this.handleSuccess(trackerState);
       } catch (error) {
-        this.logService.warn("Failed to fetch series data, using existing data", new Map([["error", String(error)]]));
+        this.logService.warn("Failed to fetch series data, using empty data", new Map([["error", String(error)]]));
         trackerState.metrics.totalErrors += 1;
         this.handleError(trackerState, String(error));
 
-        // Check if we should stop due to persistent errors
         if (this.shouldStopDueToErrors(trackerState)) {
           this.logService.error(
             `Stopping live tracker due to persistent errors (${trackerState.errorState.consecutiveErrors.toString()} consecutive errors)`,
@@ -218,12 +179,10 @@ export class LiveTrackerDO {
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
 
-      // Update performance metrics
       trackerState.metrics.totalChecks += 1;
       const totalAlarmDurationMs = Date.now() - alarmStartTime;
       trackerState.metrics.lastCheckDurationMs = totalAlarmDurationMs;
 
-      // Calculate rolling average check duration
       if (trackerState.metrics.averageCheckDurationMs != null) {
         trackerState.metrics.averageCheckDurationMs =
           (trackerState.metrics.averageCheckDurationMs + totalAlarmDurationMs) / 2;
@@ -235,11 +194,11 @@ export class LiveTrackerDO {
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
         try {
-          // Calculate next check time based on error state
           const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
           const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-          const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
+          const enrichedMatches = await this.createEnrichedMatchData(allMatches);
+          const seriesScore = this.haloService.getSeriesScore(allMatches, "en-US");
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.discordService },
             {
@@ -252,8 +211,8 @@ export class LiveTrackerDO {
               lastUpdated: currentTime,
               nextCheck: nextCheckTime,
               enrichedMatches: enrichedMatches,
-              teams: trackerState.teams,
-              errorState: trackerState.errorState, // Pass error state to embed
+              seriesScore,
+              errorState: trackerState.errorState,
             },
           );
 
@@ -280,11 +239,9 @@ export class LiveTrackerDO {
         }
       }
 
-      // Use dynamic interval based on error state
       const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
       await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
 
-      // Log performance metrics periodically
       if (trackerState.checkCount % 10 === 0) {
         this.logService.info(
           `Live Tracker Performance Metrics (Queue ${trackerState.queueNumber.toString()})`,
@@ -323,7 +280,6 @@ export class LiveTrackerDO {
       queueStartTime: typedBody.queueStartTime,
       checkCount: 0,
       teams: typedBody.teams,
-      seriesData: [],
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
@@ -357,7 +313,9 @@ export class LiveTrackerDO {
         const currentTime = new Date();
         const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
 
-        const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
+        const initialMatches = await this.fetchCurrentSeriesData(trackerState);
+        const enrichedMatches = await this.createEnrichedMatchData(initialMatches);
+        const seriesScore = this.haloService.getSeriesScore(initialMatches, "en-US");
         const liveTrackerEmbed = new LiveTrackerEmbed(
           { discordService: this.discordService },
           {
@@ -370,7 +328,7 @@ export class LiveTrackerDO {
             lastUpdated: currentTime,
             nextCheck: nextCheckTime,
             enrichedMatches: enrichedMatches,
-            teams: trackerState.teams,
+            seriesScore,
             errorState: trackerState.errorState,
           },
         );
@@ -453,12 +411,13 @@ export class LiveTrackerDO {
       await this.setState(trackerState);
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-        // Calculate next check time based on error state for refresh too
         const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
         const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-        const enrichedMatches = await this.createEnrichedMatchData(trackerState.seriesData);
-        const embedData = {
+        const currentMatches = await this.fetchCurrentSeriesData(trackerState);
+        const enrichedMatches = await this.createEnrichedMatchData(currentMatches);
+        const seriesScore = this.haloService.getSeriesScore(currentMatches, "en-US");
+        const embedData: LiveTrackerEmbedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
           channelId: trackerState.channelId,
@@ -466,10 +425,10 @@ export class LiveTrackerDO {
           status: trackerState.status,
           isPaused: trackerState.isPaused,
           lastUpdated: currentTime,
-          teams: trackerState.teams,
+          nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
           enrichedMatches: enrichedMatches,
+          seriesScore,
           errorState: trackerState.errorState,
-          ...(trackerState.status === "active" && !trackerState.isPaused && { nextCheck: nextCheckTime }),
         };
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
@@ -582,38 +541,68 @@ export class LiveTrackerDO {
     return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
   }
 
+  /**
+   * Fetch current series data from queue start time to now
+   */
+  private async fetchCurrentSeriesData(trackerState: LiveTrackerState): Promise<MatchStats[]> {
+    try {
+      const teams = trackerState.teams.map((team) =>
+        team.players.map((player) => ({
+          id: player.user.id,
+          username: player.user.username,
+          globalName: player.user.global_name ?? null,
+          guildNickname: player.nick ?? null,
+        })),
+      );
+
+      const startDateTime = new Date(trackerState.queueStartTime);
+      const endDateTime = new Date();
+
+      const matches = await this.haloService.getSeriesFromDiscordQueue(
+        {
+          teams,
+          startDateTime,
+          endDateTime,
+        },
+        true,
+      );
+
+      return matches;
+    } catch (error) {
+      if (error instanceof EndUserError && error.message === "No matches found for the series") {
+        // Return empty array for "no matches found" - this is expected at series start
+        return [];
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
   private async createEnrichedMatchData(matches: MatchStats[]): Promise<EnrichedMatchData[]> {
     const enrichedMatches: EnrichedMatchData[] = [];
 
     for (const match of matches) {
+      let gameTypeAndMap = "Unknown Map and mode";
       try {
-        const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
-        const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
-        const teamScores = match.Teams.map((team) => team.Stats.CoreStats.Score);
-        enrichedMatches.push({
-          matchId: match.MatchId,
-          gameTypeAndMap,
-          gameDuration,
-          teamScores,
-        });
+        gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
       } catch (error) {
         this.logService.warn(
-          "Failed to enrich match data, using fallback",
+          "Failed to get gameType and Map",
           new Map([
             ["matchId", match.MatchId],
             ["error", String(error)],
           ]),
         );
-
-        const teamScores = match.Teams.map((team) => team.Stats.CoreStats.Score);
-
-        enrichedMatches.push({
-          matchId: match.MatchId,
-          gameTypeAndMap: "Unknown Map - Unknown Mode",
-          gameDuration: "Unknown",
-          teamScores,
-        });
       }
+
+      const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const gameScore = this.haloService.getMatchScore(match, "en-US");
+      enrichedMatches.push({
+        matchId: match.MatchId,
+        gameTypeAndMap,
+        gameDuration,
+        gameScore,
+      });
     }
 
     return enrichedMatches;
