@@ -309,72 +309,79 @@ export class LiveTrackerDO {
 
     await this.setState(trackerState);
 
-    if (typedBody.interactionToken != null && typedBody.interactionToken !== "") {
-      try {
-        const loadingMessage = await this.discordService.updateDeferredReply(typedBody.interactionToken, {
-          embeds: [
-            {
-              title: "🔄 Starting Live Tracker",
-              description: "Setting up live tracking for your NeatQueue series...",
-              color: 0x007acc, // Blue loading color
-            },
-          ],
-        });
+    try {
+      const loadingMessage = await this.createInitialMessage(typedBody);
+      trackerState.liveMessageId = loadingMessage.id;
+      await this.setState(trackerState);
 
-        trackerState.liveMessageId = loadingMessage.id;
-        await this.setState(trackerState);
+      const currentTime = new Date();
+      const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
 
-        const currentTime = new Date();
-        const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+      const initialMatches = await this.fetchCurrentSeriesData(trackerState);
+      const enrichedMatches = await this.createEnrichedMatchData(initialMatches);
+      const seriesScore = this.haloService.getSeriesScore(initialMatches, "en-US");
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService: this.discordService },
+        {
+          userId: typedBody.userId,
+          guildId: typedBody.guildId,
+          channelId: typedBody.channelId,
+          queueNumber: typedBody.queueNumber,
+          status: "active",
+          isPaused: false,
+          lastUpdated: currentTime,
+          nextCheck: nextCheckTime,
+          enrichedMatches: enrichedMatches,
+          seriesScore,
+          errorState: trackerState.errorState,
+        },
+      );
 
-        const initialMatches = await this.fetchCurrentSeriesData(trackerState);
-        const enrichedMatches = await this.createEnrichedMatchData(initialMatches);
-        const seriesScore = this.haloService.getSeriesScore(initialMatches, "en-US");
-        const liveTrackerEmbed = new LiveTrackerEmbed(
-          { discordService: this.discordService },
-          {
-            userId: typedBody.userId,
-            guildId: typedBody.guildId,
-            channelId: typedBody.channelId,
-            queueNumber: typedBody.queueNumber,
-            status: "active",
-            isPaused: false,
-            lastUpdated: currentTime,
-            nextCheck: nextCheckTime,
-            enrichedMatches: enrichedMatches,
-            seriesScore,
-            errorState: trackerState.errorState,
-          },
+      await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+
+      this.logService.info(
+        `Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        new Map([["messageId", loadingMessage.id]]),
+      );
+    } catch (error) {
+      // 10003 = Unknown channel
+      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+        this.logService.warn(
+          "Live tracker channel not found, likely finished",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["messageId", trackerState.liveMessageId],
+          ]),
         );
-
-        await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
-
-        this.logService.info(
-          `Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
-          new Map([["messageId", loadingMessage.id]]),
-        );
-      } catch (error) {
-        // 10003 = Unknown channel
-        if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
-          this.logService.warn(
-            "Live tracker channel not found, likely finished",
-            new Map([
-              ["channelId", trackerState.channelId],
-              ["messageId", trackerState.liveMessageId],
-            ]),
-          );
-          await this.state.storage.deleteAlarm();
-          await this.state.storage.deleteAll();
-          return Response.json({ success: false, state: trackerState });
-        }
-
-        this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
-        // Continue anyway - the DO is still started, just without the message
+        await this.state.storage.deleteAlarm();
+        await this.state.storage.deleteAll();
+        return Response.json({ success: false, state: trackerState });
       }
+
+      this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
+      // Continue anyway - the DO is still started, just without the message
     }
 
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
     return Response.json({ success: true, state: trackerState });
+  }
+
+  private async createInitialMessage(startData: LiveTrackerStartData): Promise<{ id: string }> {
+    const loadingEmbedData = {
+      embeds: [
+        {
+          title: "🔄 Starting Live Tracker",
+          description: "Setting up live tracking for your NeatQueue series...",
+          color: 0x007acc, // Blue loading color
+        },
+      ],
+    };
+
+    if (startData.interactionToken != null && startData.interactionToken !== "") {
+      return await this.discordService.updateDeferredReply(startData.interactionToken, loadingEmbedData);
+    } else {
+      return await this.discordService.createMessage(startData.channelId, loadingEmbedData);
+    }
   }
 
   private async handlePause(): Promise<Response> {

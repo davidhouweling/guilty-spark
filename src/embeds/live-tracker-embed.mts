@@ -79,11 +79,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
     // Create series data table if we have enriched match data
     if (enrichedMatches && enrichedMatches.length > 0) {
-      const titles = [
-        "Game",
-        "Duration",
-        `Score${enrichedMatches.some((match) => match.gameScore.includes("🦅")) ? " (🦅:🐍)" : ""}`,
-      ];
+      const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles]; // Header row
 
       for (const { matchId, gameTypeAndMap, gameDuration, gameScore } of enrichedMatches) {
@@ -98,7 +94,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     } else {
       // Show waiting for matches message
       const titles = ["Status"];
-      const tableData = [titles, ["⏳ *Waiting for matches...*"]];
+      const tableData = [titles, ["⏳ *Waiting for first match to complete...*"]];
       this.addEmbedFields(embed, titles, tableData);
     }
 
@@ -129,7 +125,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
     embed.fields.push({
       name: "Series score",
-      value: seriesScore ?? "-",
+      value: seriesScore ?? "🦅 0:0 🐍",
       inline: true,
     });
     embed.fields.push({

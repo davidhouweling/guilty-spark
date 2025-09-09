@@ -520,13 +520,17 @@ export class NeatQueueService {
       ]);
       if (!permissions.hasAll) {
         logService.warn(
-          "Insufficient permissions to start live tracking",
+          "Insufficient permissions to start live tracking, disabling auto-start",
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
             ["missingPermissions", permissions.missing.join(", ")],
           ]),
         );
+
+        await this.databaseService.updateGuildConfig(request.guild, {
+          NeatQueueInformerLiveTracking: "N",
+        });
         return;
       }
 

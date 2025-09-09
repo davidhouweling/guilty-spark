@@ -197,9 +197,9 @@ export class HaloService {
     }
 
     const values = Object.values(teamScores);
-    const score = values.map((value) => value.toLocaleString(locale)).join(":") || "-";
+    const score = values.map((value) => value.toLocaleString(locale)).join(":") || "🦅 0:0 🐍";
     if (values.length === 2) {
-      return `🦅${score}🐍`;
+      return `🦅 ${score} 🐍`;
     }
     return score;
   }
