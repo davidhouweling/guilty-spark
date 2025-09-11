@@ -1,3 +1,5 @@
+import { aFakeDurableObjectId } from "../../durable-objects/fakes/live-tracker-do.fake.mjs";
+
 const fakeNamespace = (): KVNamespace =>
   ({
     getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
@@ -67,9 +69,9 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     PROXY_WORKER_URL: "https://api.guilty-spark.app",
     PROXY_WORKER_TOKEN: "worker-token",
     LIVE_TRACKER_DO: {
-      idFromName: () => ({ toString: () => "fake-do-id" }) as DurableObjectId,
-      idFromString: () => ({ toString: () => "fake-do-id" }) as DurableObjectId,
-      newUniqueId: () => ({ toString: () => "fake-do-id" }) as DurableObjectId,
+      idFromName: () => aFakeDurableObjectId(),
+      idFromString: () => aFakeDurableObjectId(),
+      newUniqueId: () => aFakeDurableObjectId(),
       getByName: () => ({
         fetch: async () => Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 })),
       }),

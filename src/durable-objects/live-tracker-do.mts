@@ -3,7 +3,7 @@ import type { MatchStats } from "halo-infinite-api";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
-import { installServices } from "../services/install.mjs";
+import { installServices as installServicesImpl } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { EndUserError } from "../base/end-user-error.mjs";
@@ -71,7 +71,7 @@ export class LiveTrackerDO {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
 
-  constructor(state: DurableObjectState, env: Env) {
+  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
     const services = installServices({ env });
     this.logService = services.logService;
