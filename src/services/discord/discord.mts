@@ -24,6 +24,7 @@ import type {
   RESTPostAPIWebhookWithTokenJSONBody,
 } from "discord-api-types/v10";
 import {
+  ComponentType,
   ChannelType,
   MessageFlags,
   APIVersion,
@@ -260,8 +261,12 @@ export class DiscordService {
   extractModalSubmitData(interaction: APIModalSubmitInteraction): Map<string, string> {
     const data = new Map<string, string>();
     for (const component of interaction.data.components) {
-      for (const subComponent of component.components) {
-        data.set(subComponent.custom_id, subComponent.value);
+      // necessary because component.components doesn't seem to be typed correctly without
+       
+      if (component.type === ComponentType.ActionRow) {
+        for (const subComponent of component.components) {
+          data.set(subComponent.custom_id, subComponent.value);
+        }
       }
     }
     return data;

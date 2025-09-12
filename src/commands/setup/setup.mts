@@ -1239,7 +1239,12 @@ export class SetupCommand extends BaseCommand {
     }
 
     if (interaction.type === InteractionType.ModalSubmit) {
-      const { custom_id, value } = Preconditions.checkExists(interaction.data.components[0]?.components[0]);
+      const [submission] = interaction.data.components;
+      if (submission?.type !== ComponentType.ActionRow) {
+        throw new Error("Unexpected modal submission format");
+      }
+
+      const { custom_id, value } = Preconditions.checkExists(submission.components[0]);
       formData.set(custom_id as NeatQueueIntegrationWizardStepKey, value);
       return undefined;
     }
@@ -1782,8 +1787,12 @@ export class SetupCommand extends BaseCommand {
         interaction.message?.embeds[0]?.title?.match(/<#(\d+)>/)?.[1],
         "Channel expected in title but not found",
       );
+      const [submission] = interaction.data.components;
+      if (submission?.type !== ComponentType.ActionRow) {
+        throw new Error("Unexpected modal submission format");
+      }
       const webhookSecret = Preconditions.checkExists(
-        interaction.data.components[0]?.components[0]?.value,
+        submission.components[0]?.value,
         "Webhook secret expected in input but not found",
       );
       const neatQueueConfig = await databaseService.getNeatQueueConfig(guildId, channelId);

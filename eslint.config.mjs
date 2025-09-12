@@ -1,9 +1,10 @@
 import eslint from "@eslint/js";
-import { config, configs } from "typescript-eslint";
+import { defineConfig } from "eslint/config";
+import { configs } from "typescript-eslint";
 import importPlugin from "eslint-plugin-import";
 import tsParser from "@typescript-eslint/parser";
 
-export default config(
+export default defineConfig(
   eslint.configs.recommended,
   configs.strictTypeChecked,
   configs.stylisticTypeChecked,
