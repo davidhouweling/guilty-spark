@@ -38,6 +38,16 @@ export interface LiveTrackerEmbedData {
   nextCheck: Date | undefined;
   enrichedMatches: EnrichedMatchData[] | undefined;
   seriesScore: string | undefined;
+  // Track substitutions for display
+  substitutions?:
+    | {
+        playerOutId: string;
+        playerInId: string;
+        teamIndex: number;
+        teamName: string; // NeatQueue team name for display
+        timestamp: string;
+      }[]
+    | undefined;
   // Enhanced error handling for exponential backoff display
   errorState:
     | {
@@ -82,7 +92,29 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles]; // Header row
 
+      // Sort substitutions by timestamp for chronological display
+      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+
+      let substitutionIndex = 0;
+
       for (const { matchId, gameTypeAndMap, gameDuration, gameScore } of enrichedMatches) {
+        // For live tracker, we'll add substitutions between each match
+        // This simulates them happening chronologically based on when they were recorded
+        while (substitutionIndex < sortedSubstitutions.length) {
+          const substitution = sortedSubstitutions[substitutionIndex];
+          if (!substitution) {
+            break;
+          }
+
+          // Add substitution before current match
+          tableData.push(this.createSubstitutionRow(substitution));
+          substitutionIndex++;
+          // Only add one substitution per match for now, can be enhanced later
+          break;
+        }
+
         tableData.push([
           `[${gameTypeAndMap}](https://halodatahive.com/Infinite/Match/${matchId})`,
           gameDuration,
@@ -90,11 +122,31 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         ]);
       }
 
+      // Add any remaining substitutions after the last match
+      while (substitutionIndex < sortedSubstitutions.length) {
+        const substitution = sortedSubstitutions[substitutionIndex];
+        if (substitution) {
+          tableData.push(this.createSubstitutionRow(substitution));
+        }
+        substitutionIndex++;
+      }
+
       this.addEmbedFields(embed, titles, tableData);
     } else {
-      // Show waiting for matches message
+      // Show waiting for matches message, but include any substitutions that have occurred
       const titles = ["Status"];
-      const tableData = [titles, ["⏳ *Waiting for first match to complete...*"]];
+      const tableData = [titles];
+
+      // If we have substitutions but no matches yet, show them
+      if (this.data.substitutions && this.data.substitutions.length > 0) {
+        for (const substitution of this.data.substitutions) {
+          tableData.push(this.createSubstitutionRow(substitution, 1));
+        }
+        tableData.push(["⏳ *Waiting for first match to complete...*"]);
+      } else {
+        tableData.push(["⏳ *Waiting for first match to complete...*"]);
+      }
+
       this.addEmbedFields(embed, titles, tableData);
     }
 
@@ -261,5 +313,19 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         `Last error: ${lastErrorMessage ?? "unknown"}`
       );
     }
+  }
+
+  private createSubstitutionRow(
+    substitution: NonNullable<LiveTrackerEmbedData["substitutions"]>[0],
+    columns = 3,
+  ): string[] {
+    const substitutionText = `*<@${substitution.playerInId}> subbed in for <@${substitution.playerOutId}> (${substitution.teamName})*`;
+
+    if (columns === 1) {
+      return [substitutionText];
+    }
+
+    // Default case: 3 columns for match table
+    return [substitutionText, "", ""];
   }
 }

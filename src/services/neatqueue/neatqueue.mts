@@ -144,6 +144,7 @@ export class NeatQueueService {
           response: new Response("OK"),
           jobToComplete: async (): Promise<void> => {
             await this.extendTimeline(request, neatQueueConfig);
+            await this.substitutionJob(request, neatQueueConfig);
           },
         };
       }
@@ -595,6 +596,84 @@ export class NeatQueueService {
           ["guildId", request.guild],
           ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
+          ["error", String(error)],
+        ]),
+      );
+      // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+  }
+
+  private async substitutionJob(
+    request: NeatQueueSubstitutionRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { logService } = this;
+
+    try {
+      // Get the match number from the request
+      const matchNumber = request.match_number;
+      if (matchNumber == null) {
+        logService.debug("No match number in substitution request, skipping live tracker update");
+        return;
+      }
+
+      // Create Durable Object key for this queue
+      const doKey = `${request.guild}:${request.channel}:${matchNumber.toString()}`;
+      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
+      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId) as DurableObjectStub;
+
+      // Check if the tracker exists and is active
+      const statusResponse = await durableObject.fetch(new Request("https://live-tracker/status"));
+      if (!statusResponse.ok) {
+        logService.debug("Live tracker not found or inactive, skipping substitution update");
+        return;
+      }
+
+      // Notify the live tracker about the substitution
+      const substitutionData = {
+        playerOutId: request.player_subbed_out.id,
+        playerInId: request.player_subbed_in.id,
+      };
+
+      const substitutionResponse = await durableObject.fetch(
+        new Request("https://live-tracker/substitution", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(substitutionData),
+        }),
+      );
+
+      if (!substitutionResponse.ok) {
+        const errorText = await substitutionResponse.text();
+        logService.warn(
+          `Failed to update live tracker with substitution: ${errorText}`,
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["matchNumber", matchNumber.toString()],
+            ["playerOut", request.player_subbed_out.id],
+            ["playerIn", request.player_subbed_in.id],
+          ]),
+        );
+        return;
+      }
+
+      logService.info(
+        `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["playerOut", request.player_subbed_out.id],
+          ["playerIn", request.player_subbed_in.id],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(
+        "Failed to update live tracker with substitution",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
           ["error", String(error)],
         ]),
       );

@@ -336,4 +336,79 @@ describe("LiveTrackerEmbed", () => {
       expect(embed.description).toBe("**Live Tracking Active**");
     });
   });
+
+  describe("substitutions", () => {
+    it("interleaves substitutions with matches chronologically", () => {
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "🦅 1:1 🐍",
+          enrichedMatches: testEnrichedMatches,
+          substitutions: [
+            {
+              playerOutId: "player-out-1",
+              playerInId: "player-in-1",
+              teamIndex: 0,
+              teamName: "Team Alpha",
+              timestamp: "2024-12-06T12:00:00Z",
+            },
+          ],
+          lastUpdated: new Date("2024-12-06T12:00:00Z"),
+          nextCheck: new Date("2024-12-06T12:03:00Z"),
+          errorState: undefined,
+        },
+      );
+
+      const { embed } = liveTrackerEmbed;
+
+      // Should have Game field with substitution interleaved
+      const gameField = embed.fields?.find((field) => field.name === "Game");
+      expect(gameField).toBeDefined();
+      expect(gameField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
+      expect(gameField?.value).toContain("[Slayer on Aquarius]");
+      expect(gameField?.value).toContain("[CTF on Catalyst]");
+    });
+
+    it("shows substitutions before first match when no matches yet", () => {
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "🦅 0:0 🐍",
+          enrichedMatches: [],
+          substitutions: [
+            {
+              playerOutId: "player-out-1",
+              playerInId: "player-in-1",
+              teamIndex: 0,
+              teamName: "Team Alpha",
+              timestamp: "2024-12-06T12:00:00Z",
+            },
+          ],
+          lastUpdated: new Date("2024-12-06T12:00:00Z"),
+          nextCheck: new Date("2024-12-06T12:03:00Z"),
+          errorState: undefined,
+        },
+      );
+
+      const { embed } = liveTrackerEmbed;
+
+      // Should have Status field with substitution shown
+      const statusField = embed.fields?.find((field) => field.name === "Status");
+      expect(statusField).toBeDefined();
+      expect(statusField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
+      expect(statusField?.value).toContain("⏳ *Waiting for first match to complete...*");
+    });
+  });
 });

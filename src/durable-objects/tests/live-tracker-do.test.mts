@@ -9,6 +9,7 @@ import { aGuildMemberWith, apiMessage } from "../../services/discord/fakes/data.
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
 import { matchStats } from "../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { MatchStats } from "halo-infinite-api";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {
@@ -121,6 +122,9 @@ const createMockTrackerState = (): LiveTrackerState => ({
   startTime: new Date().toISOString(),
   lastUpdateTime: new Date().toISOString(),
   checkCount: 1,
+  substitutions: [],
+  discoveredMatches: {},
+  rawMatches: {},
   errorState: {
     consecutiveErrors: 0,
     backoffMinutes: 3,
@@ -162,6 +166,9 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
       ],
     },
   ],
+  substitutions: [],
+  discoveredMatches: {},
+  rawMatches: {},
   errorState: {
     consecutiveErrors: 0,
     lastErrorMessage: undefined,
@@ -207,6 +214,9 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
       ],
     },
   ],
+  substitutions: [],
+  discoveredMatches: {},
+  rawMatches: {},
   errorState: {
     consecutiveErrors: 0,
     lastErrorMessage: undefined,
@@ -623,6 +633,9 @@ describe("LiveTrackerDO", () => {
             ],
           },
         ],
+        substitutions: [],
+        discoveredMatches: {},
+        rawMatches: {},
         errorState: {
           consecutiveErrors: 0,
           lastErrorMessage: undefined,
@@ -658,6 +671,29 @@ describe("LiveTrackerDO", () => {
             totalChecks: 1,
             totalMatches: 2,
           }) as LiveTrackerState["metrics"],
+          // Verify that matches are stored in both discoveredMatches and rawMatches
+          discoveredMatches: expect.objectContaining({
+            "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: expect.any(String) as string,
+              gameDuration: expect.any(String) as string,
+              gameScore: expect.any(String) as string,
+            }) as MatchStats,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
+              matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+              gameTypeAndMap: expect.any(String) as string,
+              gameDuration: expect.any(String) as string,
+              gameScore: expect.any(String) as string,
+            }) as MatchStats,
+          }) as LiveTrackerState["discoveredMatches"],
+          rawMatches: expect.objectContaining({
+            "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
+              MatchId: "9535b946-f30c-4a43-b852-000000slayer",
+            }) as MatchStats,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
+              MatchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+            }) as MatchStats,
+          }) as LiveTrackerState["rawMatches"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalledWith(expect.any(Number));
@@ -836,6 +872,109 @@ describe("LiveTrackerDO", () => {
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalled();
+    });
+
+    it("persists discovered matches when handling substitutions", async () => {
+      // Initial state with some discovered matches
+      const existingState = createAlarmTestTrackerState({
+        discoveredMatches: {
+          "existing-match-id": {
+            matchId: "existing-match-id",
+            gameTypeAndMap: "Slayer on Aquarius",
+            gameDuration: "7:30",
+            gameScore: "Team Cobalt 50 - 47 Team Gold",
+          },
+        },
+        rawMatches: {
+          "existing-match-id": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        },
+      });
+
+      mockStorage.get.mockResolvedValue(existingState);
+
+      // Mock that we get both existing and new matches
+      const mockMatches = [
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+
+      await liveTrackerDO.alarm();
+
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          // Should contain both existing and new matches in discovered and raw state
+          discoveredMatches: expect.objectContaining({
+            "existing-match-id": expect.any(Object) as Record<string, unknown>,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["discoveredMatches"],
+          rawMatches: expect.objectContaining({
+            "existing-match-id": expect.any(Object) as Record<string, unknown>,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["rawMatches"],
+        }),
+      );
+    });
+
+    it("handles substitutions without losing match data", async () => {
+      // State with existing matches and a substitution
+      const existingState = createAlarmTestTrackerState({
+        substitutions: [
+          {
+            playerOutId: "user1",
+            playerInId: "user2",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: new Date("2024-01-01T10:00:00Z").toISOString(),
+          },
+        ],
+        discoveredMatches: {
+          "pre-sub-match": {
+            matchId: "pre-sub-match",
+            gameTypeAndMap: "CTF on Catalyst",
+            gameDuration: "8:45",
+            gameScore: "Team Alpha 3 - 2 Team Beta",
+          },
+        },
+        rawMatches: {
+          "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        },
+      });
+
+      mockStorage.get.mockResolvedValue(existingState);
+
+      // Mock that the existing match is still returned from the queue
+      const mockMatches = [
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")), // Same existing match
+      ];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+
+      await liveTrackerDO.alarm();
+
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          // Should preserve existing substitution
+          substitutions: expect.arrayContaining([
+            expect.objectContaining({
+              playerOutId: "user1",
+              playerInId: "user2",
+              teamIndex: 0,
+              teamName: "Team Alpha",
+            }),
+          ]) as LiveTrackerState["substitutions"],
+          // Should preserve existing match data
+          discoveredMatches: expect.objectContaining({
+            "pre-sub-match": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["discoveredMatches"],
+          rawMatches: expect.objectContaining({
+            "pre-sub-match": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["rawMatches"],
+        }),
+      );
     });
 
     it("handles general alarm error gracefully", async () => {

@@ -48,6 +48,9 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
       queueStartTime: new Date().toISOString(),
       checkCount: 1,
       teams: [],
+      substitutions: [],
+      discoveredMatches: {},
+      rawMatches: {},
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: 3,
