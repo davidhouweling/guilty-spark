@@ -34,136 +34,237 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 ## 📋 Commands
 
-### `/stats` - Retrieve Match Statistics
-
-The stats command supports multiple modes for retrieving Halo match data:
-
-#### `/stats neatqueue [channel] [queue_number]`
-
-Retrieves statistics for a completed NeatQueue series. Both channel and queue number parameters are optional:
-
-```
-/stats neatqueue                 # Uses current channel and most recent queue
-/stats neatqueue #results        # Uses specified channel and most recent queue
-/stats neatqueue 777             # Uses current channel and specified queue number
-/stats neatqueue #results 777    # Uses specified channel and queue number
-```
-
-![Stats Command Demo](docs/recording-20250604-stats-command.gif)
-
-**Process Flow:**
-
-1. Searches the specified Discord channel for NeatQueue results with the given queue number
-2. Extracts participating Discord users from the NeatQueue message
-3. Attempts to match Discord users to Xbox gamertags using:
-   - Previously linked accounts via `/connect`
-   - Discord username matching
-   - Discord display name matching
-4. Queries Halo Waypoint for recent custom games involving matched players
-5. Filters matches to find games with all participating players
-6. Retrieves detailed statistics for each match in the series
-7. Displays comprehensive match and series statistics
-
-#### `/stats match <match_id>`
-
-Retrieves statistics for a specific Halo match:
-
-```
-/stats match 12345678-1234-1234-1234-123456789abc
-```
-
-**Process Flow:**
-
-1. Queries Halo Waypoint for the specified match ID
-2. Retrieves detailed match statistics and player performance
-3. Displays match-specific embed with game mode appropriate statistics
-
-### `/connect` - Link Discord to Xbox Account
-
-Allows users to link their Discord account to their Xbox gamertag for automatic stat retrieval:
-
-**Features:**
-
-- **Search Integration**: Search for Xbox gamertags by name
-- **Account Verification**: Confirm the correct Xbox account before linking
-- **Link Management**: Update or remove existing account links
-- **Privacy Handling**: Gracefully handles accounts with restricted privacy settings
-
-**Usage Flow:**
-
-1. User runs `/connect`
-2. Bot presents account linking options
-3. User can search for their gamertag or confirm suggested matches
-4. Account association is stored for future automatic stat retrieval
-
 ### `/setup` - Server Configuration
 
-Comprehensive server setup and configuration system with interactive menus:
+Configure Guilty Spark for your server preferences (admin only command)
 
-#### Stats Display Configuration
+```
+/setup
+```
 
-- **Series Only**: Display only series overview statistics
-- **Series and Games**: Show both series overview and individual match details
+Interactive configuration system with comprehensive options:
+
+#### Basic Configuration
+
+- **Stats Display Mode**: Choose between series-only or series + individual games
+- **Channel Permissions**: Verify bot permissions in target channels
 
 #### NeatQueue Integration Setup
 
-Configure automated stats posting for NeatQueue-managed series:
+- **Webhook Configuration**: Secure webhook authentication for automated stats
+- **Channel Mapping**: Configure queue and results channels
+- **Display Options**: Choose how stats are posted (threaded replies, new messages, dedicated channel)
+- **Live Tracking**: Enable real-time match updates during series
+- **NeatQueue Informer**: Announce player connections when queues start
 
-![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif)
+### `/connect` - Link Discord to Xbox Account
 
-**Configuration Options:**
+Users link their Discord account to Xbox gamertag for automatic stat retrieval:
 
-- **Webhook Secret**: Secure webhook authentication
-- **Queue Channel**: Channel where NeatQueue manages queues
-- **Results Channel**: Channel where match results are posted
-- **Display Mode**: Choose how stats are posted:
-  - Threaded replies to results messages
-  - New messages in results channel
-  - New messages in a dedicated stats channel
-
-**Automated Workflow:**
-
-1. NeatQueue sends webhook messages for various events (series started, teams created, series completed)
-2. Guilty Spark automatically retrieves match statistics
-3. Posts formatted stats according to configured display mode
-4. Supports multiple queue channels per server
-
-#### NeatQueue Informer
-
-Configure the NeatQueue Informer to provide real-time updates about player connections when a queue starts. This feature works alongside NeatQueue integration and applies to the whole server.
+```
+/connect
+```
 
 **Features:**
 
-- Announces which players are in the queue as soon as a queue starts
-- Can be enabled/disabled via the setup menu
-- Requires the bot to have appropriate channel permissions (View Channel, Send Messages)
-- If permissions are missing, the feature will automatically disable itself
+- **Gamertag Search**: Find Xbox accounts by name
+- **Account Verification**: Confirm correct account before linking
+- **Link Management**: Update or remove existing connections
+- **Privacy Handling**: Graceful handling of restricted accounts
 
-**How to enable:**
+### `/stats` - Retrieve Match Statistics
 
-- Open `/setup` and select "Configure NeatQueue Informer"
-- Follow the instructions to grant the bot the required permissions
-- Toggle player connection announcements as desired
+Primary command for accessing Halo match data with multiple modes:
 
----
+#### NeatQueue Series Stats
+
+```
+/stats neatqueue [channel] [queue_number]
+```
+
+Retrieves comprehensive statistics for completed NeatQueue series:
+
+- `channel` (optional): Discord channel to search (defaults to current)
+- `queue_number` (optional): Specific queue number (defaults to most recent)
+
+![Stats Command Demo](docs/recording-20250604-stats-command.gif)
+
+**Automated Process:**
+
+1. Locates NeatQueue results in specified channel
+2. Extracts participant Discord users
+3. Matches users to Xbox gamertags via `/connect` links or username matching
+4. Queries Halo Waypoint for custom games with all participants
+5. Displays comprehensive match and series statistics
+
+#### Individual Match Stats
+
+```
+/stats match <match_id>
+```
+
+Retrieves detailed statistics for any specific Halo match using its unique identifier.
 
 ### `/maps` - Generate HCS Map Sets
 
-Generate a random set of Halo maps for HCS play, with interactive playlist and count selection:
+Generate random map sets for competitive play:
 
 ```
 /maps [count] [playlist]
 ```
 
-- **count**: Number of maps (1, 3, 5, 7; default: 5)
-- **playlist**: Playlist to use (`HCS - current` or `HCS - historical`; default: current)
+**Options:**
+
+- `count`: Number of maps (1, 3, 5, 7; default: 5)
+- `playlist`: Map pool (`HCS - current` or `HCS - historical`; default: current)
+
+**Interactive Features:**
+
+- Re-roll buttons for different map counts
+- Playlist selector for switching map pools
+- User attribution for generated sets
+
+### `/track` - Manual Live Tracking
+
+Start live tracking for ongoing NeatQueue series:
+
+```
+/track <queue_number> [channel]
+```
+
+**Note**: Live tracking typically starts automatically via NeatQueue webhooks. This command provides manual control when needed.
+
+## 🤝 NeatQueue Integration
+
+Guilty Spark provides deep integration with NeatQueue tournament management system, enabling automated workflows and real-time tracking.
+
+### Configuration Requirements
+
+**Essential Setup Steps:**
+
+1. Configure webhook in NeatQueue pointing to your Guilty Spark instance
+2. Set webhook secret for security via `/setup`
+3. Map NeatQueue channels to Discord channels
+4. Choose appropriate display mode for stats posting
+
+### Automated Workflows
+
+![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif)
+
+**Event-Driven Automation:**
+
+1. **Series Start**: NeatQueue webhooks notify Guilty Spark when series begin
+2. **Team Creation**: Automatic live tracking initialization if enabled
+3. **Match Completion**: Real-time statistics retrieval and posting
+4. **Series End**: Final statistics compilation and live tracking cleanup
+
+**Display Options:**
+
+- **Threaded Replies**: Stats posted as replies to NeatQueue results messages
+- **Channel Messages**: New messages in results channel or dedicated stats channel
+- **Live Updates**: Real-time series overview during active matches
+
+### 🔴 Live Tracker - Real-Time Match Updates
+
+**Automated real-time tracking** for ongoing NeatQueue series with comprehensive match monitoring.
+
+**Core Features:**
+
+- **Automatic Lifecycle**: Starts when teams are created, stops when series complete
+- **Live Updates**: Series overview refreshes every 3 minutes during active matches
+- **Interactive Controls**: Pause ⏸️, Resume ▶️, Stop ⏹️, and Refresh 🔄 buttons
+- **Substitution Support**: Automatic handling of player changes with chronological tracking
+- **Error Recovery**: Intelligent retry logic with exponential backoff
+
+#### User Interface Example
+
+```
+🟢 Live Tracker - Queue #123
+Live tracking active
+
+Game 1: Slayer: Recharge           4:32    50:49 (🦅:🐍)
+Game 2: Strongholds: Live Fire     6:15    250:240 (🦅:🐍)
+
+Series score: 🦅 1:1 🐍
+Last updated: Today at 2:30 PM
+Next check: in 3 minutes
+
+🔄 Substitutions
+@NewPlayer subbed in for @OriginalPlayer
+
+🟢 Pause    🔄 Refresh    ⏹️ Stop
+```
+
+#### Substitution Handling
+
+**Automatic Processing:**
+
+1. **Detection**: NeatQueue webhooks trigger substitution events
+2. **Team Updates**: Roster changes reflected in live tracking
+3. **Historical Preservation**: Complete match history maintained across changes
+4. **Chronological Display**: Substitutions interleaved with match timeline
+5. **Data Persistence**: All discovered matches preserved to prevent loss
+
+#### Error Handling Strategy
+
+- **First Error**: Warning display, continues normal 3-minute intervals
+- **Consecutive Errors**: Increased retry intervals (5→10 minutes)
+- **Persistent Failures**: Automatic stop after 10 minutes of failures
+- **API Outages**: Last known data displayed while services recover
+
+### NeatQueue Informer
+
+**Real-time player connection announcements** when queues start:
 
 **Features:**
 
-- Interactive buttons to re-roll map sets for different counts
-- Playlist select menu to switch between current and historical HCS map pools
-- User attribution in embed footer
-- Robust error handling for unknown playlists or button interactions
+- Announces which players join queues immediately
+- Server-wide configuration via `/setup`
+- Automatic permission checking and self-disabling if missing
+- Works alongside other NeatQueue integration features
+
+**Requirements:**
+
+- View Channel and Send Messages permissions
+- Enabled via `/setup` → "Configure NeatQueue Informer"
+- **Persistent Failures**: Automatically stops after 10 minutes of failures
+- **API Outages**: Uses last known data while APIs are unavailable
+
+#### Substitutions During Live Tracking
+
+When player substitutions occur during a live series:
+
+1. **Automatic Detection**: Live Tracker receives substitution events from NeatQueue
+2. **Team Update**: Updates team composition to include new players
+3. **Historical Preservation**: Continues tracking matches from substituted players
+4. **Visual Indication**: Shows substitution information in the embed
+5. **Series Continuity**: Maintains complete series history across roster changes
+
+#### Permissions Required
+
+- **View Channel**: Read the channel where tracking is posted
+- **Send Messages**: Post initial live tracker message
+- **Use External Emojis**: Display team emojis and status indicators
+
+### Troubleshooting
+
+**Live Tracker Issues:**
+
+- Verify Live Tracking enabled in `/setup` → "Configure NeatQueue Integration"
+- Check bot permissions in target channels (View Channel, Send Messages)
+- Use manual refresh button for immediate updates during API issues
+
+**Stats Not Posting:**
+
+- Confirm webhook configuration and secret match NeatQueue settings
+- Verify channel mapping in `/setup`
+- Check that results messages contain expected Discord user mentions
+
+**Substitution Tracking:**
+
+- Substitutions handled automatically via NeatQueue webhooks
+- Manual refresh available if real-time updates fail
+- Complete match history preserved across roster changes
 
 ## 🛠️ Development Setup
 
@@ -209,17 +310,6 @@ Generate a random set of Halo maps for HCS play, with interactive playlist and c
    ```bash
    npm run ngrok
    ```
-
-## 🤝 NeatQueue Integration
-
-Guilty Spark provides deep integration with NeatQueue for match/series management:
-
-### Configuration Requirements
-
-1. Set up webhook in NeatQueue pointing to your Guilty Spark instance
-2. Configure webhook secret for security
-3. Map NeatQueue channels to Discord channels
-4. Choose appropriate display mode for stats posting
 
 ## 🔒 Privacy & Security
 
