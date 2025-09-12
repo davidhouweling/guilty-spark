@@ -8,7 +8,7 @@ import type {
   APIPingInteraction,
   APITextChannel,
   APIThreadChannel,
-  RESTPostAPIChannelMessagesThreadsResult,
+  RESTPostAPIChannelThreadsResult,
 } from "discord-api-types/v10";
 import {
   GuildSystemChannelFlags,
@@ -784,7 +784,7 @@ export const discordNeatQueueData: QueueData = {
   ],
 };
 
-export const channelThreadsResult: RESTPostAPIChannelMessagesThreadsResult = {
+export const channelThreadsResult: RESTPostAPIChannelThreadsResult = {
   id: "fake-thread-id",
   name: "fake-thread-name",
   type: ChannelType.PublicThread,
