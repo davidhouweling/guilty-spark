@@ -262,7 +262,7 @@ export class DiscordService {
     const data = new Map<string, string>();
     for (const component of interaction.data.components) {
       // necessary because component.components doesn't seem to be typed correctly without
-       
+
       if (component.type === ComponentType.ActionRow) {
         for (const subComponent of component.components) {
           data.set(subComponent.custom_id, subComponent.value);
