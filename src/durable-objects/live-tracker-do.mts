@@ -77,6 +77,10 @@ export interface LiveTrackerState {
     averageCheckDurationMs?: number;
     lastCheckDurationMs?: number;
   };
+  lastMessageState: {
+    matchCount: number;
+    substitutionCount: number;
+  };
 }
 
 export class LiveTrackerDO {
@@ -235,16 +239,7 @@ export class LiveTrackerDO {
             },
           );
 
-          await this.discordService.editMessage(
-            trackerState.channelId,
-            trackerState.liveMessageId,
-            liveTrackerEmbed.toMessageData(),
-          );
-
-          this.logService.info(
-            `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
-            new Map([["messageId", trackerState.liveMessageId]]),
-          );
+          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
         } catch (error) {
           // 10003 = Unknown channel
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
@@ -326,6 +321,10 @@ export class LiveTrackerDO {
         totalChecks: 0,
         totalMatches: 0,
         totalErrors: 0,
+      },
+      lastMessageState: {
+        matchCount: 0,
+        substitutionCount: 0,
       },
     };
 
@@ -489,19 +488,7 @@ export class LiveTrackerDO {
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
 
-        await this.discordService.editMessage(
-          trackerState.channelId,
-          trackerState.liveMessageId,
-          liveTrackerEmbed.toMessageData(),
-        );
-
-        this.logService.info(
-          `Manually refreshed live tracker message for queue ${trackerState.queueNumber.toString()}`,
-          new Map([
-            ["messageId", trackerState.liveMessageId],
-            ["checkCount", trackerState.checkCount.toString()],
-          ]),
-        );
+        await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
       }
 
       return Response.json({ success: true, state: trackerState });
@@ -819,5 +806,70 @@ export class LiveTrackerDO {
       // Store the enriched match
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
     }
+  }
+
+  private hasNewMatchesOrSubstitutions(trackerState: LiveTrackerState): boolean {
+    const currentMatchCount = Object.keys(trackerState.discoveredMatches).length;
+    const currentSubstitutionCount = trackerState.substitutions.length;
+
+    return (
+      currentMatchCount > trackerState.lastMessageState.matchCount ||
+      currentSubstitutionCount > trackerState.lastMessageState.substitutionCount
+    );
+  }
+
+  private async updateLiveTrackerMessage(
+    trackerState: LiveTrackerState,
+    liveTrackerEmbed: LiveTrackerEmbed,
+  ): Promise<void> {
+    if (this.hasNewMatchesOrSubstitutions(trackerState)) {
+      const newMessage = await this.discordService.createMessage(
+        trackerState.channelId,
+        liveTrackerEmbed.toMessageData(),
+      );
+
+      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+        try {
+          await this.discordService.deleteMessage(
+            trackerState.channelId,
+            trackerState.liveMessageId,
+            "Replaced with updated live tracker message",
+          );
+        } catch (deleteError) {
+          this.logService.warn(
+            "Failed to delete old live tracker message",
+            new Map([
+              ["oldMessageId", trackerState.liveMessageId],
+              ["error", String(deleteError)],
+            ]),
+          );
+        }
+      }
+
+      trackerState.liveMessageId = newMessage.id;
+
+      this.logService.info(
+        `Created new live tracker message for queue ${trackerState.queueNumber.toString()} (new matches/substitutions detected)`,
+        new Map([
+          ["newMessageId", newMessage.id],
+          ["matchCount", Object.keys(trackerState.discoveredMatches).length.toString()],
+          ["substitutionCount", trackerState.substitutions.length.toString()],
+        ]),
+      );
+    } else if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+      await this.discordService.editMessage(
+        trackerState.channelId,
+        trackerState.liveMessageId,
+        liveTrackerEmbed.toMessageData(),
+      );
+
+      this.logService.info(
+        `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        new Map([["messageId", trackerState.liveMessageId]]),
+      );
+    }
+
+    trackerState.lastMessageState.matchCount = Object.keys(trackerState.discoveredMatches).length;
+    trackerState.lastMessageState.substitutionCount = trackerState.substitutions.length;
   }
 }

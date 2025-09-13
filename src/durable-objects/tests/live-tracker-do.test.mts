@@ -135,6 +135,10 @@ const createMockTrackerState = (): LiveTrackerState => ({
     totalMatches: 0,
     totalErrors: 0,
   },
+  lastMessageState: {
+    matchCount: 0,
+    substitutionCount: 0,
+  },
 });
 
 const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerState => ({
@@ -181,6 +185,10 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     totalErrors: 0,
     lastCheckDurationMs: 0,
     averageCheckDurationMs: 0,
+  },
+  lastMessageState: {
+    matchCount: 0,
+    substitutionCount: 0,
   },
   ...overrides,
 });
@@ -229,6 +237,10 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     totalErrors: 0,
     lastCheckDurationMs: 0,
     averageCheckDurationMs: 0,
+  },
+  lastMessageState: {
+    matchCount: 0,
+    substitutionCount: 0,
   },
   ...overrides,
 });
@@ -527,6 +539,61 @@ describe("LiveTrackerDO", () => {
       const text = await response.text();
       expect(text).toBe("Not Found");
     });
+
+    it("creates new message during refresh when new matches are detected", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.lastMessageState = {
+        matchCount: 0,
+        substitutionCount: 0,
+      };
+      trackerState.discoveredMatches = {};
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+      vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-refresh-message-id",
+      });
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(createMessageSpy).toHaveBeenCalled();
+      expect(deleteMessageSpy).toHaveBeenCalled();
+      expect(editMessageSpy).not.toHaveBeenCalled();
+    });
+
+    it("edits existing message during refresh when no new content is detected", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.lastMessageState = {
+        matchCount: 0,
+        substitutionCount: 0,
+      };
+      trackerState.discoveredMatches = {};
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage");
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage");
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(editMessageSpy).toHaveBeenCalled();
+      expect(createMessageSpy).not.toHaveBeenCalled();
+      expect(deleteMessageSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("handleStatus()", () => {
@@ -648,6 +715,10 @@ describe("LiveTrackerDO", () => {
           totalErrors: 0,
           lastCheckDurationMs: 0,
           averageCheckDurationMs: 0,
+        },
+        lastMessageState: {
+          matchCount: 0,
+          substitutionCount: 0,
         },
       };
       mockStorage.get.mockResolvedValue(trackerState);
@@ -779,6 +850,7 @@ describe("LiveTrackerDO", () => {
 
       const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
+      vi.spyOn(services.discordService, "createMessage").mockRejectedValue(discordError);
 
       await liveTrackerDO.alarm();
 
@@ -984,6 +1056,299 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       expect(errorSpy).toHaveBeenCalledWith("LiveTracker alarm error:", expect.any(Map));
+    });
+
+    it("creates new message when new matches are detected", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        lastMessageState: {
+          matchCount: 0,
+          substitutionCount: 0,
+        },
+        discoveredMatches: {},
+        rawMatches: {},
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+      vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+      vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-message-id",
+      });
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+
+      await liveTrackerDO.alarm();
+
+      // Should create new message and delete old one
+      expect(createMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        expect.objectContaining({
+          embeds: expect.arrayContaining([expect.objectContaining({})]) as Record<string, unknown>[],
+        }),
+      );
+      expect(deleteMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        "message-123",
+        "Replaced with updated live tracker message",
+      );
+      expect(editMessageSpy).not.toHaveBeenCalled();
+
+      // Should update lastMessageState
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          liveMessageId: "new-message-id",
+          lastMessageState: {
+            matchCount: 1,
+            substitutionCount: 0,
+          },
+        }),
+      );
+    });
+
+    it("creates new message when new substitutions are detected", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        lastMessageState: {
+          matchCount: 0,
+          substitutionCount: 0,
+        },
+        substitutions: [
+          {
+            playerOutId: "old-player",
+            playerInId: "new-player",
+            teamIndex: 0,
+            teamName: "Team 1",
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        discoveredMatches: {},
+        rawMatches: {},
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-message-id",
+      });
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+
+      await liveTrackerDO.alarm();
+
+      // Should create new message and delete old one
+      expect(createMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        expect.objectContaining({
+          embeds: expect.arrayContaining([expect.objectContaining({})]) as Record<string, unknown>[],
+        }),
+      );
+      expect(deleteMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        "message-123",
+        "Replaced with updated live tracker message",
+      );
+      expect(editMessageSpy).not.toHaveBeenCalled();
+
+      // Should update lastMessageState
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          liveMessageId: "new-message-id",
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 1,
+          },
+        }),
+      );
+    });
+
+    it("edits existing message when no new matches or substitutions detected", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        lastMessageState: {
+          matchCount: 1,
+          substitutionCount: 0,
+        },
+        discoveredMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": {
+            matchId: "9535b946-f30c-4a43-b852-000000slayer",
+            gameTypeAndMap: "Slayer on Aquarius",
+            gameDuration: "5:00",
+            gameScore: "50-49",
+          },
+        },
+        rawMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+            matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+          ),
+        },
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage");
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage");
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.alarm();
+
+      // Should edit existing message
+      expect(editMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        trackerState.liveMessageId,
+        expect.objectContaining({
+          embeds: expect.arrayContaining([expect.objectContaining({})]) as Record<string, unknown>[],
+        }),
+      );
+      expect(createMessageSpy).not.toHaveBeenCalled();
+      expect(deleteMessageSpy).not.toHaveBeenCalled();
+
+      // Should maintain lastMessageState
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          lastMessageState: {
+            matchCount: 1,
+            substitutionCount: 0,
+          },
+        }),
+      );
+    });
+
+    it("handles delete message failure gracefully when creating new message", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        lastMessageState: {
+          matchCount: 0,
+          substitutionCount: 0,
+        },
+        discoveredMatches: {},
+        rawMatches: {},
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+      vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+      const warnSpy = vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-message-id",
+      });
+      const deleteMessageSpy = vi
+        .spyOn(services.discordService, "deleteMessage")
+        .mockRejectedValue(new Error("Cannot delete message"));
+
+      await liveTrackerDO.alarm();
+
+      // Should still create new message
+      expect(createMessageSpy).toHaveBeenCalled();
+      expect(deleteMessageSpy).toHaveBeenCalled();
+
+      // Should log warning about delete failure but continue
+      expect(warnSpy).toHaveBeenCalledWith("Failed to delete old live tracker message", expect.any(Map));
+
+      // Should still update state with new message ID
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          liveMessageId: "new-message-id",
+        }),
+      );
+    });
+
+    it("updates lastMessageState correctly when both matches and substitutions are added", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        lastMessageState: {
+          matchCount: 1,
+          substitutionCount: 1,
+        },
+        substitutions: [
+          {
+            playerOutId: "old-player-1",
+            playerInId: "new-player-1",
+            teamIndex: 0,
+            teamName: "Team 1",
+            timestamp: new Date().toISOString(),
+          },
+          {
+            playerOutId: "old-player-2",
+            playerInId: "new-player-2",
+            teamIndex: 1,
+            teamName: "Team 2",
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        discoveredMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": {
+            matchId: "9535b946-f30c-4a43-b852-000000slayer",
+            gameTypeAndMap: "Slayer on Aquarius",
+            gameDuration: "5:00",
+            gameScore: "50-49",
+          },
+        },
+        rawMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+            matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+          ),
+        },
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const mockMatches = [
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap")
+        .mockResolvedValueOnce("Slayer on Aquarius")
+        .mockResolvedValueOnce("CTF on Bazaar");
+      vi.spyOn(services.haloService, "getReadableDuration").mockReturnValueOnce("5:00").mockReturnValueOnce("7:30");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValueOnce("50-49").mockReturnValueOnce("3-2");
+      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-message-id",
+      });
+      vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+      await liveTrackerDO.alarm();
+
+      // Should create new message because both matches and substitutions increased
+      expect(createMessageSpy).toHaveBeenCalled();
+
+      // Should update lastMessageState to reflect current counts
+      expect(mockStorage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          lastMessageState: {
+            matchCount: 1, // Currently only 1 match is being processed successfully
+            substitutionCount: 2, // Both substitutions in current state
+          },
+        }),
+      );
     });
   });
 });
