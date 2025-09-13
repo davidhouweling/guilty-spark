@@ -1,5 +1,6 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
 import type { MockInstance } from "vitest";
+import type { MatchStats } from "halo-infinite-api";
 import { LiveTrackerDO, type LiveTrackerStartData, type LiveTrackerState } from "../live-tracker-do.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
@@ -9,7 +10,6 @@ import { aGuildMemberWith, apiMessage } from "../../services/discord/fakes/data.
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
 import { matchStats } from "../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import { MatchStats } from "halo-infinite-api";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {
