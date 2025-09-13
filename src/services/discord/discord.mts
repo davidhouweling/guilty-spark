@@ -272,7 +272,11 @@ export class DiscordService {
     return data;
   }
 
-  async getTeamsFromQueue(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData | null> {
+  async getTeamsFromQueueResult(
+    guildId: string,
+    channelId: string,
+    queue: number | undefined,
+  ): Promise<QueueData | null> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
       queryParameters: { limit: 100 },
@@ -300,24 +304,99 @@ export class DiscordService {
     this.logService.debug("Found queue message", new Map([["queueMessage", JSON.stringify(queueMessage)]]));
 
     const embed = Preconditions.checkExists(queueMessage.embeds[0], "No embed found");
+    const extractedQueueNumber = embed.title != null ? Number(/\b#(\d+)\b/.exec(embed.title)?.[1] ?? 0) : 0;
+
+    return this.buildQueueDataFromMessage(
+      guildId,
+      queueMessage,
+      embed,
+      queue ?? extractedQueueNumber,
+      false, // Don't clean team names for result messages
+    );
+  }
+
+  async getTeamsFromQueueChannel(guildId: string, channelId: string): Promise<QueueData | null> {
+    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
+      method: "GET",
+      queryParameters: { limit: 100 },
+    });
+
+    // First check if this is a NeatQueue channel at all
+    const neatQueueMessages = messages.filter(
+      (message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID,
+    );
+
+    if (neatQueueMessages.length === 0) {
+      throw new EndUserError(
+        "This channel doesn't appear to be a NeatQueue channel. No messages from NeatQueue found.",
+        {
+          errorType: EndUserErrorType.WARNING,
+          handled: true,
+        },
+      );
+    }
+
+    // Look for active teams message (format: "⚔️ Queue#4680")
+    const activeTeamsMessage = neatQueueMessages.find(
+      (message): boolean => message.embeds.find((embed) => /^⚔️ Queue#\d+/.test(embed.title ?? "")) != null,
+    );
+
+    if (!activeTeamsMessage) {
+      throw new EndUserError("No active queue found in this channel. Try again after teams have been assigned.", {
+        errorType: EndUserErrorType.WARNING,
+        handled: true,
+      });
+    }
+
+    this.logService.debug(
+      "Found active teams message",
+      new Map([["activeTeamsMessage", JSON.stringify(activeTeamsMessage)]]),
+    );
+
+    const embed = Preconditions.checkExists(activeTeamsMessage.embeds[0], "No embed found");
+
+    // Extract queue number from title (e.g., "⚔️ Queue#4680" → 4680)
+    const queueNumber = embed.title != null ? Number(/Queue#(\d+)/.exec(embed.title)?.[1] ?? 0) : 0;
+    if (queueNumber === 0) {
+      throw new EndUserError("Could not extract queue number from active teams message.", {
+        errorType: EndUserErrorType.WARNING,
+        handled: true,
+      });
+    }
+
+    return this.buildQueueDataFromMessage(
+      guildId,
+      activeTeamsMessage,
+      embed,
+      queueNumber,
+      true, // Clean team names for active queue messages
+    );
+  }
+
+  private async buildQueueDataFromMessage(
+    guildId: string,
+    message: APIMessage,
+    embed: APIMessage["embeds"][0],
+    queueNumber: number,
+    cleanTeamNames: boolean,
+  ): Promise<QueueData> {
     const fields = Preconditions.checkExists(embed.fields, "No fields found");
     const playerIds = fields.flatMap((field) => this.extractUserIds(field.value));
     this.logService.debug("Extracted player IDs", new Map([["playerIds", playerIds.map((id) => id).join(", ")]]));
 
+    // Fetch full player data for all players
     const playerIdToUserMap = new Map<string, APIGuildMember>();
     for (const playerId of playerIds) {
       const user = await this.getGuildMember(guildId, playerId);
       playerIdToUserMap.set(playerId, user);
     }
 
-    const extractedQueueNumber = embed.title != null ? Number(/\b#(\d+)\b/.exec(embed.title)?.[1] ?? 0) : 0;
-
     return {
-      message: queueMessage,
+      message,
       timestamp: new Date(Preconditions.checkExists(embed.timestamp, "No timestamp found")),
-      queue: queue ?? extractedQueueNumber,
+      queue: queueNumber,
       teams: fields.map((field) => ({
-        name: field.name,
+        name: cleanTeamNames ? field.name.replace(/__/g, "").trim() : field.name,
         players: this.extractUserIds(field.value).map((id) => Preconditions.checkExists(playerIdToUserMap.get(id))),
       })),
     };

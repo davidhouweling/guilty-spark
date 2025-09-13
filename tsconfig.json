@@ -14,7 +14,8 @@
     "noUnusedParameters": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "isolatedModules": true
   },
   "exclude": ["dist"]
 }

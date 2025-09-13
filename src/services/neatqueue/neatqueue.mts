@@ -35,10 +35,12 @@ import { create } from "../../embeds/stats/create.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import { DiscordError } from "../discord/discord-error.mjs";
 import { MapsEmbed } from "../../embeds/maps-embed.mjs";
+import type { LiveTrackerStartData } from "../../durable-objects/live-tracker-do.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
   NeatQueueMatchCompletedRequest,
+  NeatQueueTeamsCreatedRequest,
   NeatQueueTimelineEvent,
   NeatQueueTimelineRequest,
   NeatQueueSubstitutionRequest,
@@ -119,17 +121,30 @@ export class NeatQueueService {
       case "MATCH_CANCELLED": {
         return { response: new Response("OK") };
       }
-      case "MATCH_STARTED":
-      case "TEAMS_CREATED":
+      case "MATCH_STARTED": {
+        return {
+          response: new Response("OK"),
+          jobToComplete: async (): Promise<void> => {
+            await this.extendTimeline(request, neatQueueConfig);
+            await this.matchStartedJob(request, neatQueueConfig);
+          },
+        };
+      }
+      case "TEAMS_CREATED": {
+        return {
+          response: new Response("OK"),
+          jobToComplete: async (): Promise<void> => {
+            await this.extendTimeline(request, neatQueueConfig);
+            await this.teamsCreatedJob(request, neatQueueConfig);
+          },
+        };
+      }
       case "SUBSTITUTION": {
         return {
           response: new Response("OK"),
           jobToComplete: async (): Promise<void> => {
             await this.extendTimeline(request, neatQueueConfig);
-
-            if (request.action === "MATCH_STARTED") {
-              await this.matchStartedJob(request, neatQueueConfig);
-            }
+            await this.substitutionJob(request, neatQueueConfig);
           },
         };
       }
@@ -205,7 +220,7 @@ export class NeatQueueService {
           .filter((substitution) => substitution !== null)
           .reverse() ?? [];
 
-      const queueMessage = await discordService.getTeamsFromQueue(guildId, queueChannel, queue);
+      const queueMessage = await discordService.getTeamsFromQueueResult(guildId, queueChannel, queue);
       if (queueMessage == null) {
         throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
           handled: true,
@@ -478,6 +493,276 @@ export class NeatQueueService {
     }
   }
 
+  private async teamsCreatedJob(
+    request: NeatQueueTeamsCreatedRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { databaseService, discordService, logService } = this;
+
+    try {
+      // Check if live tracking is enabled for this guild
+      const guildConfig = await databaseService.getGuildConfig(request.guild);
+      if (guildConfig.NeatQueueInformerLiveTracking !== "Y") {
+        logService.debug("Live tracking is disabled for this guild, skipping auto-start");
+        return;
+      }
+
+      // Check channel permissions for posting messages
+      const [guild, channel] = await Promise.all([
+        discordService.getGuild(request.guild),
+        discordService.getChannel(request.channel),
+      ]);
+
+      const appInGuild = await discordService.getGuildMember(request.guild, this.env.DISCORD_APP_ID);
+      const permissions = discordService.hasPermissions(guild, channel, appInGuild, [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+      ]);
+      if (!permissions.hasAll) {
+        logService.warn(
+          "Insufficient permissions to start live tracking, disabling auto-start",
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["missingPermissions", permissions.missing.join(", ")],
+          ]),
+        );
+
+        await this.databaseService.updateGuildConfig(request.guild, {
+          NeatQueueInformerLiveTracking: "N",
+        });
+        return;
+      }
+
+      // Map NeatQueue team data to expected format
+      const teams = await Promise.all(
+        request.teams.map(async (team: NeatQueuePlayer[], teamIndex: number) => {
+          const teamName = team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`;
+          const players = await discordService.getUsers(
+            request.guild,
+            team.map((player: NeatQueuePlayer) => player.id),
+          );
+          return {
+            name: teamName,
+            players,
+          };
+        }),
+      );
+
+      // Create Durable Object key for this queue
+      const doKey = `${request.guild}:${request.channel}:${request.match_number.toString()}`;
+      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
+      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId) as DurableObjectStub;
+
+      // Start the live tracker
+      const startData: LiveTrackerStartData = {
+        userId: this.env.DISCORD_APP_ID, // Use the bot's ID for auto-started trackers
+        guildId: request.guild,
+        channelId: request.channel,
+        queueNumber: request.match_number,
+        teams,
+        queueStartTime: new Date().toISOString(),
+      };
+
+      const response = await durableObject.fetch(
+        new Request("https://live-tracker/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(startData),
+        }),
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to start live tracker: ${errorText}`);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      const result = (await response.json()) as { success: boolean; state: unknown };
+      logService.info(
+        `Auto-started live tracker for queue ${request.match_number.toString()}`,
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["doKey", doKey],
+          ["success", String(result.success)],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(
+        "Failed to auto-start live tracking",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["error", String(error)],
+        ]),
+      );
+      // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+  }
+
+  private async substitutionJob(
+    request: NeatQueueSubstitutionRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { logService } = this;
+
+    try {
+      // Get the match number from the request
+      const matchNumber = request.match_number;
+      if (matchNumber == null) {
+        logService.debug("No match number in substitution request, skipping live tracker update");
+        return;
+      }
+
+      // Create Durable Object key for this queue
+      const doKey = `${request.guild}:${request.channel}:${matchNumber.toString()}`;
+      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
+      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId) as DurableObjectStub;
+
+      // Check if the tracker exists and is active
+      const statusResponse = await durableObject.fetch(new Request("https://live-tracker/status"));
+      if (!statusResponse.ok) {
+        logService.debug("Live tracker not found or inactive, skipping substitution update");
+        return;
+      }
+
+      // Notify the live tracker about the substitution
+      const substitutionData = {
+        playerOutId: request.player_subbed_out.id,
+        playerInId: request.player_subbed_in.id,
+      };
+
+      const substitutionResponse = await durableObject.fetch(
+        new Request("https://live-tracker/substitution", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(substitutionData),
+        }),
+      );
+
+      if (!substitutionResponse.ok) {
+        const errorText = await substitutionResponse.text();
+        logService.warn(
+          `Failed to update live tracker with substitution: ${errorText}`,
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["matchNumber", matchNumber.toString()],
+            ["playerOut", request.player_subbed_out.id],
+            ["playerIn", request.player_subbed_in.id],
+          ]),
+        );
+        return;
+      }
+
+      logService.info(
+        `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["playerOut", request.player_subbed_out.id],
+          ["playerIn", request.player_subbed_in.id],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(
+        "Failed to update live tracker with substitution",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["error", String(error)],
+        ]),
+      );
+      // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+  }
+
+  private async stopLiveTrackingIfActive(
+    request: NeatQueueMatchCompletedRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { logService } = this;
+
+    try {
+      // Create Durable Object key for this queue
+      const doKey = `${request.guild}:${request.channel}:${request.match_number.toString()}`;
+      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
+      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId) as DurableObjectStub;
+
+      // Check if the tracker is active before trying to stop it
+      const statusResponse = await durableObject.fetch(
+        new Request("https://live-tracker/status", {
+          method: "GET",
+        }),
+      );
+
+      if (!statusResponse.ok) {
+        // If the status endpoint fails, the tracker might not exist or be in an error state
+        logService.debug(
+          "Live tracker status check failed, assuming no active tracker",
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+            ["statusCode", statusResponse.status.toString()],
+          ]),
+        );
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      const statusData = (await statusResponse.json()) as { state: { status: string } | null };
+      if (statusData.state?.status !== "active" && statusData.state?.status !== "paused") {
+        logService.debug(
+          "Live tracker not active, no need to stop",
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+            ["status", statusData.state?.status ?? "null"],
+          ]),
+        );
+        return;
+      }
+
+      // Stop the live tracker
+      const stopResponse = await durableObject.fetch(
+        new Request("https://live-tracker/stop", {
+          method: "POST",
+        }),
+      );
+
+      if (!stopResponse.ok) {
+        throw new Error(`Failed to stop live tracker: ${stopResponse.status.toString()}`);
+      }
+
+      logService.info(
+        `Auto-stopped live tracker for completed queue ${request.match_number.toString()}`,
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["doKey", doKey],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(
+        "Failed to auto-stop live tracking",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["error", String(error)],
+        ]),
+      );
+      // Don't throw - this is cleanup, shouldn't break the main flow
+    }
+  }
+
   private async matchCompletedJob(
     request: NeatQueueMatchCompletedRequest,
     neatQueueConfig: NeatQueueConfigRow,
@@ -503,7 +788,11 @@ export class NeatQueueService {
       await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
-    await Promise.all([this.clearTimeline(request, neatQueueConfig), this.haloService.updateDiscordAssociations()]);
+    await Promise.all([
+      this.stopLiveTrackingIfActive(request, neatQueueConfig),
+      this.clearTimeline(request, neatQueueConfig),
+      this.haloService.updateDiscordAssociations(),
+    ]);
   }
 
   private async handlePostSeriesError(
@@ -894,7 +1183,7 @@ export class NeatQueueService {
     let thread: RESTPostAPIChannelThreadsResult | undefined;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
@@ -962,7 +1251,7 @@ export class NeatQueueService {
     let useFallback = true;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,
@@ -1010,7 +1299,7 @@ export class NeatQueueService {
     let channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
 
     try {
-      const resultsMessage = await discordService.getTeamsFromQueue(
+      const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
         request.match_number,

@@ -1,0 +1,823 @@
+import type { APIGuildMember } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
+import type { LogService } from "../services/log/types.mjs";
+import type { DiscordService } from "../services/discord/discord.mjs";
+import type { HaloService } from "../services/halo/halo.mjs";
+import { installServices as installServicesImpl } from "../services/install.mjs";
+import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
+import { EndUserError } from "../base/end-user-error.mjs";
+import { DiscordError } from "../services/discord/discord-error.mjs";
+
+// Production: 3 minutes for live tracking (user-facing display)
+const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
+const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for processing time
+const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
+
+// Error handling constants for exponential backoff
+const NORMAL_INTERVAL_MINUTES = 3;
+const FIRST_ERROR_INTERVAL_MINUTES = 3;
+const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
+const MAX_BACKOFF_INTERVAL_MINUTES = 10;
+const ERROR_THRESHOLD_MINUTES = 10;
+
+export interface LiveTrackerStartData {
+  userId: string;
+  guildId: string;
+  channelId: string;
+  queueNumber: number;
+  interactionToken?: string;
+  liveMessageId?: string | undefined;
+  teams: { name: string; players: APIGuildMember[] }[];
+  queueStartTime: string;
+}
+
+export interface LiveTrackerState {
+  userId: string;
+  guildId: string;
+  channelId: string;
+  queueNumber: number;
+  isPaused: boolean;
+  status: "active" | "paused" | "stopped";
+  liveMessageId?: string | undefined;
+  startTime: string;
+  lastUpdateTime: string;
+  queueStartTime: string;
+  checkCount: number;
+  teams: {
+    name: string;
+    players: APIGuildMember[];
+  }[];
+  // Track substitutions that occur during live tracking
+  substitutions: {
+    playerOutId: string;
+    playerInId: string;
+    teamIndex: number;
+    teamName: string; // NeatQueue team name for display
+    timestamp: string;
+  }[];
+  // Enhanced error handling for exponential backoff
+  errorState: {
+    consecutiveErrors: number;
+    backoffMinutes: number;
+    lastSuccessTime: string;
+    lastErrorMessage?: string | undefined;
+  };
+  // Store all discovered matches to handle substitutions properly
+  // Key: matchId, Value: EnrichedMatchData
+  discoveredMatches: Record<string, EnrichedMatchData>;
+  // Store raw match data for series score calculation
+  // Key: matchId, Value: MatchStats
+  rawMatches: Record<string, MatchStats>;
+  // Performance metrics for Phase 4
+  metrics: {
+    totalChecks: number;
+    totalMatches: number;
+    totalErrors: number;
+    averageCheckDurationMs?: number;
+    lastCheckDurationMs?: number;
+  };
+}
+
+export class LiveTrackerDO {
+  private readonly state: DurableObjectState;
+  private readonly logService: LogService;
+  private readonly discordService: DiscordService;
+  private readonly haloService: HaloService;
+
+  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+    this.state = state;
+    const services = installServices({ env });
+    this.logService = services.logService;
+    this.discordService = services.discordService;
+    this.haloService = services.haloService;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const action = url.pathname.split("/").pop();
+
+    try {
+      switch (action) {
+        case "start": {
+          return await this.handleStart(request);
+        }
+        case "pause": {
+          return await this.handlePause();
+        }
+        case "resume": {
+          return await this.handleResume();
+        }
+        case "stop": {
+          return await this.handleStop();
+        }
+        case "refresh": {
+          return await this.handleRefresh();
+        }
+        case "substitution": {
+          return await this.handleSubstitution(request);
+        }
+        case "status": {
+          return await this.handleStatus();
+        }
+        case undefined: {
+          return new Response("Bad Request", { status: 400 });
+        }
+        default: {
+          return new Response("Not Found", { status: 404 });
+        }
+      }
+    } catch (error) {
+      this.logService.error("LiveTrackerDO error:", new Map([["error", String(error)]]));
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  }
+
+  async alarm(): Promise<void> {
+    const alarmStartTime = Date.now();
+
+    try {
+      const trackerState = await this.getState();
+      if (!trackerState || trackerState.status !== "active" || trackerState.isPaused) {
+        return;
+      }
+
+      this.logService.info(
+        `LiveTracker alarm fired for queue ${trackerState.queueNumber.toString()}`,
+        new Map([
+          ["guildId", trackerState.guildId],
+          ["channelId", trackerState.channelId],
+          ["queueNumber", trackerState.queueNumber.toString()],
+          ["checkCount", trackerState.checkCount.toString()],
+          ["errorCount", trackerState.errorState.consecutiveErrors.toString()],
+          ["backoffMinutes", trackerState.errorState.backoffMinutes.toString()],
+        ]),
+      );
+
+      let enrichedMatches: EnrichedMatchData[] = [];
+      const fetchStartTime = Date.now();
+
+      try {
+        enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        trackerState.metrics.totalMatches = enrichedMatches.length;
+        const fetchDurationMs = Date.now() - fetchStartTime;
+
+        this.logService.info(
+          `Fetched ${enrichedMatches.length.toString()} total matches for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
+          new Map([
+            ["totalMatches", enrichedMatches.length.toString()],
+            ["fetchDurationMs", fetchDurationMs.toString()],
+            ["queueStartTime", new Date(trackerState.queueStartTime).toISOString()],
+            ["currentTime", new Date().toISOString()],
+          ]),
+        );
+
+        this.handleSuccess(trackerState);
+      } catch (error) {
+        this.logService.warn("Failed to fetch series data, using empty data", new Map([["error", String(error)]]));
+        trackerState.metrics.totalErrors += 1;
+        this.handleError(trackerState, String(error));
+
+        if (this.shouldStopDueToErrors(trackerState)) {
+          this.logService.error(
+            `Stopping live tracker due to persistent errors (${trackerState.errorState.consecutiveErrors.toString()} consecutive errors)`,
+            new Map([
+              ["queueNumber", trackerState.queueNumber.toString()],
+              ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
+            ]),
+          );
+          await this.state.storage.deleteAlarm();
+          await this.state.storage.deleteAll();
+          return;
+        }
+      }
+
+      trackerState.checkCount += 1;
+      const currentTime = new Date();
+      trackerState.lastUpdateTime = currentTime.toISOString();
+
+      trackerState.metrics.totalChecks += 1;
+      const totalAlarmDurationMs = Date.now() - alarmStartTime;
+      trackerState.metrics.lastCheckDurationMs = totalAlarmDurationMs;
+
+      if (trackerState.metrics.averageCheckDurationMs != null) {
+        trackerState.metrics.averageCheckDurationMs =
+          (trackerState.metrics.averageCheckDurationMs + totalAlarmDurationMs) / 2;
+      } else {
+        trackerState.metrics.averageCheckDurationMs = totalAlarmDurationMs;
+      }
+
+      await this.setState(trackerState);
+
+      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+        try {
+          const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+          const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+
+          // Get series score from raw matches
+          const rawMatchesArray = Object.values(trackerState.rawMatches);
+          const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+          const liveTrackerEmbed = new LiveTrackerEmbed(
+            { discordService: this.discordService },
+            {
+              userId: trackerState.userId,
+              guildId: trackerState.guildId,
+              channelId: trackerState.channelId,
+              queueNumber: trackerState.queueNumber,
+              status: "active",
+              isPaused: false,
+              lastUpdated: currentTime,
+              nextCheck: nextCheckTime,
+              enrichedMatches: enrichedMatches,
+              seriesScore,
+              substitutions: trackerState.substitutions,
+              errorState: trackerState.errorState,
+            },
+          );
+
+          await this.discordService.editMessage(
+            trackerState.channelId,
+            trackerState.liveMessageId,
+            liveTrackerEmbed.toMessageData(),
+          );
+
+          this.logService.info(
+            `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
+            new Map([["messageId", trackerState.liveMessageId]]),
+          );
+        } catch (error) {
+          // 10003 = Unknown channel
+          if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+            this.logService.warn(
+              "Live tracker channel not found, likely finished",
+              new Map([
+                ["channelId", trackerState.channelId],
+                ["messageId", trackerState.liveMessageId],
+              ]),
+            );
+            await this.state.storage.deleteAlarm();
+            await this.state.storage.deleteAll();
+            return;
+          }
+
+          this.logService.error(
+            "Failed to update live tracker message",
+            new Map([
+              ["error", String(error)],
+              ["messageId", trackerState.liveMessageId],
+            ]),
+          );
+          this.handleError(trackerState, `Discord update failed: ${String(error)}`);
+          await this.setState(trackerState);
+        }
+      }
+
+      const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+      await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
+
+      if (trackerState.checkCount % 10 === 0) {
+        this.logService.info(
+          `Live Tracker Performance Metrics (Queue ${trackerState.queueNumber.toString()})`,
+          new Map([
+            ["totalChecks", trackerState.metrics.totalChecks.toString()],
+            ["totalMatches", trackerState.metrics.totalMatches.toString()],
+            ["totalErrors", trackerState.metrics.totalErrors.toString()],
+            ["avgCheckDurationMs", trackerState.metrics.averageCheckDurationMs.toString()],
+            ["lastCheckDurationMs", trackerState.metrics.lastCheckDurationMs.toString()],
+            [
+              "errorRate",
+              ((trackerState.metrics.totalErrors / trackerState.metrics.totalChecks) * 100).toFixed(1) + "%",
+            ],
+          ]),
+        );
+      }
+    } catch (error) {
+      this.logService.error("LiveTracker alarm error:", new Map([["error", String(error)]]));
+    }
+  }
+
+  private async handleStart(request: Request): Promise<Response> {
+    const body = await request.json();
+    const typedBody = body as LiveTrackerStartData;
+
+    const trackerState: LiveTrackerState = {
+      userId: typedBody.userId,
+      guildId: typedBody.guildId,
+      channelId: typedBody.channelId,
+      queueNumber: typedBody.queueNumber,
+      isPaused: false,
+      status: "active",
+      liveMessageId: typedBody.liveMessageId,
+      startTime: new Date().toISOString(),
+      lastUpdateTime: new Date().toISOString(),
+      queueStartTime: typedBody.queueStartTime,
+      checkCount: 0,
+      teams: typedBody.teams,
+      substitutions: [],
+      discoveredMatches: {},
+      rawMatches: {},
+      errorState: {
+        consecutiveErrors: 0,
+        backoffMinutes: NORMAL_INTERVAL_MINUTES,
+        lastSuccessTime: new Date().toISOString(),
+        lastErrorMessage: undefined,
+      },
+      metrics: {
+        totalChecks: 0,
+        totalMatches: 0,
+        totalErrors: 0,
+      },
+    };
+
+    await this.setState(trackerState);
+
+    try {
+      const loadingMessage = await this.createInitialMessage(typedBody);
+      trackerState.liveMessageId = loadingMessage.id;
+      await this.setState(trackerState);
+
+      const currentTime = new Date();
+      const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+
+      const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+      const rawMatchesArray = Object.values(trackerState.rawMatches);
+      const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService: this.discordService },
+        {
+          userId: typedBody.userId,
+          guildId: typedBody.guildId,
+          channelId: typedBody.channelId,
+          queueNumber: typedBody.queueNumber,
+          status: "active",
+          isPaused: false,
+          lastUpdated: currentTime,
+          nextCheck: nextCheckTime,
+          enrichedMatches: enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        },
+      );
+
+      await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+
+      this.logService.info(
+        `Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        new Map([["messageId", loadingMessage.id]]),
+      );
+    } catch (error) {
+      // 10003 = Unknown channel
+      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+        this.logService.warn(
+          "Live tracker channel not found, likely finished",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["messageId", trackerState.liveMessageId],
+          ]),
+        );
+        await this.state.storage.deleteAlarm();
+        await this.state.storage.deleteAll();
+        return Response.json({ success: false, state: trackerState });
+      }
+
+      this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
+      // Continue anyway - the DO is still started, just without the message
+    }
+
+    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+    return Response.json({ success: true, state: trackerState });
+  }
+
+  private async createInitialMessage(startData: LiveTrackerStartData): Promise<{ id: string }> {
+    const loadingEmbedData = {
+      embeds: [
+        {
+          title: "🔄 Starting Live Tracker",
+          description: "Setting up live tracking for your NeatQueue series...",
+          color: 0x007acc, // Blue loading color
+        },
+      ],
+    };
+
+    if (startData.interactionToken != null && startData.interactionToken !== "") {
+      return await this.discordService.updateDeferredReply(startData.interactionToken, loadingEmbedData);
+    } else {
+      return await this.discordService.createMessage(startData.channelId, loadingEmbedData);
+    }
+  }
+
+  private async handlePause(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    trackerState.isPaused = true;
+    trackerState.status = "paused";
+    trackerState.lastUpdateTime = new Date().toISOString();
+    await this.setState(trackerState);
+
+    return Response.json({ success: true, state: trackerState });
+  }
+
+  private async handleResume(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    trackerState.isPaused = false;
+    trackerState.status = "active";
+    trackerState.lastUpdateTime = new Date().toISOString();
+    await this.setState(trackerState);
+
+    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+
+    return Response.json({ success: true, state: trackerState });
+  }
+
+  private async handleStop(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    await this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAll();
+
+    return Response.json({ success: true, state: trackerState });
+  }
+
+  private async handleRefresh(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.status === "stopped") {
+      return new Response("Cannot refresh stopped tracker", { status: 400 });
+    }
+
+    try {
+      trackerState.checkCount += 1;
+      const currentTime = new Date();
+      trackerState.lastUpdateTime = currentTime.toISOString();
+      await this.setState(trackerState);
+
+      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+        const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+        const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        const embedData: LiveTrackerEmbedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: trackerState.status,
+          isPaused: trackerState.isPaused,
+          lastUpdated: currentTime,
+          nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
+          enrichedMatches: enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
+
+        const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
+
+        await this.discordService.editMessage(
+          trackerState.channelId,
+          trackerState.liveMessageId,
+          liveTrackerEmbed.toMessageData(),
+        );
+
+        this.logService.info(
+          `Manually refreshed live tracker message for queue ${trackerState.queueNumber.toString()}`,
+          new Map([
+            ["messageId", trackerState.liveMessageId],
+            ["checkCount", trackerState.checkCount.toString()],
+          ]),
+        );
+      }
+
+      return Response.json({ success: true, state: trackerState });
+    } catch (error) {
+      // 10003 = Unknown channel
+      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+        this.logService.warn(
+          "Live tracker channel not found, likely finished",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["messageId", trackerState.liveMessageId],
+          ]),
+        );
+        await this.state.storage.deleteAlarm();
+        await this.state.storage.deleteAll();
+        return Response.json({ success: false, state: trackerState });
+      }
+
+      this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
+      this.handleError(trackerState, `Refresh failed: ${String(error)}`);
+      await this.setState(trackerState);
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  }
+
+  private async handleSubstitution(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { playerOutId, playerInId } = body as { playerOutId: string; playerInId: string };
+
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.status === "stopped") {
+      return new Response("Cannot process substitution for stopped tracker", { status: 400 });
+    }
+
+    try {
+      // Find which team the substituted player was on
+      let teamIndex = -1;
+      let playerIndex = -1;
+
+      for (const [tIndex, team] of trackerState.teams.entries()) {
+        const pIndex = team.players.findIndex((player) => player.user.id === playerOutId);
+        if (pIndex !== -1) {
+          teamIndex = tIndex;
+          playerIndex = pIndex;
+          break;
+        }
+      }
+
+      if (teamIndex === -1 || playerIndex === -1) {
+        this.logService.warn(
+          `Substitution player not found in teams`,
+          new Map([
+            ["playerOutId", playerOutId],
+            ["playerInId", playerInId],
+            ["queueNumber", trackerState.queueNumber.toString()],
+          ]),
+        );
+        return new Response("Player not found in teams", { status: 400 });
+      }
+
+      // Get the new player's information
+      const newPlayerUsers = await this.discordService.getUsers(trackerState.guildId, [playerInId]);
+      const [newPlayerMember] = newPlayerUsers;
+      if (!newPlayerMember) {
+        return new Response("New player not found", { status: 400 });
+      }
+
+      // Update the team with the new player
+      const targetTeam = trackerState.teams[teamIndex];
+      if (!targetTeam) {
+        return new Response("Team not found", { status: 400 });
+      }
+      targetTeam.players[playerIndex] = newPlayerMember;
+
+      // Record the substitution
+      trackerState.substitutions.push({
+        playerOutId,
+        playerInId,
+        teamIndex,
+        teamName: targetTeam.name, // Use the NeatQueue team name
+        timestamp: new Date().toISOString(),
+      });
+
+      await this.setState(trackerState);
+
+      this.logService.info(
+        `Processed substitution for queue ${trackerState.queueNumber.toString()}`,
+        new Map([
+          ["playerOutId", playerOutId],
+          ["playerInId", playerInId],
+          ["teamIndex", teamIndex.toString()],
+          ["teamName", targetTeam.name],
+        ]),
+      );
+
+      return Response.json({ success: true, substitution: { playerOutId, playerInId, teamIndex } });
+    } catch (error) {
+      this.logService.error("Failed to process substitution", new Map([["error", String(error)]]));
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  }
+
+  private async handleStatus(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    return Response.json({ state: trackerState });
+  }
+
+  private async getState(): Promise<LiveTrackerState | null> {
+    const state = await this.state.storage.get<LiveTrackerState>("trackerState");
+    return state ?? null;
+  }
+
+  private async setState(state: LiveTrackerState): Promise<void> {
+    await this.state.storage.put("trackerState", state);
+  }
+
+  /**
+   * Handle error with exponential backoff strategy
+   * Success: 3 minutes (normal interval)
+   * First error: 3 minutes (show warning in embed)
+   * Consecutive errors: 5 minutes → 10 minutes
+   * After 10 minutes of failures: Stop with error message
+   */
+  private handleError(trackerState: LiveTrackerState, errorMessage: string): void {
+    trackerState.errorState.consecutiveErrors += 1;
+    trackerState.errorState.lastErrorMessage = errorMessage;
+
+    if (trackerState.errorState.consecutiveErrors === 1) {
+      // First error: continue with 3 minutes (normal interval)
+      trackerState.errorState.backoffMinutes = FIRST_ERROR_INTERVAL_MINUTES;
+    } else {
+      // Consecutive errors: exponential backoff 5 → 10 minutes
+      trackerState.errorState.backoffMinutes = Math.min(
+        CONSECUTIVE_ERROR_INTERVAL_MINUTES * trackerState.errorState.consecutiveErrors,
+        MAX_BACKOFF_INTERVAL_MINUTES,
+      );
+    }
+
+    this.logService.warn(
+      `Error in live tracker, backoff: ${trackerState.errorState.backoffMinutes.toString()} minutes`,
+      new Map([
+        ["consecutiveErrors", trackerState.errorState.consecutiveErrors.toString()],
+        ["errorMessage", errorMessage],
+        ["queueNumber", trackerState.queueNumber.toString()],
+      ]),
+    );
+  }
+
+  /**
+   * Handle success - reset error state
+   */
+  private handleSuccess(trackerState: LiveTrackerState): void {
+    trackerState.errorState.consecutiveErrors = 0;
+    trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
+    trackerState.errorState.lastSuccessTime = new Date().toISOString();
+    trackerState.errorState.lastErrorMessage = undefined;
+  }
+
+  /**
+   * Check if tracker should stop due to persistent errors
+   */
+  private shouldStopDueToErrors(trackerState: LiveTrackerState): boolean {
+    if (trackerState.errorState.consecutiveErrors === 0) {
+      return false;
+    }
+
+    const errorDurationMinutes = trackerState.errorState.backoffMinutes * trackerState.errorState.consecutiveErrors;
+    return errorDurationMinutes >= ERROR_THRESHOLD_MINUTES;
+  }
+
+  /**
+   * Get next alarm interval based on error state
+   */
+  private getNextAlarmInterval(trackerState: LiveTrackerState): number {
+    if (trackerState.errorState.consecutiveErrors === 0) {
+      return ALARM_INTERVAL_MS;
+    }
+
+    // Convert backoff minutes to milliseconds, subtract execution buffer
+    return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
+  }
+
+  /**
+   * Fetch and merge series data, storing enriched matches in state
+   * This handles substitutions by maintaining all discovered matches
+   */
+  private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<EnrichedMatchData[]> {
+    try {
+      // Start with current team compositions
+      const teams = trackerState.teams.map((team) =>
+        team.players.map((player) => ({
+          id: player.user.id,
+          username: player.user.username,
+          globalName: player.user.global_name ?? null,
+          guildNickname: player.nick ?? null,
+        })),
+      );
+
+      // If we have substitutions, we need to get info for substituted out players
+      // and create extended teams to ensure we find all matches
+      if (trackerState.substitutions.length > 0) {
+        const substitutedOutPlayerIds = trackerState.substitutions.map((sub) => sub.playerOutId);
+        const substitutedOutUsers = await this.discordService.getUsers(trackerState.guildId, substitutedOutPlayerIds);
+
+        // Create extended teams that include all players who have participated
+        const extendedTeams = teams.map((team, teamIndex) => {
+          const teamPlayers = [...team];
+
+          // Add substituted out players from this team to ensure we find their matches
+          for (const substitution of trackerState.substitutions) {
+            if (substitution.teamIndex === teamIndex) {
+              const substitutedOutUser = substitutedOutUsers.find((user) => user.user.id === substitution.playerOutId);
+              if (substitutedOutUser) {
+                teamPlayers.push({
+                  id: substitutedOutUser.user.id,
+                  username: substitutedOutUser.user.username,
+                  globalName: substitutedOutUser.user.global_name ?? null,
+                  guildNickname: substitutedOutUser.nick ?? null,
+                });
+              }
+            }
+          }
+
+          return teamPlayers;
+        });
+
+        const startDateTime = new Date(trackerState.queueStartTime);
+        const endDateTime = new Date();
+
+        const matches = await this.haloService.getSeriesFromDiscordQueue(
+          {
+            teams: extendedTeams,
+            startDateTime,
+            endDateTime,
+          },
+          true,
+        );
+
+        // Create enriched data for new matches and merge with stored matches
+        await this.enrichAndMergeMatches(trackerState, matches);
+      } else {
+        // No substitutions, use normal logic
+        const startDateTime = new Date(trackerState.queueStartTime);
+        const endDateTime = new Date();
+
+        const matches = await this.haloService.getSeriesFromDiscordQueue(
+          {
+            teams,
+            startDateTime,
+            endDateTime,
+          },
+          true,
+        );
+
+        // Create enriched data for new matches and merge with stored matches
+        await this.enrichAndMergeMatches(trackerState, matches);
+      }
+
+      // Return all discovered matches as an array, sorted by match time
+      return Object.values(trackerState.discoveredMatches);
+    } catch (error) {
+      if (error instanceof EndUserError && error.message === "No matches found for the series") {
+        // Return stored matches if available, empty array otherwise
+        return Object.values(trackerState.discoveredMatches);
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
+  /**
+   * Enrich match data and merge with stored matches, deduping by matchId
+   */
+  private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
+    for (const match of matches) {
+      // Skip if we already have this match
+      if (trackerState.discoveredMatches[match.MatchId] != null) {
+        continue;
+      }
+
+      // Store the raw match for series score calculation
+      trackerState.rawMatches[match.MatchId] = match;
+
+      let gameTypeAndMap = "Unknown Map and mode";
+      try {
+        gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
+      } catch (error) {
+        this.logService.warn(
+          "Failed to get gameType and Map",
+          new Map([
+            ["matchId", match.MatchId],
+            ["error", String(error)],
+          ]),
+        );
+      }
+
+      const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const gameScore = this.haloService.getMatchScore(match, "en-US");
+
+      const enrichedMatch: EnrichedMatchData = {
+        matchId: match.MatchId,
+        gameTypeAndMap,
+        gameDuration,
+        gameScore,
+      };
+
+      // Store the enriched match
+      trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
+    }
+  }
+}

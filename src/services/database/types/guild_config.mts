@@ -26,6 +26,7 @@ export interface GuildConfigRow {
   StatsReturn: StatsReturnType;
   Medals: "Y" | "N";
   NeatQueueInformerPlayerConnections: "Y" | "N";
+  NeatQueueInformerLiveTracking: "Y" | "N";
   NeatQueueInformerMapsPost: MapsPostType;
   NeatQueueInformerMapsPlaylist: MapsPlaylistType;
   NeatQueueInformerMapsFormat: MapsFormatType;

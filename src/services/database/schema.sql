@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS GuildConfig (
     StatsReturn CHAR(1) CHECK(StatsReturn IN ('S', 'A')) NOT NULL DEFAULT 'S',
     Medals CHAR(1) CHECK(Medals IN ('Y', 'N')) NOT NULL DEFAULT 'Y',
     NeatQueueInformerPlayerConnections CHAR(1) CHECK(NeatQueueInformerPlayerConnections IN ('Y', 'N')) NOT NULL DEFAULT 'Y',
+    NeatQueueInformerLiveTracking CHAR(1) CHECK(NeatQueueInformerLiveTracking IN ('Y', 'N')) NOT NULL DEFAULT 'N',
     NeatQueueInformerMapsPost CHAR(1) CHECK(NeatQueueInformerMapsPost IN ('A', 'B', 'O')) NOT NULL DEFAULT 'B',
     NeatQueueInformerMapsPlaylist CHAR(1) CHECK(NeatQueueInformerMapsPlaylist IN ('C', 'H')) NOT NULL DEFAULT 'C',
     NeatQueueInformerMapsFormat CHAR(1) CHECK(NeatQueueInformerMapsFormat IN ('H', 'R', 'O', 'S')) NOT NULL DEFAULT 'H',

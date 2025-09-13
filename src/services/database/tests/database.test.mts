@@ -125,6 +125,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
+        NeatQueueInformerLiveTracking: "N",
       });
     });
 
@@ -255,6 +256,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
+        NeatQueueInformerLiveTracking: "N",
       };
       vi.spyOn(fakeGetPreparedStatement, "first").mockResolvedValue(initialConfig);
       await databaseService.getGuildConfig(guildId);
@@ -278,6 +280,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsPlaylist: MapsPlaylistType.HCS_CURRENT,
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
+        NeatQueueInformerLiveTracking: "N",
       });
     });
   });

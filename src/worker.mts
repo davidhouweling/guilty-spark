@@ -4,6 +4,9 @@ import { installServices } from "./services/install.mjs";
 import { getCommands } from "./commands/commands.mjs";
 import { Server } from "./server.mjs";
 
+// Export Durable Object classes
+export { LiveTrackerDO } from "./durable-objects/live-tracker-do.mjs";
+
 const server = new Server({
   router: AutoRouter(),
   installServices,

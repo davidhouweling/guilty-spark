@@ -76,6 +76,7 @@ export enum InteractionComponent {
   NeatQueueIntegrationEditChannelDelete = "setup_neat_queue_edit_delete",
   NeatQueueIntegrationEditChannelBack = "setup_neat_queue_edit_channel_back",
   NeatQueueInformerPlayersOnStart = "setup_neat_queue_informer_players_on_start",
+  NeatQueueInformerLiveTracking = "setup_neat_queue_informer_live_tracking",
   NeatQueueInformerMaps = "setup_neat_queue_informer_maps",
   NeatQueueInformerMapsPost = "setup_neat_queue_informer_maps_post",
   NeatQueueInformerMapsPlaylist = "setup_neat_queue_informer_maps_playlist",
@@ -335,6 +336,16 @@ const ActionButtons = new Map<InteractionComponent, APIButtonComponentWithCustom
     },
   ],
   [
+    InteractionComponent.NeatQueueInformerLiveTracking,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
+      label: "Toggle Live Tracking",
+      style: ButtonStyle.Primary,
+      emoji: { name: "📊" },
+    },
+  ],
+  [
     InteractionComponent.NeatQueueInformerMaps,
     {
       type: ComponentType.Button,
@@ -522,6 +533,13 @@ export class SetupCommand extends BaseCommand {
       data: {
         component_type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueInformerPlayersOnStart,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
       },
     },
     {
@@ -810,6 +828,15 @@ export class SetupCommand extends BaseCommand {
             this.setupNeatQueueInformerTogglePlayerConnectionsJob(interaction as APIMessageComponentButtonInteraction),
         };
       }
+      case InteractionComponent.NeatQueueInformerLiveTracking: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
+            this.setupNeatQueueInformerToggleLiveTrackingJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
       case InteractionComponent.NeatQueueInformerMaps: {
         return {
           response: {
@@ -878,7 +905,7 @@ export class SetupCommand extends BaseCommand {
       const configDisplay = [
         `**Stats Display Mode:** ${statsDisplays.join(", ")}`,
         `**NeatQueue Integrations:** ${neatQueueIntegrationsCount}`,
-        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
+        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Live tracking ${config.NeatQueueInformerLiveTracking == "Y" ? "enabled" : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
       ].join("\n");
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -1131,6 +1158,7 @@ export class SetupCommand extends BaseCommand {
       ].join("\n");
       const configDisplay = [
         `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
+        `**Live Tracking:** ${config.NeatQueueInformerLiveTracking === "Y" ? "Enabled" : "Disabled"}`,
         `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} maps`,
       ].join("\n");
 
@@ -1153,6 +1181,7 @@ export class SetupCommand extends BaseCommand {
             type: ComponentType.ActionRow,
             components: [
               this.getActionButton(InteractionComponent.NeatQueueInformerPlayersOnStart),
+              this.getActionButton(InteractionComponent.NeatQueueInformerLiveTracking),
               this.getActionButton(InteractionComponent.NeatQueueInformerMaps),
             ],
           },
@@ -1911,6 +1940,23 @@ export class SetupCommand extends BaseCommand {
     try {
       await databaseService.updateGuildConfig(guildId, {
         NeatQueueInformerPlayerConnections: config.NeatQueueInformerPlayerConnections === "Y" ? "N" : "Y",
+      });
+      await this.setupSelectNeatQueueInformerJob(interaction);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async setupNeatQueueInformerToggleLiveTrackingJob(
+    interaction: APIMessageComponentButtonInteraction,
+  ): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const config = await databaseService.getGuildConfig(guildId, true);
+
+    try {
+      await databaseService.updateGuildConfig(guildId, {
+        NeatQueueInformerLiveTracking: config.NeatQueueInformerLiveTracking === "Y" ? "N" : "Y",
       });
       await this.setupSelectNeatQueueInformerJob(interaction);
     } catch (error) {

@@ -1327,6 +1327,92 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getSeriesScore()", () => {
+    it("returns default score for empty matches array", () => {
+      const result = haloService.getSeriesScore([], "en-US");
+
+      expect(result).toBe("🦅 0:0 🐍");
+    });
+
+    it("calculates series score from single match", () => {
+      const matches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+      const result = haloService.getSeriesScore(matches, "en-US");
+
+      expect(result).toBe("🦅 1:0 🐍");
+    });
+
+    it("calculates series score from multiple matches", () => {
+      const matches = [
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
+        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")), // Team 1 wins
+      ];
+      const result = haloService.getSeriesScore(matches, "en-US");
+
+      expect(result).toBe("🦅 2:1 🐍");
+    });
+
+    it("skips duplicate matches of same map and game type", () => {
+      const ctfMatch = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const duplicateCtfMatch = {
+        ...ctfMatch,
+        MatchId: "duplicate-ctf-match",
+        // Same map variant and game variant category
+      };
+
+      const matches = [ctfMatch, duplicateCtfMatch];
+      const result = haloService.getSeriesScore(matches, "en-US");
+
+      // Should only count the first match, skip the duplicate
+      expect(result).toBe("🦅 1:0 🐍");
+    });
+
+    it("counts separate matches of different maps or game types", () => {
+      const matches = [
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (CTF)
+        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (KOTH)
+      ];
+      const result = haloService.getSeriesScore(matches, "en-US");
+
+      expect(result).toBe("🦅 2:0 🐍");
+    });
+
+    it("formats score with locale", () => {
+      const matches = [
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
+        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
+      ];
+      const result = haloService.getSeriesScore(matches, "de-DE");
+
+      expect(result).toBe("🦅 2:0 🐍");
+    });
+
+    it("handles more than 2 teams", () => {
+      // Create a mock match with 3 teams where team 1 wins
+      const multiTeamMatch = {
+        ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Teams: [
+          {
+            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            Outcome: MatchOutcome.Loss,
+          },
+          {
+            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[1]),
+            Outcome: MatchOutcome.Win,
+          },
+          {
+            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            Outcome: MatchOutcome.Loss,
+          },
+        ],
+      };
+
+      const result = haloService.getSeriesScore([multiTeamMatch], "en-US");
+
+      expect(result).toBe("0:1:0");
+    });
+  });
+
   describe("getTeamName()", () => {
     it.each([
       { teamId: 0, teamName: "Eagle" },

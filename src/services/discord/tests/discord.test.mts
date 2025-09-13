@@ -457,10 +457,10 @@ describe("DiscordService", () => {
     });
   });
 
-  describe("getTeamsFromQueue()", () => {
+  describe("getTeamsFromQueueResult()", () => {
     it("returns QueueData of the found queue", async () => {
       const result = Preconditions.checkExists(
-        await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 7),
+        await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7),
       );
       const queueMessage = Preconditions.checkExists(channelMessages[1]);
 
@@ -487,9 +487,176 @@ describe("DiscordService", () => {
     });
 
     it("returns null if no queue is found", async () => {
-      const result = await discordService.getTeamsFromQueue("fake-guild-id", "fake-channel", 1000);
+      const result = await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("getTeamsFromQueueChannel()", () => {
+    const activeTeamsMessages = [
+      {
+        id: "1234567890123456789",
+        type: 0,
+        content: "",
+        channel_id: "fake-channel",
+        author: {
+          id: "857633321064595466", // NEAT_QUEUE_BOT_USER_ID
+          username: "NeatQueue",
+          discriminator: "0",
+          avatar: null,
+          bot: true,
+          system: false,
+          mfa_enabled: false,
+          banner: null,
+          accent_color: null,
+          locale: "en-US",
+          verified: true,
+          email: null,
+          flags: 0,
+          premium_type: 0,
+          public_flags: 0,
+        },
+        attachments: [],
+        embeds: [
+          {
+            type: "rich",
+            title: "⚔️ Queue#4680",
+            color: 5814783,
+            timestamp: "2024-12-06T12:00:00.000Z",
+            fields: [
+              {
+                name: "__Eagle__",
+                value: "<@000000000000000001>\n<@000000000000000002>\n<@000000000000000003>\n<@000000000000000004>",
+                inline: true,
+              },
+              {
+                name: "__Cobra__",
+                value: "<@000000000000000005>\n<@000000000000000006>\n<@000000000000000007>\n<@000000000000000008>",
+                inline: true,
+              },
+            ],
+          },
+        ],
+        mentions: [],
+        mention_roles: [],
+        pinned: false,
+        mention_everyone: false,
+        tts: false,
+        timestamp: "2024-12-06T12:00:00.000Z",
+        edited_timestamp: null,
+        flags: 0,
+        components: [],
+        webhook_id: null,
+      },
+    ];
+
+    it("returns QueueData for active teams message", async () => {
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const result = Preconditions.checkExists(
+        await discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel"),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages?limit=100", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+        queryParameters: {
+          limit: 100,
+        },
+      });
+
+      expect(result.queue).toEqual(4680);
+      expect(result.timestamp).toEqual(new Date("2024-12-06T12:00:00.000Z"));
+      expect(result.teams).toHaveLength(2);
+      expect(result.teams[0]?.name).toBe("Eagle"); // Cleaned (removed __)
+      expect(result.teams[0]?.players).toHaveLength(4);
+      expect(result.teams[1]?.name).toBe("Cobra"); // Cleaned (removed __)
+      expect(result.teams[1]?.players).toHaveLength(4);
+    });
+
+    it("throws error if no NeatQueue messages found", async () => {
+      const nonNeatQueueMessages = [
+        {
+          ...apiMessage,
+          author: {
+            ...apiMessage.author,
+            id: "different-bot-id",
+            bot: true,
+          },
+        },
+      ];
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(nonNeatQueueMessages), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel")).rejects.toThrow(
+        "This channel doesn't appear to be a NeatQueue channel. No messages from NeatQueue found.",
+      );
+    });
+
+    it("throws error if no active teams message found", async () => {
+      const messagesWithoutActiveTeams = [
+        {
+          ...channelMessages[0],
+          author: {
+            ...channelMessages[0]?.author,
+            id: "857633321064595466", // NEAT_QUEUE_BOT_USER_ID
+            bot: true,
+          },
+        },
+      ];
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(messagesWithoutActiveTeams), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel")).rejects.toThrow(
+        "No active queue found in this channel. Try again after teams have been assigned.",
+      );
+    });
+
+    it("throws error if queue number cannot be extracted", async () => {
+      const invalidTeamsMessage = [
+        {
+          ...activeTeamsMessages[activeTeamsMessages.length - 1],
+          embeds: [
+            {
+              ...activeTeamsMessages[activeTeamsMessages.length - 1]?.embeds[0],
+              title: "⚔️ Queue#0", // Will match pattern but extract as 0 (invalid)
+            },
+          ],
+        },
+      ];
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(invalidTeamsMessage), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      await expect(discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel")).rejects.toThrow(
+        "Could not extract queue number from active teams message.",
+      );
     });
   });
 
