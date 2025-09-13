@@ -74,7 +74,7 @@ Users link their Discord account to Xbox gamertag for automatic stat retrieval:
 
 ### `/stats` - Retrieve Match Statistics
 
-Primary command for accessing Halo match data with multiple modes:
+Access stats data for a previously played NeatQueue series:
 
 #### NeatQueue Series Stats
 
@@ -164,7 +164,7 @@ Guilty Spark provides deep integration with NeatQueue tournament management syst
 - **Channel Messages**: New messages in results channel or dedicated stats channel
 - **Live Updates**: Real-time series overview during active matches
 
-### 🔴 Live Tracker - Real-Time Match Updates
+### 🟢 Live Tracker - Real-Time Match Updates
 
 **Automated real-time tracking** for ongoing NeatQueue series with comprehensive match monitoring.
 
@@ -179,38 +179,8 @@ Guilty Spark provides deep integration with NeatQueue tournament management syst
 #### User Interface Example
 
 ```
-🟢 Live Tracker - Queue #123
-Live tracking active
-
-Game 1: Slayer: Recharge           4:32    50:49 (🦅:🐍)
-Game 2: Strongholds: Live Fire     6:15    250:240 (🦅:🐍)
-
-Series score: 🦅 1:1 🐍
-Last updated: Today at 2:30 PM
-Next check: in 3 minutes
-
-🔄 Substitutions
-@NewPlayer subbed in for @OriginalPlayer
-
-🟢 Pause    🔄 Refresh    ⏹️ Stop
+// TODO: screenshot here
 ```
-
-#### Substitution Handling
-
-**Automatic Processing:**
-
-1. **Detection**: NeatQueue webhooks trigger substitution events
-2. **Team Updates**: Roster changes reflected in live tracking
-3. **Historical Preservation**: Complete match history maintained across changes
-4. **Chronological Display**: Substitutions interleaved with match timeline
-5. **Data Persistence**: All discovered matches preserved to prevent loss
-
-#### Error Handling Strategy
-
-- **First Error**: Warning display, continues normal 3-minute intervals
-- **Consecutive Errors**: Increased retry intervals (5→10 minutes)
-- **Persistent Failures**: Automatic stop after 10 minutes of failures
-- **API Outages**: Last known data displayed while services recover
 
 ### NeatQueue Informer
 
@@ -227,18 +197,6 @@ Next check: in 3 minutes
 
 - View Channel and Send Messages permissions
 - Enabled via `/setup` → "Configure NeatQueue Informer"
-- **Persistent Failures**: Automatically stops after 10 minutes of failures
-- **API Outages**: Uses last known data while APIs are unavailable
-
-#### Substitutions During Live Tracking
-
-When player substitutions occur during a live series:
-
-1. **Automatic Detection**: Live Tracker receives substitution events from NeatQueue
-2. **Team Update**: Updates team composition to include new players
-3. **Historical Preservation**: Continues tracking matches from substituted players
-4. **Visual Indication**: Shows substitution information in the embed
-5. **Series Continuity**: Maintains complete series history across roster changes
 
 #### Permissions Required
 
@@ -259,12 +217,6 @@ When player substitutions occur during a live series:
 - Confirm webhook configuration and secret match NeatQueue settings
 - Verify channel mapping in `/setup`
 - Check that results messages contain expected Discord user mentions
-
-**Substitution Tracking:**
-
-- Substitutions handled automatically via NeatQueue webhooks
-- Manual refresh available if real-time updates fail
-- Complete match history preserved across roster changes
 
 ## 🛠️ Development Setup
 
