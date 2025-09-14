@@ -12,10 +12,11 @@ import { BaseTableEmbed } from "./base-table-embed.mjs";
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
 
 export enum InteractionComponent {
+  Refresh = "btn_track_refresh",
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Stop = "btn_track_stop",
-  Refresh = "btn_track_refresh",
+  Repost = "btn_track_repost",
 }
 
 export type TrackingStatus = "active" | "paused" | "stopped";
@@ -213,6 +214,16 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     const { status, isPaused } = this.data;
     const components: APIButtonComponentWithCustomId[] = [];
 
+    if (status !== "stopped") {
+      components.push({
+        type: ComponentType.Button,
+        custom_id: InteractionComponent.Refresh,
+        label: "Refresh Now",
+        style: ButtonStyle.Primary,
+        emoji: { name: "🔄" },
+      });
+    }
+
     if (status === "active" && !isPaused) {
       components.push({
         type: ComponentType.Button,
@@ -228,18 +239,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         type: ComponentType.Button,
         custom_id: InteractionComponent.Resume,
         label: "Resume",
-        style: ButtonStyle.Success,
-        emoji: { name: "▶️" },
-      });
-    }
-
-    if (status !== "stopped") {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Refresh,
-        label: "Refresh Now",
         style: ButtonStyle.Primary,
-        emoji: { name: "🔄" },
+        emoji: { name: "▶️" },
       });
     }
 
@@ -253,14 +254,34 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       });
     }
 
-    return components.length > 0
-      ? [
+    const actions: APIMessageTopLevelComponent[] =
+      components.length > 0
+        ? [
+            {
+              type: ComponentType.ActionRow,
+              components,
+            },
+          ]
+        : [];
+
+    if (actions.length > 0) {
+      actions.push({
+        type: ComponentType.ActionRow,
+        components: [
           {
-            type: ComponentType.ActionRow,
-            components,
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Repost,
+            label: "Move to bottom of chat",
+            style: ButtonStyle.Secondary,
+            emoji: {
+              name: "⏬",
+            },
           },
-        ]
-      : [];
+        ],
+      });
+    }
+
+    return actions;
   }
 
   toMessageData(): APIInteractionResponseCallbackData {

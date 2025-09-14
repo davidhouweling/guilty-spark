@@ -6,6 +6,7 @@
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
   "chat.tools.terminal.autoApprove": {
     "/npm run (lint|format|test|build|typecheck)/": true,
+    "/npm test/": true,
     "rm": false,
     "rmdir": false,
     "del": false,

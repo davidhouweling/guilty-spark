@@ -27,6 +27,7 @@ export interface GuildConfigRow {
   Medals: "Y" | "N";
   NeatQueueInformerPlayerConnections: "Y" | "N";
   NeatQueueInformerLiveTracking: "Y" | "N";
+  NeatQueueInformerLiveTrackingChannelName: "Y" | "N";
   NeatQueueInformerMapsPost: MapsPostType;
   NeatQueueInformerMapsPlaylist: MapsPlaylistType;
   NeatQueueInformerMapsFormat: MapsFormatType;

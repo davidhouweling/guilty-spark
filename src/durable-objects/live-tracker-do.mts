@@ -1,8 +1,10 @@
-import type { APIGuildMember } from "discord-api-types/v10";
+import type { APIGuildMember, APIChannel } from "discord-api-types/v10";
+import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
+import type { DatabaseService } from "../services/database/database.mjs";
 import { installServices as installServicesImpl } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
@@ -77,20 +79,30 @@ export interface LiveTrackerState {
     averageCheckDurationMs?: number;
     lastCheckDurationMs?: number;
   };
+  lastMessageState: {
+    matchCount: number;
+    substitutionCount: number;
+  };
+  // Cached permission check result
+  channelManagePermissionCache?: boolean;
 }
 
 export class LiveTrackerDO {
   private readonly state: DurableObjectState;
+  private readonly env: Env;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
+  private readonly databaseService: DatabaseService;
 
   constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
+    this.env = env;
     const services = installServices({ env });
     this.logService = services.logService;
     this.discordService = services.discordService;
     this.haloService = services.haloService;
+    this.databaseService = services.databaseService;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -228,23 +240,15 @@ export class LiveTrackerDO {
               isPaused: false,
               lastUpdated: currentTime,
               nextCheck: nextCheckTime,
-              enrichedMatches: enrichedMatches,
+              enrichedMatches,
               seriesScore,
               substitutions: trackerState.substitutions,
               errorState: trackerState.errorState,
             },
           );
 
-          await this.discordService.editMessage(
-            trackerState.channelId,
-            trackerState.liveMessageId,
-            liveTrackerEmbed.toMessageData(),
-          );
-
-          this.logService.info(
-            `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
-            new Map([["messageId", trackerState.liveMessageId]]),
-          );
+          await this.updateChannelName(trackerState, seriesScore, false);
+          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
         } catch (error) {
           // 10003 = Unknown channel
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
@@ -327,6 +331,10 @@ export class LiveTrackerDO {
         totalMatches: 0,
         totalErrors: 0,
       },
+      lastMessageState: {
+        matchCount: 0,
+        substitutionCount: 0,
+      },
     };
 
     await this.setState(trackerState);
@@ -360,6 +368,7 @@ export class LiveTrackerDO {
         },
       );
 
+      await this.updateChannelName(trackerState, seriesScore, true);
       await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
 
       this.logService.info(
@@ -443,6 +452,7 @@ export class LiveTrackerDO {
       return new Response("Not Found", { status: 404 });
     }
 
+    await this.resetChannelName(trackerState);
     await this.state.storage.deleteAlarm();
     await this.state.storage.deleteAll();
 
@@ -489,19 +499,8 @@ export class LiveTrackerDO {
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
 
-        await this.discordService.editMessage(
-          trackerState.channelId,
-          trackerState.liveMessageId,
-          liveTrackerEmbed.toMessageData(),
-        );
-
-        this.logService.info(
-          `Manually refreshed live tracker message for queue ${trackerState.queueNumber.toString()}`,
-          new Map([
-            ["messageId", trackerState.liveMessageId],
-            ["checkCount", trackerState.checkCount.toString()],
-          ]),
-        );
+        await this.updateChannelName(trackerState, seriesScore, false);
+        await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
       }
 
       return Response.json({ success: true, state: trackerState });
@@ -818,6 +817,224 @@ export class LiveTrackerDO {
 
       // Store the enriched match
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
+    }
+  }
+
+  private hasNewMatchesOrSubstitutions(trackerState: LiveTrackerState): boolean {
+    const currentMatchCount = Object.keys(trackerState.discoveredMatches).length;
+    const currentSubstitutionCount = trackerState.substitutions.length;
+
+    return (
+      currentMatchCount > trackerState.lastMessageState.matchCount ||
+      currentSubstitutionCount > trackerState.lastMessageState.substitutionCount
+    );
+  }
+
+  private async updateLiveTrackerMessage(
+    trackerState: LiveTrackerState,
+    liveTrackerEmbed: LiveTrackerEmbed,
+  ): Promise<void> {
+    if (this.hasNewMatchesOrSubstitutions(trackerState)) {
+      const newMessage = await this.discordService.createMessage(
+        trackerState.channelId,
+        liveTrackerEmbed.toMessageData(),
+      );
+
+      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+        try {
+          await this.discordService.deleteMessage(
+            trackerState.channelId,
+            trackerState.liveMessageId,
+            "Replaced with updated live tracker message",
+          );
+        } catch (deleteError) {
+          this.logService.warn(
+            "Failed to delete old live tracker message",
+            new Map([
+              ["oldMessageId", trackerState.liveMessageId],
+              ["error", String(deleteError)],
+            ]),
+          );
+        }
+      }
+
+      trackerState.liveMessageId = newMessage.id;
+
+      this.logService.info(
+        `Created new live tracker message for queue ${trackerState.queueNumber.toString()} (new matches/substitutions detected)`,
+        new Map([
+          ["newMessageId", newMessage.id],
+          ["matchCount", Object.keys(trackerState.discoveredMatches).length.toString()],
+          ["substitutionCount", trackerState.substitutions.length.toString()],
+        ]),
+      );
+    } else if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+      await this.discordService.editMessage(
+        trackerState.channelId,
+        trackerState.liveMessageId,
+        liveTrackerEmbed.toMessageData(),
+      );
+
+      this.logService.info(
+        `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        new Map([["messageId", trackerState.liveMessageId]]),
+      );
+    }
+
+    trackerState.lastMessageState.matchCount = Object.keys(trackerState.discoveredMatches).length;
+    trackerState.lastMessageState.substitutionCount = trackerState.substitutions.length;
+  }
+
+  private async checkChannelManagePermission(trackerState: LiveTrackerState, channel: APIChannel): Promise<boolean> {
+    if (trackerState.channelManagePermissionCache != null) {
+      return trackerState.channelManagePermissionCache;
+    }
+
+    try {
+      const [guild, appInGuild] = await Promise.all([
+        this.discordService.getGuild(trackerState.guildId),
+        this.discordService.getGuildMember(trackerState.guildId, this.env.DISCORD_APP_ID),
+      ]);
+
+      const permissions = this.discordService.hasPermissions(guild, channel, appInGuild, [
+        PermissionFlagsBits.ManageChannels,
+      ]);
+
+      trackerState.channelManagePermissionCache = permissions.hasAll;
+
+      if (!permissions.hasAll) {
+        this.logService.info(
+          "Bot lacks ManageChannels permission, disabling channel name updates",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["guildId", trackerState.guildId],
+          ]),
+        );
+
+        await this.databaseService.updateGuildConfig(trackerState.guildId, {
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+      }
+
+      return trackerState.channelManagePermissionCache;
+    } catch (error) {
+      this.logService.warn(
+        "Failed to check permissions for channel name updates",
+        new Map([
+          ["error", String(error)],
+          ["channelId", trackerState.channelId],
+        ]),
+      );
+      // Cache false on error to avoid repeated failures
+      trackerState.channelManagePermissionCache = false;
+      return false;
+    }
+  }
+
+  private async updateChannelName(trackerState: LiveTrackerState, seriesScore: string, force: boolean): Promise<void> {
+    if (!force && !this.hasNewMatchesOrSubstitutions(trackerState)) {
+      return;
+    }
+
+    try {
+      const guildConfig = await this.databaseService.getGuildConfig(trackerState.guildId);
+      if (guildConfig.NeatQueueInformerLiveTrackingChannelName !== "Y") {
+        return;
+      }
+
+      const channel = await this.discordService.getChannel(trackerState.channelId);
+      if (channel.type === ChannelType.DM || channel.type === ChannelType.GroupDM) {
+        return;
+      }
+
+      const hasPermission = await this.checkChannelManagePermission(trackerState, channel);
+      if (!hasPermission) {
+        return;
+      }
+
+      await this.setState(trackerState);
+
+      const { name } = channel;
+      const baseChannelName = name.replace(/ \([^)]+\)$/, "");
+      const newChannelName = `${baseChannelName} (${seriesScore})`;
+      if (name !== newChannelName) {
+        await this.discordService.updateChannel(trackerState.channelId, {
+          name: newChannelName,
+          reason: `Live Tracker: Updated series score to ${seriesScore}`,
+        });
+
+        this.logService.info(
+          `Updated channel name for queue ${trackerState.queueNumber.toString()}`,
+          new Map([
+            ["oldName", name],
+            ["newName", newChannelName],
+            ["seriesScore", seriesScore],
+          ]),
+        );
+      }
+    } catch (error) {
+      if (error instanceof DiscordError && error.restError.code === 50001) {
+        this.logService.info(
+          "Failed to update channel name due to insufficient permissions",
+          new Map([
+            ["channelId", trackerState.channelId],
+            ["error", error.message],
+          ]),
+        );
+
+        await this.databaseService.updateGuildConfig(trackerState.guildId, {
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        return;
+      }
+
+      this.logService.error(
+        "Failed to update channel name",
+        new Map([
+          ["channelId", trackerState.channelId],
+          ["error", String(error)],
+        ]),
+      );
+    }
+  }
+
+  private async resetChannelName(trackerState: LiveTrackerState): Promise<void> {
+    try {
+      const guildConfig = await this.databaseService.getGuildConfig(trackerState.guildId);
+      if (guildConfig.NeatQueueInformerLiveTrackingChannelName !== "Y") {
+        return;
+      }
+
+      const channel = await this.discordService.getChannel(trackerState.channelId);
+      if (channel.type === ChannelType.DM || channel.type === ChannelType.GroupDM) {
+        return;
+      }
+
+      const { name } = channel;
+      const baseChannelName = name.replace(/ \([^)]+\)$/, "");
+      if (name !== baseChannelName) {
+        await this.discordService.updateChannel(trackerState.channelId, {
+          name: baseChannelName,
+          reason: "Live Tracker: Stopped - removed series score",
+        });
+
+        this.logService.info(
+          `Reset channel name for queue ${trackerState.queueNumber.toString()}`,
+          new Map([
+            ["oldName", name],
+            ["newName", baseChannelName],
+          ]),
+        );
+      }
+    } catch (error) {
+      this.logService.warn(
+        "Failed to reset channel name",
+        new Map([
+          ["channelId", trackerState.channelId],
+          ["error", String(error)],
+        ]),
+      );
     }
   }
 }

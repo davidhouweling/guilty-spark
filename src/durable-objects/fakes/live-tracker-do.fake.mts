@@ -61,6 +61,10 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
         totalMatches: 0,
         totalErrors: 0,
       },
+      lastMessageState: {
+        matchCount: 0,
+        substitutionCount: 0,
+      },
     },
   };
 

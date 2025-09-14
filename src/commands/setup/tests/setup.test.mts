@@ -221,7 +221,7 @@ describe("SetupCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
 
-      it("enables NeatQueueInformerLiveTracking when live tracking button is pressed and currently disabled", async () => {
+      it("enables NeatQueueInformerLiveTracking when live tracking toggle button is pressed and currently disabled", async () => {
         const mockConfig = aFakeGuildConfigRow({
           NeatQueueInformerLiveTracking: "N",
         });
@@ -234,7 +234,7 @@ describe("SetupCommand", () => {
           type: InteractionType.MessageComponent,
           data: {
             component_type: ComponentType.Button,
-            custom_id: "setup_neat_queue_informer_live_tracking",
+            custom_id: "setup_neat_queue_informer_live_tracking_toggle",
           },
         } as APIMessageComponentButtonInteraction;
 
@@ -245,7 +245,7 @@ describe("SetupCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
 
-      it("disables NeatQueueInformerLiveTracking when live tracking button is pressed and currently enabled", async () => {
+      it("disables NeatQueueInformerLiveTracking when live tracking toggle button is pressed and currently enabled", async () => {
         const mockConfig = aFakeGuildConfigRow({
           NeatQueueInformerLiveTracking: "Y",
         });
@@ -258,14 +258,17 @@ describe("SetupCommand", () => {
           type: InteractionType.MessageComponent,
           data: {
             component_type: ComponentType.Button,
-            custom_id: "setup_neat_queue_informer_live_tracking",
+            custom_id: "setup_neat_queue_informer_live_tracking_toggle",
           },
         } as APIMessageComponentButtonInteraction;
 
         const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
         await Preconditions.checkExists(liveTrackingJob)();
 
-        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { NeatQueueInformerLiveTracking: "N" });
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
+          NeatQueueInformerLiveTracking: "N",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
 
@@ -287,7 +290,7 @@ describe("SetupCommand", () => {
           type: InteractionType.MessageComponent,
           data: {
             component_type: ComponentType.Button,
-            custom_id: "setup_neat_queue_informer_live_tracking",
+            custom_id: "setup_neat_queue_informer_live_tracking_toggle",
           },
         } as APIMessageComponentButtonInteraction;
 
@@ -296,6 +299,275 @@ describe("SetupCommand", () => {
 
         expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", { NeatQueueInformerLiveTracking: "Y" });
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", new Error("Database error"));
+      });
+
+      it("enables NeatQueueInformerLiveTrackingChannelName when channel name button is pressed and currently disabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+        const updateGuildConfigSpy = vi.spyOn(services.databaseService, "updateGuildConfig").mockResolvedValue();
+
+        const channelNameButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking_channel_name",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: channelNameJob } = setupCommand.execute(channelNameButtonInteraction);
+        await Preconditions.checkExists(channelNameJob)();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+      });
+
+      it("disables NeatQueueInformerLiveTrackingChannelName when channel name button is pressed and currently enabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+        const updateGuildConfigSpy = vi.spyOn(services.databaseService, "updateGuildConfig").mockResolvedValue();
+
+        const channelNameButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking_channel_name",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: channelNameJob } = setupCommand.execute(channelNameButtonInteraction);
+        await Preconditions.checkExists(channelNameJob)();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+      });
+
+      it("handles errors when updating channel name configuration", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+        const updateGuildConfigSpy = vi
+          .spyOn(services.databaseService, "updateGuildConfig")
+          .mockRejectedValue(new Error("Database error"));
+        const updateDeferredReplyWithErrorSpy = vi
+          .spyOn(services.discordService, "updateDeferredReplyWithError")
+          .mockResolvedValue(apiMessage);
+
+        const channelNameButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking_channel_name",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: channelNameJob } = setupCommand.execute(channelNameButtonInteraction);
+        await Preconditions.checkExists(channelNameJob)();
+
+        expect(updateGuildConfigSpy).toHaveBeenCalledWith("fake-guild-id", {
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", new Error("Database error"));
+      });
+
+      it("navigates to Live Tracking configuration when live tracking button is pressed", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const liveTrackingButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
+        await Preconditions.checkExists(liveTrackingJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        expect(content?.embeds?.[0]?.title).toBe("Live Tracking Configuration");
+        expect(content?.components).toHaveLength(2);
+      });
+
+      it("displays Live Tracking configuration with both options enabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const liveTrackingButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
+        await Preconditions.checkExists(liveTrackingJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
+        expect(fieldValue).toContain("**Live Tracking:** Enabled");
+        expect(fieldValue).toContain("**Channel Name Updates:** Enabled");
+      });
+
+      it("displays Live Tracking configuration with channel name disabled when live tracking is disabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "N",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const liveTrackingButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
+        await Preconditions.checkExists(liveTrackingJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
+        expect(fieldValue).toContain("**Live Tracking:** Disabled");
+        expect(fieldValue).toContain("**Channel Name Updates:** Disabled (requires live tracking)");
+      });
+
+      it("displays main configuration with channel name updates when both live tracking features are enabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        await jobToComplete();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
+        expect(fieldValue).toContain("Live tracking enabled (with channel name updates)");
+      });
+
+      it("displays NeatQueue Informer overview with detailed Live Tracking status", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "Y",
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const informerSelectInteraction: APIMessageComponentSelectMenuInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.StringSelect,
+            custom_id: "setup_select",
+            values: ["neatqueue_informer"],
+          },
+        } as APIMessageComponentSelectMenuInteraction;
+
+        const { jobToComplete: informerJob } = setupCommand.execute(informerSelectInteraction);
+        await Preconditions.checkExists(informerJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
+        expect(fieldValue).toContain("**Live Tracking:** Enabled (with channel name updates)");
+      });
+
+      it("displays Live Tracking configuration buttons with correct disabled state when live tracking is off", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "N",
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const liveTrackingButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
+        await Preconditions.checkExists(liveTrackingJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const actionRow = content?.components?.[0];
+        if (actionRow?.type === ComponentType.ActionRow) {
+          const channelNameButton = actionRow.components.find(
+            (component) =>
+              "custom_id" in component &&
+              component.custom_id === "setup_neat_queue_informer_live_tracking_channel_name",
+          );
+          expect(channelNameButton && "disabled" in channelNameButton ? channelNameButton.disabled : false).toBe(true);
+        }
+      });
+
+      it("handles edge case where channel name is enabled but live tracking is disabled", async () => {
+        const mockConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTracking: "N",
+          NeatQueueInformerLiveTrackingChannelName: "Y",
+        });
+
+        getGuildConfigSpy.mockResolvedValue(mockConfig);
+
+        const liveTrackingButtonInteraction: APIMessageComponentButtonInteraction = {
+          ...applicationCommandInteractionSetup,
+          type: InteractionType.MessageComponent,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "setup_neat_queue_informer_live_tracking",
+          },
+        } as APIMessageComponentButtonInteraction;
+
+        const { jobToComplete: liveTrackingJob } = setupCommand.execute(liveTrackingButtonInteraction);
+        await Preconditions.checkExists(liveTrackingJob)();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+        const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
+        const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
+        expect(fieldValue).toContain("**Live Tracking:** Disabled");
+        expect(fieldValue).toContain("**Channel Name Updates:** Enabled (requires live tracking)");
       });
 
       it("navigates to NeatQueue Informer Maps configuration when maps button is pressed", async () => {

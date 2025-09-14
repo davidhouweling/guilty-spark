@@ -79,11 +79,12 @@ export class DatabaseService {
       NeatQueueInformerMapsFormat: MapsFormatType.HCS,
       NeatQueueInformerMapsCount: 5,
       NeatQueueInformerLiveTracking: "N",
+      NeatQueueInformerLiveTrackingChannelName: "N",
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections, NeatQueueInformerMapsPost, NeatQueueInformerMapsPlaylist, NeatQueueInformerMapsFormat, NeatQueueInformerMapsCount, NeatQueueInformerLiveTracking) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO GuildConfig (GuildId, StatsReturn, Medals, NeatQueueInformerPlayerConnections, NeatQueueInformerMapsPost, NeatQueueInformerMapsPlaylist, NeatQueueInformerMapsFormat, NeatQueueInformerMapsCount, NeatQueueInformerLiveTracking, NeatQueueInformerLiveTrackingChannelName) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ).bind(
         defaultConfig.GuildId,
         defaultConfig.StatsReturn,
@@ -94,6 +95,7 @@ export class DatabaseService {
         defaultConfig.NeatQueueInformerMapsFormat,
         defaultConfig.NeatQueueInformerMapsCount,
         defaultConfig.NeatQueueInformerLiveTracking,
+        defaultConfig.NeatQueueInformerLiveTrackingChannelName,
       );
 
       await insertStmt.run();
@@ -123,6 +125,7 @@ export class DatabaseService {
       "NeatQueueInformerMapsFormat",
       "NeatQueueInformerMapsCount",
       "NeatQueueInformerLiveTracking",
+      "NeatQueueInformerLiveTrackingChannelName",
     ] as const);
 
     for (const key of updateKeys) {

@@ -1,7 +1,12 @@
 import type { Mock, MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { verifyKey } from "discord-interactions";
-import type { APIApplicationCommandInteraction, APIGuildMember, APIInteraction } from "discord-api-types/v10";
+import type {
+  APIApplicationCommandInteraction,
+  APIChannel,
+  APIGuildMember,
+  APIInteraction,
+} from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -1205,6 +1210,111 @@ describe("DiscordService", () => {
           measurementMatchesRemaining: 0,
         }),
       ).toBe("<:Gold2:id>");
+    });
+  });
+
+  describe("updateChannel()", () => {
+    const fakeChannel: APIChannel = {
+      id: "fake-channel-id",
+      type: 0,
+      name: "updated-channel-name",
+      position: 0,
+      permission_overwrites: [],
+      last_message_id: null,
+      guild_id: "guild-id",
+      parent_id: null,
+      rate_limit_per_user: 0,
+      topic: null,
+      nsfw: false,
+    };
+
+    it("updates a channel with name only", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(fakeChannel)));
+
+      const data = { name: "new-channel-name" };
+      const response = await discordService.updateChannel("fake-channel-id", data);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel-id", {
+        body: JSON.stringify({ name: "new-channel-name" }),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "PATCH",
+      });
+
+      expect(response).toEqual(fakeChannel);
+    });
+
+    it("updates a channel with name and audit log reason", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(fakeChannel)));
+
+      const data = { name: "new-channel-name", reason: "Live match tracking" };
+      const response = await discordService.updateChannel("fake-channel-id", data);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel-id", {
+        body: JSON.stringify({ name: "new-channel-name" }),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+          "X-Audit-Log-Reason": "Live match tracking",
+        }),
+        method: "PATCH",
+      });
+
+      expect(response).toEqual(fakeChannel);
+    });
+
+    it("updates a channel without audit log reason when reason is empty string", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(fakeChannel)));
+
+      const data = { name: "new-channel-name", reason: "" };
+      const response = await discordService.updateChannel("fake-channel-id", data);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel-id", {
+        body: JSON.stringify({ name: "new-channel-name" }),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "PATCH",
+      });
+
+      expect(response).toEqual(fakeChannel);
+    });
+
+    it("updates a channel without audit log reason when reason is undefined", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(fakeChannel)));
+
+      const data = { name: "new-channel-name" };
+      const response = await discordService.updateChannel("fake-channel-id", data);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel-id", {
+        body: JSON.stringify({ name: "new-channel-name" }),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "PATCH",
+      });
+
+      expect(response).toEqual(fakeChannel);
+    });
+
+    it("throws an error if discord api returns an error", async () => {
+      mockFetch.mockResolvedValue(new Response("Bad request", { status: 400, statusText: "Bad request" }));
+
+      await expect(discordService.updateChannel("fake-channel-id", { name: "new-name" })).rejects.toThrow(
+        new Error(`Failed to fetch data from Discord API (HTTP 400): Bad request`),
+      );
+    });
+
+    it("returns empty data when the response status is 204", async () => {
+      mockFetch.mockResolvedValue(new Response(null, { status: 204 }));
+
+      const response = await discordService.updateChannel("fake-channel-id", { name: "new-name" });
+
+      expect(response).toEqual({});
     });
   });
 });

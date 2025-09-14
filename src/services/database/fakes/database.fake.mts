@@ -35,6 +35,7 @@ export function aFakeGuildConfigRow(opts: Partial<GuildConfigRow> = {}): GuildCo
     NeatQueueInformerMapsFormat: MapsFormatType.HCS,
     NeatQueueInformerMapsCount: 5,
     NeatQueueInformerLiveTracking: "N",
+    NeatQueueInformerLiveTrackingChannelName: "N",
   };
 
   return {

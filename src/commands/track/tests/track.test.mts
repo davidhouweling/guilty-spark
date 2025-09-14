@@ -7,8 +7,10 @@ import type {
   APIMessageComponentButtonInteraction,
 } from "discord-api-types/v10";
 import {
+  ButtonStyle,
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  ComponentType,
   InteractionResponseType,
   InteractionType,
   Locale,
@@ -283,6 +285,67 @@ describe("TrackCommand", () => {
 
         expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
+        });
+      });
+    });
+
+    describe("repost button", () => {
+      const repostButtonInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.Repost,
+        },
+        message: {
+          ...apiMessage,
+          embeds: [
+            {
+              title: "Test Embed",
+              description: "Test description",
+            },
+          ],
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  style: ButtonStyle.Primary,
+                  custom_id: "test_button",
+                  label: "Test Button",
+                },
+              ],
+            },
+          ],
+          content: "Test content",
+        },
+      };
+
+      it("creates new message with same content and deletes original", async () => {
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalledWith(repostButtonInteraction.channel.id, {
+          embeds: repostButtonInteraction.message.embeds,
+          components: repostButtonInteraction.message.components,
+          content: repostButtonInteraction.message.content,
+        });
+
+        expect(deleteMessageSpy).toHaveBeenCalledWith(
+          repostButtonInteraction.channel.id,
+          repostButtonInteraction.message.id,
+          "Reposting maps",
+        );
+      });
+
+      it("returns deferred message update response", () => {
+        const response = trackCommand.execute(repostButtonInteraction);
+
+        expect(response.response).toEqual({
+          type: InteractionResponseType.DeferredMessageUpdate,
         });
       });
     });
