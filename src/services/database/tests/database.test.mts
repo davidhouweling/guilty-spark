@@ -126,6 +126,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
         NeatQueueInformerLiveTracking: "N",
+        NeatQueueInformerLiveTrackingChannelName: "N",
       });
     });
 
@@ -282,6 +283,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
         NeatQueueInformerLiveTracking: "N",
+        NeatQueueInformerLiveTrackingChannelName: "N",
       });
     });
   });

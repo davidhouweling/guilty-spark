@@ -77,6 +77,8 @@ export enum InteractionComponent {
   NeatQueueIntegrationEditChannelBack = "setup_neat_queue_edit_channel_back",
   NeatQueueInformerPlayersOnStart = "setup_neat_queue_informer_players_on_start",
   NeatQueueInformerLiveTracking = "setup_neat_queue_informer_live_tracking",
+  NeatQueueInformerLiveTrackingToggle = "setup_neat_queue_informer_live_tracking_toggle",
+  NeatQueueInformerLiveTrackingChannelName = "setup_neat_queue_informer_live_tracking_channel_name",
   NeatQueueInformerMaps = "setup_neat_queue_informer_maps",
   NeatQueueInformerMapsPost = "setup_neat_queue_informer_maps_post",
   NeatQueueInformerMapsPlaylist = "setup_neat_queue_informer_maps_playlist",
@@ -340,9 +342,29 @@ const ActionButtons = new Map<InteractionComponent, APIButtonComponentWithCustom
     {
       type: ComponentType.Button,
       custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
+      label: "Configure Live Tracking",
+      style: ButtonStyle.Primary,
+      emoji: { name: "📊" },
+    },
+  ],
+  [
+    InteractionComponent.NeatQueueInformerLiveTrackingToggle,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerLiveTrackingToggle,
       label: "Toggle Live Tracking",
       style: ButtonStyle.Primary,
       emoji: { name: "📊" },
+    },
+  ],
+  [
+    InteractionComponent.NeatQueueInformerLiveTrackingChannelName,
+    {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.NeatQueueInformerLiveTrackingChannelName,
+      label: "Toggle Channel Name updates",
+      style: ButtonStyle.Primary,
+      emoji: { name: "🔃" },
     },
   ],
   [
@@ -540,6 +562,20 @@ export class SetupCommand extends BaseCommand {
       data: {
         component_type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerLiveTrackingToggle,
+      },
+    },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.NeatQueueInformerLiveTrackingChannelName,
       },
     },
     {
@@ -834,7 +870,25 @@ export class SetupCommand extends BaseCommand {
             type: InteractionResponseType.DeferredMessageUpdate,
           },
           jobToComplete: async () =>
+            this.setupNeatQueueInformerConfigureLiveTrackingJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
+      case InteractionComponent.NeatQueueInformerLiveTrackingToggle: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
             this.setupNeatQueueInformerToggleLiveTrackingJob(interaction as APIMessageComponentButtonInteraction),
+        };
+      }
+      case InteractionComponent.NeatQueueInformerLiveTrackingChannelName: {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredMessageUpdate,
+          },
+          jobToComplete: async () =>
+            this.setupNeatQueueInformerToggleChannelNameJob(interaction as APIMessageComponentButtonInteraction),
         };
       }
       case InteractionComponent.NeatQueueInformerMaps: {
@@ -905,7 +959,7 @@ export class SetupCommand extends BaseCommand {
       const configDisplay = [
         `**Stats Display Mode:** ${statsDisplays.join(", ")}`,
         `**NeatQueue Integrations:** ${neatQueueIntegrationsCount}`,
-        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Live tracking ${config.NeatQueueInformerLiveTracking == "Y" ? "enabled" : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
+        `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Live tracking ${config.NeatQueueInformerLiveTracking == "Y" ? `enabled${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? " (with channel name updates)" : ""}` : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
       ].join("\n");
 
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
@@ -1158,7 +1212,7 @@ export class SetupCommand extends BaseCommand {
       ].join("\n");
       const configDisplay = [
         `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
-        `**Live Tracking:** ${config.NeatQueueInformerLiveTracking === "Y" ? "Enabled" : "Disabled"}`,
+        `**Live Tracking:** ${config.NeatQueueInformerLiveTracking === "Y" ? `Enabled${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? " (with channel name updates)" : ""}` : "Disabled"}`,
         `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} maps`,
       ].join("\n");
 
@@ -1947,18 +2001,122 @@ export class SetupCommand extends BaseCommand {
     }
   }
 
+  private async setupNeatQueueInformerConfigureLiveTrackingJob(
+    interaction: APIMessageComponentButtonInteraction,
+  ): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+
+    try {
+      const config = await databaseService.getGuildConfig(guildId, true);
+
+      const configDisplay = [
+        `**Live Tracking:** ${config.NeatQueueInformerLiveTracking === "Y" ? "Enabled" : "Disabled"}`,
+        `**Channel Name Updates:** ${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? "Enabled" : "Disabled"}${config.NeatQueueInformerLiveTracking === "N" ? " (requires live tracking)" : ""}`,
+      ].join("\n");
+
+      const content: RESTPostAPIWebhookWithTokenJSONBody = {
+        content: "",
+        embeds: [
+          {
+            title: "Live Tracking Configuration",
+            description: [
+              "Configure live tracking features for NeatQueue series.",
+              "",
+              "**Live Tracking:** Posts real-time updates as matches are played, showing current map, scores, and series progress",
+              "**Channel Name Updates:** Updates the queue channel name to include current series score (e.g., `#queue-343 (🦅 2:1 🐍)`), requires live tracking to be enabled",
+              "",
+              "*Note: Channel name updates require the 'Manage Channels' permission for Guilty Spark (feature will auto disable without permission), run command:*",
+              '- `/tempchannels permissions set role="<role>" permission="Manage Channels" value="Allow"`',
+            ].join("\n"),
+            fields: [
+              {
+                name: "Current Configuration",
+                value: configDisplay,
+              },
+            ],
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionComponent.NeatQueueInformerLiveTrackingToggle,
+                label: "Toggle Live Tracking",
+                style: ButtonStyle.Primary,
+                emoji: { name: "📊" },
+              },
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionComponent.NeatQueueInformerLiveTrackingChannelName,
+                label: "Toggle Channel Name updates",
+                style: ButtonStyle.Primary,
+                emoji: { name: "🔃" },
+                disabled: config.NeatQueueInformerLiveTracking === "N",
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionComponent.NeatQueueInformerMapsBack,
+                label: "Back to Informer",
+                style: ButtonStyle.Secondary,
+                emoji: { name: "🔙" },
+              },
+            ],
+          },
+        ],
+      };
+
+      await discordService.updateDeferredReply(interaction.token, content);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
   private async setupNeatQueueInformerToggleLiveTrackingJob(
     interaction: APIMessageComponentButtonInteraction,
   ): Promise<void> {
     const { discordService, databaseService } = this.services;
     const guildId = Preconditions.checkExists(interaction.guild_id);
-    const config = await databaseService.getGuildConfig(guildId, true);
 
     try {
+      const config = await databaseService.getGuildConfig(guildId, true);
+      const newValue = config.NeatQueueInformerLiveTracking === "Y" ? "N" : "Y";
+
       await databaseService.updateGuildConfig(guildId, {
-        NeatQueueInformerLiveTracking: config.NeatQueueInformerLiveTracking === "Y" ? "N" : "Y",
+        NeatQueueInformerLiveTracking: newValue,
+        // If disabling live tracking, also disable channel name updates
+        ...(newValue === "N" && { NeatQueueInformerLiveTrackingChannelName: "N" }),
       });
-      await this.setupSelectNeatQueueInformerJob(interaction);
+
+      // Return to the live tracking configuration screen
+      await this.setupNeatQueueInformerConfigureLiveTrackingJob(interaction);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async setupNeatQueueInformerToggleChannelNameJob(
+    interaction: APIMessageComponentButtonInteraction,
+  ): Promise<void> {
+    const { discordService, databaseService } = this.services;
+    const guildId = Preconditions.checkExists(interaction.guild_id);
+
+    try {
+      const config = await databaseService.getGuildConfig(guildId, true);
+
+      await databaseService.updateGuildConfig(guildId, {
+        NeatQueueInformerLiveTrackingChannelName: config.NeatQueueInformerLiveTrackingChannelName === "Y" ? "N" : "Y",
+      });
+
+      // Return to the live tracking configuration screen
+      await this.setupNeatQueueInformerConfigureLiveTrackingJob(interaction);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
