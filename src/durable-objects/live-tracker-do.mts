@@ -132,6 +132,9 @@ export class LiveTrackerDO {
         case "status": {
           return await this.handleStatus();
         }
+        case "repost": {
+          return await this.handleRepost(request);
+        }
         case undefined: {
           return new Response("Bad Request", { status: 400 });
         }
@@ -614,6 +617,41 @@ export class LiveTrackerDO {
     }
 
     return Response.json({ state: trackerState });
+  }
+
+  private async handleRepost(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { newMessageId } = body as { newMessageId: string };
+
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.status === "stopped") {
+      return new Response("Cannot repost for stopped tracker", { status: 400 });
+    }
+
+    if (!newMessageId || newMessageId.trim() === "") {
+      return new Response("New message ID is required", { status: 400 });
+    }
+
+    const oldMessageId = trackerState.liveMessageId;
+    trackerState.liveMessageId = newMessageId;
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+
+    this.logService.info(
+      `Updated live message ID for queue ${trackerState.queueNumber.toString()}`,
+      new Map([
+        ["oldMessageId", oldMessageId ?? "none"],
+        ["newMessageId", newMessageId],
+        ["queueNumber", trackerState.queueNumber.toString()],
+      ]),
+    );
+
+    return Response.json({ success: true, oldMessageId: oldMessageId ?? "none", newMessageId });
   }
 
   private async getState(): Promise<LiveTrackerState | null> {

@@ -345,6 +345,20 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(200);
     });
 
+    it("routes to handleRepost for /repost endpoint", async () => {
+      const trackerState = createMockTrackerState();
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+    });
+
     it("returns 404 for unknown endpoints", async () => {
       const request = new Request("http://do/unknown", { method: "GET" });
 
@@ -618,6 +632,152 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(404);
       const text = await response.text();
       expect(text).toBe("Not Found");
+    });
+  });
+
+  describe("handleRepost()", () => {
+    it("updates live message ID with new message ID", async () => {
+      const trackerState = aFakeStateWith({
+        liveMessageId: "old-message-id",
+        status: "active",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        success: true,
+        oldMessageId: "old-message-id",
+        newMessageId: "new-message-id",
+      });
+
+      expect(mockStorage.put).toHaveBeenCalledWith("trackerState", {
+        ...trackerState,
+        liveMessageId: "new-message-id",
+        lastUpdateTime: expect.any(String) as string,
+      });
+    });
+
+    it("handles case when old message ID is undefined", async () => {
+      const trackerState = aFakeStateWith({
+        liveMessageId: undefined,
+        status: "active",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        success: true,
+        oldMessageId: "none",
+        newMessageId: "new-message-id",
+      });
+    });
+
+    it("returns 404 if no tracker exists", async () => {
+      mockStorage.get.mockResolvedValue(null);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(404);
+      const text = await response.text();
+      expect(text).toBe("Not Found");
+    });
+
+    it("returns 400 for stopped tracker", async () => {
+      const trackerState = aFakeStateWith({
+        status: "stopped",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const text = await response.text();
+      expect(text).toBe("Cannot repost for stopped tracker");
+    });
+
+    it("returns 400 for empty message ID", async () => {
+      const trackerState = aFakeStateWith({
+        status: "active",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const text = await response.text();
+      expect(text).toBe("New message ID is required");
+    });
+
+    it("returns 400 for whitespace-only message ID", async () => {
+      const trackerState = aFakeStateWith({
+        status: "active",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "   " }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const text = await response.text();
+      expect(text).toBe("New message ID is required");
+    });
+
+    it("works with paused tracker", async () => {
+      const trackerState = aFakeStateWith({
+        status: "paused",
+        liveMessageId: "old-message-id",
+      });
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/repost", {
+          method: "POST",
+          body: JSON.stringify({ newMessageId: "new-message-id" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        success: true,
+        oldMessageId: "old-message-id",
+        newMessageId: "new-message-id",
+      });
     });
   });
 

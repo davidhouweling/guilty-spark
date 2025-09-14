@@ -684,11 +684,56 @@ export class TrackCommand extends BaseCommand {
         type: InteractionResponseType.DeferredMessageUpdate,
       },
       jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.createMessage(interaction.channel.id, {
+        const newMessage = await this.services.discordService.createMessage(interaction.channel.id, {
           embeds: interaction.message.embeds,
           components: interaction.message.components,
           content: interaction.message.content,
         });
+
+        const guildId = interaction.guild_id;
+        const channelId = interaction.channel.id;
+        const title = interaction.message.embeds[0]?.title;
+        let queueNumber: number | undefined;
+        if (title) {
+          const queueRegex = /Live Tracker - Queue #(\d+)/;
+          const queueMatch = queueRegex.exec(title);
+          if (queueMatch?.[1]) {
+            queueNumber = Number.parseInt(queueMatch[1], 10);
+          }
+        }
+
+        if (queueNumber != null && guildId != null) {
+          try {
+            const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
+            const doStub = this.env.LIVE_TRACKER_DO.get(doId);
+
+            const repostResponse = await doStub.fetch("http://do/repost", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ newMessageId: newMessage.id }),
+            });
+
+            if (!repostResponse.ok) {
+              this.services.logService.warn(
+                "Failed to update live tracker message ID after repost",
+                new Map([
+                  ["status", repostResponse.status.toString()],
+                  ["queueNumber", queueNumber.toString()],
+                  ["newMessageId", newMessage.id],
+                ]),
+              );
+            }
+          } catch (error) {
+            this.services.logService.error(
+              "Error updating live tracker message ID after repost",
+              new Map([
+                ["error", String(error)],
+                ["queueNumber", queueNumber.toString()],
+                ["newMessageId", newMessage.id],
+              ]),
+            );
+          }
+        }
 
         await this.services.discordService.deleteMessage(
           interaction.channel.id,
