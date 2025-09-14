@@ -1,13 +1,16 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
+import type { APIGroupDMChannel } from "discord-api-types/v10";
+import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO, type LiveTrackerStartData, type LiveTrackerState } from "../live-tracker-do.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
 import type { Services } from "../../services/install.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
-import { aGuildMemberWith, apiMessage } from "../../services/discord/fakes/data.mjs";
+import { aGuildMemberWith, apiMessage, guild } from "../../services/discord/fakes/data.mjs";
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
+import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
 import { matchStats } from "../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 
@@ -400,7 +403,7 @@ describe("LiveTrackerDO", () => {
 
       const response = await liveTrackerDO.fetch(request);
 
-      expect(response.status).toBe(200); // Still succeeds even with Discord error
+      expect(response.status).toBe(200);
       const data: { success: boolean } = await response.json();
       expect(data.success).toBe(true);
     });
@@ -419,7 +422,6 @@ describe("LiveTrackerDO", () => {
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
       expect(mockStorage.put).toHaveBeenCalled();
-      // handlePause doesn't call deleteAlarm
     });
 
     it("returns error if no tracker exists", async () => {
@@ -440,7 +442,7 @@ describe("LiveTrackerDO", () => {
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
-      expect(response.status).toBe(200); // Still succeeds, just sets paused state
+      expect(response.status).toBe(200);
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
     });
@@ -481,7 +483,7 @@ describe("LiveTrackerDO", () => {
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
-      expect(response.status).toBe(200); // Still succeeds, just sets active state
+      expect(response.status).toBe(200);
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
     });
@@ -554,7 +556,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -742,7 +744,6 @@ describe("LiveTrackerDO", () => {
             totalChecks: 1,
             totalMatches: 2,
           }) as LiveTrackerState["metrics"],
-          // Verify that matches are stored in both discoveredMatches and rawMatches
           discoveredMatches: expect.objectContaining({
             "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
@@ -791,11 +792,9 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Network error"));
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-      vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
 
       await liveTrackerDO.alarm();
 
@@ -844,9 +843,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
-      vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
 
       const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
@@ -916,7 +913,6 @@ describe("LiveTrackerDO", () => {
         }),
       );
 
-      // Verify that performance metrics are logged (check 10 is divisible by 10)
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining("Live Tracker Performance Metrics"),
         expect.any(Map),
@@ -947,7 +943,6 @@ describe("LiveTrackerDO", () => {
     });
 
     it("persists discovered matches when handling substitutions", async () => {
-      // Initial state with some discovered matches
       const existingState = createAlarmTestTrackerState({
         discoveredMatches: {
           "existing-match-id": {
@@ -964,7 +959,6 @@ describe("LiveTrackerDO", () => {
 
       mockStorage.get.mockResolvedValue(existingState);
 
-      // Mock that we get both existing and new matches
       const mockMatches = [
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
         Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -977,7 +971,6 @@ describe("LiveTrackerDO", () => {
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
-          // Should contain both existing and new matches in discovered and raw state
           discoveredMatches: expect.objectContaining({
             "existing-match-id": expect.any(Object) as Record<string, unknown>,
             "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as Record<string, unknown>,
@@ -991,7 +984,6 @@ describe("LiveTrackerDO", () => {
     });
 
     it("handles substitutions without losing match data", async () => {
-      // State with existing matches and a substitution
       const existingState = createAlarmTestTrackerState({
         substitutions: [
           {
@@ -1017,10 +1009,7 @@ describe("LiveTrackerDO", () => {
 
       mockStorage.get.mockResolvedValue(existingState);
 
-      // Mock that the existing match is still returned from the queue
-      const mockMatches = [
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")), // Same existing match
-      ];
+      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
 
@@ -1029,7 +1018,6 @@ describe("LiveTrackerDO", () => {
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
-          // Should preserve existing substitution
           substitutions: expect.arrayContaining([
             expect.objectContaining({
               playerOutId: "user1",
@@ -1038,7 +1026,6 @@ describe("LiveTrackerDO", () => {
               teamName: "Team Alpha",
             }),
           ]) as LiveTrackerState["substitutions"],
-          // Should preserve existing match data
           discoveredMatches: expect.objectContaining({
             "pre-sub-match": expect.any(Object) as Record<string, unknown>,
           }) as LiveTrackerState["discoveredMatches"],
@@ -1074,9 +1061,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
-      vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1087,7 +1072,6 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      // Should create new message and delete old one
       expect(createMessageSpy).toHaveBeenCalledWith(
         trackerState.channelId,
         expect.objectContaining({
@@ -1101,7 +1085,6 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      // Should update lastMessageState
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1136,7 +1119,6 @@ describe("LiveTrackerDO", () => {
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1147,7 +1129,6 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      // Should create new message and delete old one
       expect(createMessageSpy).toHaveBeenCalledWith(
         trackerState.channelId,
         expect.objectContaining({
@@ -1161,7 +1142,6 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      // Should update lastMessageState
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1185,7 +1165,7 @@ describe("LiveTrackerDO", () => {
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
             gameTypeAndMap: "Slayer on Aquarius",
             gameDuration: "5:00",
-            gameScore: "50-49",
+            gameScore: "50:49",
           },
         },
         rawMatches: {
@@ -1200,7 +1180,6 @@ describe("LiveTrackerDO", () => {
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
       ]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage");
       const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage");
@@ -1208,7 +1187,6 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      // Should edit existing message
       expect(editMessageSpy).toHaveBeenCalledWith(
         trackerState.channelId,
         trackerState.liveMessageId,
@@ -1219,7 +1197,6 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
 
-      // Should maintain lastMessageState
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1247,8 +1224,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
       const warnSpy = vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
@@ -1261,14 +1237,9 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      // Should still create new message
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
-
-      // Should log warning about delete failure but continue
       expect(warnSpy).toHaveBeenCalledWith("Failed to delete old live tracker message", expect.any(Map));
-
-      // Should still update state with new message ID
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1304,7 +1275,7 @@ describe("LiveTrackerDO", () => {
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
             gameTypeAndMap: "Slayer on Aquarius",
             gameDuration: "5:00",
-            gameScore: "50-49",
+            gameScore: "50:49",
           },
         },
         rawMatches: {
@@ -1325,8 +1296,7 @@ describe("LiveTrackerDO", () => {
         .mockResolvedValueOnce("Slayer on Aquarius")
         .mockResolvedValueOnce("CTF on Bazaar");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValueOnce("5:00").mockReturnValueOnce("7:30");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValueOnce("50-49").mockReturnValueOnce("3-2");
-      vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValueOnce("50:49").mockReturnValueOnce("3:2");
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1336,19 +1306,421 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      // Should create new message because both matches and substitutions increased
       expect(createMessageSpy).toHaveBeenCalled();
-
-      // Should update lastMessageState to reflect current counts
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           lastMessageState: {
-            matchCount: 1, // Currently only 1 match is being processed successfully
-            substitutionCount: 2, // Both substitutions in current state
+            matchCount: 1,
+            substitutionCount: 2,
           },
         }),
       );
+    });
+  });
+
+  describe("Channel name updates", (): void => {
+    beforeEach((): void => {
+      const guildConfig = aFakeGuildConfigRow({
+        NeatQueueInformerLiveTrackingChannelName: "Y",
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
+    });
+
+    describe("during alarm processing", (): void => {
+      it("updates channel name with series score when enabled", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel",
+          type: 0,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+
+        // Mock permission check components
+        vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+        vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
+        vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+          hasAll: true,
+          missing: [],
+        });
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        await liveTrackerDO.alarm();
+
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
+          name: "my-queue-channel (1:0)",
+          reason: "Live Tracker: Updated series score to 1:0",
+        });
+      });
+
+      it("removes existing series score before adding new one", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel (0:1)",
+          type: 0,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+
+        // Mock permission check components
+        vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+        vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
+        vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+          hasAll: true,
+          missing: [],
+        });
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        await liveTrackerDO.alarm();
+
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
+          name: "my-queue-channel (1:0)",
+          reason: "Live Tracker: Updated series score to 1:0",
+        });
+      });
+
+      it("skips channel name update when disabled in guild config", async (): Promise<void> => {
+        const guildConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+        vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
+
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel");
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+
+        await liveTrackerDO.alarm();
+
+        expect(getChannelSpy).not.toHaveBeenCalled();
+        expect(updateChannelSpy).not.toHaveBeenCalled();
+      });
+
+      it("logs error when channel update fails", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel",
+          type: 0,
+        };
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+        vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith());
+        vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
+        vi.spyOn(services.discordService, "updateChannel").mockRejectedValue(new Error("Discord API error"));
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const errorSpy = vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+
+        await liveTrackerDO.alarm();
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Failed to update channel name",
+          new Map([
+            ["channelId", "test-channel-id"],
+            ["error", "Error: Discord API error"],
+          ]),
+        );
+      });
+
+      it("skips update when channel name hasn't changed", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel (1:0)",
+          type: 0,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+
+        await liveTrackerDO.alarm();
+
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).not.toHaveBeenCalled();
+      });
+
+      it("handles DM channel name gracefully", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": {
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer on Aquarius",
+              gameDuration: "5:00",
+              gameScore: "50:49",
+            },
+          },
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel: APIGroupDMChannel = {
+          id: "test-channel-id",
+          name: null,
+          type: ChannelType.GroupDM,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+
+        await liveTrackerDO.alarm();
+
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("when live tracker stops", (): void => {
+      it("resets channel name by removing series score", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel (2:1)",
+          type: 0,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+
+        const response = await liveTrackerDO.fetch(new Request("https://example.com/stop"));
+
+        expect(response.status).toBe(200);
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
+          name: "my-queue-channel",
+          reason: "Live Tracker: Stopped - removed series score",
+        });
+      });
+
+      it("skips reset when channel name has no series score", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel",
+          type: 0,
+        };
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
+
+        const response = await liveTrackerDO.fetch(new Request("https://example.com/stop"));
+
+        expect(response.status).toBe(200);
+        expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
+        expect(updateChannelSpy).not.toHaveBeenCalled();
+      });
+
+      it("skips reset when channel name updates are disabled", async (): Promise<void> => {
+        const guildConfig = aFakeGuildConfigRow({
+          NeatQueueInformerLiveTrackingChannelName: "N",
+        });
+        vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
+
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+        });
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const getChannelSpy = vi.spyOn(services.discordService, "getChannel");
+        const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
+
+        const response = await liveTrackerDO.fetch(new Request("https://example.com/stop"));
+
+        expect(response.status).toBe(200);
+        expect(getChannelSpy).not.toHaveBeenCalled();
+        expect(updateChannelSpy).not.toHaveBeenCalled();
+      });
     });
   });
 });

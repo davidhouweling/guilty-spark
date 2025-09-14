@@ -552,6 +552,19 @@ export class DiscordService {
     });
   }
 
+  async updateChannel(channelId: string, data: { name?: string; reason?: string }): Promise<APIChannel> {
+    const headers: Record<string, string> = {};
+    if (data.reason != null && data.reason !== "") {
+      headers["X-Audit-Log-Reason"] = data.reason;
+    }
+
+    return this.fetch<APIChannel>(Routes.channel(channelId), {
+      method: "PATCH",
+      body: JSON.stringify({ name: data.name }),
+      headers,
+    });
+  }
+
   async getUsers(guildId: string, discordIds: string[]): Promise<APIGuildMember[]> {
     // doing it sequentially to better handle rate limit
     const users: APIGuildMember[] = [];
