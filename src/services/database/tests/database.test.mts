@@ -257,6 +257,7 @@ describe("Database Service", () => {
         NeatQueueInformerMapsFormat: MapsFormatType.HCS,
         NeatQueueInformerMapsCount: 5,
         NeatQueueInformerLiveTracking: "N",
+        NeatQueueInformerLiveTrackingChannelName: "N",
       };
       vi.spyOn(fakeGetPreparedStatement, "first").mockResolvedValue(initialConfig);
       await databaseService.getGuildConfig(guildId);
