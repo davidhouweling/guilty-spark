@@ -300,7 +300,7 @@ describe("TrackCommand", () => {
           ...apiMessage,
           embeds: [
             {
-              title: "Test Embed",
+              title: "🟢 Live Tracker - Queue #123",
               description: "Test description",
             },
           ],
@@ -321,9 +321,14 @@ describe("TrackCommand", () => {
         },
       };
 
-      it("creates new message with same content and deletes original", async () => {
-        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      it("creates new message with same content, deletes original, and updates DO message ID", async () => {
+        const newMessage = { ...apiMessage, id: "new-message-id-456" };
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        // Mock the DO repost endpoint call
+        const mockResponse = { ok: true, json: vi.fn().mockResolvedValue({ success: true }) };
+        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse as never);
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
@@ -339,6 +344,53 @@ describe("TrackCommand", () => {
           repostButtonInteraction.message.id,
           "Reposting maps",
         );
+
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/repost", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newMessageId: "new-message-id-456" }),
+        });
+      });
+
+      it("handles case when queue number cannot be extracted from title", async () => {
+        const repostInteractionWithoutQueue = {
+          ...repostButtonInteraction,
+          message: {
+            ...repostButtonInteraction.message,
+            embeds: [
+              {
+                title: "Test Embed",
+                description: "Test description",
+              },
+            ],
+          },
+        };
+
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const { jobToComplete } = trackCommand.execute(repostInteractionWithoutQueue);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalled();
+        expect(deleteMessageSpy).toHaveBeenCalled();
+        expect(liveTrackerDoStub.fetch).not.toHaveBeenCalled();
+      });
+
+      it("handles DO update failure gracefully", async () => {
+        const newMessage = { ...apiMessage, id: "new-message-id-456" };
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const mockResponse = { ok: false, status: 400 };
+        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse as never);
+
+        const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalled();
+        expect(deleteMessageSpy).toHaveBeenCalled();
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalled();
       });
 
       it("returns deferred message update response", () => {
