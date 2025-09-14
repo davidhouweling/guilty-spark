@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { LiveTrackerEmbed, type EnrichedMatchData } from "../live-tracker-embed.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
@@ -254,6 +255,105 @@ describe("LiveTrackerEmbed", () => {
       const { actions } = liveTrackerEmbed;
 
       expect(actions).toHaveLength(0); // No action rows for stopped state
+    });
+
+    describe("repost button", () => {
+      it("includes repost button for active state", () => {
+        const liveTrackerEmbed = new LiveTrackerEmbed(
+          { discordService },
+          {
+            userId: "user123",
+            guildId: "guild123",
+            channelId: "channel123",
+            queueNumber: 42,
+            status: "active",
+            isPaused: false,
+            seriesScore: "Team Alpha 1 - 0 Team Beta",
+            enrichedMatches: [],
+            lastUpdated: new Date("2024-12-06T12:00:00Z"),
+            nextCheck: new Date("2024-12-06T12:03:00Z"),
+            errorState: undefined,
+          },
+        );
+
+        const { actions } = liveTrackerEmbed;
+
+        expect(actions).toHaveLength(2);
+        expect(actions[1]).toEqual(
+          expect.objectContaining({
+            type: ComponentType.ActionRow,
+            components: [
+              expect.objectContaining({
+                type: ComponentType.Button,
+                custom_id: "btn_track_repost",
+                label: "Move to bottom of chat",
+                style: ButtonStyle.Secondary,
+                emoji: { name: "⏬" },
+              }),
+            ],
+          }),
+        );
+      });
+
+      it("includes repost button for paused state", () => {
+        const liveTrackerEmbed = new LiveTrackerEmbed(
+          { discordService },
+          {
+            userId: "user123",
+            guildId: "guild123",
+            channelId: "channel123",
+            queueNumber: 42,
+            status: "active",
+            isPaused: true,
+            seriesScore: "Team Alpha 1 - 0 Team Beta",
+            enrichedMatches: [],
+            lastUpdated: new Date("2024-12-06T12:00:00Z"),
+            nextCheck: undefined,
+            errorState: undefined,
+          },
+        );
+
+        const { actions } = liveTrackerEmbed;
+
+        expect(actions).toHaveLength(2);
+        expect(actions[1]).toEqual(
+          expect.objectContaining({
+            type: ComponentType.ActionRow,
+            components: [
+              expect.objectContaining({
+                type: ComponentType.Button,
+                custom_id: "btn_track_repost",
+                label: "Move to bottom of chat",
+                style: ButtonStyle.Secondary,
+                emoji: { name: "⏬" },
+              }),
+            ],
+          }),
+        );
+      });
+
+      it("does not include repost button for stopped state", () => {
+        const liveTrackerEmbed = new LiveTrackerEmbed(
+          { discordService },
+          {
+            userId: "user123",
+            guildId: "guild123",
+            channelId: "channel123",
+            queueNumber: 42,
+            status: "stopped",
+            isPaused: false,
+            seriesScore: "Team Alpha 3 - 2 Team Beta",
+            enrichedMatches: testEnrichedMatches,
+            lastUpdated: new Date("2024-12-06T12:00:00Z"),
+            nextCheck: undefined,
+            errorState: undefined,
+          },
+        );
+
+        const { actions } = liveTrackerEmbed;
+
+        expect(actions).toHaveLength(0);
+      });
     });
   });
 

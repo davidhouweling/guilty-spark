@@ -249,6 +249,9 @@ export class TrackCommand extends BaseCommand {
       case InteractionComponent.Refresh: {
         return this.refreshResponse(interaction);
       }
+      case InteractionComponent.Repost: {
+        return this.repostResponse(interaction);
+      }
       default: {
         throw new UnreachableError(customId);
       }
@@ -673,5 +676,26 @@ export class TrackCommand extends BaseCommand {
       this.services.logService.error("Failed to get tracker status", new Map([["error", String(error)]]));
       return null;
     }
+  }
+
+  private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+    return {
+      response: {
+        type: InteractionResponseType.DeferredMessageUpdate,
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.services.discordService.createMessage(interaction.channel.id, {
+          embeds: interaction.message.embeds,
+          components: interaction.message.components,
+          content: interaction.message.content,
+        });
+
+        await this.services.discordService.deleteMessage(
+          interaction.channel.id,
+          interaction.message.id,
+          "Reposting maps",
+        );
+      },
+    };
   }
 }

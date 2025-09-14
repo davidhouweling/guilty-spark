@@ -16,6 +16,7 @@ export enum InteractionComponent {
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Stop = "btn_track_stop",
+  Repost = "btn_track_repost",
 }
 
 export type TrackingStatus = "active" | "paused" | "stopped";
@@ -253,14 +254,34 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       });
     }
 
-    return components.length > 0
-      ? [
+    const actions: APIMessageTopLevelComponent[] =
+      components.length > 0
+        ? [
+            {
+              type: ComponentType.ActionRow,
+              components,
+            },
+          ]
+        : [];
+
+    if (actions.length > 0) {
+      actions.push({
+        type: ComponentType.ActionRow,
+        components: [
           {
-            type: ComponentType.ActionRow,
-            components,
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Repost,
+            label: "Move to bottom of chat",
+            style: ButtonStyle.Secondary,
+            emoji: {
+              name: "⏬",
+            },
           },
-        ]
-      : [];
+        ],
+      });
+    }
+
+    return actions;
   }
 
   toMessageData(): APIInteractionResponseCallbackData {
