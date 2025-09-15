@@ -56,11 +56,6 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
         backoffMinutes: 3,
         lastSuccessTime: new Date().toISOString(),
       },
-      metrics: {
-        totalChecks: 1,
-        totalMatches: 0,
-        totalErrors: 0,
-      },
       lastMessageState: {
         matchCount: 0,
         substitutionCount: 0,

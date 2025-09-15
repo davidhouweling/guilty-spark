@@ -1,7 +1,7 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
-import type { APIGroupDMChannel } from "discord-api-types/v10";
+import type { APIGroupDMChannel, APIChannel } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO, type LiveTrackerStartData, type LiveTrackerState } from "../live-tracker-do.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
@@ -133,11 +133,6 @@ const createMockTrackerState = (): LiveTrackerState => ({
     backoffMinutes: 3,
     lastSuccessTime: new Date().toISOString(),
   },
-  metrics: {
-    totalChecks: 1,
-    totalMatches: 0,
-    totalErrors: 0,
-  },
   lastMessageState: {
     matchCount: 0,
     substitutionCount: 0,
@@ -181,13 +176,6 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     lastErrorMessage: undefined,
     backoffMinutes: 0,
     lastSuccessTime: new Date().toISOString(),
-  },
-  metrics: {
-    totalChecks: 0,
-    totalMatches: 0,
-    totalErrors: 0,
-    lastCheckDurationMs: 0,
-    averageCheckDurationMs: 0,
   },
   lastMessageState: {
     matchCount: 0,
@@ -233,13 +221,6 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     lastErrorMessage: undefined,
     backoffMinutes: 0,
     lastSuccessTime: new Date().toISOString(),
-  },
-  metrics: {
-    totalChecks: 0,
-    totalMatches: 0,
-    totalErrors: 0,
-    lastCheckDurationMs: 0,
-    averageCheckDurationMs: 0,
   },
   lastMessageState: {
     matchCount: 0,
@@ -544,6 +525,7 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
     });
 
     it("returns error if no tracker exists", async () => {
@@ -585,6 +567,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(editMessageSpy).not.toHaveBeenCalled();
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
     });
 
     it("edits existing message during refresh when no new content is detected", async () => {
@@ -609,6 +592,7 @@ describe("LiveTrackerDO", () => {
       expect(editMessageSpy).toHaveBeenCalled();
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -871,19 +855,17 @@ describe("LiveTrackerDO", () => {
           backoffMinutes: 0,
           lastSuccessTime: new Date().toISOString(),
         },
-        metrics: {
-          totalChecks: 0,
-          totalMatches: 0,
-          totalErrors: 0,
-          lastCheckDurationMs: 0,
-          averageCheckDurationMs: 0,
-        },
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
         },
       };
       mockStorage.get.mockResolvedValue(trackerState);
+
+      const guildConfig = aFakeGuildConfigRow({
+        NeatQueueInformerLiveTrackingChannelName: "N",
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
 
       const mockMatches = [
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -893,17 +875,30 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
+      const mockChannel = {
+        id: "channel-456",
+        name: "test-queue",
+        type: 0,
+      } as APIChannel;
+      vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+      vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+
+      // Mock permission check components
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
+      vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+        hasAll: true,
+        missing: [],
+      });
+
       await liveTrackerDO.alarm();
 
       expect(mockStorage.get).toHaveBeenCalledWith("trackerState");
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
-          metrics: expect.objectContaining({
-            totalChecks: 1,
-            totalMatches: 2,
-          }) as LiveTrackerState["metrics"],
           discoveredMatches: expect.objectContaining({
             "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
@@ -926,6 +921,14 @@ describe("LiveTrackerDO", () => {
               MatchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
             }) as MatchStats,
           }) as LiveTrackerState["rawMatches"],
+          lastMessageState: expect.objectContaining({
+            matchCount: 0,
+            substitutionCount: 0,
+          }) as LiveTrackerState["lastMessageState"],
+          errorState: expect.objectContaining({
+            consecutiveErrors: 1,
+            lastErrorMessage: expect.stringContaining("Discord update failed") as string,
+          }) as LiveTrackerState["errorState"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalledWith(expect.any(Number));
@@ -939,13 +942,6 @@ describe("LiveTrackerDO", () => {
           lastErrorMessage: undefined,
           backoffMinutes: 0,
           lastSuccessTime: new Date().toISOString(),
-        },
-        metrics: {
-          totalChecks: 0,
-          totalMatches: 0,
-          totalErrors: 0,
-          lastCheckDurationMs: 0,
-          averageCheckDurationMs: 0,
         },
       });
       mockStorage.get.mockResolvedValue(trackerState);
@@ -966,9 +962,6 @@ describe("LiveTrackerDO", () => {
             consecutiveErrors: 1,
             lastErrorMessage: "Error: Network error",
           }) as LiveTrackerState["errorState"],
-          metrics: expect.objectContaining({
-            totalErrors: 1,
-          }) as LiveTrackerState["metrics"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalled();
@@ -1042,43 +1035,6 @@ describe("LiveTrackerDO", () => {
       expect(mockStorage.deleteAll).not.toHaveBeenCalled();
     });
 
-    it("logs performance metrics every 10 checks", async () => {
-      const trackerState = createAlarmTestTrackerState({
-        checkCount: 9,
-        metrics: {
-          totalChecks: 9,
-          totalMatches: 15,
-          totalErrors: 2,
-          lastCheckDurationMs: 150,
-          averageCheckDurationMs: 125,
-        },
-      });
-      mockStorage.get.mockResolvedValue(trackerState);
-
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-      const infoSpy = vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
-
-      await liveTrackerDO.alarm();
-
-      expect(mockStorage.put).toHaveBeenCalledWith(
-        "trackerState",
-        expect.objectContaining({
-          checkCount: 10,
-          metrics: expect.objectContaining({
-            totalChecks: 10,
-          }) as LiveTrackerState["metrics"],
-        }),
-      );
-
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Live Tracker Performance Metrics"),
-        expect.any(Map),
-      );
-    });
-
     it("handles alarm when no live message exists", async () => {
       const trackerState = createAlarmTestTrackerState({
         liveMessageId: undefined,
@@ -1094,9 +1050,6 @@ describe("LiveTrackerDO", () => {
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
-          metrics: expect.objectContaining({
-            totalMatches: 1,
-          }) as LiveTrackerState["metrics"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalled();
@@ -1245,6 +1198,7 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1302,6 +1256,7 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1357,6 +1312,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
 
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1400,6 +1356,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith("Failed to delete old live tracker message", expect.any(Map));
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1446,6 +1403,11 @@ describe("LiveTrackerDO", () => {
       });
       mockStorage.get.mockResolvedValue(trackerState);
 
+      const guildConfig = aFakeGuildConfigRow({
+        NeatQueueInformerLiveTrackingChannelName: "Y",
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
+
       const mockMatches = [
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
         Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -1464,14 +1426,31 @@ describe("LiveTrackerDO", () => {
       });
       vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
+      const mockChannel = {
+        id: "channel-456",
+        name: "test-queue",
+        type: 0,
+      } as APIChannel;
+      vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+      vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+
+      // Mock permission check components
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
+      vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+        hasAll: true,
+        missing: [],
+      });
+
       await liveTrackerDO.alarm();
 
       expect(createMessageSpy).toHaveBeenCalled();
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
       expect(mockStorage.put).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           lastMessageState: {
-            matchCount: 1,
+            matchCount: 2,
             substitutionCount: 2,
           },
         }),
@@ -1543,7 +1522,7 @@ describe("LiveTrackerDO", () => {
 
         expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
         expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
-          name: "my-queue-channel (1:0)",
+          name: "my-queue-channel┊1﹕0",
           reason: "Live Tracker: Updated series score to 1:0",
         });
       });
@@ -1572,7 +1551,7 @@ describe("LiveTrackerDO", () => {
 
         const mockChannel = {
           id: "test-channel-id",
-          name: "my-queue-channel (0:1)",
+          name: "my-queue-channel┊0﹕1",
           type: 0,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
@@ -1603,7 +1582,7 @@ describe("LiveTrackerDO", () => {
 
         expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
         expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
-          name: "my-queue-channel (1:0)",
+          name: "my-queue-channel┊1﹕0",
           reason: "Live Tracker: Updated series score to 1:0",
         });
       });

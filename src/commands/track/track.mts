@@ -75,6 +75,13 @@ export class TrackCommand extends BaseCommand {
         custom_id: InteractionComponent.Refresh,
       },
     },
+    {
+      type: InteractionType.MessageComponent,
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: InteractionComponent.Repost,
+      },
+    },
   ];
 
   execute(interaction: BaseInteraction): ExecuteResponse {
