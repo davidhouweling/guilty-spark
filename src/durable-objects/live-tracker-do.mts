@@ -798,14 +798,15 @@ export class LiveTrackerDO {
         );
       }
 
-      const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
       const gameScore = this.haloService.getMatchScore(match, "en-US");
 
       const enrichedMatch: EnrichedMatchData = {
         matchId: match.MatchId,
         gameTypeAndMap,
-        gameDuration,
+        duration,
         gameScore,
+        endTime: new Date(match.MatchInfo.EndTime),
       };
 
       // Store the enriched match

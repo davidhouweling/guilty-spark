@@ -11,14 +11,16 @@ describe("LiveTrackerEmbed", () => {
     {
       matchId: "match-1",
       gameTypeAndMap: "Slayer on Aquarius",
-      gameDuration: "08:45",
-      gameScore: "50-42",
+      duration: "8m 45s",
+      gameScore: "50:42",
+      endTime: new Date("2024-01-01T10:15:00Z"),
     },
     {
       matchId: "match-2",
       gameTypeAndMap: "CTF on Catalyst",
-      gameDuration: "12:30",
-      gameScore: "3-2",
+      duration: "12m 30s",
+      gameScore: "3:2",
+      endTime: new Date("2024-01-01T10:30:00Z"),
     },
   ];
 

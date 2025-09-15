@@ -903,14 +903,16 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: expect.any(String) as string,
-              gameDuration: expect.any(String) as string,
+              duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
+              endTime: expect.any(Date) as Date,
             }) as MatchStats,
             "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
               matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
               gameTypeAndMap: expect.any(String) as string,
-              gameDuration: expect.any(String) as string,
+              duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
+              endTime: expect.any(Date) as Date,
             }) as MatchStats,
           }) as LiveTrackerState["discoveredMatches"],
           rawMatches: expect.objectContaining({
@@ -1061,8 +1063,9 @@ describe("LiveTrackerDO", () => {
           "existing-match-id": {
             matchId: "existing-match-id",
             gameTypeAndMap: "Slayer on Aquarius",
-            gameDuration: "7:30",
-            gameScore: "Team Cobalt 50 - 47 Team Gold",
+            duration: "7m 30s",
+            gameScore: "50:47",
+            endTime: new Date("2024-01-01T10:00:00Z"),
           },
         },
         rawMatches: {
@@ -1111,8 +1114,9 @@ describe("LiveTrackerDO", () => {
           "pre-sub-match": {
             matchId: "pre-sub-match",
             gameTypeAndMap: "CTF on Catalyst",
-            gameDuration: "8:45",
-            gameScore: "Team Alpha 3 - 2 Team Beta",
+            duration: "8m 45s",
+            gameScore: "3:2",
+            endTime: new Date("2024-01-01T10:00:00Z"),
           },
         },
         rawMatches: {
@@ -1279,8 +1283,9 @@ describe("LiveTrackerDO", () => {
           "9535b946-f30c-4a43-b852-000000slayer": {
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
             gameTypeAndMap: "Slayer on Aquarius",
-            gameDuration: "5:00",
+            duration: "5m 00s",
             gameScore: "50:49",
+            endTime: new Date("2024-01-01T10:00:00Z"),
           },
         },
         rawMatches: {
@@ -1391,8 +1396,9 @@ describe("LiveTrackerDO", () => {
           "9535b946-f30c-4a43-b852-000000slayer": {
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
             gameTypeAndMap: "Slayer on Aquarius",
-            gameDuration: "5:00",
+            duration: "5m 00s",
             gameScore: "50:49",
+            endTime: new Date("2024-01-01T10:00:00Z"),
           },
         },
         rawMatches: {
@@ -1477,8 +1483,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {
@@ -1537,8 +1544,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {
@@ -1602,8 +1610,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {
@@ -1640,8 +1649,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {
@@ -1699,8 +1709,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {
@@ -1748,8 +1759,9 @@ describe("LiveTrackerDO", () => {
             "9535b946-f30c-4a43-b852-000000slayer": {
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
               gameTypeAndMap: "Slayer on Aquarius",
-              gameDuration: "5:00",
+              duration: "5m 00s",
               gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00Z"),
             },
           },
           rawMatches: {

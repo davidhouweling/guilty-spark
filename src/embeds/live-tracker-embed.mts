@@ -6,6 +6,7 @@ import type {
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import type { DiscordService } from "../services/discord/discord.mjs";
+import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
@@ -24,8 +25,9 @@ export type TrackingStatus = "active" | "paused" | "stopped";
 export interface EnrichedMatchData {
   matchId: string;
   gameTypeAndMap: string;
-  gameDuration: string;
+  duration: string;
   gameScore: string;
+  endTime: Date;
 }
 
 export interface LiveTrackerEmbedData {
@@ -78,6 +80,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore } = this.data;
     const { discordService } = this.services;
 
+    const hasMatches = enrichedMatches != null && enrichedMatches.length > 0;
     const userDisplay = `<@${userId}>`;
     const statusEmoji = this.getStatusEmoji(status, isPaused);
     const statusText = this.getStatusText(status, isPaused);
@@ -89,7 +92,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     };
 
     // Create series data table if we have enriched match data
-    if (enrichedMatches && enrichedMatches.length > 0) {
+    if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles]; // Header row
 
@@ -100,7 +103,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
       let substitutionIndex = 0;
 
-      for (const { matchId, gameTypeAndMap, gameDuration, gameScore } of enrichedMatches) {
+      for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore } of enrichedMatches) {
         // For live tracker, we'll add substitutions between each match
         // This simulates them happening chronologically based on when they were recorded
         while (substitutionIndex < sortedSubstitutions.length) {
@@ -181,6 +184,23 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       value: seriesScore ?? "🦅 0:0 🐍",
       inline: true,
     });
+    embed.fields.push({
+      name: "Last game completed at",
+      value: hasMatches
+        ? discordService.getTimestamp(
+            Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime.toISOString(),
+            "R",
+          )
+        : "-",
+      inline: true,
+    });
+
+    embed.fields.push({
+      name: "\n",
+      value: "\n",
+      inline: false,
+    });
+
     embed.fields.push({
       name: "Last updated",
       value: lastUpdateText,
