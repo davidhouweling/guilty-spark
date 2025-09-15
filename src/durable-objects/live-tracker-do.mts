@@ -199,8 +199,6 @@ export class LiveTrackerDO {
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
 
-      await this.setState(trackerState);
-
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
         try {
           const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
@@ -252,9 +250,10 @@ export class LiveTrackerDO {
             ]),
           );
           this.handleError(trackerState, `Discord update failed: ${String(error)}`);
-          await this.setState(trackerState);
         }
       }
+
+      await this.setState(trackerState);
 
       const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
       await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
@@ -431,7 +430,6 @@ export class LiveTrackerDO {
       trackerState.checkCount += 1;
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
-      await this.setState(trackerState);
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
         const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
@@ -460,6 +458,8 @@ export class LiveTrackerDO {
         await this.updateChannelName(trackerState, seriesScore, false);
         await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
       }
+
+      await this.setState(trackerState);
 
       return Response.json({ success: true, state: trackerState });
     } catch (error) {
@@ -944,8 +944,6 @@ export class LiveTrackerDO {
       if (!hasPermission) {
         return;
       }
-
-      await this.setState(trackerState);
 
       const { name } = channel;
       const baseChannelName = name.replace(/(┊.+)$/, "");
