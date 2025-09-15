@@ -71,14 +71,6 @@ export interface LiveTrackerState {
   // Store raw match data for series score calculation
   // Key: matchId, Value: MatchStats
   rawMatches: Record<string, MatchStats>;
-  // Performance metrics for Phase 4
-  metrics: {
-    totalChecks: number;
-    totalMatches: number;
-    totalErrors: number;
-    averageCheckDurationMs?: number;
-    lastCheckDurationMs?: number;
-  };
   lastMessageState: {
     matchCount: number;
     substitutionCount: number;
@@ -149,8 +141,6 @@ export class LiveTrackerDO {
   }
 
   async alarm(): Promise<void> {
-    const alarmStartTime = Date.now();
-
     try {
       const trackerState = await this.getState();
       if (!trackerState || trackerState.status !== "active" || trackerState.isPaused) {
@@ -174,7 +164,6 @@ export class LiveTrackerDO {
 
       try {
         enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
-        trackerState.metrics.totalMatches = enrichedMatches.length;
         const fetchDurationMs = Date.now() - fetchStartTime;
 
         this.logService.info(
@@ -190,7 +179,6 @@ export class LiveTrackerDO {
         this.handleSuccess(trackerState);
       } catch (error) {
         this.logService.warn("Failed to fetch series data, using empty data", new Map([["error", String(error)]]));
-        trackerState.metrics.totalErrors += 1;
         this.handleError(trackerState, String(error));
 
         if (this.shouldStopDueToErrors(trackerState)) {
@@ -210,17 +198,6 @@ export class LiveTrackerDO {
       trackerState.checkCount += 1;
       const currentTime = new Date();
       trackerState.lastUpdateTime = currentTime.toISOString();
-
-      trackerState.metrics.totalChecks += 1;
-      const totalAlarmDurationMs = Date.now() - alarmStartTime;
-      trackerState.metrics.lastCheckDurationMs = totalAlarmDurationMs;
-
-      if (trackerState.metrics.averageCheckDurationMs != null) {
-        trackerState.metrics.averageCheckDurationMs =
-          (trackerState.metrics.averageCheckDurationMs + totalAlarmDurationMs) / 2;
-      } else {
-        trackerState.metrics.averageCheckDurationMs = totalAlarmDurationMs;
-      }
 
       await this.setState(trackerState);
 
@@ -281,23 +258,6 @@ export class LiveTrackerDO {
 
       const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
       await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
-
-      if (trackerState.checkCount % 10 === 0) {
-        this.logService.info(
-          `Live Tracker Performance Metrics (Queue ${trackerState.queueNumber.toString()})`,
-          new Map([
-            ["totalChecks", trackerState.metrics.totalChecks.toString()],
-            ["totalMatches", trackerState.metrics.totalMatches.toString()],
-            ["totalErrors", trackerState.metrics.totalErrors.toString()],
-            ["avgCheckDurationMs", trackerState.metrics.averageCheckDurationMs.toString()],
-            ["lastCheckDurationMs", trackerState.metrics.lastCheckDurationMs.toString()],
-            [
-              "errorRate",
-              ((trackerState.metrics.totalErrors / trackerState.metrics.totalChecks) * 100).toFixed(1) + "%",
-            ],
-          ]),
-        );
-      }
     } catch (error) {
       this.logService.error("LiveTracker alarm error:", new Map([["error", String(error)]]));
     }
@@ -328,11 +288,6 @@ export class LiveTrackerDO {
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
         lastSuccessTime: new Date().toISOString(),
         lastErrorMessage: undefined,
-      },
-      metrics: {
-        totalChecks: 0,
-        totalMatches: 0,
-        totalErrors: 0,
       },
       lastMessageState: {
         matchCount: 0,

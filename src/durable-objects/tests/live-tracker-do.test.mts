@@ -133,11 +133,6 @@ const createMockTrackerState = (): LiveTrackerState => ({
     backoffMinutes: 3,
     lastSuccessTime: new Date().toISOString(),
   },
-  metrics: {
-    totalChecks: 1,
-    totalMatches: 0,
-    totalErrors: 0,
-  },
   lastMessageState: {
     matchCount: 0,
     substitutionCount: 0,
@@ -181,13 +176,6 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     lastErrorMessage: undefined,
     backoffMinutes: 0,
     lastSuccessTime: new Date().toISOString(),
-  },
-  metrics: {
-    totalChecks: 0,
-    totalMatches: 0,
-    totalErrors: 0,
-    lastCheckDurationMs: 0,
-    averageCheckDurationMs: 0,
   },
   lastMessageState: {
     matchCount: 0,
@@ -233,13 +221,6 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     lastErrorMessage: undefined,
     backoffMinutes: 0,
     lastSuccessTime: new Date().toISOString(),
-  },
-  metrics: {
-    totalChecks: 0,
-    totalMatches: 0,
-    totalErrors: 0,
-    lastCheckDurationMs: 0,
-    averageCheckDurationMs: 0,
   },
   lastMessageState: {
     matchCount: 0,
@@ -871,13 +852,6 @@ describe("LiveTrackerDO", () => {
           backoffMinutes: 0,
           lastSuccessTime: new Date().toISOString(),
         },
-        metrics: {
-          totalChecks: 0,
-          totalMatches: 0,
-          totalErrors: 0,
-          lastCheckDurationMs: 0,
-          averageCheckDurationMs: 0,
-        },
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
@@ -900,10 +874,6 @@ describe("LiveTrackerDO", () => {
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
-          metrics: expect.objectContaining({
-            totalChecks: 1,
-            totalMatches: 2,
-          }) as LiveTrackerState["metrics"],
           discoveredMatches: expect.objectContaining({
             "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
@@ -940,13 +910,6 @@ describe("LiveTrackerDO", () => {
           backoffMinutes: 0,
           lastSuccessTime: new Date().toISOString(),
         },
-        metrics: {
-          totalChecks: 0,
-          totalMatches: 0,
-          totalErrors: 0,
-          lastCheckDurationMs: 0,
-          averageCheckDurationMs: 0,
-        },
       });
       mockStorage.get.mockResolvedValue(trackerState);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Network error"));
@@ -966,9 +929,6 @@ describe("LiveTrackerDO", () => {
             consecutiveErrors: 1,
             lastErrorMessage: "Error: Network error",
           }) as LiveTrackerState["errorState"],
-          metrics: expect.objectContaining({
-            totalErrors: 1,
-          }) as LiveTrackerState["metrics"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalled();
@@ -1042,43 +1002,6 @@ describe("LiveTrackerDO", () => {
       expect(mockStorage.deleteAll).not.toHaveBeenCalled();
     });
 
-    it("logs performance metrics every 10 checks", async () => {
-      const trackerState = createAlarmTestTrackerState({
-        checkCount: 9,
-        metrics: {
-          totalChecks: 9,
-          totalMatches: 15,
-          totalErrors: 2,
-          lastCheckDurationMs: 150,
-          averageCheckDurationMs: 125,
-        },
-      });
-      mockStorage.get.mockResolvedValue(trackerState);
-
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-      const infoSpy = vi.spyOn(services.logService, "info").mockImplementation(() => undefined);
-
-      await liveTrackerDO.alarm();
-
-      expect(mockStorage.put).toHaveBeenCalledWith(
-        "trackerState",
-        expect.objectContaining({
-          checkCount: 10,
-          metrics: expect.objectContaining({
-            totalChecks: 10,
-          }) as LiveTrackerState["metrics"],
-        }),
-      );
-
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Live Tracker Performance Metrics"),
-        expect.any(Map),
-      );
-    });
-
     it("handles alarm when no live message exists", async () => {
       const trackerState = createAlarmTestTrackerState({
         liveMessageId: undefined,
@@ -1094,9 +1017,6 @@ describe("LiveTrackerDO", () => {
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
-          metrics: expect.objectContaining({
-            totalMatches: 1,
-          }) as LiveTrackerState["metrics"],
         }),
       );
       expect(mockStorage.setAlarm).toHaveBeenCalled();
