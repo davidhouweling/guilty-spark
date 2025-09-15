@@ -948,8 +948,9 @@ export class LiveTrackerDO {
       await this.setState(trackerState);
 
       const { name } = channel;
-      const baseChannelName = name.replace(/ \([^)]+\)$/, "");
-      const newChannelName = `${baseChannelName} (${seriesScore})`;
+      const baseChannelName = name.replace(/(┊.+)$/, "");
+      // discord does not like spaces, and colons, so we replace them with special characters
+      const newChannelName = `${baseChannelName}┊${seriesScore.replace(":", "﹕")}`;
       if (name !== newChannelName) {
         await this.discordService.updateChannel(trackerState.channelId, {
           name: newChannelName,

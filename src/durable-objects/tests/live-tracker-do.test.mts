@@ -1463,7 +1463,7 @@ describe("LiveTrackerDO", () => {
 
         expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
         expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
-          name: "my-queue-channel (1:0)",
+          name: "my-queue-channel┊1﹕0",
           reason: "Live Tracker: Updated series score to 1:0",
         });
       });
@@ -1492,7 +1492,7 @@ describe("LiveTrackerDO", () => {
 
         const mockChannel = {
           id: "test-channel-id",
-          name: "my-queue-channel (0:1)",
+          name: "my-queue-channel┊0﹕1",
           type: 0,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
@@ -1523,7 +1523,7 @@ describe("LiveTrackerDO", () => {
 
         expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
         expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
-          name: "my-queue-channel (1:0)",
+          name: "my-queue-channel┊1﹕0",
           reason: "Live Tracker: Updated series score to 1:0",
         });
       });
