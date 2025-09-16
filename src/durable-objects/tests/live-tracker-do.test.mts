@@ -4,6 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import type { APIGroupDMChannel, APIChannel } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO, type LiveTrackerStartData, type LiveTrackerState } from "../live-tracker-do.mjs";
+import type { EnrichedMatchData } from "../../embeds/live-tracker-embed.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
 import type { Services } from "../../services/install.mjs";
@@ -229,6 +230,33 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
   ...overrides,
 });
 
+const createMockTrackerStateWithMatches = (): LiveTrackerState => {
+  const baseState = createMockTrackerState();
+  return {
+    ...baseState,
+    discoveredMatches: {
+      match1: {
+        matchId: "match1",
+        gameTypeAndMap: "Slayer on Recharge",
+        duration: "7m 30s",
+        gameScore: "50:47",
+        endTime: new Date(),
+      },
+      match2: {
+        matchId: "match2",
+        gameTypeAndMap: "Slayer on Streets",
+        duration: "8m 15s",
+        gameScore: "50:42",
+        endTime: new Date(),
+      },
+    },
+    rawMatches: {
+      match1: {} as MatchStats, // Mock raw match data
+      match2: {} as MatchStats, // Mock raw match data
+    },
+  };
+};
+
 describe("LiveTrackerDO", () => {
   let liveTrackerDO: LiveTrackerDO;
   let mockState: DurableObjectState;
@@ -441,6 +469,54 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
     });
+
+    it("returns enriched embed data when tracker has discovered matches", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      trackerState.status = "active";
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      // Mock the fetchAndMergeSeriesData method
+      const fetchAndMergeSeriesDataSpy = vi.spyOn(
+        liveTrackerDO as LiveTrackerDO & {
+          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
+        },
+        "fetchAndMergeSeriesData",
+      );
+      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
+
+      // Mock the getSeriesScore method
+      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
+      getSeriesScoreSpy.mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.state).toBeDefined();
+      expect(data.embedData).toBeDefined();
+      const embedData = data.embedData as Record<string, unknown>;
+      expect(embedData).toMatchObject({
+        status: "paused",
+        isPaused: true,
+        seriesScore: "2:1",
+      });
+      expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
+    });
+
+    it("returns basic state when tracker has no discovered matches", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.status = "active";
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.state).toBeDefined();
+      expect(data.embedData).toBeUndefined();
+    });
   });
 
   describe("handleResume()", () => {
@@ -482,6 +558,42 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
     });
+
+    it("returns enriched embed data when tracker has discovered matches", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      trackerState.status = "paused";
+      trackerState.isPaused = true;
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      // Mock the fetchAndMergeSeriesData method
+      const fetchAndMergeSeriesDataSpy = vi.spyOn(
+        liveTrackerDO as LiveTrackerDO & {
+          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
+        },
+        "fetchAndMergeSeriesData",
+      );
+      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
+
+      // Mock the getSeriesScore method
+      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
+      getSeriesScoreSpy.mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.state).toBeDefined();
+      expect(data.embedData).toBeDefined();
+      const embedData = data.embedData as Record<string, unknown>;
+      expect(embedData).toMatchObject({
+        status: "active",
+        isPaused: false,
+        seriesScore: "2:1",
+      });
+      expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
+      expect(embedData["nextCheck"]).toBeDefined();
+    });
   });
 
   describe("handleStop()", () => {
@@ -507,6 +619,43 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(404);
       const text = await response.text();
       expect(text).toBe("Not Found");
+    });
+
+    it("returns enriched embed data when tracker has discovered matches", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      trackerState.status = "active";
+      mockStorage.get.mockResolvedValue(trackerState);
+
+      // Mock the fetchAndMergeSeriesData method
+      const fetchAndMergeSeriesDataSpy = vi.spyOn(
+        liveTrackerDO as LiveTrackerDO & {
+          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
+        },
+        "fetchAndMergeSeriesData",
+      );
+      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
+
+      // Mock the getSeriesScore method
+      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
+      getSeriesScoreSpy.mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.state).toBeDefined();
+      expect(data.embedData).toBeDefined();
+      const embedData = data.embedData as Record<string, unknown>;
+      expect(embedData).toMatchObject({
+        status: "stopped",
+        isPaused: false,
+        seriesScore: "2:1",
+      });
+      expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
+      expect(embedData["nextCheck"]).toBeUndefined();
+      expect(mockStorage.deleteAll).toHaveBeenCalled();
+      expect(mockStorage.deleteAlarm).toHaveBeenCalled();
     });
   });
 

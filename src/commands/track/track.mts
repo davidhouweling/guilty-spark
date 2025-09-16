@@ -21,6 +21,7 @@ import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { LiveTrackerEmbed, InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../../embeds/live-tracker-embed.mjs";
 
 export class TrackCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -59,13 +60,6 @@ export class TrackCommand extends BaseCommand {
       data: {
         component_type: ComponentType.Button,
         custom_id: InteractionComponent.Resume,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Stop,
       },
     },
     {
@@ -250,9 +244,6 @@ export class TrackCommand extends BaseCommand {
       case InteractionComponent.Resume: {
         return this.resumeResponse(interaction);
       }
-      case InteractionComponent.Stop: {
-        return this.stopResponse(interaction);
-      }
       case InteractionComponent.Refresh: {
         return this.refreshResponse(interaction);
       }
@@ -302,24 +293,41 @@ export class TrackCommand extends BaseCommand {
             throw new Error(`Failed to pause live tracker: ${pauseResponse.status.toString()}`);
           }
 
-          // Update embed to show paused state
-          const currentTime = new Date();
-          const liveTrackerEmbed = new LiveTrackerEmbed(
-            { discordService: this.services.discordService },
-            {
-              userId,
-              guildId,
-              channelId,
-              queueNumber,
-              status: "paused",
-              isPaused: true,
-              lastUpdated: currentTime,
-              nextCheck: undefined,
-              enrichedMatches: undefined,
-              seriesScore: undefined,
-              errorState: undefined,
-            },
-          );
+          const pauseResult = (await pauseResponse.json()) as {
+            success: boolean;
+            state: LiveTrackerState;
+            embedData?: LiveTrackerEmbedData;
+          };
+
+          if (!pauseResult.success) {
+            throw new Error("Durable Object failed to pause tracking");
+          }
+
+          let liveTrackerEmbed;
+          if (pauseResult.embedData) {
+            liveTrackerEmbed = new LiveTrackerEmbed(
+              { discordService: this.services.discordService },
+              pauseResult.embedData,
+            );
+          } else {
+            const currentTime = new Date();
+            liveTrackerEmbed = new LiveTrackerEmbed(
+              { discordService: this.services.discordService },
+              {
+                userId,
+                guildId,
+                channelId,
+                queueNumber,
+                status: "paused",
+                isPaused: true,
+                lastUpdated: currentTime,
+                nextCheck: undefined,
+                enrichedMatches: undefined,
+                seriesScore: undefined,
+                errorState: undefined,
+              },
+            );
+          }
 
           await this.services.discordService.editMessage(
             interaction.channel.id,
@@ -404,26 +412,42 @@ export class TrackCommand extends BaseCommand {
             throw new Error(`Failed to resume live tracker: ${resumeResponse.status.toString()}`);
           }
 
-          // Update embed to show active state
-          const currentTime = new Date();
-          const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
+          const resumeResult = (await resumeResponse.json()) as {
+            success: boolean;
+            state: LiveTrackerState;
+            embedData?: LiveTrackerEmbedData;
+          };
 
-          const liveTrackerEmbed = new LiveTrackerEmbed(
-            { discordService: this.services.discordService },
-            {
-              userId,
-              guildId,
-              channelId,
-              queueNumber,
-              status: "active",
-              isPaused: false,
-              lastUpdated: currentTime,
-              nextCheck: nextCheckTime,
-              enrichedMatches: undefined,
-              seriesScore: undefined,
-              errorState: undefined,
-            },
-          );
+          if (!resumeResult.success) {
+            throw new Error("Durable Object failed to resume tracking");
+          }
+
+          let liveTrackerEmbed;
+          if (resumeResult.embedData) {
+            liveTrackerEmbed = new LiveTrackerEmbed(
+              { discordService: this.services.discordService },
+              resumeResult.embedData,
+            );
+          } else {
+            const currentTime = new Date();
+            const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
+            liveTrackerEmbed = new LiveTrackerEmbed(
+              { discordService: this.services.discordService },
+              {
+                userId,
+                guildId,
+                channelId,
+                queueNumber,
+                status: "active",
+                isPaused: false,
+                lastUpdated: currentTime,
+                nextCheck: nextCheckTime,
+                enrichedMatches: undefined,
+                seriesScore: undefined,
+                errorState: undefined,
+              },
+            );
+          }
 
           await this.services.discordService.editMessage(
             interaction.channel.id,
@@ -454,109 +478,6 @@ export class TrackCommand extends BaseCommand {
               status: "stopped", // Show as stopped if we can't resume
               isPaused: false,
               lastUpdated: undefined,
-              nextCheck: undefined,
-              enrichedMatches: undefined,
-              seriesScore: undefined,
-              errorState: undefined,
-            },
-          );
-
-          await this.services.discordService.editMessage(
-            interaction.channel.id,
-            interaction.message.id,
-            liveTrackerEmbed.toMessageData(),
-          );
-        }
-      },
-    };
-  }
-
-  private stopResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    return {
-      response: {
-        type: InteractionResponseType.DeferredMessageUpdate,
-      },
-      jobToComplete: async (): Promise<void> => {
-        const userId = Preconditions.checkExists(
-          interaction.member?.user.id ?? interaction.user?.id,
-          "expected user id",
-        );
-
-        const guildId = interaction.guild_id ?? "";
-        const channelId = interaction.channel.id;
-
-        // Get current state to extract queue number
-        let queueNumber = 0; // Default fallback
-
-        try {
-          const statusResponse = await this.getTrackerStatus(guildId, channelId);
-          if (!statusResponse?.state) {
-            throw new Error("No active live tracker found");
-          }
-
-          ({ queueNumber } = statusResponse.state);
-          // Get the Durable Object instance
-          const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNumber.toString()}`);
-          const doStub = this.env.LIVE_TRACKER_DO.get(doId);
-
-          // Call stop endpoint
-          const stopResponse = await doStub.fetch("http://do/stop", {
-            method: "POST",
-          });
-
-          if (!stopResponse.ok) {
-            throw new Error(`Failed to stop live tracker: ${stopResponse.status.toString()}`);
-          }
-
-          // Update embed to show stopped state
-          const currentTime = new Date();
-          const liveTrackerEmbed = new LiveTrackerEmbed(
-            { discordService: this.services.discordService },
-            {
-              userId,
-              guildId,
-              channelId,
-              queueNumber,
-              status: "stopped",
-              isPaused: false,
-              lastUpdated: currentTime,
-              nextCheck: undefined,
-              enrichedMatches: undefined,
-              seriesScore: undefined,
-              errorState: undefined,
-            },
-          );
-
-          await this.services.discordService.editMessage(
-            interaction.channel.id,
-            interaction.message.id,
-            liveTrackerEmbed.toMessageData(),
-          );
-
-          this.services.logService.info(
-            "Live tracker stopped via button",
-            new Map([
-              ["guildId", guildId],
-              ["channelId", channelId],
-              ["queueNumber", queueNumber.toString()],
-              ["userId", userId],
-            ]),
-          );
-        } catch (error) {
-          this.services.logService.error("Failed to stop live tracker", new Map([["error", String(error)]]));
-
-          // Still update the embed to show stopped state, even if DO call failed
-          const currentTime = new Date();
-          const liveTrackerEmbed = new LiveTrackerEmbed(
-            { discordService: this.services.discordService },
-            {
-              userId,
-              guildId,
-              channelId,
-              queueNumber,
-              status: "stopped",
-              isPaused: false,
-              lastUpdated: currentTime,
               nextCheck: undefined,
               enrichedMatches: undefined,
               seriesScore: undefined,

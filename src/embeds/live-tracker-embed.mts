@@ -16,7 +16,6 @@ export enum InteractionComponent {
   Refresh = "btn_track_refresh",
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
-  Stop = "btn_track_stop",
   Repost = "btn_track_repost",
 }
 
@@ -261,16 +260,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         label: "Resume",
         style: ButtonStyle.Primary,
         emoji: { name: "▶️" },
-      });
-    }
-
-    if (status !== "stopped") {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Stop,
-        label: "Stop",
-        style: ButtonStyle.Danger,
-        emoji: { name: "⏹️" },
       });
     }
 
