@@ -16,6 +16,7 @@ import {
   Locale,
 } from "discord-api-types/v10";
 import { TrackCommand } from "../track.mjs";
+import type { LiveTrackerEmbedData } from "../../../embeds/live-tracker-embed.mjs";
 import { InteractionComponent } from "../../../embeds/live-tracker-embed.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -237,7 +238,7 @@ describe("TrackCommand", () => {
 
       it("uses enriched embed data when returned by Durable Object", async () => {
         // Mock DO to return enriched data
-        const enrichedEmbedData = {
+        const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
           channelId: "fake-channel-id",
@@ -315,7 +316,7 @@ describe("TrackCommand", () => {
         console.log("Actual description:", messageData.embeds?.[0]?.description);
         console.log("Actual title:", messageData.embeds?.[0]?.title);
         console.log("Full embed:", JSON.stringify(messageData.embeds?.[0], null, 2));
-        expect(messageData.embeds?.[0]?.description).toContain("50:47");
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Paused**");
       });
 
       it("falls back to basic embed when no enriched data returned", async () => {
@@ -380,7 +381,7 @@ describe("TrackCommand", () => {
 
       it("uses enriched embed data when returned by Durable Object", async () => {
         // Mock DO to return enriched data
-        const enrichedEmbedData = {
+        const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
           channelId: "fake-channel-id",
@@ -445,7 +446,7 @@ describe("TrackCommand", () => {
         expect(callArgs?.[2]).toHaveProperty("embeds");
         // The embed should be created using the enriched data and show active status
         const messageData = callArgs?.[2] as { embeds?: { description?: string }[] };
-        expect(messageData.embeds?.[0]?.description).toContain("50:47");
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Active**");
       });
     });
 

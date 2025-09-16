@@ -26,7 +26,7 @@ export interface EnrichedMatchData {
   gameTypeAndMap: string;
   duration: string;
   gameScore: string;
-  endTime: Date;
+  endTime: Date | string;
 }
 
 export interface LiveTrackerEmbedData {
@@ -36,8 +36,8 @@ export interface LiveTrackerEmbedData {
   queueNumber: number;
   status: TrackingStatus;
   isPaused: boolean;
-  lastUpdated: Date | undefined;
-  nextCheck: Date | undefined;
+  lastUpdated: Date | string | undefined;
+  nextCheck: Date | string | undefined;
   enrichedMatches: EnrichedMatchData[] | undefined;
   seriesScore: string | undefined;
   // Track substitutions for display
@@ -161,9 +161,10 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     });
 
     const currentTime = new Date();
-    const lastUpdateText = lastUpdated
-      ? discordService.getTimestamp(lastUpdated.toISOString(), "f")
-      : discordService.getTimestamp(currentTime.toISOString(), "f");
+    const lastUpdateText =
+      lastUpdated != null
+        ? discordService.getTimestamp(new Date(lastUpdated).toISOString(), "f")
+        : discordService.getTimestamp(currentTime.toISOString(), "f");
     const nextCheckText = ((): string => {
       if (status === "stopped") {
         return "*Stopped*";
@@ -171,8 +172,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (isPaused) {
         return "*Paused*";
       }
-      if (nextCheck) {
-        return discordService.getTimestamp(nextCheck.toISOString(), "R");
+      if (nextCheck != null) {
+        return discordService.getTimestamp(new Date(nextCheck).toISOString(), "R");
       }
       const nextAlarmTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
       return discordService.getTimestamp(nextAlarmTime.toISOString(), "R");
@@ -187,7 +188,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       name: "Last game completed at",
       value: hasMatches
         ? discordService.getTimestamp(
-            Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime.toISOString(),
+            new Date(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime).toISOString(),
             "R",
           )
         : "-",
