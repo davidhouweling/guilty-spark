@@ -6,6 +6,7 @@ import type {
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import type { DiscordService } from "../services/discord/discord.mjs";
+import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
@@ -15,7 +16,6 @@ export enum InteractionComponent {
   Refresh = "btn_track_refresh",
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
-  Stop = "btn_track_stop",
   Repost = "btn_track_repost",
 }
 
@@ -24,8 +24,9 @@ export type TrackingStatus = "active" | "paused" | "stopped";
 export interface EnrichedMatchData {
   matchId: string;
   gameTypeAndMap: string;
-  gameDuration: string;
+  duration: string;
   gameScore: string;
+  endTime: Date | string;
 }
 
 export interface LiveTrackerEmbedData {
@@ -35,8 +36,8 @@ export interface LiveTrackerEmbedData {
   queueNumber: number;
   status: TrackingStatus;
   isPaused: boolean;
-  lastUpdated: Date | undefined;
-  nextCheck: Date | undefined;
+  lastUpdated: Date | string | undefined;
+  nextCheck: Date | string | undefined;
   enrichedMatches: EnrichedMatchData[] | undefined;
   seriesScore: string | undefined;
   // Track substitutions for display
@@ -78,18 +79,18 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore } = this.data;
     const { discordService } = this.services;
 
+    const hasMatches = enrichedMatches != null && enrichedMatches.length > 0;
     const userDisplay = `<@${userId}>`;
-    const statusEmoji = this.getStatusEmoji(status, isPaused);
     const statusText = this.getStatusText(status, isPaused);
 
     const embed: APIEmbed = {
-      title: `${statusEmoji} Live Tracker - Queue #${queueNumber.toString()}`,
+      title: `Live Tracker - Queue #${queueNumber.toString()}`,
       color: this.getEmbedColor(status, isPaused),
       description: `**${statusText}**`,
     };
 
     // Create series data table if we have enriched match data
-    if (enrichedMatches && enrichedMatches.length > 0) {
+    if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles]; // Header row
 
@@ -100,7 +101,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
       let substitutionIndex = 0;
 
-      for (const { matchId, gameTypeAndMap, gameDuration, gameScore } of enrichedMatches) {
+      for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore } of enrichedMatches) {
         // For live tracker, we'll add substitutions between each match
         // This simulates them happening chronologically based on when they were recorded
         while (substitutionIndex < sortedSubstitutions.length) {
@@ -159,9 +160,10 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     });
 
     const currentTime = new Date();
-    const lastUpdateText = lastUpdated
-      ? discordService.getTimestamp(lastUpdated.toISOString(), "f")
-      : discordService.getTimestamp(currentTime.toISOString(), "f");
+    const lastUpdateText =
+      lastUpdated != null
+        ? discordService.getTimestamp(new Date(lastUpdated).toISOString(), "f")
+        : discordService.getTimestamp(currentTime.toISOString(), "f");
     const nextCheckText = ((): string => {
       if (status === "stopped") {
         return "*Stopped*";
@@ -169,8 +171,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (isPaused) {
         return "*Paused*";
       }
-      if (nextCheck) {
-        return discordService.getTimestamp(nextCheck.toISOString(), "R");
+      if (nextCheck != null) {
+        return discordService.getTimestamp(new Date(nextCheck).toISOString(), "R");
       }
       const nextAlarmTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
       return discordService.getTimestamp(nextAlarmTime.toISOString(), "R");
@@ -181,6 +183,23 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       value: seriesScore ?? "🦅 0:0 🐍",
       inline: true,
     });
+    embed.fields.push({
+      name: "Last game completed at",
+      value: hasMatches
+        ? discordService.getTimestamp(
+            new Date(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime).toISOString(),
+            "R",
+          )
+        : "-",
+      inline: true,
+    });
+
+    embed.fields.push({
+      name: "\n",
+      value: "\n",
+      inline: false,
+    });
+
     embed.fields.push({
       name: "Last updated",
       value: lastUpdateText,
@@ -244,16 +263,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       });
     }
 
-    if (status !== "stopped") {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Stop,
-        label: "Stop",
-        style: ButtonStyle.Danger,
-        emoji: { name: "⏹️" },
-      });
-    }
-
     const actions: APIMessageTopLevelComponent[] =
       components.length > 0
         ? [
@@ -289,16 +298,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       embeds: [this.embed],
       components: this.actions,
     };
-  }
-
-  private getStatusEmoji(status: TrackingStatus, isPaused: boolean): string {
-    if (isPaused || status === "paused") {
-      return "⏸️";
-    }
-    if (status === "stopped") {
-      return "⏹️";
-    }
-    return "🟢";
   }
 
   private getStatusText(status: TrackingStatus, isPaused: boolean): string {

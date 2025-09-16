@@ -16,6 +16,7 @@ import {
   Locale,
 } from "discord-api-types/v10";
 import { TrackCommand } from "../track.mjs";
+import type { LiveTrackerEmbedData } from "../../../embeds/live-tracker-embed.mjs";
 import { InteractionComponent } from "../../../embeds/live-tracker-embed.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -183,8 +184,12 @@ describe("TrackCommand", () => {
     let liveTrackerDoStub: FakeLiveTrackerDO;
 
     beforeEach(() => {
-      // Mock the queue data lookup used by getTrackerStatus
-      vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(discordNeatQueueData);
+      // Mock the queue data lookup used by getTrackerStatus - use queueNumber 42 to match DO fake
+      const mockQueueData = {
+        ...discordNeatQueueData,
+        queue: 42, // Match the default queueNumber in the DO fake
+      };
+      vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
 
       // Mock Durable Object stub using the fake
       liveTrackerDoStub = aFakeLiveTrackerDOWith();
@@ -230,6 +235,130 @@ describe("TrackCommand", () => {
         expect(callArgs?.[1]).toBe("fake-message-id"); // message ID
         expect(callArgs?.[2]).toHaveProperty("embeds");
       });
+
+      it("uses enriched embed data when returned by Durable Object", async () => {
+        // Mock DO to return enriched data
+        const enrichedEmbedData: LiveTrackerEmbedData = {
+          userId: "fake-user-id",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 123,
+          status: "active" as const,
+          isPaused: true,
+          lastUpdated: new Date(),
+          nextCheck: new Date(),
+          enrichedMatches: [
+            {
+              matchId: "match1",
+              gameTypeAndMap: "Slayer on Recharge",
+              duration: "7m 30s",
+              gameScore: "50:47",
+              endTime: new Date(),
+            },
+          ],
+          seriesScore: "2:1",
+          substitutions: [],
+          errorState: undefined,
+        };
+
+        // Mock fetch to handle both status and pause endpoints
+        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+          let urlString: string;
+          if (typeof url === "string") {
+            urlString = url;
+          } else if (url instanceof URL) {
+            urlString = url.href;
+          } else {
+            urlString = url.url;
+          }
+
+          if (urlString.includes("/status")) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  state: {
+                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    userId: "fake-user-id",
+                    guildId: "fake-guild-id",
+                    channelId: "fake-channel-id",
+                    status: "active",
+                    isPaused: false,
+                  },
+                }),
+              ),
+            );
+          } else if (urlString.includes("/pause")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ success: true, state: {}, embedData: enrichedEmbedData })),
+            );
+          }
+          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        });
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+
+        let error: unknown;
+        try {
+          await jobToComplete?.();
+        } catch (e) {
+          error = e;
+        }
+
+        if (error !== null) {
+          console.log("Error occurred:", error);
+        }
+
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+        // The embed should be created using the enriched data
+        const messageData = callArgs?.[2] as { embeds?: { description?: string; title?: string }[] };
+        console.log("Actual description:", messageData.embeds?.[0]?.description);
+        console.log("Actual title:", messageData.embeds?.[0]?.title);
+        console.log("Full embed:", JSON.stringify(messageData.embeds?.[0], null, 2));
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Paused**");
+      });
+
+      it("falls back to basic embed when no enriched data returned", async () => {
+        // Mock DO to return basic response without embedData
+        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+          let urlString: string;
+          if (typeof url === "string") {
+            urlString = url;
+          } else if (url instanceof URL) {
+            urlString = url.href;
+          } else {
+            urlString = url.url;
+          }
+
+          if (urlString.includes("/status")) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  state: {
+                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    userId: "fake-user-id",
+                    guildId: "fake-guild-id",
+                    channelId: "fake-channel-id",
+                    status: "active",
+                    isPaused: false,
+                  },
+                }),
+              ),
+            );
+          } else if (urlString.includes("/pause")) {
+            return Promise.resolve(new Response(JSON.stringify({ success: true, state: {} })));
+          }
+          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        });
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+        await jobToComplete?.();
+
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+      });
     });
 
     describe("resume button", () => {
@@ -249,24 +378,75 @@ describe("TrackCommand", () => {
           method: "POST",
         });
       });
-    });
 
-    describe("stop button", () => {
-      const stopButtonInteraction: APIMessageComponentButtonInteraction = {
-        ...fakeButtonClickInteraction,
-        data: {
-          ...fakeButtonClickInteraction.data,
-          custom_id: InteractionComponent.Stop,
-        },
-      };
+      it("uses enriched embed data when returned by Durable Object", async () => {
+        // Mock DO to return enriched data
+        const enrichedEmbedData: LiveTrackerEmbedData = {
+          userId: "fake-user-id",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 123,
+          status: "active" as const,
+          isPaused: false,
+          lastUpdated: new Date(),
+          nextCheck: new Date(Date.now() + 180000), // 3 minutes from now
+          enrichedMatches: [
+            {
+              matchId: "match1",
+              gameTypeAndMap: "Slayer on Recharge",
+              duration: "7m 30s",
+              gameScore: "50:47",
+              endTime: new Date(),
+            },
+          ],
+          seriesScore: "2:1",
+          substitutions: [],
+          errorState: undefined,
+        };
 
-      it("calls stop on Durable Object", async () => {
-        const { jobToComplete } = trackCommand.execute(stopButtonInteraction);
+        // Mock fetch to handle both status and resume endpoints
+        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+          let urlString: string;
+          if (typeof url === "string") {
+            urlString = url;
+          } else if (url instanceof URL) {
+            urlString = url.href;
+          } else {
+            urlString = url.url;
+          }
+
+          if (urlString.includes("/status")) {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  state: {
+                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    userId: "fake-user-id",
+                    guildId: "fake-guild-id",
+                    channelId: "fake-channel-id",
+                    status: "active",
+                    isPaused: false,
+                  },
+                }),
+              ),
+            );
+          } else if (urlString.includes("/resume")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ success: true, state: {}, embedData: enrichedEmbedData })),
+            );
+          }
+          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        });
+
+        const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/stop", {
-          method: "POST",
-        });
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+        // The embed should be created using the enriched data and show active status
+        const messageData = callArgs?.[2] as { embeds?: { description?: string }[] };
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Active**");
       });
     });
 
@@ -300,7 +480,7 @@ describe("TrackCommand", () => {
           ...apiMessage,
           embeds: [
             {
-              title: "🟢 Live Tracker - Queue #123",
+              title: "Live Tracker - Queue #123",
               description: "Test description",
             },
           ],

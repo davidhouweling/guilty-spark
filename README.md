@@ -164,7 +164,7 @@ Guilty Spark provides deep integration with NeatQueue tournament management syst
 - **Channel Messages**: New messages in results channel or dedicated stats channel
 - **Live Updates**: Real-time series overview during active matches
 
-### 🟢 Live Tracker - Real-Time Match Updates
+### Live Tracker - Real-Time Match Updates
 
 **Automated real-time tracking** for ongoing NeatQueue series with comprehensive match monitoring.
 

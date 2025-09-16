@@ -11,12 +11,89 @@ Rules of engagement:
 - When considering approaches, always look at files that are adjacent to the ones you are modifying to understand structures, patterns, and practices leveraged and follow those conventions.
   - When this isn't available, ask for clarification or additional context and guidance before proceeding.
 
+# Project Architecture Overview
+
+## Cloudflare Workers Platform Architecture
+
+**Platform Foundation**: Discord bot built on Cloudflare Workers with Node.js ESM support, leveraging edge computing for global performance and scalability.
+
+**Core Components**:
+
+- **Worker Entry Point**: `src/worker.mts` - Main entry with Sentry integration and Durable Object exports
+- **Server Layer**: `src/server.mts` - Router-based request handling with dependency injection
+- **Service Installation**: `src/services/install.mts` - Centralized service configuration and dependency wiring
+
+**Runtime Environment**:
+
+- **Cloudflare Workers**: Edge computing platform with global distribution
+- **Node.js Compatibility**: `nodejs_compat` flag enables Node.js APIs in Workers runtime
+- **Environment Types**: Generated via `wrangler types` in `worker-configuration.d.ts` (7400+ lines)
+
+## Discord Bot Application Architecture
+
+**Command Pattern Implementation**:
+
+- **Base Command**: `src/commands/base/base.mts` - Abstract class defining command interface
+- **Command Registry**: `src/commands/commands.mts` - Centralized command mapping and routing
+- **Command Types**: Application commands, button interactions, modal submissions, select menus
+
+**Commands**:
+
+- `/connect` - Discord-to-Xbox gamertag linking
+- `/stats` - Halo Infinite match and series statistics
+- `/setup` - Server configuration management
+- `/maps` - HCS map generation with interactive UI
+- `/track` - Live match tracking with Durable Objects
+
+## Data & State Management
+
+**Cloudflare D1 Database**:
+
+- **Schema**: Defined in `src/services/database/schema.sql`
+- **Tables**: DiscordAssociations, GuildConfig, NeatQueueConfig
+- **Type Safety**: Generated TypeScript types in `src/services/database/types/`
+- **Service Layer**: `DatabaseService` with caching and transaction support
+
+**Cloudflare KV Storage**:
+
+- **Binding**: `APP_DATA` namespace for application state
+- **Usage**: Configuration and temporary data storage
+
+**Durable Objects**:
+
+- **LiveTrackerDO**: `src/durable-objects/live-tracker-do.mts` - Persistent live match tracking
+- **State Management**: In-memory state with storage persistence
+- **WebSocket-like**: Real-time updates and interval processing
+
 ## Context Gathering & Implementation Strategy
 
 - **Thorough Investigation:** Before making changes, comprehensively analyze existing code patterns, test structures, and architectural decisions.
 - **Pattern Recognition:** Study similar implementations in the codebase to understand established conventions (e.g., service patterns, command structures, embed creation).
 - **Gap Analysis:** When asked to add features or tests, systematically identify what already exists vs. what needs to be created.
 - **Implementation Consistency:** Ensure new code follows the exact same patterns as existing code (naming, structure, error handling, logging).
+
+## Development Environment & Deployment
+
+**Package Management & Scripts**:
+
+- **Package Manager**: npm with Node.js 22.11.0+ requirement
+- **Development**: `npm start` (wrangler dev), `npm run register` (deploy commands)
+- **Testing**: `npm test` (vitest), `npm run test:coverage`
+- **Quality**: `npm run lint:fix`, `npm run format:fix`, `npm run typecheck`
+- **Deployment**: `npm run publish` (wrangler deploy)
+
+**Environment Configuration**:
+
+- **Development**: `.dev.vars` file with environment variables
+- **Staging/Production**: `wrangler.jsonc` with environment-specific bindings
+- **Proxy Integration**: External proxy worker for API rate limiting and caching
+
+**External Integrations**:
+
+- **Discord API**: Bot interactions, slash commands, embeds, webhooks
+- **Xbox Live API**: Authentication and player profile data
+- **Halo Infinite API**: Match statistics and game mode data
+- **NeatQueue Service**: Custom game series management and automation
 
 Execution of system commands in terminal:
 
@@ -62,6 +139,22 @@ Execution of system commands in terminal:
 - **Async Operations:** All service methods that perform I/O should be async and properly handle errors and timeouts.
 - **Caching Strategy:** Implement caching at the service level for expensive operations (API calls, database queries) using appropriate cache keys and TTL.
 - **Rate Limiting:** Respect external API rate limits using service-level throttling and retry logic with exponential backoff.
+
+## Key Architectural Decisions
+
+**Why Cloudflare Workers**: Edge computing provides global low-latency responses for Discord interactions, automatic scaling, and cost-effective operation for a bot serving multiple Discord servers.
+
+**Why Durable Objects**: Live match tracking requires persistent state that survives worker restarts. Durable Objects provide strongly consistent, stateful compute with automatic persistence and recovery.
+
+**Why TypeScript with .mjs Extensions**: Node.js ESM compatibility in Cloudflare Workers runtime requires .mjs extensions for proper module resolution. TypeScript compilation handles the .mts to .mjs transformation.
+
+**Why Service Layer Architecture**: Dependency injection enables comprehensive testing without mocking internal methods. Each service has a focused responsibility and can be easily replaced with fakes during testing.
+
+**Why D1 + KV Storage Combination**: D1 provides relational data integrity for user associations and configuration. KV provides fast, eventually consistent storage for temporary state and caching.
+
+**Why Command Pattern**: Discord interactions have multiple types (slash commands, buttons, modals). The command pattern provides a unified interface for handling all interaction types with proper routing.
+
+**Why Black-Box Testing**: Testing inputs and outputs without mocking internal methods ensures tests remain valid during refactoring and accurately represent real-world behavior.
 
 ## Discord Integration Patterns
 
@@ -229,6 +322,23 @@ When creating test helper functions:
   - Verify test data contains values and structure that code expects
   - Check mocks are properly reset between tests and provide fresh instances when needed
   - Ensure tests remain robust through reasonable code refactoring
+
+## Fake Data System
+
+**Centralized Fake Factory**: `src/services/fakes/services.mts` provides `installFakeServicesWith()` for complete service dependency injection in tests.
+
+**Fake Naming Convention**: All fakes follow `aFake{ClassName}With()` pattern with optional override parameter:
+
+```typescript
+// Example fake usage
+const fakeService = aFakeHaloServiceWith({
+  someMethod: vi.fn().mockResolvedValue(expectedResult),
+});
+```
+
+**Fake Hierarchy**: Each service directory contains a `fakes/` subdirectory with corresponding fake implementations that match the real service interface but with controllable behavior for testing.
+
+**Environment Fakes**: `src/base/fakes/env.fake.mts` provides fake Cloudflare Workers environment for testing, including mocked Durable Object bindings and database connections.
 
 ## Implementation Best Practices
 

@@ -381,8 +381,38 @@ export class LiveTrackerDO {
 
     trackerState.isPaused = true;
     trackerState.status = "paused";
-    trackerState.lastUpdateTime = new Date().toISOString();
+    const currentTime = new Date();
+    trackerState.lastUpdateTime = currentTime.toISOString();
     await this.setState(trackerState);
+
+    if (Object.keys(trackerState.discoveredMatches).length > 0) {
+      try {
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        const embedData: LiveTrackerEmbedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: trackerState.status,
+          isPaused: trackerState.isPaused,
+          lastUpdated: currentTime,
+          nextCheck: undefined, // No next check when paused
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
+
+        return Response.json({ success: true, state: trackerState, embedData });
+      } catch (error) {
+        this.logService.warn(
+          "Failed to enrich pause response, returning basic state",
+          new Map([["error", String(error)]]),
+        );
+      }
+    }
 
     return Response.json({ success: true, state: trackerState });
   }
@@ -395,10 +425,42 @@ export class LiveTrackerDO {
 
     trackerState.isPaused = false;
     trackerState.status = "active";
-    trackerState.lastUpdateTime = new Date().toISOString();
+    const currentTime = new Date();
+    trackerState.lastUpdateTime = currentTime.toISOString();
     await this.setState(trackerState);
 
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+
+    if (Object.keys(trackerState.discoveredMatches).length > 0) {
+      try {
+        const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+        const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        const embedData: LiveTrackerEmbedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: trackerState.status,
+          isPaused: trackerState.isPaused,
+          lastUpdated: currentTime,
+          nextCheck: nextCheckTime,
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
+
+        return Response.json({ success: true, state: trackerState, embedData });
+      } catch (error) {
+        this.logService.warn(
+          "Failed to enrich resume response, returning basic state",
+          new Map([["error", String(error)]]),
+        );
+      }
+    }
 
     return Response.json({ success: true, state: trackerState });
   }
@@ -409,11 +471,40 @@ export class LiveTrackerDO {
       return new Response("Not Found", { status: 404 });
     }
 
+    let embedData: LiveTrackerEmbedData | undefined;
+    if (Object.keys(trackerState.discoveredMatches).length > 0) {
+      try {
+        const currentTime = new Date();
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        embedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: "stopped",
+          isPaused: false,
+          lastUpdated: currentTime,
+          nextCheck: undefined,
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
+      } catch (error) {
+        this.logService.warn(
+          "Failed to enrich stop response, returning basic state",
+          new Map([["error", String(error)]]),
+        );
+      }
+    }
+
     await this.resetChannelName(trackerState);
     await this.state.storage.deleteAlarm();
     await this.state.storage.deleteAll();
 
-    return Response.json({ success: true, state: trackerState });
+    return Response.json({ success: true, state: trackerState, embedData });
   }
 
   private async handleRefresh(): Promise<Response> {
@@ -798,14 +889,15 @@ export class LiveTrackerDO {
         );
       }
 
-      const gameDuration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
       const gameScore = this.haloService.getMatchScore(match, "en-US");
 
       const enrichedMatch: EnrichedMatchData = {
         matchId: match.MatchId,
         gameTypeAndMap,
-        gameDuration,
+        duration,
         gameScore,
+        endTime: new Date(match.MatchInfo.EndTime),
       };
 
       // Store the enriched match
