@@ -475,7 +475,7 @@ describe("TrackCommand", () => {
           JSON.stringify({
             success: false,
             error: "cooldown",
-            message: "Please wait 20 seconds before refreshing again",
+            message: "Refresh cooldown active, next refresh available <t:1695800000:R>",
             remainingSeconds: 20,
           }),
           { status: 429 },
@@ -501,8 +501,10 @@ describe("TrackCommand", () => {
               expect.objectContaining({
                 fields: expect.arrayContaining([
                   expect.objectContaining({
-                    name: "🔄 Refresh Cooldown",
-                    value: "Please wait 20 seconds before refreshing again",
+                    name: "Refresh cooldown",
+                    value: expect.stringMatching(
+                      /^Refresh cooldown active, next refresh available <t:\d+:R>$/,
+                    ) as string,
                     inline: false,
                   } satisfies Partial<APIEmbedField>),
                 ]) as APIEmbedField[],

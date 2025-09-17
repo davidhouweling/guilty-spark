@@ -536,7 +536,6 @@ export class TrackCommand extends BaseCommand {
               success: boolean;
               error: string;
               message: string;
-              remainingSeconds: number;
             };
 
             this.services.logService.info(
@@ -546,23 +545,27 @@ export class TrackCommand extends BaseCommand {
                 ["channelId", channelId],
                 ["queueNumber", queueNumber.toString()],
                 ["userId", userId],
-                ["remainingSeconds", cooldownData.remainingSeconds.toString()],
+                ["message", cooldownData.message],
               ]),
             );
 
-            // Preserve the existing embed and add cooldown field
             const [currentEmbed] = interaction.message.embeds;
             if (currentEmbed) {
+              const fields = currentEmbed.fields ?? [];
+              const title = "Refresh cooldown";
+              const cooldownFieldExists = fields.some((field) => field.name === title);
+
+              if (!cooldownFieldExists) {
+                fields.push({
+                  name: title,
+                  value: cooldownData.message,
+                  inline: false,
+                });
+              }
+
               const updatedEmbed: APIEmbed = {
                 ...currentEmbed,
-                fields: [
-                  ...(currentEmbed.fields ?? []),
-                  {
-                    name: "🔄 Refresh Cooldown",
-                    value: cooldownData.message,
-                    inline: false,
-                  },
-                ],
+                fields,
               };
 
               await this.services.discordService.editMessage(interaction.channel.id, interaction.message.id, {

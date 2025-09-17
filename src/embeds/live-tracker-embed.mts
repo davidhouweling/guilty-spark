@@ -176,7 +176,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       inline: true,
     });
     embed.fields.push({
-      name: "Last game completed at",
+      name: "Last game completed",
       value: hasMatches
         ? discordService.getTimestamp(
             new Date(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime).toISOString(),
