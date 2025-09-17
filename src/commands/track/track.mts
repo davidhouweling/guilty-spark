@@ -552,7 +552,7 @@ export class TrackCommand extends BaseCommand {
             const [currentEmbed] = interaction.message.embeds;
             if (currentEmbed) {
               const fields = currentEmbed.fields ?? [];
-              const title = "Refresh cooldown";
+              const title = "⚠️ Refresh cooldown";
               const cooldownFieldExists = fields.some((field) => field.name === title);
 
               if (!cooldownFieldExists) {

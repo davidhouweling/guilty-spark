@@ -501,7 +501,7 @@ describe("TrackCommand", () => {
               expect.objectContaining({
                 fields: expect.arrayContaining([
                   expect.objectContaining({
-                    name: "Refresh cooldown",
+                    name: "⚠️ Refresh cooldown",
                     value: expect.stringMatching(
                       /^Refresh cooldown active, next refresh available <t:\d+:R>$/,
                     ) as string,
