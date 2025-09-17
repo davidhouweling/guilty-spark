@@ -1,4 +1,5 @@
 import type { authenticate } from "@xboxreplay/xboxlive-auth";
+import { differenceInSeconds } from "date-fns";
 
 interface TokenInfo {
   XSTSToken: string;
@@ -54,7 +55,7 @@ export class XboxService {
     };
 
     await this.env.APP_DATA.put(XboxService.TOKEN_NAME, JSON.stringify(this.tokenInfo), {
-      expirationTtl: Math.floor((this.tokenInfo.expiresOn.getTime() - new Date().getTime()) / 1000),
+      expirationTtl: differenceInSeconds(this.tokenInfo.expiresOn, new Date()),
     });
   }
 }

@@ -5,13 +5,10 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { differenceInMilliseconds } from "date-fns";
+import { differenceInMilliseconds, addMinutes, compareAsc } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
-
-// Production: 3 minutes for live tracking (user-facing display)
-const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
 
 export enum InteractionComponent {
   Refresh = "btn_track_refresh",
@@ -92,8 +89,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles];
-      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort((a, b) =>
+        compareAsc(new Date(a.timestamp), new Date(b.timestamp)),
       );
 
       let substitutionIndex = 0;
@@ -164,7 +161,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (nextCheck != null) {
         return discordService.getTimestamp(new Date(nextCheck).toISOString(), "R");
       }
-      const nextAlarmTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+      const nextAlarmTime = addMinutes(currentTime, 3);
       return discordService.getTimestamp(nextAlarmTime.toISOString(), "R");
     })();
 

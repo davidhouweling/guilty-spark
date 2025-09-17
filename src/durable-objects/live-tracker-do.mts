@@ -1,7 +1,7 @@
 import type { APIGuildMember, APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import { differenceInMilliseconds } from "date-fns";
+import { differenceInMilliseconds, addMinutes } from "date-fns";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -302,7 +302,7 @@ export class LiveTrackerDO {
       await this.setState(trackerState);
 
       const currentTime = new Date();
-      const nextCheckTime = new Date(currentTime.getTime() + DISPLAY_INTERVAL_MS);
+      const nextCheckTime = addMinutes(currentTime, 3);
 
       const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
       const rawMatchesArray = Object.values(trackerState.rawMatches);
