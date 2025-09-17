@@ -528,6 +528,30 @@ export class TrackCommand extends BaseCommand {
             method: "POST",
           });
 
+          if (refreshResponse.status === 429) {
+            // Handle cooldown response
+            const cooldownData = (await refreshResponse.json()) as {
+              success: boolean;
+              error: string;
+              message: string;
+              remainingSeconds: number;
+            };
+
+            this.services.logService.info(
+              "Live tracker refresh blocked by cooldown",
+              new Map([
+                ["guildId", guildId],
+                ["channelId", channelId],
+                ["queueNumber", queueNumber.toString()],
+                ["userId", userId],
+                ["remainingSeconds", cooldownData.remainingSeconds.toString()],
+              ]),
+            );
+
+            // The embed will automatically show the cooldown warning on the next update
+            return;
+          }
+
           if (!refreshResponse.ok) {
             throw new Error(`Failed to refresh live tracker: ${refreshResponse.status.toString()}`);
           }
