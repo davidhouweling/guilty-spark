@@ -5,6 +5,7 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
+import { differenceInMilliseconds } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
@@ -40,17 +41,15 @@ export interface LiveTrackerEmbedData {
   nextCheck: Date | string | undefined;
   enrichedMatches: EnrichedMatchData[] | undefined;
   seriesScore: string | undefined;
-  // Track substitutions for display
   substitutions?:
     | {
         playerOutId: string;
         playerInId: string;
         teamIndex: number;
-        teamName: string; // NeatQueue team name for display
+        teamName: string;
         timestamp: string;
       }[]
     | undefined;
-  // Enhanced error handling for exponential backoff display
   errorState:
     | {
         consecutiveErrors: number;
@@ -59,6 +58,7 @@ export interface LiveTrackerEmbedData {
         lastErrorMessage?: string | undefined;
       }
     | undefined;
+  lastRefreshAttempt?: string | undefined;
 }
 
 interface LiveTrackerEmbedServices {
@@ -89,12 +89,9 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       description: `**${statusText}**`,
     };
 
-    // Create series data table if we have enriched match data
     if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
-      const tableData = [titles]; // Header row
-
-      // Sort substitutions by timestamp for chronological display
+      const tableData = [titles];
       const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort(
         (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
       );
@@ -102,18 +99,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       let substitutionIndex = 0;
 
       for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore } of enrichedMatches) {
-        // For live tracker, we'll add substitutions between each match
-        // This simulates them happening chronologically based on when they were recorded
         while (substitutionIndex < sortedSubstitutions.length) {
           const substitution = sortedSubstitutions[substitutionIndex];
           if (!substitution) {
             break;
           }
 
-          // Add substitution before current match
           tableData.push(this.createSubstitutionRow(substitution));
           substitutionIndex++;
-          // Only add one substitution per match for now, can be enhanced later
           break;
         }
 
@@ -124,7 +117,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         ]);
       }
 
-      // Add any remaining substitutions after the last match
       while (substitutionIndex < sortedSubstitutions.length) {
         const substitution = sortedSubstitutions[substitutionIndex];
         if (substitution) {
@@ -135,11 +127,9 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
       this.addEmbedFields(embed, titles, tableData);
     } else {
-      // Show waiting for matches message, but include any substitutions that have occurred
       const titles = ["Status"];
       const tableData = [titles];
 
-      // If we have substitutions but no matches yet, show them
       if (this.data.substitutions && this.data.substitutions.length > 0) {
         for (const substitution of this.data.substitutions) {
           tableData.push(this.createSubstitutionRow(substitution, 1));
@@ -211,12 +201,20 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       inline: true,
     });
 
-    // Add error state information if there are errors
     if (this.data.errorState && this.data.errorState.consecutiveErrors > 0) {
       const errorMessage = this.getErrorMessage(this.data.errorState);
       embed.fields.push({
         name: "⚠️ Status Alert",
         value: errorMessage,
+        inline: false,
+      });
+    }
+
+    const cooldownInfo = this.getCooldownInfo();
+    if (cooldownInfo.inCooldown) {
+      embed.fields.push({
+        name: "🔄 Refresh Cooldown",
+        value: cooldownInfo.message,
         inline: false,
       });
     }
@@ -324,10 +322,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     const { consecutiveErrors, backoffMinutes, lastErrorMessage } = errorState;
 
     if (consecutiveErrors === 1) {
-      // First error: show warning but continue normal interval
       return `Having trouble fetching data, will retry in ${backoffMinutes.toString()} minutes`;
     } else {
-      // Multiple consecutive errors: show backoff
       return (
         `**${consecutiveErrors.toString()} consecutive errors** - retrying in ${backoffMinutes.toString()} minutes\n` +
         `Last error: ${lastErrorMessage ?? "unknown"}`
@@ -345,7 +341,29 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       return [substitutionText];
     }
 
-    // Default case: 3 columns for match table
     return [substitutionText, "", ""];
+  }
+
+  private getCooldownInfo(): { inCooldown: boolean; message: string } {
+    const REFRESH_COOLDOWN_MS = 30 * 1000; // 30 seconds
+
+    if (this.data.lastRefreshAttempt == null || this.data.lastRefreshAttempt === "") {
+      return { inCooldown: false, message: "" };
+    }
+
+    const lastAttemptTime = new Date(this.data.lastRefreshAttempt);
+    const currentTime = new Date();
+    const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
+    const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
+
+    if (remainingMs <= 0) {
+      return { inCooldown: false, message: "" };
+    }
+
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    return {
+      inCooldown: true,
+      message: `Please wait ${remainingSeconds.toString()} seconds before refreshing again`,
+    };
   }
 }

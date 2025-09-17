@@ -115,7 +115,6 @@ describe("TrackCommand", () => {
           .spyOn(services.discordService, "getTeamsFromQueueChannel")
           .mockResolvedValue(discordNeatQueueData);
 
-        // Mock Durable Object stub using the fake
         liveTrackerDoStub = aFakeLiveTrackerDOWith();
         vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
         vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
@@ -184,14 +183,12 @@ describe("TrackCommand", () => {
     let liveTrackerDoStub: FakeLiveTrackerDO;
 
     beforeEach(() => {
-      // Mock the queue data lookup used by getTrackerStatus - use queueNumber 42 to match DO fake
       const mockQueueData = {
         ...discordNeatQueueData,
-        queue: 42, // Match the default queueNumber in the DO fake
+        queue: 42,
       };
       vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
 
-      // Mock Durable Object stub using the fake
       liveTrackerDoStub = aFakeLiveTrackerDOWith();
       vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
       vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
@@ -231,13 +228,12 @@ describe("TrackCommand", () => {
 
         expect(editMessageSpy).toHaveBeenCalledOnce();
         const callArgs = editMessageSpy.mock.lastCall;
-        expect(callArgs?.[0]).toBe("fake-channel-id"); // channel ID
-        expect(callArgs?.[1]).toBe("fake-message-id"); // message ID
+        expect(callArgs?.[0]).toBe("fake-channel-id");
+        expect(callArgs?.[1]).toBe("fake-message-id");
         expect(callArgs?.[2]).toHaveProperty("embeds");
       });
 
       it("uses enriched embed data when returned by Durable Object", async () => {
-        // Mock DO to return enriched data
         const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
@@ -261,7 +257,6 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        // Mock fetch to handle both status and pause endpoints
         liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
@@ -277,7 +272,7 @@ describe("TrackCommand", () => {
               new Response(
                 JSON.stringify({
                   state: {
-                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    queueNumber: 42,
                     userId: "fake-user-id",
                     guildId: "fake-guild-id",
                     channelId: "fake-channel-id",
@@ -311,7 +306,6 @@ describe("TrackCommand", () => {
         expect(editMessageSpy).toHaveBeenCalledOnce();
         const callArgs = editMessageSpy.mock.lastCall;
         expect(callArgs?.[2]).toHaveProperty("embeds");
-        // The embed should be created using the enriched data
         const messageData = callArgs?.[2] as { embeds?: { description?: string; title?: string }[] };
         console.log("Actual description:", messageData.embeds?.[0]?.description);
         console.log("Actual title:", messageData.embeds?.[0]?.title);
@@ -320,7 +314,6 @@ describe("TrackCommand", () => {
       });
 
       it("falls back to basic embed when no enriched data returned", async () => {
-        // Mock DO to return basic response without embedData
         liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
@@ -336,7 +329,7 @@ describe("TrackCommand", () => {
               new Response(
                 JSON.stringify({
                   state: {
-                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    queueNumber: 42,
                     userId: "fake-user-id",
                     guildId: "fake-guild-id",
                     channelId: "fake-channel-id",
@@ -380,7 +373,6 @@ describe("TrackCommand", () => {
       });
 
       it("uses enriched embed data when returned by Durable Object", async () => {
-        // Mock DO to return enriched data
         const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
@@ -404,7 +396,6 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        // Mock fetch to handle both status and resume endpoints
         liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
@@ -420,7 +411,7 @@ describe("TrackCommand", () => {
               new Response(
                 JSON.stringify({
                   state: {
-                    queueNumber: 42, // Match the default DO fake and mockQueueData
+                    queueNumber: 42,
                     userId: "fake-user-id",
                     guildId: "fake-guild-id",
                     channelId: "fake-channel-id",
@@ -444,7 +435,6 @@ describe("TrackCommand", () => {
         expect(editMessageSpy).toHaveBeenCalledOnce();
         const callArgs = editMessageSpy.mock.lastCall;
         expect(callArgs?.[2]).toHaveProperty("embeds");
-        // The embed should be created using the enriched data and show active status
         const messageData = callArgs?.[2] as { embeds?: { description?: string }[] };
         expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Active**");
       });
@@ -463,6 +453,66 @@ describe("TrackCommand", () => {
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
+          method: "POST",
+        });
+      });
+
+      it("handles cooldown response gracefully", async () => {
+        const statusResponse = new Response(
+          JSON.stringify({
+            state: {
+              queueNumber: 42,
+              status: "active",
+            },
+          }),
+          { status: 200 },
+        );
+
+        const cooldownResponse = new Response(
+          JSON.stringify({
+            success: false,
+            error: "cooldown",
+            message: "Please wait 20 seconds before refreshing again",
+            remainingSeconds: 20,
+          }),
+          { status: 429 },
+        );
+
+        liveTrackerDoStub.fetch.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(cooldownResponse);
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/status", {
+          method: "GET",
+        });
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
+          method: "POST",
+        });
+      });
+
+      it("continues with normal error handling for non-cooldown failures", async () => {
+        const statusResponse = new Response(
+          JSON.stringify({
+            state: {
+              queueNumber: 42,
+              status: "active",
+            },
+          }),
+          { status: 200 },
+        );
+
+        const errorResponse = new Response("Internal Server Error", { status: 500 });
+
+        liveTrackerDoStub.fetch.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(errorResponse);
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/status", {
+          method: "GET",
+        });
         expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
         });
@@ -506,9 +556,8 @@ describe("TrackCommand", () => {
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        // Mock the DO repost endpoint call
-        const mockResponse = { ok: true, json: vi.fn().mockResolvedValue({ success: true }) };
-        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse as never);
+        const mockResponse = new Response(JSON.stringify({ success: true }), { status: 200 });
+        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse);
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
@@ -562,8 +611,8 @@ describe("TrackCommand", () => {
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        const mockResponse = { ok: false, status: 400 };
-        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse as never);
+        const mockResponse = new Response("Bad Request", { status: 400 });
+        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse);
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();

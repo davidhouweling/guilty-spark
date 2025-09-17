@@ -743,6 +743,99 @@ describe("LiveTrackerDO", () => {
       expect(deleteMessageSpy).not.toHaveBeenCalled();
       expect(mockStorage.put).toHaveBeenCalledTimes(1);
     });
+
+    describe("refresh cooldown", () => {
+      it("blocks refresh when within 30 second cooldown", async () => {
+        const trackerState = createMockTrackerState();
+        // Set lastRefreshAttempt to 10 seconds ago (within 30 second cooldown)
+        trackerState.lastRefreshAttempt = new Date(Date.now() - 10000).toISOString();
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+        expect(response.status).toBe(429);
+        const data = await response.json();
+        expect(data).toEqual({
+          success: false,
+          error: "cooldown",
+          message: expect.stringContaining("Please wait") as string,
+          remainingSeconds: expect.any(Number) as number,
+        });
+      });
+
+      it("allows refresh when cooldown has expired", async () => {
+        const trackerState = createMockTrackerState();
+        // Set lastRefreshAttempt to 40 seconds ago (beyond 30 second cooldown)
+        trackerState.lastRefreshAttempt = new Date(Date.now() - 40000).toISOString();
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+        expect(response.status).toBe(200);
+        const data: { success: boolean } = await response.json();
+        expect(data.success).toBe(true);
+      });
+
+      it("allows refresh when no previous refresh attempt exists", async () => {
+        const trackerState = createMockTrackerState();
+        delete trackerState.lastRefreshAttempt;
+        mockStorage.get.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+        expect(response.status).toBe(200);
+        const data: { success: boolean } = await response.json();
+        expect(data.success).toBe(true);
+      });
+
+      it("sets lastRefreshAttempt timestamp when refresh succeeds", async () => {
+        const testTrackerState = createMockTrackerState();
+        delete testTrackerState.lastRefreshAttempt;
+        mockStorage.get.mockResolvedValue(testTrackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const beforeTime = Date.now();
+        const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+        const afterTime = Date.now();
+
+        expect(response.status).toBe(200);
+        expect(mockStorage.put).toHaveBeenCalledWith(
+          "trackerState",
+          expect.objectContaining({
+            lastRefreshAttempt: expect.any(String) as string,
+          }),
+        );
+
+        // Verify the timestamp is within the expected time range by checking it's a valid date string
+        const putCalls = mockStorage.put.mock.calls;
+        expect(putCalls).toHaveLength(1);
+        const [callArg] = putCalls;
+        expect(callArg).toBeDefined();
+        if (callArg) {
+          expect(callArg[1]).toBeDefined();
+
+          // Check that lastRefreshAttempt was set to a valid timestamp string
+          const stateArg = callArg[1] as { lastRefreshAttempt?: string };
+          expect(stateArg.lastRefreshAttempt).toBeDefined();
+          expect(typeof stateArg.lastRefreshAttempt).toBe("string");
+
+          const savedTimestamp = new Date(stateArg.lastRefreshAttempt ?? "").getTime();
+          expect(savedTimestamp).toBeGreaterThanOrEqual(beforeTime);
+          expect(savedTimestamp).toBeLessThanOrEqual(afterTime);
+        }
+      });
+    });
   });
 
   describe("handleStatus()", () => {

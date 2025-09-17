@@ -58,7 +58,6 @@ describe("LiveTrackerEmbed", () => {
       expect(embed.color).toBe(0x28a745); // Green for active
       expect(embed.fields).toBeDefined();
 
-      // Should have waiting message in fields
       const statusField = embed.fields?.find((field) => field.value.includes("⏳ *Waiting for first match"));
       expect(statusField).toBeDefined();
     });
@@ -89,11 +88,9 @@ describe("LiveTrackerEmbed", () => {
       expect(embed.description).toBe("**Live Tracking Active**");
       expect(embed.color).toBe(0x28a745); // Green for active
 
-      // Should have match data fields
       expect(embed.fields).toBeDefined();
       expect(embed.fields?.length).toBeGreaterThan(0);
 
-      // Check for game data
       const gameField = embed.fields?.find((field) => field.name === "Game");
       expect(gameField).toBeDefined();
       expect(gameField?.value).toContain("Slayer on Aquarius");
@@ -182,7 +179,6 @@ describe("LiveTrackerEmbed", () => {
 
       expect(embed.title).toContain("Live Tracker - Queue #42");
       expect(embed.description).toBeDefined();
-      // With error state, description should reflect error status
       expect(embed.description).not.toBe("**Active**");
     });
   });
@@ -256,7 +252,7 @@ describe("LiveTrackerEmbed", () => {
 
       const { actions } = liveTrackerEmbed;
 
-      expect(actions).toHaveLength(0); // No action rows for stopped state
+      expect(actions).toHaveLength(0);
     });
 
     describe("repost button", () => {
@@ -380,7 +376,6 @@ describe("LiveTrackerEmbed", () => {
 
       const { embed } = liveTrackerEmbed;
 
-      // Should include emoji indicator in Score field name
       const scoreField = embed.fields?.find((field) => field.name.includes("Score"));
       expect(scoreField).toBeDefined();
       expect(scoreField?.name).toContain("🦅:🐍");
@@ -406,7 +401,6 @@ describe("LiveTrackerEmbed", () => {
 
       const { embed } = liveTrackerEmbed;
 
-      // Should not include emoji indicator
       const scoreField = embed.fields?.find((field) => field.name.includes("Score"));
       expect(scoreField).toBeDefined();
       expect(scoreField?.name).not.toContain("🦅:🐍");
@@ -469,7 +463,6 @@ describe("LiveTrackerEmbed", () => {
 
       const { embed } = liveTrackerEmbed;
 
-      // Should have Game field with substitution interleaved
       const gameField = embed.fields?.find((field) => field.name === "Game");
       expect(gameField).toBeDefined();
       expect(gameField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
@@ -506,11 +499,111 @@ describe("LiveTrackerEmbed", () => {
 
       const { embed } = liveTrackerEmbed;
 
-      // Should have Status field with substitution shown
       const statusField = embed.fields?.find((field) => field.name === "Status");
       expect(statusField).toBeDefined();
       expect(statusField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
       expect(statusField?.value).toContain("⏳ *Waiting for first match to complete...*");
+    });
+  });
+
+  describe("refresh cooldown", () => {
+    it("shows cooldown message when refresh is on cooldown", () => {
+      const currentTime = new Date();
+      const lastRefreshTime = new Date(currentTime.getTime() - 10000); // 10 seconds ago, still in 30-second cooldown
+
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "0:0",
+          enrichedMatches: [],
+          lastUpdated: currentTime,
+          nextCheck: new Date(currentTime.getTime() + 180000),
+          errorState: undefined,
+          lastRefreshAttempt: lastRefreshTime.toISOString(),
+        },
+      );
+
+      const { embed } = liveTrackerEmbed;
+      expect(embed.fields).toBeDefined();
+      expect(embed.fields).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "🔄 Refresh Cooldown",
+            value: expect.stringContaining("Please wait") as string,
+          }),
+        ]),
+      );
+    });
+
+    it("does not show cooldown message when cooldown has expired", () => {
+      const currentTime = new Date();
+      const lastRefreshTime = new Date(currentTime.getTime() - 40000); // 40 seconds ago, cooldown expired
+
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "0:0",
+          enrichedMatches: [],
+          lastUpdated: currentTime,
+          nextCheck: new Date(currentTime.getTime() + 180000),
+          errorState: undefined,
+          lastRefreshAttempt: lastRefreshTime.toISOString(),
+        },
+      );
+
+      const { embed } = liveTrackerEmbed;
+      expect(embed.fields).toBeDefined();
+      expect(embed.fields).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "🔄 Refresh Cooldown",
+          }),
+        ]),
+      );
+    });
+
+    it("does not show cooldown message when no previous refresh attempt exists", () => {
+      const currentTime = new Date();
+
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "0:0",
+          enrichedMatches: [],
+          lastUpdated: currentTime,
+          nextCheck: new Date(currentTime.getTime() + 180000),
+          errorState: undefined,
+          lastRefreshAttempt: undefined,
+        },
+      );
+
+      const { embed } = liveTrackerEmbed;
+      expect(embed.fields).toBeDefined();
+      expect(embed.fields).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "🔄 Refresh Cooldown",
+          }),
+        ]),
+      );
     });
   });
 });

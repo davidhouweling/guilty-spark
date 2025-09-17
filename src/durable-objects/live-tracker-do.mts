@@ -1,6 +1,7 @@
 import type { APIGuildMember, APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
+import { differenceInMilliseconds } from "date-fns";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -22,6 +23,9 @@ const FIRST_ERROR_INTERVAL_MINUTES = 3;
 const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 const ERROR_THRESHOLD_MINUTES = 10;
+
+// Refresh cooldown constant
+const REFRESH_COOLDOWN_MS = 30 * 1000; // 30 seconds
 
 export interface LiveTrackerStartData {
   userId: string;
@@ -50,33 +54,27 @@ export interface LiveTrackerState {
     name: string;
     players: APIGuildMember[];
   }[];
-  // Track substitutions that occur during live tracking
   substitutions: {
     playerOutId: string;
     playerInId: string;
     teamIndex: number;
-    teamName: string; // NeatQueue team name for display
+    teamName: string;
     timestamp: string;
   }[];
-  // Enhanced error handling for exponential backoff
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
     lastSuccessTime: string;
     lastErrorMessage?: string | undefined;
   };
-  // Store all discovered matches to handle substitutions properly
-  // Key: matchId, Value: EnrichedMatchData
   discoveredMatches: Record<string, EnrichedMatchData>;
-  // Store raw match data for series score calculation
-  // Key: matchId, Value: MatchStats
   rawMatches: Record<string, MatchStats>;
   lastMessageState: {
     matchCount: number;
     substitutionCount: number;
   };
-  // Cached permission check result
   channelManagePermissionCache?: boolean;
+  lastRefreshAttempt?: string;
 }
 
 export class LiveTrackerDO {
@@ -147,6 +145,8 @@ export class LiveTrackerDO {
         return;
       }
 
+      trackerState.lastRefreshAttempt = new Date().toISOString();
+
       this.logService.info(
         `LiveTracker alarm fired for queue ${trackerState.queueNumber.toString()}`,
         new Map([
@@ -204,7 +204,6 @@ export class LiveTrackerDO {
           const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
           const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-          // Get series score from raw matches
           const rawMatchesArray = Object.values(trackerState.rawMatches);
           const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
           const liveTrackerEmbed = new LiveTrackerEmbed(
@@ -222,6 +221,7 @@ export class LiveTrackerDO {
               seriesScore,
               substitutions: trackerState.substitutions,
               errorState: trackerState.errorState,
+              lastRefreshAttempt: trackerState.lastRefreshAttempt,
             },
           );
 
@@ -322,6 +322,7 @@ export class LiveTrackerDO {
           seriesScore,
           substitutions: trackerState.substitutions,
           errorState: trackerState.errorState,
+          lastRefreshAttempt: trackerState.lastRefreshAttempt,
         },
       );
 
@@ -348,7 +349,6 @@ export class LiveTrackerDO {
       }
 
       this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
-      // Continue anyway - the DO is still started, just without the message
     }
 
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
@@ -361,7 +361,7 @@ export class LiveTrackerDO {
         {
           title: "🔄 Starting Live Tracker",
           description: "Setting up live tracking for your NeatQueue series...",
-          color: 0x007acc, // Blue loading color
+          color: 0x007acc,
         },
       ],
     };
@@ -398,7 +398,7 @@ export class LiveTrackerDO {
           status: trackerState.status,
           isPaused: trackerState.isPaused,
           lastUpdated: currentTime,
-          nextCheck: undefined, // No next check when paused
+          nextCheck: undefined,
           enrichedMatches,
           seriesScore,
           substitutions: trackerState.substitutions,
@@ -507,6 +507,22 @@ export class LiveTrackerDO {
     return Response.json({ success: true, state: trackerState, embedData });
   }
 
+  private isInCooldown(trackerState: LiveTrackerState): { inCooldown: boolean; remainingMs: number } {
+    if (trackerState.lastRefreshAttempt == null || trackerState.lastRefreshAttempt === "") {
+      return { inCooldown: false, remainingMs: 0 };
+    }
+
+    const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
+    const currentTime = new Date();
+    const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
+    const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
+
+    return {
+      inCooldown: remainingMs > 0,
+      remainingMs: Math.max(0, remainingMs),
+    };
+  }
+
   private async handleRefresh(): Promise<Response> {
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -517,9 +533,27 @@ export class LiveTrackerDO {
       return new Response("Cannot refresh stopped tracker", { status: 400 });
     }
 
+    const cooldownStatus = this.isInCooldown(trackerState);
+    if (cooldownStatus.inCooldown) {
+      const remainingSeconds = Math.ceil(cooldownStatus.remainingMs / 1000);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "cooldown",
+          message: `Please wait ${remainingSeconds.toString()} seconds before refreshing again`,
+          remainingSeconds,
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     try {
-      trackerState.checkCount += 1;
       const currentTime = new Date();
+      trackerState.lastRefreshAttempt = currentTime.toISOString();
+      trackerState.checkCount += 1;
       trackerState.lastUpdateTime = currentTime.toISOString();
 
       if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
@@ -542,6 +576,7 @@ export class LiveTrackerDO {
           seriesScore,
           substitutions: trackerState.substitutions,
           errorState: trackerState.errorState,
+          lastRefreshAttempt: trackerState.lastRefreshAttempt,
         };
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
@@ -589,7 +624,6 @@ export class LiveTrackerDO {
     }
 
     try {
-      // Find which team the substituted player was on
       let teamIndex = -1;
       let playerIndex = -1;
 
@@ -614,26 +648,23 @@ export class LiveTrackerDO {
         return new Response("Player not found in teams", { status: 400 });
       }
 
-      // Get the new player's information
       const newPlayerUsers = await this.discordService.getUsers(trackerState.guildId, [playerInId]);
       const [newPlayerMember] = newPlayerUsers;
       if (!newPlayerMember) {
         return new Response("New player not found", { status: 400 });
       }
 
-      // Update the team with the new player
       const targetTeam = trackerState.teams[teamIndex];
       if (!targetTeam) {
         return new Response("Team not found", { status: 400 });
       }
       targetTeam.players[playerIndex] = newPlayerMember;
 
-      // Record the substitution
       trackerState.substitutions.push({
         playerOutId,
         playerInId,
         teamIndex,
-        teamName: targetTeam.name, // Use the NeatQueue team name
+        teamName: targetTeam.name,
         timestamp: new Date().toISOString(),
       });
 
@@ -721,10 +752,8 @@ export class LiveTrackerDO {
     trackerState.errorState.lastErrorMessage = errorMessage;
 
     if (trackerState.errorState.consecutiveErrors === 1) {
-      // First error: continue with 3 minutes (normal interval)
       trackerState.errorState.backoffMinutes = FIRST_ERROR_INTERVAL_MINUTES;
     } else {
-      // Consecutive errors: exponential backoff 5 → 10 minutes
       trackerState.errorState.backoffMinutes = Math.min(
         CONSECUTIVE_ERROR_INTERVAL_MINUTES * trackerState.errorState.consecutiveErrors,
         MAX_BACKOFF_INTERVAL_MINUTES,
@@ -763,25 +792,16 @@ export class LiveTrackerDO {
     return errorDurationMinutes >= ERROR_THRESHOLD_MINUTES;
   }
 
-  /**
-   * Get next alarm interval based on error state
-   */
   private getNextAlarmInterval(trackerState: LiveTrackerState): number {
     if (trackerState.errorState.consecutiveErrors === 0) {
       return ALARM_INTERVAL_MS;
     }
 
-    // Convert backoff minutes to milliseconds, subtract execution buffer
     return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
   }
 
-  /**
-   * Fetch and merge series data, storing enriched matches in state
-   * This handles substitutions by maintaining all discovered matches
-   */
   private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<EnrichedMatchData[]> {
     try {
-      // Start with current team compositions
       const teams = trackerState.teams.map((team) =>
         team.players.map((player) => ({
           id: player.user.id,
@@ -791,17 +811,13 @@ export class LiveTrackerDO {
         })),
       );
 
-      // If we have substitutions, we need to get info for substituted out players
-      // and create extended teams to ensure we find all matches
       if (trackerState.substitutions.length > 0) {
         const substitutedOutPlayerIds = trackerState.substitutions.map((sub) => sub.playerOutId);
         const substitutedOutUsers = await this.discordService.getUsers(trackerState.guildId, substitutedOutPlayerIds);
 
-        // Create extended teams that include all players who have participated
         const extendedTeams = teams.map((team, teamIndex) => {
           const teamPlayers = [...team];
 
-          // Add substituted out players from this team to ensure we find their matches
           for (const substitution of trackerState.substitutions) {
             if (substitution.teamIndex === teamIndex) {
               const substitutedOutUser = substitutedOutUsers.find((user) => user.user.id === substitution.playerOutId);
@@ -831,10 +847,8 @@ export class LiveTrackerDO {
           true,
         );
 
-        // Create enriched data for new matches and merge with stored matches
         await this.enrichAndMergeMatches(trackerState, matches);
       } else {
-        // No substitutions, use normal logic
         const startDateTime = new Date(trackerState.queueStartTime);
         const endDateTime = new Date();
 
@@ -847,33 +861,24 @@ export class LiveTrackerDO {
           true,
         );
 
-        // Create enriched data for new matches and merge with stored matches
         await this.enrichAndMergeMatches(trackerState, matches);
       }
 
-      // Return all discovered matches as an array, sorted by match time
       return Object.values(trackerState.discoveredMatches);
     } catch (error) {
       if (error instanceof EndUserError && error.message === "No matches found for the series") {
-        // Return stored matches if available, empty array otherwise
         return Object.values(trackerState.discoveredMatches);
       }
-      // Re-throw other errors
       throw error;
     }
   }
 
-  /**
-   * Enrich match data and merge with stored matches, deduping by matchId
-   */
   private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
     for (const match of matches) {
-      // Skip if we already have this match
       if (trackerState.discoveredMatches[match.MatchId] != null) {
         continue;
       }
 
-      // Store the raw match for series score calculation
       trackerState.rawMatches[match.MatchId] = match;
 
       let gameTypeAndMap = "Unknown Map and mode";
@@ -900,7 +905,6 @@ export class LiveTrackerDO {
         endTime: new Date(match.MatchInfo.EndTime),
       };
 
-      // Store the enriched match
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
     }
   }
@@ -1010,7 +1014,6 @@ export class LiveTrackerDO {
           ["channelId", trackerState.channelId],
         ]),
       );
-      // Cache false on error to avoid repeated failures
       trackerState.channelManagePermissionCache = false;
       return false;
     }
