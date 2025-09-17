@@ -55,12 +55,6 @@ export interface LiveTrackerEmbedData {
         lastErrorMessage?: string | undefined;
       }
     | undefined;
-  cooldownState?:
-    | {
-        remainingSeconds: number;
-        message: string;
-      }
-    | undefined;
 }
 
 interface LiveTrackerEmbedServices {
@@ -208,14 +202,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       embed.fields.push({
         name: "⚠️ Status Alert",
         value: errorMessage,
-        inline: false,
-      });
-    }
-
-    if (this.data.cooldownState) {
-      embed.fields.push({
-        name: "🔄 Refresh Cooldown",
-        value: this.data.cooldownState.message,
         inline: false,
       });
     }
