@@ -507,9 +507,8 @@ describe("LiveTrackerEmbed", () => {
   });
 
   describe("refresh cooldown", () => {
-    it("shows cooldown message when refresh is on cooldown", () => {
+    it("shows cooldown message when cooldownState is set", () => {
       const currentTime = new Date();
-      const lastRefreshTime = new Date(currentTime.getTime() - 10000); // 10 seconds ago, still in 30-second cooldown
 
       const liveTrackerEmbed = new LiveTrackerEmbed(
         { discordService },
@@ -525,7 +524,10 @@ describe("LiveTrackerEmbed", () => {
           lastUpdated: currentTime,
           nextCheck: new Date(currentTime.getTime() + 180000),
           errorState: undefined,
-          lastRefreshAttempt: lastRefreshTime.toISOString(),
+          cooldownState: {
+            remainingSeconds: 20,
+            message: "Please wait 20 seconds before refreshing again",
+          },
         },
       );
 
@@ -535,46 +537,13 @@ describe("LiveTrackerEmbed", () => {
         expect.arrayContaining([
           expect.objectContaining({
             name: "🔄 Refresh Cooldown",
-            value: expect.stringContaining("Please wait") as string,
+            value: "Please wait 20 seconds before refreshing again",
           }),
         ]),
       );
     });
 
-    it("does not show cooldown message when cooldown has expired", () => {
-      const currentTime = new Date();
-      const lastRefreshTime = new Date(currentTime.getTime() - 40000); // 40 seconds ago, cooldown expired
-
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "0:0",
-          enrichedMatches: [],
-          lastUpdated: currentTime,
-          nextCheck: new Date(currentTime.getTime() + 180000),
-          errorState: undefined,
-          lastRefreshAttempt: lastRefreshTime.toISOString(),
-        },
-      );
-
-      const { embed } = liveTrackerEmbed;
-      expect(embed.fields).toBeDefined();
-      expect(embed.fields).not.toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: "🔄 Refresh Cooldown",
-          }),
-        ]),
-      );
-    });
-
-    it("does not show cooldown message when no previous refresh attempt exists", () => {
+    it("does not show cooldown message when cooldownState is not set", () => {
       const currentTime = new Date();
 
       const liveTrackerEmbed = new LiveTrackerEmbed(
@@ -591,19 +560,40 @@ describe("LiveTrackerEmbed", () => {
           lastUpdated: currentTime,
           nextCheck: new Date(currentTime.getTime() + 180000),
           errorState: undefined,
-          lastRefreshAttempt: undefined,
+          cooldownState: undefined,
         },
       );
 
       const { embed } = liveTrackerEmbed;
       expect(embed.fields).toBeDefined();
-      expect(embed.fields).not.toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: "🔄 Refresh Cooldown",
-          }),
-        ]),
+      const cooldownField = embed.fields?.find((field) => field.name === "🔄 Refresh Cooldown");
+      expect(cooldownField).toBeUndefined();
+    });
+
+    it("does not show cooldown message when no cooldownState exists", () => {
+      const currentTime = new Date();
+
+      const liveTrackerEmbed = new LiveTrackerEmbed(
+        { discordService },
+        {
+          userId: "user123",
+          guildId: "guild123",
+          channelId: "channel123",
+          queueNumber: 42,
+          status: "active",
+          isPaused: false,
+          seriesScore: "0:0",
+          enrichedMatches: [],
+          lastUpdated: currentTime,
+          nextCheck: new Date(currentTime.getTime() + 180000),
+          errorState: undefined,
+        },
       );
+
+      const { embed } = liveTrackerEmbed;
+      expect(embed.fields).toBeDefined();
+      const cooldownField = embed.fields?.find((field) => field.name === "🔄 Refresh Cooldown");
+      expect(cooldownField).toBeUndefined();
     });
   });
 });

@@ -3,6 +3,7 @@ import type {
   APIApplicationCommandInteraction,
   APIMessageComponentButtonInteraction,
   APIApplicationCommandInteractionDataBasicOption,
+  APIEmbed,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -549,7 +550,27 @@ export class TrackCommand extends BaseCommand {
               ]),
             );
 
-            // The embed will automatically show the cooldown warning on the next update
+            // Preserve the existing embed and add cooldown field
+            const [currentEmbed] = interaction.message.embeds;
+            if (currentEmbed) {
+              const updatedEmbed: APIEmbed = {
+                ...currentEmbed,
+                fields: [
+                  ...(currentEmbed.fields ?? []),
+                  {
+                    name: "🔄 Refresh Cooldown",
+                    value: cooldownData.message,
+                    inline: false,
+                  },
+                ],
+              };
+
+              await this.services.discordService.editMessage(interaction.channel.id, interaction.message.id, {
+                embeds: [updatedEmbed],
+                components: interaction.message.components,
+              });
+            }
+
             return;
           }
 

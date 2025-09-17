@@ -5,7 +5,7 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { differenceInMilliseconds, addMinutes, compareAsc } from "date-fns";
+import { addMinutes, compareAsc } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
@@ -55,7 +55,12 @@ export interface LiveTrackerEmbedData {
         lastErrorMessage?: string | undefined;
       }
     | undefined;
-  lastRefreshAttempt?: string | undefined;
+  cooldownState?:
+    | {
+        remainingSeconds: number;
+        message: string;
+      }
+    | undefined;
 }
 
 interface LiveTrackerEmbedServices {
@@ -207,11 +212,10 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       });
     }
 
-    const cooldownInfo = this.getCooldownInfo();
-    if (cooldownInfo.inCooldown) {
+    if (this.data.cooldownState) {
       embed.fields.push({
         name: "🔄 Refresh Cooldown",
-        value: cooldownInfo.message,
+        value: this.data.cooldownState.message,
         inline: false,
       });
     }
@@ -339,28 +343,5 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     }
 
     return [substitutionText, "", ""];
-  }
-
-  private getCooldownInfo(): { inCooldown: boolean; message: string } {
-    const REFRESH_COOLDOWN_MS = 30 * 1000; // 30 seconds
-
-    if (this.data.lastRefreshAttempt == null || this.data.lastRefreshAttempt === "") {
-      return { inCooldown: false, message: "" };
-    }
-
-    const lastAttemptTime = new Date(this.data.lastRefreshAttempt);
-    const currentTime = new Date();
-    const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
-    const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
-
-    if (remainingMs <= 0) {
-      return { inCooldown: false, message: "" };
-    }
-
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-    return {
-      inCooldown: true,
-      message: `Please wait ${remainingSeconds.toString()} seconds before refreshing again`,
-    };
   }
 }
