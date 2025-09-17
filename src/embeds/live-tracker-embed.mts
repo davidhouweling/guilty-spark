@@ -89,8 +89,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles];
-      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort(
-        (a, b) => compareAsc(new Date(a.timestamp), new Date(b.timestamp)),
+      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort((a, b) =>
+        compareAsc(new Date(a.timestamp), new Date(b.timestamp)),
       );
 
       let substitutionIndex = 0;
