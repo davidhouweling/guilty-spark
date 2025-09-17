@@ -5,6 +5,8 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIInteractionResponse,
   APIMessageComponentButtonInteraction,
+  APIEmbed,
+  APIEmbedField,
 } from "discord-api-types/v10";
 import {
   ButtonStyle,
@@ -473,7 +475,7 @@ describe("TrackCommand", () => {
           JSON.stringify({
             success: false,
             error: "cooldown",
-            message: "Please wait 20 seconds before refreshing again",
+            message: "Refresh cooldown active, next refresh available <t:1695800000:R>",
             remainingSeconds: 20,
           }),
           { status: 429 },
@@ -490,6 +492,26 @@ describe("TrackCommand", () => {
         expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
         });
+
+        expect(editMessageSpy).toHaveBeenCalledWith(
+          refreshButtonInteraction.channel.id,
+          refreshButtonInteraction.message.id,
+          expect.objectContaining({
+            embeds: expect.arrayContaining([
+              expect.objectContaining({
+                fields: expect.arrayContaining([
+                  expect.objectContaining({
+                    name: "⚠️ Refresh cooldown",
+                    value: expect.stringMatching(
+                      /^Refresh cooldown active, next refresh available <t:\d+:R>$/,
+                    ) as string,
+                    inline: false,
+                  } satisfies Partial<APIEmbedField>),
+                ]) as APIEmbedField[],
+              } satisfies Partial<APIEmbed>),
+            ]) as APIEmbed[],
+          }),
+        );
       });
 
       it("continues with normal error handling for non-cooldown failures", async () => {

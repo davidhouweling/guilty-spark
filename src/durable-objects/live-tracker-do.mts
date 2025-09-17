@@ -1,7 +1,7 @@
 import type { APIGuildMember, APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import { differenceInMilliseconds, addMinutes } from "date-fns";
+import { addMilliseconds, addMinutes, differenceInMilliseconds } from "date-fns";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -24,8 +24,8 @@ const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 const ERROR_THRESHOLD_MINUTES = 10;
 
-// Refresh cooldown constant
-const REFRESH_COOLDOWN_MS = 30 * 1000; // 30 seconds
+// Refresh cooldown constant - 30 seconds
+const REFRESH_COOLDOWN_MS = 30 * 1000;
 
 export interface LiveTrackerStartData {
   userId: string;
@@ -145,8 +145,6 @@ export class LiveTrackerDO {
         return;
       }
 
-      trackerState.lastRefreshAttempt = new Date().toISOString();
-
       this.logService.info(
         `LiveTracker alarm fired for queue ${trackerState.queueNumber.toString()}`,
         new Map([
@@ -221,7 +219,6 @@ export class LiveTrackerDO {
               seriesScore,
               substitutions: trackerState.substitutions,
               errorState: trackerState.errorState,
-              lastRefreshAttempt: trackerState.lastRefreshAttempt,
             },
           );
 
@@ -322,7 +319,6 @@ export class LiveTrackerDO {
           seriesScore,
           substitutions: trackerState.substitutions,
           errorState: trackerState.errorState,
-          lastRefreshAttempt: trackerState.lastRefreshAttempt,
         },
       );
 
@@ -507,22 +503,6 @@ export class LiveTrackerDO {
     return Response.json({ success: true, state: trackerState, embedData });
   }
 
-  private isInCooldown(trackerState: LiveTrackerState): { inCooldown: boolean; remainingMs: number } {
-    if (trackerState.lastRefreshAttempt == null || trackerState.lastRefreshAttempt === "") {
-      return { inCooldown: false, remainingMs: 0 };
-    }
-
-    const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
-    const currentTime = new Date();
-    const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
-    const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
-
-    return {
-      inCooldown: remainingMs > 0,
-      remainingMs: Math.max(0, remainingMs),
-    };
-  }
-
   private async handleRefresh(): Promise<Response> {
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -533,21 +513,28 @@ export class LiveTrackerDO {
       return new Response("Cannot refresh stopped tracker", { status: 400 });
     }
 
-    const cooldownStatus = this.isInCooldown(trackerState);
-    if (cooldownStatus.inCooldown) {
-      const remainingSeconds = Math.ceil(cooldownStatus.remainingMs / 1000);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "cooldown",
-          message: `Please wait ${remainingSeconds.toString()} seconds before refreshing again`,
-          remainingSeconds,
-        }),
-        {
-          status: 429,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+    if (trackerState.lastRefreshAttempt != null && trackerState.lastRefreshAttempt !== "") {
+      const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
+      const currentTime = new Date();
+      const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
+
+      if (timeSinceLastAttempt < REFRESH_COOLDOWN_MS) {
+        const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
+        const cooldownEndsAt = addMilliseconds(currentTime, remainingMs);
+        const cooldownTimestamp = this.discordService.getTimestamp(cooldownEndsAt.toISOString(), "R");
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "cooldown",
+            message: `Refresh cooldown active, next refresh available ${cooldownTimestamp}`,
+          }),
+          {
+            status: 429,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     try {
@@ -576,7 +563,6 @@ export class LiveTrackerDO {
           seriesScore,
           substitutions: trackerState.substitutions,
           errorState: trackerState.errorState,
-          lastRefreshAttempt: trackerState.lastRefreshAttempt,
         };
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);

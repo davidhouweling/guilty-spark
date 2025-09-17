@@ -758,8 +758,7 @@ describe("LiveTrackerDO", () => {
         expect(data).toEqual({
           success: false,
           error: "cooldown",
-          message: expect.stringContaining("Please wait") as string,
-          remainingSeconds: expect.any(Number) as number,
+          message: expect.stringMatching(/^Refresh cooldown active, next refresh available <t:\d+:R>$/) as string,
         });
       });
 
