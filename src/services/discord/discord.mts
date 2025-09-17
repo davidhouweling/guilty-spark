@@ -1,4 +1,5 @@
 import { inspect } from "node:util";
+import { getUnixTime } from "date-fns";
 import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
 import type {
   APIApplicationCommandInteraction,
@@ -758,7 +759,7 @@ export class DiscordService {
   }
 
   getTimestamp(isoDate: string, format: "F" | "f" | "D" | "d" | "T" | "t" | "R" = "f"): string {
-    const unixTime = Math.floor(new Date(isoDate).getTime() / 1000);
+    const unixTime = getUnixTime(new Date(isoDate));
 
     return `<t:${unixTime.toString()}:${format}>`;
   }

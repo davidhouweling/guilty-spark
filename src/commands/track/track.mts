@@ -14,6 +14,7 @@ import {
   MessageFlags,
   InteractionContextType,
 } from "discord-api-types/v10";
+import { addMinutes } from "date-fns";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import type { LiveTrackerStartData, LiveTrackerState } from "../../durable-objects/live-tracker-do.mjs";
 import { BaseCommand } from "../base/base.mjs";
@@ -430,7 +431,7 @@ export class TrackCommand extends BaseCommand {
             );
           } else {
             const currentTime = new Date();
-            const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
+            const nextCheckTime = addMinutes(currentTime, 3);
             liveTrackerEmbed = new LiveTrackerEmbed(
               { discordService: this.services.discordService },
               {
@@ -570,7 +571,7 @@ export class TrackCommand extends BaseCommand {
 
           // On error, still try to update the message with current state
           const currentTime = new Date();
-          const nextCheckTime = new Date(currentTime.getTime() + 3 * 60 * 1000); // 3 minutes
+          const nextCheckTime = addMinutes(currentTime, 3);
 
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.services.discordService },

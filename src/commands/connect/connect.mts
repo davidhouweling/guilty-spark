@@ -17,6 +17,7 @@ import {
   InteractionType,
 } from "discord-api-types/v10";
 import { MatchType } from "halo-infinite-api";
+import { getTime } from "date-fns";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -644,7 +645,7 @@ export class ConnectCommand extends BaseCommand {
           XboxId: user.xuid,
           GamesRetrievable: GamesRetrievable.YES,
           AssociationReason: AssociationReason.MANUAL,
-          AssociationDate: new Date().getTime(),
+          AssociationDate: getTime(new Date()),
           DiscordDisplayNameSearched: null,
         },
       ]);
