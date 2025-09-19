@@ -172,15 +172,13 @@ Guilty Spark provides deep integration with NeatQueue tournament management syst
 
 - **Automatic Lifecycle**: Starts when teams are created, stops when series complete
 - **Live Updates**: Series overview refreshes every 3 minutes during active matches
-- **Interactive Controls**: Pause ⏸️, Resume ▶️, Stop ⏹️, and Refresh 🔄 buttons
+- **Interactive Controls**: Refresh 🔄, Pause ⏸️ and Resume ▶️
 - **Substitution Support**: Automatic handling of player changes with chronological tracking
-- **Error Recovery**: Intelligent retry logic with exponential backoff
+- **Update queue channel name**: In progress series score in the channel name
 
-#### User Interface Example
+![Live Tracker Embed](docs/screenshot20250918-live-tracker.png)
 
-```
-// TODO: screenshot here
-```
+![Live Tracker Channel Name](docs/screenshot20250918-live-tracker-channel-name.png)
 
 ### NeatQueue Informer
 
