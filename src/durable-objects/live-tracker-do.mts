@@ -4,13 +4,14 @@ import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds } from "date-fns";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
-import type { HaloService } from "../services/halo/halo.mjs";
+import type { HaloService, SeriesData } from "../services/halo/halo.mjs";
 import type { DatabaseService } from "../services/database/database.mjs";
 import { installServices as installServicesImpl } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
-import { EndUserError } from "../base/end-user-error.mjs";
+import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
 import { DiscordError } from "../services/discord/discord-error.mjs";
+import { Preconditions } from "../base/preconditions.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -34,7 +35,8 @@ export interface LiveTrackerStartData {
   queueNumber: number;
   interactionToken?: string;
   liveMessageId?: string | undefined;
-  teams: { name: string; players: APIGuildMember[] }[];
+  players: Record<string, APIGuildMember>;
+  teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
 }
 
@@ -48,11 +50,12 @@ export interface LiveTrackerState {
   liveMessageId?: string | undefined;
   startTime: string;
   lastUpdateTime: string;
-  queueStartTime: string;
+  searchStartTime: string;
   checkCount: number;
+  players: Record<string, APIGuildMember>;
   teams: {
     name: string;
-    players: APIGuildMember[];
+    playerIds: string[];
   }[];
   substitutions: {
     playerOutId: string;
@@ -169,7 +172,7 @@ export class LiveTrackerDO {
           new Map([
             ["totalMatches", enrichedMatches.length.toString()],
             ["fetchDurationMs", fetchDurationMs.toString()],
-            ["queueStartTime", new Date(trackerState.queueStartTime).toISOString()],
+            ["searchStartTime", new Date(trackerState.searchStartTime).toISOString()],
             ["currentTime", new Date().toISOString()],
           ]),
         );
@@ -260,22 +263,22 @@ export class LiveTrackerDO {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json();
-    const typedBody = body as LiveTrackerStartData;
+    const body = await request.json<LiveTrackerStartData>();
 
     const trackerState: LiveTrackerState = {
-      userId: typedBody.userId,
-      guildId: typedBody.guildId,
-      channelId: typedBody.channelId,
-      queueNumber: typedBody.queueNumber,
+      userId: body.userId,
+      guildId: body.guildId,
+      channelId: body.channelId,
+      queueNumber: body.queueNumber,
       isPaused: false,
       status: "active",
-      liveMessageId: typedBody.liveMessageId,
+      liveMessageId: body.liveMessageId,
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
-      queueStartTime: typedBody.queueStartTime,
+      searchStartTime: body.queueStartTime,
       checkCount: 0,
-      teams: typedBody.teams,
+      players: body.players,
+      teams: body.teams,
       substitutions: [],
       discoveredMatches: {},
       rawMatches: {},
@@ -294,7 +297,7 @@ export class LiveTrackerDO {
     await this.setState(trackerState);
 
     try {
-      const loadingMessage = await this.createInitialMessage(typedBody);
+      const loadingMessage = await this.createInitialMessage(body);
       trackerState.liveMessageId = loadingMessage.id;
       await this.setState(trackerState);
 
@@ -307,10 +310,10 @@ export class LiveTrackerDO {
       const liveTrackerEmbed = new LiveTrackerEmbed(
         { discordService: this.discordService },
         {
-          userId: typedBody.userId,
-          guildId: typedBody.guildId,
-          channelId: typedBody.channelId,
-          queueNumber: typedBody.queueNumber,
+          userId: body.userId,
+          guildId: body.guildId,
+          channelId: body.channelId,
+          queueNumber: body.queueNumber,
           status: "active",
           isPaused: false,
           lastUpdated: currentTime,
@@ -323,7 +326,7 @@ export class LiveTrackerDO {
       );
 
       await this.updateChannelName(trackerState, seriesScore, true);
-      await this.discordService.editMessage(typedBody.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+      await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
 
       this.logService.info(
         `Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
@@ -597,9 +600,7 @@ export class LiveTrackerDO {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const body = await request.json();
-    const { playerOutId, playerInId } = body as { playerOutId: string; playerInId: string };
-
+    const { playerOutId, playerInId } = await request.json<{ playerOutId: string; playerInId: string }>();
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -610,11 +611,14 @@ export class LiveTrackerDO {
     }
 
     try {
+      // sync any matches that just completed prior to the substitution
+      await this.fetchAndMergeSeriesData(trackerState);
+
       let teamIndex = -1;
       let playerIndex = -1;
 
       for (const [tIndex, team] of trackerState.teams.entries()) {
-        const pIndex = team.players.findIndex((player) => player.user.id === playerOutId);
+        const pIndex = team.playerIds.findIndex((id) => id === playerOutId);
         if (pIndex !== -1) {
           teamIndex = tIndex;
           playerIndex = pIndex;
@@ -634,8 +638,7 @@ export class LiveTrackerDO {
         return new Response("Player not found in teams", { status: 400 });
       }
 
-      const newPlayerUsers = await this.discordService.getUsers(trackerState.guildId, [playerInId]);
-      const [newPlayerMember] = newPlayerUsers;
+      const [newPlayerMember] = await this.discordService.getUsers(trackerState.guildId, [playerInId]);
       if (!newPlayerMember) {
         return new Response("New player not found", { status: 400 });
       }
@@ -644,14 +647,17 @@ export class LiveTrackerDO {
       if (!targetTeam) {
         return new Response("Team not found", { status: 400 });
       }
-      targetTeam.players[playerIndex] = newPlayerMember;
+      targetTeam.playerIds[playerIndex] = playerInId;
+      trackerState.players[playerInId] = newPlayerMember;
+      const now = new Date().toISOString();
+      trackerState.searchStartTime = now;
 
       trackerState.substitutions.push({
         playerOutId,
         playerInId,
         teamIndex,
         teamName: targetTeam.name,
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       });
 
       await this.setState(trackerState);
@@ -683,8 +689,7 @@ export class LiveTrackerDO {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    const body = await request.json();
-    const { newMessageId } = body as { newMessageId: string };
+    const { newMessageId } = await request.json<{ newMessageId: string }>();
 
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -788,71 +793,37 @@ export class LiveTrackerDO {
 
   private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<EnrichedMatchData[]> {
     try {
-      const teams = trackerState.teams.map((team) =>
-        team.players.map((player) => ({
-          id: player.user.id,
-          username: player.user.username,
-          globalName: player.user.global_name ?? null,
-          guildNickname: player.nick ?? null,
-        })),
+      const teams: SeriesData["teams"] = trackerState.teams.map((team) =>
+        team.playerIds.map((playerId) => {
+          const player = Preconditions.checkExists(trackerState.players[playerId]);
+          return {
+            id: playerId,
+            username: player.user.username,
+            globalName: player.user.global_name ?? null,
+            guildNickname: player.nick ?? null,
+          };
+        }),
       );
 
-      if (trackerState.substitutions.length > 0) {
-        const substitutedOutPlayerIds = trackerState.substitutions.map((sub) => sub.playerOutId);
-        const substitutedOutUsers = await this.discordService.getUsers(trackerState.guildId, substitutedOutPlayerIds);
+      const startDateTime = new Date(trackerState.searchStartTime);
+      const endDateTime = new Date();
 
-        const extendedTeams = teams.map((team, teamIndex) => {
-          const teamPlayers = [...team];
+      const matches = await this.haloService.getSeriesFromDiscordQueue(
+        {
+          teams,
+          startDateTime,
+          endDateTime,
+        },
+        true,
+      );
 
-          for (const substitution of trackerState.substitutions) {
-            if (substitution.teamIndex === teamIndex) {
-              const substitutedOutUser = substitutedOutUsers.find((user) => user.user.id === substitution.playerOutId);
-              if (substitutedOutUser) {
-                teamPlayers.push({
-                  id: substitutedOutUser.user.id,
-                  username: substitutedOutUser.user.username,
-                  globalName: substitutedOutUser.user.global_name ?? null,
-                  guildNickname: substitutedOutUser.nick ?? null,
-                });
-              }
-            }
-          }
-
-          return teamPlayers;
-        });
-
-        const startDateTime = new Date(trackerState.queueStartTime);
-        const endDateTime = new Date();
-
-        const matches = await this.haloService.getSeriesFromDiscordQueue(
-          {
-            teams: extendedTeams,
-            startDateTime,
-            endDateTime,
-          },
-          true,
-        );
-
-        await this.enrichAndMergeMatches(trackerState, matches);
-      } else {
-        const startDateTime = new Date(trackerState.queueStartTime);
-        const endDateTime = new Date();
-
-        const matches = await this.haloService.getSeriesFromDiscordQueue(
-          {
-            teams,
-            startDateTime,
-            endDateTime,
-          },
-          true,
-        );
-
-        await this.enrichAndMergeMatches(trackerState, matches);
-      }
+      await this.enrichAndMergeMatches(trackerState, matches);
 
       return Object.values(trackerState.discoveredMatches);
     } catch (error) {
-      if (error instanceof EndUserError && error.message === "No matches found for the series") {
+      if (error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING) {
+        this.logService.warn("Warning while fetching series data", new Map([["error", error.message]]));
+
         return Object.values(trackerState.discoveredMatches);
       }
       throw error;
@@ -867,7 +838,7 @@ export class LiveTrackerDO {
 
       trackerState.rawMatches[match.MatchId] = match;
 
-      let gameTypeAndMap = "Unknown Map and mode";
+      let gameTypeAndMap = "*Unknown Map and mode*";
       try {
         gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
       } catch (error) {

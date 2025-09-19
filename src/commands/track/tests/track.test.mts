@@ -7,6 +7,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIEmbed,
   APIEmbedField,
+  APIGuildMember,
 } from "discord-api-types/v10";
 import {
   ButtonStyle,
@@ -152,13 +153,23 @@ describe("TrackCommand", () => {
       it("starts live tracking via Durable Object", async () => {
         await jobToComplete?.();
 
+        const players = discordNeatQueueData.teams.flatMap(({ players: p }) => p);
+        const teams = discordNeatQueueData.teams.map((team) => ({
+          name: team.name,
+          playerIds: team.players.map((player) => player.user.id),
+        }));
+
         const startData: LiveTrackerStartData = {
           userId: "discord_user_01",
           guildId: "fake-guild-id",
           channelId: "1234567890",
           queueNumber: 777,
           interactionToken: "fake-token",
-          teams: discordNeatQueueData.teams,
+          players: players.reduce<Record<string, APIGuildMember>>((acc, player) => {
+            acc[player.user.id] = player;
+            return acc;
+          }, {}),
+          teams,
           queueStartTime: discordNeatQueueData.timestamp.toISOString(),
         };
         expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/start", {

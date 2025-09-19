@@ -8,6 +8,7 @@ import type {
   APIEmbedField,
   RESTPostAPIChannelMessageJSONBody,
   APIComponentInMessageActionRow,
+  APIGuildMember,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
@@ -501,14 +502,12 @@ export class NeatQueueService {
     const { databaseService, discordService, logService } = this;
 
     try {
-      // Check if live tracking is enabled for this guild
       const guildConfig = await databaseService.getGuildConfig(request.guild);
       if (guildConfig.NeatQueueInformerLiveTracking !== "Y") {
         logService.debug("Live tracking is disabled for this guild, skipping auto-start");
         return;
       }
 
-      // Check channel permissions for posting messages
       const [guild, channel] = await Promise.all([
         discordService.getGuild(request.guild),
         discordService.getChannel(request.channel),
@@ -535,20 +534,12 @@ export class NeatQueueService {
         return;
       }
 
-      // Map NeatQueue team data to expected format
-      const teams = await Promise.all(
-        request.teams.map(async (team: NeatQueuePlayer[], teamIndex: number) => {
-          const teamName = team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`;
-          const players = await discordService.getUsers(
-            request.guild,
-            team.map((player: NeatQueuePlayer) => player.id),
-          );
-          return {
-            name: teamName,
-            players,
-          };
-        }),
-      );
+      const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
+      const players = await discordService.getUsers(request.guild, playerIds);
+      const teams = request.teams.map((team, teamIndex) => ({
+        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+        playerIds: team.map((player) => player.id),
+      }));
 
       // Create Durable Object key for this queue
       const doKey = `${request.guild}:${request.channel}:${request.match_number.toString()}`;
@@ -561,6 +552,10 @@ export class NeatQueueService {
         guildId: request.guild,
         channelId: request.channel,
         queueNumber: request.match_number,
+        players: players.reduce<Record<string, APIGuildMember>>((acc, player) => {
+          acc[player.user.id] = player;
+          return acc;
+        }, {}),
         teams,
         queueStartTime: new Date().toISOString(),
       };
