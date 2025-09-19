@@ -4,6 +4,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIEmbed,
+  APIGuildMember,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -170,6 +171,11 @@ export class TrackCommand extends BaseCommand {
           }
 
           const queueNumber = activeQueueData.queue;
+          const players = activeQueueData.teams.flatMap(({ players: p }) => p);
+          const teams = activeQueueData.teams.map((team) => ({
+            name: team.name,
+            playerIds: team.players.map((player) => player.user.id),
+          }));
 
           // Create Durable Object instance
           const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${targetChannelId}:${queueNumber.toString()}`);
@@ -182,7 +188,11 @@ export class TrackCommand extends BaseCommand {
             channelId: targetChannelId,
             queueNumber,
             interactionToken: interaction.token,
-            teams: activeQueueData.teams,
+            players: players.reduce<Record<string, APIGuildMember>>((acc, player) => {
+              acc[player.user.id] = player;
+              return acc;
+            }, {}),
+            teams,
             queueStartTime: activeQueueData.timestamp.toISOString(),
           };
 
