@@ -30,6 +30,7 @@ import type {
   LiveTrackerResumeResponse,
   LiveTrackerStartRequest,
   LiveTrackerState,
+  LiveTrackerStatusResponse,
 } from "../../durable-objects/types.mjs";
 
 interface UserContext {
@@ -663,8 +664,8 @@ export class TrackCommand extends BaseCommand {
         return null;
       }
 
-      const body = await statusResponse.json<LiveTrackerState>();
-      return body;
+      const { state } = await statusResponse.json<LiveTrackerStatusResponse>();
+      return state;
     } catch (error) {
       this.services.logService.error("Failed to get tracker status", new Map([["error", String(error)]]));
       return null;

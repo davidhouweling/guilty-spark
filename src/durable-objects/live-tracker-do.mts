@@ -43,7 +43,7 @@ const ERROR_THRESHOLD_MINUTES = 10;
 const REFRESH_COOLDOWN_MS = 30 * 1000;
 
 export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
-  [Rpc.__DURABLE_OBJECT_BRAND]!: never;
+  __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
   private readonly env: Env;
   private readonly logService: LogService;
