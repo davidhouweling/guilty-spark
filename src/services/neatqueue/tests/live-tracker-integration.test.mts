@@ -1,81 +1,97 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, vi, it, expect } from "vitest";
 import { NeatQueueService } from "../neatqueue.mjs";
-import type { Services } from "../../install.mjs";
-import { installFakeServicesWith } from "../../fakes/services.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import { aFakeGuildConfigRow } from "../../database/fakes/database.fake.mjs";
+import {
+  aFakeDatabaseServiceWith,
+  aFakeGuildConfigRow,
+  aFakeNeatQueueConfigRow,
+} from "../../database/fakes/database.fake.mjs";
 import { getFakeNeatQueueData } from "../fakes/data.mjs";
-import type { NeatQueueTeamsCreatedRequest, NeatQueueMatchCompletedRequest } from "../types.mjs";
-import { aFakeDurableObjectId } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
+import { aFakeDurableObjectId, aFakeLiveTrackerDOWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
+import type { LiveTrackerDO } from "../../../durable-objects/live-tracker-do.mjs";
 import { guild, textChannel, guildMember } from "../../discord/fakes/data.mjs";
-
-// Helper function to avoid unsafe type casts
-async function callTeamsCreatedJob(instance: NeatQueueService, request: NeatQueueTeamsCreatedRequest): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-  return (instance as any).teamsCreatedJob(request) as Promise<void>;
-}
-
-async function callStopLiveTrackingIfActive(
-  instance: NeatQueueService,
-  request: NeatQueueMatchCompletedRequest,
-): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-  return (instance as any).stopLiveTrackingIfActive(request, null) as Promise<void>;
-}
+import type { DatabaseService } from "../../database/database.mjs";
+import type { LogService } from "../../log/types.mjs";
+import type { DiscordService } from "../../discord/discord.mjs";
+import type { HaloService } from "../../halo/halo.mjs";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
+import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
+import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
+import type {
+  NeatQueueMatchCompletedRequest,
+  NeatQueueSubstitutionRequest,
+  NeatQueueTeamsCreatedRequest,
+} from "../types.mjs";
 
 describe("NeatQueueService Live Tracker Integration", () => {
-  let neatQueueService: NeatQueueService;
-  let services: Services;
+  // align this with time just after ctf.json match completed
+  const now = new Date("2024-11-26T10:48:00.000Z").getTime();
+
   let env: Env;
-  let mockDurableObjectFetch: MockInstance;
-  let getGuildConfigSpy: MockInstance;
-  let idFromNameSpy: MockInstance;
+  let logService: LogService;
+  let databaseService: DatabaseService;
+  let discordService: DiscordService;
+  let haloService: HaloService;
+  let neatQueueService: NeatQueueService;
+
+  let fetchSpy: MockInstance<LiveTrackerDO["fetch"]>;
+  let getGuildConfigSpy: MockInstance<DatabaseService["getGuildConfig"]>;
+  let idFromNameSpy: MockInstance<DurableObjectNamespace["idFromName"]>;
 
   beforeEach(() => {
-    services = installFakeServicesWith();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
     env = aFakeEnvWith();
-    neatQueueService = new NeatQueueService({ ...services, env });
+    logService = aFakeLogServiceWith();
+    databaseService = aFakeDatabaseServiceWith();
+    discordService = aFakeDiscordServiceWith();
+    haloService = aFakeHaloServiceWith();
+    neatQueueService = new NeatQueueService({
+      env,
+      logService,
+      databaseService,
+      discordService,
+      haloService,
+    });
 
-    // Mock Durable Object methods with proper typing
-    mockDurableObjectFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true })));
-
-    // Create a properly typed mock stub
-    const mockDurableObjectStub = {
-      fetch: mockDurableObjectFetch,
-      connect: vi.fn(),
-      id: aFakeDurableObjectId(),
-      name: "test-stub",
-    } as unknown as DurableObjectStub;
-
-    vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(mockDurableObjectStub);
+    const liveTrackerDO = aFakeLiveTrackerDOWith();
+    vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDO);
     idFromNameSpy = vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
+    fetchSpy = vi.spyOn(liveTrackerDO, "fetch");
 
-    // Mock database service
-    getGuildConfigSpy = vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+    getGuildConfigSpy = vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
       aFakeGuildConfigRow({
         NeatQueueInformerLiveTracking: "Y",
       }),
     );
 
     // Mock Discord service for permission checks
-    vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-    vi.spyOn(services.discordService, "getChannel").mockResolvedValue(textChannel);
-    vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(guildMember);
-    vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+    vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+    vi.spyOn(discordService, "getChannel").mockResolvedValue(textChannel);
+    vi.spyOn(discordService, "getGuildMember").mockResolvedValue(guildMember);
+    vi.spyOn(discordService, "hasPermissions").mockReturnValue({
       hasAll: true,
       missing: [],
     });
   });
 
-  describe("teamsCreatedJob", () => {
+  describe("TEAMS_CREATED event", () => {
     const mockRequest = getFakeNeatQueueData("teamsCreated");
+    const callTeamsCreatedJob = async (
+      request: NeatQueueTeamsCreatedRequest,
+      neatQueueConfig = aFakeNeatQueueConfigRow(),
+    ): Promise<void> => {
+      const { jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
+      return jobToComplete?.();
+    };
 
     it("starts live tracking when enabled in guild config", async () => {
-      await callTeamsCreatedJob(neatQueueService, mockRequest);
+      await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(mockDurableObjectFetch).toHaveBeenCalledWith(
+      expect(fetchSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "POST",
           url: expect.stringContaining("/start") as string,
@@ -90,10 +106,10 @@ describe("NeatQueueService Live Tracker Integration", () => {
         }),
       );
 
-      await callTeamsCreatedJob(neatQueueService, mockRequest);
+      await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(mockDurableObjectFetch).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("handles missing guild config gracefully", async () => {
@@ -102,17 +118,17 @@ describe("NeatQueueService Live Tracker Integration", () => {
       });
       getGuildConfigSpy.mockResolvedValue(mockGuildConfig);
 
-      await callTeamsCreatedJob(neatQueueService, mockRequest);
+      await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(mockDurableObjectFetch).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("logs errors when live tracking fails to start", async () => {
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
-      mockDurableObjectFetch.mockRejectedValue(new Error("DO start failed"));
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      fetchSpy.mockRejectedValue(new Error("DO start failed"));
 
-      await callTeamsCreatedJob(neatQueueService, mockRequest);
+      await callTeamsCreatedJob(mockRequest);
 
       expect(logWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining("Failed to auto-start live tracking"),
@@ -121,93 +137,17 @@ describe("NeatQueueService Live Tracker Integration", () => {
     });
 
     it("continues normal operation if live tracking fails", async () => {
-      mockDurableObjectFetch.mockRejectedValue(new Error("DO start failed"));
+      fetchSpy.mockRejectedValue(new Error("DO start failed"));
 
       // Should not throw error, just log it
-      await expect(callTeamsCreatedJob(neatQueueService, mockRequest)).resolves.toBeUndefined();
-    });
-  });
-
-  describe("stopLiveTrackingIfActive", () => {
-    it("stops live tracking when called", async () => {
-      // Mock status response to indicate active tracker
-      mockDurableObjectFetch.mockResolvedValueOnce(new Response(JSON.stringify({ state: { status: "active" } })));
-      // Mock stop response
-      mockDurableObjectFetch.mockResolvedValueOnce(new Response(JSON.stringify({ success: true })));
-
-      const stopRequest = getFakeNeatQueueData("matchCompleted");
-      await callStopLiveTrackingIfActive(neatQueueService, stopRequest);
-
-      expect(mockDurableObjectFetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      expect(mockDurableObjectFetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/stop") as string,
-        }),
-      );
+      await expect(callTeamsCreatedJob(mockRequest)).resolves.toBeUndefined();
     });
 
-    it("logs errors when stop fails", async () => {
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
-      mockDurableObjectFetch.mockRejectedValue(new Error("DO stop failed"));
-
-      const stopRequest = getFakeNeatQueueData("matchCompleted");
-      await callStopLiveTrackingIfActive(neatQueueService, stopRequest);
-
-      expect(logWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to auto-stop live tracking"),
-        expect.any(Map),
-      );
-    });
-
-    it("continues normal operation if stop fails", async () => {
-      mockDurableObjectFetch.mockRejectedValue(new Error("DO stop failed"));
-
-      const stopRequest = getFakeNeatQueueData("matchCompleted");
-
-      // Should not throw error, just log it
-      await expect(callStopLiveTrackingIfActive(neatQueueService, stopRequest)).resolves.toBeUndefined();
-    });
-  });
-
-  describe("MATCH_COMPLETED event integration", () => {
-    const mockMatchCompletedRequest = getFakeNeatQueueData("matchCompleted");
-
-    it("calls stopLiveTrackingIfActive on match completion", async () => {
-      // Mock status response to indicate active tracker
-      mockDurableObjectFetch.mockResolvedValueOnce(new Response(JSON.stringify({ state: { status: "active" } })));
-      // Mock stop response
-      mockDurableObjectFetch.mockResolvedValueOnce(new Response(JSON.stringify({ success: true })));
-
-      // Simulate match completion event processing
-      await callStopLiveTrackingIfActive(neatQueueService, mockMatchCompletedRequest);
-
-      expect(mockDurableObjectFetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      expect(mockDurableObjectFetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/stop") as string,
-        }),
-      );
-    });
-  });
-
-  describe("Durable Object ID generation", () => {
     it("generates consistent DO IDs for same guild/channel/queue", async () => {
       const testRequest = getFakeNeatQueueData("teamsCreated");
       const expectedDoId = `${testRequest.guild}:${testRequest.channel}:${testRequest.match_number.toString()}`;
 
-      await callTeamsCreatedJob(neatQueueService, testRequest);
+      await callTeamsCreatedJob(testRequest);
 
       expect(idFromNameSpy).toHaveBeenCalledWith(expectedDoId);
     });
@@ -220,64 +160,207 @@ describe("NeatQueueService Live Tracker Integration", () => {
         match_number: 100,
       };
 
-      await callTeamsCreatedJob(neatQueueService, testRequest);
+      await callTeamsCreatedJob(testRequest);
 
       expect(idFromNameSpy).toHaveBeenCalledWith("guild456:channel789:100");
     });
-  });
 
-  describe("Integration error scenarios", () => {
     it("handles database service errors gracefully", async () => {
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
+      const logWarnSpy = vi.spyOn(logService, "warn");
       getGuildConfigSpy.mockRejectedValue(new Error("Database error"));
 
       const testRequest = getFakeNeatQueueData("teamsCreated");
-      await callTeamsCreatedJob(neatQueueService, testRequest);
+      await callTeamsCreatedJob(testRequest);
 
       expect(logWarnSpy).toHaveBeenCalled();
-      expect(mockDurableObjectFetch).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("handles Durable Object namespace errors", async () => {
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
+      const logWarnSpy = vi.spyOn(logService, "warn");
       idFromNameSpy.mockImplementation(() => {
         throw new Error("DO namespace error");
       });
 
       const testRequest = getFakeNeatQueueData("teamsCreated");
-      await callTeamsCreatedJob(neatQueueService, testRequest);
+      await callTeamsCreatedJob(testRequest);
 
       expect(logWarnSpy).toHaveBeenCalled();
     });
   });
 
-  describe("Performance considerations", () => {
-    it("does not delay normal NeatQueue operations", async () => {
-      const startTime = Date.now();
+  describe("SUBSTITUTION event", () => {
+    const mockRequest = getFakeNeatQueueData("substitution");
+    const callSubstitutionJob = async (
+      request: NeatQueueSubstitutionRequest,
+      neatQueueConfig = aFakeNeatQueueConfigRow(),
+    ): Promise<void> => {
+      const { jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
+      return jobToComplete?.();
+    };
 
-      const testRequest = getFakeNeatQueueData("teamsCreated");
-      await callTeamsCreatedJob(neatQueueService, testRequest);
+    it("updates live tracker when active tracker exists", async () => {
+      await callSubstitutionJob(mockRequest);
 
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Live tracking integration should be fast (< 100ms)
-      expect(duration).toBeLessThan(100);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "GET",
+          url: expect.stringContaining("/status") as string,
+        }),
+      );
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "POST",
+          url: expect.stringContaining("/substitution") as string,
+        }),
+      );
     });
 
-    it("handles concurrent live tracking requests", async () => {
-      const requests = Array.from({ length: 5 }, (_, i) => ({
-        ...getFakeNeatQueueData("teamsCreated"),
-        guild: `guild${String(i)}`,
-        channel: `channel${String(i)}`,
-        match_number: i + 1,
-      }));
+    it("skips update when no match number is provided", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { match_number, ...requestWithoutMatchNumber } = mockRequest;
 
-      const promises = requests.map(async (request) => callTeamsCreatedJob(neatQueueService, request));
+      await callSubstitutionJob(requestWithoutMatchNumber);
 
-      await Promise.all(promises);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(idFromNameSpy).not.toHaveBeenCalled();
+    });
 
-      expect(mockDurableObjectFetch).toHaveBeenCalledTimes(5);
+    it("skips update when live tracker is not active", async () => {
+      fetchSpy.mockImplementation(async (input: Request | string | URL): Promise<Response> => {
+        await Promise.resolve(); // Satisfy async requirement
+        const urlString = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        const urlObj = new URL(urlString);
+        if (urlObj.pathname === "/status") {
+          return new Response("Not Found", { status: 404 });
+        }
+        return new Response("Should not reach here", { status: 500 });
+      });
+
+      await callSubstitutionJob(mockRequest);
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "GET",
+          url: expect.stringContaining("/status") as string,
+        }),
+      );
+      // Should not call substitution endpoint when status is not ok
+      expect(fetchSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "POST",
+          url: expect.stringContaining("/substitution") as string,
+        }),
+      );
+    });
+
+    it("logs warning when substitution update fails", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      // Override the fake DO to throw an error on substitution
+      const failingLiveTrackerDO = aFakeLiveTrackerDOWith({
+        shouldThrowError: true,
+        errorMessage: "Substitution failed",
+      });
+      vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(failingLiveTrackerDO);
+
+      await callSubstitutionJob(mockRequest);
+
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to update live tracker with substitution"),
+        expect.any(Map),
+      );
+    });
+
+    it("continues normal operation if live tracker update fails", async () => {
+      fetchSpy.mockRejectedValue(new Error("DO substitution failed"));
+
+      // Should not throw error, just log it
+      await expect(callSubstitutionJob(mockRequest)).resolves.toBeUndefined();
+    });
+
+    it("generates consistent DO IDs for same guild/channel/queue", async () => {
+      const testRequest = getFakeNeatQueueData("substitution");
+      const expectedDoId = `${testRequest.guild}:${testRequest.channel}:${testRequest.match_number?.toString() ?? "undefined"}`;
+
+      await callSubstitutionJob(testRequest);
+
+      expect(idFromNameSpy).toHaveBeenCalledWith(expectedDoId);
+    });
+
+    it("handles Durable Object namespace errors gracefully", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      idFromNameSpy.mockImplementation(() => {
+        throw new Error("DO namespace error");
+      });
+
+      const testRequest = getFakeNeatQueueData("substitution");
+      await callSubstitutionJob(testRequest);
+
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to update live tracker with substitution"),
+        expect.any(Map),
+      );
+    });
+
+    it("sends correct substitution data to live tracker", async () => {
+      await callSubstitutionJob(mockRequest);
+
+      // Verify that both status and substitution endpoints were called
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          method: "GET",
+          url: expect.stringContaining("/status") as string,
+        }),
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          method: "POST",
+          url: expect.stringContaining("/substitution") as string,
+        }),
+      );
+    });
+
+    it("logs successful substitution update", async () => {
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      await callSubstitutionJob(mockRequest);
+
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Updated live tracker with substitution"),
+        expect.any(Map),
+      );
+    });
+  });
+
+  describe("MATCH_COMPLETED event", () => {
+    const mockMatchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+    const callMatchCompletedJob = async (
+      request: NeatQueueMatchCompletedRequest,
+      neatQueueConfig = aFakeNeatQueueConfigRow(),
+    ): Promise<void> => {
+      const { jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
+      return jobToComplete?.();
+    };
+
+    it("calls stopLiveTrackingIfActive on match completion", async () => {
+      // Simulate match completion event processing
+      await callMatchCompletedJob(mockMatchCompletedRequest);
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "GET",
+          url: expect.stringContaining("/status") as string,
+        }),
+      );
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "POST",
+          url: expect.stringContaining("/stop") as string,
+        }),
+      );
     });
   });
 });

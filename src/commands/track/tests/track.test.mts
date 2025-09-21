@@ -35,7 +35,8 @@ import {
   aFakeLiveTrackerDOWith,
   type FakeLiveTrackerDO,
 } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
-import type { LiveTrackerStartData } from "../../../durable-objects/live-tracker-do.mjs";
+import type { LiveTrackerStartRequest } from "../../../durable-objects/types.mjs";
+import type { DiscordService } from "../../../services/discord/discord.mjs";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -75,8 +76,8 @@ describe("TrackCommand", () => {
   let trackCommand: TrackCommand;
   let services: Services;
   let env: Env;
-  let updateDeferredReplySpy: MockInstance;
-  let editMessageSpy: MockInstance;
+  let updateDeferredReplySpy: MockInstance<DiscordService["updateDeferredReply"]>;
+  let editMessageSpy: MockInstance<DiscordService["editMessage"]>;
 
   beforeEach(() => {
     services = installFakeServicesWith();
@@ -112,6 +113,7 @@ describe("TrackCommand", () => {
       let jobToComplete: (() => Promise<void>) | undefined;
       let getTeamsFromQueueChannelSpy: MockInstance<typeof services.discordService.getTeamsFromQueueChannel>;
       let liveTrackerDoStub: FakeLiveTrackerDO;
+      let fetchSpy: MockInstance<FakeLiveTrackerDO["fetch"]>;
 
       beforeEach(() => {
         getTeamsFromQueueChannelSpy = vi
@@ -119,6 +121,7 @@ describe("TrackCommand", () => {
           .mockResolvedValue(discordNeatQueueData);
 
         liveTrackerDoStub = aFakeLiveTrackerDOWith();
+        fetchSpy = vi.spyOn(liveTrackerDoStub, "fetch");
         vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
         vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
 
@@ -159,7 +162,7 @@ describe("TrackCommand", () => {
           playerIds: team.players.map((player) => player.user.id),
         }));
 
-        const startData: LiveTrackerStartData = {
+        const startData: LiveTrackerStartRequest = {
           userId: "discord_user_01",
           guildId: "fake-guild-id",
           channelId: "1234567890",
@@ -172,7 +175,7 @@ describe("TrackCommand", () => {
           teams,
           queueStartTime: discordNeatQueueData.timestamp.toISOString(),
         };
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/start", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(startData),
@@ -180,7 +183,7 @@ describe("TrackCommand", () => {
       });
 
       it("handles Durable Object errors gracefully", async () => {
-        liveTrackerDoStub.fetch.mockRejectedValue(new Error("DO initialization failed"));
+        fetchSpy.mockRejectedValue(new Error("DO initialization failed"));
 
         await jobToComplete?.();
 
@@ -194,6 +197,7 @@ describe("TrackCommand", () => {
 
   describe("execute(): button interactions", () => {
     let liveTrackerDoStub: FakeLiveTrackerDO;
+    let fetchSpy: MockInstance<FakeLiveTrackerDO["fetch"]>;
 
     beforeEach(() => {
       const mockQueueData = {
@@ -203,6 +207,7 @@ describe("TrackCommand", () => {
       vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
 
       liveTrackerDoStub = aFakeLiveTrackerDOWith();
+      fetchSpy = vi.spyOn(liveTrackerDoStub, "fetch");
       vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
       vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
     });
@@ -228,13 +233,13 @@ describe("TrackCommand", () => {
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/pause", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/pause", {
           method: "POST",
         });
       });
 
       it("handles errors gracefully", async () => {
-        liveTrackerDoStub.fetch.mockRejectedValue(new Error("Pause failed"));
+        fetchSpy.mockRejectedValue(new Error("Pause failed"));
 
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
         await jobToComplete?.();
@@ -270,7 +275,7 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
             urlString = url;
@@ -327,7 +332,7 @@ describe("TrackCommand", () => {
       });
 
       it("falls back to basic embed when no enriched data returned", async () => {
-        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
             urlString = url;
@@ -380,7 +385,7 @@ describe("TrackCommand", () => {
         const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/resume", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/resume", {
           method: "POST",
         });
       });
@@ -409,7 +414,7 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        liveTrackerDoStub.fetch.mockImplementation(async (url: string | URL | Request) => {
+        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
           let urlString: string;
           if (typeof url === "string") {
             urlString = url;
@@ -466,7 +471,7 @@ describe("TrackCommand", () => {
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
         });
       });
@@ -492,15 +497,15 @@ describe("TrackCommand", () => {
           { status: 429 },
         );
 
-        liveTrackerDoStub.fetch.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(cooldownResponse);
+        fetchSpy.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(cooldownResponse);
 
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/status", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/status", {
           method: "GET",
         });
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
         });
 
@@ -538,15 +543,15 @@ describe("TrackCommand", () => {
 
         const errorResponse = new Response("Internal Server Error", { status: 500 });
 
-        liveTrackerDoStub.fetch.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(errorResponse);
+        fetchSpy.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(errorResponse);
 
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/status", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/status", {
           method: "GET",
         });
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/refresh", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
           method: "POST",
         });
       });
@@ -590,7 +595,7 @@ describe("TrackCommand", () => {
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
         const mockResponse = new Response(JSON.stringify({ success: true }), { status: 200 });
-        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse);
+        fetchSpy.mockResolvedValue(mockResponse);
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
@@ -607,7 +612,7 @@ describe("TrackCommand", () => {
           "Reposting maps",
         );
 
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalledWith("http://do/repost", {
+        expect(fetchSpy).toHaveBeenCalledWith("http://do/repost", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ newMessageId: "new-message-id-456" }),
@@ -636,7 +641,7 @@ describe("TrackCommand", () => {
 
         expect(createMessageSpy).toHaveBeenCalled();
         expect(deleteMessageSpy).toHaveBeenCalled();
-        expect(liveTrackerDoStub.fetch).not.toHaveBeenCalled();
+        expect(fetchSpy).not.toHaveBeenCalled();
       });
 
       it("handles DO update failure gracefully", async () => {
@@ -645,14 +650,14 @@ describe("TrackCommand", () => {
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
         const mockResponse = new Response("Bad Request", { status: 400 });
-        liveTrackerDoStub.fetch.mockResolvedValue(mockResponse);
+        fetchSpy.mockResolvedValue(mockResponse);
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
 
         expect(createMessageSpy).toHaveBeenCalled();
         expect(deleteMessageSpy).toHaveBeenCalled();
-        expect(liveTrackerDoStub.fetch).toHaveBeenCalled();
+        expect(fetchSpy).toHaveBeenCalled();
       });
 
       it("returns deferred message update response", () => {

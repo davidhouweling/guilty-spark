@@ -64,6 +64,16 @@ npm run format:fix
 - **Null Safety**: Use `Preconditions.checkExists()` instead of `!`
 - **Formatting**: Run `npm run lint:fix` and `npm run format:fix`
 
+## Type Safety Principles
+
+- **No Unsafe Assertions**: Never use `as` casting or manual type assertions; always use proper typed parsing
+- **Request/Response Typing**: Define explicit interfaces for all API interactions with external services
+- **Type Guards**: Use discriminated unions and type guard functions for safe response handling
+- **Centralized Types**: Keep related types in dedicated `types.mts` files alongside implementation
+- **Response Discrimination**: Use `isSuccessResponse()` patterns for safe success/failure handling
+- **API Contracts**: Types serve as living documentation and enforce API compatibility
+- **Compile-Time Safety**: Prefer TypeScript compilation errors over runtime type failures
+
 ## Testing Instructions
 
 - **Test Runner**: Use vitest only (`npm test`)

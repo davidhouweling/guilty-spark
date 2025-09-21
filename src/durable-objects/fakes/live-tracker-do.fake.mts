@@ -1,30 +1,30 @@
-import type { MockInstance } from "vitest";
-import { vi } from "vitest";
-import type { LiveTrackerState } from "../live-tracker-do.mjs";
-
-interface LiveTrackerDOResponse {
-  success: boolean;
-  error?: string;
-}
-
-interface LiveTrackerStatusResponse {
-  state: LiveTrackerState;
-}
+import type {
+  LiveTrackerPauseResponse,
+  LiveTrackerRefreshResponse,
+  LiveTrackerRepostResponse,
+  LiveTrackerResumeResponse,
+  LiveTrackerStartResponse,
+  LiveTrackerState,
+  LiveTrackerStatusResponse,
+  LiveTrackerStopResponse,
+  LiveTrackerSubstitutionResponse,
+} from "../types.mjs";
+import type { LiveTrackerDO } from "../live-tracker-do.mjs";
 
 export interface FakeLiveTrackerDOOpts {
-  startResponse?: LiveTrackerDOResponse;
-  pauseResponse?: LiveTrackerDOResponse;
-  resumeResponse?: LiveTrackerDOResponse;
-  stopResponse?: LiveTrackerDOResponse;
-  refreshResponse?: LiveTrackerDOResponse;
-  statusResponse?: LiveTrackerStatusResponse | null;
+  startResponse?: LiveTrackerStartResponse;
+  pauseResponse?: LiveTrackerPauseResponse;
+  resumeResponse?: LiveTrackerResumeResponse;
+  stopResponse?: LiveTrackerStopResponse;
+  refreshResponse?: LiveTrackerRefreshResponse;
+  substitutionResponse?: LiveTrackerSubstitutionResponse;
+  statusResponse?: LiveTrackerStatusResponse;
+  repostResponse?: LiveTrackerRepostResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
 
-export interface FakeLiveTrackerDO {
-  fetch: MockInstance;
-}
+export type FakeLiveTrackerDO = DurableObjectStub<LiveTrackerDO> & Rpc.DurableObjectBranded;
 
 export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
   return {
@@ -34,103 +34,122 @@ export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
 }
 
 export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLiveTrackerDO {
-  const defaultStatusResponse: LiveTrackerStatusResponse = {
-    state: {
-      userId: "fake-user-id",
-      guildId: "fake-guild-id",
-      channelId: "1234567890",
-      queueNumber: 42,
-      isPaused: false,
-      status: "active",
-      liveMessageId: "fake-message-id",
-      startTime: new Date().toISOString(),
-      lastUpdateTime: new Date().toISOString(),
-      searchStartTime: new Date().toISOString(),
-      checkCount: 1,
-      players: {},
-      teams: [],
-      substitutions: [],
-      discoveredMatches: {},
-      rawMatches: {},
-      errorState: {
-        consecutiveErrors: 0,
-        backoffMinutes: 3,
-        lastSuccessTime: new Date().toISOString(),
-      },
-      lastMessageState: {
-        matchCount: 0,
-        substitutionCount: 0,
-      },
+  const defaultState: LiveTrackerState = {
+    userId: "fake-user-id",
+    guildId: "fake-guild-id",
+    channelId: "1234567890",
+    queueNumber: 42,
+    isPaused: false,
+    status: "active",
+    liveMessageId: "fake-message-id",
+    startTime: new Date().toISOString(),
+    lastUpdateTime: new Date().toISOString(),
+    searchStartTime: new Date().toISOString(),
+    checkCount: 1,
+    players: {},
+    teams: [],
+    substitutions: [],
+    discoveredMatches: {},
+    rawMatches: {},
+    errorState: {
+      consecutiveErrors: 0,
+      backoffMinutes: 3,
+      lastSuccessTime: new Date().toISOString(),
+    },
+    lastMessageState: {
+      matchCount: 0,
+      substitutionCount: 0,
     },
   };
 
-  const {
-    startResponse = { success: true },
-    pauseResponse = { success: true },
-    resumeResponse = { success: true },
-    stopResponse = { success: true },
-    refreshResponse = { success: true },
-    statusResponse = defaultStatusResponse,
-    shouldThrowError = false,
-    errorMessage = "Fake DO error",
-  } = opts;
+  const startResponse: LiveTrackerStartResponse = opts.startResponse ?? { success: true, state: defaultState };
+  const pauseResponse: LiveTrackerPauseResponse = opts.pauseResponse ?? { success: true, state: defaultState };
+  const resumeResponse: LiveTrackerResumeResponse = opts.resumeResponse ?? { success: true, state: defaultState };
+  const stopResponse: LiveTrackerStopResponse = opts.stopResponse ?? { success: true, state: defaultState };
+  const refreshResponse: LiveTrackerRefreshResponse = opts.refreshResponse ?? { success: true, state: defaultState };
+  const substitutionResponse: LiveTrackerSubstitutionResponse = opts.substitutionResponse ?? {
+    success: true,
+    substitution: {
+      playerOutId: "fake-player-out-id",
+      playerInId: "fake-player-in-id",
+      teamIndex: 0,
+    },
+  };
+  const statusResponse: LiveTrackerStatusResponse = opts.statusResponse ?? { state: defaultState };
+  const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
-  // Create a mock fetch function that responds to different endpoints
-  const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+  const fetchMock: FakeLiveTrackerDO["fetch"] = async (input) => {
     if (shouldThrowError) {
       throw new Error(errorMessage);
     }
 
-    const urlObj = new URL(url);
+    let urlString: string;
+    if (typeof input === "string") {
+      urlString = input;
+    } else if (input instanceof URL) {
+      urlString = input.href;
+    } else {
+      urlString = input.url;
+    }
+
+    const urlObj = new URL(urlString);
     const path = urlObj.pathname;
 
-    let responseData: LiveTrackerDOResponse | LiveTrackerStatusResponse | null;
+    let responseBody: string | null = null;
     switch (path) {
       case "/start":
-        responseData = startResponse;
+        responseBody = JSON.stringify(startResponse);
         break;
       case "/pause":
-        responseData = pauseResponse;
+        responseBody = JSON.stringify(pauseResponse);
         break;
       case "/resume":
-        responseData = resumeResponse;
+        responseBody = JSON.stringify(resumeResponse);
         break;
       case "/stop":
-        responseData = stopResponse;
+        responseBody = JSON.stringify(stopResponse);
         break;
       case "/refresh":
-        responseData = refreshResponse;
+        responseBody = JSON.stringify(refreshResponse);
         break;
       case "/status":
-        responseData = statusResponse;
+        responseBody = JSON.stringify(statusResponse);
+        break;
+      case "/substitution":
+        responseBody = JSON.stringify(substitutionResponse);
         break;
       default:
-        responseData = { success: false, error: `Unknown endpoint: ${path}` };
+        responseBody = JSON.stringify({ success: false, error: `Unknown endpoint: ${path}` });
         break;
     }
 
     return Promise.resolve(
-      new Response(JSON.stringify(responseData), {
+      new Response(responseBody, {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
     );
-  });
+  };
 
   return {
+    ["__DURABLE_OBJECT_BRAND"]: undefined as never,
     fetch: fetchMock,
+    connect: (): Socket => {
+      throw new Error("Socket connections not supported in fake");
+    },
+    id: aFakeDurableObjectId(),
   };
 }
 
 export function aFakeDurableObjectStubWith(opts: FakeLiveTrackerDOOpts = {}): DurableObjectStub {
   const fakeDO = aFakeLiveTrackerDOWith(opts);
   return {
+    ...fakeDO,
     id: aFakeDurableObjectId(),
-    fetch: fakeDO.fetch as unknown as DurableObjectStub["fetch"],
-    connect: vi.fn().mockImplementation(() => {
+    connect: (): Socket => {
       throw new Error("Socket connections not supported in fake");
-    }) as DurableObjectStub["connect"],
-  } as DurableObjectStub;
+    },
+  };
 }
 
 export function aFakeDurableObjectNamespaceWith(
@@ -141,11 +160,14 @@ export function aFakeDurableObjectNamespaceWith(
 ): DurableObjectNamespace {
   const { stubResponse = {}, idValue = "fake-do-id" } = opts;
 
-  const get = vi.fn().mockReturnValue(aFakeDurableObjectStubWith(stubResponse));
-  const idFromName = vi.fn().mockReturnValue(aFakeDurableObjectId(idValue));
+  const durableObjectNamespace: DurableObjectNamespace = {
+    get: () => aFakeDurableObjectStubWith(stubResponse),
+    idFromName: () => aFakeDurableObjectId(idValue),
+    getByName: () => aFakeDurableObjectStubWith(stubResponse),
+    idFromString: () => aFakeDurableObjectId(idValue),
+    jurisdiction: () => durableObjectNamespace,
+    newUniqueId: () => aFakeDurableObjectId(),
+  };
 
-  return {
-    get,
-    idFromName,
-  } as unknown as DurableObjectNamespace;
+  return durableObjectNamespace;
 }

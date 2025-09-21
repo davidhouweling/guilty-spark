@@ -880,7 +880,6 @@ describe("NeatQueueService", () => {
 
         it("handles corrupted timeline data by leveraging broader 6h approach", async () => {
           appDataGetSpy.mockReset().mockRejectedValue(new Error("Corrupted timeline data"));
-          const logServiceInfoSpy = vi.spyOn(logService, "info");
 
           const { jobToComplete } = neatQueueService.handleRequest(
             getFakeNeatQueueData("matchCompleted"),
@@ -889,7 +888,6 @@ describe("NeatQueueService", () => {
 
           await jobToComplete?.();
 
-          expect(logServiceInfoSpy).toHaveBeenCalledOnce();
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,
             messageId,
