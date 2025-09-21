@@ -1,11 +1,13 @@
+import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
-import { LiveTrackerEmbed, type EnrichedMatchData } from "../live-tracker-embed.mjs";
+import { LiveTrackerEmbed, type EnrichedMatchData, type LiveTrackerEmbedData } from "../live-tracker-embed.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 
 describe("LiveTrackerEmbed", () => {
   let discordService: DiscordService;
+  let getTimestampSpy: MockInstance<DiscordService["getTimestamp"]>;
 
   const testEnrichedMatches: EnrichedMatchData[] = [
     {
@@ -24,9 +26,27 @@ describe("LiveTrackerEmbed", () => {
     },
   ];
 
+  const baseEmbedData: LiveTrackerEmbedData = {
+    userId: "user123",
+    guildId: "guild123",
+    channelId: "channel123",
+    queueNumber: 42,
+    status: "active",
+    isPaused: false,
+    seriesScore: "Team Alpha 0 - 0 Team Beta",
+    enrichedMatches: [],
+    lastUpdated: new Date("2024-12-06T12:00:00Z"),
+    nextCheck: new Date("2024-12-06T12:03:00Z"),
+    errorState: undefined,
+  };
+
+  const createLiveTrackerEmbed = (overrides: Partial<LiveTrackerEmbedData> = {}): LiveTrackerEmbed => {
+    return new LiveTrackerEmbed({ discordService }, { ...baseEmbedData, ...overrides });
+  };
+
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
-    vi.spyOn(discordService, "getTimestamp").mockImplementation((timestamp, format) => {
+    getTimestampSpy = vi.spyOn(discordService, "getTimestamp").mockImplementation((timestamp, format) => {
       const epochSeconds = Math.floor(Date.parse(timestamp) / 1000);
       return `<t:${epochSeconds.toString()}:${format ?? "f"}>`;
     });
@@ -34,22 +54,13 @@ describe("LiveTrackerEmbed", () => {
 
   describe("initial state (no matches)", () => {
     it("creates embed with waiting message", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 0 - 0 Team Beta",
-          enrichedMatches: [],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 0 - 0 Team Beta",
+        enrichedMatches: [],
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -60,27 +71,20 @@ describe("LiveTrackerEmbed", () => {
 
       const statusField = embed.fields?.find((field) => field.value.includes("⏳ *Waiting for first match"));
       expect(statusField).toBeDefined();
+
+      expect(getTimestampSpy).toHaveBeenCalled();
     });
   });
 
   describe("active state with matches", () => {
     it("creates embed with match data", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 777,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 2 - 1 Team Beta (🦅:🐍)",
-          enrichedMatches: testEnrichedMatches,
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 777,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 2 - 1 Team Beta (🦅:🐍)",
+        enrichedMatches: testEnrichedMatches,
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -99,22 +103,13 @@ describe("LiveTrackerEmbed", () => {
 
   describe("paused state", () => {
     it("creates embed with paused styling", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: true,
-          seriesScore: "Team Alpha 1 - 1 Team Beta",
-          enrichedMatches: testEnrichedMatches.slice(0, 1),
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: undefined,
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: true,
+        seriesScore: "Team Alpha 1 - 1 Team Beta",
+        enrichedMatches: testEnrichedMatches.slice(0, 1),
+        nextCheck: undefined,
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -126,22 +121,12 @@ describe("LiveTrackerEmbed", () => {
 
   describe("stopped state", () => {
     it("creates embed with stopped styling", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "stopped",
-          isPaused: false,
-          seriesScore: "Team Alpha 3 - 2 Team Beta (🦅:🐍)",
-          enrichedMatches: testEnrichedMatches,
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: undefined,
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "stopped",
+        seriesScore: "Team Alpha 3 - 2 Team Beta (🦅:🐍)",
+        enrichedMatches: testEnrichedMatches,
+        nextCheck: undefined,
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -153,27 +138,17 @@ describe("LiveTrackerEmbed", () => {
 
   describe("error state", () => {
     it("creates embed with error message", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 1 - 0 Team Beta",
-          enrichedMatches: [],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:05:00Z"),
-          errorState: {
-            consecutiveErrors: 2,
-            backoffMinutes: 5,
-            lastSuccessTime: "2024-12-06T11:55:00Z",
-            lastErrorMessage: "API temporarily unavailable",
-          },
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        seriesScore: "Team Alpha 1 - 0 Team Beta",
+        enrichedMatches: [],
+        nextCheck: new Date("2024-12-06T12:05:00Z"),
+        errorState: {
+          consecutiveErrors: 2,
+          backoffMinutes: 5,
+          lastSuccessTime: "2024-12-06T11:55:00Z",
+          lastErrorMessage: "API temporarily unavailable",
         },
-      );
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -185,22 +160,12 @@ describe("LiveTrackerEmbed", () => {
 
   describe("action components", () => {
     it("creates buttons for active state", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 1 - 0 Team Beta",
-          enrichedMatches: [],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 1 - 0 Team Beta",
+        enrichedMatches: [],
+      });
 
       const { actions } = liveTrackerEmbed;
 
@@ -209,22 +174,13 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("creates buttons for paused state", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: true,
-          seriesScore: "Team Alpha 1 - 0 Team Beta",
-          enrichedMatches: [],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: undefined,
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: true,
+        seriesScore: "Team Alpha 1 - 0 Team Beta",
+        enrichedMatches: [],
+        nextCheck: undefined,
+      });
 
       const { actions } = liveTrackerEmbed;
 
@@ -233,22 +189,12 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("creates no buttons for stopped state", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "stopped",
-          isPaused: false,
-          seriesScore: "Team Alpha 3 - 2 Team Beta",
-          enrichedMatches: testEnrichedMatches,
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: undefined,
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "stopped",
+        seriesScore: "Team Alpha 3 - 2 Team Beta",
+        enrichedMatches: testEnrichedMatches,
+        nextCheck: undefined,
+      });
 
       const { actions } = liveTrackerEmbed;
 
@@ -257,22 +203,12 @@ describe("LiveTrackerEmbed", () => {
 
     describe("repost button", () => {
       it("includes repost button for active state", () => {
-        const liveTrackerEmbed = new LiveTrackerEmbed(
-          { discordService },
-          {
-            userId: "user123",
-            guildId: "guild123",
-            channelId: "channel123",
-            queueNumber: 42,
-            status: "active",
-            isPaused: false,
-            seriesScore: "Team Alpha 1 - 0 Team Beta",
-            enrichedMatches: [],
-            lastUpdated: new Date("2024-12-06T12:00:00Z"),
-            nextCheck: new Date("2024-12-06T12:03:00Z"),
-            errorState: undefined,
-          },
-        );
+        const liveTrackerEmbed = createLiveTrackerEmbed({
+          status: "active",
+          isPaused: false,
+          seriesScore: "Team Alpha 1 - 0 Team Beta",
+          enrichedMatches: [],
+        });
 
         const { actions } = liveTrackerEmbed;
 
@@ -294,22 +230,13 @@ describe("LiveTrackerEmbed", () => {
       });
 
       it("includes repost button for paused state", () => {
-        const liveTrackerEmbed = new LiveTrackerEmbed(
-          { discordService },
-          {
-            userId: "user123",
-            guildId: "guild123",
-            channelId: "channel123",
-            queueNumber: 42,
-            status: "active",
-            isPaused: true,
-            seriesScore: "Team Alpha 1 - 0 Team Beta",
-            enrichedMatches: [],
-            lastUpdated: new Date("2024-12-06T12:00:00Z"),
-            nextCheck: undefined,
-            errorState: undefined,
-          },
-        );
+        const liveTrackerEmbed = createLiveTrackerEmbed({
+          status: "active",
+          isPaused: true,
+          seriesScore: "Team Alpha 1 - 0 Team Beta",
+          enrichedMatches: [],
+          nextCheck: undefined,
+        });
 
         const { actions } = liveTrackerEmbed;
 
@@ -331,22 +258,12 @@ describe("LiveTrackerEmbed", () => {
       });
 
       it("does not include repost button for stopped state", () => {
-        const liveTrackerEmbed = new LiveTrackerEmbed(
-          { discordService },
-          {
-            userId: "user123",
-            guildId: "guild123",
-            channelId: "channel123",
-            queueNumber: 42,
-            status: "stopped",
-            isPaused: false,
-            seriesScore: "Team Alpha 3 - 2 Team Beta",
-            enrichedMatches: testEnrichedMatches,
-            lastUpdated: new Date("2024-12-06T12:00:00Z"),
-            nextCheck: undefined,
-            errorState: undefined,
-          },
-        );
+        const liveTrackerEmbed = createLiveTrackerEmbed({
+          status: "stopped",
+          seriesScore: "Team Alpha 3 - 2 Team Beta",
+          enrichedMatches: testEnrichedMatches,
+          nextCheck: undefined,
+        });
 
         const { actions } = liveTrackerEmbed;
 
@@ -357,22 +274,12 @@ describe("LiveTrackerEmbed", () => {
 
   describe("series score formatting", () => {
     it("handles series score with emojis", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 2 - 1 Team Beta (🦅:🐍)",
-          enrichedMatches: testEnrichedMatches,
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 2 - 1 Team Beta (🦅:🐍)",
+        enrichedMatches: testEnrichedMatches,
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -382,22 +289,12 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("handles series score without emojis", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 1 - 0 Team Beta",
-          enrichedMatches: testEnrichedMatches.slice(0, 1),
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 1 - 0 Team Beta",
+        enrichedMatches: testEnrichedMatches.slice(0, 1),
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -409,22 +306,14 @@ describe("LiveTrackerEmbed", () => {
 
   describe("timestamp formatting", () => {
     it("handles missing timestamps gracefully", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "Team Alpha 0 - 0 Team Beta",
-          enrichedMatches: [],
-          lastUpdated: undefined,
-          nextCheck: undefined,
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 0 - 0 Team Beta",
+        enrichedMatches: [],
+        lastUpdated: undefined,
+        nextCheck: undefined,
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -435,31 +324,21 @@ describe("LiveTrackerEmbed", () => {
 
   describe("substitutions", () => {
     it("interleaves substitutions with matches chronologically", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "🦅 1:1 🐍",
-          enrichedMatches: testEnrichedMatches,
-          substitutions: [
-            {
-              playerOutId: "player-out-1",
-              playerInId: "player-in-1",
-              teamIndex: 0,
-              teamName: "Team Alpha",
-              timestamp: "2024-12-06T12:00:00Z",
-            },
-          ],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "🦅 1:1 🐍",
+        enrichedMatches: testEnrichedMatches,
+        substitutions: [
+          {
+            playerOutId: "player-out-1",
+            playerInId: "player-in-1",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: "2024-12-06T12:00:00Z",
+          },
+        ],
+      });
 
       const { embed } = liveTrackerEmbed;
 
@@ -471,31 +350,21 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("shows substitutions before first match when no matches yet", () => {
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService },
-        {
-          userId: "user123",
-          guildId: "guild123",
-          channelId: "channel123",
-          queueNumber: 42,
-          status: "active",
-          isPaused: false,
-          seriesScore: "🦅 0:0 🐍",
-          enrichedMatches: [],
-          substitutions: [
-            {
-              playerOutId: "player-out-1",
-              playerInId: "player-in-1",
-              teamIndex: 0,
-              teamName: "Team Alpha",
-              timestamp: "2024-12-06T12:00:00Z",
-            },
-          ],
-          lastUpdated: new Date("2024-12-06T12:00:00Z"),
-          nextCheck: new Date("2024-12-06T12:03:00Z"),
-          errorState: undefined,
-        },
-      );
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "🦅 0:0 🐍",
+        enrichedMatches: [],
+        substitutions: [
+          {
+            playerOutId: "player-out-1",
+            playerInId: "player-in-1",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: "2024-12-06T12:00:00Z",
+          },
+        ],
+      });
 
       const { embed } = liveTrackerEmbed;
 
