@@ -3,7 +3,7 @@ import type { MockInstance } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import type { APIGroupDMChannel, APIChannel } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
-import { LiveTrackerDO, type LiveTrackerStartData, type LiveTrackerState } from "../live-tracker-do.mjs";
+import { LiveTrackerDO } from "../live-tracker-do.mjs";
 import type { EnrichedMatchData } from "../../embeds/live-tracker-embed.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
@@ -14,6 +14,7 @@ import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
 import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
 import { matchStats } from "../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import type { LiveTrackerStartRequest, LiveTrackerState } from "../types.mjs";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {
@@ -28,9 +29,9 @@ const createMockSqlStorage = (): SqlStorage => {
 // Helper to create mock with proper types and access to mock functions
 const createMockDurableObjectState = (): {
   durableObjectState: DurableObjectState;
-  mocks: { storage: typeof mockStorage };
+  mocks: { storage: DurableObjectStorage };
 } => {
-  const mockStorage = {
+  const mockStorage: DurableObjectStorage = {
     get: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
@@ -46,23 +47,25 @@ const createMockDurableObjectState = (): {
     sync: vi.fn(),
     transaction: vi.fn(),
     transactionSync: vi.fn(),
+    kv: {} as unknown as DurableObjectStorage["kv"],
   };
 
-  const mockDurableObjectState = {
+  const mockDurableObjectState: DurableObjectState = {
     storage: mockStorage,
-    abort: vi.fn(),
-    acceptWebSocket: vi.fn(),
-    blockConcurrencyWhile: vi.fn(),
-    getHibernatableWebSocketEventTimeout: vi.fn(),
-    getTags: vi.fn(),
-    getWebSocketAutoResponse: vi.fn(),
-    getWebSocketAutoResponseTimestamp: vi.fn(),
-    getWebSockets: vi.fn(),
+    props: {},
+    abort: () => void 0,
+    acceptWebSocket: () => void 0,
+    blockConcurrencyWhile: async (cb) => cb(),
+    getHibernatableWebSocketEventTimeout: () => 0,
+    getTags: () => [],
+    getWebSocketAutoResponse: () => null,
+    getWebSocketAutoResponseTimestamp: () => null,
+    getWebSockets: () => [],
     id: aFakeDurableObjectId(),
-    setHibernatableWebSocketEventTimeout: vi.fn(),
-    setWebSocketAutoResponse: vi.fn(),
-    waitUntil: vi.fn(),
-  } as DurableObjectState;
+    setHibernatableWebSocketEventTimeout: () => void 0,
+    setWebSocketAutoResponse: () => void 0,
+    waitUntil: () => void 0,
+  };
 
   // Return both the properly typed object and mock accessor functions
   return {
@@ -73,7 +76,7 @@ const createMockDurableObjectState = (): {
   };
 };
 
-const createBaseTestData = (): Omit<LiveTrackerStartData, "interactionToken"> => ({
+const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken"> => ({
   userId: "test-user-id",
   guildId: "test-guild-id",
   channelId: "test-channel-id",
@@ -114,7 +117,7 @@ const createBaseTestData = (): Omit<LiveTrackerStartData, "interactionToken"> =>
   ],
 });
 
-const createMockStartData = (): LiveTrackerStartData => ({
+const createMockStartData = (): LiveTrackerStartRequest => ({
   ...createBaseTestData(),
   interactionToken: "test-token",
 });
@@ -263,17 +266,14 @@ const createMockTrackerStateWithMatches = (): LiveTrackerState => {
 describe("LiveTrackerDO", () => {
   let liveTrackerDO: LiveTrackerDO;
   let mockState: DurableObjectState;
-  let mockStorage: {
-    get: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
-    put: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
-    delete: MockInstance<(key: string) => Promise<boolean>>;
-    deleteAll: MockInstance<() => Promise<void>>;
-    setAlarm: MockInstance<(scheduledTime: number) => Promise<void>>;
-    getAlarm: MockInstance<() => Promise<number | null>>;
-    deleteAlarm: MockInstance<() => Promise<boolean>>;
-  };
+  let mockStorage: DurableObjectStorage;
   let services: Services;
   let env: Env;
+  let storageGetSpy: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
+  let storagePutSpy: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
+  let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
+  let storageDeleteAllSpy: MockInstance<typeof mockStorage.deleteAll>;
+  let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
 
   beforeEach(() => {
     const mockSetup = createMockDurableObjectState();
@@ -281,6 +281,12 @@ describe("LiveTrackerDO", () => {
     mockStorage = mockSetup.mocks.storage;
     services = installFakeServicesWith();
     env = aFakeEnvWith();
+
+    storageGetSpy = vi.spyOn(mockStorage, "get");
+    storagePutSpy = vi.spyOn(mockStorage, "put");
+    storageSetAlarmSpy = vi.spyOn(mockStorage, "setAlarm");
+    storageDeleteAllSpy = vi.spyOn(mockStorage, "deleteAll");
+    storageDeleteAlarmSpy = vi.spyOn(mockStorage, "deleteAlarm");
 
     liveTrackerDO = new LiveTrackerDO(mockState, env, () => services);
   });
@@ -293,7 +299,7 @@ describe("LiveTrackerDO", () => {
 
   describe("fetch()", () => {
     it("routes to handleStart for /start endpoint", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
 
       const startData = createMockStartData();
@@ -309,7 +315,7 @@ describe("LiveTrackerDO", () => {
 
     it("routes to handlePause for /pause endpoint", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -320,7 +326,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "paused";
       trackerState.isPaused = true;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -329,7 +335,7 @@ describe("LiveTrackerDO", () => {
 
     it("routes to handleStop for /stop endpoint", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -338,7 +344,7 @@ describe("LiveTrackerDO", () => {
 
     it("routes to handleRefresh for /refresh endpoint", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
@@ -350,7 +356,7 @@ describe("LiveTrackerDO", () => {
 
     it("routes to handleStatus for /status endpoint", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
 
@@ -359,7 +365,7 @@ describe("LiveTrackerDO", () => {
 
     it("routes to handleRepost for /repost endpoint", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -392,7 +398,7 @@ describe("LiveTrackerDO", () => {
           },
         ],
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -429,7 +435,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("handles errors gracefully", async () => {
-      mockStorage.get.mockRejectedValue(new Error("Storage error"));
+      storageGetSpy.mockRejectedValue(new Error("Storage error"));
       const request = new Request("http://do/status", { method: "GET" });
 
       const response = await liveTrackerDO.fetch(request);
@@ -459,8 +465,8 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(mockStorage.put).toHaveBeenCalled();
-      expect(mockStorage.setAlarm).toHaveBeenCalled();
+      expect(storagePutSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
     });
 
     it("handles Discord API errors", async () => {
@@ -486,7 +492,7 @@ describe("LiveTrackerDO", () => {
     it("pauses active tracker", async () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "active";
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -494,11 +500,11 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(mockStorage.put).toHaveBeenCalled();
+      expect(storagePutSpy).toHaveBeenCalled();
     });
 
     it("returns error if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -511,7 +517,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "paused";
       trackerState.isPaused = true;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -523,7 +529,7 @@ describe("LiveTrackerDO", () => {
     it("returns enriched embed data when tracker has discovered matches", async () => {
       const trackerState = createMockTrackerStateWithMatches();
       trackerState.status = "active";
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       // Mock the fetchAndMergeSeriesData method
       const fetchAndMergeSeriesDataSpy = vi.spyOn(
@@ -557,7 +563,7 @@ describe("LiveTrackerDO", () => {
     it("returns basic state when tracker has no discovered matches", async () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "active";
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -574,7 +580,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "paused";
       trackerState.isPaused = true;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -582,12 +588,12 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(mockStorage.put).toHaveBeenCalled();
-      expect(mockStorage.setAlarm).toHaveBeenCalled();
+      expect(storagePutSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
     });
 
     it("returns error if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -600,7 +606,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "active";
       trackerState.isPaused = false;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -613,7 +619,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createMockTrackerStateWithMatches();
       trackerState.status = "paused";
       trackerState.isPaused = true;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       // Mock the fetchAndMergeSeriesData method
       const fetchAndMergeSeriesDataSpy = vi.spyOn(
@@ -649,7 +655,7 @@ describe("LiveTrackerDO", () => {
   describe("handleStop()", () => {
     it("stops active tracker", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -657,12 +663,12 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(mockStorage.deleteAll).toHaveBeenCalled();
-      expect(mockStorage.deleteAlarm).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      expect(storageDeleteAlarmSpy).toHaveBeenCalled();
     });
 
     it("returns error if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -674,7 +680,7 @@ describe("LiveTrackerDO", () => {
     it("returns enriched embed data when tracker has discovered matches", async () => {
       const trackerState = createMockTrackerStateWithMatches();
       trackerState.status = "active";
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       // Mock the fetchAndMergeSeriesData method
       const fetchAndMergeSeriesDataSpy = vi.spyOn(
@@ -704,15 +710,15 @@ describe("LiveTrackerDO", () => {
       });
       expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
       expect(embedData["nextCheck"]).toBeUndefined();
-      expect(mockStorage.deleteAll).toHaveBeenCalled();
-      expect(mockStorage.deleteAlarm).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      expect(storageDeleteAlarmSpy).toHaveBeenCalled();
     });
   });
 
   describe("handleRefresh()", () => {
     it("forces immediate update of active tracker", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -724,11 +730,11 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
     });
 
     it("returns error if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
 
@@ -744,7 +750,7 @@ describe("LiveTrackerDO", () => {
         substitutionCount: 0,
       };
       trackerState.discoveredMatches = {};
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -766,7 +772,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(editMessageSpy).not.toHaveBeenCalled();
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
     });
 
     it("edits existing message during refresh when no new content is detected", async () => {
@@ -776,7 +782,7 @@ describe("LiveTrackerDO", () => {
         substitutionCount: 0,
       };
       trackerState.discoveredMatches = {};
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
@@ -791,7 +797,7 @@ describe("LiveTrackerDO", () => {
       expect(editMessageSpy).toHaveBeenCalled();
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
     });
 
     describe("refresh cooldown", () => {
@@ -799,7 +805,7 @@ describe("LiveTrackerDO", () => {
         const trackerState = createMockTrackerState();
         // Set lastRefreshAttempt to 10 seconds ago (within 30 second cooldown)
         trackerState.lastRefreshAttempt = new Date(Date.now() - 10000).toISOString();
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
 
@@ -816,7 +822,7 @@ describe("LiveTrackerDO", () => {
         const trackerState = createMockTrackerState();
         // Set lastRefreshAttempt to 40 seconds ago (beyond 30 second cooldown)
         trackerState.lastRefreshAttempt = new Date(Date.now() - 40000).toISOString();
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -832,7 +838,7 @@ describe("LiveTrackerDO", () => {
       it("allows refresh when no previous refresh attempt exists", async () => {
         const trackerState = createMockTrackerState();
         delete trackerState.lastRefreshAttempt;
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -848,7 +854,7 @@ describe("LiveTrackerDO", () => {
       it("sets lastRefreshAttempt timestamp when refresh succeeds", async () => {
         const testTrackerState = createMockTrackerState();
         delete testTrackerState.lastRefreshAttempt;
-        mockStorage.get.mockResolvedValue(testTrackerState);
+        storageGetSpy.mockResolvedValue(testTrackerState);
 
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -859,7 +865,7 @@ describe("LiveTrackerDO", () => {
         const afterTime = Date.now();
 
         expect(response.status).toBe(200);
-        expect(mockStorage.put).toHaveBeenCalledWith(
+        expect(storagePutSpy).toHaveBeenCalledWith(
           "trackerState",
           expect.objectContaining({
             lastRefreshAttempt: expect.any(String) as string,
@@ -867,7 +873,7 @@ describe("LiveTrackerDO", () => {
         );
 
         // Verify the timestamp is within the expected time range by checking it's a valid date string
-        const putCalls = mockStorage.put.mock.calls;
+        const putCalls = storagePutSpy.mock.calls;
         expect(putCalls).toHaveLength(1);
         const [callArg] = putCalls;
         expect(callArg).toBeDefined();
@@ -890,7 +896,7 @@ describe("LiveTrackerDO", () => {
   describe("handleStatus()", () => {
     it("returns current tracker state", async () => {
       const trackerState = createMockTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
 
@@ -900,7 +906,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("returns 404 if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
 
@@ -916,7 +922,7 @@ describe("LiveTrackerDO", () => {
         liveMessageId: "old-message-id",
         status: "active",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -933,7 +939,7 @@ describe("LiveTrackerDO", () => {
         newMessageId: "new-message-id",
       });
 
-      expect(mockStorage.put).toHaveBeenCalledWith("trackerState", {
+      expect(storagePutSpy).toHaveBeenCalledWith("trackerState", {
         ...trackerState,
         liveMessageId: "new-message-id",
         lastUpdateTime: expect.any(String) as string,
@@ -945,7 +951,7 @@ describe("LiveTrackerDO", () => {
         liveMessageId: undefined,
         status: "active",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -964,7 +970,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("returns 404 if no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -982,7 +988,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({
         status: "stopped",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -1000,7 +1006,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({
         status: "active",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -1018,7 +1024,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({
         status: "active",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -1037,7 +1043,7 @@ describe("LiveTrackerDO", () => {
         status: "paused",
         liveMessageId: "old-message-id",
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/repost", {
@@ -1062,12 +1068,12 @@ describe("LiveTrackerDO", () => {
         status: "stopped",
         isPaused: false,
       });
-      mockStorage.get.mockResolvedValue(state);
+      storageGetSpy.mockResolvedValue(state);
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.setAlarm).not.toHaveBeenCalled();
-      expect(mockStorage.put).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
     it("handles alarm when tracker is paused", async () => {
@@ -1075,21 +1081,21 @@ describe("LiveTrackerDO", () => {
         status: "active",
         isPaused: true,
       });
-      mockStorage.get.mockResolvedValue(state);
+      storageGetSpy.mockResolvedValue(state);
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.setAlarm).not.toHaveBeenCalled();
-      expect(mockStorage.put).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
     it("handles alarm when no tracker state exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.setAlarm).not.toHaveBeenCalled();
-      expect(mockStorage.put).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
     it("processes active tracker alarm successfully", async () => {
@@ -1151,7 +1157,7 @@ describe("LiveTrackerDO", () => {
           substitutionCount: 0,
         },
       };
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const guildConfig = aFakeGuildConfigRow({
         NeatQueueInformerLiveTrackingChannelName: "N",
@@ -1184,9 +1190,9 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.get).toHaveBeenCalledWith("trackerState");
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storageGetSpy).toHaveBeenCalledWith("trackerState");
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
@@ -1224,7 +1230,7 @@ describe("LiveTrackerDO", () => {
           }) as LiveTrackerState["errorState"],
         }),
       );
-      expect(mockStorage.setAlarm).toHaveBeenCalledWith(expect.any(Number));
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(expect.any(Number));
     });
 
     it("handles fetch error and continues if not persistent", async () => {
@@ -1237,7 +1243,7 @@ describe("LiveTrackerDO", () => {
           lastSuccessTime: new Date().toISOString(),
         },
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Network error"));
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
@@ -1247,7 +1253,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
@@ -1257,8 +1263,8 @@ describe("LiveTrackerDO", () => {
           }) as LiveTrackerState["errorState"],
         }),
       );
-      expect(mockStorage.setAlarm).toHaveBeenCalled();
-      expect(mockStorage.deleteAll).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).not.toHaveBeenCalled();
     });
 
     it("stops tracker when persistent errors exceed threshold", async () => {
@@ -1270,19 +1276,19 @@ describe("LiveTrackerDO", () => {
           lastSuccessTime: new Date().toISOString(),
         },
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Persistent error"));
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.deleteAlarm).toHaveBeenCalled();
-      expect(mockStorage.deleteAll).toHaveBeenCalled();
-      expect(mockStorage.setAlarm).not.toHaveBeenCalled();
+      expect(storageDeleteAlarmSpy).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
 
     it("handles Discord channel not found error and stops tracker", async () => {
       const trackerState = createAlarmTestTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -1297,14 +1303,14 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.deleteAlarm).toHaveBeenCalled();
-      expect(mockStorage.deleteAll).toHaveBeenCalled();
-      expect(mockStorage.setAlarm).not.toHaveBeenCalled();
+      expect(storageDeleteAlarmSpy).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
 
     it("handles Discord update error and continues", async () => {
       const trackerState = createAlarmTestTrackerState();
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -1315,7 +1321,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           errorState: expect.objectContaining({
@@ -1324,28 +1330,28 @@ describe("LiveTrackerDO", () => {
           }) as LiveTrackerState["errorState"],
         }),
       );
-      expect(mockStorage.setAlarm).toHaveBeenCalled();
-      expect(mockStorage.deleteAll).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
+      expect(storageDeleteAllSpy).not.toHaveBeenCalled();
     });
 
     it("handles alarm when no live message exists", async () => {
       const trackerState = createAlarmTestTrackerState({
         liveMessageId: undefined,
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
         }),
       );
-      expect(mockStorage.setAlarm).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
     });
 
     it("persists discovered matches when handling substitutions", async () => {
@@ -1364,7 +1370,7 @@ describe("LiveTrackerDO", () => {
         },
       });
 
-      mockStorage.get.mockResolvedValue(existingState);
+      storageGetSpy.mockResolvedValue(existingState);
 
       const mockMatches = [
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -1375,7 +1381,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           discoveredMatches: expect.objectContaining({
@@ -1415,7 +1421,7 @@ describe("LiveTrackerDO", () => {
         },
       });
 
-      mockStorage.get.mockResolvedValue(existingState);
+      storageGetSpy.mockResolvedValue(existingState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -1423,7 +1429,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           substitutions: expect.arrayContaining([
@@ -1445,7 +1451,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("handles general alarm error gracefully", async () => {
-      mockStorage.get.mockRejectedValue(new Error("Storage error"));
+      storageGetSpy.mockRejectedValue(new Error("Storage error"));
       const errorSpy = vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
 
       await liveTrackerDO.alarm();
@@ -1462,7 +1468,7 @@ describe("LiveTrackerDO", () => {
         discoveredMatches: {},
         rawMatches: {},
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -1493,8 +1499,8 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           liveMessageId: "new-message-id",
@@ -1524,7 +1530,7 @@ describe("LiveTrackerDO", () => {
         discoveredMatches: {},
         rawMatches: {},
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
@@ -1551,8 +1557,8 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           liveMessageId: "new-message-id",
@@ -1585,7 +1591,7 @@ describe("LiveTrackerDO", () => {
           ),
         },
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
         Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -1608,8 +1614,8 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
 
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           lastMessageState: {
@@ -1629,7 +1635,7 @@ describe("LiveTrackerDO", () => {
         discoveredMatches: {},
         rawMatches: {},
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -1652,8 +1658,8 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith("Failed to delete old live tracker message", expect.any(Map));
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           liveMessageId: "new-message-id",
@@ -1698,7 +1704,7 @@ describe("LiveTrackerDO", () => {
           ),
         },
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const guildConfig = aFakeGuildConfigRow({
         NeatQueueInformerLiveTrackingChannelName: "Y",
@@ -1742,8 +1748,8 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       expect(createMessageSpy).toHaveBeenCalled();
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           lastMessageState: {
@@ -1785,7 +1791,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -1846,7 +1852,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -1912,7 +1918,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel");
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
@@ -1951,7 +1957,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -2011,7 +2017,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -2061,7 +2067,7 @@ describe("LiveTrackerDO", () => {
             ),
           },
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel: APIGroupDMChannel = {
           id: "test-channel-id",
@@ -2098,7 +2104,7 @@ describe("LiveTrackerDO", () => {
           channelId: "test-channel-id",
           status: "active",
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -2124,7 +2130,7 @@ describe("LiveTrackerDO", () => {
           channelId: "test-channel-id",
           status: "active",
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const mockChannel = {
           id: "test-channel-id",
@@ -2152,7 +2158,7 @@ describe("LiveTrackerDO", () => {
           channelId: "test-channel-id",
           status: "active",
         });
-        mockStorage.get.mockResolvedValue(trackerState);
+        storageGetSpy.mockResolvedValue(trackerState);
 
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel");
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
@@ -2215,7 +2221,7 @@ describe("LiveTrackerDO", () => {
     it("processes valid substitution request", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       const originalSearchStartTime = trackerState.searchStartTime;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2243,7 +2249,7 @@ describe("LiveTrackerDO", () => {
         },
       });
 
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           teams: [
@@ -2277,7 +2283,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       const pastTime = new Date(Date.now() - 300000).toISOString(); // 5 minutes ago
       trackerState.searchStartTime = pastTime;
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2296,11 +2302,11 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
       const afterSubstitution = Date.now();
 
-      expect(mockStorage.put).toHaveBeenCalledWith("trackerState", expect.any(Object));
-      expect(mockStorage.put).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledWith("trackerState", expect.any(Object));
+      expect(storagePutSpy).toHaveBeenCalledTimes(1);
 
       // Verify searchStartTime was reset to a recent time
-      const callArg = mockStorage.put.mock.lastCall;
+      const callArg = storagePutSpy.mock.lastCall;
       expect(callArg).toBeDefined();
       if (callArg) {
         const [, state] = callArg;
@@ -2313,7 +2319,7 @@ describe("LiveTrackerDO", () => {
 
     it("correctly updates team playerIds array during substitution", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2330,14 +2336,14 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
-      const savedState = Preconditions.checkExists(mockStorage.put.mock.calls[0]?.[1]);
+      const savedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
       expect(savedState.teams[0]?.playerIds).toEqual(["newplayer"]);
       expect(savedState.teams[1]?.playerIds).toEqual(["player2"]);
     });
 
     it("adds new player to players Record during substitution", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2354,7 +2360,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
-      const savedState = Preconditions.checkExists(mockStorage.put.mock.calls[0]?.[1]);
+      const savedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
       expect(savedState.players).toHaveProperty("newplayer", newPlayer);
       expect(savedState.players).toHaveProperty("player2");
       expect(savedState.players).toHaveProperty("player1"); // Old player data is preserved
@@ -2362,7 +2368,7 @@ describe("LiveTrackerDO", () => {
 
     it("records substitution with correct metadata", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2381,7 +2387,7 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
       const afterSubstitution = Date.now();
 
-      const savedState = Preconditions.checkExists(mockStorage.put.mock.calls[0]?.[1]);
+      const savedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
       expect(savedState.substitutions).toHaveLength(1);
       expect(savedState.substitutions[0]).toEqual({
         playerOutId: "player1",
@@ -2398,7 +2404,7 @@ describe("LiveTrackerDO", () => {
 
     it("syncs match data before processing substitution", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2428,7 +2434,7 @@ describe("LiveTrackerDO", () => {
     it("rejects substitution when tracker is stopped", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       trackerState.status = "stopped";
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
@@ -2438,7 +2444,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("returns 404 when no tracker exists", async () => {
-      mockStorage.get.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(null);
 
       const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
@@ -2449,7 +2455,7 @@ describe("LiveTrackerDO", () => {
 
     it("returns 400 when player not found in teams", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2462,7 +2468,7 @@ describe("LiveTrackerDO", () => {
 
     it("returns 400 when new player not found in Discord", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -2476,7 +2482,7 @@ describe("LiveTrackerDO", () => {
 
     it("handles Discord API errors during player lookup gracefully", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.discordService, "getUsers").mockRejectedValue(new Error("Discord API error"));
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
@@ -2490,7 +2496,7 @@ describe("LiveTrackerDO", () => {
 
     it("handles multiple substitutions for same team", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer1 = aGuildMemberWith({
         user: {
@@ -2507,8 +2513,8 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer1"));
 
-      const updatedState = Preconditions.checkExists(mockStorage.put.mock.calls[0]?.[1]);
-      mockStorage.get.mockResolvedValue(updatedState);
+      const updatedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
+      storageGetSpy.mockResolvedValue(updatedState);
 
       const newPlayer2 = aGuildMemberWith({
         user: {
@@ -2524,7 +2530,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.fetch(createSubstitutionRequest("newplayer1", "newplayer2"));
 
-      const finalState = Preconditions.checkExists(mockStorage.put.mock.calls[1]?.[1]);
+      const finalState = Preconditions.checkExists(storagePutSpy.mock.calls[1]?.[1]);
       expect(finalState.teams[0]?.playerIds).toEqual(["newplayer2"]);
       expect(finalState.substitutions).toHaveLength(2);
       expect(finalState.substitutions[0]?.playerOutId).toBe("player1");
@@ -2535,7 +2541,7 @@ describe("LiveTrackerDO", () => {
 
     it("maintains team structure integrity after substitution", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = aGuildMemberWith({
         user: {
@@ -2552,7 +2558,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
-      const savedState = Preconditions.checkExists(mockStorage.put.mock.calls[0]?.[1]);
+      const savedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
       expect(savedState.teams).toHaveLength(2);
       expect(savedState.teams[0]?.name).toBe("Team Alpha");
       expect(savedState.teams[0]?.playerIds).toHaveLength(1);
@@ -2592,7 +2598,7 @@ describe("LiveTrackerDO", () => {
           },
         ],
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -2601,7 +2607,7 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           substitutions: expect.arrayContaining([
@@ -2644,7 +2650,7 @@ describe("LiveTrackerDO", () => {
           },
         ],
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       const newMatches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(newMatches);
@@ -2653,7 +2659,7 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           discoveredMatches: expect.objectContaining({
@@ -2687,7 +2693,7 @@ describe("LiveTrackerDO", () => {
           },
         ],
       });
-      mockStorage.get.mockResolvedValue(trackerState);
+      storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
@@ -2702,7 +2708,7 @@ describe("LiveTrackerDO", () => {
 
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
-      expect(mockStorage.put).toHaveBeenCalledWith(
+      expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           lastMessageState: {
