@@ -18,6 +18,7 @@ import type { HaloService } from "../../halo/halo.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
+import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
 import type {
   NeatQueueMatchCompletedRequest,
   NeatQueueSubstitutionRequest,
@@ -48,12 +49,14 @@ describe("NeatQueueService Live Tracker Integration", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
+    const liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     neatQueueService = new NeatQueueService({
       env,
       logService,
       databaseService,
       discordService,
       haloService,
+      liveTrackerService,
     });
 
     const liveTrackerDO = aFakeLiveTrackerDOWith();

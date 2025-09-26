@@ -3,6 +3,7 @@ import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake.mjs
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
+import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
 import type { NeatQueueServiceOpts } from "../neatqueue.mjs";
 import { NeatQueueService } from "../neatqueue.mjs";
 
@@ -12,6 +13,8 @@ export function aFakeNeatQueueServiceWith(opts: Partial<NeatQueueServiceOpts> = 
   const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith({ env });
   const discordService = opts.discordService ?? aFakeDiscordServiceWith({ env });
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ databaseService });
+  const liveTrackerService =
+    opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
 
   return new NeatQueueService({
     env,
@@ -19,6 +22,6 @@ export function aFakeNeatQueueServiceWith(opts: Partial<NeatQueueServiceOpts> = 
     databaseService,
     discordService,
     haloService,
-    ...opts,
+    liveTrackerService,
   });
 }
