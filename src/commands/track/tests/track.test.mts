@@ -5,9 +5,8 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIInteractionResponse,
   APIMessageComponentButtonInteraction,
-  APIEmbed,
-  APIEmbedField,
   APIGuildMember,
+  RESTPostAPIChannelMessageJSONBody,
 } from "discord-api-types/v10";
 import {
   ButtonStyle,
@@ -30,13 +29,10 @@ import {
   discordNeatQueueData,
 } from "../../../services/discord/fakes/data.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import {
-  aFakeDurableObjectId,
-  aFakeLiveTrackerDOWith,
-  type FakeLiveTrackerDO,
-} from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
-import type { LiveTrackerStartRequest } from "../../../durable-objects/types.mjs";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
+import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker.mjs";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
+import type { LiveTrackerRefreshResponse } from "../../../durable-objects/types.mjs";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -112,18 +108,42 @@ describe("TrackCommand", () => {
     describe("jobToComplete", () => {
       let jobToComplete: (() => Promise<void>) | undefined;
       let getTeamsFromQueueChannelSpy: MockInstance<typeof services.discordService.getTeamsFromQueueChannel>;
-      let liveTrackerDoStub: FakeLiveTrackerDO;
-      let fetchSpy: MockInstance<FakeLiveTrackerDO["fetch"]>;
+      let startTrackerSpy: MockInstance<LiveTrackerService["startTracker"]>;
 
       beforeEach(() => {
         getTeamsFromQueueChannelSpy = vi
           .spyOn(services.discordService, "getTeamsFromQueueChannel")
           .mockResolvedValue(discordNeatQueueData);
 
-        liveTrackerDoStub = aFakeLiveTrackerDOWith();
-        fetchSpy = vi.spyOn(liveTrackerDoStub, "fetch");
-        vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
-        vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
+        startTrackerSpy = vi.spyOn(services.liveTrackerService, "startTracker").mockResolvedValue({
+          success: true,
+          state: {
+            userId: "fake-user-id",
+            guildId: "fake-guild-id",
+            channelId: "1234567890",
+            queueNumber: 42,
+            status: "active",
+            isPaused: false,
+            startTime: "2024-11-26T10:48:00.000Z",
+            lastUpdateTime: "2024-11-26T10:48:00.000Z",
+            searchStartTime: "2024-11-26T10:48:00.000Z",
+            checkCount: 0,
+            players: {},
+            teams: [],
+            substitutions: [],
+            errorState: {
+              consecutiveErrors: 0,
+              backoffMinutes: 1,
+              lastSuccessTime: "2024-11-26T10:48:00.000Z",
+            },
+            discoveredMatches: {},
+            rawMatches: {},
+            lastMessageState: {
+              matchCount: 0,
+              substitutionCount: 0,
+            },
+          },
+        });
 
         const { jobToComplete: jtc } = trackCommand.execute(applicationCommandInteractionTrackNeatQueue);
         jobToComplete = jtc;
@@ -153,37 +173,32 @@ describe("TrackCommand", () => {
         });
       });
 
-      it("starts live tracking via Durable Object", async () => {
+      it("starts live tracking via service", async () => {
         await jobToComplete?.();
 
-        const players = discordNeatQueueData.teams.flatMap(({ players: p }) => p);
-        const teams = discordNeatQueueData.teams.map((team) => ({
-          name: team.name,
-          playerIds: team.players.map((player) => player.user.id),
-        }));
-
-        const startData: LiveTrackerStartRequest = {
+        expect(startTrackerSpy).toHaveBeenCalledWith({
           userId: "discord_user_01",
           guildId: "fake-guild-id",
           channelId: "1234567890",
           queueNumber: 777,
           interactionToken: "fake-token",
-          players: players.reduce<Record<string, APIGuildMember>>((acc, player) => {
-            acc[player.user.id] = player;
-            return acc;
-          }, {}),
-          teams,
-          queueStartTime: discordNeatQueueData.timestamp.toISOString(),
-        };
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(startData),
+          players: expect.any(Object) as Record<string, APIGuildMember>,
+          teams: [
+            {
+              name: "Eagle",
+              playerIds: ["000000000000000001", "000000000000000002", "000000000000000003", "000000000000000004"],
+            },
+            {
+              name: "Cobra",
+              playerIds: ["000000000000000005", "000000000000000006", "000000000000000007", "000000000000000008"],
+            },
+          ],
+          queueStartTime: "2024-11-26T11:30:00.000Z",
         });
       });
 
-      it("handles Durable Object errors gracefully", async () => {
-        fetchSpy.mockRejectedValue(new Error("DO initialization failed"));
+      it("handles service errors gracefully", async () => {
+        startTrackerSpy.mockRejectedValue(new Error("Service initialization failed"));
 
         await jobToComplete?.();
 
@@ -196,8 +211,10 @@ describe("TrackCommand", () => {
   });
 
   describe("execute(): button interactions", () => {
-    let liveTrackerDoStub: FakeLiveTrackerDO;
-    let fetchSpy: MockInstance<FakeLiveTrackerDO["fetch"]>;
+    let pauseTrackerSpy: MockInstance<LiveTrackerService["pauseTracker"]>;
+    let resumeTrackerSpy: MockInstance<LiveTrackerService["resumeTracker"]>;
+    let refreshTrackerSpy: MockInstance<LiveTrackerService["refreshTracker"]>;
+    let repostTrackerSpy: MockInstance<LiveTrackerService["repostTracker"]>;
 
     beforeEach(() => {
       const mockQueueData = {
@@ -206,10 +223,10 @@ describe("TrackCommand", () => {
       };
       vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
 
-      liveTrackerDoStub = aFakeLiveTrackerDOWith();
-      fetchSpy = vi.spyOn(liveTrackerDoStub, "fetch");
-      vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDoStub);
-      vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
+      pauseTrackerSpy = vi.spyOn(services.liveTrackerService, "pauseTracker");
+      resumeTrackerSpy = vi.spyOn(services.liveTrackerService, "resumeTracker");
+      refreshTrackerSpy = vi.spyOn(services.liveTrackerService, "refreshTracker");
+      repostTrackerSpy = vi.spyOn(services.liveTrackerService, "repostTracker");
     });
 
     describe("pause button", () => {
@@ -229,17 +246,28 @@ describe("TrackCommand", () => {
         });
       });
 
-      it("calls pause on Durable Object", async () => {
+      it("calls pause tracker service", async () => {
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+        });
+
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
         await jobToComplete?.();
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/pause", {
-          method: "POST",
+        expect(pauseTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
         });
       });
 
       it("handles errors gracefully", async () => {
-        fetchSpy.mockRejectedValue(new Error("Pause failed"));
+        pauseTrackerSpy.mockRejectedValue(new Error("Pause failed"));
 
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
         await jobToComplete?.();
@@ -251,13 +279,13 @@ describe("TrackCommand", () => {
         expect(callArgs?.[2]).toHaveProperty("embeds");
       });
 
-      it("uses enriched embed data when returned by Durable Object", async () => {
+      it("uses enriched embed data when returned by service", async () => {
         const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
           channelId: "fake-channel-id",
           queueNumber: 123,
-          status: "active" as const,
+          status: "active",
           isPaused: true,
           lastUpdated: new Date(),
           nextCheck: new Date(),
@@ -275,37 +303,13 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
-          let urlString: string;
-          if (typeof url === "string") {
-            urlString = url;
-          } else if (url instanceof URL) {
-            urlString = url.href;
-          } else {
-            urlString = url.url;
-          }
-
-          if (urlString.includes("/status")) {
-            return Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  state: {
-                    queueNumber: 42,
-                    userId: "fake-user-id",
-                    guildId: "fake-guild-id",
-                    channelId: "fake-channel-id",
-                    status: "active",
-                    isPaused: false,
-                  },
-                }),
-              ),
-            );
-          } else if (urlString.includes("/pause")) {
-            return Promise.resolve(
-              new Response(JSON.stringify({ success: true, state: {}, embedData: enrichedEmbedData })),
-            );
-          }
-          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+          embedData: enrichedEmbedData,
         });
 
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
@@ -317,50 +321,22 @@ describe("TrackCommand", () => {
           error = e;
         }
 
-        if (error !== null) {
-          console.log("Error occurred:", error);
-        }
-
+        expect(error).toBeUndefined();
         expect(editMessageSpy).toHaveBeenCalledOnce();
         const callArgs = editMessageSpy.mock.lastCall;
         expect(callArgs?.[2]).toHaveProperty("embeds");
-        const messageData = callArgs?.[2] as { embeds?: { description?: string; title?: string }[] };
-        console.log("Actual description:", messageData.embeds?.[0]?.description);
-        console.log("Actual title:", messageData.embeds?.[0]?.title);
-        console.log("Full embed:", JSON.stringify(messageData.embeds?.[0], null, 2));
+        const messageData = callArgs?.[2] as Partial<RESTPostAPIChannelMessageJSONBody>;
         expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Paused**");
       });
 
       it("falls back to basic embed when no enriched data returned", async () => {
-        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
-          let urlString: string;
-          if (typeof url === "string") {
-            urlString = url;
-          } else if (url instanceof URL) {
-            urlString = url.href;
-          } else {
-            urlString = url.url;
-          }
-
-          if (urlString.includes("/status")) {
-            return Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  state: {
-                    queueNumber: 42,
-                    userId: "fake-user-id",
-                    guildId: "fake-guild-id",
-                    channelId: "fake-channel-id",
-                    status: "active",
-                    isPaused: false,
-                  },
-                }),
-              ),
-            );
-          } else if (urlString.includes("/pause")) {
-            return Promise.resolve(new Response(JSON.stringify({ success: true, state: {} })));
-          }
-          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+          // No embedData returned
         });
 
         const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
@@ -381,22 +357,33 @@ describe("TrackCommand", () => {
         },
       };
 
-      it("calls resume on Durable Object", async () => {
+      it("calls resume tracker service", async () => {
+        resumeTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            isPaused: false,
+          }),
+        });
+
         const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
         await jobToComplete?.();
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/resume", {
-          method: "POST",
+        expect(resumeTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
         });
       });
 
-      it("uses enriched embed data when returned by Durable Object", async () => {
+      it("uses enriched embed data when returned by service", async () => {
         const enrichedEmbedData: LiveTrackerEmbedData = {
           userId: "fake-user-id",
           guildId: "fake-guild-id",
           channelId: "fake-channel-id",
           queueNumber: 123,
-          status: "active" as const,
+          status: "active",
           isPaused: false,
           lastUpdated: new Date(),
           nextCheck: new Date(Date.now() + 180000), // 3 minutes from now
@@ -414,37 +401,13 @@ describe("TrackCommand", () => {
           errorState: undefined,
         };
 
-        fetchSpy.mockImplementation(async (url: string | URL | Request) => {
-          let urlString: string;
-          if (typeof url === "string") {
-            urlString = url;
-          } else if (url instanceof URL) {
-            urlString = url.href;
-          } else {
-            urlString = url.url;
-          }
-
-          if (urlString.includes("/status")) {
-            return Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  state: {
-                    queueNumber: 42,
-                    userId: "fake-user-id",
-                    guildId: "fake-guild-id",
-                    channelId: "fake-channel-id",
-                    status: "active",
-                    isPaused: false,
-                  },
-                }),
-              ),
-            );
-          } else if (urlString.includes("/resume")) {
-            return Promise.resolve(
-              new Response(JSON.stringify({ success: true, state: {}, embedData: enrichedEmbedData })),
-            );
-          }
-          return Promise.resolve(new Response(JSON.stringify({ success: false })));
+        resumeTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            isPaused: false,
+          }),
+          embedData: enrichedEmbedData,
         });
 
         const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
@@ -453,7 +416,7 @@ describe("TrackCommand", () => {
         expect(editMessageSpy).toHaveBeenCalledOnce();
         const callArgs = editMessageSpy.mock.lastCall;
         expect(callArgs?.[2]).toHaveProperty("embeds");
-        const messageData = callArgs?.[2] as { embeds?: { description?: string }[] };
+        const messageData = callArgs?.[2] as Partial<RESTPostAPIChannelMessageJSONBody>;
         expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Active**");
       });
     });
@@ -467,92 +430,63 @@ describe("TrackCommand", () => {
         },
       };
 
-      it("calls refresh on Durable Object", async () => {
+      it("calls refresh tracker service", async () => {
+        refreshTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({ status: "active", isPaused: false }),
+        });
+
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
-          method: "POST",
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
         });
       });
 
       it("handles cooldown response gracefully", async () => {
-        const statusResponse = new Response(
-          JSON.stringify({
-            state: {
-              queueNumber: 42,
-              status: "active",
-            },
-          }),
-          { status: 200 },
-        );
+        const handleRefreshCooldownSpy = vi
+          .spyOn(services.liveTrackerService, "handleRefreshCooldown")
+          .mockResolvedValue();
 
-        const cooldownResponse = new Response(
-          JSON.stringify({
-            success: false,
-            error: "cooldown",
-            message: "Refresh cooldown active, next refresh available <t:1695800000:R>",
-            remainingSeconds: 20,
-          }),
-          { status: 429 },
-        );
+        const cooldownResponse: LiveTrackerRefreshResponse = {
+          success: false,
+          error: "cooldown",
+          message: "Refresh cooldown active, next refresh available <t:1695800000:R>",
+        };
 
-        fetchSpy.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(cooldownResponse);
+        refreshTrackerSpy.mockResolvedValue(cooldownResponse);
 
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/status", {
-          method: "GET",
-        });
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
-          method: "POST",
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
         });
 
-        expect(editMessageSpy).toHaveBeenCalledWith(
-          refreshButtonInteraction.channel.id,
-          refreshButtonInteraction.message.id,
-          expect.objectContaining({
-            embeds: expect.arrayContaining([
-              expect.objectContaining({
-                fields: expect.arrayContaining([
-                  expect.objectContaining({
-                    name: "⚠️ Refresh cooldown",
-                    value: expect.stringMatching(
-                      /^Refresh cooldown active, next refresh available <t:\d+:R>$/,
-                    ) as string,
-                    inline: false,
-                  } satisfies Partial<APIEmbedField>),
-                ]) as APIEmbedField[],
-              } satisfies Partial<APIEmbed>),
-            ]) as APIEmbed[],
-          }),
-        );
+        expect(handleRefreshCooldownSpy).toHaveBeenCalledWith({
+          interaction: refreshButtonInteraction,
+          response: cooldownResponse,
+        });
       });
 
       it("continues with normal error handling for non-cooldown failures", async () => {
-        const statusResponse = new Response(
-          JSON.stringify({
-            state: {
-              queueNumber: 42,
-              status: "active",
-            },
-          }),
-          { status: 200 },
-        );
-
-        const errorResponse = new Response("Internal Server Error", { status: 500 });
-
-        fetchSpy.mockResolvedValueOnce(statusResponse).mockResolvedValueOnce(errorResponse);
+        refreshTrackerSpy.mockRejectedValue(new Error("Internal Server Error"));
 
         const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
         await jobToComplete?.();
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/status", {
-          method: "GET",
-        });
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/refresh", {
-          method: "POST",
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
         });
       });
     });
@@ -589,13 +523,16 @@ describe("TrackCommand", () => {
         },
       };
 
-      it("creates new message with same content, deletes original, and updates DO message ID", async () => {
+      it("creates new message with same content, deletes original, and updates service message ID", async () => {
         const newMessage = { ...apiMessage, id: "new-message-id-456" };
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        const mockResponse = new Response(JSON.stringify({ success: true }), { status: 200 });
-        fetchSpy.mockResolvedValue(mockResponse);
+        repostTrackerSpy.mockResolvedValue({
+          success: true,
+          oldMessageId: "fake-message-id",
+          newMessageId: "new-message-id-456",
+        });
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
@@ -612,10 +549,14 @@ describe("TrackCommand", () => {
           "Reposting maps",
         );
 
-        expect(fetchSpy).toHaveBeenCalledWith("http://do/repost", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newMessageId: "new-message-id-456" }),
+        expect(repostTrackerSpy).toHaveBeenCalledWith({
+          context: {
+            userId: "",
+            guildId: "fake-guild-id",
+            channelId: "fake-channel-id",
+            queueNumber: 123,
+          },
+          newMessageId: "new-message-id-456",
         });
       });
 
@@ -641,23 +582,22 @@ describe("TrackCommand", () => {
 
         expect(createMessageSpy).toHaveBeenCalled();
         expect(deleteMessageSpy).toHaveBeenCalled();
-        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(repostTrackerSpy).not.toHaveBeenCalled();
       });
 
-      it("handles DO update failure gracefully", async () => {
+      it("handles service update failure gracefully", async () => {
         const newMessage = { ...apiMessage, id: "new-message-id-456" };
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
         const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        const mockResponse = new Response("Bad Request", { status: 400 });
-        fetchSpy.mockResolvedValue(mockResponse);
+        repostTrackerSpy.mockRejectedValue(new Error("Service update failed"));
 
         const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
         await jobToComplete?.();
 
         expect(createMessageSpy).toHaveBeenCalled();
         expect(deleteMessageSpy).toHaveBeenCalled();
-        expect(fetchSpy).toHaveBeenCalled();
+        expect(repostTrackerSpy).toHaveBeenCalled();
       });
 
       it("returns deferred message update response", () => {

@@ -53,7 +53,7 @@ export class FileBackedKVNamespace implements KVNamespace {
   async init(): Promise<void> {
     try {
       const data = await fs.readFile(this.filePath, "utf-8");
-      const obj = JSON.parse(data) as Record<string, string>;
+      const obj = JSON.parse(data || "{}") as Record<string, string>;
       Object.entries(obj).forEach(([key, value]) => {
         this.store.set(key, value);
       });

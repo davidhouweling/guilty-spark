@@ -33,8 +33,8 @@ export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
   };
 }
 
-export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLiveTrackerDO {
-  const defaultState: LiveTrackerState = {
+export function aFakeLiveTrackerStateWith(opts: Partial<LiveTrackerState> = {}): LiveTrackerState {
+  return {
     userId: "fake-user-id",
     guildId: "fake-guild-id",
     channelId: "1234567890",
@@ -60,7 +60,12 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
       matchCount: 0,
       substitutionCount: 0,
     },
+    ...opts,
   };
+}
+
+export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLiveTrackerDO {
+  const defaultState: LiveTrackerState = aFakeLiveTrackerStateWith();
 
   const startResponse: LiveTrackerStartResponse = opts.startResponse ?? { success: true, state: defaultState };
   const pauseResponse: LiveTrackerPauseResponse = opts.pauseResponse ?? { success: true, state: defaultState };

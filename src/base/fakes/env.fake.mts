@@ -79,7 +79,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
       getByName: () => liveTrackerGet,
       get: () => liveTrackerGet,
       jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
-    } as unknown as DurableObjectNamespace<LiveTrackerDO>,
+    } as DurableObjectNamespace<LiveTrackerDO>,
   };
 
   return {
