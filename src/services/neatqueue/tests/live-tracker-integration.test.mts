@@ -8,21 +8,30 @@ import {
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake.mjs";
 import { getFakeNeatQueueData } from "../fakes/data.mjs";
-import { aFakeDurableObjectId, aFakeLiveTrackerDOWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
-import type { LiveTrackerDO } from "../../../durable-objects/live-tracker-do.mjs";
-import { guild, textChannel, guildMember } from "../../discord/fakes/data.mjs";
+
 import type { DatabaseService } from "../../database/database.mjs";
 import type { LogService } from "../../log/types.mjs";
 import type { DiscordService } from "../../discord/discord.mjs";
 import type { HaloService } from "../../halo/halo.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
+import { guild, textChannel, guildMember } from "../../discord/fakes/data.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
+import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
+import type { LiveTrackerService } from "../../live-tracker/live-tracker.mjs";
 import type {
   NeatQueueMatchCompletedRequest,
   NeatQueueSubstitutionRequest,
   NeatQueueTeamsCreatedRequest,
 } from "../types.mjs";
+import type {
+  LiveTrackerStartResponse,
+  LiveTrackerStatusResponse,
+  LiveTrackerSubstitutionResponse,
+  LiveTrackerStopResponse,
+} from "../../../durable-objects/types.mjs";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
+import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("NeatQueueService Live Tracker Integration", () => {
   // align this with time just after ctf.json match completed
@@ -33,11 +42,14 @@ describe("NeatQueueService Live Tracker Integration", () => {
   let databaseService: DatabaseService;
   let discordService: DiscordService;
   let haloService: HaloService;
+  let liveTrackerService: LiveTrackerService;
   let neatQueueService: NeatQueueService;
 
-  let fetchSpy: MockInstance<LiveTrackerDO["fetch"]>;
+  let startTrackerSpy: MockInstance<LiveTrackerService["startTracker"]>;
+  let getTrackerStatusSpy: MockInstance<LiveTrackerService["getTrackerStatus"]>;
+  let recordSubstitutionSpy: MockInstance<LiveTrackerService["recordSubstitution"]>;
+  let stopTrackerSpy: MockInstance<LiveTrackerService["stopTracker"]>;
   let getGuildConfigSpy: MockInstance<DatabaseService["getGuildConfig"]>;
-  let idFromNameSpy: MockInstance<DurableObjectNamespace["idFromName"]>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -48,18 +60,22 @@ describe("NeatQueueService Live Tracker Integration", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
+    liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
+
     neatQueueService = new NeatQueueService({
       env,
       logService,
       databaseService,
       discordService,
       haloService,
+      liveTrackerService,
     });
 
-    const liveTrackerDO = aFakeLiveTrackerDOWith();
-    vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(liveTrackerDO);
-    idFromNameSpy = vi.spyOn(env.LIVE_TRACKER_DO, "idFromName").mockReturnValue(aFakeDurableObjectId());
-    fetchSpy = vi.spyOn(liveTrackerDO, "fetch");
+    // Mock LiveTrackerService methods
+    startTrackerSpy = vi.spyOn(liveTrackerService, "startTracker");
+    getTrackerStatusSpy = vi.spyOn(liveTrackerService, "getTrackerStatus");
+    recordSubstitutionSpy = vi.spyOn(liveTrackerService, "recordSubstitution");
+    stopTrackerSpy = vi.spyOn(liveTrackerService, "stopTracker");
 
     getGuildConfigSpy = vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
       aFakeGuildConfigRow({
@@ -88,15 +104,61 @@ describe("NeatQueueService Live Tracker Integration", () => {
     };
 
     it("starts live tracking when enabled in guild config", async () => {
+      const mockStartResponse: LiveTrackerStartResponse = {
+        success: true,
+        state: {
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          queueNumber: mockRequest.match_number,
+          isPaused: false,
+          status: "active",
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      startTrackerSpy.mockResolvedValue(mockStartResponse);
+
       await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/start") as string,
-        }),
-      );
+      expect(startTrackerSpy).toHaveBeenCalledWith({
+        userId: "DISCORD_APP_ID",
+        guildId: mockRequest.guild,
+        channelId: mockRequest.channel,
+        queueNumber: mockRequest.match_number,
+        players: {
+          discord_user_01: guildMember,
+        },
+        teams: [
+          {
+            name: "Team 1",
+            playerIds: ["discord_user_01"],
+          },
+          {
+            name: "Team 2",
+            playerIds: ["discord_user_02"],
+          },
+        ],
+        queueStartTime: "2024-11-26T10:48:00.000Z",
+      });
     });
 
     it("does not start live tracking when disabled in guild config", async () => {
@@ -109,7 +171,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(startTrackerSpy).not.toHaveBeenCalled();
     });
 
     it("handles missing guild config gracefully", async () => {
@@ -121,12 +183,12 @@ describe("NeatQueueService Live Tracker Integration", () => {
       await callTeamsCreatedJob(mockRequest);
 
       expect(getGuildConfigSpy).toHaveBeenCalledWith(mockRequest.guild);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(startTrackerSpy).not.toHaveBeenCalled();
     });
 
     it("logs errors when live tracking fails to start", async () => {
       const logWarnSpy = vi.spyOn(logService, "warn");
-      fetchSpy.mockRejectedValue(new Error("DO start failed"));
+      startTrackerSpy.mockRejectedValue(new Error("LiveTracker start failed"));
 
       await callTeamsCreatedJob(mockRequest);
 
@@ -137,22 +199,39 @@ describe("NeatQueueService Live Tracker Integration", () => {
     });
 
     it("continues normal operation if live tracking fails", async () => {
-      fetchSpy.mockRejectedValue(new Error("DO start failed"));
+      startTrackerSpy.mockRejectedValue(new Error("LiveTracker start failed"));
 
       // Should not throw error, just log it
       await expect(callTeamsCreatedJob(mockRequest)).resolves.toBeUndefined();
     });
 
     it("generates consistent DO IDs for same guild/channel/queue", async () => {
+      const mockStartResponse: LiveTrackerStartResponse = {
+        success: true,
+        state: aFakeLiveTrackerStateWith(),
+      };
+      startTrackerSpy.mockResolvedValue(mockStartResponse);
+
       const testRequest = getFakeNeatQueueData("teamsCreated");
-      const expectedDoId = `${testRequest.guild}:${testRequest.channel}:${testRequest.match_number.toString()}`;
 
       await callTeamsCreatedJob(testRequest);
 
-      expect(idFromNameSpy).toHaveBeenCalledWith(expectedDoId);
+      expect(startTrackerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guildId: testRequest.guild,
+          channelId: testRequest.channel,
+          queueNumber: testRequest.match_number,
+        }),
+      );
     });
 
     it("generates different DO IDs for different parameters", async () => {
+      const mockStartResponse: LiveTrackerStartResponse = {
+        success: true,
+        state: aFakeLiveTrackerStateWith(),
+      };
+      startTrackerSpy.mockResolvedValue(mockStartResponse);
+
       const testRequest = {
         ...getFakeNeatQueueData("teamsCreated"),
         guild: "guild456",
@@ -162,7 +241,13 @@ describe("NeatQueueService Live Tracker Integration", () => {
 
       await callTeamsCreatedJob(testRequest);
 
-      expect(idFromNameSpy).toHaveBeenCalledWith("guild456:channel789:100");
+      expect(startTrackerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guildId: "guild456",
+          channelId: "channel789",
+          queueNumber: 100,
+        }),
+      );
     });
 
     it("handles database service errors gracefully", async () => {
@@ -173,14 +258,12 @@ describe("NeatQueueService Live Tracker Integration", () => {
       await callTeamsCreatedJob(testRequest);
 
       expect(logWarnSpy).toHaveBeenCalled();
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(startTrackerSpy).not.toHaveBeenCalled();
     });
 
-    it("handles Durable Object namespace errors", async () => {
+    it("handles Durable Object namespace errors gracefully", async () => {
       const logWarnSpy = vi.spyOn(logService, "warn");
-      idFromNameSpy.mockImplementation(() => {
-        throw new Error("DO namespace error");
-      });
+      startTrackerSpy.mockRejectedValue(new Error("DO namespace error"));
 
       const testRequest = getFakeNeatQueueData("teamsCreated");
       await callTeamsCreatedJob(testRequest);
@@ -200,20 +283,66 @@ describe("NeatQueueService Live Tracker Integration", () => {
     };
 
     it("updates live tracker when active tracker exists", async () => {
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: mockRequest.match_number ?? 1,
+          // Include other required properties
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      const mockSubstitutionResponse: LiveTrackerSubstitutionResponse = {
+        success: true,
+        substitution: {
+          playerOutId: mockRequest.player_subbed_out.id,
+          playerInId: mockRequest.player_subbed_in.id,
+          teamIndex: 0,
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      recordSubstitutionSpy.mockResolvedValue(mockSubstitutionResponse);
+
       await callSubstitutionJob(mockRequest);
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/substitution") as string,
-        }),
-      );
+      expect(getTrackerStatusSpy).toHaveBeenCalledWith({
+        userId: "",
+        guildId: mockRequest.guild,
+        channelId: mockRequest.channel,
+        queueNumber: mockRequest.match_number ?? 1,
+      });
+      expect(recordSubstitutionSpy).toHaveBeenCalledWith({
+        context: {
+          userId: "",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          queueNumber: mockRequest.match_number ?? 1,
+        },
+        playerOutId: mockRequest.player_subbed_out.id,
+        playerInId: mockRequest.player_subbed_in.id,
+      });
     });
 
     it("skips update when no match number is provided", async () => {
@@ -222,46 +351,53 @@ describe("NeatQueueService Live Tracker Integration", () => {
 
       await callSubstitutionJob(requestWithoutMatchNumber);
 
-      expect(fetchSpy).not.toHaveBeenCalled();
-      expect(idFromNameSpy).not.toHaveBeenCalled();
+      expect(getTrackerStatusSpy).not.toHaveBeenCalled();
+      expect(recordSubstitutionSpy).not.toHaveBeenCalled();
     });
 
     it("skips update when live tracker is not active", async () => {
-      fetchSpy.mockImplementation(async (input: Request | string | URL): Promise<Response> => {
-        await Promise.resolve(); // Satisfy async requirement
-        const urlString = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-        const urlObj = new URL(urlString);
-        if (urlObj.pathname === "/status") {
-          return new Response("Not Found", { status: 404 });
-        }
-        return new Response("Should not reach here", { status: 500 });
-      });
+      getTrackerStatusSpy.mockResolvedValue(null);
 
       await callSubstitutionJob(mockRequest);
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      // Should not call substitution endpoint when status is not ok
-      expect(fetchSpy).not.toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/substitution") as string,
-        }),
-      );
+      expect(getTrackerStatusSpy).toHaveBeenCalled();
+      expect(recordSubstitutionSpy).not.toHaveBeenCalled();
     });
 
     it("logs warning when substitution update fails", async () => {
       const logWarnSpy = vi.spyOn(logService, "warn");
-      // Override the fake DO to throw an error on substitution
-      const failingLiveTrackerDO = aFakeLiveTrackerDOWith({
-        shouldThrowError: true,
-        errorMessage: "Substitution failed",
-      });
-      vi.spyOn(env.LIVE_TRACKER_DO, "get").mockReturnValue(failingLiveTrackerDO);
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockRequest.match_number),
+          // Include other required properties
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      recordSubstitutionSpy.mockRejectedValue(new Error("Substitution failed"));
 
       await callSubstitutionJob(mockRequest);
 
@@ -272,64 +408,154 @@ describe("NeatQueueService Live Tracker Integration", () => {
     });
 
     it("continues normal operation if live tracker update fails", async () => {
-      fetchSpy.mockRejectedValue(new Error("DO substitution failed"));
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockRequest.match_number),
+          // Include other required properties
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      recordSubstitutionSpy.mockRejectedValue(new Error("DO substitution failed"));
 
       // Should not throw error, just log it
       await expect(callSubstitutionJob(mockRequest)).resolves.toBeUndefined();
     });
 
-    it("generates consistent DO IDs for same guild/channel/queue", async () => {
-      const testRequest = getFakeNeatQueueData("substitution");
-      const expectedDoId = `${testRequest.guild}:${testRequest.channel}:${testRequest.match_number?.toString() ?? "undefined"}`;
-
-      await callSubstitutionJob(testRequest);
-
-      expect(idFromNameSpy).toHaveBeenCalledWith(expectedDoId);
-    });
-
-    it("handles Durable Object namespace errors gracefully", async () => {
-      const logWarnSpy = vi.spyOn(logService, "warn");
-      idFromNameSpy.mockImplementation(() => {
-        throw new Error("DO namespace error");
-      });
-
-      const testRequest = getFakeNeatQueueData("substitution");
-      await callSubstitutionJob(testRequest);
-
-      expect(logWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to update live tracker with substitution"),
-        expect.any(Map),
-      );
-    });
-
     it("sends correct substitution data to live tracker", async () => {
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockRequest.match_number),
+          // Include other required properties
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      const mockSubstitutionResponse: LiveTrackerSubstitutionResponse = {
+        success: true,
+        substitution: {
+          playerOutId: mockRequest.player_subbed_out.id,
+          playerInId: mockRequest.player_subbed_in.id,
+          teamIndex: 0,
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      recordSubstitutionSpy.mockResolvedValue(mockSubstitutionResponse);
+
       await callSubstitutionJob(mockRequest);
 
-      // Verify that both status and substitution endpoints were called
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(fetchSpy).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      expect(fetchSpy).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/substitution") as string,
-        }),
-      );
+      expect(getTrackerStatusSpy).toHaveBeenCalledWith({
+        userId: "",
+        guildId: mockRequest.guild,
+        channelId: mockRequest.channel,
+        queueNumber: mockRequest.match_number ?? 1,
+      });
+      expect(recordSubstitutionSpy).toHaveBeenCalledWith({
+        context: {
+          userId: "",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          queueNumber: mockRequest.match_number ?? 1,
+        },
+        playerOutId: mockRequest.player_subbed_out.id,
+        playerInId: mockRequest.player_subbed_in.id,
+      });
     });
 
     it("logs successful substitution update", async () => {
       const logInfoSpy = vi.spyOn(logService, "info");
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: mockRequest.match_number ?? 1,
+          // Include other required properties
+          userId: "DISCORD_APP_ID",
+          guildId: mockRequest.guild,
+          channelId: mockRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      const mockSubstitutionResponse: LiveTrackerSubstitutionResponse = {
+        success: true,
+        substitution: {
+          playerOutId: mockRequest.player_subbed_out.id,
+          playerInId: mockRequest.player_subbed_in.id,
+          teamIndex: 0,
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      recordSubstitutionSpy.mockResolvedValue(mockSubstitutionResponse);
 
       await callSubstitutionJob(mockRequest);
 
       expect(logInfoSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Updated live tracker with substitution"),
+        expect.stringContaining("Updated live tracker with substitution for queue"),
         expect.any(Map),
       );
     });
@@ -346,21 +572,83 @@ describe("NeatQueueService Live Tracker Integration", () => {
     };
 
     it("calls stopLiveTrackingIfActive on match completion", async () => {
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: {
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
+          userId: "DISCORD_APP_ID",
+          guildId: mockMatchCompletedRequest.guild,
+          channelId: mockMatchCompletedRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      const mockStopResponse: LiveTrackerStopResponse = {
+        success: true,
+        state: {
+          status: "stopped",
+          queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
+          userId: "DISCORD_APP_ID",
+          guildId: mockMatchCompletedRequest.guild,
+          channelId: mockMatchCompletedRequest.channel,
+          isPaused: false,
+          startTime: "2024-11-26T10:48:00.000Z",
+          lastUpdateTime: "2024-11-26T10:48:00.000Z",
+          searchStartTime: "2024-11-26T10:48:00.000Z",
+          checkCount: 0,
+          players: {},
+          teams: [],
+          substitutions: [],
+          errorState: {
+            consecutiveErrors: 0,
+            backoffMinutes: 1,
+            lastSuccessTime: "2024-11-26T10:48:00.000Z",
+          },
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: {
+            matchCount: 0,
+            substitutionCount: 0,
+          },
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      stopTrackerSpy.mockResolvedValue(mockStopResponse);
+
       // Simulate match completion event processing
       await callMatchCompletedJob(mockMatchCompletedRequest);
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "GET",
-          url: expect.stringContaining("/status") as string,
-        }),
-      );
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "POST",
-          url: expect.stringContaining("/stop") as string,
-        }),
-      );
+      expect(getTrackerStatusSpy).toHaveBeenCalledWith({
+        userId: "",
+        guildId: mockMatchCompletedRequest.guild,
+        channelId: mockMatchCompletedRequest.channel,
+        queueNumber: mockMatchCompletedRequest.match_number,
+      });
+      expect(stopTrackerSpy).toHaveBeenCalledWith({
+        userId: "",
+        guildId: mockMatchCompletedRequest.guild,
+        channelId: mockMatchCompletedRequest.channel,
+        queueNumber: mockMatchCompletedRequest.match_number,
+      });
     });
   });
 });

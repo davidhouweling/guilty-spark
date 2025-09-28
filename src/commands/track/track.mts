@@ -2,7 +2,6 @@ import type {
   APIApplicationCommandInteraction,
   APIMessageComponentButtonInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIEmbed,
   APIGuildMember,
 } from "discord-api-types/v10";
 import {
@@ -17,21 +16,13 @@ import {
 } from "discord-api-types/v10";
 import { addMinutes } from "date-fns";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do.mjs";
 import { BaseCommand } from "../base/base.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
-import { LiveTrackerEmbed, InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
-import type { LiveTrackerEmbedData } from "../../embeds/live-tracker-embed.mjs";
-import type {
-  LiveTrackerPauseResponse,
-  LiveTrackerRefreshCooldownErrorResponse,
-  LiveTrackerResumeResponse,
-  LiveTrackerStartRequest,
-  LiveTrackerState,
-  LiveTrackerStatusResponse,
-} from "../../durable-objects/types.mjs";
+import { InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerState } from "../../durable-objects/types.mjs";
+import { isCooldownError } from "../../durable-objects/types.mjs";
 
 interface UserContext {
   userId: string;
@@ -44,15 +35,6 @@ interface TrackerContext extends UserContext {
 }
 
 export class TrackCommand extends BaseCommand {
-  private static readonly DO_ENDPOINTS = {
-    START: "http://do/start",
-    PAUSE: "http://do/pause",
-    RESUME: "http://do/resume",
-    REFRESH: "http://do/refresh",
-    STATUS: "http://do/status",
-    REPOST: "http://do/repost",
-  } as const;
-
   readonly data: CommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
@@ -203,16 +185,8 @@ export class TrackCommand extends BaseCommand {
             playerIds: team.players.map((player) => player.user.id),
           }));
 
-          // Create Durable Object instance
-          const doStub = this.getDurableObjectStub({
-            userId,
-            guildId,
-            channelId: targetChannelId,
-            queueNumber,
-          });
-
-          // Start the live tracker with real queue data
-          const startData: LiveTrackerStartRequest = {
+          // Start the live tracker with real queue data using the service
+          await this.services.liveTrackerService.startTracker({
             userId,
             guildId,
             channelId: targetChannelId,
@@ -224,19 +198,7 @@ export class TrackCommand extends BaseCommand {
             }, {}),
             teams,
             queueStartTime: activeQueueData.timestamp.toISOString(),
-          };
-
-          const startResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.START, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(startData),
           });
-
-          if (!startResponse.ok) {
-            throw new Error(`Failed to start live tracker: ${String(startResponse.status)}`);
-          }
-
-          await startResponse.json<LiveTrackerPauseResponse>();
         } catch (error) {
           if (error instanceof EndUserError) {
             // Send user-friendly error
@@ -250,21 +212,14 @@ export class TrackCommand extends BaseCommand {
           // Handle unexpected error
           this.services.logService.error("Failed to start live tracker", new Map([["error", String(error)]]));
 
-          const errorEmbed = new LiveTrackerEmbed(
-            { discordService: this.services.discordService },
+          const errorEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(
             {
               userId,
               guildId,
               channelId: targetChannelId,
               queueNumber: 0,
-              status: "stopped",
-              isPaused: false,
-              lastUpdated: undefined,
-              nextCheck: undefined,
-              enrichedMatches: undefined,
-              seriesScore: undefined,
-              errorState: undefined,
             },
+            "stopped",
           );
 
           await this.services.discordService.updateDeferredReply(interaction.token, errorEmbed.toMessageData());
@@ -317,57 +272,12 @@ export class TrackCommand extends BaseCommand {
     return params;
   }
 
-  private getDurableObjectStub(context: TrackerContext): DurableObjectStub<LiveTrackerDO> {
-    const doId = this.env.LIVE_TRACKER_DO.idFromName(
-      `${context.guildId}:${context.channelId}:${context.queueNumber.toString()}`,
-    );
-
-    return this.env.LIVE_TRACKER_DO.get(doId);
-  }
-
-  private createErrorFallbackEmbed(context: TrackerContext, status: "active" | "paused" | "stopped"): LiveTrackerEmbed {
-    return new LiveTrackerEmbed(
-      { discordService: this.services.discordService },
-      {
-        userId: context.userId,
-        guildId: context.guildId,
-        channelId: context.channelId,
-        queueNumber: context.queueNumber,
-        status,
-        isPaused: false,
-        lastUpdated: undefined,
-        nextCheck: undefined,
-        enrichedMatches: undefined,
-        seriesScore: undefined,
-        errorState: undefined,
-      },
-    );
-  }
-
-  private async createButtonResponse(
-    interaction: APIMessageComponentButtonInteraction,
-    action: (context: TrackerContext, doStub: DurableObjectStub) => Promise<void>,
-  ): Promise<void> {
-    const context = await this.getTrackerContextFromInteraction(interaction);
-    if (!context) {
-      await this.updateMessageWithFallback(interaction, "stopped");
-      return;
-    }
-
-    try {
-      const doStub = this.getDurableObjectStub(context);
-      await action(context, doStub);
-    } catch (error) {
-      await this.handleButtonError(interaction, context, error);
-    }
-  }
-
   private async updateMessageWithFallback(
     interaction: APIMessageComponentButtonInteraction,
     status: "active" | "paused" | "stopped",
   ): Promise<void> {
     const userContext = this.extractUserContext(interaction);
-    const fallbackEmbed = this.createErrorFallbackEmbed(
+    const fallbackEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(
       {
         ...userContext,
         queueNumber: 0,
@@ -392,40 +302,11 @@ export class TrackCommand extends BaseCommand {
       this.createLogParams(context, new Map([["error", String(error)]])),
     );
 
-    const fallbackEmbed = this.createErrorFallbackEmbed(context, "stopped");
+    const fallbackEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(context, "stopped");
     await this.services.discordService.editMessage(
       interaction.channel.id,
       interaction.message.id,
       fallbackEmbed.toMessageData(),
-    );
-  }
-
-  private createLiveTrackerEmbedFromResult(
-    context: TrackerContext,
-    embedData: LiveTrackerEmbedData | undefined,
-    defaultStatus: "active" | "paused",
-    additionalTime?: Date,
-  ): LiveTrackerEmbed {
-    if (embedData) {
-      return new LiveTrackerEmbed({ discordService: this.services.discordService }, embedData);
-    }
-
-    const currentTime = new Date();
-    return new LiveTrackerEmbed(
-      { discordService: this.services.discordService },
-      {
-        userId: context.userId,
-        guildId: context.guildId,
-        channelId: context.channelId,
-        queueNumber: context.queueNumber,
-        status: defaultStatus,
-        isPaused: defaultStatus === "paused",
-        lastUpdated: currentTime,
-        nextCheck: additionalTime,
-        enrichedMatches: undefined,
-        seriesScore: undefined,
-        errorState: undefined,
-      },
     );
   }
 
@@ -460,7 +341,7 @@ export class TrackCommand extends BaseCommand {
         const context = await this.getTrackerContextFromInteraction(interaction);
         if (!context) {
           const userContext = this.extractUserContext(interaction);
-          const fallbackEmbed = this.createErrorFallbackEmbed(
+          const fallbackEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(
             {
               ...userContext,
               queueNumber: 0,
@@ -477,18 +358,13 @@ export class TrackCommand extends BaseCommand {
         }
 
         try {
-          const doStub = this.getDurableObjectStub(context);
-          const pauseResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.PAUSE, {
-            method: "POST",
+          const pauseResult = await this.services.liveTrackerService.pauseTracker(context);
+
+          const liveTrackerEmbed = this.services.liveTrackerService.createLiveTrackerEmbedFromResult({
+            context,
+            embedData: pauseResult.embedData,
+            defaultStatus: "paused",
           });
-
-          if (!pauseResponse.ok) {
-            throw new Error(`Failed to pause live tracker: ${String(pauseResponse.status)}`);
-          }
-
-          const pauseResult = await pauseResponse.json<LiveTrackerPauseResponse>();
-
-          const liveTrackerEmbed = this.createLiveTrackerEmbedFromResult(context, pauseResult.embedData, "paused");
 
           await this.services.discordService.editMessage(
             interaction.channel.id,
@@ -500,7 +376,7 @@ export class TrackCommand extends BaseCommand {
         } catch (error) {
           this.services.logService.error("Failed to pause live tracker", new Map([["error", String(error)]]));
 
-          const fallbackEmbed = this.createErrorFallbackEmbed(context, "stopped");
+          const fallbackEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(context, "stopped");
           await this.services.discordService.editMessage(
             interaction.channel.id,
             interaction.message.id,
@@ -519,43 +395,21 @@ export class TrackCommand extends BaseCommand {
       jobToComplete: async (): Promise<void> => {
         const context = await this.getTrackerContextFromInteraction(interaction);
         if (!context) {
-          const userContext = this.extractUserContext(interaction);
-          const fallbackEmbed = this.createErrorFallbackEmbed(
-            {
-              ...userContext,
-              queueNumber: 0,
-            },
-            "stopped",
-          );
-
-          await this.services.discordService.editMessage(
-            interaction.channel.id,
-            interaction.message.id,
-            fallbackEmbed.toMessageData(),
-          );
+          await this.updateMessageWithFallback(interaction, "stopped");
           return;
         }
 
         try {
-          const doStub = this.getDurableObjectStub(context);
-          const resumeResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.RESUME, {
-            method: "POST",
-          });
-
-          if (!resumeResponse.ok) {
-            throw new Error(`Failed to resume live tracker: ${String(resumeResponse.status)}`);
-          }
-
-          const resumeResult = await resumeResponse.json<LiveTrackerResumeResponse>();
+          const resumeResult = await this.services.liveTrackerService.resumeTracker(context);
 
           const currentTime = new Date();
           const nextCheckTime = addMinutes(currentTime, 3);
-          const liveTrackerEmbed = this.createLiveTrackerEmbedFromResult(
+          const liveTrackerEmbed = this.services.liveTrackerService.createLiveTrackerEmbedFromResult({
             context,
-            resumeResult.embedData,
-            "active",
-            nextCheckTime,
-          );
+            embedData: resumeResult.embedData,
+            defaultStatus: "active",
+            additionalTime: nextCheckTime,
+          });
 
           await this.services.discordService.editMessage(
             interaction.channel.id,
@@ -567,7 +421,7 @@ export class TrackCommand extends BaseCommand {
         } catch (error) {
           this.services.logService.error("Failed to resume live tracker", new Map([["error", String(error)]]));
 
-          const fallbackEmbed = this.createErrorFallbackEmbed(context, "stopped");
+          const fallbackEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(context, "stopped");
           await this.services.discordService.editMessage(
             interaction.channel.id,
             interaction.message.id,
@@ -584,64 +438,33 @@ export class TrackCommand extends BaseCommand {
         type: InteractionResponseType.DeferredMessageUpdate,
       },
       jobToComplete: async (): Promise<void> => {
-        await this.createButtonResponse(interaction, async (context, doStub) => {
-          const refreshResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.REFRESH, {
-            method: "POST",
-          });
+        const context = await this.getTrackerContextFromInteraction(interaction);
+        if (!context) {
+          await this.updateMessageWithFallback(interaction, "stopped");
+          return;
+        }
 
-          if (refreshResponse.status === 429) {
-            await this.handleRefreshCooldown(interaction, refreshResponse);
-            return;
-          }
+        try {
+          const refreshResult = await this.services.liveTrackerService.refreshTracker(context);
 
-          if (!refreshResponse.ok) {
-            throw new Error(`Failed to refresh live tracker: ${String(refreshResponse.status)}`);
+          if (!refreshResult.success) {
+            if (isCooldownError(refreshResult)) {
+              await this.services.liveTrackerService.handleRefreshCooldown({ interaction, response: refreshResult });
+              return;
+            }
+            throw new Error("Failed to refresh live tracker");
           }
 
           this.services.logService.info("Live tracker manually refreshed via button", this.createLogParams(context));
-        });
+        } catch (error) {
+          await this.handleButtonError(interaction, context, error);
+        }
       },
     };
   }
 
-  private async handleRefreshCooldown(
-    interaction: APIMessageComponentButtonInteraction,
-    response: Response,
-  ): Promise<void> {
-    const cooldownData = await response.json<LiveTrackerRefreshCooldownErrorResponse>();
-
-    const [currentEmbed] = interaction.message.embeds;
-    if (currentEmbed) {
-      const fields = currentEmbed.fields ?? [];
-      const title = "⚠️ Refresh cooldown";
-      const cooldownFieldExists = fields.some((field) => field.name === title);
-
-      if (!cooldownFieldExists) {
-        fields.push({
-          name: title,
-          value: cooldownData.message,
-          inline: false,
-        });
-      }
-
-      const updatedEmbed: APIEmbed = {
-        ...currentEmbed,
-        fields,
-      };
-
-      await this.services.discordService.editMessage(interaction.channel.id, interaction.message.id, {
-        embeds: [updatedEmbed],
-        components: interaction.message.components,
-      });
-    }
-  }
-
   private async getTrackerStatus(guildId: string, channelId: string): Promise<LiveTrackerState | null> {
     try {
-      // We need to try different queue numbers to find the active one
-      // In production, we'd store this mapping or iterate through possible values
-      // For now, check against the Durable Object storage directly
-
       // First try to get active queue data to determine the queue number
       const activeQueueData = await this.services.discordService.getTeamsFromQueueChannel(guildId, channelId);
       if (!activeQueueData) {
@@ -649,23 +472,14 @@ export class TrackCommand extends BaseCommand {
       }
 
       const queueNumber = activeQueueData.queue;
-      const doStub = this.getDurableObjectStub({
+      const statusResponse = await this.services.liveTrackerService.getTrackerStatus({
         userId: "", // Not needed for status check
         guildId,
         channelId,
         queueNumber,
       });
 
-      const statusResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.STATUS, {
-        method: "GET",
-      });
-
-      if (!statusResponse.ok) {
-        return null;
-      }
-
-      const { state } = await statusResponse.json<LiveTrackerStatusResponse>();
-      return state;
+      return statusResponse?.state ?? null;
     } catch (error) {
       this.services.logService.error("Failed to get tracker status", new Map([["error", String(error)]]));
       return null;
@@ -698,29 +512,15 @@ export class TrackCommand extends BaseCommand {
 
         if (queueNumber != null && guildId != null) {
           try {
-            const doStub = this.getDurableObjectStub({
-              userId: "", // Not needed for repost
-              guildId,
-              channelId,
-              queueNumber,
+            await this.services.liveTrackerService.repostTracker({
+              context: {
+                userId: "", // Not needed for repost
+                guildId,
+                channelId,
+                queueNumber,
+              },
+              newMessageId: newMessage.id,
             });
-
-            const repostResponse = await doStub.fetch(TrackCommand.DO_ENDPOINTS.REPOST, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ newMessageId: newMessage.id }),
-            });
-
-            if (!repostResponse.ok) {
-              this.services.logService.warn(
-                "Failed to update live tracker message ID after repost",
-                new Map([
-                  ["status", repostResponse.status.toString()],
-                  ["queueNumber", queueNumber.toString()],
-                  ["newMessageId", newMessage.id],
-                ]),
-              );
-            }
           } catch (error) {
             this.services.logService.error(
               "Error updating live tracker message ID after repost",

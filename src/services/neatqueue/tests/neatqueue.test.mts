@@ -18,6 +18,7 @@ import type { HaloService } from "../../halo/halo.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
 import { getFakeNeatQueueData } from "../fakes/data.mjs";
@@ -62,12 +63,14 @@ describe("NeatQueueService", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
+    const liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     neatQueueService = new NeatQueueService({
       env,
       logService,
       databaseService,
       discordService,
       haloService,
+      liveTrackerService,
     });
   });
 

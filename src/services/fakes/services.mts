@@ -7,6 +7,7 @@ import type { Services } from "../install.mjs";
 import { aFakeLogServiceWith } from "../log/fakes/log.fake.mjs";
 import { aFakeNeatQueueServiceWith } from "../neatqueue/fakes/neatqueue.fake.mjs";
 import { aFakeXboxServiceWith } from "../xbox/fakes/xbox.fake.mjs";
+import { aFakeLiveTrackerServiceWith } from "../live-tracker/fakes/live-tracker.fake.mjs";
 
 export function installFakeServicesWith(opts: Partial<Services & { env: Env }> = {}): Services {
   const env = opts.env ?? aFakeEnvWith();
@@ -16,8 +17,11 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const xboxService = opts.xboxService ?? aFakeXboxServiceWith({ env });
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ infiniteClient: haloInfiniteClient, databaseService });
+  const liveTrackerService =
+    opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =
-    opts.neatQueueService ?? aFakeNeatQueueServiceWith({ env, databaseService, discordService, haloService });
+    opts.neatQueueService ??
+    aFakeNeatQueueServiceWith({ env, databaseService, discordService, haloService, liveTrackerService });
 
   return {
     logService,
@@ -26,6 +30,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
     xboxService,
     haloService,
     haloInfiniteClient,
+    liveTrackerService,
     neatQueueService,
   };
 }

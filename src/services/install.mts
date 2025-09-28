@@ -7,6 +7,7 @@ import { HaloService } from "./halo/halo.mjs";
 import { XboxService } from "./xbox/xbox.mjs";
 import { CustomSpartanTokenProvider } from "./halo/custom-spartan-token-provider.mjs";
 import { NeatQueueService } from "./neatqueue/neatqueue.mjs";
+import { LiveTrackerService } from "./live-tracker/live-tracker.mjs";
 import type { LogService } from "./log/types.mjs";
 import { AggregatorClient } from "./log/aggregator-client.mjs";
 import { ConsoleLogClient } from "./log/console-log-client.mjs";
@@ -20,6 +21,7 @@ export interface Services {
   xboxService: XboxService;
   haloService: HaloService;
   haloInfiniteClient: HaloInfiniteClient;
+  liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
 }
 
@@ -54,7 +56,15 @@ export function installServices({ env }: InstallServicesOpts): Services {
     databaseService,
     infiniteClient: haloInfiniteClient,
   });
-  const neatQueueService = new NeatQueueService({ env, logService, databaseService, discordService, haloService });
+  const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
+  const neatQueueService = new NeatQueueService({
+    env,
+    logService,
+    databaseService,
+    discordService,
+    haloService,
+    liveTrackerService,
+  });
 
   return {
     logService,
@@ -63,6 +73,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     xboxService,
     haloService,
     haloInfiniteClient,
+    liveTrackerService,
     neatQueueService,
   };
 }

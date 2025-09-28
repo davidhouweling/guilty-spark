@@ -17,6 +17,7 @@ import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.mjs";
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
+import type { LiveTrackerService } from "../live-tracker/live-tracker.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   SeriesOverviewEmbedFinalTeams,
@@ -36,14 +37,6 @@ import { create } from "../../embeds/stats/create.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import { DiscordError } from "../discord/discord-error.mjs";
 import { MapsEmbed } from "../../embeds/maps-embed.mjs";
-import type {
-  LiveTrackerStartRequest,
-  LiveTrackerStartResponse,
-  LiveTrackerSubstitutionRequest,
-  LiveTrackerSubstitutionResponse,
-  LiveTrackerStatusResponse,
-  LiveTrackerStopResponse,
-} from "../../durable-objects/types.mjs";
 import { isSuccessResponse } from "../../durable-objects/types.mjs";
 import type {
   VerifyNeatQueueResponse,
@@ -63,6 +56,7 @@ export interface NeatQueueServiceOpts {
   databaseService: DatabaseService;
   discordService: DiscordService;
   haloService: HaloService;
+  liveTrackerService: LiveTrackerService;
 }
 
 export class NeatQueueService {
@@ -71,14 +65,23 @@ export class NeatQueueService {
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
+  private readonly liveTrackerService: LiveTrackerService;
   private readonly locale = "en-US";
 
-  constructor({ env, logService, databaseService, discordService, haloService }: NeatQueueServiceOpts) {
+  constructor({
+    env,
+    logService,
+    databaseService,
+    discordService,
+    haloService,
+    liveTrackerService,
+  }: NeatQueueServiceOpts) {
     this.env = env;
     this.logService = logService;
     this.databaseService = databaseService;
     this.discordService = discordService;
     this.haloService = haloService;
+    this.liveTrackerService = liveTrackerService;
   }
 
   hashAuthorizationKey(key: string, guildId: string): string {
@@ -549,39 +552,28 @@ export class NeatQueueService {
         playerIds: team.map((player) => player.id),
       }));
 
-      // Create Durable Object key for this queue
-      const doKey = `${request.guild}:${request.channel}:${request.match_number.toString()}`;
-      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
-      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId);
-
-      // Start the live tracker
-      const startData: LiveTrackerStartRequest = {
+      // Start the live tracker using the service
+      const context = {
         userId: this.env.DISCORD_APP_ID, // Use the bot's ID for auto-started trackers
         guildId: request.guild,
         channelId: request.channel,
         queueNumber: request.match_number,
-        players: players.reduce<Record<string, APIGuildMember>>((acc, player) => {
-          acc[player.user.id] = player;
-          return acc;
-        }, {}),
-        teams,
-        queueStartTime: new Date().toISOString(),
       };
 
-      const response = await durableObject.fetch(
-        new Request("https://live-tracker/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(startData),
-        }),
-      );
+      const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
+        acc[player.user.id] = player;
+        return acc;
+      }, {});
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to start live tracker: ${errorText}`);
-      }
-
-      const result = await response.json<LiveTrackerStartResponse>();
+      const result = await this.liveTrackerService.startTracker({
+        userId: context.userId,
+        guildId: context.guildId,
+        channelId: context.channelId,
+        queueNumber: context.queueNumber,
+        players: playersRecord,
+        teams,
+        queueStartTime: new Date().toISOString(),
+      });
 
       if (isSuccessResponse(result)) {
         logService.info(
@@ -589,7 +581,6 @@ export class NeatQueueService {
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
-            ["doKey", doKey],
             ["queueNumber", result.state.queueNumber.toString()],
           ]),
         );
@@ -599,7 +590,7 @@ export class NeatQueueService {
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
-            ["queueNumber", result.state.queueNumber.toString()],
+            ["queueNumber", context.queueNumber.toString()],
           ]),
         );
       }
@@ -632,48 +623,35 @@ export class NeatQueueService {
         return;
       }
 
-      // Create Durable Object key for this queue
-      const doKey = `${request.guild}:${request.channel}:${matchNumber.toString()}`;
-      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
-      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId);
+      const context = {
+        userId: "", // Not needed for substitution
+        guildId: request.guild,
+        channelId: request.channel,
+        queueNumber: matchNumber,
+      };
 
       // Check if the tracker exists and is active
-      const statusResponse = await durableObject.fetch(new Request("https://live-tracker/status"));
-      if (!statusResponse.ok) {
+      try {
+        const statusResult = await this.liveTrackerService.getTrackerStatus(context);
+        if (
+          !statusResult?.state ||
+          (statusResult.state.status !== "active" && statusResult.state.status !== "paused")
+        ) {
+          logService.debug("Live tracker not found or inactive, skipping substitution update");
+          return;
+        }
+      } catch {
         logService.debug("Live tracker not found or inactive, skipping substitution update");
         return;
       }
 
       // Notify the live tracker about the substitution
-      const substitutionData: LiveTrackerSubstitutionRequest = {
+      const substitutionResult = await this.liveTrackerService.recordSubstitution({
+        context,
         playerOutId: request.player_subbed_out.id,
         playerInId: request.player_subbed_in.id,
-      };
+      });
 
-      const substitutionResponse = await durableObject.fetch(
-        new Request("https://live-tracker/substitution", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(substitutionData),
-        }),
-      );
-
-      if (!substitutionResponse.ok) {
-        const errorText = await substitutionResponse.text();
-        logService.warn(
-          `Failed to update live tracker with substitution: ${errorText}`,
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["matchNumber", matchNumber.toString()],
-            ["playerOut", request.player_subbed_out.id],
-            ["playerIn", request.player_subbed_in.id],
-          ]),
-        );
-        return;
-      }
-
-      const substitutionResult = await substitutionResponse.json<LiveTrackerSubstitutionResponse>();
       if (isSuccessResponse(substitutionResult)) {
         logService.info(
           `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
@@ -682,7 +660,6 @@ export class NeatQueueService {
             ["channelId", request.channel],
             ["playerOut", substitutionResult.substitution.playerOutId],
             ["playerIn", substitutionResult.substitution.playerInId],
-            ["teamIndex", substitutionResult.substitution.teamIndex.toString()],
           ]),
         );
       }
@@ -707,66 +684,54 @@ export class NeatQueueService {
     const { logService } = this;
 
     try {
-      // Create Durable Object key for this queue
-      const doKey = `${request.guild}:${request.channel}:${request.match_number.toString()}`;
-      const durableObjectId = this.env.LIVE_TRACKER_DO.idFromName(doKey);
-      const durableObject = this.env.LIVE_TRACKER_DO.get(durableObjectId);
+      const context = {
+        userId: "", // Not needed for stop
+        guildId: request.guild,
+        channelId: request.channel,
+        queueNumber: request.match_number,
+      };
 
       // Check if the tracker is active before trying to stop it
-      const statusResponse = await durableObject.fetch(
-        new Request("https://live-tracker/status", {
-          method: "GET",
-        }),
-      );
-
-      if (!statusResponse.ok) {
-        // If the status endpoint fails, the tracker might not exist or be in an error state
+      try {
+        const statusResult = await this.liveTrackerService.getTrackerStatus(context);
+        if (
+          !statusResult?.state ||
+          (statusResult.state.status !== "active" && statusResult.state.status !== "paused")
+        ) {
+          logService.debug(
+            "Live tracker not active, no need to stop",
+            new Map([
+              ["guildId", request.guild],
+              ["channelId", request.channel],
+              ["queueNumber", request.match_number.toString()],
+              ["status", statusResult?.state.status ?? "not_found"],
+            ]),
+          );
+          return;
+        }
+      } catch {
+        // If the status check fails, the tracker might not exist or be in an error state
         logService.debug(
           "Live tracker status check failed, assuming no active tracker",
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
             ["queueNumber", request.match_number.toString()],
-            ["statusCode", statusResponse.status.toString()],
-          ]),
-        );
-        return;
-      }
-
-      const statusData = await statusResponse.json<LiveTrackerStatusResponse>();
-      if (statusData.state.status !== "active" && statusData.state.status !== "paused") {
-        logService.debug(
-          "Live tracker not active, no need to stop",
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["queueNumber", request.match_number.toString()],
-            ["status", statusData.state.status],
           ]),
         );
         return;
       }
 
       // Stop the live tracker
-      const stopResponse = await durableObject.fetch(
-        new Request("https://live-tracker/stop", {
-          method: "POST",
-        }),
-      );
+      const stopResult = await this.liveTrackerService.stopTracker(context);
 
-      if (!stopResponse.ok) {
-        throw new Error(`Failed to stop live tracker: ${stopResponse.status.toString()}`);
-      }
-
-      const stopResult = await stopResponse.json<LiveTrackerStopResponse>();
       if (isSuccessResponse(stopResult)) {
         logService.info(
           `Auto-stopped live tracker for completed queue ${request.match_number.toString()}`,
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
-            ["doKey", doKey],
-            ["finalQueueNumber", stopResult.state.queueNumber.toString()],
+            ["queueNumber", request.match_number.toString()],
           ]),
         );
       }

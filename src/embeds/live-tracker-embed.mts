@@ -88,9 +88,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     if (hasMatches) {
       const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
       const tableData = [titles];
-      const sortedSubstitutions = [...(this.data.substitutions ?? [])].sort((a, b) =>
-        compareAsc(new Date(a.timestamp), new Date(b.timestamp)),
-      );
+      const sortedSubstitutions = this.processSortedSubstitutions();
 
       let substitutionIndex = 0;
 
@@ -138,18 +136,13 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       this.addEmbedFields(embed, titles, tableData);
     }
 
-    embed.fields ??= [];
-    embed.fields.push({
-      name: "\n",
-      value: "\n",
-      inline: false,
-    });
+    this.addSeparatorField(embed);
 
     const currentTime = new Date();
     const lastUpdateText =
       lastUpdated != null
-        ? discordService.getTimestamp(new Date(lastUpdated).toISOString(), "f")
-        : discordService.getTimestamp(currentTime.toISOString(), "f");
+        ? discordService.getTimestamp(this.toISOString(lastUpdated), "f")
+        : discordService.getTimestamp(this.toISOString(currentTime), "f");
     const nextCheckText = ((): string => {
       if (status === "stopped") {
         return "*Stopped*";
@@ -158,12 +151,13 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         return "*Paused*";
       }
       if (nextCheck != null) {
-        return discordService.getTimestamp(new Date(nextCheck).toISOString(), "R");
+        return discordService.getTimestamp(this.toISOString(nextCheck), "R");
       }
       const nextAlarmTime = addMinutes(currentTime, 3);
-      return discordService.getTimestamp(nextAlarmTime.toISOString(), "R");
+      return discordService.getTimestamp(this.toISOString(nextAlarmTime), "R");
     })();
 
+    embed.fields = embed.fields ?? [];
     embed.fields.push({
       name: "Series score",
       value: seriesScore ?? "🦅 0:0 🐍",
@@ -173,18 +167,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       name: "Last game completed",
       value: hasMatches
         ? discordService.getTimestamp(
-            new Date(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime).toISOString(),
+            this.toISOString(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime),
             "R",
           )
         : "-",
       inline: true,
     });
 
-    embed.fields.push({
-      name: "\n",
-      value: "\n",
-      inline: false,
-    });
+    this.addSeparatorField(embed);
 
     embed.fields.push({
       name: "Last updated",
@@ -219,33 +209,15 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     const components: APIButtonComponentWithCustomId[] = [];
 
     if (status !== "stopped") {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Refresh,
-        label: "Refresh Now",
-        style: ButtonStyle.Primary,
-        emoji: { name: "🔄" },
-      });
+      components.push(this.createButton(InteractionComponent.Refresh, "Refresh Now", ButtonStyle.Primary, "🔄"));
     }
 
     if (status === "active" && !isPaused) {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Pause,
-        label: "Pause",
-        style: ButtonStyle.Secondary,
-        emoji: { name: "⏸️" },
-      });
+      components.push(this.createButton(InteractionComponent.Pause, "Pause", ButtonStyle.Secondary, "⏸️"));
     }
 
     if (status === "paused" || isPaused) {
-      components.push({
-        type: ComponentType.Button,
-        custom_id: InteractionComponent.Resume,
-        label: "Resume",
-        style: ButtonStyle.Primary,
-        emoji: { name: "▶️" },
-      });
+      components.push(this.createButton(InteractionComponent.Resume, "Resume", ButtonStyle.Primary, "▶️"));
     }
 
     const actions: APIMessageTopLevelComponent[] =
@@ -262,15 +234,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       actions.push({
         type: ComponentType.ActionRow,
         components: [
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Repost,
-            label: "Move to bottom of chat",
-            style: ButtonStyle.Secondary,
-            emoji: {
-              name: "⏬",
-            },
-          },
+          this.createButton(InteractionComponent.Repost, "Move to bottom of chat", ButtonStyle.Secondary, "⏬"),
         ],
       });
     }
@@ -285,8 +249,12 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     };
   }
 
+  private isEffectivelyPaused(status: TrackingStatus, isPaused: boolean): boolean {
+    return isPaused || status === "paused";
+  }
+
   private getStatusText(status: TrackingStatus, isPaused: boolean): string {
-    if (isPaused || status === "paused") {
+    if (this.isEffectivelyPaused(status, isPaused)) {
       return "Live Tracking Paused";
     }
     if (status === "stopped") {
@@ -296,13 +264,47 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   private getEmbedColor(status: TrackingStatus, isPaused: boolean): number {
-    if (isPaused || status === "paused") {
+    if (this.isEffectivelyPaused(status, isPaused)) {
       return 0xffa500; // Orange
     }
     if (status === "stopped") {
       return 0x808080; // Gray
     }
     return 0x28a745; // Green for live/active (positive state)
+  }
+
+  private addSeparatorField(embed: APIEmbed): void {
+    embed.fields ??= [];
+    embed.fields.push({
+      name: "\n",
+      value: "\n",
+      inline: false,
+    });
+  }
+
+  private toISOString(date: Date | string): string {
+    return new Date(date).toISOString();
+  }
+
+  private createButton(
+    customId: InteractionComponent,
+    label: string,
+    style: ButtonStyle.Primary | ButtonStyle.Secondary | ButtonStyle.Success | ButtonStyle.Danger,
+    emojiName: string,
+  ): APIButtonComponentWithCustomId {
+    return {
+      type: ComponentType.Button,
+      custom_id: customId,
+      label,
+      style,
+      emoji: { name: emojiName },
+    };
+  }
+
+  private processSortedSubstitutions(): NonNullable<LiveTrackerEmbedData["substitutions"]> {
+    return [...(this.data.substitutions ?? [])].sort((a, b) =>
+      compareAsc(new Date(a.timestamp), new Date(b.timestamp)),
+    );
   }
 
   private getErrorMessage(errorState: NonNullable<LiveTrackerEmbedData["errorState"]>): string {
