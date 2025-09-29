@@ -36,7 +36,7 @@
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org david-houweling --project guilty-spark ./dist && sentry-cli sourcemaps upload --org david-houweling --project guilty-spark ./dist"
   },
   "dependencies": {
-    "@sentry/cli": "^2.54.0",
+    "@sentry/cli": "^2.55.0",
     "@sentry/cloudflare": "^9.42.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
@@ -52,7 +52,7 @@
     "@tsconfig/node22": "^22.0.2",
     "@types/luxon": "^3.7.1",
     "@types/node": "22.15.30",
-    "@typescript-eslint/parser": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.1",
     "@vitest/coverage-v8": "^3.2.4",
     "dotenv": "^17.2.2",
     "eslint": "^9.36.0",
@@ -61,11 +61,11 @@
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.0",
     "prettier": "^3.6.2",
-    "tsx": "^4.20.5",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.44.0",
+    "typescript-eslint": "^8.44.1",
     "vitest": "^3.0.4",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.38.0"
+    "wrangler": "^4.40.2"
   }
 }
