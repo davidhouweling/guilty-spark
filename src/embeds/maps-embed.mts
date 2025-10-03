@@ -18,6 +18,30 @@ export enum InteractionComponent {
   Repost = "btn_maps_repost",
 }
 
+export const mapPlaylistLabels: Record<MapsPlaylistType, string> = {
+  [MapsPlaylistType.HCS_CURRENT]: "HCS - Current",
+  [MapsPlaylistType.HCS_HISTORICAL]: "HCS - Historical",
+};
+
+export const mapPlaylistDescriptions: Record<MapsPlaylistType, string> = {
+  [MapsPlaylistType.HCS_CURRENT]: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
+  [MapsPlaylistType.HCS_HISTORICAL]: "All maps and modes that have been played at any HCS major event",
+};
+
+export const mapFormatLabels: Record<MapsFormatType, string> = {
+  [MapsFormatType.HCS]: "HCS",
+  [MapsFormatType.RANDOM]: "Random",
+  [MapsFormatType.OBJECTIVE]: "Objective only",
+  [MapsFormatType.SLAYER]: "Slayer only",
+};
+
+export const mapFormatDescriptions: Record<MapsFormatType, string> = {
+  [MapsFormatType.HCS]: "Obj, slayer, obj, obj, slayer, ...",
+  [MapsFormatType.RANDOM]: "Randomly pick objective or slayer for each map",
+  [MapsFormatType.OBJECTIVE]: "Only pick objective modes",
+  [MapsFormatType.SLAYER]: "Only pick slayer modes",
+};
+
 interface MapsEmbedData {
   userId: string;
   playlist: MapsPlaylistType;
@@ -120,15 +144,15 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.PlaylistSelect,
             options: [
               {
-                label: "HCS - Current",
+                label: mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT],
                 value: MapsPlaylistType.HCS_CURRENT,
-                description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
+                description: mapPlaylistDescriptions[MapsPlaylistType.HCS_CURRENT],
                 default: playlist === MapsPlaylistType.HCS_CURRENT,
               },
               {
-                label: "HCS - Historical",
+                label: mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL],
                 value: MapsPlaylistType.HCS_HISTORICAL,
-                description: "All maps and modes that have been played at any HCS major event",
+                description: mapPlaylistDescriptions[MapsPlaylistType.HCS_HISTORICAL],
                 default: playlist === MapsPlaylistType.HCS_HISTORICAL,
               },
             ],
@@ -144,27 +168,27 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.FormatSelect,
             options: [
               {
-                label: "HCS",
+                label: mapFormatLabels[MapsFormatType.HCS],
                 value: MapsFormatType.HCS,
-                description: "Obj, slayer, obj, obj, slayer, ...",
+                description: mapFormatDescriptions[MapsFormatType.HCS],
                 default: format === MapsFormatType.HCS,
               },
               {
-                label: "Random",
+                label: mapFormatLabels[MapsFormatType.RANDOM],
                 value: MapsFormatType.RANDOM,
-                description: "Randomly pick objective or slayer for each map",
+                description: mapFormatDescriptions[MapsFormatType.RANDOM],
                 default: format === MapsFormatType.RANDOM,
               },
               {
-                label: "Objective only",
+                label: mapFormatLabels[MapsFormatType.OBJECTIVE],
                 value: MapsFormatType.OBJECTIVE,
-                description: "Only pick objective modes",
+                description: mapFormatDescriptions[MapsFormatType.OBJECTIVE],
                 default: format === MapsFormatType.OBJECTIVE,
               },
               {
-                label: "Slayer only",
+                label: mapFormatLabels[MapsFormatType.SLAYER],
                 value: MapsFormatType.SLAYER,
-                description: "Only pick slayer modes",
+                description: mapFormatDescriptions[MapsFormatType.SLAYER],
                 default: format === MapsFormatType.SLAYER,
               },
             ],
@@ -198,10 +222,10 @@ export class MapsEmbed extends BaseTableEmbed {
   private playlistToString(playlistType: MapsPlaylistType): string {
     switch (playlistType) {
       case MapsPlaylistType.HCS_CURRENT: {
-        return "HCS - Current";
+        return mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT];
       }
       case MapsPlaylistType.HCS_HISTORICAL: {
-        return "HCS - Historical";
+        return mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL];
       }
       default: {
         throw new UnreachableError(playlistType);
