@@ -53,6 +53,6 @@ if (!response.ok) {
 }
 
 const data = await response.json<RESTPutAPIApplicationCommandsResult>();
-console.log(inspect(data), { depth: null, colors: true });
+console.log(inspect(data, { depth: null, colors: true }));
 
 console.log(`Successfully reloaded ${data.length.toString()} application (/) commands.`);

@@ -19,7 +19,7 @@ import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseComma
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { type MapMode } from "../../services/halo/hcs.mjs";
-import { MapsEmbed, InteractionComponent } from "../../embeds/maps-embed.mjs";
+import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config.mjs";
 
 export class MapsCommand extends BaseCommand {
@@ -48,9 +48,9 @@ export class MapsCommand extends BaseCommand {
           description: "Which playlist to use (default: HCS - Current)",
           required: false,
           choices: [
-            { name: MapsPlaylistType.HCS_CURRENT, value: MapsPlaylistType.HCS_CURRENT },
+            { name: mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT], value: MapsPlaylistType.HCS_CURRENT },
             {
-              name: `${MapsPlaylistType.HCS_HISTORICAL} (all maps + modes played in any HCS major)`,
+              name: mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL],
               value: MapsPlaylistType.HCS_HISTORICAL,
             },
           ],
@@ -61,10 +61,10 @@ export class MapsCommand extends BaseCommand {
           description: "Format of the map set (default: HCS)",
           required: false,
           choices: [
-            { name: MapsFormatType.HCS, value: MapsFormatType.HCS },
-            { name: MapsFormatType.RANDOM, value: MapsFormatType.RANDOM },
-            { name: MapsFormatType.OBJECTIVE, value: MapsFormatType.OBJECTIVE },
-            { name: MapsFormatType.SLAYER, value: MapsFormatType.SLAYER },
+            { name: mapFormatLabels[MapsFormatType.HCS], value: MapsFormatType.HCS },
+            { name: mapFormatLabels[MapsFormatType.RANDOM], value: MapsFormatType.RANDOM },
+            { name: mapFormatLabels[MapsFormatType.OBJECTIVE], value: MapsFormatType.OBJECTIVE },
+            { name: mapFormatLabels[MapsFormatType.SLAYER], value: MapsFormatType.SLAYER },
           ],
         },
       ],
