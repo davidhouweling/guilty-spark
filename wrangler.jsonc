@@ -109,11 +109,6 @@
           "database_id": "fa6747b9-e9e0-47ca-891b-d4608ade66a3",
         },
       ],
-      "tail_consumers": [
-        {
-          "service": "guilty-spark-tail",
-        },
-      ],
       "durable_objects": {
         "bindings": [
           {
