@@ -57,6 +57,50 @@ export class Server {
       );
     });
 
+    // Test endpoint for Durable Object Sentry integration
+    this.router.get("/test-sentry-do", async (_request, env: Env) => {
+      try {
+        // Create a DO stub for testing
+        const doId = env.LIVE_TRACKER_DO.newUniqueId();
+        const doStub = env.LIVE_TRACKER_DO.get(doId);
+
+        // Create a test request that should trigger an error (invalid action)
+        const testRequest = new Request("https://example.com/test-error", {
+          method: "POST",
+          body: JSON.stringify({ test: "data" }),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const response = await doStub.fetch(testRequest);
+
+        return new Response(
+          JSON.stringify({
+            message: "Durable Object Sentry test completed",
+            doResponse: {
+              status: response.status,
+              statusText: response.statusText,
+            },
+            timestamp: new Date().toISOString(),
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        return new Response(
+          JSON.stringify({
+            message: "Durable Object test failed",
+            error: String(error),
+            timestamp: new Date().toISOString(),
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    });
+
     this.router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
       try {
         const services = this.installServices({ env });
