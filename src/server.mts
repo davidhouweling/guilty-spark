@@ -28,6 +28,35 @@ export class Server {
       );
     });
 
+    // Test endpoint for Sentry integration
+    this.router.get("/test-sentry", (_request, env: Env) => {
+      const services = this.installServices({ env });
+
+      // Test different log levels
+      services.logService.info("Sentry test: info level message");
+      services.logService.warn("Sentry test: warning level message");
+
+      // Test error capture
+      const testError = new Error("Sentry test: deliberate error for testing");
+      services.logService.error(testError);
+
+      // Test manual exception throw (this should be caught by Sentry.withSentry)
+      if (Math.random() > 0.5) {
+        throw new Error("Sentry test: uncaught exception for testing");
+      }
+
+      return new Response(
+        JSON.stringify({
+          message: "Sentry test completed",
+          environment: env.MODE,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    });
+
     this.router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
       try {
         const services = this.installServices({ env });
