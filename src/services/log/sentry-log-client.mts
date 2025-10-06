@@ -1,6 +1,10 @@
 import { captureException, addBreadcrumb, captureMessage } from "@sentry/cloudflare";
 import type { LogService, JsonAny } from "./types.mjs";
 
+/**
+ * Sentry-based logging client that uses breadcrumbs for info/debug and
+ * only creates issues for actual errors and warnings with Error objects.
+ */
 export class SentryLogClient implements LogService {
   private readonly shouldLog: boolean;
 
@@ -26,17 +30,12 @@ export class SentryLogClient implements LogService {
       return;
     }
 
-    if (error instanceof Error) {
-      captureException(error, {
-        level: "info",
-        extra: Object.fromEntries(extra),
-      });
-    } else {
-      captureMessage(error, {
-        level: "info",
-        extra: Object.fromEntries(extra),
-      });
-    }
+    addBreadcrumb({
+      category: "info",
+      message: error instanceof Error ? error.message : error,
+      level: "info",
+      data: Object.fromEntries(extra),
+    });
   }
 
   warn(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
@@ -44,15 +43,18 @@ export class SentryLogClient implements LogService {
       return;
     }
 
+    // For warnings, use breadcrumbs unless it's an actual Error object that needs tracking
     if (error instanceof Error) {
       captureException(error, {
         level: "warning",
         extra: Object.fromEntries(extra),
       });
     } else {
-      captureMessage(error, {
+      addBreadcrumb({
+        category: "warning",
+        message: error,
         level: "warning",
-        extra: Object.fromEntries(extra),
+        data: Object.fromEntries(extra),
       });
     }
   }
