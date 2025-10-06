@@ -72,9 +72,16 @@ jobs:
             echo "📁 Found Wrangler output directory: $WRANGLER_OUTPUT_DIR"
             if ls "$WRANGLER_OUTPUT_DIR"/*.js.map 1> /dev/null 2>&1; then
               echo "🗺️ Found source maps, uploading to Sentry..."
+              RELEASE="${{ github.sha }}"
+              ENVIRONMENT="${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}"
+              echo "📦 Creating Sentry release: $RELEASE for environment: $ENVIRONMENT"
+              npx sentry-cli releases new "$RELEASE" --org david-houweling --project guilty-spark
+              npx sentry-cli releases set-commits "$RELEASE" --org david-houweling --project guilty-spark --commit "davidhouweling/guilty-spark@${{ github.sha }}"
               npx sentry-cli sourcemaps inject --org david-houweling --project guilty-spark "$WRANGLER_OUTPUT_DIR"
-              npx sentry-cli sourcemaps upload --org david-houweling --project guilty-spark "$WRANGLER_OUTPUT_DIR"
-              echo "✅ Source maps uploaded successfully!"
+              npx sentry-cli sourcemaps upload --org david-houweling --project guilty-spark --release "$RELEASE" "$WRANGLER_OUTPUT_DIR"
+              npx sentry-cli releases deploy "$RELEASE" --org david-houweling --project guilty-spark --env "$ENVIRONMENT"
+              npx sentry-cli releases finalize "$RELEASE" --org david-houweling --project guilty-spark
+              echo "✅ Source maps uploaded successfully with release $RELEASE!"
             else
               echo "⚠️ No source map files found in $WRANGLER_OUTPUT_DIR"
             fi
