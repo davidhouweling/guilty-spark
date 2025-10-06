@@ -39,9 +39,8 @@ function isValidUrl(url: string): boolean {
 }
 
 export function installServices({ env }: InstallServicesOpts): Services {
-  const logService = new AggregatorClient(
-    env.MODE === "production" ? [new SentryLogClient(), new ConsoleLogClient()] : [new ConsoleLogClient()],
-  );
+  const sentryMode = env.MODE === "development" ? "development" : "production";
+  const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
   const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });

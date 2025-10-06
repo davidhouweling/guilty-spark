@@ -32,8 +32,7 @@
     "typecheck": "tsc --noEmit",
     "build:generate-types": "wrangler types",
     "build": "tsc --project tsconfig.build.json",
-    "publish": "wrangler deploy",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org david-houweling --project guilty-spark ./dist && sentry-cli sourcemaps upload --org david-houweling --project guilty-spark ./dist"
+    "publish": "wrangler deploy"
   },
   "dependencies": {
     "@sentry/cli": "^2.56.0",
