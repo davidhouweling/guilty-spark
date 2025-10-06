@@ -39,11 +39,13 @@ jobs:
         run: npm ci
 
       - name: Build & Deploy Worker
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
+          postCommands: echo "WRANGLER_OUTPUT_DIR=$WRANGLER_OUTPUT_FILE_DIRECTORY" >> $GITHUB_ENV
           vars: |
             DISCORD_APP_ID
             DISCORD_PUBLIC_KEY
@@ -61,6 +63,25 @@ jobs:
           XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
           PROXY_WORKER_URL: ${{ vars.PROXY_WORKER_URL }}
           PROXY_WORKER_TOKEN: ${{ secrets.PROXY_WORKER_TOKEN }}
+
+      - name: Upload Source Maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -n "$WRANGLER_OUTPUT_DIR" ] && [ -d "$WRANGLER_OUTPUT_DIR" ]; then
+            echo "📁 Found Wrangler output directory: $WRANGLER_OUTPUT_DIR"
+            if ls "$WRANGLER_OUTPUT_DIR"/*.js.map 1> /dev/null 2>&1; then
+              echo "🗺️ Found source maps, uploading to Sentry..."
+              npx sentry-cli sourcemaps inject --org david-houweling --project guilty-spark "$WRANGLER_OUTPUT_DIR"
+              npx sentry-cli sourcemaps upload --org david-houweling --project guilty-spark "$WRANGLER_OUTPUT_DIR"
+              echo "✅ Source maps uploaded successfully!"
+            else
+              echo "⚠️ No source map files found in $WRANGLER_OUTPUT_DIR"
+            fi
+          else
+            echo "❌ Wrangler output directory not found or empty"
+            exit 1
+          fi
 
   deploy-cancel:
     runs-on: ubuntu-latest
