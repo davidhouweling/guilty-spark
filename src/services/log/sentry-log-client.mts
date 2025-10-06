@@ -12,7 +12,7 @@ export class SentryLogClient implements LogService {
     if (!this.shouldLog) {
       return;
     }
-    
+
     addBreadcrumb({
       category: "debug",
       message: error instanceof Error ? error.message : error,
@@ -25,7 +25,7 @@ export class SentryLogClient implements LogService {
     if (!this.shouldLog) {
       return;
     }
-    
+
     if (error instanceof Error) {
       captureException(error, {
         level: "info",
@@ -43,7 +43,7 @@ export class SentryLogClient implements LogService {
     if (!this.shouldLog) {
       return;
     }
-    
+
     if (error instanceof Error) {
       captureException(error, {
         level: "warning",
@@ -61,7 +61,7 @@ export class SentryLogClient implements LogService {
     if (!this.shouldLog) {
       return;
     }
-    
+
     if (error instanceof Error) {
       captureException(error, {
         level: "error",
@@ -79,7 +79,7 @@ export class SentryLogClient implements LogService {
     if (!this.shouldLog) {
       return;
     }
-    
+
     if (error instanceof Error) {
       captureException(error, {
         level: "fatal",

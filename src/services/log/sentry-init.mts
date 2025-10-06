@@ -14,7 +14,11 @@ export function captureSentryException(error: Error | string, extra?: Record<str
   }
 }
 
-export function captureSentryMessage(message: string, level: "debug" | "info" | "warning" | "error" | "fatal" = "info", extra?: Record<string, unknown>): void {
+export function captureSentryMessage(
+  message: string,
+  level: "debug" | "info" | "warning" | "error" | "fatal" = "info",
+  extra?: Record<string, unknown>,
+): void {
   Sentry.captureMessage(message, {
     level,
     extra: extra ?? {},
