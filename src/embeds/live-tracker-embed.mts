@@ -5,7 +5,7 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { addMinutes, compareAsc } from "date-fns";
+import { addMinutes, compareAsc, isBefore } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
@@ -92,10 +92,10 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
       let substitutionIndex = 0;
 
-      for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore } of enrichedMatches) {
+      for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore, endTime } of enrichedMatches) {
         while (substitutionIndex < sortedSubstitutions.length) {
           const substitution = sortedSubstitutions[substitutionIndex];
-          if (!substitution) {
+          if (!substitution || isBefore(endTime, substitution.timestamp)) {
             break;
           }
 

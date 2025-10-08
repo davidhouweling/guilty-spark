@@ -889,8 +889,16 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
+    const trackingPlayers = Object.keys(trackerState.players);
+
     for (const match of matches) {
       if (trackerState.discoveredMatches[match.MatchId] != null) {
+        continue;
+      }
+
+      const startingPlayers = match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning);
+      if (match.Teams.length !== trackerState.teams.length || startingPlayers.length !== trackingPlayers.length) {
+        // probably a warm up game, skip it
         continue;
       }
 

@@ -1,7 +1,7 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
-import type { APIGroupDMChannel, APIChannel } from "discord-api-types/v10";
+import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO } from "../live-tracker-do.mjs";
 import type { EnrichedMatchData } from "../../embeds/live-tracker-embed.mjs";
@@ -76,6 +76,45 @@ const createMockDurableObjectState = (): {
   };
 };
 
+// Helper function to create a player with minimal boilerplate
+const createTestPlayer = (
+  id: string,
+  username: string,
+  discriminator: string,
+  globalName?: string | null,
+): APIGuildMember =>
+  aGuildMemberWith({
+    user: {
+      id,
+      username,
+      discriminator,
+      avatar: null,
+      global_name: globalName ?? null,
+    },
+    nick: null,
+  });
+
+// Helper function to create 8-player setup for tests that need it
+const createEightPlayerSetup = (): {
+  players: Record<string, APIGuildMember>;
+  teams: { name: string; playerIds: string[] }[];
+} => ({
+  players: {
+    user1: createTestPlayer("user1", "player1", "0001", "Player One"),
+    user2: createTestPlayer("user2", "player2", "0002"),
+    user3: createTestPlayer("user3", "player3", "0003"),
+    user4: createTestPlayer("user4", "player4", "0004"),
+    user5: createTestPlayer("user5", "player5", "0005"),
+    user6: createTestPlayer("user6", "player6", "0006"),
+    user7: createTestPlayer("user7", "player7", "0007"),
+    user8: createTestPlayer("user8", "player8", "0008"),
+  },
+  teams: [
+    { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+    { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+  ],
+});
+
 const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken"> => ({
   userId: "test-user-id",
   guildId: "test-guild-id",
@@ -84,26 +123,8 @@ const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken">
   liveMessageId: "test-message-id",
   queueStartTime: new Date().toISOString(),
   players: {
-    player1: aGuildMemberWith({
-      user: {
-        id: "player1",
-        username: "Player1",
-        discriminator: "0001",
-        avatar: null,
-        global_name: null,
-      },
-      nick: "Player1",
-    }),
-    player2: aGuildMemberWith({
-      user: {
-        id: "player2",
-        username: "Player2",
-        discriminator: "0002",
-        avatar: null,
-        global_name: null,
-      },
-      nick: "Player2",
-    }),
+    player1: createTestPlayer("player1", "Player1", "0001"),
+    player2: createTestPlayer("player2", "Player2", "0002"),
   },
   teams: [
     {
@@ -157,16 +178,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
   searchStartTime: new Date(Date.now() - 60000).toISOString(),
   liveMessageId: "message-123",
   players: {
-    user1: aGuildMemberWith({
-      user: {
-        id: "user1",
-        username: "player1",
-        discriminator: "0001",
-        avatar: null,
-        global_name: "Player One",
-      },
-      nick: null,
-    }),
+    user1: createTestPlayer("user1", "player1", "0001", "Player One"),
   },
   teams: [
     {
@@ -203,16 +215,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
   searchStartTime: new Date(Date.now() - 60000).toISOString(),
   liveMessageId: "test-message-id",
   players: {
-    user1: aGuildMemberWith({
-      user: {
-        id: "user1",
-        username: "player1",
-        discriminator: "0001",
-        avatar: null,
-        global_name: "Player One",
-      },
-      nick: null,
-    }),
+    user1: createTestPlayer("user1", "player1", "0001", "Player One"),
   },
   teams: [
     {
@@ -380,16 +383,7 @@ describe("LiveTrackerDO", () => {
     it("routes to handleSubstitution for /substitution endpoint", async () => {
       const trackerState = createAlarmTestTrackerState({
         players: {
-          player1: aGuildMemberWith({
-            user: {
-              id: "player1",
-              username: "player1",
-              discriminator: "0001",
-              avatar: null,
-              global_name: "Player One",
-            },
-            nick: null,
-          }),
+          player1: createTestPlayer("player1", "player1", "0001", "Player One"),
         },
         teams: [
           {
@@ -400,16 +394,7 @@ describe("LiveTrackerDO", () => {
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -750,6 +735,10 @@ describe("LiveTrackerDO", () => {
         substitutionCount: 0,
       };
       trackerState.discoveredMatches = {};
+      // Update teams and players to match the mock data (2 teams, 8 players)
+      const eightPlayerSetup = createEightPlayerSetup();
+      trackerState.teams = eightPlayerSetup.teams;
+      trackerState.players = eightPlayerSetup.players;
       storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
@@ -1099,6 +1088,7 @@ describe("LiveTrackerDO", () => {
     });
 
     it("processes active tracker alarm successfully", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState: LiveTrackerState = {
         guildId: "guild-123",
         channelId: "channel-456",
@@ -1111,38 +1101,7 @@ describe("LiveTrackerDO", () => {
         lastUpdateTime: new Date().toISOString(),
         searchStartTime: new Date(Date.now() - 60000).toISOString(),
         liveMessageId: "message-123",
-        players: {
-          user1: aGuildMemberWith({
-            user: {
-              id: "user1",
-              username: "player1",
-              discriminator: "0001",
-              avatar: null,
-              global_name: "Player One",
-            },
-            nick: null,
-          }),
-          user2: aGuildMemberWith({
-            user: {
-              id: "user2",
-              username: "player2",
-              discriminator: "0002",
-              avatar: null,
-              global_name: null,
-            },
-            nick: "Player Two",
-          }),
-        },
-        teams: [
-          {
-            name: "Team 1",
-            playerIds: ["user1"],
-          },
-          {
-            name: "Team 2",
-            playerIds: ["user2"],
-          },
-        ],
+        ...eightPlayerSetup,
         substitutions: [],
         discoveredMatches: {},
         rawMatches: {},
@@ -1355,7 +1314,10 @@ describe("LiveTrackerDO", () => {
     });
 
     it("persists discovered matches when handling substitutions", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const existingState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         discoveredMatches: {
           "existing-match-id": {
             matchId: "existing-match-id",
@@ -1460,7 +1422,10 @@ describe("LiveTrackerDO", () => {
     });
 
     it("creates new message when new matches are detected", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
@@ -1627,7 +1592,10 @@ describe("LiveTrackerDO", () => {
     });
 
     it("handles delete message failure gracefully when creating new message", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
@@ -1668,7 +1636,10 @@ describe("LiveTrackerDO", () => {
     });
 
     it("updates lastMessageState correctly when both matches and substitutions are added", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         lastMessageState: {
           matchCount: 1,
           substitutionCount: 1,
@@ -2184,26 +2155,8 @@ describe("LiveTrackerDO", () => {
     const createTrackerStateWithPlayer = (playerId: string): LiveTrackerState => {
       return createAlarmTestTrackerState({
         players: {
-          [playerId]: aGuildMemberWith({
-            user: {
-              id: playerId,
-              username: "existingplayer",
-              discriminator: "0001",
-              avatar: null,
-              global_name: "Existing Player",
-            },
-            nick: null,
-          }),
-          player2: aGuildMemberWith({
-            user: {
-              id: "player2",
-              username: "player2",
-              discriminator: "0002",
-              avatar: null,
-              global_name: "Player Two",
-            },
-            nick: null,
-          }),
+          [playerId]: createTestPlayer(playerId, "existingplayer", "0001", "Existing Player"),
+          player2: createTestPlayer("player2", "player2", "0002", "Player Two"),
         },
         teams: [
           {
@@ -2223,16 +2176,7 @@ describe("LiveTrackerDO", () => {
       const originalSearchStartTime = trackerState.searchStartTime;
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2285,16 +2229,7 @@ describe("LiveTrackerDO", () => {
       trackerState.searchStartTime = pastTime;
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2321,16 +2256,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2345,16 +2271,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2370,16 +2287,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2406,16 +2314,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       const getSeriesSpy = vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2498,16 +2397,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer1 = aGuildMemberWith({
-        user: {
-          id: "newplayer1",
-          username: "newplayer1",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player 1",
-        },
-        nick: null,
-      });
+      const newPlayer1 = createTestPlayer("newplayer1", "newplayer1", "0003", "New Player 1");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer1]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2516,16 +2406,7 @@ describe("LiveTrackerDO", () => {
       const updatedState = Preconditions.checkExists(storagePutSpy.mock.calls[0]?.[1]);
       storageGetSpy.mockResolvedValue(updatedState);
 
-      const newPlayer2 = aGuildMemberWith({
-        user: {
-          id: "newplayer2",
-          username: "newplayer2",
-          discriminator: "0004",
-          avatar: null,
-          global_name: "New Player 2",
-        },
-        nick: null,
-      });
+      const newPlayer2 = createTestPlayer("newplayer2", "newplayer2", "0004", "New Player 2");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer2]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("newplayer1", "newplayer2"));
@@ -2543,16 +2424,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newPlayer = aGuildMemberWith({
-        user: {
-          id: "newplayer",
-          username: "newplayer",
-          discriminator: "0003",
-          avatar: null,
-          global_name: "New Player",
-        },
-        nick: null,
-      });
+      const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
       vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
@@ -2569,31 +2441,16 @@ describe("LiveTrackerDO", () => {
 
   describe("substitution + alarm integration", () => {
     it("processes matches correctly after substitution occurs", async () => {
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState = createAlarmTestTrackerState({
-        players: {
-          player1: aGuildMemberWith({
-            user: {
-              id: "player1",
-              username: "player1",
-              discriminator: "0001",
-              avatar: null,
-              global_name: "Player One",
-            },
-            nick: null,
-          }),
-        },
-        teams: [
-          {
-            name: "Team Alpha",
-            playerIds: ["player1"],
-          },
-        ],
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         substitutions: [
           {
             playerOutId: "oldplayer",
-            playerInId: "player1",
+            playerInId: "user1",
             teamIndex: 0,
-            teamName: "Team Alpha",
+            teamName: "Team 1",
             timestamp: new Date(Date.now() - 60000).toISOString(),
           },
         ],
@@ -2613,7 +2470,7 @@ describe("LiveTrackerDO", () => {
           substitutions: expect.arrayContaining([
             expect.objectContaining({
               playerOutId: "oldplayer",
-              playerInId: "player1",
+              playerInId: "user1",
             }),
           ]),
           discoveredMatches: expect.objectContaining({
@@ -2635,7 +2492,10 @@ describe("LiveTrackerDO", () => {
         },
       };
 
+      const eightPlayerSetup = createEightPlayerSetup();
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        ...eightPlayerSetup,
         discoveredMatches: existingMatches,
         rawMatches: {
           "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -2645,7 +2505,7 @@ describe("LiveTrackerDO", () => {
             playerOutId: "oldplayer",
             playerInId: "newplayer",
             teamIndex: 0,
-            teamName: "Team Alpha",
+            teamName: "Team 1",
             timestamp: new Date().toISOString(),
           },
         ],
