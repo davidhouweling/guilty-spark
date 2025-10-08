@@ -889,7 +889,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
-    const trackingPlayers = Object.keys(trackerState.players);
+    const trackingPlayers = trackerState.teams.flatMap((team) => team.playerIds);
 
     for (const match of matches) {
       if (trackerState.discoveredMatches[match.MatchId] != null) {

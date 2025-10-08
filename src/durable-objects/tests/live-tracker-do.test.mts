@@ -2578,5 +2578,67 @@ describe("LiveTrackerDO", () => {
         }),
       );
     });
+
+    it("uses current team playerIds for filtering after substitution", async () => {
+      const trackerState = createAlarmTestTrackerState({
+        players: {
+          originalPlayer: createTestPlayer("originalPlayer", "original", "0001", "Original Player"),
+          newPlayer: createTestPlayer("newPlayer", "new", "0002", "New Player"),
+          unchangedPlayer: createTestPlayer("unchangedPlayer", "unchanged", "0003", "Unchanged Player"),
+        },
+        teams: [
+          {
+            name: "Team Alpha",
+            playerIds: ["newPlayer"],
+          },
+          {
+            name: "Team Beta",
+            playerIds: ["unchangedPlayer"],
+          },
+        ],
+        substitutions: [
+          {
+            playerOutId: "originalPlayer",
+            playerInId: "newPlayer",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      });
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const getSeriesFromDiscordQueueSpy = vi
+        .spyOn(services.haloService, "getSeriesFromDiscordQueue")
+        .mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.alarm();
+
+      expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          teams: [
+            [
+              expect.objectContaining({
+                id: "newPlayer",
+                username: "new",
+                globalName: "New Player",
+                guildNickname: null,
+              }),
+            ],
+            [
+              expect.objectContaining({
+                id: "unchangedPlayer",
+                username: "unchanged",
+                globalName: "Unchanged Player",
+                guildNickname: null,
+              }),
+            ],
+          ],
+        }),
+        true,
+      );
+    });
   });
 });
