@@ -750,6 +750,45 @@ describe("LiveTrackerDO", () => {
         substitutionCount: 0,
       };
       trackerState.discoveredMatches = {};
+      // Update teams and players to match the mock data (2 teams, 8 players)
+      trackerState.teams = [
+        { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+        { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+      ];
+      trackerState.players = {
+        user1: aGuildMemberWith({
+          user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user2: aGuildMemberWith({
+          user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user3: aGuildMemberWith({
+          user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user4: aGuildMemberWith({
+          user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user5: aGuildMemberWith({
+          user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user6: aGuildMemberWith({
+          user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user7: aGuildMemberWith({
+          user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+          nick: null,
+        }),
+        user8: aGuildMemberWith({
+          user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+          nick: null,
+        }),
+      };
       storageGetSpy.mockResolvedValue(trackerState);
 
       const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
@@ -1132,15 +1171,75 @@ describe("LiveTrackerDO", () => {
             },
             nick: "Player Two",
           }),
+          user3: aGuildMemberWith({
+            user: {
+              id: "user3",
+              username: "player3",
+              discriminator: "0003",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: {
+              id: "user4",
+              username: "player4",
+              discriminator: "0004",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: {
+              id: "user5",
+              username: "player5",
+              discriminator: "0005",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: {
+              id: "user6",
+              username: "player6",
+              discriminator: "0006",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: {
+              id: "user7",
+              username: "player7",
+              discriminator: "0007",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: {
+              id: "user8",
+              username: "player8",
+              discriminator: "0008",
+              avatar: null,
+              global_name: null,
+            },
+            nick: null,
+          }),
         },
         teams: [
           {
             name: "Team 1",
-            playerIds: ["user1"],
+            playerIds: ["user1", "user2", "user3", "user4"],
           },
           {
             name: "Team 2",
-            playerIds: ["user2"],
+            playerIds: ["user5", "user6", "user7", "user8"],
           },
         ],
         substitutions: [],
@@ -1356,6 +1455,45 @@ describe("LiveTrackerDO", () => {
 
     it("persists discovered matches when handling substitutions", async () => {
       const existingState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
+        players: {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+            nick: null,
+          }),
+        },
         discoveredMatches: {
           "existing-match-id": {
             matchId: "existing-match-id",
@@ -1461,6 +1599,45 @@ describe("LiveTrackerDO", () => {
 
     it("creates new message when new matches are detected", async () => {
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
+        players: {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+            nick: null,
+          }),
+        },
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
@@ -1628,6 +1805,45 @@ describe("LiveTrackerDO", () => {
 
     it("handles delete message failure gracefully when creating new message", async () => {
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
+        players: {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+            nick: null,
+          }),
+        },
         lastMessageState: {
           matchCount: 0,
           substitutionCount: 0,
@@ -1669,6 +1885,45 @@ describe("LiveTrackerDO", () => {
 
     it("updates lastMessageState correctly when both matches and substitutions are added", async () => {
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
+        players: {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+            nick: null,
+          }),
+        },
         lastMessageState: {
           matchCount: 1,
           substitutionCount: 1,
@@ -2570,30 +2825,51 @@ describe("LiveTrackerDO", () => {
   describe("substitution + alarm integration", () => {
     it("processes matches correctly after substitution occurs", async () => {
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
         players: {
-          player1: aGuildMemberWith({
-            user: {
-              id: "player1",
-              username: "player1",
-              discriminator: "0001",
-              avatar: null,
-              global_name: "Player One",
-            },
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
             nick: null,
           }),
         },
-        teams: [
-          {
-            name: "Team Alpha",
-            playerIds: ["player1"],
-          },
-        ],
         substitutions: [
           {
             playerOutId: "oldplayer",
-            playerInId: "player1",
+            playerInId: "user1",
             teamIndex: 0,
-            teamName: "Team Alpha",
+            teamName: "Team 1",
             timestamp: new Date(Date.now() - 60000).toISOString(),
           },
         ],
@@ -2613,7 +2889,7 @@ describe("LiveTrackerDO", () => {
           substitutions: expect.arrayContaining([
             expect.objectContaining({
               playerOutId: "oldplayer",
-              playerInId: "player1",
+              playerInId: "user1",
             }),
           ]),
           discoveredMatches: expect.objectContaining({
@@ -2636,6 +2912,45 @@ describe("LiveTrackerDO", () => {
       };
 
       const trackerState = createAlarmTestTrackerState({
+        // Update to match the mock data (2 teams, 8 players)
+        teams: [
+          { name: "Team 1", playerIds: ["user1", "user2", "user3", "user4"] },
+          { name: "Team 2", playerIds: ["user5", "user6", "user7", "user8"] },
+        ],
+        players: {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "player1", discriminator: "0001", avatar: null, global_name: "Player One" },
+            nick: null,
+          }),
+          user2: aGuildMemberWith({
+            user: { id: "user2", username: "player2", discriminator: "0002", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user3: aGuildMemberWith({
+            user: { id: "user3", username: "player3", discriminator: "0003", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user4: aGuildMemberWith({
+            user: { id: "user4", username: "player4", discriminator: "0004", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user5: aGuildMemberWith({
+            user: { id: "user5", username: "player5", discriminator: "0005", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user6: aGuildMemberWith({
+            user: { id: "user6", username: "player6", discriminator: "0006", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user7: aGuildMemberWith({
+            user: { id: "user7", username: "player7", discriminator: "0007", avatar: null, global_name: null },
+            nick: null,
+          }),
+          user8: aGuildMemberWith({
+            user: { id: "user8", username: "player8", discriminator: "0008", avatar: null, global_name: null },
+            nick: null,
+          }),
+        },
         discoveredMatches: existingMatches,
         rawMatches: {
           "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -2645,7 +2960,7 @@ describe("LiveTrackerDO", () => {
             playerOutId: "oldplayer",
             playerInId: "newplayer",
             teamIndex: 0,
-            teamName: "Team Alpha",
+            teamName: "Team 1",
             timestamp: new Date().toISOString(),
           },
         ],
