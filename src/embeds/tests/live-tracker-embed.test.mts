@@ -4,6 +4,7 @@ import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { LiveTrackerEmbed, type EnrichedMatchData, type LiveTrackerEmbedData } from "../live-tracker-embed.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 
 describe("LiveTrackerEmbed", () => {
   let discordService: DiscordService;
@@ -372,6 +373,94 @@ describe("LiveTrackerEmbed", () => {
       expect(statusField).toBeDefined();
       expect(statusField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
       expect(statusField?.value).toContain("⏳ *Waiting for first match to complete...*");
+    });
+
+    it("orders substitutions chronologically relative to match end times", () => {
+      const enrichedMatches: EnrichedMatchData[] = [
+        {
+          matchId: "match-1",
+          gameTypeAndMap: "Slayer on Aquarius",
+          duration: "8m 45s",
+          gameScore: "50:42",
+          endTime: new Date("2024-01-01T10:15:00Z"),
+        },
+        {
+          matchId: "match-2",
+          gameTypeAndMap: "CTF on Catalyst",
+          duration: "12m 30s",
+          gameScore: "3:2",
+          endTime: new Date("2024-01-01T10:30:00Z"),
+        },
+        {
+          matchId: "match-3",
+          gameTypeAndMap: "Strongholds on Streets",
+          duration: "15m 12s",
+          gameScore: "250:200",
+          endTime: new Date("2024-01-01T10:45:00Z"),
+        },
+      ];
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "🦅 2:1 🐍",
+        enrichedMatches,
+        substitutions: [
+          {
+            playerOutId: "player-out-1",
+            playerInId: "player-in-1",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: "2024-01-01T10:10:00Z", // Before all matches
+          },
+          {
+            playerOutId: "player-out-2",
+            playerInId: "player-in-2",
+            teamIndex: 1,
+            teamName: "Team Beta",
+            timestamp: "2024-01-01T10:20:00Z", // Between match 1 and 2
+          },
+          {
+            playerOutId: "player-out-3",
+            playerInId: "player-in-3",
+            teamIndex: 0,
+            teamName: "Team Alpha",
+            timestamp: "2024-01-01T10:50:00Z", // After all matches
+          },
+        ],
+      });
+
+      const { embed } = liveTrackerEmbed;
+
+      const gameField = embed.fields?.find((field) => field.name === "Game");
+      expect(gameField).toBeDefined();
+
+      const fieldValue = gameField?.value;
+      expect(fieldValue).toBeDefined();
+
+      // Verify all substitutions and matches are present
+      expect(fieldValue).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
+      expect(fieldValue).toContain("*<@player-in-2> subbed in for <@player-out-2> (Team Beta)*");
+      expect(fieldValue).toContain("*<@player-in-3> subbed in for <@player-out-3> (Team Alpha)*");
+      expect(fieldValue).toContain("[Slayer on Aquarius]");
+      expect(fieldValue).toContain("[CTF on Catalyst]");
+      expect(fieldValue).toContain("[Strongholds on Streets]");
+
+      // Verify chronological ordering
+      const checkedFieldValue = Preconditions.checkExists(fieldValue);
+      const sub1Index = checkedFieldValue.indexOf("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
+      const match1Index = checkedFieldValue.indexOf("[Slayer on Aquarius]");
+      const sub2Index = checkedFieldValue.indexOf("*<@player-in-2> subbed in for <@player-out-2> (Team Beta)*");
+      const match2Index = checkedFieldValue.indexOf("[CTF on Catalyst]");
+      const match3Index = checkedFieldValue.indexOf("[Strongholds on Streets]");
+      const sub3Index = checkedFieldValue.indexOf("*<@player-in-3> subbed in for <@player-out-3> (Team Alpha)*");
+
+      // Expected order: sub1 -> match1 -> sub2 -> match2 -> match3 -> sub3
+      expect(sub1Index).toBeLessThan(match1Index);
+      expect(match1Index).toBeLessThan(sub2Index);
+      expect(sub2Index).toBeLessThan(match2Index);
+      expect(match2Index).toBeLessThan(match3Index);
+      expect(match3Index).toBeLessThan(sub3Index);
     });
   });
 });
