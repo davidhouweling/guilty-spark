@@ -671,13 +671,11 @@ export class SetupCommand extends BaseCommand {
         }
         case InteractionType.ModalSubmit: {
           const { custom_id: customId } = interaction.data;
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          if (customId === InteractionComponent.NeatQueueIntegrationAddWizardNext) {
+          if (customId === InteractionComponent.NeatQueueIntegrationAddWizardNext.toString()) {
             return this.neatQueueIntegrationAddWizardNext(interaction);
           }
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          if (customId === InteractionComponent.NeatQueueIntegrationEditChannelWebhookSecretInput) {
+          if (customId === InteractionComponent.NeatQueueIntegrationEditChannelWebhookSecretInput.toString()) {
             return {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
@@ -1116,8 +1114,7 @@ export class SetupCommand extends BaseCommand {
       const config = await databaseService.getGuildConfig(guildId, true);
 
       config.StatsReturn =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        value === SetupStatsDisplayModeOption.SeriesOnly
+        value === SetupStatsDisplayModeOption.SeriesOnly.toString()
           ? StatsReturnType.SERIES_ONLY
           : StatsReturnType.SERIES_AND_GAMES;
 
@@ -1159,8 +1156,7 @@ export class SetupCommand extends BaseCommand {
         value: neatQueues
           .map(
             (neatQueue) =>
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-              `- <#${neatQueue.ChannelId}> (results: <#${neatQueue.ResultsChannelId}>): ${displayModeOptions.find((mode) => mode.value === neatQueue.PostSeriesMode)?.label ?? "Unknown"}${neatQueue.PostSeriesChannelId != null ? ` into <#${neatQueue.PostSeriesChannelId}>` : ""}`,
+              `- <#${neatQueue.ChannelId}> (results: <#${neatQueue.ResultsChannelId}>): ${displayModeOptions.find((mode) => mode.value === neatQueue.PostSeriesMode.toString())?.label ?? "Unknown"}${neatQueue.PostSeriesChannelId != null ? ` into <#${neatQueue.PostSeriesChannelId}>` : ""}`,
           )
           .join("\n"),
       });
@@ -1333,8 +1329,7 @@ export class SetupCommand extends BaseCommand {
     }
 
     const { custom_id, component_type } = interaction.data;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-    if (custom_id === InteractionComponent.NeatQueueIntegrationAddWizardNext) {
+    if (custom_id === InteractionComponent.NeatQueueIntegrationAddWizardNext.toString()) {
       switch (component_type) {
         case ComponentType.Button: {
           const step = this.wizardGetStep(formData);
@@ -1616,8 +1611,7 @@ export class SetupCommand extends BaseCommand {
         ? neatQueues
             .map(
               (neatQueue) =>
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-                `- <#${neatQueue.ChannelId}> (results: <#${neatQueue.ResultsChannelId}>): ${displayModeOptions.find((mode) => mode.value === neatQueue.PostSeriesMode)?.label ?? "Unknown"}${neatQueue.PostSeriesChannelId != null ? ` into <#${neatQueue.PostSeriesChannelId}>` : ""}`,
+                `- <#${neatQueue.ChannelId}> (results: <#${neatQueue.ResultsChannelId}>): ${displayModeOptions.find((mode) => mode.value === neatQueue.PostSeriesMode.toString())?.label ?? "Unknown"}${neatQueue.PostSeriesChannelId != null ? ` into <#${neatQueue.PostSeriesChannelId}>` : ""}`,
             )
             .join("\n")
         : "*None*",

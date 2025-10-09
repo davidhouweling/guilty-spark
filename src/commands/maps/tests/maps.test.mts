@@ -563,10 +563,8 @@ describe("MapsCommand", () => {
 
         const select = getSelectMenu(data.components);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL)?.default).toBe(true);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT)?.default).toBe(false);
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL.toString())?.default).toBe(true);
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT.toString())?.default).toBe(false);
       });
 
       it("calls updateDeferredReply when playlist is switched to current", async () => {
@@ -591,10 +589,8 @@ describe("MapsCommand", () => {
 
         const select = getSelectMenu(data.components);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT)?.default).toBe(true);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL)?.default).toBe(false);
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT.toString())?.default).toBe(true);
+        expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL.toString())?.default).toBe(false);
       });
     });
   });

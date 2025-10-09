@@ -187,8 +187,7 @@ export class MapsCommand extends BaseCommand {
         });
         if (
           interaction.type === InteractionType.MessageComponent &&
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          interaction.data.custom_id === InteractionComponent.Initiate
+          interaction.data.custom_id === InteractionComponent.Initiate.toString()
         ) {
           await discordService.createMessage(interaction.channel.id, response);
         } else {
