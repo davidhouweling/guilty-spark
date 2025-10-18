@@ -22,6 +22,11 @@ const user = await client.getUser("soundmanD");
 await writeFile(path.join(__dirname, "user.json"), JSON.stringify(user, null, 2));
 
 /*
+const seasonCalendar = await client.getSeasonCalendar();
+await writeFile(path.join(__dirname, "season-calendar.json"), JSON.stringify(seasonCalendar, null, 2));
+*/
+
+/*
 const serviceRecord = await client.getUserServiceRecord(`xuid(${user.xuid})`);
 await writeFile(path.join(__dirname, "service-record.json"), JSON.stringify(serviceRecord, null, 2));
 */
@@ -40,6 +45,30 @@ for (const playlistAssetId of serviceRecord.Subqueries.PlaylistAssetIds) {
     console.error(`Failed to fetch playlist asset ID ${playlistAssetId}:`, error);
   }
 }
+*/
+
+/*
+const specificPlaylistAssetVersion = await client.getSpecificAssetVersion(
+  AssetKind.Playlist,
+  "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+  "fc29d7fc-5a05-47a3-9d3b-5206d6fab796",
+);
+await writeFile(
+  path.join(__dirname, "specific-playlist-asset-version.json"),
+  JSON.stringify(specificPlaylistAssetVersion, null, 2),
+);
+*/
+
+/*
+const specificMapModeAssetVersion = await client.getSpecificAssetVersion(
+  AssetKind.MapModePair,
+  "91957e4b-b5e4-4a11-ac69-dce934fa7002",
+  "b000bde4-9a6d-486d-87c7-26dbc4cee721",
+);
+await writeFile(
+  path.join(__dirname, "specific-map-mode-asset-version.json"),
+  JSON.stringify(specificMapModeAssetVersion, null, 2),
+);
 */
 
 /*
@@ -113,10 +142,15 @@ await writeFile(path.join(__dirname, "vip.json"), JSON.stringify(vipMatch, null,
 */
 
 /*
+const neutralBomb = await client.getMatchStats("e27f5ea4-e661-4dfc-8ebd-2719e31c776a");
+await writeFile(path.join(__dirname, "neutral-bomb.json"), JSON.stringify(neutralBomb, null, 2));
+*/
+
+/*
 const assertVersion = await client.getSpecificAssetVersion(
-  AssetKind.Map,
-  "70dd38c5-2eb7-4db3-8901-0dfca292ff18",
-  "51817144-eb2e-408a-be19-0f46d4746d93",
+  AssetKind.UgcGameVariant,
+  "b91028ac-0531-4f71-b3bc-0b039ee8c73b",
+  "9be4e865-33b7-476d-b6e6-f3ff238efffd",
 );
-await writeFile(path.join(__dirname, "asset-version.json"), JSON.stringify(assertVersion, null, 2));
+await writeFile(path.join(__dirname, "neutral-bomb-map-mode-pair.json"), JSON.stringify(assertVersion, null, 2));
 */
