@@ -42,6 +42,17 @@ export interface Medal {
   type: string;
 }
 
+export enum FetchablePlaylist {
+  RANKED_1V1 = "28bfa5f4-89b0-47dc-86e8-1a7cc5b593fc",
+  RANKED_ARENA = "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+  RANKED_DOUBLES = "fa5aa2a3-2428-4912-a023-e1eeea7b877c",
+  RANKED_FFA = "71734db4-4b8e-4682-9206-62b6eff92582",
+  RANKED_SLAYER = "dcb2e24e-05fb-4390-8076-32a0cdb4326e",
+  RANKED_SNIPERS = "a883e7e1-9aca-4296-9009-3733a0ca8081",
+  RANKED_SQUAD_BATTLE = "6dc5f699-d6d9-41c4-bdf8-7ae11dec2d1b",
+  RANKED_TACTICAL = "7c60fb3e-656c-4ada-a085-293562642e50",
+}
+
 export interface HaloServiceOpts {
   logService: LogService;
   databaseService: DatabaseService;
@@ -436,6 +447,33 @@ export class HaloService {
         f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
       ),
     });
+  }
+
+  async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<{ mode: MapMode; map: string }[]> {
+    const playlist = await this.infiniteClient.getPlaylist(playlistId);
+    const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
+      AssetKind.Playlist,
+      playlistId,
+      playlist.UgcPlaylistVersion,
+    );
+    const rotationEntries = await Promise.allSettled(
+      specificAssetVersion.RotationEntries.map(async (entry) =>
+        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId),
+      ),
+    );
+
+    return rotationEntries.reduce<{ mode: MapMode; map: string }[]>((accumulator, result) => {
+      if (result.status !== "fulfilled") {
+        return accumulator;
+      }
+
+      accumulator.push({
+        mode: this.ucgMapNameToMapMode(result.value.UgcGameVariantLink.PublicName),
+        map: result.value.MapLink.PublicName,
+      });
+
+      return accumulator;
+    }, []);
   }
 
   async updateDiscordAssociations(): Promise<void> {
@@ -1147,5 +1185,20 @@ export class HaloService {
           : GamesRetrievable.UNKNOWN,
       DiscordDisplayNameSearched: bestMatchingDiscordName,
     });
+  }
+
+  private ucgMapNameToMapMode(ucgMapName: string): MapMode {
+    switch (ucgMapName.replace("Ranked:", "").trim()) {
+      case "CTF 3 Captures":
+      case "CTF 5 Captures": {
+        return "Capture the Flag";
+      }
+      case "Assault:Neutral Bomb Ranked": {
+        return "Neutral Bomb";
+      }
+      default: {
+        return ucgMapName as MapMode;
+      }
+    }
   }
 }

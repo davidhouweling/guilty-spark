@@ -2,7 +2,17 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { AssetKind } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
-import { assetVersion, matchStats, medalsMetadata, playerMatches } from "./data.mjs";
+import {
+  assetVersion,
+  matchStats,
+  medalsMetadata,
+  playerMatches,
+  playlistRankedArena,
+  playlistAssetVersionRankedArena,
+  mapModePairKothLiveFire,
+  mapModePairSlayerLiveFire,
+  mapModePairCtfAquarius,
+} from "./data.mjs";
 
 function getFakeName(assetId: string): string {
   switch (assetId) {
@@ -133,12 +143,36 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       return Promise.resolve(assetVersion);
     }
 
+    if (assetKind === AssetKind.Playlist && assetId === "edfef3ac-9cbe-4fa2-b949-8f29deafd483") {
+      return Promise.resolve(playlistAssetVersionRankedArena);
+    }
+
+    if (assetKind === AssetKind.MapModePair) {
+      if (assetId === "91957e4b-b5e4-4a11-ac69-dce934fa7002") {
+        return Promise.resolve(mapModePairKothLiveFire);
+      }
+      if (assetId === "be1c791b-fbae-4e8d-aeee-9f48df6fee9d") {
+        return Promise.resolve(mapModePairSlayerLiveFire);
+      }
+      if (assetId === "2bb084c2-a047-4fe9-9023-4100cbe6860d") {
+        return Promise.resolve(mapModePairCtfAquarius);
+      }
+    }
+
     return Promise.resolve({
       ...assetVersion,
       AssetId: assetId,
       PublicName: getFakeName(assetId),
       VersionId: version,
     });
+  });
+
+  infiniteClient.getPlaylist.mockImplementation(async (playlistId) => {
+    if (playlistId === "edfef3ac-9cbe-4fa2-b949-8f29deafd483") {
+      return Promise.resolve(playlistRankedArena);
+    }
+
+    return Promise.reject(new Error(`Playlist not found: ${playlistId}`));
   });
 
   infiniteClient.getMedalsMetadataFile.mockResolvedValue(medalsMetadata);

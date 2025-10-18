@@ -1,10 +1,10 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import { MatchOutcome, RequestError } from "halo-infinite-api";
+import { MatchOutcome, RequestError, AssetKind } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient, UserInfo } from "halo-infinite-api";
 import { sub } from "date-fns";
-import { HaloService } from "../halo.mjs";
+import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -1873,6 +1873,95 @@ describe("Halo service", () => {
       infiniteClient.getPlaylistCsr.mockResolvedValue([]);
       await haloService.getRankedArenaCsrs(["789"]);
       expect(warnSpy).toHaveBeenCalledWith("No CSR found for xuid 789");
+    });
+  });
+
+  describe("getPlaylistMapModes()", () => {
+    it("returns the map modes for a playlist", async () => {
+      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      expect(result).toHaveLength(3);
+      expect(result).toEqual([
+        { mode: "Ranked:King of the Hill", map: "Live Fire - Ranked" },
+        { mode: "Ranked:Slayer", map: "Live Fire - Ranked" },
+        { mode: "Capture the Flag", map: "Aquarius" },
+      ]);
+    });
+
+    it("fetches playlist from infinite client", async () => {
+      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledOnce();
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
+    });
+
+    it("fetches specific playlist asset version using playlist version id", async () => {
+      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
+        AssetKind.Playlist,
+        "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+        "fc29d7fc-5a05-47a3-9d3b-5206d6fab796",
+      );
+    });
+
+    it("fetches map mode pair assets for each rotation entry", async () => {
+      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
+        AssetKind.MapModePair,
+        "91957e4b-b5e4-4a11-ac69-dce934fa7002",
+        "b000bde4-9a6d-486d-87c7-26dbc4cee721",
+      );
+
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
+        AssetKind.MapModePair,
+        "be1c791b-fbae-4e8d-aeee-9f48df6fee9d",
+        "3c670ec5-b4c2-4dba-b3ea-46d70178033c",
+      );
+
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
+        AssetKind.MapModePair,
+        "2bb084c2-a047-4fe9-9023-4100cbe6860d",
+        "90309230-ea75-436f-bca9-3732b22c1aa3",
+      );
+    });
+
+    it("extracts mode from UgcGameVariantLink PublicName", async () => {
+      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      const modes = result.map((r) => r.mode);
+      expect(modes).toContain("Ranked:King of the Hill");
+      expect(modes).toContain("Ranked:Slayer");
+      expect(modes).toContain("Capture the Flag");
+    });
+
+    it("extracts map from MapLink PublicName", async () => {
+      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      const maps = result.map((r) => r.map);
+      expect(maps).toContain("Live Fire - Ranked");
+      expect(maps).toContain("Aquarius");
+    });
+
+    it("handles failed map mode pair fetches by filtering them out", async () => {
+      const cleanHaloService = new HaloService({ logService, databaseService, infiniteClient });
+      const originalMock = Preconditions.checkExists(infiniteClient.getSpecificAssetVersion.getMockImplementation());
+
+      infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, versionId) => {
+        if (assetKind === AssetKind.MapModePair && assetId === "be1c791b-fbae-4e8d-aeee-9f48df6fee9d") {
+          return Promise.reject(new Error("Failed to fetch"));
+        }
+        return originalMock(assetKind, assetId, versionId);
+      });
+
+      const result = await cleanHaloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+
+      expect(result).toHaveLength(2);
+      expect(result).toEqual([
+        { mode: "Ranked:King of the Hill", map: "Live Fire - Ranked" },
+        { mode: "Capture the Flag", map: "Aquarius" },
+      ]);
     });
   });
 
