@@ -1280,23 +1280,27 @@ describe("Halo service", () => {
   });
 
   describe("getGameTypeAndMap()", () => {
-    it.each([{ matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", gameTypeAndMap: "CTF: Empyrean - Ranked" }])(
-      "returns the game type and map for match $matchId",
-      async ({ matchId, gameTypeAndMap }) => {
-        const result = await haloService.getGameTypeAndMap(
-          Preconditions.checkExists(matchStats.get(matchId)).MatchInfo,
-        );
-
-        expect(result).toBe(gameTypeAndMap);
+    it.each([
+      {
+        matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        gameTypeAndMap: "Capture the Flag: Empyrean - Ranked",
       },
-    );
+    ])("returns the game type and map for match $matchId", async ({ matchId, gameTypeAndMap }) => {
+      const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)).MatchInfo);
 
-    it("caches the asset data for the map", async () => {
+      expect(result).toBe(gameTypeAndMap);
+    });
+
+    it("caches the asset data for the map and game type", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       await haloService.getGameTypeAndMap(match.MatchInfo);
       await haloService.getGameTypeAndMap(match.MatchInfo);
 
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(1);
+      // Should be called once for map and once for game type
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(2);
+      // Should not call again on repeated invocation (cache hit)
+      await haloService.getGameTypeAndMap(match.MatchInfo);
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(2);
     });
   });
 

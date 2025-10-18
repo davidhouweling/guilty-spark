@@ -68,6 +68,7 @@ export class HaloService {
   private readonly infiniteClient: HaloInfiniteClient;
   private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly mapNameCache = new Map<string, string>();
+  private readonly gameTypeCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
@@ -143,8 +144,14 @@ export class HaloService {
   }
 
   async getGameTypeAndMap(matchInfo: MatchInfo): Promise<string> {
-    const mapName = await this.getMapName(matchInfo);
-    return `${this.getMatchVariant(matchInfo)}: ${mapName}`;
+    const [mapNameResult, gameTypeResult] = await Promise.allSettled([
+      this.getMapName(matchInfo.MapVariant.AssetId, matchInfo.MapVariant.VersionId),
+      this.getGameType(matchInfo.UgcGameVariant.AssetId, matchInfo.UgcGameVariant.VersionId),
+    ]);
+    const mapName = mapNameResult.status === "fulfilled" ? mapNameResult.value : "*Unknown Map*";
+    const gameType = gameTypeResult.status === "fulfilled" ? gameTypeResult.value : "*Unknown Game Type*";
+
+    return `${gameType}: ${mapName}`;
   }
 
   getMatchOutcome(outcome: MatchOutcome): "Win" | "Loss" | "Tie" | "DNF" {
@@ -380,7 +387,7 @@ export class HaloService {
     return rankedArenaCsrs;
   }
 
-  public getMapModeFormat(format: MapsFormatType, count: number): Format[] {
+  getMapModeFormat(format: MapsFormatType, count: number): Format[] {
     switch (format) {
       case MapsFormatType.HCS: {
         return Preconditions.checkExists(HCS_SET_FORMAT[count]);
@@ -400,7 +407,7 @@ export class HaloService {
     }
   }
 
-  public generateMaps({
+  generateMaps({
     playlist,
     format,
     count,
@@ -439,7 +446,7 @@ export class HaloService {
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
-  public clearUserCache(): void {
+  clearUserCache(): void {
     this.userCache.clear();
   }
 
@@ -652,78 +659,28 @@ export class HaloService {
     });
   }
 
-  private async getMapName(matchInfo: MatchInfo): Promise<string> {
-    const { AssetId, VersionId } = matchInfo.MapVariant;
-    const cacheKey = `${AssetId}:${VersionId}`;
+  private async getMapName(assetId: string, versionId: string): Promise<string> {
+    const cacheKey = `${assetId}:${versionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
-      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId);
       this.mapNameCache.set(cacheKey, mapData.PublicName);
     }
 
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
-  private getMatchVariant(matchInfo: MatchInfo): string {
-    switch (matchInfo.GameVariantCategory) {
-      case GameVariantCategory.MultiplayerAttrition: {
-        return "Attrition";
-      }
-      case GameVariantCategory.MultiplayerCtf: {
-        return "CTF";
-      }
-      case GameVariantCategory.MultiplayerElimination: {
-        return "Elimination";
-      }
-      case GameVariantCategory.MultiplayerEscalation: {
-        return "Escalation";
-      }
-      case GameVariantCategory.MultiplayerExtraction: {
-        return "Extraction";
-      }
-      case GameVariantCategory.MultiplayerFiesta: {
-        return "Fiesta";
-      }
-      case GameVariantCategory.MultiplayerFirefight: {
-        return "Firefight";
-      }
-      case GameVariantCategory.MultiplayerGrifball: {
-        return "Grifball";
-      }
-      case GameVariantCategory.MultiplayerInfection: {
-        return "Infection";
-      }
-      case GameVariantCategory.MultiplayerKingOfTheHill: {
-        return "KOTH";
-      }
-      case GameVariantCategory.MultiplayerLandGrab: {
-        return "Land Grab";
-      }
-      case GameVariantCategory.MultiplayerMinigame: {
-        return "Minigame";
-      }
-      case GameVariantCategory.MultiplayerOddball: {
-        return "Oddball";
-      }
-      case GameVariantCategory.MultiplayerSlayer: {
-        return "Slayer";
-      }
-      case GameVariantCategory.MultiplayerStockpile: {
-        return "Stockpile";
-      }
-      case GameVariantCategory.MultiplayerStrongholds: {
-        return "Strongholds";
-      }
-      case GameVariantCategory.MultiplayerTotalControl: {
-        return "Total Control";
-      }
-      case GameVariantCategory.MultiplayerVIP: {
-        return "VIP";
-      }
-      default: {
-        return "Unknown";
-      }
+  private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
+    const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
+    if (!this.gameTypeCache.has(cacheKey)) {
+      const mapModeData = await this.infiniteClient.getSpecificAssetVersion(
+        AssetKind.UgcGameVariant,
+        ugcGameVariantAssetId,
+        ucgGameVariantVersionId,
+      );
+      this.gameTypeCache.set(cacheKey, this.ucgMapNameToMapMode(mapModeData.PublicName));
     }
+    return Preconditions.checkExists(this.gameTypeCache.get(cacheKey));
   }
 
   private async fuzzyMatchUnassociatedUsers(teams: MatchPlayer[][], seriesMatches: MatchStats[]): Promise<void> {

@@ -4,6 +4,60 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { assetVersion, matchStats, medalsMetadata, playerMatches } from "./data.mjs";
 
+function getFakeName(assetId: string): string {
+  switch (assetId) {
+    // Game types
+    case "4cb279b7-a064-4df6-9058-02cdc6825d93": {
+      return "Capture the Flag";
+    }
+    case "88c22b1f-2d64-48b9-bab1-26fe4721fb23": {
+      return "King of the Hill";
+    }
+    case "a42e46c4-e413-4147-97d7-dbaeb68b7e3b": {
+      return "Oddball";
+    }
+    case "22b8a0eb-0d02-4eb3-8f56-5f63fc254f83": {
+      return "Strongholds";
+    }
+    case "4d6136ec-3164-4161-a8fe-20f4cd944f13": {
+      return "Land grab";
+    }
+    case "c24e90e0-1c55-4642-92b9-21c7fb4766fb": {
+      return "Total control";
+    }
+    case "c5603875-9a55-4398-aba2-f4a545ac5c38": {
+      return "VIP";
+    }
+    case "c2d20d44-8606-4669-b894-afae15b3524f": {
+      return "Slayer";
+    }
+
+    // Maps
+    case "e23ea388-9bcb-4180-a0dc-fbe987751b9e": {
+      return "Streets - Ranked";
+    }
+    case "f15f19b4-9652-452a-b8ae-117df0a0074d":
+    case "336b5174-3579-4fd8-b2f0-922e4a5f7628": {
+      return "Recharge - Ranked";
+    }
+    case "309253f8-7a75-48ff-83e1-e7fb3db2ac47": {
+      return "Live Fire - Ranked";
+    }
+    case "a778ae21-a8ae-4569-acb5-898efbd4b3f3": {
+      return "Rendezvous";
+    }
+    case "2aba3426-083c-42a9-b469-02898d4d0c62": {
+      return "Gyre";
+    }
+    case "654dff62-d618-496a-8914-06ab73d991e3": {
+      return "Interference";
+    }
+    default: {
+      return `Fake name for asset ${assetId}`;
+    }
+  }
+}
+
 export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
   const infiniteClient = mock<HaloInfiniteClient>();
 
@@ -82,7 +136,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     return Promise.resolve({
       ...assetVersion,
       AssetId: assetId,
-      PublicName: `Fake name for asset ${assetId}`,
+      PublicName: getFakeName(assetId),
       VersionId: version,
     });
   });
