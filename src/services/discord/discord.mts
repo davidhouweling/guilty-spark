@@ -394,7 +394,7 @@ export class DiscordService {
 
     return {
       message,
-      timestamp: new Date(Preconditions.checkExists(embed.timestamp, "No timestamp found")),
+      timestamp: new Date(Preconditions.checkExists(embed.timestamp ?? message.timestamp, "No timestamp found")),
       queue: queueNumber,
       teams: fields.map((field) => ({
         name: cleanTeamNames ? field.name.replace(/__/g, "").trim() : field.name,
