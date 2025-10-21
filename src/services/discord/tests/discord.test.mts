@@ -496,6 +496,51 @@ describe("DiscordService", () => {
 
       expect(result).toBeNull();
     });
+
+    it("falls back to message timestamp when embed timestamp is missing", async () => {
+      const messageWithoutEmbedTimestamp = {
+        ...channelMessages[1],
+        timestamp: "2024-12-06T15:30:00.000Z",
+        embeds: [
+          {
+            ...channelMessages[1]?.embeds[0],
+            timestamp: undefined,
+          },
+        ],
+      };
+
+      mockFetch.mockClear().mockImplementation(async (path) => {
+        if (typeof path !== "string") {
+          throw new Error("unexpected path type");
+        }
+        const prefix = "https://discord.com/api/v10";
+        if (path === `${prefix}/channels/fake-channel/messages?limit=100`) {
+          return Promise.resolve(new Response(JSON.stringify([messageWithoutEmbedTimestamp])));
+        }
+        if (typeof path === "string" && path.startsWith(`${prefix}/guilds/fake-guild-id/members/`)) {
+          const id = path.slice(-2);
+          const apiUser: APIGuildMember = aGuildMemberWith({
+            user: {
+              id: `fake-id-${id}`,
+              username: `fake-username-${id}`,
+              global_name: `fake-global-name-${id}`,
+              discriminator: "1234",
+              avatar: "fake-avatar",
+            },
+          });
+
+          return Promise.resolve(new Response(JSON.stringify(apiUser)));
+        }
+
+        return Promise.reject(new Error(`Invalid path: ${path}`));
+      });
+
+      const result = Preconditions.checkExists(
+        await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7),
+      );
+
+      expect(result.timestamp).toEqual(new Date("2024-12-06T15:30:00.000Z"));
+    });
   });
 
   describe("getTeamsFromQueueChannel()", () => {
