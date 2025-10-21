@@ -816,7 +816,7 @@ export class DiscordService {
   ): Promise<T> {
     const rateLimit = await this.getRateLimitFromAppConfig(path);
 
-    if (rateLimit != null && rateLimit.remaining === 0 && rateLimit.reset != null) {
+    if (rateLimit?.remaining === 0 && rateLimit.reset != null) {
       const now = Date.now();
       const resetTimeMs = rateLimit.reset * 1000;
       if (now < resetTimeMs) {

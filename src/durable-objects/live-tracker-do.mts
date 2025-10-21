@@ -124,7 +124,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       try {
         const trackerState = await this.getState();
-        if (!trackerState || trackerState.status !== "active" || trackerState.isPaused) {
+        if (trackerState?.status !== "active" || trackerState.isPaused) {
           return;
         }
 
