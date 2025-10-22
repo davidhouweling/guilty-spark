@@ -188,57 +188,55 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         const currentTime = new Date();
         trackerState.lastUpdateTime = currentTime.toISOString();
 
-        if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-          try {
-            const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-            const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+        try {
+          const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+          const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-            const rawMatchesArray = Object.values(trackerState.rawMatches);
-            const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
-            const liveTrackerEmbed = new LiveTrackerEmbed(
-              { discordService: this.discordService },
-              {
-                userId: trackerState.userId,
-                guildId: trackerState.guildId,
-                channelId: trackerState.channelId,
-                queueNumber: trackerState.queueNumber,
-                status: "active",
-                isPaused: false,
-                lastUpdated: currentTime,
-                nextCheck: nextCheckTime,
-                enrichedMatches,
-                seriesScore,
-                substitutions: trackerState.substitutions,
-                errorState: trackerState.errorState,
-              },
-            );
+          const rawMatchesArray = Object.values(trackerState.rawMatches);
+          const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+          const liveTrackerEmbed = new LiveTrackerEmbed(
+            { discordService: this.discordService },
+            {
+              userId: trackerState.userId,
+              guildId: trackerState.guildId,
+              channelId: trackerState.channelId,
+              queueNumber: trackerState.queueNumber,
+              status: "active",
+              isPaused: false,
+              lastUpdated: currentTime,
+              nextCheck: nextCheckTime,
+              enrichedMatches,
+              seriesScore,
+              substitutions: trackerState.substitutions,
+              errorState: trackerState.errorState,
+            },
+          );
 
-            await this.updateChannelName(trackerState, seriesScore, false);
-            await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
-          } catch (error) {
-            // 10003 = Unknown channel
-            if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
-              this.logService.warn(
-                "Live tracker channel not found, likely finished",
-                new Map([
-                  ["channelId", trackerState.channelId],
-                  ["messageId", trackerState.liveMessageId],
-                ]),
-              );
-              await this.state.storage.deleteAlarm();
-              await this.state.storage.deleteAll();
-              return;
-            }
-
-            this.logService.error(
-              "Failed to update live tracker message",
+          await this.updateChannelName(trackerState, seriesScore, false);
+          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+        } catch (error) {
+          // 10003 = Unknown channel
+          if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+            this.logService.warn(
+              "Live tracker channel not found, likely finished",
               new Map([
-                ["error", String(error)],
+                ["channelId", trackerState.channelId],
                 ["messageId", trackerState.liveMessageId],
               ]),
             );
-            this.handleError(trackerState, `Discord update failed: ${String(error)}`);
+            await this.state.storage.deleteAlarm();
+            await this.state.storage.deleteAll();
+            return;
           }
+
+          this.logService.error(
+            "Failed to update live tracker message",
+            new Map([
+              ["error", String(error)],
+              ["messageId", trackerState.liveMessageId],
+            ]),
+          );
+          this.handleError(trackerState, `Discord update failed: ${String(error)}`);
         }
 
         await this.setState(trackerState);
@@ -946,7 +944,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     trackerState: LiveTrackerState,
     liveTrackerEmbed: LiveTrackerEmbed,
   ): Promise<void> {
-    if (this.hasNewMatchesOrSubstitutions(trackerState)) {
+    if (
+      this.hasNewMatchesOrSubstitutions(trackerState) ||
+      trackerState.liveMessageId == null ||
+      trackerState.liveMessageId === ""
+    ) {
       const newMessage = await this.discordService.createMessage(
         trackerState.channelId,
         liveTrackerEmbed.toMessageData(),
@@ -980,7 +982,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ["substitutionCount", trackerState.substitutions.length.toString()],
         ]),
       );
-    } else if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
+    } else {
       await this.discordService.editMessage(
         trackerState.channelId,
         trackerState.liveMessageId,
