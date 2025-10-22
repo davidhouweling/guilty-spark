@@ -888,6 +888,18 @@ export class DiscordService {
       }
       this.logService.warn(error);
 
+      if (error instanceof DiscordError && error.httpStatus === 429 && error.restError.code === 1015 && !retry) {
+        this.setRateLimitInAppConfig(path, {
+          limit: 0,
+          remaining: 0,
+          reset: Date.now() / 1000 + 10,
+          resetAfter: 10,
+          bucket: undefined,
+        });
+
+        return this.fetch<T>(path, options, true);
+      }
+
       throw error;
     }
 
