@@ -1293,21 +1293,44 @@ describe("LiveTrackerDO", () => {
       expect(storageDeleteAllSpy).not.toHaveBeenCalled();
     });
 
-    it("handles alarm when no live message exists", async () => {
+    it("creates new message when no live message exists", async () => {
       const trackerState = createAlarmTestTrackerState({
         liveMessageId: undefined,
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+
+      const guildConfig = aFakeGuildConfigRow({
+        NeatQueueInformerLiveTrackingChannelName: "N",
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
 
       await liveTrackerDO.alarm();
 
+      expect(createMessageSpy).toHaveBeenCalledWith(
+        trackerState.channelId,
+        expect.objectContaining({
+          embeds: expect.arrayContaining([
+            expect.objectContaining({
+              title: expect.stringContaining("Live Tracker") as string,
+            }),
+          ]) as unknown[],
+        }),
+      );
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           checkCount: 1,
+          liveMessageId: apiMessage.id,
+          discoveredMatches: {},
+          rawMatches: {},
+          lastMessageState: expect.objectContaining({
+            matchCount: 0,
+            substitutionCount: 0,
+          }) as LiveTrackerState["lastMessageState"],
         }),
       );
       expect(storageSetAlarmSpy).toHaveBeenCalled();
