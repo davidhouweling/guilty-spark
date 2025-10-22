@@ -823,6 +823,7 @@ export class DiscordService {
         const timeUntilReset = resetTimeMs - now;
         const maxWaitTime = 90 * 1000;
         const waitTime = Math.min(timeUntilReset, maxWaitTime);
+        this.logService.info(`Rate limit hit for path ${path}. Waiting ${waitTime.toString()}ms until reset.`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
@@ -844,7 +845,7 @@ export class DiscordService {
       headers: headers,
     };
 
-    this.logService.debug(
+    this.logService[retry ? "debug" : "info"](
       "Discord API request",
       new Map([
         ["method", fetchOptions.method],
@@ -860,14 +861,16 @@ export class DiscordService {
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
       if (response.status === 429 && !retry) {
+        const rateLimitFromResponse = this.getRateLimitFromResponse(response);
         this.logService.warn(
           "Discord API rate limit hit",
           new Map([
             ["path", path],
             ["status", response.status.toString()],
+            ["rateLimit", JSON.stringify(rateLimitFromResponse)],
           ]),
         );
-        const rateLimitFromResponse = this.getRateLimitFromResponse(response);
+        this.logService.info("Response headers", new Map(Array.from(response.headers.entries())));
 
         if (rateLimitFromResponse.reset != null) {
           this.setRateLimitInAppConfig(path, rateLimitFromResponse);
