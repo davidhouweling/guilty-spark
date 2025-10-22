@@ -1162,6 +1162,63 @@ describe("DiscordService", () => {
       await promise;
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
+
+    it("handles http status 429 with code 1015 (CloudFlare rate limit) and retries after 10 seconds", async () => {
+      const response = new Response(JSON.stringify({ code: 1015, message: "CloudFlare rate limit" }), {
+        status: 429,
+        statusText: "Too Many Requests",
+      });
+
+      mockFetch
+        .mockClear()
+        .mockResolvedValueOnce(response)
+        .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+      await Promise.all([
+        discordService.createMessage("fake-channel", { content: "fake-content" }),
+        vi.advanceTimersByTimeAsync(10000),
+      ]);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(appConfigPutSpy).toHaveBeenCalledWith(
+        "rateLimit./channels/fake-channel/messages",
+        expect.stringContaining('"resetAfter":10') as string,
+        {
+          expirationTtl: 60,
+        },
+      );
+    });
+
+    it("throws error if http 429 with code 1015 is returned twice", async () => {
+      const response = new Response(JSON.stringify({ code: 1015, message: "CloudFlare rate limit" }), {
+        status: 429,
+        statusText: "Too Many Requests",
+      });
+
+      mockFetch.mockClear().mockResolvedValueOnce(response).mockResolvedValueOnce(response);
+
+      await expect(async () =>
+        Promise.all([
+          discordService.createMessage("fake-channel", { content: "fake-content" }),
+          vi.advanceTimersByTimeAsync(10000),
+        ]),
+      ).rejects.toThrow();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("only retries on code 1015, not other 429 errors without retry flag", async () => {
+      const response = new Response(JSON.stringify({ code: 0, message: "Too many requests" }), {
+        status: 429,
+        statusText: "Too Many Requests",
+      });
+
+      mockFetch.mockClear().mockResolvedValue(response);
+
+      await expect(discordService.createMessage("fake-channel", { content: "fake-content" })).rejects.toThrow();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("editMessage()", () => {
