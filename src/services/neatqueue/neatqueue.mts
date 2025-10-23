@@ -419,8 +419,7 @@ export class NeatQueueService {
 
   private async matchStartedJob(
     request: NeatQueueMatchStartedRequest,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _neatQueueConfig: NeatQueueConfigRow,
+    neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
     const { databaseService, discordService, logService } = this;
     const insufficientPermissionsError = new Error("Insufficient permissions to post in the channel");
@@ -451,7 +450,8 @@ export class NeatQueueService {
       if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
         const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players);
         if (playersPostMessage) {
-          await discordService.createMessage(request.channel, playersPostMessage);
+          const message = await discordService.createMessage(request.channel, playersPostMessage);
+          await this.storePlayersMessageId(request, neatQueueConfig, message.id);
         }
       }
 
@@ -610,8 +610,7 @@ export class NeatQueueService {
 
   private async substitutionJob(
     request: NeatQueueSubstitutionRequest,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _neatQueueConfig: NeatQueueConfigRow,
+    neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
     const { logService } = this;
 
@@ -673,6 +672,74 @@ export class NeatQueueService {
         ]),
       );
       // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+
+    await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+  }
+
+  private async updatePlayersEmbedForSubstitution(
+    request: NeatQueueSubstitutionRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    const { databaseService, discordService, logService } = this;
+
+    try {
+      const guildConfig = await databaseService.getGuildConfig(request.guild);
+      if (guildConfig.NeatQueueInformerPlayerConnections !== "Y") {
+        logService.debug("Player connections are disabled, skipping players embed update");
+        return;
+      }
+
+      const oldMessageId = await this.getPlayersMessageId(request, neatQueueConfig);
+      if (oldMessageId == null) {
+        logService.debug("No players message ID found, skipping players embed update");
+        return;
+      }
+
+      const currentPlayers = await this.getCurrentPlayersFromTimeline(request, neatQueueConfig);
+      if (currentPlayers == null) {
+        logService.warn("Could not determine current players from timeline");
+        return;
+      }
+
+      const playersPostMessage = await this.getPlayersPostMessage(guildConfig, currentPlayers);
+      if (!playersPostMessage) {
+        logService.debug("No players post message generated, skipping players embed update");
+        return;
+      }
+
+      const newMessage = await discordService.createMessage(request.channel, playersPostMessage);
+      await this.storePlayersMessageId(request, neatQueueConfig, newMessage.id);
+
+      try {
+        await discordService.deleteMessage(request.channel, oldMessageId, "Updating players list after substitution");
+      } catch (error) {
+        logService.warn(
+          error as Error,
+          new Map([
+            ["reason", "Failed to delete old players message"],
+            ["messageId", oldMessageId],
+          ]),
+        );
+      }
+
+      logService.info(
+        "Updated players embed after substitution",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["oldMessageId", oldMessageId],
+          ["newMessageId", newMessage.id],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(error as Error, new Map([["reason", "Failed to update players embed for substitution"]]));
+
+      if (error instanceof DiscordError && error.restError.code === 50001) {
+        await databaseService.updateGuildConfig(request.guild, {
+          NeatQueueInformerPlayerConnections: "N",
+        });
+      }
     }
   }
 
@@ -777,6 +844,7 @@ export class NeatQueueService {
     await Promise.all([
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
+      this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
   }
@@ -829,6 +897,10 @@ export class NeatQueueService {
     return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}`;
   }
 
+  private getPlayersMessageIdKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
+    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}:players_message_id`;
+  }
+
   private async getTimeline(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
@@ -856,6 +928,67 @@ export class NeatQueueService {
     await this.env.APP_DATA.put(this.getTimelineKey(request, neatQueueConfig), JSON.stringify(timeline), {
       expirationTtl: 60 * 60 * 24, // 1 day
     });
+  }
+
+  private async storePlayersMessageId(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    messageId: string,
+  ): Promise<void> {
+    await this.env.APP_DATA.put(this.getPlayersMessageIdKey(request, neatQueueConfig), messageId, {
+      expirationTtl: 60 * 60 * 24, // 1 day
+    });
+  }
+
+  private async getPlayersMessageId(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<string | null> {
+    return await this.env.APP_DATA.get(this.getPlayersMessageIdKey(request, neatQueueConfig));
+  }
+
+  private async deletePlayersMessageId(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<void> {
+    await this.env.APP_DATA.delete(this.getPlayersMessageIdKey(request, neatQueueConfig));
+  }
+
+  private async getCurrentPlayersFromTimeline(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+  ): Promise<NeatQueuePlayer[] | null> {
+    const timeline = await this.getTimeline(request, neatQueueConfig);
+
+    const matchStartedEvent = timeline.find((event) => event.event.action === "MATCH_STARTED");
+    if (!matchStartedEvent?.event.action || matchStartedEvent.event.action !== "MATCH_STARTED") {
+      this.logService.warn("No MATCH_STARTED event found in timeline");
+      return null;
+    }
+
+    const currentPlayers = [...matchStartedEvent.event.players];
+
+    for (const { event } of timeline) {
+      if (event.action !== "SUBSTITUTION") {
+        continue;
+      }
+
+      const playerOutIndex = currentPlayers.findIndex((p) => p.id === event.player_subbed_out.id);
+
+      if (playerOutIndex !== -1) {
+        currentPlayers[playerOutIndex] = event.player_subbed_in;
+      } else {
+        this.logService.warn(
+          "Player to substitute out not found in current players list",
+          new Map([
+            ["playerOutId", event.player_subbed_out.id],
+            ["playerInId", event.player_subbed_in.id],
+          ]),
+        );
+      }
+    }
+
+    return currentPlayers;
   }
 
   private async getPlayersPostMessage(

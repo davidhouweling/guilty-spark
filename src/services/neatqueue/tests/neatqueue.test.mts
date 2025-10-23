@@ -1394,4 +1394,290 @@ describe("NeatQueueService", () => {
       expect(getGuildConfigSpy).toHaveBeenCalledWith(guildId);
     });
   });
+
+  describe("SUBSTITUTION player embed updates", () => {
+    let neatQueueConfig: NeatQueueConfigRow;
+    let createMessageSpy: MockInstance;
+    let deleteMessageSpy: MockInstance;
+    let getGuildConfigSpy: MockInstance;
+    let appDataGetSpy: MockInstance;
+    let appDataPutSpy: MockInstance;
+
+    beforeEach(() => {
+      neatQueueConfig = aFakeNeatQueueConfigRow();
+      createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+      deleteMessageSpy = vi.spyOn(discordService, "deleteMessage").mockResolvedValue();
+      getGuildConfigSpy = vi.spyOn(databaseService, "getGuildConfig");
+      appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
+      appDataPutSpy = vi.spyOn(env.APP_DATA, "put") as MockInstance;
+    });
+
+    it("updates players embed when substitution occurs and player connections are enabled", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const newMessageId = "new-message-456";
+      const timeline = [
+        { timestamp: new Date().toISOString(), event: matchStartedRequest },
+        { timestamp: new Date().toISOString(), event: substitutionRequest },
+      ];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+      appDataPutSpy.mockResolvedValue(undefined);
+      createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
+
+      const { response, jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+
+      expect(response.status).toBe(200);
+      expect(jobToComplete).toBeDefined();
+
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledOnce();
+      expect(deleteMessageSpy).toHaveBeenCalledOnce();
+      expect(deleteMessageSpy).toHaveBeenCalledWith(
+        substitutionRequest.channel,
+        oldMessageId,
+        "Updating players list after substitution",
+      );
+      expect(appDataPutSpy).toHaveBeenCalledWith(
+        expect.stringContaining("players_message_id"),
+        newMessageId,
+        expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
+      );
+    });
+
+    it("skips update when player connections are disabled", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "N",
+        }),
+      );
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).not.toHaveBeenCalled();
+      expect(deleteMessageSpy).not.toHaveBeenCalled();
+    });
+
+    it("skips update when no message ID is stored", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      appDataGetSpy.mockResolvedValue(null);
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).not.toHaveBeenCalled();
+      expect(deleteMessageSpy).not.toHaveBeenCalled();
+    });
+
+    it("skips update when timeline has no MATCH_STARTED event", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const warnSpy = vi.spyOn(logService, "warn");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const timeline = [{ timestamp: new Date().toISOString(), event: substitutionRequest }];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(warnSpy).toHaveBeenCalledWith("No MATCH_STARTED event found in timeline");
+      expect(createMessageSpy).not.toHaveBeenCalled();
+      expect(deleteMessageSpy).not.toHaveBeenCalled();
+    });
+
+    it("continues if old message deletion fails but logs warning", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+      const warnSpy = vi.spyOn(logService, "warn");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const newMessageId = "new-message-456";
+      const timeline = [
+        { timestamp: new Date().toISOString(), event: matchStartedRequest },
+        { timestamp: new Date().toISOString(), event: substitutionRequest },
+      ];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+      appDataPutSpy.mockResolvedValue(undefined);
+      createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
+      deleteMessageSpy.mockRejectedValue(new Error("Message not found"));
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledOnce();
+      expect(deleteMessageSpy).toHaveBeenCalledOnce();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          size: 2,
+        }),
+      );
+    });
+
+    it("applies multiple substitutions in correct order", async () => {
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+      const substitution1 = getFakeNeatQueueData("substitution");
+      const substitution2 = {
+        ...getFakeNeatQueueData("substitution"),
+        player_subbed_out: substitution1.player_subbed_in,
+        player_subbed_in: { ...substitution1.player_subbed_in, id: "new-player-2", name: "New Player 2" },
+      };
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const newMessageId = "new-message-456";
+      const timeline = [
+        { timestamp: new Date().toISOString(), event: matchStartedRequest },
+        { timestamp: new Date(Date.now() + 1000).toISOString(), event: substitution1 },
+        { timestamp: new Date(Date.now() + 2000).toISOString(), event: substitution2 },
+      ];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+      appDataPutSpy.mockResolvedValue(undefined);
+      createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitution2, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledOnce();
+
+      const [, messageData] = createMessageSpy.mock.calls[0] as [string, { embeds: unknown[] }];
+      const messageString = JSON.stringify(messageData);
+
+      expect(messageString).toContain("new-player-2");
+      expect(messageString).not.toContain(substitution1.player_subbed_out.id);
+    });
+
+    it("disables feature when Discord returns missing access error", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+      const updateGuildConfigSpy = vi.spyOn(databaseService, "updateGuildConfig");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const timeline = [
+        { timestamp: new Date().toISOString(), event: matchStartedRequest },
+        { timestamp: new Date().toISOString(), event: substitutionRequest },
+      ];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+
+      const discordError = new DiscordError(403, {
+        code: 50001,
+        message: "Missing Access",
+      });
+      createMessageSpy.mockRejectedValue(discordError);
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(updateGuildConfigSpy).toHaveBeenCalledWith(substitutionRequest.guild, {
+        NeatQueueInformerPlayerConnections: "N",
+      });
+    });
+
+    it("stores message ID after creating new message", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      const oldMessageId = "old-message-123";
+      const newMessageId = "new-message-456";
+      const timeline = [
+        { timestamp: new Date().toISOString(), event: matchStartedRequest },
+        { timestamp: new Date().toISOString(), event: substitutionRequest },
+      ];
+
+      appDataGetSpy.mockImplementation(async (key: string) => {
+        if (key.includes("players_message_id")) {
+          return Promise.resolve(oldMessageId);
+        }
+        return Promise.resolve(timeline);
+      });
+      appDataPutSpy.mockResolvedValue(undefined);
+      createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(appDataPutSpy).toHaveBeenCalledWith(
+        expect.stringContaining("players_message_id"),
+        newMessageId,
+        expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
+      );
+    });
+  });
 });
