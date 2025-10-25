@@ -106,11 +106,11 @@ describe("All Format Types - Distribution Analysis", () => {
   };
 
   for (const count of testCounts) {
-    it(`validates HCS format distribution for ${String(count)} games`, () => {
+    it(`validates HCS format distribution for ${String(count)} games`, async () => {
       const results: { mode: MapMode; map: string }[][] = [];
 
       for (let i = 0; i < iterations; i++) {
-        const result = services.haloService.generateMaps({
+        const result = await services.haloService.generateMaps({
           count,
           playlist: MapsPlaylistType.HCS_CURRENT,
           format: MapsFormatType.HCS,
@@ -128,11 +128,11 @@ describe("All Format Types - Distribution Analysis", () => {
       expect(metrics.allModesUsed).toBeGreaterThanOrEqual(3); // Uses multiple modes
     });
 
-    it(`validates Random format distribution for ${String(count)} games`, () => {
+    it(`validates Random format distribution for ${String(count)} games`, async () => {
       const results: { mode: MapMode; map: string }[][] = [];
 
       for (let i = 0; i < iterations; i++) {
-        const result = services.haloService.generateMaps({
+        const result = await services.haloService.generateMaps({
           count,
           playlist: MapsPlaylistType.HCS_CURRENT,
           format: MapsFormatType.RANDOM,
@@ -158,11 +158,11 @@ describe("All Format Types - Distribution Analysis", () => {
       expect(slayerRate).toBeLessThan(0.25); // At most 25% (should be ~16.7%)
     });
 
-    it(`validates Random Objective format distribution for ${String(count)} games`, () => {
+    it(`validates Random Objective format distribution for ${String(count)} games`, async () => {
       const results: { mode: MapMode; map: string }[][] = [];
 
       for (let i = 0; i < iterations; i++) {
-        const result = services.haloService.generateMaps({
+        const result = await services.haloService.generateMaps({
           count,
           playlist: MapsPlaylistType.HCS_CURRENT,
           format: MapsFormatType.OBJECTIVE,
@@ -188,11 +188,11 @@ describe("All Format Types - Distribution Analysis", () => {
       expect(objectiveGames).toBe(totalGames);
     });
 
-    it(`validates Random Slayer format distribution for ${String(count)} games`, () => {
+    it(`validates Random Slayer format distribution for ${String(count)} games`, async () => {
       const results: { mode: MapMode; map: string }[][] = [];
 
       for (let i = 0; i < iterations; i++) {
-        const result = services.haloService.generateMaps({
+        const result = await services.haloService.generateMaps({
           count,
           playlist: MapsPlaylistType.HCS_CURRENT,
           format: MapsFormatType.SLAYER,
@@ -219,7 +219,7 @@ describe("All Format Types - Distribution Analysis", () => {
     });
   }
 
-  it("compares all formats for optimal distribution characteristics", () => {
+  it("compares all formats for optimal distribution characteristics", async () => {
     const count = 7; // Use 7-game series for comparison
     const formatResults: Record<
       string,
@@ -248,7 +248,7 @@ describe("All Format Types - Distribution Analysis", () => {
 
       for (let i = 0; i < 50; i++) {
         // 50 iterations for comparison
-        const result = services.haloService.generateMaps({
+        const result = await services.haloService.generateMaps({
           count,
           playlist: MapsPlaylistType.HCS_CURRENT,
           format: format.type,

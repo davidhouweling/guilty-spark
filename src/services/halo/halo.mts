@@ -18,7 +18,7 @@ import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
 import type { Format, MapMode } from "./hcs.mjs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 
@@ -42,7 +42,18 @@ export interface Medal {
   type: string;
 }
 
+export enum FetchablePlaylist {
+  RANKED_ARENA = "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+  RANKED_DOUBLES = "fa5aa2a3-2428-4912-a023-e1eeea7b877c",
+  RANKED_FFA = "71734db4-4b8e-4682-9206-62b6eff92582",
+  RANKED_SLAYER = "dcb2e24e-05fb-4390-8076-32a0cdb4326e",
+  RANKED_SNIPERS = "a883e7e1-9aca-4296-9009-3733a0ca8081",
+  RANKED_SQUAD_BATTLE = "6dc5f699-d6d9-41c4-bdf8-7ae11dec2d1b",
+  RANKED_TACTICAL = "7c60fb3e-656c-4ada-a085-293562642e50",
+}
+
 export interface HaloServiceOpts {
+  env: Env;
   logService: LogService;
   databaseService: DatabaseService;
   infiniteClient: HaloInfiniteClient;
@@ -63,17 +74,26 @@ const noMatchError = new EndUserError(
 );
 
 export class HaloService {
+  private readonly env: Env;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly infiniteClient: HaloInfiniteClient;
   private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly mapNameCache = new Map<string, string>();
+  private readonly gameTypeCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
-  constructor({ logService, databaseService, infiniteClient, roundRobinFn = generateRoundRobinMaps }: HaloServiceOpts) {
+  constructor({
+    env,
+    logService,
+    databaseService,
+    infiniteClient,
+    roundRobinFn = generateRoundRobinMaps,
+  }: HaloServiceOpts) {
+    this.env = env;
     this.logService = logService;
     this.databaseService = databaseService;
     this.infiniteClient = infiniteClient;
@@ -143,8 +163,14 @@ export class HaloService {
   }
 
   async getGameTypeAndMap(matchInfo: MatchInfo): Promise<string> {
-    const mapName = await this.getMapName(matchInfo);
-    return `${this.getMatchVariant(matchInfo)}: ${mapName}`;
+    const [mapNameResult, gameTypeResult] = await Promise.allSettled([
+      this.getMapName(matchInfo.MapVariant.AssetId, matchInfo.MapVariant.VersionId),
+      this.getGameType(matchInfo.UgcGameVariant.AssetId, matchInfo.UgcGameVariant.VersionId),
+    ]);
+    const mapName = mapNameResult.status === "fulfilled" ? mapNameResult.value : "*Unknown Map*";
+    const gameType = gameTypeResult.status === "fulfilled" ? gameTypeResult.value : "*Unknown Game Type*";
+
+    return `${gameType}: ${mapName}`;
   }
 
   getMatchOutcome(outcome: MatchOutcome): "Win" | "Loss" | "Tie" | "DNF" {
@@ -380,27 +406,15 @@ export class HaloService {
     return rankedArenaCsrs;
   }
 
-  public getMapModeFormat(format: MapsFormatType, count: number): Format[] {
-    switch (format) {
-      case MapsFormatType.HCS: {
-        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
-      }
-      case MapsFormatType.RANDOM: {
-        return Array(count).fill("random") as Format[];
-      }
-      case MapsFormatType.OBJECTIVE: {
-        return Array(count).fill("objective") as Format[];
-      }
-      case MapsFormatType.SLAYER: {
-        return Array(count).fill("slayer") as Format[];
-      }
-      default: {
-        throw new UnreachableError(format);
-      }
-    }
+  async getMapModesForPlaylist(playlist: MapsPlaylistType): Promise<MapMode[]> {
+    const mapSet = await this.getMapSet(playlist);
+
+    return Object.entries(mapSet)
+      .filter(([, maps]) => maps.length > 0)
+      .map(([mode]) => mode as MapMode);
   }
 
-  public generateMaps({
+  async generateMaps({
     playlist,
     format,
     count,
@@ -408,17 +422,16 @@ export class HaloService {
     playlist: MapsPlaylistType;
     format: MapsFormatType;
     count: number;
-  }): { mode: MapMode; map: string }[] {
-    const mapSet: Record<MapMode, string[]> =
-      playlist === MapsPlaylistType.HCS_HISTORICAL ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
-
-    const formatSequence = this.getMapModeFormat(format, count);
+  }): Promise<{ mode: MapMode; map: string }[]> {
+    const mapSet = await this.getMapSet(playlist);
+    const validMapModes = await this.getMapModesForPlaylist(playlist);
+    const formatSequence = this.getMapModeFormat(validMapModes.length > 1 ? format : MapsFormatType.SLAYER, count);
 
     // Build all possible (mode, map) pairs
     const allPairs: { mode: MapMode; map: string }[] = [];
-    for (const mode of ALL_MODES) {
-      for (const map of mapSet[mode]) {
-        allPairs.push({ mode, map });
+    for (const [mode, maps] of Object.entries(mapSet)) {
+      for (const map of maps) {
+        allPairs.push({ mode: mode as MapMode, map });
       }
     }
 
@@ -439,7 +452,7 @@ export class HaloService {
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
   }
 
-  public clearUserCache(): void {
+  clearUserCache(): void {
     this.userCache.clear();
   }
 
@@ -652,78 +665,28 @@ export class HaloService {
     });
   }
 
-  private async getMapName(matchInfo: MatchInfo): Promise<string> {
-    const { AssetId, VersionId } = matchInfo.MapVariant;
-    const cacheKey = `${AssetId}:${VersionId}`;
+  private async getMapName(assetId: string, versionId: string): Promise<string> {
+    const cacheKey = `${assetId}:${versionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
-      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, AssetId, VersionId);
+      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId);
       this.mapNameCache.set(cacheKey, mapData.PublicName);
     }
 
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
-  private getMatchVariant(matchInfo: MatchInfo): string {
-    switch (matchInfo.GameVariantCategory) {
-      case GameVariantCategory.MultiplayerAttrition: {
-        return "Attrition";
-      }
-      case GameVariantCategory.MultiplayerCtf: {
-        return "CTF";
-      }
-      case GameVariantCategory.MultiplayerElimination: {
-        return "Elimination";
-      }
-      case GameVariantCategory.MultiplayerEscalation: {
-        return "Escalation";
-      }
-      case GameVariantCategory.MultiplayerExtraction: {
-        return "Extraction";
-      }
-      case GameVariantCategory.MultiplayerFiesta: {
-        return "Fiesta";
-      }
-      case GameVariantCategory.MultiplayerFirefight: {
-        return "Firefight";
-      }
-      case GameVariantCategory.MultiplayerGrifball: {
-        return "Grifball";
-      }
-      case GameVariantCategory.MultiplayerInfection: {
-        return "Infection";
-      }
-      case GameVariantCategory.MultiplayerKingOfTheHill: {
-        return "KOTH";
-      }
-      case GameVariantCategory.MultiplayerLandGrab: {
-        return "Land Grab";
-      }
-      case GameVariantCategory.MultiplayerMinigame: {
-        return "Minigame";
-      }
-      case GameVariantCategory.MultiplayerOddball: {
-        return "Oddball";
-      }
-      case GameVariantCategory.MultiplayerSlayer: {
-        return "Slayer";
-      }
-      case GameVariantCategory.MultiplayerStockpile: {
-        return "Stockpile";
-      }
-      case GameVariantCategory.MultiplayerStrongholds: {
-        return "Strongholds";
-      }
-      case GameVariantCategory.MultiplayerTotalControl: {
-        return "Total Control";
-      }
-      case GameVariantCategory.MultiplayerVIP: {
-        return "VIP";
-      }
-      default: {
-        return "Unknown";
-      }
+  private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
+    const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
+    if (!this.gameTypeCache.has(cacheKey)) {
+      const mapModeData = await this.infiniteClient.getSpecificAssetVersion(
+        AssetKind.UgcGameVariant,
+        ugcGameVariantAssetId,
+        ucgGameVariantVersionId,
+      );
+      this.gameTypeCache.set(cacheKey, this.ucgMapNameToMapMode(mapModeData.PublicName));
     }
+    return Preconditions.checkExists(this.gameTypeCache.get(cacheKey));
   }
 
   private async fuzzyMatchUnassociatedUsers(teams: MatchPlayer[][], seriesMatches: MatchStats[]): Promise<void> {
@@ -1190,5 +1153,142 @@ export class HaloService {
           : GamesRetrievable.UNKNOWN,
       DiscordDisplayNameSearched: bestMatchingDiscordName,
     });
+  }
+
+  private async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<Record<MapMode, string[]>> {
+    const cacheKey = `halo-playlist-map-modes-${playlistId}`;
+    const cache = await this.env.APP_DATA.get<Record<MapMode, string[]>>(cacheKey, {
+      type: "json",
+    });
+    if (cache != null) {
+      return cache;
+    }
+
+    const playlist = await this.infiniteClient.getPlaylist(playlistId);
+    const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
+      AssetKind.Playlist,
+      playlistId,
+      playlist.UgcPlaylistVersion,
+    );
+    const rotationEntries = await Promise.allSettled(
+      specificAssetVersion.RotationEntries.map(async (entry) =>
+        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId),
+      ),
+    );
+
+    const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
+      (accumulator, result) => {
+        if (result.status !== "fulfilled") {
+          return accumulator;
+        }
+
+        const mapMode = this.ucgMapNameToMapMode(result.value.UgcGameVariantLink.PublicName);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (accumulator[mapMode] == null) {
+          this.logService.warn(
+            `Unknown map mode encountered: ${mapMode}`,
+            new Map([["data", JSON.stringify(result.value)]]),
+          );
+          accumulator[mapMode] = [];
+        }
+
+        accumulator[mapMode].push(result.value.MapLink.PublicName.replace("- Ranked", "").trim());
+        return accumulator;
+      },
+      {
+        Slayer: [],
+        "Capture the Flag": [],
+        Strongholds: [],
+        Oddball: [],
+        "King of the Hill": [],
+        "Neutral Bomb": [],
+      } satisfies Record<MapMode, string[]>,
+    );
+
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(playlistMapModes), {
+      expirationTtl: 86400, // 1 day
+    });
+
+    return playlistMapModes;
+  }
+
+  private async getMapSet(playlist: MapsPlaylistType): Promise<Record<MapMode, string[]>> {
+    switch (playlist) {
+      case MapsPlaylistType.HCS_CURRENT: {
+        return CURRENT_HCS_MAPS;
+      }
+      case MapsPlaylistType.HCS_HISTORICAL: {
+        return HISTORICAL_HCS_MAPS;
+      }
+      case MapsPlaylistType.RANKED_ARENA: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+      }
+      case MapsPlaylistType.RANKED_DOUBLES: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_DOUBLES);
+      }
+      case MapsPlaylistType.RANKED_FFA: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_FFA);
+      }
+      case MapsPlaylistType.RANKED_SLAYER: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SLAYER);
+      }
+      case MapsPlaylistType.RANKED_SNIPERS: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SNIPERS);
+      }
+      case MapsPlaylistType.RANKED_SQUAD_BATTLE: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SQUAD_BATTLE);
+      }
+      case MapsPlaylistType.RANKED_TACTICAL: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_TACTICAL);
+      }
+      default: {
+        throw new UnreachableError(playlist);
+      }
+    }
+  }
+
+  private getMapModeFormat(format: MapsFormatType, count: number): Format[] {
+    switch (format) {
+      case MapsFormatType.HCS: {
+        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
+      }
+      case MapsFormatType.RANDOM: {
+        return Array(count).fill("random") as Format[];
+      }
+      case MapsFormatType.OBJECTIVE: {
+        return Array(count).fill("objective") as Format[];
+      }
+      case MapsFormatType.SLAYER: {
+        return Array(count).fill("slayer") as Format[];
+      }
+      default: {
+        throw new UnreachableError(format);
+      }
+    }
+  }
+
+  private ucgMapNameToMapMode(ucgMapName: string): MapMode {
+    const trimmedName = ucgMapName.replace("Ranked:", "").replace("Squad Ranked", "").replace("Squad ", "").trim();
+    switch (trimmedName) {
+      case "CTF 3 Captures":
+      case "CTF 5 Captures":
+      case "Squad Multi-Flag CTF": {
+        return "Capture the Flag";
+      }
+      case "Assault:Neutral Bomb Ranked":
+      case "Assault:Neutral Bomb Squad Ranked": {
+        return "Neutral Bomb";
+      }
+      case "Team Snipers":
+      case "Tactical Slayer":
+      case "Doubles Slayer":
+      case "FFA Slayer":
+      case "Squad Slayer": {
+        return "Slayer";
+      }
+      default: {
+        return trimmedName as MapMode;
+      }
+    }
   }
 }
