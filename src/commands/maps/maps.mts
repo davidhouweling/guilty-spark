@@ -186,25 +186,30 @@ export class MapsCommand extends BaseCommand {
             : InteractionResponseType.DeferredMessageUpdate,
       },
       jobToComplete: async (): Promise<void> => {
-        const { discordService } = this.services;
-        const maps = await mapsPromise;
-        const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
-        const response = this.createMapsResponse({
-          userId: Preconditions.checkExists(
-            interaction.member?.user.id ?? interaction.user?.id,
-            "expected either an interaction member id or user id but none found",
-          ),
-          ...state,
-          maps,
-          availableModes,
-        });
-        if (
-          interaction.type === InteractionType.MessageComponent &&
-          interaction.data.custom_id === InteractionComponent.Initiate.toString()
-        ) {
-          await discordService.createMessage(interaction.channel.id, response);
-        } else {
-          await discordService.updateDeferredReply(interaction.token, response);
+        const { discordService, logService } = this.services;
+        try {
+          const maps = await mapsPromise;
+          const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
+          const response = this.createMapsResponse({
+            userId: Preconditions.checkExists(
+              interaction.member?.user.id ?? interaction.user?.id,
+              "expected either an interaction member id or user id but none found",
+            ),
+            ...state,
+            maps,
+            availableModes,
+          });
+          if (
+            interaction.type === InteractionType.MessageComponent &&
+            interaction.data.custom_id === InteractionComponent.Initiate.toString()
+          ) {
+            await discordService.createMessage(interaction.channel.id, response);
+          } else {
+            await discordService.updateDeferredReply(interaction.token, response);
+          }
+        } catch (error) {
+          logService.error(error as Error);
+          await discordService.updateDeferredReplyWithError(interaction.token, error);
         }
       },
     };
