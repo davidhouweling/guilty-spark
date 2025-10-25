@@ -166,7 +166,7 @@ export class MapsCommand extends BaseCommand {
       | APIMessageComponentButtonInteraction
       | APIMessageComponentSelectMenuInteraction,
     state: { count: number; playlist: MapsPlaylistType; format: MapsFormatType },
-    maps: { mode: MapMode; map: string }[],
+    mapsPromise: Promise<{ mode: MapMode; map: string }[]>,
   ): ExecuteResponse {
     return {
       response: {
@@ -177,6 +177,8 @@ export class MapsCommand extends BaseCommand {
       },
       jobToComplete: async (): Promise<void> => {
         const { discordService } = this.services;
+        const maps = await mapsPromise;
+        const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
         const response = this.createMapsResponse({
           userId: Preconditions.checkExists(
             interaction.member?.user.id ?? interaction.user?.id,
@@ -184,6 +186,7 @@ export class MapsCommand extends BaseCommand {
           ),
           ...state,
           maps,
+          availableModes,
         });
         if (
           interaction.type === InteractionType.MessageComponent &&
@@ -260,9 +263,9 @@ export class MapsCommand extends BaseCommand {
     const playlist = MapsPlaylistType.HCS_CURRENT;
     const format = MapsFormatType.HCS;
     const newState = { count, playlist, format };
-    const maps = this.services.haloService.generateMaps(newState);
+    const mapsPromise = this.services.haloService.generateMaps(newState);
 
-    return this.generateDeferredResponse(interaction, newState, maps);
+    return this.generateDeferredResponse(interaction, newState, mapsPromise);
   }
 
   private rollResponse(
@@ -272,27 +275,27 @@ export class MapsCommand extends BaseCommand {
     const state = this.getStateFromEmbed(interaction);
     const count = this.getCountFromInteractionButton(customId);
     const newState = { ...state, count };
-    const maps = this.services.haloService.generateMaps(newState);
+    const mapsPromise = this.services.haloService.generateMaps(newState);
 
-    return this.generateDeferredResponse(interaction, newState, maps);
+    return this.generateDeferredResponse(interaction, newState, mapsPromise);
   }
 
   private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const playlist = interaction.data.values[0] as MapsPlaylistType;
     const newState = { ...state, playlist };
-    const maps = this.services.haloService.generateMaps(newState);
+    const mapsPromise = this.services.haloService.generateMaps(newState);
 
-    return this.generateDeferredResponse(interaction, newState, maps);
+    return this.generateDeferredResponse(interaction, newState, mapsPromise);
   }
 
   private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     const state = this.getStateFromEmbed(interaction);
     const format = interaction.data.values[0] as MapsFormatType;
     const newState = { ...state, format };
-    const maps = this.services.haloService.generateMaps(newState);
+    const mapsPromise = this.services.haloService.generateMaps(newState);
 
-    return this.generateDeferredResponse(interaction, newState, maps);
+    return this.generateDeferredResponse(interaction, newState, mapsPromise);
   }
 
   private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
@@ -380,13 +383,7 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private createMapsResponse({
-    userId,
-    count,
-    playlist,
-    format,
-    maps,
-  }: {
+  private createMapsResponse(opts: {
     userId: string;
     count: number;
     playlist: MapsPlaylistType;
@@ -395,17 +392,9 @@ export class MapsCommand extends BaseCommand {
       mode: MapMode;
       map: string;
     }[];
+    availableModes: MapMode[];
   }): APIInteractionResponseCallbackData {
-    const mapsEmbed = new MapsEmbed(
-      { discordService: this.services.discordService },
-      {
-        userId,
-        count,
-        playlist,
-        format,
-        maps,
-      },
-    );
+    const mapsEmbed = new MapsEmbed({ discordService: this.services.discordService }, opts);
 
     return mapsEmbed.toMessageData();
   }

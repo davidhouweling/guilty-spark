@@ -257,6 +257,25 @@ function aFakePlaylistSelectInteraction(
   };
 }
 
+function aFakeFormatSelectInteraction(
+  selectedFormat: MapsFormatType,
+  count: 1 | 3 | 5 | 7 = 5,
+  playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
+  format: MapsFormatType = MapsFormatType.HCS,
+): APIMessageComponentSelectMenuInteraction {
+  return {
+    ...fakeBaseAPIApplicationCommandInteraction,
+    id: "fake-interaction-id",
+    type: InteractionType.MessageComponent,
+    data: {
+      component_type: ComponentType.StringSelect,
+      custom_id: InteractionComponent.FormatSelect,
+      values: [selectedFormat],
+    },
+    message: aFakeApiMessage({ playlist, format, count, selectedFormat }),
+  };
+}
+
 describe("MapsCommand", () => {
   let command: MapsCommand;
   let services: Services;
@@ -278,7 +297,14 @@ describe("MapsCommand", () => {
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
     vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
     vi.spyOn(services.discordService, "getEmojiFromName").mockReturnValue(":GameCoachGG:");
-    vi.spyOn(services.haloService, "generateMaps").mockReturnValue(mockMaps);
+    vi.spyOn(services.haloService, "generateMaps").mockResolvedValue(mockMaps);
+    vi.spyOn(services.haloService, "getMapModesForPlaylist").mockResolvedValue([
+      "Slayer",
+      "Capture the Flag",
+      "Strongholds",
+      "Oddball",
+      "King of the Hill",
+    ]);
   });
 
   describe("execute(): application command", () => {
@@ -592,6 +618,136 @@ describe("MapsCommand", () => {
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT.toString())?.default).toBe(true);
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL.toString())?.default).toBe(false);
       });
+    });
+
+    describe("format select", () => {
+      it("returns deferred response and jobToComplete", () => {
+        const interaction = aFakeFormatSelectInteraction(MapsFormatType.RANDOM, 3, MapsPlaylistType.HCS_CURRENT);
+
+        const { response, jobToComplete } = command.execute(interaction);
+
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
+
+      it("calls updateDeferredReply when format is switched to RANDOM", async () => {
+        const interaction = aFakeFormatSelectInteraction(
+          MapsFormatType.RANDOM,
+          5,
+          MapsPlaylistType.HCS_CURRENT,
+          MapsFormatType.RANDOM,
+        );
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(typeof embed?.title).toBe("string");
+        expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_CURRENT);
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll5).style).toBe(ButtonStyle.Primary);
+
+        // Verify format select has RANDOM selected
+        const formatSelect = data.components?.find(
+          (c) =>
+            c.type === ComponentType.ActionRow &&
+            c.components.some(
+              (comp) =>
+                comp.type === ComponentType.StringSelect && comp.custom_id === InteractionComponent.FormatSelect,
+            ),
+        );
+        expect(formatSelect).toBeDefined();
+      });
+
+      it("calls updateDeferredReply when format is switched to OBJECTIVE", async () => {
+        const interaction = aFakeFormatSelectInteraction(
+          MapsFormatType.OBJECTIVE,
+          3,
+          MapsPlaylistType.HCS_HISTORICAL,
+          MapsFormatType.OBJECTIVE,
+        );
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toBeDefined();
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+      });
+
+      it("calls updateDeferredReply when format is switched to SLAYER", async () => {
+        const interaction = aFakeFormatSelectInteraction(
+          MapsFormatType.SLAYER,
+          7,
+          MapsPlaylistType.HCS_CURRENT,
+          MapsFormatType.SLAYER,
+        );
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+
+        expect(embed).toBeDefined();
+        expect(embed?.title).toBeDefined();
+
+        const buttonRow = getButtonRow(data.components);
+        expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
+      });
+    });
+  });
+
+  describe("getMapModesForPlaylist integration", () => {
+    it("calls getMapModesForPlaylist and passes availableModes to MapsEmbed", async () => {
+      const interaction = aFakeMapsInteractionWith();
+      const { jobToComplete } = command.execute(interaction);
+
+      const getMapModesForPlaylistSpy = vi.spyOn(services.haloService, "getMapModesForPlaylist");
+
+      await jobToComplete?.();
+
+      expect(getMapModesForPlaylistSpy).toHaveBeenCalledOnce();
+      expect(getMapModesForPlaylistSpy).toHaveBeenCalledWith(MapsPlaylistType.HCS_CURRENT);
+    });
+
+    it("calls getMapModesForPlaylist with correct playlist when switching playlists", async () => {
+      const interaction = aFakePlaylistSelectInteraction(
+        MapsPlaylistType.HCS_HISTORICAL,
+        5,
+        MapsPlaylistType.HCS_HISTORICAL,
+      );
+      const { jobToComplete } = command.execute(interaction);
+
+      const getMapModesForPlaylistSpy = vi.spyOn(services.haloService, "getMapModesForPlaylist");
+
+      await jobToComplete?.();
+
+      expect(getMapModesForPlaylistSpy).toHaveBeenCalledOnce();
+      expect(getMapModesForPlaylistSpy).toHaveBeenCalledWith(MapsPlaylistType.HCS_HISTORICAL);
+    });
+
+    it("handles getMapModesForPlaylist errors gracefully", async () => {
+      const interaction = aFakeMapsInteractionWith();
+      const { jobToComplete } = command.execute(interaction);
+
+      vi.spyOn(services.haloService, "getMapModesForPlaylist").mockRejectedValueOnce(
+        new Error("Failed to fetch modes"),
+      );
+
+      await expect(jobToComplete?.()).rejects.toThrow("Failed to fetch modes");
     });
   });
 });

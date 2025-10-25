@@ -2297,6 +2297,27 @@ export class SetupCommand extends BaseCommand {
       case MapsPlaylistType.HCS_HISTORICAL: {
         return "HCS - Historical";
       }
+      case MapsPlaylistType.RANKED_ARENA: {
+        return "Ranked Arena";
+      }
+      case MapsPlaylistType.RANKED_SLAYER: {
+        return "Ranked Slayer";
+      }
+      case MapsPlaylistType.RANKED_SNIPERS: {
+        return "Ranked Snipers";
+      }
+      case MapsPlaylistType.RANKED_TACTICAL: {
+        return "Ranked Tactical";
+      }
+      case MapsPlaylistType.RANKED_DOUBLES: {
+        return "Ranked Doubles";
+      }
+      case MapsPlaylistType.RANKED_FFA: {
+        return "Ranked FFA";
+      }
+      case MapsPlaylistType.RANKED_SQUAD_BATTLE: {
+        return "Ranked Squad Battle";
+      }
       default: {
         throw new UnreachableError(playlistType);
       }

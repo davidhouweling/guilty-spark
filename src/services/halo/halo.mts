@@ -18,7 +18,7 @@ import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
 import type { Format, MapMode } from "./hcs.mjs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, ALL_MODES, HCS_SET_FORMAT } from "./hcs.mjs";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 
@@ -43,7 +43,6 @@ export interface Medal {
 }
 
 export enum FetchablePlaylist {
-  RANKED_1V1 = "28bfa5f4-89b0-47dc-86e8-1a7cc5b593fc",
   RANKED_ARENA = "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
   RANKED_DOUBLES = "fa5aa2a3-2428-4912-a023-e1eeea7b877c",
   RANKED_FFA = "71734db4-4b8e-4682-9206-62b6eff92582",
@@ -54,6 +53,7 @@ export enum FetchablePlaylist {
 }
 
 export interface HaloServiceOpts {
+  env: Env;
   logService: LogService;
   databaseService: DatabaseService;
   infiniteClient: HaloInfiniteClient;
@@ -74,6 +74,7 @@ const noMatchError = new EndUserError(
 );
 
 export class HaloService {
+  private readonly env: Env;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly infiniteClient: HaloInfiniteClient;
@@ -85,7 +86,14 @@ export class HaloService {
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
-  constructor({ logService, databaseService, infiniteClient, roundRobinFn = generateRoundRobinMaps }: HaloServiceOpts) {
+  constructor({
+    env,
+    logService,
+    databaseService,
+    infiniteClient,
+    roundRobinFn = generateRoundRobinMaps,
+  }: HaloServiceOpts) {
+    this.env = env;
     this.logService = logService;
     this.databaseService = databaseService;
     this.infiniteClient = infiniteClient;
@@ -398,27 +406,15 @@ export class HaloService {
     return rankedArenaCsrs;
   }
 
-  getMapModeFormat(format: MapsFormatType, count: number): Format[] {
-    switch (format) {
-      case MapsFormatType.HCS: {
-        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
-      }
-      case MapsFormatType.RANDOM: {
-        return Array(count).fill("random") as Format[];
-      }
-      case MapsFormatType.OBJECTIVE: {
-        return Array(count).fill("objective") as Format[];
-      }
-      case MapsFormatType.SLAYER: {
-        return Array(count).fill("slayer") as Format[];
-      }
-      default: {
-        throw new UnreachableError(format);
-      }
-    }
+  async getMapModesForPlaylist(playlist: MapsPlaylistType): Promise<MapMode[]> {
+    const mapSet = await this.getMapSet(playlist);
+
+    return Object.entries(mapSet)
+      .filter(([, maps]) => maps.length > 0)
+      .map(([mode]) => mode as MapMode);
   }
 
-  generateMaps({
+  async generateMaps({
     playlist,
     format,
     count,
@@ -426,17 +422,16 @@ export class HaloService {
     playlist: MapsPlaylistType;
     format: MapsFormatType;
     count: number;
-  }): { mode: MapMode; map: string }[] {
-    const mapSet: Record<MapMode, string[]> =
-      playlist === MapsPlaylistType.HCS_HISTORICAL ? HISTORICAL_HCS_MAPS : CURRENT_HCS_MAPS;
-
-    const formatSequence = this.getMapModeFormat(format, count);
+  }): Promise<{ mode: MapMode; map: string }[]> {
+    const mapSet = await this.getMapSet(playlist);
+    const validMapModes = await this.getMapModesForPlaylist(playlist);
+    const formatSequence = this.getMapModeFormat(validMapModes.length > 1 ? format : MapsFormatType.SLAYER, count);
 
     // Build all possible (mode, map) pairs
     const allPairs: { mode: MapMode; map: string }[] = [];
-    for (const mode of ALL_MODES) {
-      for (const map of mapSet[mode]) {
-        allPairs.push({ mode, map });
+    for (const [mode, maps] of Object.entries(mapSet)) {
+      for (const map of maps) {
+        allPairs.push({ mode: mode as MapMode, map });
       }
     }
 
@@ -447,33 +442,6 @@ export class HaloService {
         f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
       ),
     });
-  }
-
-  async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<{ mode: MapMode; map: string }[]> {
-    const playlist = await this.infiniteClient.getPlaylist(playlistId);
-    const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
-      AssetKind.Playlist,
-      playlistId,
-      playlist.UgcPlaylistVersion,
-    );
-    const rotationEntries = await Promise.allSettled(
-      specificAssetVersion.RotationEntries.map(async (entry) =>
-        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId),
-      ),
-    );
-
-    return rotationEntries.reduce<{ mode: MapMode; map: string }[]>((accumulator, result) => {
-      if (result.status !== "fulfilled") {
-        return accumulator;
-      }
-
-      accumulator.push({
-        mode: this.ucgMapNameToMapMode(result.value.UgcGameVariantLink.PublicName),
-        map: result.value.MapLink.PublicName,
-      });
-
-      return accumulator;
-    }, []);
   }
 
   async updateDiscordAssociations(): Promise<void> {
@@ -1187,17 +1155,139 @@ export class HaloService {
     });
   }
 
-  private ucgMapNameToMapMode(ucgMapName: string): MapMode {
-    switch (ucgMapName.replace("Ranked:", "").trim()) {
-      case "CTF 3 Captures":
-      case "CTF 5 Captures": {
-        return "Capture the Flag";
+  private async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<Record<MapMode, string[]>> {
+    const cacheKey = `halo-playlist-map-modes-${playlistId}`;
+    const cache = await this.env.APP_DATA.get<Record<MapMode, string[]>>(cacheKey, {
+      type: "json",
+    });
+    if (cache != null) {
+      return cache;
+    }
+
+    const playlist = await this.infiniteClient.getPlaylist(playlistId);
+    const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
+      AssetKind.Playlist,
+      playlistId,
+      playlist.UgcPlaylistVersion,
+    );
+    const rotationEntries = await Promise.allSettled(
+      specificAssetVersion.RotationEntries.map(async (entry) =>
+        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId),
+      ),
+    );
+
+    const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
+      (accumulator, result) => {
+        if (result.status !== "fulfilled") {
+          return accumulator;
+        }
+
+        const mapMode = this.ucgMapNameToMapMode(result.value.UgcGameVariantLink.PublicName);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (accumulator[mapMode] == null) {
+          this.logService.warn(
+            `Unknown map mode encountered: ${mapMode}`,
+            new Map([["data", JSON.stringify(result.value)]]),
+          );
+          accumulator[mapMode] = [];
+        }
+
+        accumulator[mapMode].push(result.value.MapLink.PublicName.replace("- Ranked", "").trim());
+        return accumulator;
+      },
+      {
+        Slayer: [],
+        "Capture the Flag": [],
+        Strongholds: [],
+        Oddball: [],
+        "King of the Hill": [],
+        "Neutral Bomb": [],
+      } satisfies Record<MapMode, string[]>,
+    );
+
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(playlistMapModes), {
+      expirationTtl: 86400, // 1 day
+    });
+
+    return playlistMapModes;
+  }
+
+  private async getMapSet(playlist: MapsPlaylistType): Promise<Record<MapMode, string[]>> {
+    switch (playlist) {
+      case MapsPlaylistType.HCS_CURRENT: {
+        return CURRENT_HCS_MAPS;
       }
-      case "Assault:Neutral Bomb Ranked": {
-        return "Neutral Bomb";
+      case MapsPlaylistType.HCS_HISTORICAL: {
+        return HISTORICAL_HCS_MAPS;
+      }
+      case MapsPlaylistType.RANKED_ARENA: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+      }
+      case MapsPlaylistType.RANKED_DOUBLES: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_DOUBLES);
+      }
+      case MapsPlaylistType.RANKED_FFA: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_FFA);
+      }
+      case MapsPlaylistType.RANKED_SLAYER: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SLAYER);
+      }
+      case MapsPlaylistType.RANKED_SNIPERS: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SNIPERS);
+      }
+      case MapsPlaylistType.RANKED_SQUAD_BATTLE: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_SQUAD_BATTLE);
+      }
+      case MapsPlaylistType.RANKED_TACTICAL: {
+        return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_TACTICAL);
       }
       default: {
-        return ucgMapName as MapMode;
+        throw new UnreachableError(playlist);
+      }
+    }
+  }
+
+  private getMapModeFormat(format: MapsFormatType, count: number): Format[] {
+    switch (format) {
+      case MapsFormatType.HCS: {
+        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
+      }
+      case MapsFormatType.RANDOM: {
+        return Array(count).fill("random") as Format[];
+      }
+      case MapsFormatType.OBJECTIVE: {
+        return Array(count).fill("objective") as Format[];
+      }
+      case MapsFormatType.SLAYER: {
+        return Array(count).fill("slayer") as Format[];
+      }
+      default: {
+        throw new UnreachableError(format);
+      }
+    }
+  }
+
+  private ucgMapNameToMapMode(ucgMapName: string): MapMode {
+    const trimmedName = ucgMapName.replace("Ranked:", "").replace("Squad Ranked", "").replace("Squad ", "").trim();
+    switch (trimmedName) {
+      case "CTF 3 Captures":
+      case "CTF 5 Captures":
+      case "Squad Multi-Flag CTF": {
+        return "Capture the Flag";
+      }
+      case "Assault:Neutral Bomb Ranked":
+      case "Assault:Neutral Bomb Squad Ranked": {
+        return "Neutral Bomb";
+      }
+      case "Team Snipers":
+      case "Tactical Slayer":
+      case "Doubles Slayer":
+      case "FFA Slayer":
+      case "Squad Slayer": {
+        return "Slayer";
+      }
+      default: {
+        return trimmedName as MapMode;
       }
     }
   }

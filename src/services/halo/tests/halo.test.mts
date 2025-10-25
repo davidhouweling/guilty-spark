@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import { MatchOutcome, RequestError, AssetKind } from "halo-infinite-api";
+import { MatchOutcome, RequestError } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient, UserInfo } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
@@ -16,8 +16,10 @@ import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 describe("Halo service", () => {
+  let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
   let infiniteClient: MockProxy<HaloInfiniteClient>;
@@ -27,11 +29,12 @@ describe("Halo service", () => {
     vi.useFakeTimers();
     vi.setSystemTime("2024-11-26T12:00:00.000Z");
 
+    env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     databaseService = aFakeDatabaseServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
-    haloService = new HaloService({ logService, databaseService, infiniteClient });
+    haloService = new HaloService({ env, logService, databaseService, infiniteClient });
     haloService.clearUserCache(); // Clear cache between tests
   });
 
@@ -1612,7 +1615,7 @@ describe("Halo service", () => {
 
     it("caches the medal data so that it only calls infinite api once", async () => {
       const getMedalsMetadataFileSpy = vi.spyOn(infiniteClient, "getMedalsMetadataFile");
-      const cleanHaloService = new HaloService({ logService, databaseService, infiniteClient });
+      const cleanHaloService = new HaloService({ env, logService, databaseService, infiniteClient });
 
       await cleanHaloService.getMedal(3334154676);
       await cleanHaloService.getMedal(3334154676);
@@ -1876,92 +1879,48 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getPlaylistMapModes()", () => {
-    it("returns the map modes for a playlist", async () => {
-      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+  describe("getMapModesForPlaylist()", () => {
+    it("returns available map modes for HCS Current playlist", async () => {
+      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.HCS_CURRENT);
 
-      expect(result).toHaveLength(3);
-      expect(result).toEqual([
-        { mode: "Ranked:King of the Hill", map: "Live Fire - Ranked" },
-        { mode: "Ranked:Slayer", map: "Live Fire - Ranked" },
-        { mode: "Capture the Flag", map: "Aquarius" },
-      ]);
+      expect(result).toContain("Slayer");
+      expect(result).toContain("Capture the Flag");
+      expect(result).toContain("Strongholds");
+      expect(result).toContain("Oddball");
+      expect(result).toContain("King of the Hill");
     });
 
-    it("fetches playlist from infinite client", async () => {
-      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+    it("returns available map modes for HCS Historical playlist", async () => {
+      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.HCS_HISTORICAL);
 
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledOnce();
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
+      expect(result).toContain("Slayer");
+      expect(result).toContain("Capture the Flag");
+      expect(result).toContain("Strongholds");
+      expect(result).toContain("Oddball");
+      expect(result).toContain("King of the Hill");
     });
 
-    it("fetches specific playlist asset version using playlist version id", async () => {
-      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+    it("returns available map modes for Ranked Arena playlist", async () => {
+      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.RANKED_ARENA);
 
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
-        AssetKind.Playlist,
-        "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
-        "fc29d7fc-5a05-47a3-9d3b-5206d6fab796",
-      );
+      expect(result.length).toBeGreaterThan(0);
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
     });
 
-    it("fetches map mode pair assets for each rotation entry", async () => {
-      await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
+    it("caches playlist map modes in KV storage", async () => {
+      const kvGetSpy = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy = vi.spyOn(env.APP_DATA, "put");
 
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
-        AssetKind.MapModePair,
-        "91957e4b-b5e4-4a11-ac69-dce934fa7002",
-        "b000bde4-9a6d-486d-87c7-26dbc4cee721",
-      );
+      await haloService.getMapModesForPlaylist(MapsPlaylistType.RANKED_ARENA);
 
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
-        AssetKind.MapModePair,
-        "be1c791b-fbae-4e8d-aeee-9f48df6fee9d",
-        "3c670ec5-b4c2-4dba-b3ea-46d70178033c",
-      );
-
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledWith(
-        AssetKind.MapModePair,
-        "2bb084c2-a047-4fe9-9023-4100cbe6860d",
-        "90309230-ea75-436f-bca9-3732b22c1aa3",
-      );
-    });
-
-    it("extracts mode from UgcGameVariantLink PublicName", async () => {
-      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
-
-      const modes = result.map((r) => r.mode);
-      expect(modes).toContain("Ranked:King of the Hill");
-      expect(modes).toContain("Ranked:Slayer");
-      expect(modes).toContain("Capture the Flag");
-    });
-
-    it("extracts map from MapLink PublicName", async () => {
-      const result = await haloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
-
-      const maps = result.map((r) => r.map);
-      expect(maps).toContain("Live Fire - Ranked");
-      expect(maps).toContain("Aquarius");
-    });
-
-    it("handles failed map mode pair fetches by filtering them out", async () => {
-      const cleanHaloService = new HaloService({ logService, databaseService, infiniteClient });
-      const originalMock = Preconditions.checkExists(infiniteClient.getSpecificAssetVersion.getMockImplementation());
-
-      infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, versionId) => {
-        if (assetKind === AssetKind.MapModePair && assetId === "be1c791b-fbae-4e8d-aeee-9f48df6fee9d") {
-          return Promise.reject(new Error("Failed to fetch"));
-        }
-        return originalMock(assetKind, assetId, versionId);
+      expect(kvGetSpy).toHaveBeenCalledWith("halo-playlist-map-modes-edfef3ac-9cbe-4fa2-b949-8f29deafd483", {
+        type: "json",
       });
-
-      const result = await cleanHaloService.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
-
-      expect(result).toHaveLength(2);
-      expect(result).toEqual([
-        { mode: "Ranked:King of the Hill", map: "Live Fire - Ranked" },
-        { mode: "Capture the Flag", map: "Aquarius" },
-      ]);
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        "halo-playlist-map-modes-edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+        expect.any(String),
+        { expirationTtl: 86400 },
+      );
     });
   });
 
@@ -1976,6 +1935,7 @@ describe("Halo service", () => {
         { mode: "Capture the Flag", map: "Aquarius" },
       ]);
       serviceWithMockRoundRobin = new HaloService({
+        env,
         logService,
         databaseService,
         infiniteClient,
@@ -1983,8 +1943,8 @@ describe("Halo service", () => {
       });
     });
 
-    it("generates maps using HCS format", () => {
-      const result = serviceWithMockRoundRobin.generateMaps({
+    it("generates maps using HCS format", async () => {
+      const result = await serviceWithMockRoundRobin.generateMaps({
         count: 3,
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.HCS,
@@ -2014,8 +1974,8 @@ describe("Halo service", () => {
       }
     });
 
-    it("generates maps using Random format", () => {
-      const result = serviceWithMockRoundRobin.generateMaps({
+    it("generates maps using Random format", async () => {
+      const result = await serviceWithMockRoundRobin.generateMaps({
         count: 5,
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.RANDOM,
@@ -2048,6 +2008,18 @@ describe("Halo service", () => {
       for (const format of actualArgs.formatSequence) {
         expect(["slayer", "objective"]).toContain(format);
       }
+    });
+
+    it("generates maps for Ranked Arena playlist", async () => {
+      const result = await serviceWithMockRoundRobin.generateMaps({
+        count: 5,
+        playlist: MapsPlaylistType.RANKED_ARENA,
+        format: MapsFormatType.HCS,
+      });
+
+      expect(result).toHaveLength(3);
+      expect(mockRoundRobinFn).toHaveBeenCalledOnce();
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
     });
   });
 });

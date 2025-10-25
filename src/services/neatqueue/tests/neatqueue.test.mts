@@ -230,6 +230,13 @@ describe("NeatQueueService", () => {
           .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "Y" }));
         updateGuildConfigSpy = vi.spyOn(databaseService, "updateGuildConfig").mockResolvedValue();
         warnSpy = vi.spyOn(logService, "warn");
+        vi.spyOn(haloService, "getMapModesForPlaylist").mockResolvedValue([
+          "Slayer",
+          "Capture the Flag",
+          "Strongholds",
+          "Oddball",
+          "King of the Hill",
+        ]);
 
         const request = getFakeNeatQueueData("matchStarted");
         jobToComplete = Preconditions.checkExists(
@@ -437,7 +444,7 @@ describe("NeatQueueService", () => {
             NeatQueueInformerMapsPost: MapsPostType.AUTO,
           }),
         );
-        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockReturnValue([
+        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockResolvedValue([
           { map: "Map 1", mode: "Slayer" },
           { map: "Map 2", mode: "Capture the Flag" },
         ]);
@@ -465,7 +472,7 @@ describe("NeatQueueService", () => {
             NeatQueueInformerMapsPost: MapsPostType.AUTO,
           }),
         );
-        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockReturnValue([
+        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockResolvedValue([
           { map: "Map 1", mode: "Slayer" },
           { map: "Map 2", mode: "Capture the Flag" },
         ]);
