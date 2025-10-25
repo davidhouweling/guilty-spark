@@ -659,7 +659,8 @@ describe("MapsCommand", () => {
             c.type === ComponentType.ActionRow &&
             c.components.some(
               (comp) =>
-                comp.type === ComponentType.StringSelect && comp.custom_id === InteractionComponent.FormatSelect,
+                comp.type === ComponentType.StringSelect &&
+                comp.custom_id === InteractionComponent.FormatSelect.toString(),
             ),
         );
         expect(formatSelect).toBeDefined();
