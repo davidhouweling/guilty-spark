@@ -1,0 +1,129 @@
+{
+  "CustomData": {},
+  "Tags": [],
+  "MapLink": {
+    "AssetId": "309253f8-7a75-48ff-83e1-e7fb3db2ac47",
+    "VersionId": "86a644f0-5063-40b8-b601-ce361439da72",
+    "PublicName": "Live Fire - Ranked",
+    "Description": "Instructors at the Avery J. Johnson Academy of Military Science ensure their Spartans are prepared for any challenge.",
+    "Files": {
+      "Prefix": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/309253f8-7a75-48ff-83e1-e7fb3db2ac47/86a644f0-5063-40b8-b601-ce361439da72/",
+      "FileRelativePaths": ["images/hero.jpg", "images/screenshot1.jpg", "images/thumbnail.jpg"],
+      "PrefixEndpoint": {
+        "AuthorityId": "iUgcFiles",
+        "Path": "/ugcstorage/map/309253f8-7a75-48ff-83e1-e7fb3db2ac47/86a644f0-5063-40b8-b601-ce361439da72/",
+        "QueryString": null,
+        "RetryPolicyId": "linearretry",
+        "TopicName": "",
+        "AcknowledgementTypeId": 0,
+        "AuthenticationLifetimeExtensionSupported": false,
+        "ClearanceAware": false
+      }
+    },
+    "Contributors": ["xuid(2814620159006815)"],
+    "AssetHome": 1,
+    "AssetStats": {
+      "PlaysRecent": 27300,
+      "PlaysAllTime": 16050315,
+      "Favorites": 11998,
+      "Likes": 0,
+      "Bookmarks": 0,
+      "ParentAssetCount": 16,
+      "AverageRating": 4.242057488653555,
+      "NumberOfRatings": 661
+    },
+    "InspectionResult": 0,
+    "CloneBehavior": 0,
+    "Order": 0,
+    "PublishedDate": {
+      "ISO8601Date": "2021-11-15T12:00:00Z"
+    },
+    "VersionNumber": 7,
+    "Admin": "xuid(2814672600485177)",
+    "DisplayOwnerOverride": ""
+  },
+  "UgcGameVariantLink": {
+    "AssetId": "88c22b1f-2d64-48b9-bab1-26fe4721fb23",
+    "VersionId": "43e75f3a-eee5-4147-b9d3-19782fac58f8",
+    "PublicName": "Ranked:King of the Hill",
+    "Description": "Bandit Evo loadouts, Friendly-Fire enabled, Motion Tracker disabled. Hold the hill. Hail to the king.",
+    "Files": {
+      "Prefix": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/ugcgamevariant/88c22b1f-2d64-48b9-bab1-26fe4721fb23/43e75f3a-eee5-4147-b9d3-19782fac58f8/",
+      "FileRelativePaths": [
+        "images/hero.png",
+        "images/screenshot1.png",
+        "images/screenshot2.png",
+        "images/screenshot3.png",
+        "images/thumbnail.png"
+      ],
+      "PrefixEndpoint": {
+        "AuthorityId": "iUgcFiles",
+        "Path": "/ugcstorage/ugcgamevariant/88c22b1f-2d64-48b9-bab1-26fe4721fb23/43e75f3a-eee5-4147-b9d3-19782fac58f8/",
+        "QueryString": null,
+        "RetryPolicyId": "linearretry",
+        "TopicName": "",
+        "AcknowledgementTypeId": 0,
+        "AuthenticationLifetimeExtensionSupported": false,
+        "ClearanceAware": false
+      }
+    },
+    "Contributors": [],
+    "AssetHome": 1,
+    "AssetStats": {
+      "PlaysRecent": 13856,
+      "PlaysAllTime": 9997566,
+      "Favorites": 7603,
+      "Likes": 0,
+      "Bookmarks": 0,
+      "ParentAssetCount": 57,
+      "AverageRating": 3.6396903589021816,
+      "NumberOfRatings": 2842
+    },
+    "InspectionResult": 0,
+    "CloneBehavior": 1,
+    "Order": 0,
+    "PublishedDate": {
+      "ISO8601Date": "2021-11-15T12:00:00Z"
+    },
+    "VersionNumber": 8,
+    "Admin": "aaid(5c7909e9-3620-4920-8abf-f18cfb4333b6)",
+    "DisplayOwnerOverride": ""
+  },
+  "AssetId": "91957e4b-b5e4-4a11-ac69-dce934fa7002",
+  "VersionId": "b000bde4-9a6d-486d-87c7-26dbc4cee721",
+  "PublicName": "Ranked:King of the Hill on Live Fire",
+  "Description": "",
+  "Files": {
+    "Prefix": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/mapmodepair/91957e4b-b5e4-4a11-ac69-dce934fa7002/b000bde4-9a6d-486d-87c7-26dbc4cee721/",
+    "FileRelativePaths": [],
+    "PrefixEndpoint": {
+      "AuthorityId": "iUgcFiles",
+      "Path": "/ugcstorage/mapmodepair/91957e4b-b5e4-4a11-ac69-dce934fa7002/b000bde4-9a6d-486d-87c7-26dbc4cee721/",
+      "QueryString": null,
+      "RetryPolicyId": "linearretry",
+      "TopicName": "",
+      "AcknowledgementTypeId": 0,
+      "AuthenticationLifetimeExtensionSupported": false,
+      "ClearanceAware": false
+    }
+  },
+  "Contributors": [],
+  "AssetHome": 1,
+  "AssetStats": {
+    "PlaysRecent": 3760,
+    "PlaysAllTime": 2405892,
+    "Favorites": 0,
+    "Likes": 0,
+    "Bookmarks": 0,
+    "ParentAssetCount": 1,
+    "AverageRating": 0,
+    "NumberOfRatings": 0
+  },
+  "InspectionResult": 0,
+  "CloneBehavior": 0,
+  "Order": 0,
+  "PublishedDate": null,
+  "VersionNumber": 19,
+  "Admin": "atui(27d5a614-5e32-4ce9-9207-b3a63945b5bb.b613328e-1f2a-4709-a9f1-d483d701a573)",
+  "DisplayOwnerOverride": ""
+}

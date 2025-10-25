@@ -51,6 +51,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     : new HaloInfiniteClient(new CustomSpartanTokenProvider({ env, xboxService }));
 
   const haloService = new HaloService({
+    env,
     logService,
     databaseService,
     infiniteClient: haloInfiniteClient,

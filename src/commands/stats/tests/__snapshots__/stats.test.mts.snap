@@ -199,7 +199,7 @@ Carriers killed: __**1**__
 ",
           },
         ],
-        "title": "CTF: Empyrean - Ranked",
+        "title": "Capture the Flag: Empyrean - Ranked",
         "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
       },
     ],
@@ -222,9 +222,9 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls 
           {
             "inline": true,
             "name": "Game",
-            "value": "[CTF: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)
-[Land Grab: Fake name for asset a778ae21-a8ae-4569-acb5-898efbd4b3f3](https://halodatahive.com/Infinite/Match/32b4cddf-5451-4d83-bcf6-000land-grab)",
+            "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)
+[Land grab: Rendezvous](https://halodatahive.com/Infinite/Match/32b4cddf-5451-4d83-bcf6-000land-grab)",
           },
           {
             "inline": true,
@@ -787,7 +787,7 @@ Carriers killed: __**1**__
 ",
             },
           ],
-          "title": "CTF: Empyrean - Ranked",
+          "title": "Capture the Flag: Empyrean - Ranked",
           "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
         },
       ],
@@ -983,7 +983,7 @@ Defensive kills: __**4**__
 ",
             },
           ],
-          "title": "KOTH: Fake name for asset 336b5174-3579-4fd8-b2f0-922e4a5f7628",
+          "title": "King of the Hill: Recharge - Ranked",
           "url": "https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth",
         },
       ],
@@ -1265,7 +1265,7 @@ Avg life time (damage/life): 43s (660.17)
 ",
             },
           ],
-          "title": "Land Grab: Fake name for asset a778ae21-a8ae-4569-acb5-898efbd4b3f3",
+          "title": "Land grab: Rendezvous",
           "url": "https://halodatahive.com/Infinite/Match/32b4cddf-5451-4d83-bcf6-000land-grab",
         },
       ],

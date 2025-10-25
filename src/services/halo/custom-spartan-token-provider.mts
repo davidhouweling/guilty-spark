@@ -1,6 +1,6 @@
 import type { SpartanTokenProvider } from "halo-infinite-api";
-import { DateTime } from "luxon";
 import { HaloAuthenticationClient } from "halo-infinite-api";
+import { DateTime } from "luxon";
 import type { XboxService } from "../xbox/xbox.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 

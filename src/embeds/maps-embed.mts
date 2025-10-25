@@ -1,10 +1,14 @@
-import type { APIEmbed, APIInteractionResponseCallbackData, APIMessageTopLevelComponent } from "discord-api-types/v10";
+import type {
+  APIEmbed,
+  APIInteractionResponseCallbackData,
+  APIMessageTopLevelComponent,
+  APISelectMenuOption,
+} from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import { HCS_LAST_UPDATED, type MapMode } from "../services/halo/hcs.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { GAMECOACH_GG_URLS } from "../commands/maps/gamecoachgg.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../services/database/types/guild_config.mjs";
-import { UnreachableError } from "../base/unreachable-error.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 
 export enum InteractionComponent {
@@ -21,11 +25,25 @@ export enum InteractionComponent {
 export const mapPlaylistLabels: Record<MapsPlaylistType, string> = {
   [MapsPlaylistType.HCS_CURRENT]: "HCS - Current",
   [MapsPlaylistType.HCS_HISTORICAL]: "HCS - Historical",
+  [MapsPlaylistType.RANKED_ARENA]: "Ranked Arena",
+  [MapsPlaylistType.RANKED_SLAYER]: "Ranked Slayer",
+  [MapsPlaylistType.RANKED_SNIPERS]: "Ranked Snipers",
+  [MapsPlaylistType.RANKED_TACTICAL]: "Ranked Tactical",
+  [MapsPlaylistType.RANKED_DOUBLES]: "Ranked Doubles",
+  [MapsPlaylistType.RANKED_FFA]: "Ranked FFA",
+  [MapsPlaylistType.RANKED_SQUAD_BATTLE]: "Ranked Squad Battle",
 };
 
 export const mapPlaylistDescriptions: Record<MapsPlaylistType, string> = {
   [MapsPlaylistType.HCS_CURRENT]: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
   [MapsPlaylistType.HCS_HISTORICAL]: "All maps and modes that have been played at any HCS major event",
+  [MapsPlaylistType.RANKED_ARENA]: "Ranked Arena playlist",
+  [MapsPlaylistType.RANKED_SLAYER]: "Ranked Slayer playlist",
+  [MapsPlaylistType.RANKED_SNIPERS]: "Ranked Snipers playlist",
+  [MapsPlaylistType.RANKED_TACTICAL]: "Ranked Tactical playlist",
+  [MapsPlaylistType.RANKED_DOUBLES]: "Ranked Doubles playlist",
+  [MapsPlaylistType.RANKED_FFA]: "Ranked FFA playlist",
+  [MapsPlaylistType.RANKED_SQUAD_BATTLE]: "Ranked Squad Battle playlist",
 };
 
 export const mapFormatLabels: Record<MapsFormatType, string> = {
@@ -51,6 +69,7 @@ interface MapsEmbedData {
     mode: MapMode;
     map: string;
   }[];
+  availableModes: MapMode[];
 }
 
 interface MapsEmbedServices {
@@ -74,7 +93,7 @@ export class MapsEmbed extends BaseTableEmbed {
     const userDisplay = `<@${userId}>`;
 
     const embed: APIEmbed = {
-      title: `Maps: ${this.playlistToString(playlist)}`,
+      title: `Maps: ${mapPlaylistLabels[playlist]}`,
       color: 0x5865f2,
     };
 
@@ -142,20 +161,7 @@ export class MapsEmbed extends BaseTableEmbed {
           {
             type: ComponentType.StringSelect,
             custom_id: InteractionComponent.PlaylistSelect,
-            options: [
-              {
-                label: mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT],
-                value: MapsPlaylistType.HCS_CURRENT,
-                description: mapPlaylistDescriptions[MapsPlaylistType.HCS_CURRENT],
-                default: playlist === MapsPlaylistType.HCS_CURRENT,
-              },
-              {
-                label: mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL],
-                value: MapsPlaylistType.HCS_HISTORICAL,
-                description: mapPlaylistDescriptions[MapsPlaylistType.HCS_HISTORICAL],
-                default: playlist === MapsPlaylistType.HCS_HISTORICAL,
-              },
-            ],
+            options: this.getPlaylistOptions(playlist),
             placeholder: "Select a playlist",
           },
         ],
@@ -166,32 +172,7 @@ export class MapsEmbed extends BaseTableEmbed {
           {
             type: ComponentType.StringSelect,
             custom_id: InteractionComponent.FormatSelect,
-            options: [
-              {
-                label: mapFormatLabels[MapsFormatType.HCS],
-                value: MapsFormatType.HCS,
-                description: mapFormatDescriptions[MapsFormatType.HCS],
-                default: format === MapsFormatType.HCS,
-              },
-              {
-                label: mapFormatLabels[MapsFormatType.RANDOM],
-                value: MapsFormatType.RANDOM,
-                description: mapFormatDescriptions[MapsFormatType.RANDOM],
-                default: format === MapsFormatType.RANDOM,
-              },
-              {
-                label: mapFormatLabels[MapsFormatType.OBJECTIVE],
-                value: MapsFormatType.OBJECTIVE,
-                description: mapFormatDescriptions[MapsFormatType.OBJECTIVE],
-                default: format === MapsFormatType.OBJECTIVE,
-              },
-              {
-                label: mapFormatLabels[MapsFormatType.SLAYER],
-                value: MapsFormatType.SLAYER,
-                description: mapFormatDescriptions[MapsFormatType.SLAYER],
-                default: format === MapsFormatType.SLAYER,
-              },
-            ],
+            options: this.getFormats(format),
           },
         ],
       },
@@ -219,17 +200,53 @@ export class MapsEmbed extends BaseTableEmbed {
     };
   }
 
-  private playlistToString(playlistType: MapsPlaylistType): string {
-    switch (playlistType) {
-      case MapsPlaylistType.HCS_CURRENT: {
-        return mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT];
-      }
-      case MapsPlaylistType.HCS_HISTORICAL: {
-        return mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL];
-      }
-      default: {
-        throw new UnreachableError(playlistType);
-      }
+  private getPlaylistOptions(playlist: MapsPlaylistType): APISelectMenuOption[] {
+    return Object.entries(mapPlaylistLabels).map(([value, label]) => ({
+      label,
+      value,
+      description: mapPlaylistDescriptions[value as MapsPlaylistType],
+      default: (value as MapsPlaylistType) === playlist,
+    }));
+  }
+
+  private getFormats(format: MapsFormatType): APISelectMenuOption[] {
+    const hasObjective = this.data.availableModes.length > 1;
+    if (hasObjective) {
+      return [
+        {
+          label: mapFormatLabels[MapsFormatType.HCS],
+          value: MapsFormatType.HCS,
+          description: mapFormatDescriptions[MapsFormatType.HCS],
+          default: format === MapsFormatType.HCS,
+        },
+        {
+          label: mapFormatLabels[MapsFormatType.RANDOM],
+          value: MapsFormatType.RANDOM,
+          description: mapFormatDescriptions[MapsFormatType.RANDOM],
+          default: format === MapsFormatType.RANDOM,
+        },
+        {
+          label: mapFormatLabels[MapsFormatType.OBJECTIVE],
+          value: MapsFormatType.OBJECTIVE,
+          description: mapFormatDescriptions[MapsFormatType.OBJECTIVE],
+          default: format === MapsFormatType.OBJECTIVE,
+        },
+        {
+          label: mapFormatLabels[MapsFormatType.SLAYER],
+          value: MapsFormatType.SLAYER,
+          description: mapFormatDescriptions[MapsFormatType.SLAYER],
+          default: format === MapsFormatType.SLAYER,
+        },
+      ];
     }
+
+    return [
+      {
+        label: mapFormatLabels[MapsFormatType.SLAYER],
+        value: MapsFormatType.SLAYER,
+        description: mapFormatDescriptions[MapsFormatType.SLAYER],
+        default: true,
+      },
+    ];
   }
 }
