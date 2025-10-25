@@ -739,16 +739,121 @@ describe("MapsCommand", () => {
       expect(getMapModesForPlaylistSpy).toHaveBeenCalledOnce();
       expect(getMapModesForPlaylistSpy).toHaveBeenCalledWith(MapsPlaylistType.HCS_HISTORICAL);
     });
+  });
 
-    it("handles getMapModesForPlaylist errors gracefully", async () => {
-      const interaction = aFakeMapsInteractionWith();
-      const { jobToComplete } = command.execute(interaction);
+  describe("error handling in jobToComplete", () => {
+    let logErrorSpy: MockInstance;
+    let updateDeferredReplyWithErrorSpy: MockInstance;
 
-      vi.spyOn(services.haloService, "getMapModesForPlaylist").mockRejectedValueOnce(
-        new Error("Failed to fetch modes"),
-      );
+    beforeEach(() => {
+      logErrorSpy = vi.spyOn(services.logService, "error");
+      updateDeferredReplyWithErrorSpy = vi
+        .spyOn(services.discordService, "updateDeferredReplyWithError")
+        .mockResolvedValue(apiMessage);
+    });
 
-      await expect(jobToComplete?.()).rejects.toThrow("Failed to fetch modes");
+    describe("application command errors", () => {
+      it("logs error and calls updateDeferredReplyWithError when generateMaps fails", async () => {
+        const testError = new Error("Failed to generate maps");
+        vi.spyOn(services.haloService, "generateMaps").mockRejectedValue(testError);
+
+        const interaction = aFakeMapsInteractionWith();
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
+
+      it("logs error and calls updateDeferredReplyWithError when getMapModesForPlaylist fails", async () => {
+        const testError = new Error("Failed to fetch map modes");
+        vi.spyOn(services.haloService, "getMapModesForPlaylist").mockRejectedValue(testError);
+
+        const interaction = aFakeMapsInteractionWith();
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
+
+      it("logs error and calls updateDeferredReplyWithError when updateDeferredReply fails", async () => {
+        const testError = new Error("Failed to update reply");
+        updateDeferredReplySpy.mockRejectedValue(testError);
+
+        const interaction = aFakeMapsInteractionWith();
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+      });
+    });
+
+    describe("button interaction errors", () => {
+      it("logs error and calls updateDeferredReplyWithError when roll button fails", async () => {
+        const testError = new Error("Failed to regenerate maps");
+        vi.spyOn(services.haloService, "generateMaps").mockRejectedValue(testError);
+
+        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
+
+      it("logs error and calls updateDeferredReplyWithError when initiate button createMessage fails", async () => {
+        const testError = new Error("Failed to create message");
+        vi.spyOn(services.discordService, "createMessage").mockRejectedValue(testError);
+
+        const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+      });
+    });
+
+    describe("playlist select errors", () => {
+      it("logs error and calls updateDeferredReplyWithError when playlist change fails", async () => {
+        const testError = new Error("Failed to change playlist");
+        vi.spyOn(services.haloService, "generateMaps").mockRejectedValue(testError);
+
+        const interaction = aFakePlaylistSelectInteraction(MapsPlaylistType.HCS_HISTORICAL);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("format select errors", () => {
+      it("logs error and calls updateDeferredReplyWithError when format change fails", async () => {
+        const testError = new Error("Failed to change format");
+        vi.spyOn(services.haloService, "generateMaps").mockRejectedValue(testError);
+
+        const interaction = aFakeFormatSelectInteraction(MapsFormatType.RANDOM);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(testError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", testError);
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
     });
   });
 });
