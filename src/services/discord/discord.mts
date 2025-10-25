@@ -911,7 +911,7 @@ export class DiscordService {
     }
 
     const data = await response.json();
-    // this.logService.debug("Discord API response", new Map([["data", JSON.stringify(data)]]));
+    this.logService.debug("Discord API response", new Map([["data", JSON.stringify(data)]]));
     return data as T;
   }
 
