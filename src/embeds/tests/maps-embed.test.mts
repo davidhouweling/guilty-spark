@@ -16,8 +16,6 @@ describe("MapsEmbed", () => {
     { mode: "Strongholds" as const, map: "Live Fire" },
   ];
 
-  const mockAvailableModes = ["Slayer" as const, "Capture the Flag" as const, "Strongholds" as const];
-
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
     getEmojiFromNameSpy = vi.spyOn(discordService, "getEmojiFromName").mockReturnValue("🎮");
@@ -32,7 +30,6 @@ describe("MapsEmbed", () => {
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.HCS,
         maps: mockMaps,
-        availableModes: mockAvailableModes,
       },
     );
 
@@ -74,7 +71,6 @@ describe("MapsEmbed", () => {
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.RANDOM,
         maps: mockMaps,
-        availableModes: mockAvailableModes,
       },
     );
 
@@ -92,7 +88,6 @@ describe("MapsEmbed", () => {
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.HCS,
         maps: mockMaps,
-        availableModes: mockAvailableModes,
       },
     );
 
@@ -117,7 +112,6 @@ describe("MapsEmbed", () => {
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.HCS,
         maps: mapsWithUrl,
-        availableModes: ["Slayer"],
       },
     );
 
@@ -127,43 +121,5 @@ describe("MapsEmbed", () => {
     // Should include the GameCoach.gg link
     expect(mapField?.value).toContain("[Aquarius 🎮]");
     expect(getEmojiFromNameSpy).toHaveBeenCalledWith("GameCoachGG");
-  });
-
-  it("shows only slayer format option when playlist has no objective modes", () => {
-    const slayerOnlyMaps = [{ mode: "Slayer" as const, map: "Aquarius" }];
-
-    const mapsEmbed = new MapsEmbed(
-      { discordService },
-      {
-        userId: testUserId,
-        count: 1,
-        playlist: MapsPlaylistType.RANKED_SLAYER,
-        format: MapsFormatType.SLAYER,
-        maps: slayerOnlyMaps,
-        availableModes: ["Slayer"],
-      },
-    );
-
-    const { actions } = mapsEmbed;
-    // Should have 4 action rows
-    expect(actions).toHaveLength(4);
-  });
-
-  it("shows all format options when playlist has objective modes", () => {
-    const mapsEmbed = new MapsEmbed(
-      { discordService },
-      {
-        userId: testUserId,
-        count: 3,
-        playlist: MapsPlaylistType.HCS_CURRENT,
-        format: MapsFormatType.HCS,
-        maps: mockMaps,
-        availableModes: mockAvailableModes,
-      },
-    );
-
-    const { actions } = mapsEmbed;
-    // Should have 4 action rows
-    expect(actions).toHaveLength(4);
   });
 });

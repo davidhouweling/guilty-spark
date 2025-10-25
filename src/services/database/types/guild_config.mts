@@ -12,13 +12,6 @@ export enum MapsPostType {
 export enum MapsPlaylistType {
   HCS_CURRENT = "C",
   HCS_HISTORICAL = "H",
-  RANKED_ARENA = "R",
-  RANKED_SLAYER = "S",
-  RANKED_SNIPERS = "N",
-  RANKED_TACTICAL = "T",
-  RANKED_DOUBLES = "D",
-  RANKED_FFA = "F",
-  RANKED_SQUAD_BATTLE = "Q",
 }
 
 export enum MapsFormatType {

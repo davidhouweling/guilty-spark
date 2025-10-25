@@ -1,4 +1,5 @@
 import type { SpartanTokenProvider } from "halo-infinite-api";
+import { DateTime } from "luxon";
 import { HaloAuthenticationClient } from "halo-infinite-api";
 import type { XboxService } from "../xbox/xbox.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -28,7 +29,7 @@ export class CustomSpartanTokenProvider extends HaloAuthenticationClient impleme
       async () => env.APP_DATA.get<SpartanToken>(CustomSpartanTokenProvider.TOKEN_NAME, "json"),
       async (newToken) =>
         env.APP_DATA.put(CustomSpartanTokenProvider.TOKEN_NAME, JSON.stringify(newToken), {
-          expirationTtl: newToken.expiresAt.diffNow().seconds,
+          expirationTtl: newToken.expiresAt.diff(DateTime.now(), "seconds").seconds,
         }),
       async () => env.APP_DATA.delete(CustomSpartanTokenProvider.TOKEN_NAME),
     );

@@ -1,14 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type {
-  HaloInfiniteClient,
-  MapAsset,
-  MatchStats,
-  PlayerMatchHistory,
-  PlaylistAsset,
-  MapModePairAsset,
-} from "halo-infinite-api";
+import type { HaloInfiniteClient, MapAsset, MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 import type { HaloService, SeriesData } from "../halo.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,39 +47,6 @@ async function readMedalsMetadata(): ReturnType<HaloInfiniteClient["getMedalsMet
   }
 }
 
-async function readPlaylist(playlistId: string): Promise<ReturnType<HaloInfiniteClient["getPlaylist"]>> {
-  try {
-    const fileContents = await readFile(path.join(__dirname, "data", `playlist-${playlistId}.json`), "utf-8");
-    return JSON.parse(fileContents) as Awaited<ReturnType<HaloInfiniteClient["getPlaylist"]>>;
-  } catch (error) {
-    console.error(`Failed to read playlist ${playlistId}: ${error as Error}`);
-    throw error;
-  }
-}
-
-async function readPlaylistAssetVersion(playlistId: string): Promise<PlaylistAsset> {
-  try {
-    const fileContents = await readFile(
-      path.join(__dirname, "data", `playlist-asset-version-${playlistId}.json`),
-      "utf-8",
-    );
-    return JSON.parse(fileContents) as PlaylistAsset;
-  } catch (error) {
-    console.error(`Failed to read playlist asset version ${playlistId}: ${error as Error}`);
-    throw error;
-  }
-}
-
-async function readMapModePairAssetVersion(assetId: string): Promise<MapModePairAsset> {
-  try {
-    const fileContents = await readFile(path.join(__dirname, "data", `map-mode-pair-${assetId}.json`), "utf-8");
-    return JSON.parse(fileContents) as MapModePairAsset;
-  } catch (error) {
-    console.error(`Failed to read map mode pair asset version ${assetId}: ${error as Error}`);
-    throw error;
-  }
-}
-
 export const matchStats = new Map<string, MatchStats>(
   await Promise.all([
     readMatchStats("ctf.json"),
@@ -124,16 +84,6 @@ export const playerXuidsToGametags = new Map([
 ]);
 
 export const medalsMetadata = await readMedalsMetadata();
-
-export const playlistRankedArena = await readPlaylist("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
-
-export const playlistAssetVersionRankedArena = await readPlaylistAssetVersion("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
-
-export const mapModePairKothLiveFire = await readMapModePairAssetVersion("91957e4b-b5e4-4a11-ac69-dce934fa7002");
-
-export const mapModePairSlayerLiveFire = await readMapModePairAssetVersion("be1c791b-fbae-4e8d-aeee-9f48df6fee9d");
-
-export const mapModePairCtfAquarius = await readMapModePairAssetVersion("2bb084c2-a047-4fe9-9023-4100cbe6860d");
 
 export const neatQueueSeriesData: SeriesData = {
   startDateTime: new Date("2024-11-26T06:30:00.000Z"),

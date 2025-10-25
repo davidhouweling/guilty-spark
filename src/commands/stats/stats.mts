@@ -117,7 +117,8 @@ export class StatsCommand extends BaseCommand {
         case InteractionType.MessageComponent: {
           const { custom_id } = interaction.data;
           switch (custom_id) {
-            case InteractionButton.LoadGames.toString(): {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+            case InteractionButton.LoadGames: {
               return {
                 response: {
                   type: InteractionResponseType.DeferredMessageUpdate,

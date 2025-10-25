@@ -461,16 +461,11 @@ export class NeatQueueService {
           format: guildConfig.NeatQueueInformerMapsFormat,
           count: guildConfig.NeatQueueInformerMapsCount,
         };
-        const [maps, availableModes] = await Promise.all([
-          this.haloService.generateMaps(mapOpts),
-          this.haloService.getMapModesForPlaylist(mapOpts.playlist),
-        ]);
         const embed = new MapsEmbed(
           { discordService },
           {
             userId: NEAT_QUEUE_BOT_USER_ID,
-            maps,
-            availableModes,
+            maps: this.haloService.generateMaps(mapOpts),
             ...mapOpts,
           },
         );

@@ -4,7 +4,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { MatchOutcome, RequestError } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient, UserInfo } from "halo-infinite-api";
 import { sub } from "date-fns";
-import { HaloService, FetchablePlaylist } from "../halo.mjs";
+import { HaloService } from "../halo.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -16,10 +16,8 @@ import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
-import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
 describe("Halo service", () => {
-  let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
   let infiniteClient: MockProxy<HaloInfiniteClient>;
@@ -29,12 +27,11 @@ describe("Halo service", () => {
     vi.useFakeTimers();
     vi.setSystemTime("2024-11-26T12:00:00.000Z");
 
-    env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     databaseService = aFakeDatabaseServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
-    haloService = new HaloService({ env, logService, databaseService, infiniteClient });
+    haloService = new HaloService({ logService, databaseService, infiniteClient });
     haloService.clearUserCache(); // Clear cache between tests
   });
 
@@ -1283,27 +1280,23 @@ describe("Halo service", () => {
   });
 
   describe("getGameTypeAndMap()", () => {
-    it.each([
-      {
-        matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
-        gameTypeAndMap: "Capture the Flag: Empyrean - Ranked",
+    it.each([{ matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", gameTypeAndMap: "CTF: Empyrean - Ranked" }])(
+      "returns the game type and map for match $matchId",
+      async ({ matchId, gameTypeAndMap }) => {
+        const result = await haloService.getGameTypeAndMap(
+          Preconditions.checkExists(matchStats.get(matchId)).MatchInfo,
+        );
+
+        expect(result).toBe(gameTypeAndMap);
       },
-    ])("returns the game type and map for match $matchId", async ({ matchId, gameTypeAndMap }) => {
-      const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)).MatchInfo);
+    );
 
-      expect(result).toBe(gameTypeAndMap);
-    });
-
-    it("caches the asset data for the map and game type", async () => {
+    it("caches the asset data for the map", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       await haloService.getGameTypeAndMap(match.MatchInfo);
       await haloService.getGameTypeAndMap(match.MatchInfo);
 
-      // Should be called once for map and once for game type
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(2);
-      // Should not call again on repeated invocation (cache hit)
-      await haloService.getGameTypeAndMap(match.MatchInfo);
-      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(2);
+      expect(infiniteClient.getSpecificAssetVersion).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1615,7 +1608,7 @@ describe("Halo service", () => {
 
     it("caches the medal data so that it only calls infinite api once", async () => {
       const getMedalsMetadataFileSpy = vi.spyOn(infiniteClient, "getMedalsMetadataFile");
-      const cleanHaloService = new HaloService({ env, logService, databaseService, infiniteClient });
+      const cleanHaloService = new HaloService({ logService, databaseService, infiniteClient });
 
       await cleanHaloService.getMedal(3334154676);
       await cleanHaloService.getMedal(3334154676);
@@ -1879,51 +1872,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getMapModesForPlaylist()", () => {
-    it("returns available map modes for HCS Current playlist", async () => {
-      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.HCS_CURRENT);
-
-      expect(result).toContain("Slayer");
-      expect(result).toContain("Capture the Flag");
-      expect(result).toContain("Strongholds");
-      expect(result).toContain("Oddball");
-      expect(result).toContain("King of the Hill");
-    });
-
-    it("returns available map modes for HCS Historical playlist", async () => {
-      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.HCS_HISTORICAL);
-
-      expect(result).toContain("Slayer");
-      expect(result).toContain("Capture the Flag");
-      expect(result).toContain("Strongholds");
-      expect(result).toContain("Oddball");
-      expect(result).toContain("King of the Hill");
-    });
-
-    it("returns available map modes for Ranked Arena playlist", async () => {
-      const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.RANKED_ARENA);
-
-      expect(result.length).toBeGreaterThan(0);
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
-    });
-
-    it("caches playlist map modes in KV storage", async () => {
-      const kvGetSpy = vi.spyOn(env.APP_DATA, "get");
-      const kvPutSpy = vi.spyOn(env.APP_DATA, "put");
-
-      await haloService.getMapModesForPlaylist(MapsPlaylistType.RANKED_ARENA);
-
-      expect(kvGetSpy).toHaveBeenCalledWith("halo-playlist-map-modes-edfef3ac-9cbe-4fa2-b949-8f29deafd483", {
-        type: "json",
-      });
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        "halo-playlist-map-modes-edfef3ac-9cbe-4fa2-b949-8f29deafd483",
-        expect.any(String),
-        { expirationTtl: 86400 },
-      );
-    });
-  });
-
   describe("generateMaps", () => {
     let mockRoundRobinFn: MockedFunction<generateRoundRobinMapsFn>;
     let serviceWithMockRoundRobin: HaloService;
@@ -1935,7 +1883,6 @@ describe("Halo service", () => {
         { mode: "Capture the Flag", map: "Aquarius" },
       ]);
       serviceWithMockRoundRobin = new HaloService({
-        env,
         logService,
         databaseService,
         infiniteClient,
@@ -1943,8 +1890,8 @@ describe("Halo service", () => {
       });
     });
 
-    it("generates maps using HCS format", async () => {
-      const result = await serviceWithMockRoundRobin.generateMaps({
+    it("generates maps using HCS format", () => {
+      const result = serviceWithMockRoundRobin.generateMaps({
         count: 3,
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.HCS,
@@ -1974,8 +1921,8 @@ describe("Halo service", () => {
       }
     });
 
-    it("generates maps using Random format", async () => {
-      const result = await serviceWithMockRoundRobin.generateMaps({
+    it("generates maps using Random format", () => {
+      const result = serviceWithMockRoundRobin.generateMaps({
         count: 5,
         playlist: MapsPlaylistType.HCS_CURRENT,
         format: MapsFormatType.RANDOM,
@@ -2008,18 +1955,6 @@ describe("Halo service", () => {
       for (const format of actualArgs.formatSequence) {
         expect(["slayer", "objective"]).toContain(format);
       }
-    });
-
-    it("generates maps for Ranked Arena playlist", async () => {
-      const result = await serviceWithMockRoundRobin.generateMaps({
-        count: 5,
-        playlist: MapsPlaylistType.RANKED_ARENA,
-        format: MapsFormatType.HCS,
-      });
-
-      expect(result).toHaveLength(3);
-      expect(mockRoundRobinFn).toHaveBeenCalledOnce();
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
     });
   });
 });
