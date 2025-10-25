@@ -572,6 +572,10 @@ export class HaloService {
         isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
       ) {
         const matches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.All, 25, history.length);
+        this.logService.debug(
+          `Fetched ${matches.length.toString()} player matches for user ${xboxUserId}`,
+          new Map([["matchIds", matches.map((m) => m.MatchId)]]),
+        );
         history.push(...matches);
 
         if (matches.length === 0) {
