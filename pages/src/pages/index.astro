@@ -1,0 +1,1396 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout>
+  <nav class="nav">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="/guilty-spark-h3.png" alt="Guilty Spark" class="nav-logo" />
+        <span class="nav-title">GUILTY SPARK</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#demo" class="nav-link">Demo</a>
+        <a href="https://github.com/davidhouweling/guilty-spark" target="_blank" class="nav-link">GitHub</a>
+        <a href="https://discord.gg/WS7zG8GDKY" target="_blank" class="nav-link">Support</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">PROTOCOL ACTIVE</div>
+        <h1 class="hero-title">
+          <span class="glitch" data-text="GUILTY SPARK">GUILTY SPARK</span>
+        </h1>
+        <p class="hero-subtitle">Monitor 343 Guilty Spark - Combat Statistics Interface</p>
+        <p class="hero-description">
+          Greetings, Reclaimer. I am 343 Guilty Spark, custodian of combat records and statistical analysis. I shall
+          integrate Halo Infinite telemetry with your Discord installation, providing comprehensive match analytics for
+          your custom 8s lobbies.
+        </p>
+        <div class="hero-cta">
+          <a
+            href="https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands"
+            target="_blank"
+            class="btn btn-primary"
+          >
+            <img src="/discord-logo.png" alt="" class="btn-icon-img" />
+            Add to Discord
+          </a>
+          <a href="https://discord.gg/WS7zG8GDKY" target="_blank" class="btn btn-secondary">
+            <img src="/guilty-spark-h3.png" alt="" class="btn-icon-img" />
+            Join Support Server
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat">
+            <div class="stat-value">18+</div>
+            <div class="stat-label">Active Servers</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">2100+</div>
+            <div class="stat-label">Series Tracked</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">Cost</div>
+            <div class="stat-label">Free</div>
+          </div>
+        </div>
+        <div class="hero-stats-note">* Data accurate as of Oct 26, 2025</div>
+      </div>
+      <div class="hero-visual">
+        <div class="spark-orb">
+          <img src="/guilty-spark-h3.png" alt="343 Guilty Spark" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2 class="section-title">
+          <span class="section-title-line"></span>
+          CORE SYSTEMS
+          <span class="section-title-line"></span>
+        </h2>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3 class="feature-title">Match Statistics</h3>
+            <p class="feature-description">
+              I shall retrieve comprehensive combat records from the Waypoint archives. All performance
+              data—eliminations, objectives, efficiency metrics—rendered in detailed analytical displays.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <img src="/neatqueue-logo.png" alt="NeatQueue" class="feature-icon-img" />
+            <h3 class="feature-title">NeatQueue Integration</h3>
+            <p class="feature-description">
+              Integration established. I have interfaced with the queue management construct to provide automated
+              statistical analysis upon match completion. Most efficient.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🗺️</div>
+            <h3 class="feature-title">HCS Map Generator</h3>
+            <p class="feature-description">
+              Generating map and mode combinations based on HCS specifications or other parameters matching
+              requirements. Randomized selection parameters ensure competitive balance across all engagement zones.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-live">●</div>
+            <h3 class="feature-title">Live Match Tracking</h3>
+            <p class="feature-description">
+              Real-time telemetry monitoring is active. I shall provide continuous updates on ongoing combat scenarios
+              as data streams become available, including live scores displayed in channel names.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🔗</div>
+            <h3 class="feature-title">Account Linking</h3>
+            <p class="feature-description">
+              Reclaimers may synchronize their Discord identities with Xbox service records using the <code
+                >/connect</code
+              > command. I shall query the necessary databases automatically once permissions are granted.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">⚙️</div>
+            <h3 class="feature-title">Configuration</h3>
+            <p class="feature-description">
+              Initialization procedures are straightforward. I shall guide you through all necessary parameters using
+              the <code>/setup</code> command—display preferences, channel assignments, webhook authentication.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo">
+      <div class="container">
+        <h2 class="section-title">
+          <span class="section-title-line"></span>
+          OPERATIONAL DEMONSTRATIONS
+          <span class="section-title-line"></span>
+        </h2>
+
+        <div class="demo-showcase">
+          <div class="demo-item">
+            <div class="demo-content">
+              <h3 class="demo-title">Statistical Analysis</h3>
+              <p class="demo-description">
+                Query completed combat scenarios with the <code>/stats</code> command. I shall identify all participants,
+                cross-reference their service records, and compile comprehensive performance analytics from the Waypoint
+                archives.
+              </p>
+              <div class="demo-stats">
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Command</span>
+                  <code>/stats neatqueue</code>
+                </div>
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Response Time</span>
+                  <span>5 seconds</span>
+                </div>
+              </div>
+            </div>
+            <div class="demo-media">
+              <img src="/docs/recording-20250604-stats-command.gif" alt="Stats Command Demo" class="demo-gif" />
+            </div>
+          </div>
+
+          <div class="demo-item">
+            <div class="demo-content">
+              <h3 class="demo-title">Automated Reporting</h3>
+              <p class="demo-description">
+                Upon match completion, I shall automatically retrieve and post statistical summaries via webhook
+                integration. Configure threaded message structures or dedicated reporting channels per your
+                specifications.
+              </p>
+              <div class="demo-stats">
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Integration</span>
+                  <span>NeatQueue Webhook</span>
+                </div>
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Trigger</span>
+                  <span>Match Complete Event</span>
+                </div>
+              </div>
+            </div>
+            <div class="demo-media">
+              <img
+                src="/docs/recording-20250604-neatqueue-integration.gif"
+                alt="NeatQueue Integration Demo"
+                class="demo-gif"
+              />
+            </div>
+          </div>
+
+          <div class="demo-item">
+            <div class="demo-content">
+              <h3 class="demo-title">Real-Time Monitoring</h3>
+              <p class="demo-description">
+                Active telemetry monitoring provides live status updates during ongoing combat scenarios. I dynamically
+                update Discord channel names to display current series progression and live scoring, ensuring all
+                participants remain informed of match status.
+              </p>
+              <div class="demo-stats">
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Update Frequency</span>
+                  <span>Every 3 minutes</span>
+                </div>
+                <div class="demo-stat">
+                  <span class="demo-stat-label">Data Source</span>
+                  <span>Halo Waypoint API</span>
+                </div>
+              </div>
+              <div class="demo-media-small">
+                <img
+                  src="/docs/screenshot20250918-live-tracker-channel-name.png"
+                  alt="Live channel name example"
+                  class="demo-screenshot-small"
+                />
+              </div>
+            </div>
+            <div class="demo-media">
+              <img
+                src="/docs/screenshot20250918-live-tracker.png"
+                alt="Live Tracker Screenshot"
+                class="demo-screenshot"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+      <div class="container">
+        <h2 class="section-title">
+          <span class="section-title-line"></span>
+          INITIALIZATION PROTOCOL
+          <span class="section-title-line"></span>
+        </h2>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">01</div>
+            <div class="step-content">
+              <h3 class="step-title">Add to Discord</h3>
+              <p class="step-description">
+                Authorize my presence in your Discord server. I require minimal permissions: message posting, embed
+                generation, and webhook management for automated reporting.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">02</div>
+            <div class="step-content">
+              <h3 class="step-title">Link Your Account</h3>
+              <p class="step-description">
+                Use the <code>/connect</code> command to synchronize your Discord identity with your Xbox service record.
+                This enables me to retrieve your combat data from the Waypoint archives.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">03</div>
+            <div class="step-content">
+              <h3 class="step-title">Query Statistics</h3>
+              <p class="step-description">
+                Access comprehensive match analytics with simple commands. I shall compile performance metrics, combat
+                ratings, and engagement summaries from your service history.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="cta">
+      <div class="container">
+        <div class="cta-content">
+          <h2 class="cta-title">Initiate Integration Protocol</h2>
+          <p class="cta-description">
+            I am currently assisting 18 Discord installations with their combat analytics. Over 1000 match series have
+            been analyzed and archived. Your installation may proceed immediately.
+          </p>
+          <div class="cta-buttons">
+            <a
+              href="https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands"
+              target="_blank"
+              class="btn btn-primary btn-large"
+            >
+              <img src="/discord-logo.png" alt="" class="btn-icon-img" />
+              Authorize Installation
+            </a>
+          </div>
+          <p class="cta-note">
+            Require assistance? Access our <a href="https://discord.gg/WS7zG8GDKY" target="_blank"
+              >support installation</a
+            > for guidance protocols.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<!-- FAQ Section -->
+<section class="faq">
+  <div class="container">
+    <h2 class="section-title">
+      <span class="section-title-line"></span>
+      RECLAIMER INQUIRIES
+      <span class="section-title-line"></span>
+    </h2>
+
+    <div class="faq-grid">
+      <div class="faq-item">
+        <h3 class="faq-question">How do I synchronize my Xbox service record?</h3>
+        <p class="faq-answer">
+          Use the <code>/connect</code> command. I shall query the Xbox database for your service tag, verify the correct
+          identity match, and establish a persistent link to your Discord designation. Once synchronized, I will automatically
+          retrieve your performance data during monitored engagements.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">What if privacy restrictions are enabled?</h3>
+        <p class="faq-answer">
+          I operate within the parameters established by Waypoint authorization protocols. Should your record contain
+          privacy restrictions, I shall inform you accordingly. For optimal functionality, ensure your Halo Infinite
+          profile visibility settings permit external queries through Xbox privacy controls.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">Which playlists are supported?</h3>
+        <p class="faq-answer">
+          I maintain compatibility with HCS maps and modes, as well as most ranked playlists. The <code>/maps</code>
+          command specifically generates HCS tournament combinations, or can be customized to your specifications.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">Are there operational costs?</h3>
+        <p class="faq-answer">
+          Negative. My services require no currency exchange, subscription fees, or premium tier access. Operational
+          expenses are covered to ensure all functions remain accessible without limitation to the community. However,
+          if you wish to support continued development and expanded capabilities, contributions may be made through
+          <a href="https://github.com/sponsors/davidhouweling" target="_blank" class="faq-link">GitHub Sponsors</a>.
+          Your backing enables sustained operational efficiency and new feature development.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials Placeholder -->
+<!-- 
+		<section class="testimonials">
+			<div class="container">
+				<h2 class="section-title">
+					<span class="section-title-line"></span>
+					COMMUNITY FEEDBACK
+					<span class="section-title-line"></span>
+				</h2>
+				
+				<div class="testimonials-grid">
+					Add testimonials here when available
+				</div>
+			</div>
+		</section>
+		-->
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section">
+        <div class="footer-brand">
+          <img src="/guilty-spark-h3.png" alt="Guilty Spark" class="footer-logo" />
+          <span class="footer-title">GUILTY SPARK</span>
+        </div>
+        <p class="footer-description">
+          I am 343 Guilty Spark. Monitor of Installation 04. I have dedicated considerable processing capacity to
+          analyzing your combat performance. May I be of service?
+        </p>
+      </div>
+
+      <div class="footer-section">
+        <h4 class="footer-heading">Resources</h4>
+        <ul class="footer-links">
+          <li><a href="https://github.com/davidhouweling/guilty-spark" target="_blank">GitHub Repository</a></li>
+          <li><a href="https://discord.gg/WS7zG8GDKY" target="_blank">Support Server</a></li>
+          <li><a href="https://github.com/sponsors/davidhouweling" target="_blank">GitHub Sponsors</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-section">
+        <h4 class="footer-heading">Legal</h4>
+        <ul class="footer-links">
+          <li>
+            <a href="https://github.com/davidhouweling/guilty-spark/blob/main/PRIVACY_POLICY.md" target="_blank"
+              >Privacy Policy</a>
+          </li>
+          <li>
+            <a href="https://github.com/davidhouweling/guilty-spark/blob/main/TERMS_OF_SERVICE.md" target="_blank"
+              >Terms of Service</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copyright">© 2025 David Houweling. All rights reserved.</p>
+      <p class="footer-disclaimer">Not affiliated with Microsoft, 343 Industries, or the Halo franchise.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  /* Layout & Container */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  main {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Navigation */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 14, 23, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+  }
+
+  .nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .nav-logo {
+    width: 40px;
+    height: 40px;
+    transform: scaleX(-1);
+    filter: drop-shadow(0 0 10px var(--color-spark-orange));
+  }
+
+  .nav-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-terminal-primary);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .nav-link {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--color-terminal-primary);
+    transition: width 0.3s ease;
+  }
+
+  .nav-link:hover {
+    color: var(--color-terminal-primary);
+  }
+
+  .nav-link:hover::after {
+    width: 100%;
+  }
+
+  /* Hero Section */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+    padding: 8rem 2rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    width: fit-content;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--color-terminal-primary);
+    color: var(--color-terminal-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    color: var(--color-terminal-primary);
+    text-shadow:
+      0 0 20px rgba(0, 212, 255, 0.8),
+      0 0 40px rgba(0, 212, 255, 0.4);
+    font-family: var(--font-display);
+  }
+
+  .glitch {
+    position: relative;
+    display: inline-block;
+  }
+
+  .hero-subtitle {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-spark-orange);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+  }
+
+  .hero-description {
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    max-width: 600px;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-terminal-primary);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+  }
+
+  .hero-stats-note {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    margin-top: 0rem;
+    text-align: left;
+    font-style: italic;
+  }
+
+  .hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .spark-orb {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .spark-orb::before {
+    content: "";
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 140, 0, 0.3) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+  }
+
+  .spark-orb::after {
+    content: "";
+    position: absolute;
+    inset: -40px;
+    border-radius: 50%;
+    border: 2px solid var(--color-terminal-primary);
+    opacity: 0.3;
+    animation: rotate 15s linear infinite reverse;
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spark-orb img {
+    position: relative;
+    width: 350px;
+    height: auto;
+    filter: drop-shadow(0 0 40px var(--color-spark-orange)) drop-shadow(0 0 20px var(--color-spark-amber));
+    animation: float 6s ease-in-out infinite;
+    transform: scaleX(-1); /* Flip to face left toward the text */
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .btn-icon {
+    position: relative;
+    z-index: 1;
+    font-size: 1.25rem;
+  }
+
+  .btn-icon-img {
+    position: relative;
+    z-index: 1;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
+
+  .btn-icon-flipped {
+    transform: scaleX(-1);
+  }
+
+  .btn-primary .btn-icon-img {
+    filter: brightness(0);
+  }
+
+  .btn-secondary .btn-icon-img {
+    filter: brightness(0) saturate(0%) invert(62%) sepia(84%) saturate(2527%) hue-rotate(357deg) brightness(103%)
+      contrast(102%);
+  }
+
+  .btn-secondary:hover .btn-icon-img {
+    filter: brightness(0);
+  }
+
+  .btn-primary {
+    background: var(--color-terminal-primary);
+    border-color: var(--color-terminal-primary);
+    color: var(--color-background);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-terminal-secondary);
+    border-color: var(--color-terminal-secondary);
+    box-shadow: 0 0 30px rgba(0, 255, 170, 0.6);
+    transform: translateY(-2px);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--color-spark-orange);
+    color: var(--color-spark-orange);
+  }
+
+  .btn-secondary:hover {
+    background: var(--color-spark-orange);
+    border-color: var(--color-spark-orange);
+    color: var(--color-background);
+    box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-large {
+    padding: calc(1.25rem + 2px) calc(2.5rem + 2px);
+    font-size: 1.125rem;
+  }
+
+  /* Section Title */
+  .section-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--color-terminal-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    font-family: var(--font-display);
+  }
+
+  .section-title-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-terminal-primary), transparent);
+    max-width: 200px;
+  }
+
+  /* Features Section */
+  .features {
+    padding: 6rem 0;
+    background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.03), transparent);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+  }
+
+  .feature-card {
+    background: var(--color-background-card);
+    border: 1px solid var(--color-border);
+    padding: 2rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-terminal-primary), var(--color-spark-orange));
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+
+  .feature-card:hover {
+    border-color: var(--color-terminal-primary);
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.2);
+    transform: translateY(-5px);
+  }
+
+  .feature-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .feature-icon-img {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    display: block;
+    object-fit: contain;
+  }
+
+  .feature-icon-live {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    color: #00ff00;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  }
+
+  .feature-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+  }
+
+  .feature-description {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Demo Section */
+  .demo {
+    padding: 6rem 0;
+  }
+
+  .demo-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+  }
+
+  .demo-item {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .demo-item:nth-child(even) {
+    grid-template-columns: 1fr 1.2fr;
+  }
+
+  .demo-item:nth-child(even) .demo-content {
+    order: 2;
+  }
+
+  .demo-item:nth-child(even) .demo-media {
+    order: 1;
+  }
+
+  .demo-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .demo-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-terminal-primary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+  }
+
+  .demo-description {
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .demo-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 2px solid var(--color-terminal-primary);
+  }
+
+  .demo-media {
+    border: 2px solid var(--color-border);
+    background: var(--color-background-elevated);
+    padding: 0.5rem;
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.1);
+    max-width: 100%;
+  }
+
+  .demo-gif,
+  .demo-screenshot {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 400px;
+    object-fit: contain;
+  }
+
+  .demo-media-small {
+    margin-top: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .demo-screenshot-small {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    max-height: 100px;
+    object-fit: contain;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  .demo-stat code,
+  .demo-stat span {
+    font-size: 0.95rem;
+    color: var(--color-text-primary);
+  }
+
+  .demo-stat-label::after {
+    content: ":";
+  }
+
+  .demo-media {
+    border: 2px solid var(--color-border);
+    background: var(--color-background-elevated);
+    padding: 1rem;
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.1);
+  }
+
+  .demo-gif,
+  .demo-screenshot {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* How It Works Section */
+  .how-it-works {
+    padding: 6rem 0;
+    background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.03), transparent);
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .step-number {
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--color-terminal-primary);
+    opacity: 0.3;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .step-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+  }
+
+  .step-description {
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  /* CTA Section */
+  .cta {
+    padding: 6rem 0;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(255, 140, 0, 0.1));
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cta-content {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .cta-title {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--color-terminal-primary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-display);
+  }
+
+  .cta-description {
+    font-size: 1.25rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .cta-note {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+  }
+
+  /* FAQ Section */
+  .faq {
+    padding: 6rem 0;
+    background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.03), transparent);
+  }
+
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .faq-item {
+    background: var(--color-background-card);
+    border: 1px solid var(--color-border);
+    padding: 2rem;
+    transition: all 0.3s ease;
+  }
+
+  .faq-item:hover {
+    border-color: var(--color-terminal-primary);
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.15);
+  }
+
+  .faq-question {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-terminal-primary);
+    margin-bottom: 1rem;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .faq-answer {
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    font-size: 1rem;
+  }
+
+  .faq-link {
+    color: var(--color-terminal-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    border-bottom: 1px solid var(--color-terminal-primary);
+  }
+
+  .faq-link:hover {
+    color: var(--color-spark-orange);
+    border-bottom-color: var(--color-spark-orange);
+  }
+
+  /* Footer */
+  .footer {
+    background: var(--color-background-elevated);
+    border-top: 1px solid var(--color-border);
+    padding: 4rem 0 2rem;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 3rem;
+    margin-bottom: 3rem;
+  }
+
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .footer-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .footer-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--color-terminal-primary);
+  }
+
+  .footer-description {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+
+  .footer-sponsor {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .footer-link-inline {
+    color: var(--color-terminal-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .footer-link-inline:hover {
+    color: var(--color-spark-orange);
+  }
+
+  .footer-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .footer-links {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .footer-links a {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    transition: color 0.2s ease;
+  }
+
+  .footer-links a:hover {
+    color: var(--color-terminal-primary);
+  }
+
+  .footer-link-disabled {
+    color: var(--color-text-secondary);
+    opacity: 0.5;
+    font-size: 0.95rem;
+  }
+
+  .footer-bottom {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .footer-copyright,
+  .footer-disclaimer {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    margin: 0.5rem 0;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 968px) {
+    .nav-links {
+      gap: 1rem;
+    }
+
+    .nav-link {
+      font-size: 0.85rem;
+    }
+
+    .hero {
+      grid-template-columns: 1fr;
+      padding: 6rem 2rem 4rem;
+      text-align: center;
+    }
+
+    .hero-content {
+      align-items: center;
+    }
+
+    .hero-badge,
+    .hero-description {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-cta {
+      justify-content: center;
+    }
+
+    .hero-visual {
+      order: -1;
+    }
+
+    .spark-orb {
+      width: 300px;
+      height: 300px;
+    }
+
+    .spark-orb img {
+      width: 200px;
+      height: 200px;
+    }
+
+    .demo-item {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+
+    .demo-item:nth-child(even) {
+      grid-template-columns: 1fr;
+    }
+
+    .demo-item:nth-child(even) .demo-content {
+      order: 1;
+    }
+
+    .demo-item:nth-child(even) .demo-media {
+      order: 2;
+    }
+
+    .demo-stats {
+      align-items: center;
+      text-align: center;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .step {
+      grid-template-columns: 60px 1fr;
+      gap: 1.5rem;
+    }
+
+    .step-number {
+      font-size: 2.5rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .container {
+      padding: 0 1rem;
+    }
+
+    .nav-container {
+      padding: 0.75rem 1rem;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .nav-links {
+      width: 100%;
+      justify-content: space-around;
+      font-size: 0.8rem;
+      gap: 0.5rem;
+    }
+
+    .hero {
+      padding: 4rem 1rem 2rem;
+    }
+
+    .hero-title {
+      font-size: 2rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1.125rem;
+    }
+
+    .hero-description {
+      font-size: 1rem;
+    }
+
+    .hero-stats {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .section-title-line {
+      display: none;
+    }
+
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cta-title {
+      font-size: 2rem;
+    }
+
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+  }
+</style>
