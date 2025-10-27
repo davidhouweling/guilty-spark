@@ -1,0 +1,59 @@
+---
+import Layout from "../layouts/Layout.astro";
+import FAQ from "../components/FAQ.astro";
+
+const faqItems = [
+  {
+    question: "How do I connect my Xbox gamertag to Discord?",
+    answer: `Simply invoke <code>/connect</code> in any channel where I am present. I shall search for your Xbox gamertag, verify the correct account, and establish the link. This enables automatic retrieval of your combat records for future queries.`,
+  },
+  {
+    question: "Does Guilty Spark track ranked matches or only custom games?",
+    answer: `I specialize in <strong>custom game telemetry</strong>, particularly NeatQueue-organized series. While I can retrieve any match via <code>/stats match</code> using its identifier, my automated systems are optimized for custom games. Ranked matchmaking falls outside standard operational parameters.`,
+  },
+  {
+    question: "How does live match tracking work?",
+    answer: `When a NeatQueue series begins, I initialize real-time monitoring that refreshes every 3 minutes. The live tracker displays series status and match outcomes, updating automatically. Manual controls (🔄 refresh, ⏸️ pause, ▶️ resume) are available. The system handles player substitutions throughout the series.`,
+  },
+  {
+    question: "Can I customize which stats are displayed?",
+    answer: `Indeed. Server administrators may use <code>/setup</code> to configure display parameters: series-only versus series plus individual games, threaded replies versus dedicated channels, and live tracking enablement. These settings tailor output to your community's requirements.`,
+  },
+  {
+    question: "Is my data stored securely?",
+    answer: `I collect only essential data: Discord user IDs, Xbox gamertags, and server configurations. No sensitive authentication tokens are stored. Webhook communications use HMAC authentication. I respect Halo Waypoint privacy settings, and combat records remain under your control via Waypoint's public APIs.`,
+  },
+  {
+    question: "Why aren't my matches showing up?",
+    answer: `Verify your Halo Waypoint privacy settings permit public match history access. Ensure account linking via <code>/connect</code>. Matches must be custom games with all participants present. Note that Waypoint APIs may experience latency—recent matches may require patience to appear.`,
+  },
+  {
+    question: "How do I set up NeatQueue integration?",
+    answer: `Configure a webhook in NeatQueue pointing to my endpoint. Use <code>/setup</code> to establish the webhook secret and map channels. Select your preferred display mode. I shall then automatically monitor series, retrieve statistics upon completion, and post results per your specifications.`,
+  },
+  {
+    question: "Does the bot require special permissions?",
+    answer: `I require: <strong>View Channel</strong>, <strong>Send Messages</strong>, <strong>Use External Emojis</strong>, and <strong>Manage Webhooks</strong> for NeatQueue integration. The invitation link includes these automatically. Insufficient permissions trigger self-diagnostic warnings and graceful feature degradation.`,
+  },
+  {
+    question: "How can I support this project?",
+    answer: `My services are provided without cost to the Halo community. Should you wish to contribute to operational sustainability, my creator accepts sponsorships through <a href="https://github.com/sponsors/davidhouweling" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Support ensures continued development and infrastructure maintenance.`,
+  },
+];
+---
+
+<Layout
+  title="FAQ - Guilty Spark"
+  description="Frequently asked questions about Guilty Spark, the Halo Infinite Discord bot for match statistics and NeatQueue integration."
+>
+  <div class="faq-page">
+    <FAQ items={faqItems} />
+  </div>
+</Layout>
+
+<style>
+  .faq-page {
+    padding-top: 70px; /* Account for fixed header */
+    min-height: 100vh;
+  }
+</style>
