@@ -16,7 +16,7 @@
     "url": "https://github.com/davidhouweling/guilty-spark/issues"
   },
   "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
-  "main": "src/app.mts",
+  "main": "api/app.mts",
   "scripts": {
     "postinstall": "patch-package",
     "start": "wrangler dev",

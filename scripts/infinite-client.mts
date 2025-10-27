@@ -2,9 +2,9 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
-import { aFakeEnvWith } from "../src/base/fakes/env.fake.mjs";
-import { createFileBackedKVNamespace } from "../src/base/fakes/namespace-to-file.mjs";
-import { createHaloInfiniteClientProxy } from "../src/services/halo/halo-infinite-client-proxy.mjs";
+import { aFakeEnvWith } from "../api/base/fakes/env.fake.mjs";
+import { createFileBackedKVNamespace } from "../api/base/fakes/namespace-to-file.mjs";
+import { createHaloInfiniteClientProxy } from "../api/services/halo/halo-infinite-client-proxy.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

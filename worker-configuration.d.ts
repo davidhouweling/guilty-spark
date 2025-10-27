@@ -13,7 +13,7 @@ declare namespace Cloudflare {
 		XBOX_PASSWORD: string;
 		PROXY_WORKER_URL: string;
 		PROXY_WORKER_TOKEN: string;
-		LIVE_TRACKER_DO: DurableObjectNamespace<import("./src/worker.mjs").LiveTrackerDO>;
+		LIVE_TRACKER_DO: DurableObjectNamespace<import("./api/worker.mjs").LiveTrackerDO>;
 		DB: D1Database;
 	}
 }
