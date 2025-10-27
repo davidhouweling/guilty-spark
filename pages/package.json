@@ -1,29 +1,22 @@
 {
-  "name": "guilty-spark-web",
+  "name": "@guilty-spark/pages",
   "type": "module",
   "version": "0.0.1",
+  "private": true,
   "scripts": {
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro build && wrangler pages dev",
     "astro": "astro",
     "deploy": "astro build && wrangler pages deploy",
-    "cf-typegen": "wrangler types",
-    "format": "prettier .",
-    "format:fix": "prettier --write .",
-    "test:integration": "npx playwright test",
-    "test:integration:fix": "npx playwright test --update-snapshots",
-    "test:integration:server": "npm run build && npm run preview"
+    "typecheck": "astro check",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.10",
     "astro": "^5.15.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@types/node": "^24.9.1",
-    "prettier": "^3.6.2",
-    "prettier-plugin-astro": "^0.14.1",
-    "wrangler": "^4.45.0"
+    "@playwright/test": "^1.56.1"
   }
 }

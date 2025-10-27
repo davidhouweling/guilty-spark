@@ -5,6 +5,10 @@
   "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
   "type": "module",
+  "private": true,
+  "workspaces": [
+    "pages"
+  ],
   "engines": {
     "node": ">=22.11.0"
   },
@@ -20,6 +24,7 @@
   "scripts": {
     "postinstall": "patch-package",
     "start": "wrangler dev",
+    "start:pages": "npm run start --workspace=pages",
     "ngrok": "ngrok http 8787",
     "register": "tsx --env-file=.dev.vars scripts/deploy-commands.mts",
     "test": "vitest run",
@@ -30,9 +35,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "typecheck:pages": "npm run typecheck --workspace=pages",
     "build:generate-types": "wrangler types",
     "build": "tsc --project tsconfig.build.json",
-    "publish": "wrangler deploy"
+    "build:pages": "npm run build --workspace=pages",
+    "publish": "wrangler deploy",
+    "publish:pages": "npm run deploy --workspace=pages"
   },
   "dependencies": {
     "@sentry/cli": "^2.57.0",
@@ -60,6 +68,7 @@
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
+    "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2",

@@ -41,11 +41,11 @@
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
   // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
-	"upload_source_maps": true,
-	"routes": [
-		{
-			"pattern": "guilty-spark.app",
-			"custom_domain": true
-		}
-	],
+  "upload_source_maps": true,
+  "routes": [
+    {
+      "pattern": "guilty-spark.app",
+      "custom_domain": true,
+    },
+  ],
 }
