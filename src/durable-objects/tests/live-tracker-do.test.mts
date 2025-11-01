@@ -4,7 +4,6 @@ import type { MatchStats } from "halo-infinite-api";
 import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO } from "../live-tracker-do.mjs";
-import type { EnrichedMatchData } from "../../embeds/live-tracker-embed.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
 import type { Services } from "../../services/install.mjs";
@@ -516,18 +515,9 @@ describe("LiveTrackerDO", () => {
       trackerState.status = "active";
       storageGetSpy.mockResolvedValue(trackerState);
 
-      // Mock the fetchAndMergeSeriesData method
-      const fetchAndMergeSeriesDataSpy = vi.spyOn(
-        liveTrackerDO as LiveTrackerDO & {
-          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
-        },
-        "fetchAndMergeSeriesData",
-      );
-      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
-
-      // Mock the getSeriesScore method
-      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
-      getSeriesScoreSpy.mockReturnValue("2:1");
+      // Mock the service dependencies - return empty array since matches are already discovered
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -606,18 +596,9 @@ describe("LiveTrackerDO", () => {
       trackerState.isPaused = true;
       storageGetSpy.mockResolvedValue(trackerState);
 
-      // Mock the fetchAndMergeSeriesData method
-      const fetchAndMergeSeriesDataSpy = vi.spyOn(
-        liveTrackerDO as LiveTrackerDO & {
-          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
-        },
-        "fetchAndMergeSeriesData",
-      );
-      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
-
-      // Mock the getSeriesScore method
-      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
-      getSeriesScoreSpy.mockReturnValue("2:1");
+      // Mock the service dependencies - return empty array since matches are already discovered
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
 
       const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -667,18 +648,9 @@ describe("LiveTrackerDO", () => {
       trackerState.status = "active";
       storageGetSpy.mockResolvedValue(trackerState);
 
-      // Mock the fetchAndMergeSeriesData method
-      const fetchAndMergeSeriesDataSpy = vi.spyOn(
-        liveTrackerDO as LiveTrackerDO & {
-          fetchAndMergeSeriesData: (state: LiveTrackerState) => Promise<EnrichedMatchData[]>;
-        },
-        "fetchAndMergeSeriesData",
-      );
-      fetchAndMergeSeriesDataSpy.mockResolvedValue(Object.values(trackerState.discoveredMatches));
-
-      // Mock the getSeriesScore method
-      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore");
-      getSeriesScoreSpy.mockReturnValue("2:1");
+      // Mock the service dependencies - return empty array since matches are already discovered
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
 
       const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
