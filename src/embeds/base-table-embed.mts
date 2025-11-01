@@ -9,7 +9,7 @@ export abstract class BaseTableEmbed {
         name: Preconditions.checkExists(titles[column]),
         value: data
           .slice(1)
-          .map((row) => row[column])
+          .map((row) => (row[column] != null && row[column] !== "" ? row[column] : "‎ "))
           .join("\n"),
         inline: true,
       });
