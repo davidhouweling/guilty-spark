@@ -101,7 +101,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
           tableData.push(this.createSubstitutionRow(substitution));
           substitutionIndex++;
-          break;
         }
 
         tableData.push([
