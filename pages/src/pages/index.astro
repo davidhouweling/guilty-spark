@@ -1,270 +1,197 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Button from "../components/Button.astro";
+import Layout from "../layouts/layout.astro";
+import Button from "../components/button.astro";
+import SectionHeader from "../components/section-header.astro";
+import { DISCORD_INVITE_URL } from "../constants";
+import Container from "../components/container.astro";
+import DiscordLogo from "../assets/discord-logo.png";
 ---
 
 <Layout>
-  <div class="halo-container">
-    <!-- Hero Section -->
-    <section class="hero-section">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <span class="badge-bracket">[</span>
-          <span>Protocol Active</span>
-          <span class="badge-bracket">]</span>
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <Container class="hero-content">
+      <div class="hero-badge">
+        <span class="badge-bracket">[</span>
+        <span>Protocol Active</span>
+        <span class="badge-bracket">]</span>
+      </div>
+
+      <h1 class="hero-title">
+        <span class="title-line">Guilty</span>
+        <span class="title-line">Spark</span>
+      </h1>
+
+      <div class="hero-subtitle">Halo Infinite Combat Statistics Interface</div>
+
+      <p class="hero-description">
+        Greetings, Reclaimer. I am 343 Guilty Spark, custodian of Installation 04's combat records. Access comprehensive
+        telemetry analysis for your Halo Infinite custom games directly within Discord.
+      </p>
+
+      <div class="hero-buttons">
+        <Button href={DISCORD_INVITE_URL} variant="primary" target="_blank" icon={DiscordLogo}>Add to Discord</Button>
+      </div>
+
+      <!-- Stats Display -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">18</div>
+          <div class="stat-label">Servers</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value">2100+</div>
+          <div class="stat-label">Series Tracked</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">Free</div>
+          <div class="stat-label">No cost to use</div>
+        </div>
+      </div>
+    </Container>
+  </section>
 
-        <h1 class="hero-title">
-          <span class="title-line">Guilty</span>
-          <span class="title-line">Spark</span>
-        </h1>
+  <!-- Features Section -->
+  <section id="features" class="features-section">
+    <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
-        <div class="hero-subtitle">Halo Infinite Combat Statistics Interface</div>
-
-        <p class="hero-description">
-          Greetings, Reclaimer. I am 343 Guilty Spark, custodian of Installation 04's combat records. Access
-          comprehensive telemetry analysis for your Halo Infinite custom games directly within Discord.
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </div>
+        <h3 class="feature-title">Match Statistics</h3>
+        <p class="feature-description">
+          Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across
+          all game modes.
         </p>
-
-        <div class="hero-buttons">
-          <Button
-            href="https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands"
-            variant="primary"
-            target="_blank"
-          >
-            Add to Discord
-          </Button>
-
-          <Button href="https://discord.gg/WS7zG8GDKY" variant="secondary" target="_blank"> Support Server </Button>
-        </div>
-
-        <!-- Stats Display -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value">18+</div>
-            <div class="stat-label">Servers</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">2100K+</div>
-            <div class="stat-label">Series Tracked</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">Free</div>
-            <div class="stat-label">No cost to use</div>
-          </div>
-        </div>
       </div>
 
-      <!-- Background Elements -->
-      <div class="hero-bg"></div>
-      <div class="scan-line"></div>
-    </section>
-
-    <!-- Features Section -->
-    <section id="features" class="features-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="title-bracket">&lt;</span>
-          Capabilities
-          <span class="title-bracket">/&gt;</span>
-        </h2>
-        <div class="section-subtitle">Advanced Combat Analysis Systems</div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            ></path>
+            <path
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </div>
+        <h3 class="feature-title">Live Tracking</h3>
+        <p class="feature-description">
+          Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in
+          Discord.
+        </p>
       </div>
 
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Match Statistics</h3>
-          <p class="feature-description">
-            Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking
-            across all game modes.
-          </p>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              ></path>
-              <path
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Live Tracking</h3>
-          <p class="feature-description">
-            Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live
-            in Discord.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">HCS Map Generator</h3>
-          <p class="feature-description">
-            Generate tournament-ready HCS map pools with intelligent map and mode rotation for competitive play.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Player Linking</h3>
-          <p class="feature-description">
-            Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              ></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Customizable</h3>
-          <p class="feature-description">
-            Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Commands Section -->
-    <section id="commands" class="commands-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="title-bracket">&lt;</span>
-          Command Interface
-          <span class="title-bracket">/&gt;</span>
-        </h2>
-        <div class="section-subtitle">Slash Command Protocols</div>
+        <h3 class="feature-title">HCS Map Generator</h3>
+        <p class="feature-description">
+          Generate tournament-ready HCS map pools with intelligent map and mode rotation for competitive play.
+        </p>
       </div>
 
-      <div class="commands-grid">
-        <div class="command-card">
-          <div class="command-name">/stats</div>
-          <div class="command-desc">Display comprehensive match statistics for any player</div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </div>
-
-        <div class="command-card">
-          <div class="command-name">/connect</div>
-          <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
-        </div>
-
-        <div class="command-card">
-          <div class="command-name">/track</div>
-          <div class="command-desc">Start live tracking for an ongoing match</div>
-        </div>
-
-        <div class="command-card">
-          <div class="command-name">/maps</div>
-          <div class="command-desc">Generate HCS tournament map pools</div>
-        </div>
-
-        <div class="command-card">
-          <div class="command-name">/setup</div>
-          <div class="command-desc">Configure server settings and permissions</div>
-        </div>
+        <h3 class="feature-title">Player Linking</h3>
+        <p class="feature-description">
+          Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
+        </p>
       </div>
-    </section>
 
-    <!-- CTA Section -->
-    <section class="cta-section">
-      <div class="cta-content">
-        <h2 class="cta-title">Ready to Deploy?</h2>
-        <p class="cta-text">Integrate combat statistics into your Discord server now.</p>
-        <Button
-          href="https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands"
-          variant="primary"
-          size="large"
-          target="_blank"
-        >
-          Activate Protocol
-        </Button>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            ></path>
+          </svg>
+        </div>
+        <h3 class="feature-title">Customizable</h3>
+        <p class="feature-description">
+          Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
+        </p>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+
+  <!-- Commands Section -->
+  <section id="commands" class="commands-section">
+    <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
+
+    <div class="commands-grid">
+      <div class="command-card">
+        <div class="command-name">/stats</div>
+        <div class="command-desc">Display comprehensive match statistics for any player</div>
+      </div>
+
+      <div class="command-card">
+        <div class="command-name">/connect</div>
+        <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
+      </div>
+
+      <div class="command-card">
+        <div class="command-name">/track</div>
+        <div class="command-desc">Start live tracking for an ongoing match</div>
+      </div>
+
+      <div class="command-card">
+        <div class="command-name">/maps</div>
+        <div class="command-desc">Generate HCS tournament map pools</div>
+      </div>
+
+      <div class="command-card">
+        <div class="command-name">/setup</div>
+        <div class="command-desc">Configure server settings and permissions</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="cta-content">
+      <h2 class="cta-title">Ready to Deploy?</h2>
+      <p class="cta-text">Integrate combat statistics into your Discord server now.</p>
+      <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank"> Activate Protocol </Button>
+    </div>
+  </section>
 </Layout>
 
 <style>
-  /* Container */
-  .halo-container {
-    position: relative;
-    z-index: 2;
-    min-height: 100vh;
-  }
+  /* ============================================ */
+  /* Base Styles - Mobile First                  */
+  /* ============================================ */
 
-  /* Hero Section */
-  .hero-section {
-    position: relative;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 100px 2rem 4rem;
-    background: linear-gradient(180deg, var(--halo-bg-primary) 0%, var(--halo-bg-secondary) 100%);
-    overflow: hidden;
-  }
-
-  .hero-bg {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.08) 0%, transparent 50%),
-      linear-gradient(
-        45deg,
-        transparent 48%,
-        rgba(93, 212, 216, 0.03) 49%,
-        rgba(93, 212, 216, 0.03) 51%,
-        transparent 52%
-      );
-    background-size:
-      100% 100%,
-      40px 40px;
-  }
-
-  .scan-line {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--halo-teal-primary), transparent);
-    animation: scan 4s linear infinite;
-    opacity: 0.5;
-  }
-
+  /* Animations */
   @keyframes scan {
     0%,
     100% {
@@ -279,27 +206,46 @@ import Button from "../components/Button.astro";
     }
   }
 
+  /* Hero Section */
+  .hero-section {
+    min-height: 100vh;
+    padding-top: 80px;
+    padding-bottom: 2rem;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.08) 0%, transparent 50%),
+      linear-gradient(
+        45deg,
+        transparent 48%,
+        rgba(93, 212, 216, 0.03) 49%,
+        rgba(93, 212, 216, 0.03) 51%,
+        transparent 52%
+      );
+  }
+
   .hero-content {
-    position: relative;
-    z-index: 2;
-    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1.5rem;
+    gap: 0.25rem;
+    padding: 0.4rem 0.75rem;
     background: rgba(13, 77, 82, 0.6);
     border: 1px solid var(--halo-teal-primary);
-    font-family: "Oxanium", sans-serif;
-    font-size: 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.15em;
     color: var(--halo-teal-primary);
     margin-bottom: 2rem;
     text-transform: uppercase;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .badge-bracket {
@@ -308,8 +254,8 @@ import Button from "../components/Button.astro";
   }
 
   .hero-title {
-    font-family: "Saira Condensed", sans-serif;
-    font-size: clamp(4rem, 12vw, 8rem);
+    font-family: var(--font-heading);
+    font-size: clamp(3rem, 12vw, 8rem);
     font-weight: 800;
     line-height: 0.9;
     letter-spacing: 0.05em;
@@ -333,59 +279,61 @@ import Button from "../components/Button.astro";
   }
 
   .hero-subtitle {
-    font-family: "Oxanium", sans-serif;
-    font-size: clamp(1rem, 2vw, 1.3rem);
+    font-family: var(--font-body);
+    font-size: clamp(0.9rem, 2vw, 1.3rem);
     font-weight: 600;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.15em;
     color: var(--halo-teal-primary);
     margin-bottom: 2rem;
     text-transform: uppercase;
   }
 
   .hero-description {
-    font-family: "Oxanium", sans-serif;
-    font-size: clamp(1.1rem, 2vw, 1.3rem);
+    font-family: var(--font-body);
+    font-size: clamp(0.95rem, 2vw, 1.3rem);
     font-weight: 400;
     line-height: 1.8;
     color: var(--halo-gray);
     max-width: 800px;
-    margin: 0 auto 3rem;
+    margin: 0 auto 2rem;
   }
 
   .hero-buttons {
     display: flex;
-    gap: 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
     justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 4rem;
+    margin-bottom: 3rem;
   }
 
   /* Stats Grid */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 2rem;
+    grid-template-columns: 1fr;
+    gap: 1rem;
     max-width: 800px;
     margin: 0 auto;
   }
 
   .stat-card {
-    padding: 1.5rem;
+    padding: 1.25rem;
     background: rgba(15, 40, 48, 0.6);
     border: 1px solid var(--halo-teal-dark);
     text-align: center;
+    min-width: 0;
   }
 
   .stat-value {
-    font-family: "Orbitron", sans-serif;
-    font-size: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: clamp(2rem, 5vw, 2.5rem);
     font-weight: 700;
     color: var(--halo-teal-primary);
     text-shadow: 0 0 15px rgba(93, 212, 216, 0.5);
   }
 
   .stat-label {
-    font-family: "Oxanium", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.9rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -397,7 +345,7 @@ import Button from "../components/Button.astro";
   /* Sections */
   .features-section,
   .commands-section {
-    padding: 6rem 2rem;
+    padding: 4rem 1rem;
     background: var(--halo-bg-secondary);
     position: relative;
   }
@@ -406,39 +354,10 @@ import Button from "../components/Button.astro";
     background: var(--halo-bg-primary);
   }
 
-  .section-header {
-    text-align: center;
-    margin-bottom: 4rem;
-  }
-
-  .section-title {
-    font-family: "Saira Condensed", sans-serif;
-    font-size: clamp(2.5rem, 6vw, 4rem);
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--halo-white);
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-  }
-
-  .title-bracket {
-    color: var(--halo-teal-primary);
-    text-shadow: 0 0 10px rgba(93, 212, 216, 0.5);
-  }
-
-  .section-subtitle {
-    font-family: "Oxanium", sans-serif;
-    font-size: 1.1rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    color: var(--halo-gray);
-    text-transform: uppercase;
-  }
-
   /* Features Grid */
   .features-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
     gap: 2rem;
     max-width: 1400px;
     margin: 0 auto;
@@ -446,7 +365,7 @@ import Button from "../components/Button.astro";
 
   .feature-card {
     position: relative;
-    padding: 2rem;
+    padding: 1.25rem;
     background: rgba(15, 40, 48, 0.4);
     border: 1px solid var(--halo-teal-dark);
     transition: all 0.3s ease;
@@ -482,8 +401,8 @@ import Button from "../components/Button.astro";
   }
 
   .feature-title {
-    font-family: "Saira Condensed", sans-serif;
-    font-size: 1.5rem;
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--halo-white);
@@ -492,8 +411,8 @@ import Button from "../components/Button.astro";
   }
 
   .feature-description {
-    font-family: "Oxanium", sans-serif;
-    font-size: 1.05rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
     font-weight: 400;
     line-height: 1.7;
     color: var(--halo-gray);
@@ -502,14 +421,14 @@ import Button from "../components/Button.astro";
   /* Commands Grid */
   .commands-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
     gap: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
   }
 
   .command-card {
-    padding: 1.5rem;
+    padding: 1.25rem;
     background: rgba(13, 77, 82, 0.3);
     border: 1px solid var(--halo-teal-dark);
     border-left: 3px solid var(--halo-teal-primary);
@@ -523,16 +442,16 @@ import Button from "../components/Button.astro";
   }
 
   .command-name {
-    font-family: "Orbitron", monospace;
-    font-size: 1.3rem;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--halo-teal-primary);
     margin-bottom: 0.75rem;
   }
 
   .command-desc {
-    font-family: "Oxanium", sans-serif;
-    font-size: 1rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
     font-weight: 400;
     color: var(--halo-gray);
     line-height: 1.6;
@@ -540,7 +459,7 @@ import Button from "../components/Button.astro";
 
   /* CTA Section */
   .cta-section {
-    padding: 6rem 2rem;
+    padding: 5rem 1rem;
     background: linear-gradient(180deg, var(--halo-bg-secondary) 0%, var(--halo-bg-primary) 100%);
     text-align: center;
     position: relative;
@@ -562,7 +481,7 @@ import Button from "../components/Button.astro";
   }
 
   .cta-title {
-    font-family: "Saira Condensed", sans-serif;
+    font-family: var(--font-heading);
     font-size: clamp(2.5rem, 6vw, 4rem);
     font-weight: 800;
     letter-spacing: 0.1em;
@@ -573,34 +492,113 @@ import Button from "../components/Button.astro";
   }
 
   .cta-text {
-    font-family: "Oxanium", sans-serif;
-    font-size: 1.3rem;
+    font-family: var(--font-body);
+    font-size: clamp(1.1rem, 3vw, 1.3rem);
     font-weight: 400;
     color: var(--halo-gray);
     margin-bottom: 3rem;
   }
 
-  /* Responsive */
-  @media (max-width: 1024px) {
-    .features-grid,
-    .commands-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
+  /* ============================================ */
+  /* Media Queries - Tablet and Above            */
+  /* ============================================ */
 
-  @media (max-width: 768px) {
+  @media (--tablet-viewport) {
+    /* Hero Section */
     .hero-section {
-      padding: 120px 1.5rem 3rem;
+      padding-top: 100px;
+      padding-bottom: 4rem;
+    }
+
+    .hero-badge {
+      gap: 0.5rem;
+      padding: 0.5rem 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .hero-subtitle {
+      letter-spacing: 0.2em;
+    }
+
+    .hero-description {
+      margin-bottom: 3rem;
     }
 
     .hero-buttons {
-      flex-direction: column;
-      align-items: stretch;
+      flex-direction: row;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
     }
 
-    .features-grid,
+    /* Stats Grid */
+    .stats-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .stat-card {
+      padding: 1.5rem;
+    }
+
+    /* Sections */
+    .features-section,
+    .commands-section {
+      padding: 6rem 2rem;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .feature-card {
+      padding: 2rem;
+    }
+
+    .feature-title {
+      font-size: 1.5rem;
+    }
+
+    .feature-description {
+      font-size: 1.05rem;
+    }
+
+    /* Commands Grid */
     .commands-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .command-card {
+      padding: 1.5rem;
+    }
+
+    .command-name {
+      font-size: 1.3rem;
+    }
+
+    .command-desc {
+      font-size: 1rem;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      padding: 6rem 2rem;
+    }
+  }
+
+  /* ============================================ */
+  /* Media Queries - Desktop and Above           */
+  /* ============================================ */
+
+  @media (--desktop-viewport) {
+    .features-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .commands-grid {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 </style>

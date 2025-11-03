@@ -64,6 +64,35 @@ npm run format:fix
 - **Null Safety**: Use `Preconditions.checkExists()` instead of `!`
 - **Formatting**: Run `npm run lint:fix` and `npm run format:fix`
 
+## CSS/Styling Principles (Pages Project)
+
+- **Mobile-First Approach**: Start with mobile base styles, enhance progressively for larger screens
+- **Custom Media Queries**: Use PostCSS custom media from `variables.css`:
+  - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed, mobile is default)
+  - `@media (--tablet-viewport)` - min-width: 750px
+  - `@media (--desktop-viewport)` - min-width: 1000px
+  - `@media (--ultrawide-viewport)` - min-width: 1200px
+- **Organization**: Group all media queries at the bottom of `<style>` blocks with clear section headers
+- **Structure Pattern**:
+  ```
+  <style>
+    /* Base Styles - Mobile First */
+    .element { /* mobile styles */ }
+
+    /* Media Queries - Tablet and Above */
+    @media (--tablet-viewport) {
+      .element { /* tablet overrides */ }
+    }
+
+    /* Media Queries - Desktop and Above */
+    @media (--desktop-viewport) {
+      .element { /* desktop overrides */ }
+    }
+  </style>
+  ```
+- **Progressive Enhancement**: Only override properties that change at larger breakpoints
+- **Avoid Desktop-First**: Never use `max-width` media queries unless absolutely necessary
+
 ## Type Safety Principles
 
 - **No Unsafe Assertions**: Never use `as` casting or manual type assertions; always use proper typed parsing

@@ -1,0 +1,54 @@
+---
+import GuiltySparkIcon from "../assets/guilty-spark-icon.png";
+
+interface Props {
+  variant?: "nav" | "footer";
+}
+
+const { variant = "nav" } = Astro.props;
+---
+
+<a href="/" class:list={["logo", `logo-${variant}`]}>
+  <img src={GuiltySparkIcon.src} alt="Guilty Spark" />
+  <span>Guilty Spark</span>
+</a>
+
+<style>
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--halo-teal-primary);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+  }
+
+  .logo-nav {
+    text-shadow: 0 0 10px rgba(93, 212, 216, 0.5);
+  }
+
+  .logo-nav:hover {
+    color: var(--halo-white);
+    text-shadow: 0 0 15px rgba(93, 212, 216, 0.8);
+  }
+
+  .logo-footer {
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+
+  .logo img {
+    width: 40px;
+    height: 40px;
+    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.6));
+  }
+
+  .logo-footer img {
+    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
+  }
+</style>
