@@ -5,6 +5,12 @@ import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
 import DiscordLogo from "../assets/discord-logo.png";
+import { Image } from "astro:assets";
+import StatsCommandGif from "../assets/recording-20250604-stats-command.gif";
+import NeatQueueIntegrationGif from "../assets/recording-20250604-neatqueue-integration.gif";
+import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
+import LiveTrackerChannelScreenshot from "../assets/screenshot20250918-live-tracker-channel-name.png";
+import NeatQueueLogo from "../assets/neatqueue-logo.png";
 ---
 
 <Layout>
@@ -51,138 +57,245 @@ import DiscordLogo from "../assets/discord-logo.png";
     </Container>
   </section>
 
+  <!-- Demo Section -->
+  <section class="demo-section">
+    <Container>
+      <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
+      <div class="demo-grid">
+        <!-- Stats Command Demo -->
+        <div class="demo-item">
+          <div class="demo-header">
+            <div class="demo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+            </div>
+            <h3 class="demo-title">Combat Record Retrieval</h3>
+          </div>
+          <p class="demo-description">
+            Access comprehensive statistical analysis for any completed series with a simple command invocation. Query
+            efficiency ratios, accuracy matrices, commendation records, and performance metrics across all combat
+            scenarios.
+          </p>
+          <Image
+            src={StatsCommandGif}
+            alt="Stats command demo showing match statistics retrieval"
+            loading="lazy"
+            class="demo-image"
+          />
+        </div>
+
+        <!-- NeatQueue Integration Demo -->
+        <div class="demo-item">
+          <div class="demo-header">
+            <div class="demo-icon demo-icon-image">
+              <Image src={NeatQueueLogo} alt="NeatQueue" />
+            </div>
+            <h3 class="demo-title">Automated Queue Protocol</h3>
+          </div>
+          <p class="demo-description">
+            Seamless integration with NeatQueue match coordination systems. Combat statistics are automatically compiled
+            and transmitted upon engagement conclusion, with continuous tracking throughout active series.
+          </p>
+          <Image
+            src={NeatQueueIntegrationGif}
+            alt="NeatQueue integration showing automated stats posting"
+            loading="lazy"
+            class="demo-image"
+          />
+        </div>
+
+        <!-- Live Tracker Demo -->
+        <div class="demo-item demo-item-wide">
+          <div class="demo-header">
+            <div class="demo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+                <path
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+            </div>
+            <h3 class="demo-title">Real-Time Engagement Monitoring</h3>
+          </div>
+          <p class="demo-description">
+            Observe ongoing combat operations with periodic telemetry refresh cycles occurring every 180 seconds.
+            Monitor engagement scores, combatant performance metrics, and series progression status through active
+            surveillance with manual override controls available.
+          </p>
+          <div class="demo-media-grid">
+            <div class="demo-media-item">
+              <Image
+                src={LiveTrackerScreenshot}
+                alt="Live tracker showing real-time match statistics"
+                loading="lazy"
+                class="demo-image"
+              />
+              <div class="demo-caption">Active series overview with sequential engagement analysis</div>
+            </div>
+            <div class="demo-media-item">
+              <Image
+                src={LiveTrackerChannelScreenshot}
+                alt="Live tracker updating Discord channel name with series score"
+                loading="lazy"
+                class="demo-image"
+              />
+              <div class="demo-caption">Communication channel designation reflects current series tally</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Container>
+  </section>
+
   <!-- Features Section -->
   <section id="features" class="features-section">
-    <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
+    <Container>
+      <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Match Statistics</h3>
+          <p class="feature-description">
+            Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking
+            across all game modes.
+          </p>
         </div>
-        <h3 class="feature-title">Match Statistics</h3>
-        <p class="feature-description">
-          Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across
-          all game modes.
-        </p>
-      </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            ></path>
-            <path
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              ></path>
+              <path
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Live Tracking</h3>
+          <p class="feature-description">
+            Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live
+            in Discord.
+          </p>
         </div>
-        <h3 class="feature-title">Live Tracking</h3>
-        <p class="feature-description">
-          Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in
-          Discord.
-        </p>
-      </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">HCS Map Generator</h3>
+          <p class="feature-description">
+            Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play.
+          </p>
         </div>
-        <h3 class="feature-title">HCS Map Generator</h3>
-        <p class="feature-description">
-          Generate tournament-ready HCS map pools with intelligent map and mode rotation for competitive play.
-        </p>
-      </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Player Linking</h3>
+          <p class="feature-description">
+            Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
+          </p>
         </div>
-        <h3 class="feature-title">Player Linking</h3>
-        <p class="feature-description">
-          Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
-        </p>
-      </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            ></path>
-          </svg>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Customizable</h3>
+          <p class="feature-description">
+            Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
+          </p>
         </div>
-        <h3 class="feature-title">Customizable</h3>
-        <p class="feature-description">
-          Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
-        </p>
       </div>
-    </div>
+    </Container>
   </section>
 
   <!-- Commands Section -->
   <section id="commands" class="commands-section">
-    <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
+    <Container>
+      <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
 
-    <div class="commands-grid">
-      <div class="command-card">
-        <div class="command-name">/stats</div>
-        <div class="command-desc">Display comprehensive match statistics for any player</div>
-      </div>
+      <div class="commands-grid">
+        <div class="command-card">
+          <div class="command-name">/stats</div>
+          <div class="command-desc">Display comprehensive match statistics for any player</div>
+        </div>
 
-      <div class="command-card">
-        <div class="command-name">/connect</div>
-        <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
-      </div>
+        <div class="command-card">
+          <div class="command-name">/connect</div>
+          <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
+        </div>
 
-      <div class="command-card">
-        <div class="command-name">/track</div>
-        <div class="command-desc">Start live tracking for an ongoing match</div>
-      </div>
+        <div class="command-card">
+          <div class="command-name">/track</div>
+          <div class="command-desc">Start live tracking for an ongoing match</div>
+        </div>
 
-      <div class="command-card">
-        <div class="command-name">/maps</div>
-        <div class="command-desc">Generate HCS tournament map pools</div>
-      </div>
+        <div class="command-card">
+          <div class="command-name">/maps</div>
+          <div class="command-desc">Generate HCS tournament map pools</div>
+        </div>
 
-      <div class="command-card">
-        <div class="command-name">/setup</div>
-        <div class="command-desc">Configure server settings and permissions</div>
+        <div class="command-card">
+          <div class="command-name">/setup</div>
+          <div class="command-desc">Configure server settings and permissions</div>
+        </div>
       </div>
-    </div>
+    </Container>
   </section>
 
   <!-- CTA Section -->
   <section class="cta-section">
-    <div class="cta-content">
-      <h2 class="cta-title">Ready to Deploy?</h2>
-      <p class="cta-text">Integrate combat statistics into your Discord server now.</p>
-      <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank"> Activate Protocol </Button>
-    </div>
+    <Container>
+      <div class="cta-content">
+        <h2 class="cta-title">Ready to Deploy?</h2>
+        <p class="cta-text">Integrate combat statistics into your Discord server now.</p>
+        <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank"> Activate Protocol </Button>
+      </div>
+    </Container>
   </section>
 </Layout>
 
@@ -343,15 +456,128 @@ import DiscordLogo from "../assets/discord-logo.png";
   }
 
   /* Sections */
+  .demo-section,
   .features-section,
   .commands-section {
-    padding: 4rem 1rem;
+    padding: 4rem 0;
     background: var(--halo-bg-secondary);
     position: relative;
   }
 
+  .demo-section {
+    background: var(--halo-bg-primary);
+  }
+
   .commands-section {
     background: var(--halo-bg-primary);
+  }
+
+  /* Demo Section */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .demo-item {
+    position: relative;
+    padding: 1.5rem;
+    background: rgba(15, 40, 48, 0.4);
+    border: 1px solid var(--halo-teal-dark);
+    transition: all 0.3s ease;
+  }
+
+  .demo-item:hover {
+    border-color: var(--halo-teal-primary);
+    box-shadow: 0 0 30px rgba(93, 212, 216, 0.2);
+  }
+
+  .demo-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .demo-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    color: var(--halo-teal-primary);
+    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
+  }
+
+  .demo-icon-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+  }
+
+  .demo-icon-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(79%) sepia(18%) saturate(1281%) hue-rotate(130deg) brightness(95%)
+      contrast(89%);
+  }
+
+  .demo-title {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--halo-white);
+    text-transform: uppercase;
+  }
+
+  .demo-description {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--halo-gray);
+    margin-bottom: 1.5rem;
+  }
+
+  .demo-image {
+    display: block;
+    margin: 0 auto;
+    border: 2px solid var(--halo-teal-dark);
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    image-rendering: crisp-edges;
+    transition: all 0.3s ease;
+  }
+
+  .demo-item:hover .demo-image {
+    border-color: var(--halo-teal-primary);
+    box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
+  }
+
+  .demo-media-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .demo-media-item {
+    position: relative;
+  }
+
+  .demo-caption {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--halo-gray);
+    text-align: center;
+    margin-top: 0.75rem;
+    letter-spacing: 0.05em;
   }
 
   /* Features Grid */
@@ -459,7 +685,7 @@ import DiscordLogo from "../assets/discord-logo.png";
 
   /* CTA Section */
   .cta-section {
-    padding: 5rem 1rem;
+    padding: 5rem 0;
     background: linear-gradient(180deg, var(--halo-bg-secondary) 0%, var(--halo-bg-primary) 100%);
     text-align: center;
     position: relative;
@@ -543,9 +769,31 @@ import DiscordLogo from "../assets/discord-logo.png";
     }
 
     /* Sections */
+    .demo-section,
     .features-section,
     .commands-section {
-      padding: 6rem 2rem;
+      padding: 6rem 0;
+    }
+
+    /* Demo Section */
+    .demo-item {
+      padding: 2rem;
+    }
+
+    .demo-title {
+      font-size: 1.5rem;
+    }
+
+    .demo-description {
+      font-size: 1.05rem;
+    }
+
+    .demo-media-grid {
+      gap: 2.5rem;
+    }
+
+    .demo-caption {
+      font-size: 0.9rem;
     }
 
     /* Features Grid */
@@ -584,7 +832,7 @@ import DiscordLogo from "../assets/discord-logo.png";
 
     /* CTA Section */
     .cta-section {
-      padding: 6rem 2rem;
+      padding: 6rem 0;
     }
   }
 
@@ -593,6 +841,14 @@ import DiscordLogo from "../assets/discord-logo.png";
   /* ============================================ */
 
   @media (--desktop-viewport) {
+    .demo-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .demo-item-wide {
+      grid-column: 1 / -1;
+    }
+
     .features-grid {
       grid-template-columns: repeat(3, 1fr);
     }

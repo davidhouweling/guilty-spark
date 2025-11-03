@@ -1,6 +1,7 @@
 ---
 // FAQ component template
 import SectionHeader from "./section-header.astro";
+import Container from "./container.astro";
 
 interface FAQItem {
   question: string;
@@ -15,18 +16,20 @@ const { items } = Astro.props;
 ---
 
 <section id="faq" class="faq-section">
-  <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />
+  <Container>
+    <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />
 
-  <div class="faq-container">
-    {
-      items.map((item) => (
-        <div class="faq-item">
-          <h3 class="faq-question">{item.question}</h3>
-          <p class="faq-answer" set:html={item.answer} />
-        </div>
-      ))
-    }
-  </div>
+    <div class="faq-container">
+      {
+        items.map((item) => (
+          <div class="faq-item">
+            <h3 class="faq-question">{item.question}</h3>
+            <p class="faq-answer" set:html={item.answer} />
+          </div>
+        ))
+      }
+    </div>
+  </Container>
 </section>
 
 <style>
@@ -35,7 +38,7 @@ const { items } = Astro.props;
   /* ============================================ */
 
   .faq-section {
-    padding: 3rem 1rem;
+    padding: 3rem 0;
     background: var(--halo-bg-primary);
     position: relative;
   }
@@ -115,7 +118,7 @@ const { items } = Astro.props;
 
   @media (--tablet-viewport) {
     .faq-section {
-      padding: 6rem 2rem;
+      padding: 6rem 0;
     }
 
     .faq-item {

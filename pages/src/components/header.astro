@@ -1,6 +1,7 @@
 ---
 // Header/Navigation component
 import Logo from "./logo.astro";
+import Container from "./container.astro";
 import { SUPPORT_SERVER_URL, GITHUB_URL } from "../constants";
 
 const navLinks = [
@@ -11,28 +12,30 @@ const navLinks = [
 ---
 
 <nav class="halo-nav">
-  <Logo variant="nav" />
+  <Container class="nav-container">
+    <Logo variant="nav" />
 
-  <!-- Mobile menu button -->
-  <button class="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false">
-    <span class="hamburger-line"></span>
-    <span class="hamburger-line"></span>
-    <span class="hamburger-line"></span>
-  </button>
+    <!-- Mobile menu button -->
+    <button class="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
 
-  <div class="nav-links">
-    {
-      navLinks.map((link) => (
-        <a
-          href={link.href}
-          target={link.external ? "_blank" : undefined}
-          rel={link.external ? "noopener noreferrer" : undefined}
-        >
-          {link.label}
-        </a>
-      ))
-    }
-  </div>
+    <div class="nav-links">
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            target={link.external ? "_blank" : undefined}
+            rel={link.external ? "noopener noreferrer" : undefined}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </div>
+  </Container>
 </nav>
 
 <script>
@@ -83,11 +86,14 @@ const navLinks = [
     background: rgba(13, 31, 38, 0.95);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--halo-teal-dark);
+    z-index: 100;
+  }
+
+  .nav-container {
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1.5rem;
-    z-index: 100;
   }
 
   .nav-links {
@@ -181,10 +187,6 @@ const navLinks = [
   /* ============================================ */
 
   @media (--tablet-viewport) {
-    .halo-nav {
-      padding: 0 3rem;
-    }
-
     .mobile-menu-btn {
       display: none;
     }

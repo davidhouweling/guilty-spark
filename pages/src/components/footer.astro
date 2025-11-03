@@ -1,6 +1,7 @@
 ---
 // Footer component
 import Logo from "./logo.astro";
+import Container from "./container.astro";
 import { SUPPORT_SERVER_URL, GITHUB_URL, GITHUB_REPO_OWNER } from "../constants";
 
 const footerSections = [
@@ -22,30 +23,32 @@ const footerSections = [
 ---
 
 <footer class="halo-footer">
-  <div class="footer-content">
-    <div class="footer-section">
-      <Logo variant="footer" />
-      <p class="footer-desc">Installation 04 Combat Statistics Interface</p>
+  <Container>
+    <div class="footer-content">
+      <div class="footer-section">
+        <Logo variant="footer" />
+        <p class="footer-desc">Installation 04 Combat Statistics Interface</p>
+      </div>
+
+      {
+        footerSections.map((section) => (
+          <div class="footer-section">
+            <h4 class="footer-heading">{section.heading}</h4>
+            {section.links.map((link) => (
+              <a href={link.href} target="_blank" rel="noopener noreferrer">
+                {link.label}
+              </a>
+            ))}
+          </div>
+        ))
+      }
     </div>
 
-    {
-      footerSections.map((section) => (
-        <div class="footer-section">
-          <h4 class="footer-heading">{section.heading}</h4>
-          {section.links.map((link) => (
-            <a href={link.href} target="_blank" rel="noopener noreferrer">
-              {link.label}
-            </a>
-          ))}
-        </div>
-      ))
-    }
-  </div>
-
-  <div class="footer-bottom">
-    <div class="footer-legal">© David Houweling. Not affiliated with Microsoft or 343 Industries.</div>
-    <div class="footer-version">Monitoring since October 2024</div>
-  </div>
+    <div class="footer-bottom">
+      <div class="footer-legal">© David Houweling. Not affiliated with Microsoft or 343 Industries.</div>
+      <div class="footer-version">Monitoring since October 2024</div>
+    </div>
+  </Container>
 </footer>
 
 <style>
@@ -57,7 +60,7 @@ const footerSections = [
   .halo-footer {
     background: var(--halo-bg-primary);
     border-top: 1px solid var(--halo-teal-dark);
-    padding: 3rem 1rem 1.5rem;
+    padding: 3rem 0 1.5rem;
   }
 
   .footer-content {
@@ -132,7 +135,7 @@ const footerSections = [
 
   @media (--tablet-viewport) {
     .halo-footer {
-      padding: 4rem 2rem 2rem;
+      padding: 4rem 0 2rem;
     }
 
     .footer-content {

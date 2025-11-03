@@ -136,7 +136,7 @@ Start live tracking for ongoing NeatQueue series:
 
 ## 🤝 NeatQueue Integration
 
-Guilty Spark provides deep integration with NeatQueue tournament management system, enabling automated workflows and real-time tracking.
+Guilty Spark provides deep integration with NeatQueue queue management system, enabling automated workflows and real-time tracking.
 
 ### Configuration Requirements
 
@@ -302,7 +302,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Related Projects
 
-- [NeatQueue](https://neatqueue.com/) - Tournament management system
+- [NeatQueue](https://neatqueue.com/) - Queue management system
 - [Halo Infinite API](https://github.com/dgreene1/halo-infinite-api) - Halo Waypoint API wrapper
 
 ---

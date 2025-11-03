@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provides Halo Infinite statistics, live match tracking, and tournament features.
+Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provides Halo Infinite statistics, live match tracking, and strong integration with NeatQueue for Halo custom games.
 
 **Tech Stack**: TypeScript, Cloudflare Workers, D1 Database, Durable Objects, Discord API
 
@@ -43,7 +43,7 @@ npm run format:fix
 
 - `/connect` - Link Discord to Xbox gamertag
 - `/stats` - Show Halo Infinite match statistics
-- `/maps` - Generate HCS tournament maps
+- `/maps` - Generate maps for custom games
 - `/track` - Live match tracking with real-time updates
 
 ## File Structure
@@ -74,6 +74,7 @@ npm run format:fix
   - `@media (--ultrawide-viewport)` - min-width: 1200px
 - **Organization**: Group all media queries at the bottom of `<style>` blocks with clear section headers
 - **Structure Pattern**:
+
   ```
   <style>
     /* Base Styles - Mobile First */
@@ -90,6 +91,7 @@ npm run format:fix
     }
   </style>
   ```
+
 - **Progressive Enhancement**: Only override properties that change at larger breakpoints
 - **Avoid Desktop-First**: Never use `max-width` media queries unless absolutely necessary
 
