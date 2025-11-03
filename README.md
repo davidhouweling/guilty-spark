@@ -6,7 +6,7 @@
 
 A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
 
-![Guilty Spark response on Discord](docs/screenshot20250604-queue-stats-command.png)
+![Guilty Spark response on Discord](pages/src/assets/screenshot20250604-queue-stats-command.png)
 
 ## ✨ Features
 
@@ -87,7 +87,7 @@ Retrieves comprehensive statistics for completed NeatQueue series:
 - `channel` (optional): Discord channel to search (defaults to current)
 - `queue_number` (optional): Specific queue number (defaults to most recent)
 
-![Stats Command Demo](docs/recording-20250604-stats-command.gif)
+![Stats Command Demo](pages/src/assets/recording-20250604-stats-command.gif)
 
 **Automated Process:**
 
@@ -149,7 +149,7 @@ Guilty Spark provides deep integration with NeatQueue queue management system, e
 
 ### Automated Workflows
 
-![NeatQueue Integration Demo](docs/recording-20250604-neatqueue-integration.gif)
+![NeatQueue Integration Demo](pages/src/assets/recording-20250604-neatqueue-integration.gif)
 
 **Event-Driven Automation:**
 
@@ -176,9 +176,9 @@ Guilty Spark provides deep integration with NeatQueue queue management system, e
 - **Substitution Support**: Automatic handling of player changes with chronological tracking
 - **Update queue channel name**: In progress series score in the channel name
 
-![Live Tracker Embed](docs/screenshot20250918-live-tracker.png)
+![Live Tracker Embed](pages/src/assets/screenshot20250918-live-tracker.png)
 
-![Live Tracker Channel Name](docs/screenshot20250918-live-tracker-channel-name.png)
+![Live Tracker Channel Name](pages/src/assets/screenshot20250918-live-tracker-channel-name.png)
 
 ### NeatQueue Informer
 
