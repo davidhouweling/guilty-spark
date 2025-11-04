@@ -1,10 +1,7 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Button from "../components/button.astro";
-import BaseCard from "../components/cards/base-card.astro";
-import CommandCard from "../components/cards/command-card.astro";
-import FeatureCard from "../components/cards/feature-card.astro";
-import StatCard from "../components/cards/stat-card.astro";
+import { BaseCard, CommandCard, FeatureCard, StatCard } from "../components/cards/index.ts";
 import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
@@ -15,6 +12,106 @@ import NeatQueueIntegrationGif from "../assets/recording-20250604-neatqueue-inte
 import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
 import LiveTrackerChannelScreenshot from "../assets/screenshot20250918-live-tracker-channel-name.png";
 import NeatQueueLogo from "../assets/neatqueue-logo.png";
+
+const heroStats = [
+  { value: "18", label: "Servers" },
+  { value: "2100+", label: "Series Tracked" },
+  { value: "Free", label: "No cost to use" },
+];
+
+const FeatureIcons = {
+  MatchStatistics: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+    </svg>
+  ),
+  LiveTracking: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+    </svg>
+  ),
+  MapGenerator: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+    </svg>
+  ),
+  PlayerLinking: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+    </svg>
+  ),
+  Customizable: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  ),
+} as const;
+
+const featureItems = [
+  {
+    title: "Match Statistics",
+    description:
+      "Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across all game modes.",
+    Icon: FeatureIcons.MatchStatistics,
+  },
+  {
+    title: "Live Tracking",
+    description:
+      "Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in Discord.",
+    Icon: FeatureIcons.LiveTracking,
+  },
+  {
+    title: "HCS Map Generator",
+    description: "Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play.",
+    Icon: FeatureIcons.MapGenerator,
+  },
+  {
+    title: "Player Linking",
+    description: "Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.",
+    Icon: FeatureIcons.PlayerLinking,
+  },
+  {
+    title: "Customizable",
+    description:
+      "Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.",
+    Icon: FeatureIcons.Customizable,
+  },
+];
+
+const commandItems = [
+  { command: "/stats", description: "Display comprehensive match statistics for any player" },
+  { command: "/connect", description: "Link your Discord account to your Xbox gamertag" },
+  { command: "/track", description: "Start live tracking for an ongoing match" },
+  { command: "/maps", description: "Generate HCS tournament map pools" },
+  { command: "/setup", description: "Configure server settings and permissions" },
+];
 ---
 
 <Layout>
@@ -45,9 +142,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
 
       <!-- Stats Display -->
       <div class="stats-grid">
-        <StatCard value="18" label="Servers" />
-        <StatCard value="2100+" label="Series Tracked" />
-        <StatCard value="Free" label="No cost to use" />
+        {heroStats.map(({ value, label }) => <StatCard value={value} label={label} />)}
       </div>
     </Container>
   </section>
@@ -159,59 +254,15 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
       <div class="features-grid">
-        <FeatureCard
-          title="Match Statistics"
-          description="Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across all game modes."
-        >
-          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
-        </FeatureCard>
-
-        <FeatureCard
-          title="Live Tracking"
-          description="Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in Discord."
-        >
-          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            ></path>
-            <path
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
-        </FeatureCard>
-
-        <FeatureCard
-          title="HCS Map Generator"
-          description="Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play."
-        >
-          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
-        </FeatureCard>
-
-        <FeatureCard
-          title="Player Linking"
-          description="Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection."
-        >
-          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
-        </FeatureCard>
+        <div class="features-grid">
+          {
+            featureItems.map(({ title, description, Icon }) => (
+              <FeatureCard title={title} description={description}>
+                <Icon slot="icon" />
+              </FeatureCard>
+            ))
+          }
+        </div>
 
         <FeatureCard
           title="Customizable"
@@ -237,15 +288,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
 
       <div class="commands-grid">
-        <CommandCard command="/stats" description="Display comprehensive match statistics for any player" />
-
-        <CommandCard command="/connect" description="Link your Discord account to your Xbox gamertag" />
-
-        <CommandCard command="/track" description="Start live tracking for an ongoing match" />
-
-        <CommandCard command="/maps" description="Generate HCS tournament map pools" />
-
-        <CommandCard command="/setup" description="Configure server settings and permissions" />
+        {commandItems.map(({ command, description }) => <CommandCard command={command} description={description} />)}
       </div>
     </Container>
   </section>
