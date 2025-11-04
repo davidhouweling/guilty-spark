@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Button from "../components/button.astro";
+import Card from "../components/card.astro";
 import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
@@ -41,18 +42,18 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
 
       <!-- Stats Display -->
       <div class="stats-grid">
-        <div class="stat-card">
+        <Card class="card-stat">
           <div class="stat-value">18</div>
           <div class="stat-label">Servers</div>
-        </div>
-        <div class="stat-card">
+        </Card>
+        <Card class="card-stat">
           <div class="stat-value">2100+</div>
           <div class="stat-label">Series Tracked</div>
-        </div>
-        <div class="stat-card">
+        </Card>
+        <Card class="card-stat">
           <div class="stat-value">Free</div>
           <div class="stat-label">No cost to use</div>
-        </div>
+        </Card>
       </div>
     </Container>
   </section>
@@ -63,7 +64,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class="demo-grid">
         <!-- Stats Command Demo -->
-        <div class="demo-item">
+        <Card class="demo-card" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -87,10 +88,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             loading="lazy"
             class="demo-image"
           />
-        </div>
+        </Card>
 
         <!-- NeatQueue Integration Demo -->
-        <div class="demo-item">
+        <Card class="demo-card" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon demo-icon-image">
               <Image src={NeatQueueLogo} alt="NeatQueue" />
@@ -107,10 +108,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             loading="lazy"
             class="demo-image"
           />
-        </div>
+        </Card>
 
         <!-- Live Tracker Demo -->
-        <div class="demo-item demo-item-wide">
+        <Card class="demo-card demo-card-wide" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -153,7 +154,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
               <div class="demo-caption">Communication channel designation reflects current series tally</div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </Container>
   </section>
@@ -164,7 +165,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
       <div class="features-grid">
-        <div class="feature-card">
+        <Card class="feature-card" padding="lg" interactive>
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path
@@ -179,9 +180,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking
             across all game modes.
           </p>
-        </div>
+        </Card>
 
-        <div class="feature-card">
+        <Card class="feature-card" padding="lg" interactive>
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -198,9 +199,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live
             in Discord.
           </p>
-        </div>
+        </Card>
 
-        <div class="feature-card">
+        <Card class="feature-card" padding="lg" interactive>
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path
@@ -214,9 +215,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
           <p class="feature-description">
             Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play.
           </p>
-        </div>
+        </Card>
 
-        <div class="feature-card">
+        <Card class="feature-card" padding="lg" interactive>
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path
@@ -230,9 +231,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
           <p class="feature-description">
             Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
           </p>
-        </div>
+        </Card>
 
-        <div class="feature-card">
+        <Card class="feature-card" padding="lg" interactive>
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path
@@ -248,7 +249,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
           <p class="feature-description">
             Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
           </p>
-        </div>
+        </Card>
       </div>
     </Container>
   </section>
@@ -259,30 +260,30 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
 
       <div class="commands-grid">
-        <div class="command-card">
+        <Card class="command-card" variant="accent" interactive padding="md">
           <div class="command-name">/stats</div>
           <div class="command-desc">Display comprehensive match statistics for any player</div>
-        </div>
+        </Card>
 
-        <div class="command-card">
+        <Card class="command-card" variant="accent" interactive padding="md">
           <div class="command-name">/connect</div>
           <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
-        </div>
+        </Card>
 
-        <div class="command-card">
+        <Card class="command-card" variant="accent" interactive padding="md">
           <div class="command-name">/track</div>
           <div class="command-desc">Start live tracking for an ongoing match</div>
-        </div>
+        </Card>
 
-        <div class="command-card">
+        <Card class="command-card" variant="accent" interactive padding="md">
           <div class="command-name">/maps</div>
           <div class="command-desc">Generate HCS tournament map pools</div>
-        </div>
+        </Card>
 
-        <div class="command-card">
+        <Card class="command-card" variant="accent" interactive padding="md">
           <div class="command-name">/setup</div>
           <div class="command-desc">Configure server settings and permissions</div>
-        </div>
+        </Card>
       </div>
     </Container>
   </section>
@@ -429,10 +430,8 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     margin: 0 auto;
   }
 
-  .stat-card {
+  .card-stat {
     padding: 1.25rem;
-    background: rgba(15, 40, 48, 0.6);
-    border: 1px solid var(--halo-teal-dark);
     text-align: center;
     min-width: 0;
   }
@@ -481,17 +480,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     margin: 0 auto;
   }
 
-  .demo-item {
-    position: relative;
-    padding: 1.5rem;
-    background: rgba(15, 40, 48, 0.4);
-    border: 1px solid var(--halo-teal-dark);
-    transition: all 0.3s ease;
-  }
-
-  .demo-item:hover {
-    border-color: var(--halo-teal-primary);
-    box-shadow: 0 0 30px rgba(93, 212, 216, 0.2);
+  .demo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .demo-header {
@@ -553,7 +545,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     transition: all 0.3s ease;
   }
 
-  .demo-item:hover .demo-image {
+  .demo-card.card-hover:hover .demo-image {
     border-color: var(--halo-teal-primary);
     box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
   }
@@ -592,9 +584,6 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
   .feature-card {
     position: relative;
     padding: 1.25rem;
-    background: rgba(15, 40, 48, 0.4);
-    border: 1px solid var(--halo-teal-dark);
-    transition: all 0.3s ease;
   }
 
   .feature-card::before {
@@ -608,13 +597,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     transition: height 0.3s ease;
   }
 
-  .feature-card:hover {
-    border-color: var(--halo-teal-primary);
-    background: rgba(15, 40, 48, 0.6);
-    box-shadow: 0 0 30px rgba(93, 212, 216, 0.2);
-  }
-
-  .feature-card:hover::before {
+  .feature-card.card-hover:hover::before {
     height: 100%;
   }
 
@@ -655,13 +638,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
 
   .command-card {
     padding: 1.25rem;
-    background: rgba(13, 77, 82, 0.3);
-    border: 1px solid var(--halo-teal-dark);
     border-left: 3px solid var(--halo-teal-primary);
-    transition: all 0.3s ease;
   }
 
-  .command-card:hover {
+  .command-card.card-hover:hover {
     background: rgba(13, 77, 82, 0.5);
     border-left-width: 5px;
     box-shadow: 0 0 20px rgba(93, 212, 216, 0.2);
@@ -764,7 +744,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       gap: 1.5rem;
     }
 
-    .stat-card {
+    .card-stat {
       padding: 1.5rem;
     }
 
@@ -776,7 +756,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     }
 
     /* Demo Section */
-    .demo-item {
+    .demo-card {
       padding: 2rem;
     }
 
@@ -845,7 +825,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       grid-template-columns: repeat(2, 1fr);
     }
 
-    .demo-item-wide {
+    .demo-card-wide {
       grid-column: 1 / -1;
     }
 
