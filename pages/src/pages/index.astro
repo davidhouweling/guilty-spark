@@ -1,7 +1,10 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Button from "../components/button.astro";
-import Card from "../components/card.astro";
+import BaseCard from "../components/cards/base-card.astro";
+import CommandCard from "../components/cards/command-card.astro";
+import FeatureCard from "../components/cards/feature-card.astro";
+import StatCard from "../components/cards/stat-card.astro";
 import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
@@ -42,18 +45,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
 
       <!-- Stats Display -->
       <div class="stats-grid">
-        <Card class="card-stat">
-          <div class="stat-value">18</div>
-          <div class="stat-label">Servers</div>
-        </Card>
-        <Card class="card-stat">
-          <div class="stat-value">2100+</div>
-          <div class="stat-label">Series Tracked</div>
-        </Card>
-        <Card class="card-stat">
-          <div class="stat-value">Free</div>
-          <div class="stat-label">No cost to use</div>
-        </Card>
+        <StatCard value="18" label="Servers" />
+        <StatCard value="2100+" label="Series Tracked" />
+        <StatCard value="Free" label="No cost to use" />
       </div>
     </Container>
   </section>
@@ -64,7 +58,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class="demo-grid">
         <!-- Stats Command Demo -->
-        <Card class="demo-card" padding="lg" interactive>
+        <BaseCard class="demo-card" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -88,10 +82,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             loading="lazy"
             class="demo-image"
           />
-        </Card>
+        </BaseCard>
 
         <!-- NeatQueue Integration Demo -->
-        <Card class="demo-card" padding="lg" interactive>
+        <BaseCard class="demo-card" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon demo-icon-image">
               <Image src={NeatQueueLogo} alt="NeatQueue" />
@@ -108,10 +102,10 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
             loading="lazy"
             class="demo-image"
           />
-        </Card>
+        </BaseCard>
 
         <!-- Live Tracker Demo -->
-        <Card class="demo-card demo-card-wide" padding="lg" interactive>
+        <BaseCard class="demo-card demo-card-wide" padding="lg" interactive>
           <div class="demo-header">
             <div class="demo-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -154,7 +148,7 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
               <div class="demo-caption">Communication channel designation reflects current series tally</div>
             </div>
           </div>
-        </Card>
+        </BaseCard>
       </div>
     </Container>
   </section>
@@ -165,91 +159,74 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
       <div class="features-grid">
-        <Card class="feature-card" padding="lg" interactive>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Match Statistics</h3>
-          <p class="feature-description">
-            Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking
-            across all game modes.
-          </p>
-        </Card>
+        <FeatureCard
+          title="Match Statistics"
+          description="Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across all game modes."
+        >
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </FeatureCard>
 
-        <Card class="feature-card" padding="lg" interactive>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              ></path>
-              <path
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Live Tracking</h3>
-          <p class="feature-description">
-            Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live
-            in Discord.
-          </p>
-        </Card>
+        <FeatureCard
+          title="Live Tracking"
+          description="Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in Discord."
+        >
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            ></path>
+            <path
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </FeatureCard>
 
-        <Card class="feature-card" padding="lg" interactive>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">HCS Map Generator</h3>
-          <p class="feature-description">
-            Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play.
-          </p>
-        </Card>
+        <FeatureCard
+          title="HCS Map Generator"
+          description="Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play."
+        >
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </FeatureCard>
 
-        <Card class="feature-card" padding="lg" interactive>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Player Linking</h3>
-          <p class="feature-description">
-            Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.
-          </p>
-        </Card>
+        <FeatureCard
+          title="Player Linking"
+          description="Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection."
+        >
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </FeatureCard>
 
-        <Card class="feature-card" padding="lg" interactive>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              ></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">Customizable</h3>
-          <p class="feature-description">
-            Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.
-          </p>
-        </Card>
+        <FeatureCard
+          title="Customizable"
+          description="Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs."
+        >
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            ></path>
+          </svg>
+        </FeatureCard>
       </div>
     </Container>
   </section>
@@ -260,30 +237,15 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
 
       <div class="commands-grid">
-        <Card class="command-card" variant="accent" interactive padding="md">
-          <div class="command-name">/stats</div>
-          <div class="command-desc">Display comprehensive match statistics for any player</div>
-        </Card>
+        <CommandCard command="/stats" description="Display comprehensive match statistics for any player" />
 
-        <Card class="command-card" variant="accent" interactive padding="md">
-          <div class="command-name">/connect</div>
-          <div class="command-desc">Link your Discord account to your Xbox gamertag</div>
-        </Card>
+        <CommandCard command="/connect" description="Link your Discord account to your Xbox gamertag" />
 
-        <Card class="command-card" variant="accent" interactive padding="md">
-          <div class="command-name">/track</div>
-          <div class="command-desc">Start live tracking for an ongoing match</div>
-        </Card>
+        <CommandCard command="/track" description="Start live tracking for an ongoing match" />
 
-        <Card class="command-card" variant="accent" interactive padding="md">
-          <div class="command-name">/maps</div>
-          <div class="command-desc">Generate HCS tournament map pools</div>
-        </Card>
+        <CommandCard command="/maps" description="Generate HCS tournament map pools" />
 
-        <Card class="command-card" variant="accent" interactive padding="md">
-          <div class="command-name">/setup</div>
-          <div class="command-desc">Configure server settings and permissions</div>
-        </Card>
+        <CommandCard command="/setup" description="Configure server settings and permissions" />
       </div>
     </Container>
   </section>
@@ -430,30 +392,6 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     margin: 0 auto;
   }
 
-  .card-stat {
-    padding: 1.25rem;
-    text-align: center;
-    min-width: 0;
-  }
-
-  .stat-value {
-    font-family: var(--font-mono);
-    font-size: clamp(2rem, 5vw, 2.5rem);
-    font-weight: 700;
-    color: var(--halo-teal-primary);
-    text-shadow: 0 0 15px rgba(93, 212, 216, 0.5);
-  }
-
-  .stat-label {
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--halo-gray);
-    margin-top: 0.5rem;
-    text-transform: uppercase;
-  }
-
   /* Sections */
   .demo-section,
   .features-section,
@@ -581,52 +519,6 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     margin: 0 auto;
   }
 
-  .feature-card {
-    position: relative;
-    padding: 1.25rem;
-  }
-
-  .feature-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 0;
-    background: var(--halo-teal-primary);
-    transition: height 0.3s ease;
-  }
-
-  .feature-card.card-hover:hover::before {
-    height: 100%;
-  }
-
-  .feature-icon {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 1.5rem;
-    color: var(--halo-teal-primary);
-    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
-  }
-
-  .feature-title {
-    font-family: var(--font-heading);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--halo-white);
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-  }
-
-  .feature-description {
-    font-family: var(--font-body);
-    font-size: 1rem;
-    font-weight: 400;
-    line-height: 1.7;
-    color: var(--halo-gray);
-  }
-
   /* Commands Grid */
   .commands-grid {
     display: grid;
@@ -634,33 +526,6 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
     gap: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
-  }
-
-  .command-card {
-    padding: 1.25rem;
-    border-left: 3px solid var(--halo-teal-primary);
-  }
-
-  .command-card.card-hover:hover {
-    background: rgba(13, 77, 82, 0.5);
-    border-left-width: 5px;
-    box-shadow: 0 0 20px rgba(93, 212, 216, 0.2);
-  }
-
-  .command-name {
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--halo-teal-primary);
-    margin-bottom: 0.75rem;
-  }
-
-  .command-desc {
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    font-weight: 400;
-    color: var(--halo-gray);
-    line-height: 1.6;
   }
 
   /* CTA Section */
@@ -744,10 +609,6 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       gap: 1.5rem;
     }
 
-    .card-stat {
-      padding: 1.5rem;
-    }
-
     /* Sections */
     .demo-section,
     .features-section,
@@ -781,33 +642,9 @@ import NeatQueueLogo from "../assets/neatqueue-logo.png";
       grid-template-columns: repeat(2, 1fr);
     }
 
-    .feature-card {
-      padding: 2rem;
-    }
-
-    .feature-title {
-      font-size: 1.5rem;
-    }
-
-    .feature-description {
-      font-size: 1.05rem;
-    }
-
     /* Commands Grid */
     .commands-grid {
       grid-template-columns: repeat(2, 1fr);
-    }
-
-    .command-card {
-      padding: 1.5rem;
-    }
-
-    .command-name {
-      font-size: 1.3rem;
-    }
-
-    .command-desc {
-      font-size: 1rem;
     }
 
     /* CTA Section */
