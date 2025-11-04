@@ -11,18 +11,24 @@ const navLinks = [
 ];
 ---
 
-<nav class="halo-nav">
+<nav class="halo-nav" aria-label="Primary">
   <Container class="nav-container">
     <Logo variant="nav" />
 
     <!-- Mobile menu button -->
-    <button class="mobile-menu-btn" aria-label="Toggle navigation menu" aria-expanded="false">
+    <button
+      id="nav-toggle"
+      class="mobile-menu-btn"
+      aria-label="Toggle navigation menu"
+      aria-expanded="false"
+      aria-controls="nav-links"
+    >
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
     </button>
 
-    <div class="nav-links">
+    <div id="nav-links" class="nav-links" hidden>
       {
         navLinks.map((link) => (
           <a
@@ -40,35 +46,102 @@ const navLinks = [
 
 <script>
   // Mobile menu toggle
-  const mobileMenuBtn = document.querySelector(".mobile-menu-btn");
-  const navLinks = document.querySelector(".nav-links");
-
-  if (mobileMenuBtn && navLinks) {
-    mobileMenuBtn.addEventListener("click", () => {
-      const isExpanded = mobileMenuBtn.getAttribute("aria-expanded") === "true";
-      mobileMenuBtn.setAttribute("aria-expanded", (!isExpanded).toString());
-      navLinks.classList.toggle("active");
-      mobileMenuBtn.classList.toggle("active");
-    });
-
-    // Close menu when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!mobileMenuBtn.contains(e.target as Node) && !navLinks.contains(e.target as Node)) {
-        mobileMenuBtn.setAttribute("aria-expanded", "false");
-        navLinks.classList.remove("active");
-        mobileMenuBtn.classList.remove("active");
-      }
-    });
-
-    // Close menu when clicking a link
-    navLinks.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", () => {
-        mobileMenuBtn.setAttribute("aria-expanded", "false");
-        navLinks.classList.remove("active");
-        mobileMenuBtn.classList.remove("active");
-      });
-    });
+  const nav = document.querySelector(".halo-nav");
+  if (!nav) {
+    throw new Error("Navigation element not found");
   }
+
+  const toggleButton = nav.querySelector<HTMLButtonElement>("#nav-toggle");
+  const menu = nav.querySelector<HTMLDivElement>("#nav-links");
+
+  if (!toggleButton || !menu) {
+    throw new Error("Navigation toggle or menu not found");
+  }
+
+  const tabletQuery = window.matchMedia("(min-width: 750px)");
+
+  const closeMenu = () => {
+    toggleButton.setAttribute("aria-expanded", "false");
+    toggleButton.classList.remove("active");
+    menu.classList.remove("active");
+    if (tabletQuery.matches) {
+      menu.hidden = false;
+    } else {
+      menu.hidden = true;
+    }
+  };
+
+  const openMenu = () => {
+    toggleButton.setAttribute("aria-expanded", "true");
+    toggleButton.classList.add("active");
+    menu.classList.add("active");
+    menu.hidden = false;
+  };
+
+  const toggleMenu = () => {
+    const isExpanded = toggleButton.getAttribute("aria-expanded") === "true";
+    if (isExpanded) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  };
+
+  toggleButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  menu.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLAnchorElement) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!nav.contains(event.target as Node)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    if (!nav.contains(event.target as Node)) {
+      closeMenu();
+    }
+  });
+
+  toggleButton.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+      toggleButton.focus();
+    }
+  });
+
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+      toggleButton.focus();
+    }
+  });
+
+  const syncMenuToViewport = (query: MediaQueryList | MediaQueryListEvent) => {
+    if (query.matches) {
+      toggleButton.hidden = true;
+      menu.hidden = false;
+      toggleButton.setAttribute("aria-expanded", "false");
+      toggleButton.classList.remove("active");
+      menu.classList.remove("active");
+    } else {
+      toggleButton.hidden = false;
+      if (toggleButton.getAttribute("aria-expanded") !== "true") {
+        menu.hidden = true;
+        menu.classList.remove("active");
+      }
+    }
+  };
+
+  syncMenuToViewport(tabletQuery);
+  tabletQuery.addEventListener("change", syncMenuToViewport);
 </script>
 
 <style>
@@ -92,7 +165,6 @@ const navLinks = [
   .nav-container {
     height: 100%;
     display: flex;
-    align-items: center;
     justify-content: space-between;
   }
 
