@@ -20,6 +20,7 @@ export default defineConfig(
       "dist/",
       "node_modules/",
       "patches/",
+      "pages/.astro/**/*",
       "test-results/",
       "**/*.json",
       "**/*.log",

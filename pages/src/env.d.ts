@@ -1,5 +1,5 @@
-type Runtime = import("@astrojs/cloudflare").Runtime<Env>;
+import type { Runtime } from "@astrojs/cloudflare";
 
 declare namespace App {
-  interface Locals extends Runtime {}
+  type Locals = Runtime<Env>;
 }
