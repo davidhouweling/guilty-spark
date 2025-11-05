@@ -72,6 +72,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     DB: fakeDb(),
     PROXY_WORKER_URL: "https://api.guilty-spark.app",
     PROXY_WORKER_TOKEN: "worker-token",
+    SENTRY_AUTH_TOKEN: "sentry-auth-token",
     LIVE_TRACKER_DO: {
       idFromName: () => liveTrackerDOId,
       idFromString: () => liveTrackerDOId,
