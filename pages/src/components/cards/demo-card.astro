@@ -29,7 +29,13 @@ const hasMedia = Astro.slots.has("media");
 
     <p class="demo-description">{description}</p>
 
-    {hasMedia && <slot name="media" />}
+    {
+      hasMedia && (
+        <div class="demo-media">
+          <slot name="media" />
+        </div>
+      )
+    }
     <slot />
   </div>
 </BaseCard>
@@ -62,6 +68,13 @@ const hasMedia = Astro.slots.has("media");
     padding: 4px;
   }
 
+  .demo-icon-image :global(img) {
+    width: 100% !important;
+    height: 100% !important;
+    filter: brightness(0) saturate(100%) invert(60%) sepia(80%) saturate(450%) hue-rotate(140deg) brightness(95%)
+      contrast(95%);
+  }
+
   .demo-title {
     font-family: var(--font-heading);
     font-size: 1.3rem;
@@ -85,9 +98,13 @@ const hasMedia = Astro.slots.has("media");
     grid-column: 1 / -1;
   }
 
-  .demo-card:hover .demo-image {
+  .demo-card:hover .demo-media :global(img) {
     border-color: var(--halo-teal-primary);
     box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
+  }
+
+  .demo-media {
+    text-align: center;
   }
 
   @media (--tablet-viewport) {

@@ -1,0 +1,33 @@
+---
+import LiveTrackerScreenshot from "../../assets/screenshot20250918-live-tracker.png";
+import LiveTrackerChannelScreenshot from "../../assets/screenshot20250918-live-tracker-channel-name.png";
+---
+
+<div class="demo-media-grid">
+  <div class="demo-media-item">
+    <img
+      src={LiveTrackerScreenshot.src}
+      width={LiveTrackerScreenshot.width}
+      height={LiveTrackerScreenshot.height}
+      alt="Live tracker showing real-time match statistics"
+      loading="lazy"
+      class="demo-image"
+      decoding="async"
+      fetchpriority="low"
+    />
+    <div class="demo-caption">Active series overview with sequential engagement analysis</div>
+  </div>
+  <div class="demo-media-item">
+    <img
+      src={LiveTrackerChannelScreenshot.src}
+      width={LiveTrackerChannelScreenshot.width}
+      height={LiveTrackerChannelScreenshot.height}
+      alt="Live tracker updating Discord channel name with series score"
+      loading="lazy"
+      class="demo-image"
+      decoding="async"
+      fetchpriority="low"
+    />
+    <div class="demo-caption">Communication channel designation reflects current series tally</div>
+  </div>
+</div>

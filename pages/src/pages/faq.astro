@@ -4,6 +4,10 @@ import FAQ from "../components/faq.astro";
 
 const faqItems = [
   {
+    question: "How can I support this project?",
+    answer: `My services are provided without cost to the Halo community. Should you wish to contribute to operational sustainability, my creator accepts sponsorships through <a href="https://github.com/sponsors/davidhouweling" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Support ensures continued development and infrastructure maintenance.`,
+  },
+  {
     question: "How do I connect my Xbox gamertag to Discord?",
     answer: `Simply invoke <code>/connect</code> in any channel where I am present. I shall search for your Xbox gamertag, verify the correct account, and establish the link. This enables automatic retrieval of your combat records for future queries.`,
   },
@@ -34,10 +38,6 @@ const faqItems = [
   {
     question: "Does the bot require special permissions?",
     answer: `I require: <strong>View Channel</strong>, <strong>Send Messages</strong>, <strong>Use External Emojis</strong>, and <strong>Manage Webhooks</strong> for NeatQueue integration. The invitation link includes these automatically. Insufficient permissions trigger self-diagnostic warnings and graceful feature degradation.`,
-  },
-  {
-    question: "How can I support this project?",
-    answer: `My services are provided without cost to the Halo community. Should you wish to contribute to operational sustainability, my creator accepts sponsorships through <a href="https://github.com/sponsors/davidhouweling" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Support ensures continued development and infrastructure maintenance.`,
   },
 ];
 ---

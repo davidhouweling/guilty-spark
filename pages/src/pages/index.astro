@@ -9,13 +9,15 @@ import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
 import DiscordLogo from "../assets/discord-logo.png";
-import { Image } from "astro:assets";
-import type { JSX } from "astro/jsx-runtime";
-import StatsCommandGif from "../assets/recording-20250604-stats-command.gif";
-import NeatQueueIntegrationGif from "../assets/recording-20250604-neatqueue-integration.gif";
-import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
-import LiveTrackerChannelScreenshot from "../assets/screenshot20250918-live-tracker-channel-name.png";
-import NeatQueueLogo from "../assets/neatqueue-logo.png";
+import MatchStatisticsIcon from "../components/icons/match-statistics-icon.astro";
+import LiveTrackingIcon from "../components/icons/live-tracking-icon.astro";
+import MapGeneratorIcon from "../components/icons/map-generator-icon.astro";
+import PlayerLinkingIcon from "../components/icons/player-linking-icon.astro";
+import CustomizableIcon from "../components/icons/customizable-icon.astro";
+import NeatQueueLogoIcon from "../components/icons/neatqueue-logo-icon.astro";
+import CombatRecordMedia from "../components/demo-media/combat-record-media.astro";
+import NeatQueueMedia from "../components/demo-media/neatqueue-media.astro";
+import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro";
 
 const heroStats = [
   { value: "18", label: "Servers" },
@@ -23,89 +25,40 @@ const heroStats = [
   { value: "Free", label: "No cost to use" },
 ];
 
-const FeatureIcons = {
-  MatchStatistics: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path
-        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-    </svg>
-  ),
-  LiveTracking: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-      <path
-        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-    </svg>
-  ),
-  MapGenerator: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path
-        d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-    </svg>
-  ),
-  PlayerLinking: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path
-        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-    </svg>
-  ),
-  Customizable: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path
-        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-    </svg>
-  ),
-} as const;
+interface FeatureItem {
+  title: string;
+  description: string;
+  Icon: typeof MapGeneratorIcon;
+}
 
-const featureItems = [
+const featureItems: FeatureItem[] = [
   {
     title: "Match Statistics",
     description:
       "Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across all game modes.",
-    Icon: FeatureIcons.MatchStatistics,
+    Icon: MatchStatisticsIcon,
   },
   {
     title: "Live Tracking",
     description:
       "Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in Discord.",
-    Icon: FeatureIcons.LiveTracking,
+    Icon: LiveTrackingIcon,
   },
   {
     title: "HCS Map Generator",
     description: "Generate tournament-ready HCS map with intelligent map and mode rotation for competitive play.",
-    Icon: FeatureIcons.MapGenerator,
+    Icon: MapGeneratorIcon,
   },
   {
     title: "Player Linking",
     description: "Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.",
-    Icon: FeatureIcons.PlayerLinking,
+    Icon: PlayerLinkingIcon,
   },
   {
     title: "Customizable",
     description:
       "Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.",
-    Icon: FeatureIcons.Customizable,
+    Icon: CustomizableIcon,
   },
 ];
 
@@ -117,81 +70,42 @@ const commandItems = [
   { command: "/setup", description: "Configure server settings and permissions" },
 ];
 
-type DemoRenderable = (props?: { slot?: string }) => JSX.Element;
-
 interface DemoItem {
   title: string;
   description: string;
   iconVariant: "default" | "image";
+  Icon: typeof MatchStatisticsIcon;
+  Media: typeof CombatRecordMedia;
   wide?: boolean;
-  Icon: DemoRenderable;
-  Media: DemoRenderable;
 }
 
-const createDemoItems = <T extends DemoItem[]>(items: T) => items;
-
-const demoItems = createDemoItems([
+const demoItems: DemoItem[] = [
   {
     title: "Combat Record Retrieval",
     description:
       "Access comprehensive statistical analysis for any completed series with a simple command invocation. Query efficiency ratios, accuracy matrices, commendation records, and performance metrics across all combat scenarios.",
     iconVariant: "default",
-    Icon: FeatureIcons.MatchStatistics,
-    Media: () => (
-      <Image
-        src={StatsCommandGif}
-        alt="Stats command demo showing match statistics retrieval"
-        loading="lazy"
-        class="demo-image"
-      />
-    ),
+    Icon: MatchStatisticsIcon,
+    Media: CombatRecordMedia,
   },
   {
     title: "Automated Queue Protocol",
     description:
       "Seamless integration with NeatQueue match coordination systems. Combat statistics are automatically compiled and transmitted upon engagement conclusion, with continuous tracking throughout active series.",
     iconVariant: "image",
-    Icon: () => <Image src={NeatQueueLogo} alt="NeatQueue" />,
-    Media: () => (
-      <Image
-        src={NeatQueueIntegrationGif}
-        alt="NeatQueue integration showing automated stats posting"
-        loading="lazy"
-        class="demo-image"
-      />
-    ),
+    Icon: NeatQueueLogoIcon,
+    Media: NeatQueueMedia,
   },
   {
     title: "Real-Time Engagement Monitoring",
     description:
       "Observe ongoing combat operations with periodic telemetry refresh cycles occurring every 180 seconds. Monitor engagement scores, combatant performance metrics, and series progression status through active surveillance with manual override controls available.",
     iconVariant: "default",
+    Icon: LiveTrackingIcon,
+    Media: LiveTrackerMedia,
     wide: true,
-    Icon: FeatureIcons.LiveTracking,
-    Media: () => (
-      <div class="demo-media-grid">
-        <div class="demo-media-item">
-          <Image
-            src={LiveTrackerScreenshot}
-            alt="Live tracker showing real-time match statistics"
-            loading="lazy"
-            class="demo-image"
-          />
-          <div class="demo-caption">Active series overview with sequential engagement analysis</div>
-        </div>
-        <div class="demo-media-item">
-          <Image
-            src={LiveTrackerChannelScreenshot}
-            alt="Live tracker updating Discord channel name with series score"
-            loading="lazy"
-            class="demo-image"
-          />
-          <div class="demo-caption">Communication channel designation reflects current series tally</div>
-        </div>
-      </div>
-    ),
   },
-]);
+];
 ---
 
 <Layout>
@@ -250,15 +164,13 @@ const demoItems = createDemoItems([
       <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
       <div class="features-grid">
-        <div class="features-grid">
-          {
-            featureItems.map(({ title, description, Icon }) => (
-              <FeatureCard title={title} description={description}>
-                <Icon slot="icon" />
-              </FeatureCard>
-            ))
-          }
-        </div>
+        {
+          featureItems.map(({ title, description, Icon }) => (
+            <FeatureCard title={title} description={description}>
+              <Icon slot="icon" />
+            </FeatureCard>
+          ))
+        }
       </div>
     </Container>
   </section>
