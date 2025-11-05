@@ -1,12 +1,13 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Button from "../components/button.astro";
-import { BaseCard, CommandCard, FeatureCard, StatCard } from "../components/cards/index.ts";
+import { CommandCard, DemoCard, FeatureCard, StatCard } from "../components/cards/index.ts";
 import SectionHeader from "../components/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
 import Container from "../components/container.astro";
 import DiscordLogo from "../assets/discord-logo.png";
 import { Image } from "astro:assets";
+import type { JSX } from "astro/jsx-runtime";
 import StatsCommandGif from "../assets/recording-20250604-stats-command.gif";
 import NeatQueueIntegrationGif from "../assets/recording-20250604-neatqueue-integration.gif";
 import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
@@ -112,6 +113,82 @@ const commandItems = [
   { command: "/maps", description: "Generate HCS tournament map pools" },
   { command: "/setup", description: "Configure server settings and permissions" },
 ];
+
+type DemoRenderable = (props?: { slot?: string }) => JSX.Element;
+
+interface DemoItem {
+  title: string;
+  description: string;
+  iconVariant: "default" | "image";
+  wide?: boolean;
+  Icon: DemoRenderable;
+  Media: DemoRenderable;
+}
+
+const createDemoItems = <T extends DemoItem[]>(items: T) => items;
+
+const demoItems = createDemoItems([
+  {
+    title: "Combat Record Retrieval",
+    description:
+      "Access comprehensive statistical analysis for any completed series with a simple command invocation. Query efficiency ratios, accuracy matrices, commendation records, and performance metrics across all combat scenarios.",
+    iconVariant: "default",
+    Icon: FeatureIcons.MatchStatistics,
+    Media: () => (
+      <Image
+        src={StatsCommandGif}
+        alt="Stats command demo showing match statistics retrieval"
+        loading="lazy"
+        class="demo-image"
+      />
+    ),
+  },
+  {
+    title: "Automated Queue Protocol",
+    description:
+      "Seamless integration with NeatQueue match coordination systems. Combat statistics are automatically compiled and transmitted upon engagement conclusion, with continuous tracking throughout active series.",
+    iconVariant: "image",
+    Icon: () => <Image src={NeatQueueLogo} alt="NeatQueue" />,
+    Media: () => (
+      <Image
+        src={NeatQueueIntegrationGif}
+        alt="NeatQueue integration showing automated stats posting"
+        loading="lazy"
+        class="demo-image"
+      />
+    ),
+  },
+  {
+    title: "Real-Time Engagement Monitoring",
+    description:
+      "Observe ongoing combat operations with periodic telemetry refresh cycles occurring every 180 seconds. Monitor engagement scores, combatant performance metrics, and series progression status through active surveillance with manual override controls available.",
+    iconVariant: "default",
+    wide: true,
+    Icon: FeatureIcons.LiveTracking,
+    Media: () => (
+      <div class="demo-media-grid">
+        <div class="demo-media-item">
+          <Image
+            src={LiveTrackerScreenshot}
+            alt="Live tracker showing real-time match statistics"
+            loading="lazy"
+            class="demo-image"
+          />
+          <div class="demo-caption">Active series overview with sequential engagement analysis</div>
+        </div>
+        <div class="demo-media-item">
+          <Image
+            src={LiveTrackerChannelScreenshot}
+            alt="Live tracker updating Discord channel name with series score"
+            loading="lazy"
+            class="demo-image"
+          />
+          <div class="demo-caption">Communication channel designation reflects current series tally</div>
+        </div>
+      </div>
+    ),
+  },
+]);
 ---
 
 <Layout>
@@ -152,98 +229,14 @@ const commandItems = [
     <Container>
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class="demo-grid">
-        <!-- Stats Command Demo -->
-        <BaseCard class="demo-card" padding="lg" interactive>
-          <div class="demo-header">
-            <div class="demo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"></path>
-              </svg>
-            </div>
-            <h3 class="demo-title">Combat Record Retrieval</h3>
-          </div>
-          <p class="demo-description">
-            Access comprehensive statistical analysis for any completed series with a simple command invocation. Query
-            efficiency ratios, accuracy matrices, commendation records, and performance metrics across all combat
-            scenarios.
-          </p>
-          <Image
-            src={StatsCommandGif}
-            alt="Stats command demo showing match statistics retrieval"
-            loading="lazy"
-            class="demo-image"
-          />
-        </BaseCard>
-
-        <!-- NeatQueue Integration Demo -->
-        <BaseCard class="demo-card" padding="lg" interactive>
-          <div class="demo-header">
-            <div class="demo-icon demo-icon-image">
-              <Image src={NeatQueueLogo} alt="NeatQueue" />
-            </div>
-            <h3 class="demo-title">Automated Queue Protocol</h3>
-          </div>
-          <p class="demo-description">
-            Seamless integration with NeatQueue match coordination systems. Combat statistics are automatically compiled
-            and transmitted upon engagement conclusion, with continuous tracking throughout active series.
-          </p>
-          <Image
-            src={NeatQueueIntegrationGif}
-            alt="NeatQueue integration showing automated stats posting"
-            loading="lazy"
-            class="demo-image"
-          />
-        </BaseCard>
-
-        <!-- Live Tracker Demo -->
-        <BaseCard class="demo-card demo-card-wide" padding="lg" interactive>
-          <div class="demo-header">
-            <div class="demo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"></path>
-                <path
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"></path>
-              </svg>
-            </div>
-            <h3 class="demo-title">Real-Time Engagement Monitoring</h3>
-          </div>
-          <p class="demo-description">
-            Observe ongoing combat operations with periodic telemetry refresh cycles occurring every 180 seconds.
-            Monitor engagement scores, combatant performance metrics, and series progression status through active
-            surveillance with manual override controls available.
-          </p>
-          <div class="demo-media-grid">
-            <div class="demo-media-item">
-              <Image
-                src={LiveTrackerScreenshot}
-                alt="Live tracker showing real-time match statistics"
-                loading="lazy"
-                class="demo-image"
-              />
-              <div class="demo-caption">Active series overview with sequential engagement analysis</div>
-            </div>
-            <div class="demo-media-item">
-              <Image
-                src={LiveTrackerChannelScreenshot}
-                alt="Live tracker updating Discord channel name with series score"
-                loading="lazy"
-                class="demo-image"
-              />
-              <div class="demo-caption">Communication channel designation reflects current series tally</div>
-            </div>
-          </div>
-        </BaseCard>
+        {
+          demoItems.map(({ title, description, iconVariant, Icon, Media, wide }) => (
+            <DemoCard title={title} description={description} iconVariant={iconVariant} wide={wide}>
+              <Icon slot="icon" />
+              <Media slot="media" />
+            </DemoCard>
+          ))
+        }
       </div>
     </Container>
   </section>
