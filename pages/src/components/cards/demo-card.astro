@@ -69,8 +69,8 @@ const hasMedia = Astro.slots.has("media");
   }
 
   .demo-icon-image :global(img) {
-    width: 100% !important;
-    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
     filter: brightness(0) saturate(100%) invert(60%) sepia(80%) saturate(450%) hue-rotate(140deg) brightness(95%)
       contrast(95%);
   }
@@ -105,6 +105,11 @@ const hasMedia = Astro.slots.has("media");
 
   .demo-media {
     text-align: center;
+  }
+
+  .demo-media :global(img) {
+    max-width: 100%;
+    height: auto;
   }
 
   @media (--tablet-viewport) {

@@ -18,6 +18,7 @@ import NeatQueueLogoIcon from "../components/icons/neatqueue-logo-icon.astro";
 import CombatRecordMedia from "../components/demo-media/combat-record-media.astro";
 import NeatQueueMedia from "../components/demo-media/neatqueue-media.astro";
 import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro";
+import TestimonialCarousel from "../components/testimonials/testimonial-carousel.astro";
 
 const heroStats = [
   { value: "18", label: "Servers" },
@@ -106,6 +107,20 @@ const demoItems: DemoItem[] = [
     wide: true,
   },
 ];
+
+interface CommunityTestimonial {
+  text: string;
+  who: string;
+  discordServer: string;
+}
+
+const testimonialItems: CommunityTestimonial[] = [
+  {
+    text: "Our Dog Crew community (350+ ANZ members) absolutely loves Guilty Spark - it's made our games smoother, smarter, and way more engaging. Everyone from casuals to try-hards gets value out of it.",
+    who: "Niz",
+    discordServer: "Dog Crew",
+  },
+];
 ---
 
 <Layout>
@@ -172,6 +187,14 @@ const demoItems: DemoItem[] = [
           ))
         }
       </div>
+    </Container>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="testimonials-section" aria-label="Community testimonials">
+    <Container>
+      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
+      <TestimonialCarousel items={testimonialItems} autoRotateMs={3000} />
     </Container>
   </section>
 
@@ -331,16 +354,14 @@ const demoItems: DemoItem[] = [
   /* Sections */
   .demo-section,
   .features-section,
+  .testimonials-section,
   .commands-section {
     padding: 4rem 0;
     background: var(--halo-bg-secondary);
     position: relative;
   }
 
-  .demo-section {
-    background: var(--halo-bg-primary);
-  }
-
+  .features-section,
   .commands-section {
     background: var(--halo-bg-primary);
   }
