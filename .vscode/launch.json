@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Start worker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Start pages",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:pages"],
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
