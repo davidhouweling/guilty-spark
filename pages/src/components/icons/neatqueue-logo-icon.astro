@@ -1,11 +1,14 @@
 ---
+import type { ImageMetadata } from "astro";
 import NeatQueueLogo from "../../assets/neatqueue-logo.png";
+
+const image = NeatQueueLogo as ImageMetadata;
 ---
 
 <img
-  src={NeatQueueLogo.src}
-  width={NeatQueueLogo.width}
-  height={NeatQueueLogo.height}
+  src={image.src}
+  width={image.width}
+  height={image.height}
   alt="NeatQueue"
   loading="lazy"
   decoding="async"

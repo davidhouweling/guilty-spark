@@ -1,11 +1,14 @@
 ---
+import type { ImageMetadata } from "astro";
 import StatsCommandGif from "../../assets/recording-20250604-stats-command.gif";
+
+const image = StatsCommandGif as ImageMetadata;
 ---
 
 <img
-  src={StatsCommandGif.src}
-  width={StatsCommandGif.width}
-  height={StatsCommandGif.height}
+  src={image.src}
+  width={image.width}
+  height={image.height}
   alt="Stats command demo showing match statistics retrieval"
   loading="lazy"
   class="demo-image"
