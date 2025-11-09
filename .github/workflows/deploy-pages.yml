@@ -1,0 +1,49 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request_target:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Build pages
+        run: npm run build:pages
+
+      - name: Deploy
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          workingDirectory: "pages"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=guilty-spark-web
+
+      - name: Update GitHub deployment
+        id: update_deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: "${{ secrets.DEPLOY_TOKEN }}"
+          environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          environment-url: ${{ steps.deploy.outputs.deployment-url }}
+          initial-status: success
+          transient-environment: true

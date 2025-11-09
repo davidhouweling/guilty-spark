@@ -1,0 +1,194 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MapsCommand > execute(): application command > jobToComplete > calls discordService.updateDeferredReply with maps embed 1`] = `
+[
+  "fake-token",
+  {
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_maps_roll_1",
+            "label": "Regen maps (count: 1)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_maps_roll_3",
+            "label": "Regen maps (count: 3)",
+            "style": 2,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_maps_roll_5",
+            "label": "Regen maps (count: 5)",
+            "style": 1,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_maps_roll_7",
+            "label": "Regen maps (count: 7)",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+      {
+        "components": [
+          {
+            "custom_id": "select_maps_playlist",
+            "options": [
+              {
+                "default": true,
+                "description": "The current maps and modes of HCS (as of 26 August 2025)",
+                "label": "HCS - Current",
+                "value": "C",
+              },
+              {
+                "default": false,
+                "description": "All maps and modes that have been played at any HCS major event",
+                "label": "HCS - Historical",
+                "value": "H",
+              },
+              {
+                "default": false,
+                "description": "Ranked Arena playlist",
+                "label": "Ranked Arena",
+                "value": "R",
+              },
+              {
+                "default": false,
+                "description": "Ranked Slayer playlist",
+                "label": "Ranked Slayer",
+                "value": "S",
+              },
+              {
+                "default": false,
+                "description": "Ranked Snipers playlist",
+                "label": "Ranked Snipers",
+                "value": "N",
+              },
+              {
+                "default": false,
+                "description": "Ranked Tactical playlist",
+                "label": "Ranked Tactical",
+                "value": "T",
+              },
+              {
+                "default": false,
+                "description": "Ranked Doubles playlist",
+                "label": "Ranked Doubles",
+                "value": "D",
+              },
+              {
+                "default": false,
+                "description": "Ranked FFA playlist",
+                "label": "Ranked FFA",
+                "value": "F",
+              },
+              {
+                "default": false,
+                "description": "Ranked Squad Battle playlist",
+                "label": "Ranked Squad Battle",
+                "value": "Q",
+              },
+            ],
+            "placeholder": "Select a playlist",
+            "type": 3,
+          },
+        ],
+        "type": 1,
+      },
+      {
+        "components": [
+          {
+            "custom_id": "select_maps_format",
+            "options": [
+              {
+                "default": true,
+                "description": "Obj, slayer, obj, obj, slayer, ...",
+                "label": "HCS",
+                "value": "H",
+              },
+              {
+                "default": false,
+                "description": "Randomly pick objective or slayer for each map",
+                "label": "Random",
+                "value": "R",
+              },
+              {
+                "default": false,
+                "description": "Only pick objective modes",
+                "label": "Objective only",
+                "value": "O",
+              },
+              {
+                "default": false,
+                "description": "Only pick slayer modes",
+                "label": "Slayer only",
+                "value": "S",
+              },
+            ],
+            "type": 3,
+          },
+        ],
+        "type": 1,
+      },
+      {
+        "components": [
+          {
+            "custom_id": "btn_maps_repost",
+            "emoji": {
+              "name": "⏬",
+            },
+            "label": "Move to bottom of chat",
+            "style": 2,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
+    "embeds": [
+      {
+        "color": 5793266,
+        "fields": [
+          {
+            "inline": true,
+            "name": "#",
+            "value": "1
+2
+3
+4
+5",
+          },
+          {
+            "inline": true,
+            "name": "Mode",
+            "value": "Slayer
+Oddball
+Strongholds
+CTF
+Slayer",
+          },
+          {
+            "inline": true,
+            "name": "Map",
+            "value": "[Live Fire :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/livefire)
+[Streets :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/streets)
+Bazaar
+[Aquarius :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/aquarius)
+[Recharge :GameCoachGG:](https://gamecoach.gg/esports/haloinfinite/recharge)",
+          },
+          {
+            "name": "",
+            "value": "-# Generated by <@discord_user_01>",
+          },
+        ],
+        "title": "Maps: HCS - Current",
+      },
+    ],
+  },
+]
+`;

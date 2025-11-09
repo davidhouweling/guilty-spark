@@ -1,0 +1,153 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SlayerMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "description": "-# Legend: **Best in team** | __**Best overall**__",
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 44 | Team K:D:A: 44:50:23",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05 (Rank: 5 | Score: 2,000)",
+      "value": "Kills: **18**
+Deaths: 14
+Assists: 4
+KDA: **5.33**
+Headshot kills: **13**
+Shots H:F (acc): 138:211 __**(65.4%)**__
+Damage D:T (D/T): **5,850**:4,647 __**(1.26)**__
+Avg life time (damage/life): 25s **(417.86)**
+2x<:DoubleKill:1322814147980689430> <:Rifleman:1322860656399220828>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01 (Rank: 6 | Score: 1,840)",
+      "value": "Kills: 14
+Deaths: 12
+Assists: **8**
+KDA: 4.66
+Headshot kills: 3
+Shots H:F (acc): __**141**__:__**283**__ (49.82%)
+Damage D:T (D/T): 4,498:**4,249** (1.06)
+Avg life time (damage/life): 31s (374.83)
+<:ShotCaller:1322884687693086771> <:KillingSpree:1322803050347499541> <:Stick:1322871787695898676> <:Rifleman:1322860656399220828> <:Killjoy:1322802841039147129> <:Boxer:1322864064082477077>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02 (Rank: 7 | Score: 1,060)",
+      "value": "Kills: 8
+Deaths: __**10**__
+Assists: 5
+KDA: -0.33
+Headshot kills: 2
+Shots H:F (acc): 63:159 (39.62%)
+Damage D:T (D/T): 3,527:4,516 (0.78)
+Avg life time (damage/life): __**42s**__ (352.7)
+<:Reversal:1322872797701083166>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09 (Rank: 8 | Score: 860)",
+      "value": "Kills: 4
+Deaths: 14
+Assists: **8**
+KDA: -7.33
+Headshot kills: 4
+Shots H:F (acc): 79:180 (43.88%)
+Damage D:T (D/T): 3,290:4,656 (0.71)
+Avg life time (damage/life): 25s (235)
+<:Spotter:1322814780796309505>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 50 | Team K:D:A: 50:44:27",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04 (Rank: 1 | Score: 2,400)",
+      "value": "Kills: __**19**__
+Deaths: __**10**__
+Assists: __**10**__
+KDA: __**12.33**__
+Headshot kills: __**14**__
+Shots H:F (acc): **116**:**195** **(59.48%)**
+Damage D:T (D/T): __**6,178**__:5,163 **(1.2)**
+Avg life time (damage/life): **38s** __**(617.8)**__
+3x<:Perfect:1322879561515532308> 3x<:DoubleKill:1322814147980689430> <:KillingSpree:1322803050347499541> <:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag11 (Rank: 2 | Score: 1,570)",
+      "value": "Kills: 11
+Deaths: 12
+Assists: 8
+KDA: 1.66
+Headshot kills: 4
+Shots H:F (acc): 82:193 (42.48%)
+Damage D:T (D/T): 3,629:__**3,885**__ (0.93)
+Avg life time (damage/life): 31s (302.42)
+<:ShotCaller:1322884687693086771> <:ClusterLuck:1322871366961205269> <:DoubleKill:1322814147980689430> <:Spotter:1322814780796309505> <:Rifleman:1322860656399220828> <:Bodyguard:1322867380136841279>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08 (Rank: 2 | Score: 1,320)",
+      "value": "Kills: 11
+Deaths: 12
+Assists: 4
+KDA: 0.33
+Headshot kills: 6
+Shots H:F (acc): 75:129 (58.13%)
+Damage D:T (D/T): 3,868:4,158 (0.93)
+Avg life time (damage/life): 31s (322.33)
+<:DoubleKill:1322814147980689430> <:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129> <:Rifleman:1322860656399220828>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag12 (Rank: 4 | Score: 1,310)",
+      "value": "Kills: 9
+Deaths: __**10**__
+Assists: 8
+KDA: 1.66
+Headshot kills: 6
+Shots H:F (acc): 98:**195** (50.25%)
+Damage D:T (D/T): 4,174:4,150 (1.01)
+Avg life time (damage/life): **38s** (417.4)
+<:DoubleKill:1322814147980689430> <:Perfect:1322879561515532308> <:Rifleman:1322860656399220828>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "Slayer: Streets - Ranked",
+  "url": "https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer",
+}
+`;

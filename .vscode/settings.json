@@ -17,5 +17,8 @@
     "chmod": false,
     "chown": false,
     "/^Remove-Item\\b/i": false
+  },
+  "files.associations": {
+    "wrangler.json": "jsonc"
   }
 }

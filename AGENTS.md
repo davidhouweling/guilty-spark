@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provides Halo Infinite statistics, live match tracking, and tournament features.
+Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provides Halo Infinite statistics, live match tracking, and strong integration with NeatQueue for Halo custom games.
 
 **Tech Stack**: TypeScript, Cloudflare Workers, D1 Database, Durable Objects, Discord API
 
@@ -43,7 +43,7 @@ npm run format:fix
 
 - `/connect` - Link Discord to Xbox gamertag
 - `/stats` - Show Halo Infinite match statistics
-- `/maps` - Generate HCS tournament maps
+- `/maps` - Generate maps for custom games
 - `/track` - Live match tracking with real-time updates
 
 ## File Structure
@@ -54,6 +54,9 @@ npm run format:fix
 - `src/durable-objects/` - Cloudflare Durable Objects for state
 - Tests in sibling `tests/` folders, fakes in `fakes/` folders
 - Use `.mjs` for imports, never `.mts`
+- Import Astro components directly (e.g., `../components/cards/demo-card.astro`); avoid `.astro` barrel files that break eslint resolution.
+- Maintain a single source of truth for shared components.
+- For astro components, consolidate commonalities into a sub folder, example being `cards`
 
 ## Code Style
 
@@ -63,6 +66,40 @@ npm run format:fix
 - **Error Handling**: Use `EndUserError` for user-facing errors
 - **Null Safety**: Use `Preconditions.checkExists()` instead of `!`
 - **Formatting**: Run `npm run lint:fix` and `npm run format:fix`
+- **Accessibility**: Preserve established ARIA attributes, focus handling, and keyboard support patterns when extending interactive components.
+- **Rendering Patterns**: Prefer data-driven rendering—extend typed configuration arrays and map to components instead of duplicating inline markup.
+
+## CSS/Styling Principles (Pages Project)
+
+- **Mobile-First Approach**: Start with mobile base styles, enhance progressively for larger screens
+- **Custom Media Queries**: Use PostCSS custom media from `variables.css`:
+  - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed, mobile is default)
+  - `@media (--tablet-viewport)` - min-width: 750px
+  - `@media (--desktop-viewport)` - min-width: 1000px
+  - `@media (--ultrawide-viewport)` - min-width: 1200px
+- **Organization**: Group all media queries at the bottom of `<style>` blocks with clear section headers
+- **Structure Pattern**:
+
+  ```
+  <style>
+    /* Base Styles - Mobile First */
+    .element { /* mobile styles */ }
+
+    /* Media Queries - Tablet and Above */
+    @media (--tablet-viewport) {
+      .element { /* tablet overrides */ }
+    }
+
+    /* Media Queries - Desktop and Above */
+    @media (--desktop-viewport) {
+      .element { /* desktop overrides */ }
+    }
+  </style>
+  ```
+
+- **Progressive Enhancement**: Only override properties that change at larger breakpoints
+- **Avoid Desktop-First**: Never use `max-width` media queries unless absolutely necessary
+- **Consistent Blocks**: Keep the “Base / Tablet / Desktop” comment structure and place new declarations in the appropriate section to preserve readability.
 
 ## Type Safety Principles
 
@@ -73,6 +110,7 @@ npm run format:fix
 - **Response Discrimination**: Use `isSuccessResponse()` patterns for safe success/failure handling
 - **API Contracts**: Types serve as living documentation and enforce API compatibility
 - **Compile-Time Safety**: Prefer TypeScript compilation errors over runtime type failures
+- **Astro Types**: When component props rely on framework-provided types (for example `ImageMetadata`), add the corresponding `import type` so files remain self-contained.
 
 ## Testing Instructions
 
@@ -88,7 +126,7 @@ npm run format:fix
 - **Node.js**: 22.11.0+ required
 - **Environment**: Use `.dev.vars` for local development
 - **Commands**: Stick to npm scripts in `package.json`
-- **Validation**: Use `npm run typecheck` instead of building
+- **Validation**: Use `npm run typecheck` instead of building, and rerun it after structural refactors to catch slot/type regressions early.
 - **Directory**: Assume commands run from project root
 
 - **Dependency Injection**: Services use constructor injection for testability

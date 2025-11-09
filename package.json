@@ -5,6 +5,10 @@
   "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
   "type": "module",
+  "private": true,
+  "workspaces": [
+    "pages"
+  ],
   "engines": {
     "node": ">=22.11.0"
   },
@@ -16,10 +20,11 @@
     "url": "https://github.com/davidhouweling/guilty-spark/issues"
   },
   "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
-  "main": "src/app.mts",
+  "main": "api/app.mts",
   "scripts": {
     "postinstall": "patch-package",
     "start": "wrangler dev",
+    "start:pages": "npm run start --workspace=pages",
     "ngrok": "ngrok http 8787",
     "register": "tsx --env-file=.dev.vars scripts/deploy-commands.mts",
     "test": "vitest run",
@@ -30,9 +35,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "typecheck:pages": "npm run typecheck --workspace=pages",
     "build:generate-types": "wrangler types",
     "build": "tsc --project tsconfig.build.json",
-    "publish": "wrangler deploy"
+    "build:pages": "npm run build --workspace=pages",
+    "publish": "wrangler deploy",
+    "publish:pages": "npm run deploy --workspace=pages"
   },
   "dependencies": {
     "@sentry/cli": "^2.57.0",
@@ -47,22 +55,25 @@
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.38.0",
+    "@eslint/js": "^9.39.1",
     "@tsconfig/node22": "^22.0.2",
     "@types/luxon": "^3.7.1",
     "@types/node": "22.15.30",
-    "@typescript-eslint/parser": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.3",
     "@vitest/coverage-v8": "^4.0.6",
     "dotenv": "^17.2.3",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.1",
     "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-astro": "^1.5.0",
     "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
+    "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.2",
+    "typescript-eslint": "^8.46.3",
     "vitest": "^4.0.6",
     "vitest-mock-extended": "^3.1.0",
     "wrangler": "^4.45.0"

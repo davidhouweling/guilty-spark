@@ -2,10 +2,10 @@ import "dotenv/config";
 import { inspect } from "util";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import { APIVersion, ApplicationCommandType, Routes } from "discord-api-types/v10";
-import { getCommands } from "../src/commands/commands.mjs";
-import type { Services } from "../src/services/install.mjs";
-import { Preconditions } from "../src/base/preconditions.mjs";
-import type { ApplicationCommandData } from "../src/commands/base/base.mjs";
+import { getCommands } from "../api/commands/commands.mjs";
+import type { Services } from "../api/services/install.mjs";
+import { Preconditions } from "../api/base/preconditions.mjs";
+import type { ApplicationCommandData } from "../api/commands/base/base.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {
   DISCORD_APP_ID: Preconditions.checkExists(process.env.DISCORD_APP_ID, "DISCORD_APP_ID"),

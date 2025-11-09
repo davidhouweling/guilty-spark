@@ -1,0 +1,95 @@
+---
+import GuiltySparkIcon from "../assets/guilty-spark-icon.png";
+import Header from "../components/header.astro";
+import Footer from "../components/footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Guilty Spark - Halo Infinite Stats for Discord",
+  description = "A powerful Discord bot that brings Halo Infinite match statistics to your server. Track custom games, generate HCS maps, and analyze player performance.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/png" href={GuiltySparkIcon.src} />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&family=Orbitron:wght@600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Open Graph / Discord -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={`https://guilty-spark.app/${GuiltySparkIcon.src}`} />
+
+    <!-- JSON-LD Structured Data -->
+    <script
+      is:inline
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            name: "Guilty Spark",
+            applicationCategory: "UtilitiesApplication",
+            operatingSystem: "Discord",
+            description:
+              "A powerful Discord bot that brings Halo Infinite match statistics to your server. Track custom games, generate HCS maps, and analyze player performance with real-time monitoring.",
+            author: {
+              "@type": "Person",
+              name: "David Houweling",
+              url: "https://github.com/davidhouweling",
+            },
+            installUrl:
+              "https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands",
+          },
+          {
+            "@type": "Organization",
+            name: "Guilty Spark",
+            url: "https://guilty-spark.app",
+            logo: `https://guilty-spark.app/${GuiltySparkIcon.src}`,
+            sameAs: ["https://github.com/davidhouweling/guilty-spark", "https://discord.gg/WS7zG8GDKY"],
+            contactPoint: {
+              "@type": "ContactPoint",
+              contactType: "Customer Support",
+              url: "https://discord.gg/WS7zG8GDKY",
+            },
+          },
+          {
+            "@type": "WebSite",
+            name: "Guilty Spark",
+            url: "https://guilty-spark.app",
+            description: "Halo Infinite statistics and live match tracking for Discord",
+            inLanguage: "en-US",
+          },
+        ],
+      })}
+    />
+
+    <title>{title}</title>
+  </head>
+  <body>
+    <Header />
+    <slot />
+    <Footer />
+  </body>
+</html>
+<style is:global>
+  @import "../styles/base.css";
+</style>

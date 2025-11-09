@@ -1,0 +1,97 @@
+---
+import BaseCard from "./base-card.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  class?: string;
+}
+
+const { title, description, class: className } = Astro.props;
+const hasIcon = Astro.slots.has("icon");
+---
+
+<BaseCard padding="none" interactive class:list={["feature-card", className]}>
+  <div class="card-body">
+    {
+      hasIcon && (
+        <div class="feature-icon">
+          <slot name="icon" />
+        </div>
+      )
+    }
+
+    <h3 class="card-title">{title}</h3>
+    <p class="card-text">{description}</p>
+    <slot />
+  </div>
+</BaseCard>
+
+<style>
+  .feature-card {
+    position: relative;
+  }
+
+  .feature-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 0;
+    background: var(--halo-teal-primary);
+    transition: height 0.3s ease;
+  }
+
+  .feature-card.card-hover:hover::before {
+    height: 100%;
+  }
+
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.25rem;
+  }
+
+  .feature-icon {
+    width: 60px;
+    height: 60px;
+    color: var(--halo-teal-primary);
+    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
+  }
+
+  .card-title {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--halo-white);
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .card-text {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--halo-gray);
+    margin: 0;
+  }
+
+  @media (--tablet-viewport) {
+    .card-body {
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+    }
+
+    .card-text {
+      font-size: 1.05rem;
+    }
+  }
+</style>

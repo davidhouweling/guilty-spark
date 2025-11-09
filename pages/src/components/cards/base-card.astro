@@ -1,0 +1,70 @@
+---
+interface Props {
+  tag?: "article" | "aside" | "div" | "figure" | "li" | "section" | "span";
+  variant?: "surface" | "muted" | "accent";
+  padding?: "none" | "sm" | "md" | "lg";
+  interactive?: boolean;
+  class?: string;
+}
+
+const {
+  tag: Element = "div",
+  variant = "surface",
+  padding = "md",
+  interactive = false,
+  class: className,
+} = Astro.props;
+---
+
+<Element class:list={["card", `card-${variant}`, `card-pad-${padding}`, interactive && "card-hover", className]}>
+  <slot />
+</Element>
+
+<style>
+  .card {
+    position: relative;
+    display: block;
+    border: 1px solid var(--halo-teal-dark);
+    background: rgba(15, 40, 48, 0.4);
+    color: inherit;
+    text-decoration: none;
+    transition:
+      border-color 0.3s ease,
+      box-shadow 0.3s ease,
+      background 0.3s ease;
+  }
+
+  .card-pad-none {
+    padding: 0;
+  }
+
+  .card-pad-sm {
+    padding: 1rem;
+  }
+
+  .card-pad-md {
+    padding: 1.5rem;
+  }
+
+  .card-pad-lg {
+    padding: 2rem;
+  }
+
+  .card-surface {
+    background: rgba(15, 40, 48, 0.4);
+  }
+
+  .card-muted {
+    background: rgba(13, 31, 38, 0.6);
+  }
+
+  .card-accent {
+    background: rgba(13, 77, 82, 0.3);
+  }
+
+  .card-hover:hover {
+    border-color: var(--halo-teal-primary);
+    box-shadow: 0 0 30px rgba(93, 212, 216, 0.2);
+    background: rgba(15, 40, 48, 0.6);
+  }
+</style>

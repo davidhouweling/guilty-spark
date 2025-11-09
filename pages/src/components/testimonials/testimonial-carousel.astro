@@ -1,0 +1,635 @@
+---
+export interface TestimonialItem {
+  text: string;
+  who: string;
+  discordServer: string;
+}
+
+interface Props {
+  id?: string;
+  items: readonly TestimonialItem[];
+  autoRotateMs?: number;
+}
+
+const { id = "testimonial-carousel", items, autoRotateMs = 3000 }: Props = Astro.props;
+
+if (!Array.isArray(items) || items.length === 0) {
+  throw new Error("TestimonialCarousel requires at least one testimonial");
+}
+
+const slideCount = items.length;
+---
+
+<section
+  class="testimonial-carousel"
+  aria-label="Discord community testimonials"
+  data-carousel-root
+  data-carousel-rotate={autoRotateMs}
+>
+  <div class="carousel-window" data-carousel-window>
+    <div class="carousel-track" role="presentation" data-carousel-track>
+      {
+        items.map((item, index) => {
+          const slideId = `${id}-slide-${index}`;
+          const tabId = `${id}-tab-${index}`;
+          const isActive = index === 0;
+
+          return (
+            <article
+              id={slideId}
+              class={`testimonial-card${isActive ? " is-active" : ""}`}
+              role="tabpanel"
+              aria-roledescription="slide"
+              aria-label={`Testimonial ${index + 1} of ${slideCount}`}
+              aria-labelledby={tabId}
+              aria-hidden={isActive ? "false" : "true"}
+              tabindex={isActive ? "0" : "-1"}
+              data-carousel-slide
+              data-index={index}
+            >
+              <p class="testimonial-text">{item.text}</p>
+              <footer class="testimonial-meta">
+                <span class="testimonial-who">{item.who}</span>
+                <span class="testimonial-server">{item.discordServer}</span>
+              </footer>
+            </article>
+          );
+        })
+      }
+    </div>
+  </div>
+
+  <div class="carousel-controls" role="tablist" aria-label="Select testimonial">
+    {
+      items.map((_item, index) => {
+        const tabId = `${id}-tab-${index}`;
+        const slideId = `${id}-slide-${index}`;
+        const isActive = index === 0;
+
+        return (
+          <button
+            id={tabId}
+            type="button"
+            role="tab"
+            class={`carousel-dot${isActive ? " is-active" : ""}`}
+            aria-controls={slideId}
+            aria-selected={isActive ? "true" : "false"}
+            data-carousel-dot
+            data-index={index}
+          >
+            <span class="visually-hidden">View testimonial {index + 1}</span>
+          </button>
+        );
+      })
+    }
+  </div>
+</section>
+
+<script is:inline>
+  (() => {
+    const script = document.currentScript;
+    if (!script) {
+      return;
+    }
+
+    const previous = script.previousElementSibling;
+    const rootCandidate =
+      previous instanceof HTMLElement && previous.matches("[data-carousel-root]")
+        ? previous
+        : script.parentElement?.querySelector(":scope > [data-carousel-root]");
+
+    if (!(rootCandidate instanceof HTMLElement)) {
+      return;
+    }
+
+    const root = rootCandidate;
+    const windowEl = root.querySelector("[data-carousel-window]");
+    const track = root.querySelector("[data-carousel-track]");
+    const slides = Array.from(root.querySelectorAll("[data-carousel-slide]"));
+    const dots = Array.from(root.querySelectorAll("[data-carousel-dot]"));
+    const autoRotateMs = Number(root.getAttribute("data-carousel-rotate"));
+
+    if (
+      !(windowEl instanceof HTMLElement) ||
+      !(track instanceof HTMLElement) ||
+      slides.length === 0 ||
+      slides.length !== dots.length
+    ) {
+      return;
+    }
+
+    let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
+    if (activeIndex === -1) {
+      activeIndex = 0;
+      slides[0].classList.add("is-active");
+    }
+
+    const reduceMotionQuery =
+      typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : undefined;
+
+    const prefersReducedMotion = () => reduceMotionQuery?.matches === true;
+    const shouldRotate = () => autoRotateMs > 0 && !prefersReducedMotion();
+
+    const clearSlideState = (slide) => {
+      slide.classList.remove("is-glitching-in", "is-glitching-out");
+    };
+
+    const setInactiveAttributes = (slide) => {
+      slide.setAttribute("aria-hidden", "true");
+      slide.setAttribute("tabindex", "-1");
+      slide.removeAttribute("data-active");
+    };
+
+    const setActiveAttributes = (slide) => {
+      slide.setAttribute("aria-hidden", "false");
+      slide.setAttribute("tabindex", "0");
+      slide.setAttribute("data-active", "true");
+    };
+
+    slides.forEach((slide, index) => {
+      if (index === activeIndex) {
+        setActiveAttributes(slide);
+      } else {
+        setInactiveAttributes(slide);
+      }
+    });
+
+    const applyTrackTransform = (index) => {
+      const offset = index * -100;
+      track.style.transform = `translateX(${offset}%)`;
+      track.setAttribute("data-active-index", String(index));
+    };
+
+    root.setAttribute("data-carousel-ready", "true");
+    applyTrackTransform(activeIndex);
+
+    const setActive = (nextIndex, options = {}) => {
+      if (nextIndex === activeIndex || nextIndex < 0 || nextIndex >= slides.length) {
+        return;
+      }
+
+      const currentSlide = slides[activeIndex];
+      const nextSlide = slides[nextIndex];
+      const currentDot = dots[activeIndex];
+      const nextDot = dots[nextIndex];
+
+      clearSlideState(currentSlide);
+      clearSlideState(nextSlide);
+
+      currentDot.classList.remove("is-active");
+      currentDot.setAttribute("aria-selected", "false");
+
+      nextDot.classList.add("is-active");
+      nextDot.setAttribute("aria-selected", "true");
+
+      if (options.focusDot) {
+        nextDot.focus({ preventScroll: true });
+      }
+
+      setInactiveAttributes(currentSlide);
+      setActiveAttributes(nextSlide);
+
+      currentSlide.classList.remove("is-active");
+      nextSlide.classList.add("is-active");
+
+      applyTrackTransform(nextIndex);
+
+      if (!prefersReducedMotion()) {
+        currentSlide.classList.add("is-glitching-out");
+        nextSlide.classList.add("is-glitching-in");
+
+        const handleExitEnd = () => {
+          currentSlide.classList.remove("is-glitching-out");
+          currentSlide.removeEventListener("animationend", handleExitEnd);
+        };
+
+        const handleEnterEnd = () => {
+          nextSlide.classList.remove("is-glitching-in");
+          nextSlide.removeEventListener("animationend", handleEnterEnd);
+        };
+
+        currentSlide.addEventListener("animationend", handleExitEnd, { once: true });
+        nextSlide.addEventListener("animationend", handleEnterEnd, { once: true });
+      }
+
+      activeIndex = nextIndex;
+    };
+
+    const advance = (step) => {
+      const nextIndex = (activeIndex + step + slides.length) % slides.length;
+      setActive(nextIndex);
+    };
+
+    let intervalId = null;
+
+    const startAutoRotate = () => {
+      if (!shouldRotate() || intervalId !== null) {
+        return;
+      }
+
+      intervalId = window.setInterval(() => {
+        advance(1);
+      }, autoRotateMs);
+    };
+
+    startAutoRotate();
+
+    const pause = () => {
+      if (intervalId === null) {
+        return;
+      }
+
+      window.clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const resume = () => {
+      startAutoRotate();
+    };
+
+    dots.forEach((dot) => {
+      const index = Number(dot.getAttribute("data-index"));
+
+      dot.addEventListener("click", () => {
+        pause();
+        setActive(index);
+        resume();
+      });
+
+      dot.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          event.preventDefault();
+          pause();
+          const nextIndex = (activeIndex + 1) % slides.length;
+          setActive(nextIndex, { focusDot: true });
+          resume();
+        }
+
+        if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          event.preventDefault();
+          pause();
+          const nextIndex = (activeIndex - 1 + slides.length) % slides.length;
+          setActive(nextIndex, { focusDot: true });
+          resume();
+        }
+      });
+    });
+
+    root.addEventListener("mouseenter", pause);
+    root.addEventListener("mouseleave", resume);
+    root.addEventListener("focusin", pause);
+    root.addEventListener("focusout", () => {
+      if (!root.contains(document.activeElement)) {
+        resume();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        pause();
+      } else {
+        resume();
+      }
+    });
+
+    if (reduceMotionQuery) {
+      const handleMotionChange = () => {
+        if (!shouldRotate()) {
+          pause();
+        } else {
+          resume();
+        }
+      };
+
+      reduceMotionQuery.addEventListener("change", handleMotionChange);
+    }
+  })();
+</script>
+
+<style>
+  /* Base Styles - Mobile First */
+
+  @keyframes testimonial-glitch-in {
+    0% {
+      opacity: 0;
+      transform: translateX(-6px) skewX(-4deg);
+      clip-path: inset(0 0 100% 0);
+      filter: hue-rotate(25deg) saturate(1.4);
+    }
+
+    20% {
+      opacity: 1;
+      transform: translateX(4px) skewX(2deg);
+      clip-path: inset(0 0 65% 0);
+      filter: contrast(1.3) saturate(1.2);
+    }
+
+    40% {
+      transform: translateX(-3px) skewX(-2deg);
+      clip-path: inset(10% 0 0 0);
+      filter: hue-rotate(-10deg);
+    }
+
+    60% {
+      transform: translateX(3px) skewX(1deg);
+      clip-path: inset(0 0 12% 0);
+      filter: saturate(1.1);
+    }
+
+    80% {
+      transform: translateX(-2px);
+      clip-path: inset(0 0 0 0);
+      filter: contrast(1.05);
+    }
+
+    100% {
+      opacity: 1;
+      transform: none;
+      clip-path: inset(0 0 0 0);
+      filter: none;
+    }
+  }
+
+  @keyframes testimonial-glitch-out {
+    0% {
+      opacity: 1;
+      transform: none;
+      clip-path: inset(0 0 0 0);
+      filter: none;
+    }
+
+    25% {
+      transform: translateX(-4px) skewX(-2deg);
+      clip-path: inset(0 0 32% 0);
+      filter: hue-rotate(-25deg) saturate(1.2);
+    }
+
+    50% {
+      transform: translateX(5px) skewX(3deg);
+      clip-path: inset(18% 0 0 0);
+      filter: contrast(1.25);
+    }
+
+    75% {
+      transform: translateX(-8px) skewX(-3deg);
+      clip-path: inset(0 0 54% 0);
+      filter: hue-rotate(20deg) saturate(1.3);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateX(-18px) skewX(-6deg);
+      clip-path: inset(0 0 100% 0);
+      filter: blur(4px) saturate(1.4);
+    }
+  }
+
+  @keyframes testimonial-glitch-lines {
+    0% {
+      opacity: 0.45;
+      transform: translate3d(-3px, -3px, 0);
+    }
+
+    25% {
+      opacity: 0.2;
+      transform: translate3d(4px, 2px, 0);
+    }
+
+    50% {
+      opacity: 0.35;
+      transform: translate3d(-5px, 3px, 0);
+    }
+
+    75% {
+      opacity: 0.25;
+      transform: translate3d(2px, -4px, 0);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .testimonial-carousel {
+    padding: 2rem;
+    background: linear-gradient(180deg, rgba(18, 53, 55, 0.8) 0%, rgba(9, 22, 23, 0.95) 100%);
+    border: 1px solid rgba(93, 212, 216, 0.2);
+    border-radius: 1.5rem;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .carousel-track {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .carousel-window {
+    position: relative;
+  }
+
+  .testimonial-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(8, 28, 30, 0.9);
+    border: 1px solid rgba(93, 212, 216, 0.2);
+    border-radius: 1rem;
+    transition: border-color 200ms ease;
+    position: relative;
+    box-sizing: border-box;
+    margin-bottom: 1px;
+  }
+
+  .testimonial-card.is-active {
+    border-color: rgba(93, 212, 216, 0.35);
+  }
+
+  .testimonial-carousel[data-carousel-ready] .carousel-window {
+    overflow: hidden;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .carousel-track {
+    display: flex;
+    gap: 0;
+    transform: translateX(0);
+    will-change: transform;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card {
+    flex: 0 0 100%;
+    max-width: 100%;
+    pointer-events: none;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card::before,
+  .testimonial-carousel[data-carousel-ready] .testimonial-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: screen;
+    transition: opacity 120ms ease;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card::before {
+    background: repeating-linear-gradient(0deg, transparent 0 10px, rgba(93, 212, 216, 0.18) 10px 12px);
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card::after {
+    background: repeating-linear-gradient(90deg, rgba(252, 81, 133, 0.16) 0 1px, transparent 1px 4px);
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-active {
+    opacity: 1;
+    border-color: rgba(93, 212, 216, 0.35);
+    pointer-events: auto;
+    z-index: 2;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in,
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out {
+    text-shadow:
+      -2px 0 rgba(93, 212, 216, 0.4),
+      2px 0 rgba(252, 81, 133, 0.35);
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in {
+    animation: testimonial-glitch-in 400ms steps(6, end) forwards;
+    z-index: 4;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in::before,
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in::after {
+    opacity: 0.45;
+    animation: testimonial-glitch-lines 400ms steps(6, end) forwards;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out {
+    animation: testimonial-glitch-out 350ms steps(5, end) forwards;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out::before,
+  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out::after {
+    opacity: 0.4;
+    animation: testimonial-glitch-lines 350ms steps(5, end) forwards;
+  }
+
+  .testimonial-text {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--halo-gray);
+  }
+
+  .testimonial-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-family: var(--font-body);
+  }
+
+  .testimonial-who {
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--halo-white);
+  }
+
+  .testimonial-server {
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--halo-teal-primary);
+  }
+
+  .carousel-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .carousel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(93, 212, 216, 0.6);
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    transition:
+      background 200ms ease,
+      width 200ms ease,
+      border-color 200ms ease;
+  }
+
+  .carousel-dot.is-active {
+    width: 36px;
+    background: rgba(93, 212, 216, 0.45);
+    border-color: rgba(93, 212, 216, 0.9);
+  }
+
+  .carousel-dot:focus-visible {
+    outline: 2px solid var(--halo-teal-primary);
+    outline-offset: 2px;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Media Queries - Tablet and Above */
+  @media (--tablet-viewport) {
+    .testimonial-carousel {
+      padding: 2.5rem;
+    }
+
+    .carousel-track {
+      grid-column: span 12;
+    }
+
+    .testimonial-card {
+      padding: 2rem;
+    }
+
+    .testimonial-text {
+      font-size: 1.05rem;
+    }
+  }
+
+  /* Media Queries - Desktop and Above */
+  @media (--desktop-viewport) {
+    .testimonial-carousel {
+      padding: 3rem;
+    }
+
+    .testimonial-text {
+      font-size: 1.125rem;
+    }
+
+    .carousel-dot {
+      width: 14px;
+      height: 14px;
+    }
+
+    .carousel-dot.is-active {
+      width: 42px;
+    }
+  }
+</style>

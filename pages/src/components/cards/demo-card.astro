@@ -1,0 +1,124 @@
+---
+import BaseCard from "./base-card.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  wide?: boolean;
+  iconVariant?: "default" | "image";
+  class?: string;
+}
+
+const { title, description, wide = false, iconVariant = "default", class: className } = Astro.props;
+const hasIcon = Astro.slots.has("icon");
+const hasMedia = Astro.slots.has("media");
+---
+
+<BaseCard padding="lg" interactive class:list={["demo-card", wide && "demo-card-wide", className]}>
+  <div class="demo-card-inner">
+    <div class="demo-header">
+      {
+        hasIcon && (
+          <div class:list={["demo-icon", iconVariant === "image" && "demo-icon-image"]}>
+            <slot name="icon" />
+          </div>
+        )
+      }
+      <h3 class="demo-title">{title}</h3>
+    </div>
+
+    <p class="demo-description">{description}</p>
+
+    {
+      hasMedia && (
+        <div class="demo-media">
+          <slot name="media" />
+        </div>
+      )
+    }
+    <slot />
+  </div>
+</BaseCard>
+
+<style>
+  .demo-card-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .demo-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .demo-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    color: var(--halo-teal-primary);
+    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
+  }
+
+  .demo-icon-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+  }
+
+  .demo-icon-image :global(img) {
+    max-width: 100%;
+    max-height: 100%;
+    filter: brightness(0) saturate(100%) invert(60%) sepia(80%) saturate(450%) hue-rotate(140deg) brightness(95%)
+      contrast(95%);
+  }
+
+  .demo-title {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--halo-white);
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .demo-description {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--halo-gray);
+    margin: 0;
+  }
+
+  .demo-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .demo-card:hover .demo-media :global(img) {
+    border-color: var(--halo-teal-primary);
+    box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
+  }
+
+  .demo-media {
+    text-align: center;
+  }
+
+  .demo-media :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  @media (--tablet-viewport) {
+    .demo-title {
+      font-size: 1.5rem;
+    }
+
+    .demo-description {
+      font-size: 1.05rem;
+    }
+  }
+</style>

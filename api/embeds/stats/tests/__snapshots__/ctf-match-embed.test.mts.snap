@@ -1,0 +1,201 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CtfMatchEmbed > getEmbed > returns the expected embed 1`] = `
+{
+  "description": "-# Legend: **Best in team** | __**Best overall**__",
+  "fields": [
+    {
+      "inline": false,
+      "name": "Eagle",
+      "value": "Team Score: 3 | Team K:D:A: 67:55:33",
+    },
+    {
+      "inline": true,
+      "name": "gamertag05 (Rank: 1 | Score: 2,240)",
+      "value": "Kills: 12
+Deaths: 14
+Assists: 8
+KDA: 0.66
+Headshot kills: 6
+Shots H:F (acc): 83:178 (46.62%)
+Damage D:T (D/T): 4,736:4,879 (0.97)
+Avg life time (damage/life): 32s (338.29)
+Captures: __**2**__
+Captures assists: 0
+Carrier time: 9s
+Grabs: 4
+Returns: 0
+Carriers killed: 0
+<:TripleKill:1322814228477906944> <:OfftheRack:1322884747881353279> 2x<:DoubleKill:1322814147980689430> <:Rifleman:1322860656399220828>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag02 (Rank: 2 | Score: 3,355)",
+      "value": "Kills: __**22**__
+Deaths: 15
+Assists: 10
+KDA: __**10.33**__
+Headshot kills: __**17**__
+Shots H:F (acc): 108:182 (59.34%)
+Damage D:T (D/T): **5,890**:4,614 __**(1.28)**__
+Avg life time (damage/life): 29s (392.67)
+Captures: 1
+Captures assists: 2
+Carrier time: 20s
+Grabs: 14
+Returns: 0
+Carriers killed: 0
+2x<:Perfect:1322879561515532308> <:DoubleKill:1322814147980689430> <:ShotCaller:1322884687693086771> 3x<:Snipe:1322872969571340370> <:Rifleman:1322860656399220828> 2x<:Reversal:1322872797701083166> 2x<:GuardianAngel:1322873057928286248> <:LastShot:1322884170606972959> <:Bodyguard:1322867380136841279> <:Wingman:1322854221095108609>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag01 (Rank: 3 | Score: 2,410)",
+      "value": "Kills: 16
+Deaths: 17
+Assists: __**12**__
+KDA: 3
+Headshot kills: 11
+Shots H:F (acc): **122**:**189** **(64.55%)**
+Damage D:T (D/T): 5,717:5,479 (1.04)
+Avg life time (damage/life): 27s (336.29)
+Captures: 0
+Captures assists: 1
+Carrier time: 11s
+Grabs: 14
+Returns: __**2**__
+Carriers killed: 0
+2x<:ShotCaller:1322884687693086771> <:NoScope:1322882248516702220> <:Stick:1322871787695898676> <:FromtheGrave:1322884008773816351> <:Reversal:1322872797701083166> <:Rifleman:1322860656399220828> <:Wingman:1322854221095108609>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag09 (Rank: 3 | Score: 2,375)",
+      "value": "Kills: 17
+Deaths: __**9**__
+Assists: 6
+KDA: 10
+Headshot kills: 10
+Shots H:F (acc): 84:162 (51.85%)
+Damage D:T (D/T): 3,859:__**3,049**__ (1.27)
+Avg life time (damage/life): __**53s**__ __**(428.78)**__
+Captures: 0
+Captures assists: __**3**__
+Carrier time: **22s**
+Grabs: __**15**__
+Returns: 0
+Carriers killed: __**1**__
+<:DoubleKill:1322814147980689430> <:Perfect:1322879561515532308> 2x<:KillingSpree:1322803050347499541> <:Killjoy:1322802841039147129> <:Rifleman:1322860656399220828> <:Snipe:1322872969571340370>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": false,
+      "name": "Cobra",
+      "value": "Team Score: 0 | Team K:D:A: 55:68:20",
+    },
+    {
+      "inline": true,
+      "name": "gamertag04 (Rank: 5 | Score: 2,275)",
+      "value": "Kills: **19**
+Deaths: 16
+Assists: 6
+KDA: **5**
+Headshot kills: **16**
+Shots H:F (acc): __**134**__:__**200**__ __**(67%)**__
+Damage D:T (D/T): __**6,202**__:5,431 **(1.14)**
+Avg life time (damage/life): 27s **(387.63)**
+Captures: **0**
+Captures assists: **0**
+Carrier time: 26s
+Grabs: 6
+Returns: 0
+Carriers killed: 0
+3x<:DoubleKill:1322814147980689430> 3x<:Perfect:1322879561515532308> <:KillingSpree:1322803050347499541> <:OfftheRack:1322884747881353279> <:Rifleman:1322860656399220828> <:Killjoy:1322802841039147129>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag11 (Rank: 5 | Score: 1,835)",
+      "value": "Kills: 17
+Deaths: 16
+Assists: 2
+KDA: 1.66
+Headshot kills: 9
+Shots H:F (acc): 81:160 (50.62%)
+Damage D:T (D/T): 3,657:**4,401** (0.83)
+Avg life time (damage/life): 27s (228.56)
+Captures: **0**
+Captures assists: **0**
+Carrier time: __**1m 3s**__
+Grabs: 6
+Returns: 0
+Carriers killed: 0
+<:Perfect:1322879561515532308> <:Rifleman:1322860656399220828> <:Stick:1322871787695898676> <:Killjoy:1322802841039147129>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+    {
+      "inline": true,
+      "name": "gamertag08 (Rank: 5 | Score: 1,485)",
+      "value": "Kills: 11
+Deaths: 21
+Assists: **7**
+KDA: -7.66
+Headshot kills: 9
+Shots H:F (acc): 99:191 (51.83%)
+Damage D:T (D/T): 4,094:5,882 (0.7)
+Avg life time (damage/life): 19s (194.95)
+Captures: **0**
+Captures assists: **0**
+Carrier time: 0s
+Grabs: 0
+Returns: **1**
+Carriers killed: 0
+<:DoubleKill:1322814147980689430> <:Rifleman:1322860656399220828> <:Reversal:1322872797701083166>",
+    },
+    {
+      "inline": true,
+      "name": "gamertag12 (Rank: 5 | Score: 1,045)",
+      "value": "Kills: 8
+Deaths: **15**
+Assists: 5
+KDA: -5.33
+Headshot kills: 5
+Shots H:F (acc): 77:163 (47.23%)
+Damage D:T (D/T): 3,859:5,057 (0.76)
+Avg life time (damage/life): **29s** (257.27)
+Captures: **0**
+Captures assists: **0**
+Carrier time: 17s
+Grabs: **9**
+Returns: 0
+Carriers killed: __**1**__
+2x<:ShotCaller:1322884687693086771> <:Rifleman:1322860656399220828> <:StoppedShort:1322806739778670652>",
+    },
+    {
+      "inline": false,
+      "name": "
+",
+      "value": "
+",
+    },
+  ],
+  "title": "Capture the Flag: Empyrean - Ranked",
+  "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
+}
+`;

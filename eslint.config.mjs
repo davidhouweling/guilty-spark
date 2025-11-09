@@ -3,12 +3,12 @@ import { defineConfig } from "eslint/config";
 import { configs } from "typescript-eslint";
 import importPlugin from "eslint-plugin-import";
 import tsParser from "@typescript-eslint/parser";
+import { configs as astroConfigs } from "eslint-plugin-astro";
 
 export default defineConfig(
   eslint.configs.recommended,
   configs.strictTypeChecked,
   configs.stylisticTypeChecked,
-
   importPlugin.flatConfigs.recommended,
   importPlugin.flatConfigs.typescript,
   {
@@ -20,6 +20,7 @@ export default defineConfig(
       "dist/",
       "node_modules/",
       "patches/",
+      "pages/.astro/**/*",
       "test-results/",
       "**/*.json",
       "**/*.log",
@@ -28,6 +29,7 @@ export default defineConfig(
     ],
   },
   {
+    files: ["**/*.mts", "**/*.ts", "**/*.mjs", "**/*.js"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",
@@ -68,6 +70,24 @@ export default defineConfig(
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "import/order": "error",
       curly: "error",
+    },
+  },
+  ...astroConfigs.recommended,
+  {
+    files: ["**/*.astro"],
+    languageOptions: {
+      parserOptions: {
+        parser: tsParser,
+        extraFileExtensions: [".astro"],
+        project: "./pages/tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
     },
   },
 );
