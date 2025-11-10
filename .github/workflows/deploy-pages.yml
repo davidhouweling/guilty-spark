@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
+        with:
+          # For Dependabot: checkout PR code (safe, automated)
+          # For external PRs: checkout base branch (prevents malicious code execution)
+          ref: ${{ github.actor == 'dependabot[bot]' && github.event.pull_request.head.sha || github.base_ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,6 +34,8 @@ jobs:
         run: npm run build:pages
 
       - name: Deploy
+        # Only deploy for pushes to main or Dependabot PRs
+        if: github.event_name == 'push' || github.actor == 'dependabot[bot]'
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
