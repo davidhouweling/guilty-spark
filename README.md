@@ -89,7 +89,8 @@ Retrieves comprehensive statistics for completed NeatQueue series:
 - `channel` (optional): Discord channel to search (defaults to current)
 - `queue_number` (optional): Specific queue number (defaults to most recent)
 
-https://github.com/user-attachments/assets/recording-20250604-stats-command.mp4
+https://github.com/user-attachments/assets/88edbc3c-975f-4a16-b2ba-0da80dfa5bf4
+
 
 **Automated Process:**
 
@@ -151,7 +152,7 @@ Guilty Spark provides deep integration with NeatQueue queue management system, e
 
 ### Automated Workflows
 
-https://github.com/user-attachments/assets/recording-20250604-neatqueue-integration.mp4
+https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
 
 **Event-Driven Automation:**
 
