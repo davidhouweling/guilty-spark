@@ -1,6 +1,6 @@
 # Guilty Spark
 
-Official website: https://guilty-spark.app
+**Official website: https://guilty-spark.app**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D22.11.0-brightgreen)](https://nodejs.org/)
