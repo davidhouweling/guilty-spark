@@ -21,6 +21,7 @@ export default defineConfig(
       "node_modules/",
       "patches/",
       "pages/.astro/**/*",
+      "pages/dist/",
       "test-results/",
       "**/*.json",
       "**/*.log",
@@ -88,6 +89,7 @@ export default defineConfig(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
   },
 );

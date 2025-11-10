@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
