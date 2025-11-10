@@ -123,7 +123,7 @@ npm run format:fix
 
 ## Development Environment
 
-- **Node.js**: 22.11.0+ required
+- **Node.js**: 24.11.0+ required
 - **Environment**: Use `.dev.vars` for local development
 - **Commands**: Stick to npm scripts in `package.json`
 - **Validation**: Use `npm run typecheck` instead of building, and rerun it after structural refactors to catch slot/type regressions early.

@@ -222,7 +222,7 @@ https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
 
 ### Prerequisites
 
-- Node.js ≥ 22.11.0
+- Node.js ≥ 24.11.0
 - Cloudflare account with Workers and D1 access
 - Discord application with bot token
 
