@@ -91,7 +91,6 @@ Retrieves comprehensive statistics for completed NeatQueue series:
 
 https://github.com/user-attachments/assets/88edbc3c-975f-4a16-b2ba-0da80dfa5bf4
 
-
 **Automated Process:**
 
 1. Locates NeatQueue results in specified channel
