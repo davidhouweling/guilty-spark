@@ -1,5 +1,7 @@
 # Guilty Spark
 
+**Official website: https://guilty-spark.app**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D22.11.0-brightgreen)](https://nodejs.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange)](https://workers.cloudflare.com/)
@@ -8,18 +10,18 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 
 ![Guilty Spark response on Discord](pages/src/assets/screenshot20250604-queue-stats-command.png)
 
-## ✨ Features
+## Features
 
-- **🎮 Halo Infinite Stats Integration**: Pull match statistics directly from Halo Waypoint
-- **🤖 NeatQueue Integration**: Automated webhook-based stats posting for custom game series
-- **🗺️ HCS Maps Generator**: Generate random HCS map sets with playlist and count selection, interactive UI, and user attribution
-- **🔗 Discord-Halo Account Linking**: Connect Discord users to their Xbox gamertags
-- **📊 Rich Match Embeds**: Beautiful, game-mode-specific stat displays
-- **⚙️ Comprehensive Setup System**: Interactive configuration for servers and NeatQueue integration
-- **🔄 Automated Workflows**: Automatic stats posting when matches complete
-- **🛡️ Privacy-Aware**: Respects Halo Waypoint privacy settings
+- **Halo Infinite Stats Integration**: Pull match statistics directly from Halo Waypoint
+- **NeatQueue Integration**: Automated webhook-based stats posting for custom game series
+- **HCS Maps Generator**: Generate random HCS map sets with playlist and count selection, interactive UI, and user attribution
+- **Discord-Halo Account Linking**: Connect Discord users to their Xbox gamertags
+- **Rich Match Embeds**: Beautiful, game-mode-specific stat displays
+- **Comprehensive Setup System**: Interactive configuration for servers and NeatQueue integration
+- **Automated Workflows**: Automatic stats posting when matches complete
+- **Privacy-Aware**: Respects Halo Waypoint privacy settings
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Add to Your Discord Server
 
@@ -32,7 +34,7 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 3. **Retrieve match statistics**: Use the `/stats` command to get Halo Infinite match and series stats
 4. **Generate map sets**: Use the `/maps` command to generate random HCS map sets for your games
 
-## 📋 Commands
+## Commands
 
 ### `/setup` - Server Configuration
 
@@ -87,7 +89,7 @@ Retrieves comprehensive statistics for completed NeatQueue series:
 - `channel` (optional): Discord channel to search (defaults to current)
 - `queue_number` (optional): Specific queue number (defaults to most recent)
 
-https://github.com/user-attachments/assets/recording-20250604-stats-command.mp4
+https://github.com/user-attachments/assets/88edbc3c-975f-4a16-b2ba-0da80dfa5bf4
 
 **Automated Process:**
 
@@ -134,7 +136,7 @@ Start live tracking for ongoing NeatQueue series:
 
 **Note**: Live tracking typically starts automatically via NeatQueue webhooks. This command provides manual control when needed.
 
-## 🤝 NeatQueue Integration
+## NeatQueue Integration
 
 Guilty Spark provides deep integration with NeatQueue queue management system, enabling automated workflows and real-time tracking.
 
@@ -149,7 +151,7 @@ Guilty Spark provides deep integration with NeatQueue queue management system, e
 
 ### Automated Workflows
 
-https://github.com/user-attachments/assets/recording-20250604-neatqueue-integration.mp4
+https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
 
 **Event-Driven Automation:**
 
@@ -172,7 +174,7 @@ https://github.com/user-attachments/assets/recording-20250604-neatqueue-integrat
 
 - **Automatic Lifecycle**: Starts when teams are created, stops when series complete
 - **Live Updates**: Series overview refreshes every 3 minutes during active matches
-- **Interactive Controls**: Refresh 🔄, Pause ⏸️ and Resume ▶️
+- **Interactive Controls**: Refresh, Pause and Resume
 - **Substitution Support**: Automatic handling of player changes with chronological tracking
 - **Update queue channel name**: In progress series score in the channel name
 
@@ -216,7 +218,7 @@ https://github.com/user-attachments/assets/recording-20250604-neatqueue-integrat
 - Verify channel mapping in `/setup`
 - Check that results messages contain expected Discord user mentions
 
-## 🛠️ Development Setup
+## Development Setup
 
 ### Prerequisites
 
@@ -261,7 +263,7 @@ https://github.com/user-attachments/assets/recording-20250604-neatqueue-integrat
    npm run ngrok
    ```
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 ### Data Handling
 
@@ -276,7 +278,7 @@ https://github.com/user-attachments/assets/recording-20250604-neatqueue-integrat
 - Graceful handling of private Halo profiles
 - Option to remove account associations
 
-## 🆘 Support & Community
+## Support & Community
 
 ### Getting Help
 
@@ -291,7 +293,7 @@ Contributions are welcome! Please read our contributing guidelines and submit pu
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Documentation
 
