@@ -73,6 +73,14 @@ const noMatchError = new EndUserError(
   },
 );
 
+const TimeInSeconds = {
+  "1_MINUTE": 60,
+  "5_MINUTES": 300,
+  "1_HOUR": 3600,
+  "1_DAY": 86400,
+  "1_WEEK": 604800,
+};
+
 export class HaloService {
   private readonly env: Env;
   private readonly logService: LogService;
@@ -154,7 +162,15 @@ export class HaloService {
     matchIDs: string[],
     filter?: (match: MatchStats, index: number) => boolean,
   ): Promise<MatchStats[]> {
-    const matchStats = await Promise.all(matchIDs.map(async (matchID) => this.infiniteClient.getMatchStats(matchID)));
+    const matchStats = await Promise.all(
+      matchIDs.map(async (matchID) =>
+        this.infiniteClient.getMatchStats(matchID, {
+          cf: {
+            cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_WEEK"], "500-599": 0 },
+          },
+        }),
+      ),
+    );
     const filteredMatches = filter ? matchStats.filter((match, index) => filter(match, index)) : matchStats;
 
     return filteredMatches.sort(
@@ -264,7 +280,15 @@ export class HaloService {
       } catch (error) {
         // temporary workaround for 500 errors
         if (error instanceof RequestError && error.response.status === 500) {
-          const users = await Promise.allSettled(usersArray.map(async (xuid) => this.infiniteClient.getUser(xuid)));
+          const users = await Promise.allSettled(
+            usersArray.map(async (xuid) =>
+              this.infiniteClient.getUser(xuid, {
+                cf: {
+                  cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+                },
+              }),
+            ),
+          );
           for (const [index, result] of users.entries()) {
             if (result.status === "fulfilled") {
               const user = result.value;
@@ -283,7 +307,11 @@ export class HaloService {
   }
 
   async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
-    return this.infiniteClient.getUsers(xuids);
+    return this.infiniteClient.getUsers(xuids, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+      },
+    });
   }
 
   getDurationInSeconds(duration: string): number {
@@ -325,7 +353,11 @@ export class HaloService {
   }
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
-    this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile();
+    this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+      },
+    });
     const metadata = await this.metadataJsonCache;
     const medal = metadata.medals.find(({ nameId }) => nameId === medalId);
 
@@ -343,7 +375,11 @@ export class HaloService {
   }
 
   async getUserByGamertag(xboxUserId: string): Promise<UserInfo> {
-    return await this.infiniteClient.getUser(xboxUserId);
+    return await this.infiniteClient.getUser(xboxUserId, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+      },
+    });
   }
 
   async getRecentMatchHistory(
@@ -391,6 +427,10 @@ export class HaloService {
     const playlistCsr = await this.infiniteClient.getPlaylistCsr(
       "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
       wrappedXuidsMap.values().toArray(),
+      undefined,
+      {
+        cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+      },
     );
 
     const rankedArenaCsrs = new Map<string, PlaylistCsrContainer>();
@@ -669,7 +709,9 @@ export class HaloService {
     const cacheKey = `${assetId}:${versionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
-      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId);
+      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
+        cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+      });
       this.mapNameCache.set(cacheKey, mapData.PublicName);
     }
 
@@ -683,6 +725,9 @@ export class HaloService {
         AssetKind.UgcGameVariant,
         ugcGameVariantAssetId,
         ucgGameVariantVersionId,
+        {
+          cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+        },
       );
       this.gameTypeCache.set(cacheKey, this.ucgMapNameToMapMode(mapModeData.PublicName));
     }
@@ -1164,15 +1209,22 @@ export class HaloService {
       return cache;
     }
 
-    const playlist = await this.infiniteClient.getPlaylist(playlistId);
+    const playlist = await this.infiniteClient.getPlaylist(playlistId, {
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+    });
     const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
       AssetKind.Playlist,
       playlistId,
       playlist.UgcPlaylistVersion,
+      {
+        cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+      },
     );
     const rotationEntries = await Promise.allSettled(
       specificAssetVersion.RotationEntries.map(async (entry) =>
-        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId),
+        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId, {
+          cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+        }),
       ),
     );
 
