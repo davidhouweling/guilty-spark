@@ -96,7 +96,11 @@ describe("Halo service", () => {
 
       await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-      expect(infiniteClient.getUser).toHaveBeenCalledWith("gamertag0000000000004");
+      expect(infiniteClient.getUser).toHaveBeenCalledWith("gamertag0000000000004", {
+        cf: {
+          cacheTtlByStatus: { "200-299": 3600, 404: 60, "500-599": 0 },
+        },
+      });
     });
 
     it("searches for matches across all possible users", async () => {
@@ -1484,21 +1488,33 @@ describe("Halo service", () => {
       await haloService.getPlayerXuidsToGametags(match2);
 
       expect(infiniteClient.getUsers).toHaveBeenCalledTimes(2);
-      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(1, [
-        "0100000000000000",
-        "0200000000000000",
-        "0500000000000000",
-        "0400000000000000",
-        "0900000000000000",
-        "0800000000000000",
-        "1100000000000000",
-        "1200000000000000",
-      ]);
-      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(2, [
-        "0600000000000000",
-        "0300000000000000",
-        "0700000000000000",
-      ]);
+      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(
+        1,
+        [
+          "0100000000000000",
+          "0200000000000000",
+          "0500000000000000",
+          "0400000000000000",
+          "0900000000000000",
+          "0800000000000000",
+          "1100000000000000",
+          "1200000000000000",
+        ],
+        {
+          cf: {
+            cacheTtlByStatus: { "200-299": 3600, 404: 3600, "500-599": 0 },
+          },
+        },
+      );
+      expect(infiniteClient.getUsers).toHaveBeenNthCalledWith(
+        2,
+        ["0600000000000000", "0300000000000000", "0700000000000000"],
+        {
+          cf: {
+            cacheTtlByStatus: { "200-299": 3600, 404: 3600, "500-599": 0 },
+          },
+        },
+      );
     });
 
     it('filters out "Bot" players', async () => {
@@ -1526,7 +1542,11 @@ describe("Halo service", () => {
       const result = await haloService.getUsersByXuids(xuids);
 
       expect(infiniteClient.getUsers).toHaveBeenCalledTimes(1);
-      expect(infiniteClient.getUsers).toHaveBeenCalledWith(xuids);
+      expect(infiniteClient.getUsers).toHaveBeenCalledWith(xuids, {
+        cf: {
+          cacheTtlByStatus: { "200-299": 3600, 404: 3600, "500-599": 0 },
+        },
+      });
       expect(result).toEqual([
         {
           gamerpic: {
@@ -1904,7 +1924,9 @@ describe("Halo service", () => {
       const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.RANKED_ARENA);
 
       expect(result.length).toBeGreaterThan(0);
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA, {
+        cf: { cacheTtlByStatus: { "200-299": 86400, 404: 60, "500-599": 0 } },
+      });
     });
 
     it("caches playlist map modes in KV storage", async () => {
@@ -2019,7 +2041,9 @@ describe("Halo service", () => {
 
       expect(result).toHaveLength(3);
       expect(mockRoundRobinFn).toHaveBeenCalledOnce();
-      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA);
+      expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA, {
+        cf: { cacheTtlByStatus: { "200-299": 86400, 404: 60, "500-599": 0 } },
+      });
     });
   });
 });
