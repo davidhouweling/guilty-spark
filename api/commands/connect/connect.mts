@@ -637,7 +637,7 @@ export class ConnectCommand extends BaseCommand {
       if (gamerTagFromTitle == null) {
         throw new Error("Gamertag not found in embed title");
       }
-      const user = await haloService.getUserByGamertag(gamerTagFromTitle);
+      const user = await haloService.getUserByGamertagOrXuid(gamerTagFromTitle);
 
       await databaseService.upsertDiscordAssociations([
         {
