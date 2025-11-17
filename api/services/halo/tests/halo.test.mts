@@ -1128,7 +1128,7 @@ describe("Halo service", () => {
           // Clear cache but manually add just one xuid back
           haloService.clearUserCache();
           const firstMatchStats = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
-          await haloService.getPlayerXuidsToGametags(firstMatchStats[0]!);
+          await haloService.getPlayerXuidsToGametags(Preconditions.checkExists(firstMatchStats[0]));
 
           getUsersSpy.mockClear();
 
