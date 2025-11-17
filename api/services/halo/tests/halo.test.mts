@@ -902,6 +902,7 @@ describe("Halo service", () => {
         it("continues processing when Xbox gamertag lookup fails", async () => {
           const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const logWarnSpy = vi.spyOn(logService, "warn");
 
           getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
             return Promise.resolve(
@@ -927,7 +928,46 @@ describe("Halo service", () => {
 
           getUsersSpy.mockRejectedValue(new Error("Xbox API failed"));
 
-          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow("Xbox API failed");
+          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logWarnSpy).toHaveBeenCalledWith("Failed to fetch Xbox gamertags for fuzzy matching: Xbox API failed");
+          expect(result).toHaveLength(3);
+        });
+
+        it("skips fuzzy matching when gamertag fetch fails and returns empty gamertags", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const logInfoSpy = vi.spyOn(logService, "info");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001",
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          getUsersSpy.mockRejectedValue(new Error("Network timeout"));
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          // Should not call fuzzy match logging since gamertags are empty
+          expect(logInfoSpy).not.toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match:/));
+          expect(logInfoSpy).not.toHaveBeenCalledWith(expect.stringMatching(/Direct assignment:/));
         });
 
         it("handles empty series matches gracefully", async () => {
@@ -1074,7 +1114,29 @@ describe("Halo service", () => {
 
           await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-          expect(getUsersSpy).toHaveBeenCalledTimes(4);
+          expect(getUsersSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it("skips fetching when partial gamertags are cached", async () => {
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
+
+          // First call populates cache for one user
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          // Clear cache but manually add just one xuid back
+          haloService.clearUserCache();
+          const firstMatchStats = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
+          await haloService.getPlayerXuidsToGametags(firstMatchStats[0]!);
+
+          getUsersSpy.mockClear();
+
+          // Second call should skip fetching since at least one gamertag is cached
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          // Should not call getUsers since cache has partial data (relies on existing cached xuids)
+          expect(getUsersSpy).not.toHaveBeenCalled();
         });
 
         it("caches newly fetched Xbox gamertags for future use", async () => {
@@ -1114,7 +1176,7 @@ describe("Halo service", () => {
 
           await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-          expect(getUsersSpy).toHaveBeenCalledTimes(4);
+          expect(getUsersSpy).toHaveBeenCalledTimes(2);
         });
       });
 
@@ -1650,9 +1712,9 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getUserByGamertag()", () => {
+  describe("getUserByGamertagOrXuid()", () => {
     it("returns the user for the specified gamertag", async () => {
-      const result = await haloService.getUserByGamertag("gamertag0100000000000000");
+      const result = await haloService.getUserByGamertagOrXuid("gamertag0100000000000000");
 
       expect(result).toEqual({
         gamerpic: {
