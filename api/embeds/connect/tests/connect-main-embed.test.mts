@@ -13,7 +13,7 @@ describe("ConnectMainEmbed", () => {
 
     const embed = new ConnectMainEmbed({ fields });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.title).toBe("Connect Discord to Halo");
     expect(result.description).toContain("Connecting your Discord account to Halo account");
@@ -37,7 +37,7 @@ describe("ConnectMainEmbed", () => {
 
     const embed = new ConnectMainEmbed({ fields });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.fields).toHaveLength(2);
     expect(result.fields).toEqual(fields);
@@ -46,7 +46,7 @@ describe("ConnectMainEmbed", () => {
   it("creates embed with empty fields array", () => {
     const embed = new ConnectMainEmbed({ fields: [] });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.fields).toEqual([]);
     expect(result.title).toBe("Connect Discord to Halo");

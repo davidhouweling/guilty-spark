@@ -12,7 +12,7 @@ describe("SetupConfigEmbed", () => {
 
     const embed = new SetupConfigEmbed({ configDisplay });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.title).toBe("Server Configuration");
     expect(result.description).toBe("Current configuration for your server:");
@@ -27,7 +27,7 @@ describe("SetupConfigEmbed", () => {
 
     const embed = new SetupConfigEmbed({ configDisplay });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.fields).toHaveLength(1);
     expect(result.fields?.[0]?.value).toBe(configDisplay);
@@ -38,7 +38,7 @@ describe("SetupConfigEmbed", () => {
 
     const embed = new SetupConfigEmbed({ configDisplay });
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.fields?.[0]?.value).toContain("Line 1");
     expect(result.fields?.[0]?.value).toContain("Line 4");

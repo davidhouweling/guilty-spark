@@ -1,17 +1,18 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import { EmbedColors } from "../colors.mjs";
 
-interface SetupConfigEmbedData {
+interface SetupNeatQueueInformerEmbedData {
+  readonly description: string;
   readonly configDisplay: string;
 }
 
-export class SetupConfigEmbed {
-  constructor(private readonly data: SetupConfigEmbedData) {}
+export class SetupNeatQueueInformerEmbed {
+  constructor(private readonly data: SetupNeatQueueInformerEmbedData) {}
 
   get embed(): APIEmbed {
     return {
-      title: "Server Configuration",
-      description: "Current configuration for your server:",
+      title: "NeatQueue Informer",
+      description: this.data.description,
       fields: [
         {
           name: "",

@@ -141,7 +141,7 @@ export class ConnectCommand extends BaseCommand {
             type: InteractionResponseType.UpdateMessage,
             data: {
               content: "",
-              embeds: [connectLoadingEmbed.getEmbed()],
+              embeds: [connectLoadingEmbed.embed],
               components: [
                 {
                   type: ComponentType.ActionRow,
@@ -285,7 +285,7 @@ export class ConnectCommand extends BaseCommand {
     }
 
     const connectMainEmbed = new ConnectMainEmbed({ fields: [whatGuiltySparkKnowsField] });
-    embeds.push(connectMainEmbed.getEmbed());
+    embeds.push(connectMainEmbed.embed);
 
     if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
       const historyEmbedInstance = new ConnectHistoryEmbed(
@@ -349,7 +349,7 @@ export class ConnectCommand extends BaseCommand {
             type: InteractionResponseType.ChannelMessageWithSource,
             data: {
               flags: MessageFlags.Ephemeral,
-              embeds: [connectLoadingEmbed.getEmbed()],
+              embeds: [connectLoadingEmbed.embed],
             },
           },
           jobToComplete: async () => this.applicationCommandJob(interaction),

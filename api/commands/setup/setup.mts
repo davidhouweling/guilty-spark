@@ -45,6 +45,8 @@ import { DiscordError } from "../../services/discord/discord-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { HCS_LAST_UPDATED } from "../../services/halo/hcs.mjs";
 import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed.mjs";
+import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed.mjs";
+import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -963,7 +965,7 @@ export class SetupCommand extends BaseCommand {
 
       const setupConfigEmbed = new SetupConfigEmbed({ configDisplay });
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
-        embeds: [setupConfigEmbed.getEmbed()],
+        embeds: [setupConfigEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1053,15 +1055,10 @@ export class SetupCommand extends BaseCommand {
     try {
       const config = await databaseService.getGuildConfig(guildId, true);
 
+      const setupStatsDisplayModeEmbed = new SetupStatsDisplayModeEmbed();
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
-        embeds: [
-          {
-            title: "Stats Display Mode",
-            description:
-              "How stats are displayed when either the `/stats` command is used, or when automatically posting stats for NeatQueue.",
-          },
-        ],
+        embeds: [setupStatsDisplayModeEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1203,20 +1200,10 @@ export class SetupCommand extends BaseCommand {
         `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} maps`,
       ].join("\n");
 
+      const setupNeatQueueInformerEmbed = new SetupNeatQueueInformerEmbed({ description, configDisplay });
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
-        embeds: [
-          {
-            title: "NeatQueue Informer",
-            description,
-            fields: [
-              {
-                name: "",
-                value: configDisplay,
-              },
-            ],
-          },
-        ],
+        embeds: [setupNeatQueueInformerEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,

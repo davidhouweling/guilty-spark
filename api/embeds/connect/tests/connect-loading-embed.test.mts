@@ -6,7 +6,7 @@ describe("ConnectLoadingEmbed", () => {
   it("creates embed with loading message", () => {
     const embed = new ConnectLoadingEmbed();
 
-    const result = embed.getEmbed();
+    const result = embed.embed;
 
     expect(result.title).toBe("Gamertag search...");
     expect(result.description).toBe("Searching for your gamertag and recent game history...");

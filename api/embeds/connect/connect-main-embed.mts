@@ -8,7 +8,7 @@ interface ConnectMainEmbedData {
 export class ConnectMainEmbed {
   constructor(private readonly data: ConnectMainEmbedData) {}
 
-  getEmbed(): APIEmbed {
+  get embed(): APIEmbed {
     return {
       title: "Connect Discord to Halo",
       description: [
