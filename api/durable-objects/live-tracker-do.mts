@@ -10,6 +10,7 @@ import type { DatabaseService } from "../services/database/database.mjs";
 import { installServices as installServicesImpl } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
+import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
 import { DiscordError } from "../services/discord/discord-error.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
@@ -343,14 +344,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async createInitialMessage(startData: LiveTrackerStartRequest): Promise<{ id: string }> {
+    const liveTrackerLoadingEmbed = new LiveTrackerLoadingEmbed();
     const loadingEmbedData = {
-      embeds: [
-        {
-          title: "🔄 Starting Live Tracker",
-          description: "Setting up live tracking for your NeatQueue series...",
-          color: 0x007acc,
-        },
-      ],
+      embeds: [liveTrackerLoadingEmbed.embed],
     };
 
     if (startData.interactionToken != null && startData.interactionToken !== "") {

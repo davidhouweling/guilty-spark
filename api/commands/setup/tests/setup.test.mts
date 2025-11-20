@@ -147,6 +147,7 @@ describe("SetupCommand", () => {
               ],
               "embeds": [
                 {
+                  "color": 54816771,
                   "description": "Current configuration for your server:",
                   "fields": [
                     {

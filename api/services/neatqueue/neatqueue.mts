@@ -5,9 +5,7 @@ import type {
   RESTPostAPIChannelThreadsResult,
   APIEmbed,
   APIMessage,
-  APIEmbedField,
   RESTPostAPIChannelMessageJSONBody,
-  APIComponentInMessageActionRow,
   APIGuildMember,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
@@ -38,6 +36,7 @@ import { AssociationReason, GamesRetrievable } from "../database/types/discord_a
 import { DiscordError } from "../discord/discord-error.mjs";
 import { MapsEmbed } from "../../embeds/maps-embed.mjs";
 import { isSuccessResponse } from "../../durable-objects/types.mjs";
+import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed.mjs";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -1027,109 +1026,20 @@ export class NeatQueueService {
       new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
     );
 
-    const titles = ["Player", "Halo Profile", "Current Rank (SP, ATP)"];
-    const tableData = [titles];
-
-    for (const player of sortedPlayers) {
-      const association = discordAssociations.find((assoc) => assoc.DiscordId === player.id);
-      if (association?.XboxId == null || !haloPlayersMap.has(association.XboxId)) {
-        tableData.push([`<@${player.id}>`, "*Not Connected*", "*-*"]);
-        continue;
-      }
-
-      const rankData = rankedArenaCsrs.get(association.XboxId);
-      const gamertag = Preconditions.checkExists(haloPlayersMap.get(association.XboxId)?.gamertag);
-      const url = new URL(`https://halodatahive.com/Player/Infinite/${gamertag}`);
-      const gamertagUrl = `[${gamertag}](${url.href})${association.AssociationReason === AssociationReason.GAME_SIMILARITY && association.GamesRetrievable !== GamesRetrievable.YES ? "*" : ""}`;
-      if (!rankData) {
-        tableData.push([`<@${player.id}>`, gamertagUrl, "-"]);
-        continue;
-      }
-
-      const getRank = (value: number): string => (value >= 0 ? value.toString() : "-");
-      const { Current, SeasonMax, AllTimeMax } = rankData;
-      const currentRank = getRank(Current.Value);
-      const currentRankEmoji = discordService.getRankEmoji({
-        rankTier: Current.Tier,
-        subTier: Current.SubTier,
-        measurementMatchesRemaining: Current.MeasurementMatchesRemaining,
-        initialMeasurementMatches: Current.InitialMeasurementMatches,
-      });
-      const seasonPeakRank = getRank(SeasonMax.Value);
-      const seasonPeakRankEmoji = discordService.getRankEmoji({
-        rankTier: SeasonMax.Tier,
-        subTier: SeasonMax.SubTier,
-        measurementMatchesRemaining: SeasonMax.MeasurementMatchesRemaining,
-        initialMeasurementMatches: SeasonMax.InitialMeasurementMatches,
-      });
-      const allTimePeakRank = getRank(AllTimeMax.Value);
-      const allTimePeakRankEmoji = discordService.getRankEmoji({
-        rankTier: AllTimeMax.Tier,
-        subTier: AllTimeMax.SubTier,
-        measurementMatchesRemaining: AllTimeMax.MeasurementMatchesRemaining,
-        initialMeasurementMatches: AllTimeMax.InitialMeasurementMatches,
-      });
-
-      tableData.push([
-        `<@${player.id}>`,
-        gamertagUrl,
-        `${currentRankEmoji}${currentRank} (${seasonPeakRankEmoji}${seasonPeakRank}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
-      ]);
-    }
-
-    const fields: APIEmbedField[] = [];
-    for (let column = 0; column < titles.length; column++) {
-      fields.push({
-        name: Preconditions.checkExists(titles[column]),
-        value: tableData
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
-    }
-
-    const embed: APIEmbed = {
-      title: "Players in queue",
-      description: `-# Legend: SP = season peak | ATP = all time peak ${discordAssociations.some((association) => association.AssociationReason === AssociationReason.GAME_SIMILARITY && association.GamesRetrievable !== GamesRetrievable.YES) ? "| * = guessed gamertag" : ""}`,
-      color: 3447003,
-      fields,
-      footer: {
-        text: "Something not right? Click the 'Connect my Halo account' button below to connect your Halo account.",
-      },
-    };
-
-    const actions: APIComponentInMessageActionRow[] = [
+    const playersEmbed = new NeatQueuePlayersEmbed(
+      { discordService },
       {
-        type: ComponentType.Button,
-        style: ButtonStyle.Primary,
-        label: "Connect my Halo account",
-        custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
-        emoji: {
-          name: "🔗",
-        },
+        players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
+        discordAssociations,
+        haloPlayersMap,
+        rankedArenaCsrs,
+        mapsPostType: config.NeatQueueInformerMapsPost,
       },
-    ];
-    if (config.NeatQueueInformerMapsPost === MapsPostType.BUTTON) {
-      actions.push({
-        type: ComponentType.Button,
-        style: ButtonStyle.Secondary,
-        label: "Generate maps",
-        custom_id: "btn_maps_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
-        emoji: {
-          name: "🗺️",
-        },
-      });
-    }
+    );
 
     return {
-      embeds: [embed],
-      components: [
-        {
-          type: ComponentType.ActionRow,
-          components: actions,
-        },
-      ],
+      embeds: [playersEmbed.embed],
+      components: playersEmbed.actions,
     };
   }
 

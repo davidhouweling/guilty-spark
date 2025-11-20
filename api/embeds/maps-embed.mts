@@ -10,6 +10,7 @@ import type { DiscordService } from "../services/discord/discord.mjs";
 import { GAMECOACH_GG_URLS } from "../commands/maps/gamecoachgg.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../services/database/types/guild_config.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
+import { EmbedColors } from "./colors.mjs";
 
 export enum InteractionComponent {
   Initiate = "btn_maps_initiate",
@@ -94,7 +95,7 @@ export class MapsEmbed extends BaseTableEmbed {
 
     const embed: APIEmbed = {
       title: `Maps: ${mapPlaylistLabels[playlist]}`,
-      color: 0x5865f2,
+      color: EmbedColors.NEUTRAL,
     };
 
     const titles = ["#", "Mode", "Map"];

@@ -10,6 +10,7 @@ import type {
   MapModePairAsset,
 } from "halo-infinite-api";
 import type { HaloService, SeriesData } from "../halo.mjs";
+import { Preconditions } from "../../../base/preconditions.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,16 @@ async function readPlayerMatches(): Promise<PlayerMatchHistory[]> {
     return JSON.parse(fileContents) as PlayerMatchHistory[];
   } catch (error) {
     console.error(`Failed to read player matches: ${error as Error}`);
+    throw error;
+  }
+}
+
+async function readPlayerMatchHistory(): Promise<PlayerMatchHistory[]> {
+  try {
+    const fileContents = await readFile(path.join(__dirname, "data", "player-match-history.json"), "utf-8");
+    return JSON.parse(fileContents) as PlayerMatchHistory[];
+  } catch (error) {
+    console.error(`Failed to read player match history: ${error as Error}`);
     throw error;
   }
 }
@@ -101,6 +112,8 @@ export const matchStats = new Map<string, MatchStats>(
 );
 
 export const playerMatches = await readPlayerMatches();
+
+export const playerMatchHistory = await readPlayerMatchHistory();
 
 export const assetVersion = await readAssetVersion();
 
@@ -240,3 +253,11 @@ export const getRankedArenaCsrsData: Awaited<ReturnType<HaloService["getRankedAr
     },
   ],
 ]);
+
+export function aFakePlayerMatchHistoryWith(overrides?: Partial<PlayerMatchHistory>): PlayerMatchHistory {
+  const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
+  return {
+    ...baseMatch,
+    ...overrides,
+  };
+}
