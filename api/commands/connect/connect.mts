@@ -27,6 +27,7 @@ import { EndUserError } from "../../base/end-user-error.mjs";
 import { ConnectSuccessEmbed } from "../../embeds/connect/connect-success-embed.mjs";
 import { ConnectHistoryEmbed } from "../../embeds/connect/connect-history-embed.mjs";
 import { ConnectLoadingEmbed } from "../../embeds/connect/connect-loading-embed.mjs";
+import { ConnectMainEmbed } from "../../embeds/connect/connect-main-embed.mjs";
 
 export enum InteractionButton {
   Initiate = "btn_connect_initiate",
@@ -283,15 +284,8 @@ export class ConnectCommand extends BaseCommand {
       });
     }
 
-    embeds.push({
-      title: "Connect Discord to Halo",
-      description: [
-        "Connecting your Discord account to Halo account, within Guilty Spark, allows Guilty Spark to find your matches and correctly track and report on series you have played.",
-        "",
-        "Click the button below to search for your gamertag and recent game history.",
-      ].join("\n"),
-      fields: [whatGuiltySparkKnowsField],
-    });
+    const connectMainEmbed = new ConnectMainEmbed({ fields: [whatGuiltySparkKnowsField] });
+    embeds.push(connectMainEmbed.getEmbed());
 
     if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
       const historyEmbedInstance = new ConnectHistoryEmbed(
