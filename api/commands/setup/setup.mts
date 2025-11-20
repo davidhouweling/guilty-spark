@@ -48,6 +48,7 @@ import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed.mjs";
 import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed.mjs";
 import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed.mjs";
 import { SetupNeatQueueIntegrationEmbed } from "../../embeds/setup/setup-neatqueue-integration-embed.mjs";
+import { SetupAddNeatQueueEmbed } from "../../embeds/setup/setup-add-neatqueue-embed.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -1434,20 +1435,14 @@ export class SetupCommand extends BaseCommand {
       });
     }
 
+    const setupAddNeatQueueEmbed = new SetupAddNeatQueueEmbed({
+      description: this.wizardGetDescription(formData, "Follow the prompts to add a NeatQueue integration."),
+      stepNumber: formData.size + 1,
+      stepQuestion: stepData.question,
+    });
     const content: RESTPostAPIWebhookWithTokenJSONBody = {
       content: "",
-      embeds: [
-        {
-          title: "Add NeatQueue Integration",
-          description: this.wizardGetDescription(formData, "Follow the prompts to add a NeatQueue integration."),
-          fields: [
-            {
-              name: `Step ${(formData.size + 1).toString()}`,
-              value: stepData.question,
-            },
-          ],
-        },
-      ],
+      embeds: [setupAddNeatQueueEmbed.embed],
       components,
     };
 

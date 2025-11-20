@@ -295,7 +295,7 @@ describe("NeatQueuePlayersEmbed", () => {
     }
   });
 
-  it("should handle empty players list", () => {
+  it("handles empty players list", () => {
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap = new Map();
@@ -322,7 +322,7 @@ describe("NeatQueuePlayersEmbed", () => {
     expect(fields[2]?.value).toBe("");
   });
 
-  it("should sort players alphabetically by name", () => {
+  it("sorts players alphabetically by name", () => {
     const players: PlayerData[] = [
       { id: "123", name: "Charlie" },
       { id: "456", name: "Alice" },
