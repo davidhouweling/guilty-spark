@@ -44,6 +44,7 @@ import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/ne
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { HCS_LAST_UPDATED } from "../../services/halo/hcs.mjs";
+import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -960,19 +961,9 @@ export class SetupCommand extends BaseCommand {
         `**NeatQueue Informer:** Player connections ${config.NeatQueueInformerPlayerConnections == "Y" ? "enabled" : "disabled"}, Live tracking ${config.NeatQueueInformerLiveTracking == "Y" ? `enabled${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? " (with channel name updates)" : ""}` : "disabled"}, Maps ${this.configMapPostToString(config.NeatQueueInformerMapsPost).toLocaleLowerCase()}`,
       ].join("\n");
 
+      const setupConfigEmbed = new SetupConfigEmbed({ configDisplay });
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
-        embeds: [
-          {
-            title: "Server Configuration",
-            description: "Current configuration for your server:",
-            fields: [
-              {
-                name: "",
-                value: configDisplay,
-              },
-            ],
-          },
-        ],
+        embeds: [setupConfigEmbed.getEmbed()],
         components: [
           {
             type: ComponentType.ActionRow,
