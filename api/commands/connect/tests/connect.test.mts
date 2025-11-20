@@ -18,6 +18,7 @@ import {
 import { ConnectCommand, GamertagSearchModal, InteractionButton } from "../connect.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
+import { EmbedColors } from "../../../embeds/colors.mjs";
 import {
   apiMessage,
   fakeBaseAPIApplicationCommandInteraction,
@@ -259,8 +260,9 @@ describe("ConnectCommand", () => {
           flags: MessageFlags.Ephemeral,
           embeds: [
             {
-              description: "Searching for your gamertag and recent game history...",
               title: "Gamertag search...",
+              description: "Searching for your gamertag and recent game history...",
+              color: EmbedColors.NEUTRAL,
             },
           ],
         },

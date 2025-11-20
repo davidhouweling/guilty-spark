@@ -26,6 +26,7 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { ConnectSuccessEmbed } from "../../embeds/connect/connect-success-embed.mjs";
 import { ConnectHistoryEmbed } from "../../embeds/connect/connect-history-embed.mjs";
+import { ConnectLoadingEmbed } from "../../embeds/connect/connect-loading-embed.mjs";
 
 export enum InteractionButton {
   Initiate = "btn_connect_initiate",
@@ -133,17 +134,13 @@ export class ConnectCommand extends BaseCommand {
         return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
       }
       case InteractionType.ModalSubmit: {
+        const connectLoadingEmbed = new ConnectLoadingEmbed();
         return {
           response: {
             type: InteractionResponseType.UpdateMessage,
             data: {
               content: "",
-              embeds: [
-                {
-                  title: `Gamertag search...`,
-                  description: "Please wait while we search for your gamertag and recent game history...",
-                },
-              ],
+              embeds: [connectLoadingEmbed.getEmbed()],
               components: [
                 {
                   type: ComponentType.ActionRow,
@@ -352,17 +349,13 @@ export class ConnectCommand extends BaseCommand {
 
     switch (custom_id as InteractionButton) {
       case InteractionButton.Initiate: {
+        const connectLoadingEmbed = new ConnectLoadingEmbed();
         return {
           response: {
             type: InteractionResponseType.ChannelMessageWithSource,
             data: {
               flags: MessageFlags.Ephemeral,
-              embeds: [
-                {
-                  title: "Gamertag search...",
-                  description: "Searching for your gamertag and recent game history...",
-                },
-              ],
+              embeds: [connectLoadingEmbed.getEmbed()],
             },
           },
           jobToComplete: async () => this.applicationCommandJob(interaction),

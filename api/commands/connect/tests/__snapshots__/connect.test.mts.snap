@@ -1795,7 +1795,8 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
     "content": "",
     "embeds": [
       {
-        "description": "Please wait while we search for your gamertag and recent game history...",
+        "color": 5793266,
+        "description": "Searching for your gamertag and recent game history...",
         "title": "Gamertag search...",
       },
     ],
