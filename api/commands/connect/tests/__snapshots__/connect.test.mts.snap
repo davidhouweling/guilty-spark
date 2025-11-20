@@ -1655,6 +1655,7 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
     "content": "",
     "embeds": [
       {
+        "color": 54816771,
         "description": "Please confirm the recent custom game history for yourself below:",
         "fields": [
           {
@@ -1724,6 +1725,7 @@ exports[`ConnectCommand > execute(): InteractionType.ModalSubmit GamertagSearchM
     "content": "",
     "embeds": [
       {
+        "color": 54816771,
         "description": "Please confirm the recent custom game history for yourself below:",
         "fields": [
           {

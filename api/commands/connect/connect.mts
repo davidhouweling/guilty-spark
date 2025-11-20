@@ -16,7 +16,6 @@ import {
   ComponentType,
   InteractionType,
 } from "discord-api-types/v10";
-import { MatchType } from "halo-infinite-api";
 import { getTime } from "date-fns";
 import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
 import { BaseCommand } from "../base/base.mjs";
@@ -26,6 +25,7 @@ import { AssociationReason, GamesRetrievable } from "../../services/database/typ
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { ConnectSuccessEmbed } from "../../embeds/connect/connect-success-embed.mjs";
+import { ConnectHistoryEmbed } from "../../embeds/connect/connect-history-embed.mjs";
 
 export enum InteractionButton {
   Initiate = "btn_connect_initiate",
@@ -297,12 +297,16 @@ export class ConnectCommand extends BaseCommand {
     });
 
     if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
-      const historyEmbed = await this.getHistoryEmbed(
-        searchedGamertag,
-        locale,
-        "Recent game history",
-        "Here are your most recent games:",
+      const historyEmbedInstance = new ConnectHistoryEmbed(
+        { discordService, haloService },
+        {
+          gamertag: searchedGamertag,
+          locale,
+          title: "Recent game history",
+          description: "Here are your most recent games:",
+        },
       );
+      const historyEmbed = await historyEmbedInstance.getEmbed();
       const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
 
       if (historyEmbed.fields && embeds[0]?.fields) {
@@ -512,7 +516,7 @@ export class ConnectCommand extends BaseCommand {
   }
 
   private async handleModalSubmit(interaction: APIModalSubmitInteraction): Promise<void> {
-    const { discordService } = this.services;
+    const { discordService, haloService } = this.services;
 
     try {
       if (interaction.data.custom_id !== GamertagSearchModal) {
@@ -522,12 +526,16 @@ export class ConnectCommand extends BaseCommand {
       const locale = interaction.guild_locale ?? interaction.locale;
       const modalData = discordService.extractModalSubmitData(interaction);
       const gamertag = Preconditions.checkExists(modalData.get("gamertag"), "Gamertag is required");
-      const historyEmbed = await this.getHistoryEmbed(
-        gamertag,
-        locale,
-        `Gamertag search for "${gamertag}"`,
-        "Please confirm the recent custom game history for yourself below:",
+      const historyEmbedInstance = new ConnectHistoryEmbed(
+        { discordService, haloService },
+        {
+          gamertag,
+          locale,
+          title: `Gamertag search for "${gamertag}"`,
+          description: "Please confirm the recent custom game history for yourself below:",
+        },
       );
+      const historyEmbed = await historyEmbedInstance.getEmbed();
       const hasHistory = historyEmbed.fields != null && historyEmbed.fields.length > 1;
       const actions: APIButtonComponent[] = hasHistory
         ? [
@@ -697,76 +705,6 @@ export class ConnectCommand extends BaseCommand {
         `**How:** ${discordService.getReadableAssociationReason(association)}\n`,
         `View profile on: ${thirdPartySites.join(" | ")}`,
       ].join("\n"),
-    };
-  }
-
-  private async getHistoryEmbed(
-    gamertag: string,
-    locale: string,
-    title?: string,
-    description?: string,
-  ): Promise<APIEmbed> {
-    const { discordService, haloService } = this.services;
-    const recentHistory = await haloService.getRecentMatchHistory(gamertag, MatchType.Custom);
-
-    return {
-      title: title ?? `Recent custom game matches for "${gamertag}"`,
-      description: description ?? "",
-      fields: recentHistory.length
-        ? [
-            {
-              name: "Game",
-              value: (
-                await Promise.all(
-                  recentHistory.map(async (match) => await haloService.getGameTypeAndMap(match.MatchInfo)),
-                )
-              ).join("\n"),
-              inline: true,
-            },
-            {
-              name: "Result",
-              value: (
-                await Promise.all(
-                  recentHistory.map(async (match) => {
-                    const outcome = haloService.getMatchOutcome(match.Outcome);
-                    const [matchDetail] = await haloService.getMatchDetails([match.MatchId]);
-                    const matchScore = haloService.getMatchScore(
-                      Preconditions.checkExists(matchDetail, `Cannot find match with match id ${match.MatchId}`),
-                      locale,
-                    );
-
-                    return `${outcome} - ${matchScore}`;
-                  }),
-                )
-              ).join("\n"),
-              inline: true,
-            },
-            {
-              name: "When",
-              value: recentHistory.map((match) => discordService.getTimestamp(match.MatchInfo.EndTime, "R")).join("\n"),
-              inline: true,
-            },
-          ]
-        : [
-            {
-              name: "No custom game matches found",
-              value: [
-                "To resolve, either:",
-                "- In game:",
-                '  1. Open "Settings"',
-                '  2. Navigate to "Accessibility" tab',
-                "  3. Scroll down to Match History Privacy",
-                '  4. Set the "Matchmade Games" option to "Share"',
-                '  5. Set the "Non-Matchmade Games" option to "Share"',
-                "  6. Close the settings menu",
-                "- Go to [**Halo Waypoint Privacy settings 🔗**](https://www.halowaypoint.com/settings/privacy)",
-                '  1. Select "Show Matchmade Game History"',
-                '  2. Select "Show Non-Matchmade Game History"',
-                "",
-                "Once you have done this, search for your gamertag again.",
-              ].join("\n"),
-            },
-          ],
     };
   }
 

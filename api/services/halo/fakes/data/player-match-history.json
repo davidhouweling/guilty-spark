@@ -1,0 +1,70 @@
+[
+  {
+    "MatchId": "match-001-slayer",
+    "MatchInfo": {
+      "StartTime": "2024-11-26T10:00:00.000Z",
+      "EndTime": "2024-11-26T10:15:00.000Z",
+      "Duration": "PT15M",
+      "LifecycleMode": 1,
+      "GameVariantCategory": 6,
+      "LevelId": "level-live-fire",
+      "MapVariant": {
+        "AssetKind": 2,
+        "AssetId": "map-live-fire",
+        "VersionId": "v1"
+      },
+      "UgcGameVariant": {
+        "AssetKind": 6,
+        "AssetId": "variant-slayer",
+        "VersionId": "v1"
+      },
+      "ClearanceId": "clearance-1",
+      "Playlist": null,
+      "PlaylistExperience": null,
+      "PlaylistMapModePair": null,
+      "SeasonId": null,
+      "PlayableDuration": "PT15M",
+      "TeamsEnabled": true,
+      "TeamScoringEnabled": true,
+      "GameplayInteraction": 1
+    },
+    "LastTeamId": 0,
+    "Outcome": 2,
+    "Rank": 1,
+    "PresentAtEndOfMatch": true
+  },
+  {
+    "MatchId": "match-002-ctf",
+    "MatchInfo": {
+      "StartTime": "2024-11-26T11:00:00.000Z",
+      "EndTime": "2024-11-26T11:20:00.000Z",
+      "Duration": "PT20M",
+      "LifecycleMode": 1,
+      "GameVariantCategory": 2,
+      "LevelId": "level-recharge",
+      "MapVariant": {
+        "AssetKind": 2,
+        "AssetId": "map-recharge",
+        "VersionId": "v1"
+      },
+      "UgcGameVariant": {
+        "AssetKind": 6,
+        "AssetId": "variant-ctf",
+        "VersionId": "v1"
+      },
+      "ClearanceId": "clearance-2",
+      "Playlist": null,
+      "PlaylistExperience": null,
+      "PlaylistMapModePair": null,
+      "SeasonId": null,
+      "PlayableDuration": "PT20M",
+      "TeamsEnabled": true,
+      "TeamScoringEnabled": true,
+      "GameplayInteraction": 1
+    },
+    "LastTeamId": 1,
+    "Outcome": 3,
+    "Rank": 2,
+    "PresentAtEndOfMatch": true
+  }
+]

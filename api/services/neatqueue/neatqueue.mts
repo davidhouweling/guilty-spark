@@ -5,9 +5,7 @@ import type {
   RESTPostAPIChannelThreadsResult,
   APIEmbed,
   APIMessage,
-  APIEmbedField,
   RESTPostAPIChannelMessageJSONBody,
-  APIComponentInMessageActionRow,
   APIGuildMember,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
