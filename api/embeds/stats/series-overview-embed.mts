@@ -3,6 +3,7 @@ import type { MatchStats } from "halo-infinite-api";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import { EmbedColors } from "../colors.mjs";
 
 interface SeriesOverviewEmbedOpts {
   discordService: DiscordService;
@@ -97,7 +98,7 @@ export class SeriesOverviewEmbed {
       title: `Series stats for queue #${queue.toString()}`,
       description: `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
       url: `https://discord.com/channels/${guildId}/${channelId}/${messageId}`,
-      color: 3447003,
+      color: EmbedColors.INFO,
     };
 
     this.addEmbedFields(embed, titles, tableData);

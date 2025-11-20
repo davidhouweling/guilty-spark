@@ -9,6 +9,7 @@ import { addMinutes, compareAsc, isBefore } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
+import { EmbedColors } from "./colors.mjs";
 
 export enum InteractionComponent {
   Refresh = "btn_track_refresh",
@@ -264,12 +265,12 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
   private getEmbedColor(status: TrackingStatus, isPaused: boolean): number {
     if (this.isEffectivelyPaused(status, isPaused)) {
-      return 0xffa500; // Orange
+      return EmbedColors.WARNING;
     }
     if (status === "stopped") {
-      return 0x808080; // Gray
+      return EmbedColors.INACTIVE;
     }
-    return 0x28a745; // Green for live/active (positive state)
+    return EmbedColors.SUCCESS;
   }
 
   private addSeparatorField(embed: APIEmbed): void {
