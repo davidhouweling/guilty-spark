@@ -25,6 +25,7 @@ import type { DiscordAssociationsRow } from "../../services/database/types/disco
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
+import { ConnectSuccessEmbed } from "../../embeds/connect/connect-success-embed.mjs";
 
 export enum InteractionButton {
   Initiate = "btn_connect_initiate",
@@ -36,12 +37,6 @@ export enum InteractionButton {
 }
 
 export const GamertagSearchModal = "gamertag_search_modal";
-
-export const ConfirmSuccessEmbed: APIEmbed = {
-  title: "Discord account connected to Halo",
-  description: "Your Discord account has been successfully connected to your Halo account.",
-  color: 0x28a745, // Success green color
-};
 
 export class ConnectCommand extends BaseCommand {
   readonly data: CommandData[] = [
@@ -434,12 +429,12 @@ export class ConnectCommand extends BaseCommand {
 
       const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
       const searchedGamertag = Preconditions.checkExists(usersByXuids[0]?.gamertag, "Expected gamertag");
+      const connectSuccessEmbed = new ConnectSuccessEmbed();
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         embeds: [
-          {
-            ...ConfirmSuccessEmbed,
-            fields: [this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService)],
-          },
+          connectSuccessEmbed.getEmbed([
+            this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService),
+          ]),
         ],
         components: [
           {
@@ -656,12 +651,12 @@ export class ConnectCommand extends BaseCommand {
       );
       const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
       const searchedGamertag = Preconditions.checkExists(usersByXuids[0]?.gamertag, "Expected gamertag");
+      const connectSuccessEmbed = new ConnectSuccessEmbed();
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         embeds: [
-          {
-            ...ConfirmSuccessEmbed,
-            fields: [this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService)],
-          },
+          connectSuccessEmbed.getEmbed([
+            this.getWhatGuiltySparkKnowsField(searchedGamertag, association, discordService),
+          ]),
         ],
         components: [
           {
