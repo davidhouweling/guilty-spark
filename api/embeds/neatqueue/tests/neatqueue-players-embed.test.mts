@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import { NeatQueuePlayersEmbed } from "../neatqueue-players-embed.mjs";
-import type { PlayerData } from "../neatqueue-players-embed.mjs";
+import type { NeatQueuePlayersEmbedData, PlayerData } from "../neatqueue-players-embed.mjs";
 import { AssociationReason, GamesRetrievable } from "../../../services/database/types/discord_associations.mjs";
 import type { DiscordAssociationsRow } from "../../../services/database/types/discord_associations.mjs";
 import { MapsPostType } from "../../../services/database/types/guild_config.mjs";
 import { EmbedColors } from "../../colors.mjs";
-import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
 
@@ -42,12 +42,12 @@ describe("NeatQueuePlayersEmbed", () => {
       },
     ];
 
-    const haloPlayersMap = new Map([
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map([
       ["1000", { xuid: "1000", gamertag: "Player1" }],
       ["2000", { xuid: "2000", gamertag: "Player2" }],
     ]);
 
-    const rankedArenaCsrs = new Map([
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map([
       [
         "1000",
         {
@@ -143,9 +143,10 @@ describe("NeatQueuePlayersEmbed", () => {
       },
     ];
 
-    const haloPlayersMap = new Map([["1000", { xuid: "1000", gamertag: "Player1" }]]);
-
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map([
+      ["1000", { xuid: "1000", gamertag: "Player1" }],
+    ]);
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -166,12 +167,9 @@ describe("NeatQueuePlayersEmbed", () => {
 
   it("shows not connected for players without associations", () => {
     const players: PlayerData[] = [{ id: "123", name: "PlayerOne" }];
-
     const associations: DiscordAssociationsRow[] = [];
-
-    const haloPlayersMap = new Map();
-
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -191,7 +189,6 @@ describe("NeatQueuePlayersEmbed", () => {
 
   it("shows dash for players without rank data", () => {
     const players: PlayerData[] = [{ id: "123", name: "PlayerOne" }];
-
     const associations: DiscordAssociationsRow[] = [
       {
         DiscordId: "123",
@@ -202,10 +199,10 @@ describe("NeatQueuePlayersEmbed", () => {
         DiscordDisplayNameSearched: null,
       },
     ];
-
-    const haloPlayersMap = new Map([["1000", { xuid: "1000", gamertag: "Player1" }]]);
-
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map([
+      ["1000", { xuid: "1000", gamertag: "Player1" }],
+    ]);
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -226,8 +223,8 @@ describe("NeatQueuePlayersEmbed", () => {
   it("includes connect and maps buttons when mapsPostType is BUTTON", () => {
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
-    const haloPlayersMap = new Map();
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -240,10 +237,10 @@ describe("NeatQueuePlayersEmbed", () => {
       },
     );
 
-    const actions = embed.actions;
+    const { actions } = embed;
 
     expect(actions).toHaveLength(1);
-    const firstAction = actions[0];
+    const [firstAction] = actions;
     expect(firstAction?.type).toBe(ComponentType.ActionRow);
     if (firstAction?.type === ComponentType.ActionRow) {
       expect(firstAction.components).toHaveLength(2);
@@ -265,8 +262,8 @@ describe("NeatQueuePlayersEmbed", () => {
   it("only includes connect button when mapsPostType is not BUTTON", () => {
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
-    const haloPlayersMap = new Map();
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -279,10 +276,10 @@ describe("NeatQueuePlayersEmbed", () => {
       },
     );
 
-    const actions = embed.actions;
+    const { actions } = embed;
 
     expect(actions).toHaveLength(1);
-    const firstAction = actions[0];
+    const [firstAction] = actions;
     expect(firstAction?.type).toBe(ComponentType.ActionRow);
     if (firstAction?.type === ComponentType.ActionRow) {
       expect(firstAction.components).toHaveLength(1);
@@ -298,8 +295,8 @@ describe("NeatQueuePlayersEmbed", () => {
   it("handles empty players list", () => {
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
-    const haloPlayersMap = new Map();
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -330,8 +327,8 @@ describe("NeatQueuePlayersEmbed", () => {
     ];
 
     const associations: DiscordAssociationsRow[] = [];
-    const haloPlayersMap = new Map();
-    const rankedArenaCsrs = new Map();
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
       { discordService },
@@ -348,7 +345,7 @@ describe("NeatQueuePlayersEmbed", () => {
 
     // Players should be sorted: Alice, Bob, Charlie
     const fields = result.fields ?? [];
-    const playerValues = fields[0]?.value.split("\n") || [];
+    const playerValues = fields[0]?.value.split("\n") ?? [];
     expect(playerValues[0]).toContain("456"); // Alice
     expect(playerValues[1]).toContain("789"); // Bob
     expect(playerValues[2]).toContain("123"); // Charlie

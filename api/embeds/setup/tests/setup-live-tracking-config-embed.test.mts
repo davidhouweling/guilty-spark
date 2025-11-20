@@ -9,7 +9,7 @@ describe("SetupLiveTrackingConfigEmbed", () => {
 
     expect(embed.embed).toMatchObject({
       title: "Live Tracking Configuration",
-      description: expect.stringContaining("Configure live tracking features for NeatQueue series"),
+      description: expect.stringContaining("Configure live tracking features for NeatQueue series") as string,
       fields: [
         {
           name: "Current Configuration",

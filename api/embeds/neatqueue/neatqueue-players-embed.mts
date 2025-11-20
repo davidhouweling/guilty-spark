@@ -67,7 +67,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
       const haloPlayer = haloPlayersMap.get(association.XboxId);
       const gamertag = haloPlayer?.gamertag;
 
-      if (!gamertag) {
+      if (gamertag == null) {
         tableData.push([`<@${player.id}>`, "*Not Connected*", "*-*"]);
         continue;
       }

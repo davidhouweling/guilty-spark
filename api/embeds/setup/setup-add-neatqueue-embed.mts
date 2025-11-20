@@ -16,7 +16,7 @@ export class SetupAddNeatQueueEmbed {
       description: this.data.description,
       fields: [
         {
-          name: `Step ${this.data.stepNumber}`,
+          name: `Step ${this.data.stepNumber.toLocaleString()}`,
           value: this.data.stepQuestion,
         },
       ],
