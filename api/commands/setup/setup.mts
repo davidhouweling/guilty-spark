@@ -49,6 +49,10 @@ import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-displ
 import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed.mjs";
 import { SetupNeatQueueIntegrationEmbed } from "../../embeds/setup/setup-neatqueue-integration-embed.mjs";
 import { SetupAddNeatQueueEmbed } from "../../embeds/setup/setup-add-neatqueue-embed.mjs";
+import { SetupEditNeatQueueEmbed } from "../../embeds/setup/setup-edit-neatqueue-embed.mjs";
+import { SetupEditNeatQueueChannelEmbed } from "../../embeds/setup/setup-edit-neatqueue-channel-embed.mjs";
+import { SetupLiveTrackingConfigEmbed } from "../../embeds/setup/setup-live-tracking-config-embed.mjs";
+import { SetupNeatQueueMapsConfigEmbed } from "../../embeds/setup/setup-neatqueue-maps-config-embed.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -1613,15 +1617,13 @@ export class SetupCommand extends BaseCommand {
     if (successMessage != null) {
       description.unshift(`**✅ ${successMessage}**`);
     }
+    const setupEditNeatQueueEmbed = new SetupEditNeatQueueEmbed({
+      description: description.join("\n\n"),
+      fields,
+    });
     const content: RESTPostAPIWebhookWithTokenJSONBody = {
       content: "",
-      embeds: [
-        {
-          title: "Edit NeatQueue Integration",
-          description: description.join("\n\n"),
-          fields,
-        },
-      ],
+      embeds: [setupEditNeatQueueEmbed.embed],
       components,
     };
 
@@ -1691,13 +1693,12 @@ export class SetupCommand extends BaseCommand {
         value: "delete",
       });
 
+      const setupEditNeatQueueChannelEmbed = new SetupEditNeatQueueChannelEmbed({
+        channelId,
+        description: description.join("\n\n"),
+      });
       await discordService.updateDeferredReply(interactionToken, {
-        embeds: [
-          {
-            title: `Edit NeatQueue Integration for <#${channelId}>`,
-            description: description.join("\n\n"),
-          },
-        ],
+        embeds: [setupEditNeatQueueChannelEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1978,28 +1979,12 @@ export class SetupCommand extends BaseCommand {
         `**Channel Name Updates:** ${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? "Enabled" : "Disabled"}${config.NeatQueueInformerLiveTracking === "N" ? " (requires live tracking)" : ""}`,
       ].join("\n");
 
+      const setupLiveTrackingConfigEmbed = new SetupLiveTrackingConfigEmbed({
+        configDisplay,
+      });
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
-        embeds: [
-          {
-            title: "Live Tracking Configuration",
-            description: [
-              "Configure live tracking features for NeatQueue series.",
-              "",
-              "**Live Tracking:** Posts real-time updates as matches are played, showing current map, scores, and series progress",
-              "**Channel Name Updates:** Updates the queue channel name to include current series score (e.g., `#queue-343 (🦅 2:1 🐍)`), requires live tracking to be enabled",
-              "",
-              "*Note: Channel name updates require the 'Manage Channels' permission for Guilty Spark (feature will auto disable without permission), run command:*",
-              '- `/tempchannels permissions set role="<role>" permission="Manage Channels" value="Allow"`',
-            ].join("\n"),
-            fields: [
-              {
-                name: "Current Configuration",
-                value: configDisplay,
-              },
-            ],
-          },
-        ],
+        embeds: [setupLiveTrackingConfigEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -2101,20 +2086,12 @@ export class SetupCommand extends BaseCommand {
         `**Count:** ${config.NeatQueueInformerMapsCount.toString()}`,
       ].join("\n");
 
+      const setupNeatQueueMapsConfigEmbed = new SetupNeatQueueMapsConfigEmbed({
+        configDisplay,
+      });
       const content: RESTPostAPIWebhookWithTokenJSONBody = {
         content: "",
-        embeds: [
-          {
-            title: "NeatQueue Informer Maps Configuration",
-            description: "",
-            fields: [
-              {
-                name: "",
-                value: configDisplay,
-              },
-            ],
-          },
-        ],
+        embeds: [setupNeatQueueMapsConfigEmbed.embed],
         components: [
           {
             type: ComponentType.ActionRow,
