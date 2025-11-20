@@ -47,6 +47,7 @@ import { HCS_LAST_UPDATED } from "../../services/halo/hcs.mjs";
 import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed.mjs";
 import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed.mjs";
 import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed.mjs";
+import { SetupNeatQueueIntegrationEmbed } from "../../embeds/setup/setup-neatqueue-integration-embed.mjs";
 
 enum SetupSelectOption {
   StatsDisplayMode = "stats_display_mode",
@@ -1152,15 +1153,10 @@ export class SetupCommand extends BaseCommand {
       actions.push(this.getActionButton(InteractionComponent.NeatQueueIntegrationEdit));
     }
 
+    const setupNeatQueueIntegrationEmbed = new SetupNeatQueueIntegrationEmbed({ description, fields });
     const content: RESTPostAPIWebhookWithTokenJSONBody = {
       content: "",
-      embeds: [
-        {
-          title: "NeatQueue Integration",
-          description,
-          fields,
-        },
-      ],
+      embeds: [setupNeatQueueIntegrationEmbed.embed],
       components: [
         {
           type: ComponentType.ActionRow,
