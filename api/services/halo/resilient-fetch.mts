@@ -101,7 +101,7 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
   function logCacheStatus(response: Response, url: string, viaProxy = false): void {
     const cacheStatus = response.headers.get("cf-cache-status");
     const age = response.headers.get("age");
-    if (cacheStatus) {
+    if (cacheStatus != null) {
       const suffix = viaProxy ? " (via proxy)" : "";
       logService.debug(
         `Cache ${cacheStatus} for ${url}${suffix}`,

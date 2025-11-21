@@ -485,7 +485,7 @@ describe("createResilientFetch", () => {
 
       const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
       expect(debugCalls.length).toBeGreaterThan(0);
-      const debugCall = debugCalls[0];
+      const [debugCall] = debugCalls;
       expect(debugCall).toBeDefined();
       if (debugCall) {
         const debugMap = debugCall[1] as Map<string, string>;
@@ -520,7 +520,7 @@ describe("createResilientFetch", () => {
 
       const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
       expect(debugCalls.length).toBeGreaterThan(0);
-      const debugCall = debugCalls[0];
+      const [debugCall] = debugCalls;
       expect(debugCall).toBeDefined();
       if (debugCall) {
         const debugMap = debugCall[1] as Map<string, string>;
