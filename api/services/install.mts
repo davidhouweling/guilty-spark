@@ -13,6 +13,7 @@ import { AggregatorClient } from "./log/aggregator-client.mjs";
 import { ConsoleLogClient } from "./log/console-log-client.mjs";
 import { SentryLogClient } from "./log/sentry-log-client.mjs";
 import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy.mjs";
+import { createResilientFetch } from "./halo/resilient-fetch.mjs";
 
 export interface Services {
   logService: LogService;
@@ -46,9 +47,18 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const xboxService = new XboxService({ env, authenticate });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
+  // For development with JSON-RPC proxy, use the existing proxy implementation
+  // Otherwise, use direct client with resilient fetch wrapper
   const haloInfiniteClient: HaloInfiniteClient = useProxy
     ? createHaloInfiniteClientProxy({ env })
-    : new HaloInfiniteClient(new CustomSpartanTokenProvider({ env, xboxService }));
+    : new HaloInfiniteClient(
+        new CustomSpartanTokenProvider({ env, xboxService }),
+        createResilientFetch({
+          env,
+          logService,
+          proxyUrl: env.PROXY_WORKER_URL,
+        }),
+      );
 
   const haloService = new HaloService({
     env,
