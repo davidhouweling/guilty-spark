@@ -11,7 +11,7 @@ export const EmbedColors = {
   NEUTRAL: 0x5865f2,
 
   /** Blue - used for informational content like stats, data displays */
-  INFO: 0x3447003,
+  INFO: 0x3498db,
 
   /** Warning orange - used for paused states, warnings */
   WARNING: 0xffa500,
