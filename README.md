@@ -263,6 +263,26 @@ https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
    npm run ngrok
    ```
 
+## Technical Features
+
+### Resilient Halo API Integration
+
+Guilty Spark includes a sophisticated circuit breaker pattern to ensure reliable access to Halo Waypoint data:
+
+**Automatic Failover**: When rate limiting (HTTP 429/526) is detected, requests are automatically retried through a proxy service
+
+**Circuit Breaker**: After 3 rate limit errors within 15 minutes, the system automatically switches to proxy mode for 1 hour
+
+**Control Mechanisms**:
+
+- **Environment Variable**: `PROXY_WORKER_URL` - Set to proxy server URL (e.g., `https://haloquery.com/proxy`)
+- **Master Toggle**: `halo:proxy:enabled` KV key - Manual control via Cloudflare UI
+- **Auto-Activation**: `halo:proxy:circuit_breaker` KV key - Automatically managed during incidents
+
+**Error Tracking**: All proxy activations and rate limit errors are logged to Sentry for monitoring
+
+This ensures the bot remains operational even during Halo Waypoint API incidents, providing a seamless experience for users.
+
 ## Privacy & Security
 
 ### Data Handling
