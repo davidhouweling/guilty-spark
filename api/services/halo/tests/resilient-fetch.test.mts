@@ -454,4 +454,158 @@ describe("createResilientFetch", () => {
       expect(circuitBreakerCalls).toHaveLength(0);
     });
   });
+
+  describe("cache status logging", () => {
+    it("logs cache HIT status for direct requests", async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: {
+            "cf-cache-status": "HIT",
+            age: "30",
+          },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logService.debug).toHaveBeenCalledWith(
+        "Cache HIT for https://halostats.svc.halowaypoint.com/test",
+        expect.objectContaining({
+          size: 2,
+        }),
+      );
+
+      const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
+      expect(debugCalls.length).toBeGreaterThan(0);
+      const debugCall = debugCalls[0];
+      expect(debugCall).toBeDefined();
+      if (debugCall) {
+        const debugMap = debugCall[1] as Map<string, string>;
+        expect(debugMap.get("cf-cache-status")).toBe("HIT");
+        expect(debugMap.get("age")).toBe("30");
+      }
+    });
+
+    it("logs cache MISS status for direct requests", async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: {
+            "cf-cache-status": "MISS",
+          },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logService.debug).toHaveBeenCalledWith(
+        "Cache MISS for https://halostats.svc.halowaypoint.com/test",
+        expect.any(Map),
+      );
+
+      const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
+      expect(debugCalls.length).toBeGreaterThan(0);
+      const debugCall = debugCalls[0];
+      expect(debugCall).toBeDefined();
+      if (debugCall) {
+        const debugMap = debugCall[1] as Map<string, string>;
+        expect(debugMap.get("cf-cache-status")).toBe("MISS");
+        expect(debugMap.get("age")).toBe("N/A");
+      }
+    });
+
+    it("logs cache status with (via proxy) suffix for proxied requests", async () => {
+      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: {
+            "cf-cache-status": "HIT",
+            age: "45",
+          },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logService.debug).toHaveBeenCalledWith(
+        "Cache HIT for https://halostats.svc.halowaypoint.com/test (via proxy)",
+        expect.any(Map),
+      );
+    });
+
+    it("does not log when cf-cache-status header is missing", async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: {},
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logService.debug).not.toHaveBeenCalled();
+    });
+
+    it("logs cache status for retry via proxy after rate limit", async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
+
+      fetchSpy.mockResolvedValueOnce(aFakeResponseWith({ status: 429 })).mockResolvedValueOnce(
+        aFakeResponseWith({
+          status: 200,
+          headers: {
+            "cf-cache-status": "MISS",
+            age: "0",
+          },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logService.debug).toHaveBeenCalledWith(
+        "Cache MISS for https://halostats.svc.halowaypoint.com/test (via proxy)",
+        expect.any(Map),
+      );
+    });
+  });
 });

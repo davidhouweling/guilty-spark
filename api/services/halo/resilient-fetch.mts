@@ -98,6 +98,21 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
     return await env.APP_DATA.get<CircuitBreakerState>(KV_KEYS.CIRCUIT_BREAKER, "json");
   }
 
+  function logCacheStatus(response: Response, url: string, viaProxy = false): void {
+    const cacheStatus = response.headers.get("cf-cache-status");
+    const age = response.headers.get("age");
+    if (cacheStatus) {
+      const suffix = viaProxy ? " (via proxy)" : "";
+      logService.debug(
+        `Cache ${cacheStatus} for ${url}${suffix}`,
+        new Map<string, string>([
+          ["cf-cache-status", cacheStatus],
+          ["age", age ?? "N/A"],
+        ]),
+      );
+    }
+  }
+
   function scheduleKvWrite(key: string, data: string, ttlSeconds: number): void {
     const scheduleWrite = (dataToWrite: string): void => {
       const timeout = setTimeout(() => {
@@ -205,6 +220,8 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
   async function fetchViaProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
+    let response: Response;
+
     if (proxyConfig.type === ProxyType.URL_REWRITE) {
       // HaloQuery-style: rewrite URL and pass through headers
       const transformedUrl = transformUrlForProxy(url, proxyConfig.baseUrl);
@@ -213,15 +230,19 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
 
       logService.info(`Proxying request via URL rewrite: ${url} -> ${transformedUrl}`);
 
-      return fetch(transformedUrl, {
+      response = await fetch(transformedUrl, {
         ...init,
         headers: proxiedHeaders,
       });
     } else {
       // JSON-RPC style (existing behavior for backward compatibility)
       logService.info(`Proxying request via JSON-RPC: ${url}`);
-      return fetch(input, init);
+      response = await fetch(input, init);
     }
+
+    logCacheStatus(response, url, true);
+
+    return response;
   }
 
   return async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -234,6 +255,8 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
 
     try {
       const response = await fetch(input, init);
+
+      logCacheStatus(response, url);
 
       if (ISSUE_STATUS_CODES.includes(response.status as 429 | 526)) {
         logService.warn(`Rate limit error ${response.status.toString()} for ${url}`);

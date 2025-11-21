@@ -411,7 +411,11 @@ export class HaloService {
     }
 
     try {
-      return await this.infiniteClient.getPlayerMatches(user.xuid, matchType, count);
+      return await this.infiniteClient.getPlayerMatches(user.xuid, matchType, count, 0, {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      });
     } catch (error) {
       this.logService.error(error as Error);
 
@@ -600,7 +604,11 @@ export class HaloService {
         history.length == 0 ||
         isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
       ) {
-        const matches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length);
+        const matches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length, {
+          cf: {
+            cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+          },
+        });
         history.push(...matches);
 
         if (matches.length === 0) {
