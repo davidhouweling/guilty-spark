@@ -287,7 +287,7 @@ describe("NeatQueueService", () => {
               ],
               "embeds": [
                 {
-                  "color": 54816771,
+                  "color": 3447003,
                   "description": "-# Legend: SP = season peak | ATP = all time peak",
                   "fields": [
                     {
@@ -1307,7 +1307,7 @@ describe("NeatQueueService", () => {
             ],
             "embeds": [
               {
-                "color": 54816771,
+                "color": 3447003,
                 "description": "-# Legend: SP = season peak | ATP = all time peak",
                 "fields": [
                   {
