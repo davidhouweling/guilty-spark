@@ -31,8 +31,8 @@ import type {
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
-const EXECUTION_BUFFER_MS = 5 * 1000; // 5 seconds earlier execution for processing time
-const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 5 seconds early
+const EXECUTION_BUFFER_MS = 8 * 1000; // 8 seconds earlier execution for processing time
+const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 8 seconds early
 
 // Error handling constants for exponential backoff
 const NORMAL_INTERVAL_MINUTES = 3;

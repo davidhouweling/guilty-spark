@@ -146,7 +146,7 @@ describe("createResilientFetch", () => {
       env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
 
       fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 429 }))
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
         .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -186,34 +186,6 @@ describe("createResilientFetch", () => {
   });
 
   describe("rate limit error handling", () => {
-    it("retries via proxy on 429 error", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
-
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 429 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(response.status).toBe(200);
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(fetchSpy).toHaveBeenNthCalledWith(1, "https://halostats.svc.halowaypoint.com/test", undefined);
-      expect(fetchSpy).toHaveBeenNthCalledWith(
-        2,
-        "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/test",
-        expect.anything(),
-      );
-      expect(logService.warn).toHaveBeenCalledWith(expect.stringContaining("Rate limit error 429"));
-      expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Retrying via proxy"));
-    });
-
     it("retries via proxy on 526 error", async () => {
       env.APP_DATA.get = vi.fn().mockResolvedValue(null);
       env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
@@ -231,12 +203,13 @@ describe("createResilientFetch", () => {
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
       expect(logService.warn).toHaveBeenCalledWith(expect.stringContaining("Rate limit error 526"));
+      expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Retrying via proxy"));
     });
 
     it("does not retry via proxy when proxy is disabled", async () => {
       env.APP_DATA.get = vi.fn().mockResolvedValue(null);
       env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 429 }));
+      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 526 }));
 
       const resilientFetch = createResilientFetch({
         env,
@@ -246,7 +219,7 @@ describe("createResilientFetch", () => {
 
       const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(response.status).toBe(429);
+      expect(response.status).toBe(526);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
   });
@@ -396,7 +369,7 @@ describe("createResilientFetch", () => {
       env.APP_DATA.get = vi.fn().mockResolvedValue(null);
       env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
       fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 429 }))
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
         .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -421,7 +394,7 @@ describe("createResilientFetch", () => {
       const oldTimestamp = Date.now() - 20 * 60 * 1000; // 20 minutes ago
       const errorWindow = aFakeErrorWindowWith({
         errorCount: 1,
-        statusCode: 429,
+        statusCode: 526,
       });
       if (errorWindow.errors[0]) {
         errorWindow.errors[0].timestamp = oldTimestamp;
@@ -436,7 +409,7 @@ describe("createResilientFetch", () => {
       env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
 
       fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 429 }))
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
         .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -578,34 +551,6 @@ describe("createResilientFetch", () => {
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
       expect(logService.debug).not.toHaveBeenCalled();
-    });
-
-    it("logs cache status for retry via proxy after rate limit", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
-
-      fetchSpy.mockResolvedValueOnce(aFakeResponseWith({ status: 429 })).mockResolvedValueOnce(
-        aFakeResponseWith({
-          status: 200,
-          headers: {
-            "cf-cache-status": "MISS",
-            age: "0",
-          },
-        }),
-      );
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(logService.debug).toHaveBeenCalledWith(
-        "Cache MISS for https://halostats.svc.halowaypoint.com/test (via proxy)",
-        expect.any(Map),
-      );
     });
   });
 });

@@ -4,6 +4,7 @@
     "esbenp.prettier-vscode",
     "tamasfe.even-better-toml",
     "vitest.explorer",
-    "astro-build.astro-vscode"
+    "astro-build.astro-vscode",
+    "dbaeumer.vscode-eslint"
   ]
 }
