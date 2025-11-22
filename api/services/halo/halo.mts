@@ -115,11 +115,13 @@ export class HaloService {
     const shouldUpdateDiscordAssociations =
       !doNotUpdateDiscordAssociations && differenceInMinutes(queueData.endDateTime, queueData.startDateTime) > 10;
     const users = queueData.teams.flat();
-    await this.populateUserCache(users);
+    await this.populateUserCache(users, queueData.startDateTime, queueData.endDateTime);
 
-    const usersToSearch = Array.from(this.userCache.values()).filter((user) => user.XboxId !== "");
+    const usersToSearch = Array.from(this.userCache.values()).filter(
+      (user) => user.GamesRetrievable === GamesRetrievable.YES,
+    );
     this.logService.debug(
-      `Found ${usersToSearch.length.toString()} users with Xbox associations: ${usersToSearch.map((user) => user.DiscordId).join(", ")}`,
+      `Found ${usersToSearch.length.toString()} users to search for matches in the series: ${usersToSearch.map((user) => user.DiscordId).join(", ")}`,
     );
 
     if (!usersToSearch.length) {
@@ -130,16 +132,11 @@ export class HaloService {
       throw noMatchError;
     }
 
-    let matchesForUsers: string[];
-    try {
-      matchesForUsers = await this.getMatchesForUsers(usersToSearch, queueData.startDateTime, queueData.endDateTime);
-    } catch (error) {
-      if (shouldUpdateDiscordAssociations) {
-        await this.updateDiscordAssociations();
-      }
-      throw error;
-    }
-
+    const matchesForUsers = await this.getMatchesForUsers(
+      usersToSearch,
+      queueData.startDateTime,
+      queueData.endDateTime,
+    );
     if (!matchesForUsers.length) {
       if (shouldUpdateDiscordAssociations) {
         await this.updateDiscordAssociations();
@@ -502,13 +499,13 @@ export class HaloService {
     this.userCache.clear();
   }
 
-  private async populateUserCache(users: MatchPlayer[]): Promise<void> {
-    const processResult = (
+  private async populateUserCache(users: MatchPlayer[], startDate: Date, endDate: Date): Promise<void> {
+    const processResult = async (
       processedUsers: MatchPlayer[],
       associationReason: AssociationReason,
       index: number,
       result: PromiseSettledResult<UserInfo>,
-    ): void => {
+    ): Promise<void> => {
       const fulfilled = result.status === "fulfilled";
       const { id: discordId, globalName } = Preconditions.checkExists(processedUsers[index]);
       const gamertag =
@@ -518,16 +515,14 @@ export class HaloService {
             ? Preconditions.checkExists(this.userCache.get(discordId)).DiscordDisplayNameSearched
             : null;
       const xboxId = fulfilled && result.value.xuid ? result.value.xuid : "";
+      const playerMatches = xboxId != "" ? await this.getPlayerMatches(xboxId, startDate, endDate) : [];
 
       this.userCache.set(discordId, {
         DiscordId: discordId,
         XboxId: xboxId,
         AssociationReason: associationReason,
         AssociationDate: Date.now(),
-        GamesRetrievable:
-          associationReason === AssociationReason.CONNECTED && xboxId !== ""
-            ? GamesRetrievable.YES
-            : GamesRetrievable.UNKNOWN,
+        GamesRetrievable: playerMatches.length ? GamesRetrievable.YES : GamesRetrievable.NO,
         DiscordDisplayNameSearched: gamertag,
       });
     };
@@ -552,8 +547,19 @@ export class HaloService {
         cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
       );
     });
+    const unknownGameSimilarityUsersResult = await this.getUsersByXuids(
+      unknownGameSimilarityUsers.map((user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId),
+    );
+    await Promise.all(
+      unknownGameSimilarityUsersResult.map(async (result, index) =>
+        processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
+          status: "fulfilled",
+          value: result,
+        }),
+      ),
+    );
     this.logService.debug(
-      `Found ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities in cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,
+      `Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,
     );
 
     const unresolvedUsersByDiscordUsername = users.filter((user) => !this.userCache.has(user.id));
@@ -561,9 +567,11 @@ export class HaloService {
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
       unresolvedUsersByDiscordUsername.map(async (user) => this.getUserByGamertagOrXuid(user.username)),
     );
-    for (const [index, result] of xboxUsersByDiscordUsernameResult.entries()) {
-      processResult(unresolvedUsersByDiscordUsername, AssociationReason.USERNAME_SEARCH, index, result);
-    }
+    await Promise.all(
+      xboxUsersByDiscordUsernameResult.map(async (result, index) =>
+        processResult(unresolvedUsersByDiscordUsername, AssociationReason.USERNAME_SEARCH, index, result),
+      ),
+    );
     this.logService.debug(
       `Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache: ${unresolvedUsersByDiscordUsername.map((user) => user.id).join(", ")}`,
     );
@@ -587,9 +595,11 @@ export class HaloService {
           : Promise.reject(new Error("No global name")),
       ),
     );
-    for (const [index, result] of unresolvedUsersByDiscordGlobalNameResult.entries()) {
-      processResult(unresolvedUsersByDiscordGlobalName, AssociationReason.DISPLAY_NAME_SEARCH, index, result);
-    }
+    await Promise.all(
+      unresolvedUsersByDiscordGlobalNameResult.map(async (result, index) =>
+        processResult(unresolvedUsersByDiscordGlobalName, AssociationReason.DISPLAY_NAME_SEARCH, index, result),
+      ),
+    );
 
     this.logService.debug(
       `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
@@ -630,109 +640,27 @@ export class HaloService {
   }
 
   private async getMatchesForUsers(users: DiscordAssociationsRow[], startDate: Date, endDate: Date): Promise<string[]> {
-    const tier1Users = users.filter(
-      (user) =>
-        user.AssociationReason === AssociationReason.CONNECTED && user.GamesRetrievable === GamesRetrievable.YES,
-    );
-    const tier2Users = users.filter(
-      (user) =>
-        user.GamesRetrievable === GamesRetrievable.YES && user.AssociationReason !== AssociationReason.CONNECTED,
-    );
-    const tier3Users = users.filter((user) => user.GamesRetrievable === GamesRetrievable.UNKNOWN);
-    const tier4Users = users.filter(
-      (user) => user.GamesRetrievable !== GamesRetrievable.YES && user.GamesRetrievable !== GamesRetrievable.UNKNOWN,
-    );
-
-    this.logService.debug(
-      `User tiers - Tier1(CONNECTED+YES): ${tier1Users.length.toString()}, Tier2(YES): ${tier2Users.length.toString()}, Tier3(UNKNOWN): ${tier3Users.length.toString()}, Tier4(OTHER): ${tier4Users.length.toString()}`,
-    );
-
-    const tieredUsers = [tier1Users, tier2Users, tier3Users, tier4Users];
     const userMatches = new Map<string, PlayerMatchHistory[]>();
-    let seriesMatches: string[] = [];
 
-    for (const [tierIndex, tierUsers] of tieredUsers.entries()) {
-      if (tierUsers.length === 0) {
-        continue;
-      }
+    for (const user of users) {
+      const playerMatches = user.XboxId ? await this.getPlayerMatches(user.XboxId, startDate, endDate) : [];
 
-      this.logService.debug(
-        `Attempting Tier ${(tierIndex + 1).toString()} with ${tierUsers.length.toString()} users: ${tierUsers.map((u) => u.DiscordId).join(", ")}`,
-      );
-
-      for (const user of tierUsers) {
-        const playerMatches = user.XboxId ? await this.getPlayerMatches(user.XboxId, startDate, endDate) : [];
-
-        if (playerMatches.length > 0) {
-          userMatches.set(user.DiscordId, playerMatches);
-
-          const cachedUser = this.userCache.get(user.DiscordId);
-          if (cachedUser != null) {
-            cachedUser.GamesRetrievable = GamesRetrievable.YES;
-            this.userCache.set(user.DiscordId, cachedUser);
-          }
-
-          if (userMatches.size >= 2) {
-            const overlap = this.findOverlappingMatches(userMatches);
-            if (overlap.length > 0) {
-              seriesMatches = overlap;
-              this.logService.debug(
-                `Found ${overlap.length.toString()} overlapping matches with ${userMatches.size.toString()} users in Tier ${(tierIndex + 1).toString()}, stopping search`,
-              );
-              break;
-            }
-
-            if (userMatches.size === 2) {
-              this.logService.debug(
-                `First 2 users have no overlapping matches, will check 3rd user for partial overlap`,
-              );
-            } else if (userMatches.size === 3) {
-              const userArray = Array.from(userMatches.entries());
-              for (let i = 0; i < 2; i++) {
-                const firstUser = Preconditions.checkExists(userArray[i]);
-                const thirdUser = Preconditions.checkExists(userArray[2]);
-                const pairMatches = new Map([firstUser, thirdUser]);
-                const pairOverlap = this.findOverlappingMatches(pairMatches);
-                if (pairOverlap.length > 0) {
-                  seriesMatches = pairOverlap;
-                  this.logService.debug(
-                    `Found ${pairOverlap.length.toString()} overlapping matches between user ${(i + 1).toString()} and user 3, stopping search`,
-                  );
-                  break;
-                }
-              }
-              if (seriesMatches.length > 0) {
-                break;
-              }
-            }
-          }
-        } else {
-          const cachedUser = this.userCache.get(user.DiscordId);
-          if (cachedUser != null && cachedUser.AssociationReason !== AssociationReason.CONNECTED) {
-            cachedUser.GamesRetrievable = GamesRetrievable.NO;
-            this.userCache.set(user.DiscordId, cachedUser);
-          }
+      if (playerMatches.length) {
+        userMatches.set(user.DiscordId, playerMatches);
+      } else {
+        const cachedUser = this.userCache.get(user.DiscordId);
+        if (cachedUser != null && cachedUser.AssociationReason !== AssociationReason.CONNECTED) {
+          cachedUser.GamesRetrievable = GamesRetrievable.NO;
+          this.userCache.set(user.DiscordId, cachedUser);
         }
       }
-
-      if (seriesMatches.length > 0) {
-        break;
-      }
-    }
-
-    if (seriesMatches.length === 0 && userMatches.size >= 1) {
-      const [firstPlayerMatches] = Array.from(userMatches.values());
-      seriesMatches = Preconditions.checkExists(firstPlayerMatches).map((match) => match.MatchId);
-      this.logService.debug(
-        `No overlapping matches found. Using ${seriesMatches.length.toString()} matches from single user as fallback`,
-      );
     }
 
     this.logService.debug(
-      `Found ${userMatches.size.toString()} users with matches in the series: ${JSON.stringify(Array.from(userMatches.entries()).map(([key, value]) => [key, value.map((match) => match.MatchId)]))}`,
+      `Found ${userMatches.size.toString()} users with matches in the series: ${JSON.stringify(userMatches.entries().map(([key, value]) => [key, value.map((match) => match.MatchId)]))}`,
     );
 
-    if (!seriesMatches.length) {
+    if (!userMatches.size) {
       if (this.playerMatchesCache.values().some((matches) => matches.length > 0)) {
         throw new EndUserError("No matches found for the series", {
           title: "No matches found",
@@ -744,20 +672,13 @@ export class HaloService {
       }
     }
 
-    return seriesMatches;
-  }
-
-  private findOverlappingMatches(userMatches: Map<string, PlayerMatchHistory[]>): string[] {
-    if (userMatches.size === 0) {
-      return [];
-    }
-
     // Get first player's matches as initial set
     const [firstPlayerMatches, ...remainingMatches] = Array.from(userMatches.values());
     const seriesMatches = new Set(Preconditions.checkExists(firstPlayerMatches).map((match) => match.MatchId));
 
     // Intersect with remaining players' matches
     for (const playerMatches of remainingMatches) {
+      // Remove matches not in this player's set
       for (const matchId of seriesMatches) {
         if (!playerMatches.some((match) => match.MatchId === matchId)) {
           seriesMatches.delete(matchId);

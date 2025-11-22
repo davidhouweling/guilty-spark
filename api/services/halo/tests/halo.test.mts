@@ -36,20 +36,6 @@ describe("Halo service", () => {
 
     haloService = new HaloService({ env, logService, databaseService, infiniteClient });
     haloService.clearUserCache(); // Clear cache between tests
-
-    // Default mock for getDiscordAssociations to return associations with Xbox IDs
-    vi.spyOn(databaseService, "getDiscordAssociations").mockImplementation(async (discordIds) => {
-      return Promise.resolve(
-        discordIds.map((id, index) =>
-          aFakeDiscordAssociationsRow({
-            DiscordId: id,
-            XboxId: `00000000000${String(index + 1).padStart(2, "0")}`,
-            GamesRetrievable: GamesRetrievable.YES,
-            AssociationReason: AssociationReason.USERNAME_SEARCH,
-          }),
-        ),
-      );
-    });
   });
 
   afterEach(() => {
@@ -117,7 +103,7 @@ describe("Halo service", () => {
       });
     });
 
-    it("searches for matches with tiered prioritization and early termination", async () => {
+    it("searches for matches across all possible users", async () => {
       const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
 
       getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
@@ -129,8 +115,6 @@ describe("Halo service", () => {
               GamesRetrievable: ["000000000000000001", "000000000000000003"].includes(id)
                 ? GamesRetrievable.YES
                 : GamesRetrievable.NO,
-              AssociationReason:
-                id === "000000000000000001" ? AssociationReason.CONNECTED : AssociationReason.USERNAME_SEARCH,
             });
           }),
         );
@@ -148,10 +132,24 @@ describe("Halo service", () => {
 
       await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-      // Should stop after finding 2 users with overlapping matches (early termination)
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(4);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(5);
       expect(infiniteClient.getPlayerMatches.mock.calls).toMatchInlineSnapshot(`
         [
+          [
+            "0000000000004",
+            2,
+            25,
+            0,
+            {
+              "cf": {
+                "cacheTtlByStatus": {
+                  "200-299": 60,
+                  "404": 60,
+                  "500-599": 0,
+                },
+              },
+            },
+          ],
           [
             "0000000000001",
             2,
@@ -216,147 +214,6 @@ describe("Halo service", () => {
       `);
     });
 
-    it("checks 3rd user when first 2 users have no overlapping matches (fudged connection)", async () => {
-      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
-      getDiscordAssociationsSpy.mockClear();
-
-      getDiscordAssociationsSpy.mockImplementation(async (discordIds) => {
-        return Promise.resolve(
-          discordIds.map((id) => {
-            const isUser123 = ["000000000000000001", "000000000000000002", "000000000000000003"].includes(id);
-            return aFakeDiscordAssociationsRow({
-              DiscordId: id,
-              XboxId: isUser123 ? id.substring(5) : "",
-              GamesRetrievable: isUser123 ? GamesRetrievable.YES : GamesRetrievable.NO,
-              AssociationReason:
-                id === "000000000000000001"
-                  ? AssociationReason.CONNECTED
-                  : isUser123
-                    ? AssociationReason.USERNAME_SEARCH
-                    : AssociationReason.DISPLAY_NAME_SEARCH,
-            });
-          }),
-        );
-      });
-      infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
-        // User 1 has unique matches (fudged connection)
-        if (xboxUserId === "0000000000001" && start === 0) {
-          return Promise.resolve([Preconditions.checkExists(playerMatches[0])]);
-        }
-        // User 2 has different unique matches
-        if (xboxUserId === "0000000000002" && start === 0) {
-          return Promise.resolve([Preconditions.checkExists(playerMatches[1])]);
-        }
-        // User 3 overlaps with User 1
-        if (xboxUserId === "0000000000003" && start === 0) {
-          return Promise.resolve([Preconditions.checkExists(playerMatches[0])]);
-        }
-
-        // All pagination requests return empty
-        return Promise.resolve([]);
-      });
-
-      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
-
-      // Should fetch all 3 users: User 1, User 2 (no overlap), then User 3 (overlaps with User 1)
-      // Each user requires 2 calls due to pagination (fetches again to check for more matches)
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(6);
-      expect(infiniteClient.getPlayerMatches.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            "0000000000001",
-            2,
-            25,
-            0,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-          [
-            "0000000000001",
-            2,
-            25,
-            1,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-          [
-            "0000000000002",
-            2,
-            25,
-            0,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-          [
-            "0000000000002",
-            2,
-            25,
-            1,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-          [
-            "0000000000003",
-            2,
-            25,
-            0,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-          [
-            "0000000000003",
-            2,
-            25,
-            1,
-            {
-              "cf": {
-                "cacheTtlByStatus": {
-                  "200-299": 60,
-                  "404": 60,
-                  "500-599": 0,
-                },
-              },
-            },
-          ],
-        ]
-      `);
-    });
-
     it("throws an error when all users from database are not game retrievable", async () => {
       const discordIds = [
         "000000000000000001",
@@ -384,7 +241,6 @@ describe("Halo service", () => {
     });
 
     it("throws an error when no users could be found for all users", async () => {
-      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
       infiniteClient.getUser.mockClear();
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
@@ -638,6 +494,21 @@ describe("Halo service", () => {
           expect(getPlayerMatchesSpy.mock.calls).toMatchInlineSnapshot(`
             [
               [
+                "0000000000004",
+                2,
+                25,
+                0,
+                {
+                  "cf": {
+                    "cacheTtlByStatus": {
+                      "200-299": 60,
+                      "404": 60,
+                      "500-599": 0,
+                    },
+                  },
+                },
+              ],
+              [
                 "0000000000001",
                 2,
                 25,
@@ -684,21 +555,6 @@ describe("Halo service", () => {
               ],
               [
                 "0000000000003",
-                2,
-                25,
-                0,
-                {
-                  "cf": {
-                    "cacheTtlByStatus": {
-                      "200-299": 60,
-                      "404": 60,
-                      "500-599": 0,
-                    },
-                  },
-                },
-              ],
-              [
-                "0000000000004",
                 2,
                 25,
                 0,
@@ -2019,30 +1875,6 @@ describe("Halo service", () => {
         [
           [
             {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
-              "DiscordId": "000000000000000001",
-              "GamesRetrievable": "Y",
-              "XboxId": "0000000000001",
-            },
-            {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
-              "DiscordId": "000000000000000002",
-              "GamesRetrievable": "N",
-              "XboxId": "0000000000002",
-            },
-            {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
-              "DiscordId": "000000000000000003",
-              "GamesRetrievable": "N",
-              "XboxId": "0000000000003",
-            },
-            {
               "AssociationDate": 1732622400000,
               "AssociationReason": "G",
               "DiscordDisplayNameSearched": "gamertag0000000000004",
@@ -2051,15 +1883,31 @@ describe("Halo service", () => {
               "XboxId": "0200000000000000",
             },
             {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
-              "DiscordId": "000000000000000005",
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser02",
+              "DiscordId": "000000000000000002",
               "GamesRetrievable": "N",
-              "XboxId": "0000000000005",
+              "XboxId": "",
             },
             {
-              "AssociationDate": 1725148800000,
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000003",
+              "GamesRetrievable": "N",
+              "XboxId": "0000000000003",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser05",
+              "DiscordId": "000000000000000005",
+              "GamesRetrievable": "N",
+              "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
               "AssociationReason": "U",
               "DiscordDisplayNameSearched": null,
               "DiscordId": "000000000000000006",
@@ -2067,20 +1915,28 @@ describe("Halo service", () => {
               "XboxId": "0000000000006",
             },
             {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser07",
               "DiscordId": "000000000000000007",
               "GamesRetrievable": "N",
-              "XboxId": "0000000000007",
+              "XboxId": "",
             },
             {
-              "AssociationDate": 1725148800000,
-              "AssociationReason": "U",
-              "DiscordDisplayNameSearched": null,
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "D",
+              "DiscordDisplayNameSearched": "DiscordUser08",
               "DiscordId": "000000000000000008",
               "GamesRetrievable": "N",
-              "XboxId": "0000000000008",
+              "XboxId": "",
+            },
+            {
+              "AssociationDate": 1732622400000,
+              "AssociationReason": "U",
+              "DiscordDisplayNameSearched": null,
+              "DiscordId": "000000000000000001",
+              "GamesRetrievable": "Y",
+              "XboxId": "0000000000001",
             },
           ],
         ]
@@ -2101,8 +1957,9 @@ describe("Halo service", () => {
     });
 
     it("updates the discord associations even when no matches are found", async () => {
-      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+      vi.spyOn(databaseService, "upsertDiscordAssociations");
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
       await expect(async () => haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow();
 
