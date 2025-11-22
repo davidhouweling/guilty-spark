@@ -200,19 +200,13 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
       return false;
     }
 
-    // In development mode, only use proxy if explicitly enabled or circuit breaker is active
-    if (env.MODE === "development") {
-      const masterToggle = await getMasterToggle();
-      const circuitBreaker = await getCircuitBreakerState();
-      return masterToggle || circuitBreaker !== null;
-    }
-
-    // In production, check master toggle and circuit breaker
+    // Master toggle is a kill switch - if off, never use proxy
     const masterToggle = await getMasterToggle();
-    if (masterToggle) {
-      return true;
+    if (!masterToggle) {
+      return false;
     }
 
+    // Master toggle is on, now check circuit breaker
     const circuitBreaker = await getCircuitBreakerState();
     return circuitBreaker !== null;
   }

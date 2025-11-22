@@ -3,7 +3,7 @@
 **Official website: https://guilty-spark.app**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D22.11.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D24.11.0-brightgreen)](https://nodejs.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange)](https://workers.cloudflare.com/)
 
 A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
@@ -267,11 +267,7 @@ https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
 
 ### Resilient Halo API Integration
 
-Guilty Spark includes a sophisticated circuit breaker pattern to ensure reliable access to Halo Waypoint data:
-
-**Automatic Failover**: When rate limiting (HTTP 429/526) is detected, requests are automatically retried through a proxy service
-
-**Circuit Breaker**: After 3 rate limit errors within 15 minutes, the system automatically switches to proxy mode for 1 hour
+Due to historical issues encountered in the past when Cloudflare workers would encounter a HTTP 526 when calling Halo Waypoint, a proxy call can be leverage instead. With the blessing of Haloquery, we can proxy calls to their service.
 
 **Control Mechanisms**:
 
