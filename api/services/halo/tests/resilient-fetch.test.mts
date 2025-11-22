@@ -70,18 +70,19 @@ describe("createResilientFetch", () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(env.APP_DATA.get).toHaveBeenCalledWith(KV_KEYS.PROXY_ENABLED);
-      expect(env.APP_DATA.get).toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
+      expect(env.APP_DATA.get).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
     });
   });
 
   describe("master toggle", () => {
-    it("uses proxy when master toggle is enabled", async () => {
+    it("uses proxy when master toggle is enabled and circuit breaker is active", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
       const kvGetSpy = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
         if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(null);
+          return Promise.resolve(circuitBreaker);
         }
         return Promise.resolve(null);
       });
@@ -96,23 +97,67 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/hi/players/test");
 
-      // Debug: check what KV calls were made
-      expect(kvGetSpy).toHaveBeenCalled();
-
       expect(fetchSpy).toHaveBeenCalledWith(
         "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/hi/players/test",
         expect.anything(),
       );
       expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Proxying request via URL rewrite"));
     });
-  });
 
-  describe("circuit breaker", () => {
-    it("uses proxy when circuit breaker is active", async () => {
+    it("does not use proxy when master toggle is enabled but circuit breaker is inactive", async () => {
+      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
+        }
+        if (key === KV_KEYS.CIRCUIT_BREAKER) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
+    });
+
+    it("does not use proxy when master toggle is disabled even if circuit breaker is active", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
       env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve(null);
+        }
+        if (key === KV_KEYS.CIRCUIT_BREAKER) {
+          return Promise.resolve(circuitBreaker);
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
+    });
+  });
+
+  describe("circuit breaker", () => {
+    it("uses proxy when master toggle is on and circuit breaker is active", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
+      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
         }
         if (key === KV_KEYS.CIRCUIT_BREAKER) {
           return Promise.resolve(circuitBreaker);
@@ -226,12 +271,13 @@ describe("createResilientFetch", () => {
 
   describe("URL transformation", () => {
     it("transforms URL correctly for HaloQuery proxy", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
       env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
         if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(null);
+          return Promise.resolve(circuitBreaker);
         }
         return Promise.resolve(null);
       });
@@ -252,12 +298,13 @@ describe("createResilientFetch", () => {
     });
 
     it("handles different subdomains correctly", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
       env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
         if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(null);
+          return Promise.resolve(circuitBreaker);
         }
         return Promise.resolve(null);
       });
@@ -280,12 +327,13 @@ describe("createResilientFetch", () => {
 
   describe("header preservation", () => {
     it("preserves all headers except host and content-length", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
       env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
         if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(null);
+          return Promise.resolve(circuitBreaker);
         }
         return Promise.resolve(null);
       });
@@ -315,52 +363,6 @@ describe("createResilientFetch", () => {
       expect(sentHeaders.get("user-agent")).toBe("test-agent");
       expect(sentHeaders.has("host")).toBe(false);
       expect(sentHeaders.has("content-length")).toBe(false);
-    });
-  });
-
-  describe("development mode", () => {
-    it("uses direct requests in development mode when master toggle is false", async () => {
-      env.MODE = "development";
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
-    });
-
-    it("uses proxy in development mode when circuit breaker is active", async () => {
-      env.MODE = "development";
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve(null);
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/test",
-        expect.anything(),
-      );
     });
   });
 
@@ -503,9 +505,13 @@ describe("createResilientFetch", () => {
     });
 
     it("logs cache status with (via proxy) suffix for proxied requests", async () => {
+      const circuitBreaker = aFakeCircuitBreakerStateWith();
       env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
+        }
+        if (key === KV_KEYS.CIRCUIT_BREAKER) {
+          return Promise.resolve(circuitBreaker);
         }
         return Promise.resolve(null);
       });
