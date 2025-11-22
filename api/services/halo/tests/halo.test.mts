@@ -17,6 +17,7 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { aFakePlayerMatchesRateLimiterWith } from "../fakes/player-matches-rate-limiter.fake.mjs";
 
 describe("Halo service", () => {
   let env: Env;
@@ -34,7 +35,13 @@ describe("Halo service", () => {
     databaseService = aFakeDatabaseServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
-    haloService = new HaloService({ env, logService, databaseService, infiniteClient });
+    haloService = new HaloService({
+      env,
+      logService,
+      databaseService,
+      infiniteClient,
+      playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
+    });
     haloService.clearUserCache(); // Clear cache between tests
   });
 
@@ -1787,7 +1794,13 @@ describe("Halo service", () => {
 
     it("caches the medal data so that it only calls infinite api once", async () => {
       const getMedalsMetadataFileSpy = vi.spyOn(infiniteClient, "getMedalsMetadataFile");
-      const cleanHaloService = new HaloService({ env, logService, databaseService, infiniteClient });
+      const cleanHaloService = new HaloService({
+        env,
+        logService,
+        databaseService,
+        infiniteClient,
+        playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
+      });
 
       await cleanHaloService.getMedal(3334154676);
       await cleanHaloService.getMedal(3334154676);
@@ -2113,6 +2126,7 @@ describe("Halo service", () => {
         logService,
         databaseService,
         infiniteClient,
+        playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
         roundRobinFn: mockRoundRobinFn,
       });
     });

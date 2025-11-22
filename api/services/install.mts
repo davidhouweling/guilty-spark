@@ -14,6 +14,7 @@ import { ConsoleLogClient } from "./log/console-log-client.mjs";
 import { SentryLogClient } from "./log/sentry-log-client.mjs";
 import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy.mjs";
 import { createResilientFetch } from "./halo/resilient-fetch.mjs";
+import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter.mjs";
 
 export interface Services {
   logService: LogService;
@@ -65,6 +66,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     logService,
     databaseService,
     infiniteClient: haloInfiniteClient,
+    playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const neatQueueService = new NeatQueueService({

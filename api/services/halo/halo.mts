@@ -21,6 +21,7 @@ import type { Format, MapMode } from "./hcs.mjs";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
+import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter.mjs";
 
 export interface MatchPlayer {
   id: string;
@@ -57,6 +58,7 @@ export interface HaloServiceOpts {
   logService: LogService;
   databaseService: DatabaseService;
   infiniteClient: HaloInfiniteClient;
+  playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   roundRobinFn?: generateRoundRobinMapsFn;
 }
 
@@ -87,6 +89,7 @@ export class HaloService {
   private readonly databaseService: DatabaseService;
   private readonly infiniteClient: HaloInfiniteClient;
   private readonly roundRobinFn: generateRoundRobinMapsFn;
+  private readonly playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   private readonly mapNameCache = new Map<string, string>();
   private readonly gameTypeCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
@@ -99,6 +102,7 @@ export class HaloService {
     logService,
     databaseService,
     infiniteClient,
+    playerMatchesRateLimiter,
     roundRobinFn = generateRoundRobinMaps,
   }: HaloServiceOpts) {
     this.env = env;
@@ -106,6 +110,7 @@ export class HaloService {
     this.databaseService = databaseService;
     this.infiniteClient = infiniteClient;
     this.roundRobinFn = roundRobinFn;
+    this.playerMatchesRateLimiter = playerMatchesRateLimiter;
   }
 
   async getSeriesFromDiscordQueue(
@@ -608,11 +613,13 @@ export class HaloService {
     count?: number,
     start?: number,
   ): Promise<PlayerMatchHistory[]> {
-    const matches = await this.infiniteClient.getPlayerMatches(playerXuid, type, count, start, {
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-      },
-    });
+    const matches = await this.playerMatchesRateLimiter.execute(() =>
+      this.infiniteClient.getPlayerMatches(playerXuid, type, count, start, {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      }),
+    );
 
     return matches;
   }
