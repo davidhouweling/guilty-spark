@@ -40,4 +40,4 @@ export const CIRCUIT_BREAKER_CONFIG = {
   ERROR_TRACKING_TTL_SECONDS: 24 * 60 * 60, // 24 hours
 };
 
-export const ISSUE_STATUS_CODES = [429, 526];
+export const ISSUE_STATUS_CODES = [526];
