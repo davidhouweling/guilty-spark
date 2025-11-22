@@ -408,11 +408,7 @@ export class HaloService {
     }
 
     try {
-      return await this.infiniteClient.getPlayerMatches(user.xuid, matchType, count, 0, {
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-        },
-      });
+      return await this.getPlayerMatches(user.xuid, matchType, count, 0);
     } catch (error) {
       this.logService.error(error as Error);
 
@@ -515,7 +511,7 @@ export class HaloService {
             ? Preconditions.checkExists(this.userCache.get(discordId)).DiscordDisplayNameSearched
             : null;
       const xboxId = fulfilled && result.value.xuid ? result.value.xuid : "";
-      const playerMatches = xboxId != "" ? await this.getPlayerMatches(xboxId, startDate, endDate) : [];
+      const playerMatches = xboxId != "" ? await this.getPlayerMatchesByRange(xboxId, startDate, endDate) : [];
 
       this.userCache.set(discordId, {
         DiscordId: discordId,
@@ -606,7 +602,26 @@ export class HaloService {
     );
   }
 
-  private async getPlayerMatches(xboxUserId: string, startDate: Date, endDate: Date): Promise<PlayerMatchHistory[]> {
+  private async getPlayerMatches(
+    playerXuid: string,
+    type?: MatchType,
+    count?: number,
+    start?: number,
+  ): Promise<PlayerMatchHistory[]> {
+    const matches = await this.infiniteClient.getPlayerMatches(playerXuid, type, count, start, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+      },
+    });
+
+    return matches;
+  }
+
+  private async getPlayerMatchesByRange(
+    xboxUserId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<PlayerMatchHistory[]> {
     const history = this.playerMatchesCache.get(xboxUserId) ?? [];
 
     if (!this.playerMatchesCache.has(xboxUserId) || history.length > 0) {
@@ -614,11 +629,7 @@ export class HaloService {
         history.length == 0 ||
         isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
       ) {
-        const matches = await this.infiniteClient.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length, {
-          cf: {
-            cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-          },
-        });
+        const matches = await this.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length);
         history.push(...matches);
 
         if (matches.length === 0) {
@@ -643,7 +654,7 @@ export class HaloService {
     const userMatches = new Map<string, PlayerMatchHistory[]>();
 
     for (const user of users) {
-      const playerMatches = user.XboxId ? await this.getPlayerMatches(user.XboxId, startDate, endDate) : [];
+      const playerMatches = user.XboxId ? await this.getPlayerMatchesByRange(user.XboxId, startDate, endDate) : [];
 
       if (playerMatches.length) {
         userMatches.set(user.DiscordId, playerMatches);
