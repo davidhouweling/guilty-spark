@@ -613,7 +613,7 @@ export class HaloService {
     count?: number,
     start?: number,
   ): Promise<PlayerMatchHistory[]> {
-    const matches = await this.playerMatchesRateLimiter.execute(() =>
+    const matches = await this.playerMatchesRateLimiter.execute(async () =>
       this.infiniteClient.getPlayerMatches(playerXuid, type, count, start, {
         cf: {
           cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },

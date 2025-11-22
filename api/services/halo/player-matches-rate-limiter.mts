@@ -15,7 +15,7 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
   private readonly logService: LogService;
   private readonly minDelayMs: number;
   private lastExecutionTime = 0;
-  private queue: Array<() => void> = [];
+  private readonly queue: (() => void)[] = [];
   private isProcessing = false;
 
   constructor({ logService, maxCallsPerSecond = 2 }: { logService: LogService; maxCallsPerSecond?: number }) {
@@ -32,11 +32,13 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
     } catch (error) {
       if (error instanceof RequestError && error.response.status === 429) {
         const retryAfter = this.getRetryAfterSeconds(error.response);
+        const requestUrl =
+          error.request instanceof URL ? error.request.href : typeof error.request === "string" ? error.request : "";
 
         this.logService.warn(
           `HTTP 429 received for getPlayerMatches. Retrying after ${retryAfter.toString()} seconds`,
           new Map([
-            ["url", error.request.toString()],
+            ["url", requestUrl],
             ["retryAfter", retryAfter.toString()],
           ]),
         );
@@ -45,14 +47,11 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
 
         try {
           const result = await this.executeWithRateLimit(fn);
-          this.logService.info("Successfully retried after HTTP 429", new Map([["url", error.request.toString()]]));
+          this.logService.info("Successfully retried after HTTP 429", new Map([["url", requestUrl]]));
           return result;
         } catch (retryError) {
           if (retryError instanceof RequestError && retryError.response.status === 429) {
-            this.logService.error(
-              "HTTP 429 received again after retry. Giving up.",
-              new Map([["url", error.request.toString()]]),
-            );
+            this.logService.error("HTTP 429 received again after retry. Giving up.", new Map([["url", requestUrl]]));
           }
 
           throw retryError;
@@ -68,7 +67,7 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
       this.queue.push(resolve);
 
       if (!this.isProcessing) {
-        this.processQueue();
+        void this.processQueue();
       }
     });
   }
@@ -108,7 +107,7 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
   private getRetryAfterSeconds(response: Response): number {
     const retryAfterHeader = response.headers.get("retry-after");
 
-    if (retryAfterHeader) {
+    if (retryAfterHeader !== null && retryAfterHeader !== "") {
       const retryAfterSeconds = Number.parseInt(retryAfterHeader, 10);
 
       if (!Number.isNaN(retryAfterSeconds)) {
@@ -126,7 +125,7 @@ export class PlayerMatchesRateLimiter implements IPlayerMatchesRateLimiter {
     return 1;
   }
 
-  private sleep(ms: number): Promise<void> {
+  private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

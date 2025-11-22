@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { RequestError } from "halo-infinite-api";
 import { PlayerMatchesRateLimiter } from "../player-matches-rate-limiter.mjs";
@@ -7,13 +8,16 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 describe("PlayerMatchesRateLimiter", () => {
   let rateLimiter: PlayerMatchesRateLimiter;
   let logService: ReturnType<typeof aFakeLogServiceWith>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let infoSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     logService = aFakeLogServiceWith();
-    vi.spyOn(logService, "warn");
-    vi.spyOn(logService, "info");
-    vi.spyOn(logService, "error");
+    warnSpy = vi.spyOn(logService, "warn");
+    infoSpy = vi.spyOn(logService, "info");
+    errorSpy = vi.spyOn(logService, "error");
     rateLimiter = new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 });
   });
 
@@ -26,7 +30,7 @@ describe("PlayerMatchesRateLimiter", () => {
       const executionTimes: number[] = [];
       const mockFn = vi.fn(async () => {
         executionTimes.push(Date.now());
-        return "success";
+        return Promise.resolve("success");
       });
 
       // Start 3 calls
@@ -64,10 +68,10 @@ describe("PlayerMatchesRateLimiter", () => {
 
     it("queues multiple requests and processes them in order", async () => {
       const executionOrder: number[] = [];
-      const createMockFn = (id: number) =>
+      const createMockFn: (id: number) => Mock<() => Promise<number>> = (id: number) =>
         vi.fn(async () => {
           executionOrder.push(id);
-          return id;
+          return Promise.resolve(id);
         });
 
       const fn1 = createMockFn(1);
@@ -98,7 +102,7 @@ describe("PlayerMatchesRateLimiter", () => {
     });
 
     it("does not throw errors during cooldown, but waits", async () => {
-      const mockFn = vi.fn(async () => "success");
+      const mockFn = vi.fn(async () => Promise.resolve("success"));
 
       const promise1 = rateLimiter.execute(mockFn);
       const promise2 = rateLimiter.execute(mockFn);
@@ -128,9 +132,9 @@ describe("PlayerMatchesRateLimiter", () => {
       const mockFn = vi.fn(async () => {
         callCount++;
         if (callCount === 1) {
-          throw error;
+          return Promise.reject(error);
         }
-        return "success";
+        return Promise.resolve("success");
       });
 
       const promise = rateLimiter.execute(mockFn);
@@ -147,8 +151,8 @@ describe("PlayerMatchesRateLimiter", () => {
       const result = await promise;
       expect(result).toBe("success");
       expect(mockFn).toHaveBeenCalledTimes(2);
-      expect(logService.warn).toHaveBeenCalledWith(expect.stringContaining("HTTP 429 received"), expect.any(Map));
-      expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Successfully retried"), expect.any(Map));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("HTTP 429 received"), expect.any(Map));
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Successfully retried"), expect.any(Map));
     });
 
     it("throws error if retry also returns HTTP 429", async () => {
@@ -160,7 +164,7 @@ describe("PlayerMatchesRateLimiter", () => {
       const error = new RequestError(mockRequest, mockResponse);
 
       const mockFn = vi.fn(async () => {
-        throw error;
+        return Promise.reject(error);
       });
 
       const executePromise = rateLimiter.execute(mockFn);
@@ -177,7 +181,7 @@ describe("PlayerMatchesRateLimiter", () => {
 
       await promise;
       expect(mockFn).toHaveBeenCalledTimes(2);
-      expect(logService.error).toHaveBeenCalledWith(
+      expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining("HTTP 429 received again after retry"),
         expect.any(Map),
       );
@@ -198,9 +202,9 @@ describe("PlayerMatchesRateLimiter", () => {
       const mockFn = vi.fn(async () => {
         callCount++;
         if (callCount === 1) {
-          throw error;
+          return Promise.reject(error);
         }
-        return "success";
+        return Promise.resolve("success");
       });
 
       const promise = rateLimiter.execute(mockFn);
@@ -231,9 +235,9 @@ describe("PlayerMatchesRateLimiter", () => {
       const mockFn = vi.fn(async () => {
         callCount++;
         if (callCount === 1) {
-          throw error;
+          return Promise.reject(error);
         }
-        return "success";
+        return Promise.resolve("success");
       });
 
       const promise = rateLimiter.execute(mockFn);
@@ -250,13 +254,13 @@ describe("PlayerMatchesRateLimiter", () => {
       const result = await promise;
       expect(result).toBe("success");
       expect(mockFn).toHaveBeenCalledTimes(2);
-      expect(logService.warn).toHaveBeenCalledWith(expect.stringContaining("No valid retry-after header"));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("No valid retry-after header"));
     });
 
     it("does not retry on non-429 errors", async () => {
       const error = new Error("Some other error");
       const mockFn = vi.fn(async () => {
-        throw error;
+        return Promise.reject(error);
       });
 
       const executePromise = rateLimiter.execute(mockFn);
@@ -279,16 +283,16 @@ describe("PlayerMatchesRateLimiter", () => {
       const mockRequest = new URL("https://api.example.com/test");
       const error = new RequestError(mockRequest, mockResponse);
 
-      let call1Count = 0;
+      let callCount = 0;
       const mockFn1 = vi.fn(async () => {
-        call1Count++;
-        if (call1Count === 1) {
-          throw error;
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(error);
         }
-        return "success1";
+        return Promise.resolve("success1");
       });
 
-      const mockFn2 = vi.fn(async () => "success2");
+      const mockFn2 = vi.fn(async () => Promise.resolve("success2"));
 
       // Start two calls
       const promise1 = rateLimiter.execute(mockFn1);
