@@ -15,8 +15,8 @@ import {
   InteractionContextType,
 } from "discord-api-types/v10";
 import { addMinutes } from "date-fns";
-import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import { BaseCommand } from "../base/base.mjs";
+import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command.mjs";
+import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
@@ -35,7 +35,7 @@ interface TrackerContext extends UserContext {
 }
 
 export class TrackCommand extends BaseCommand {
-  readonly data: CommandData[] = [
+  readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "track",
@@ -59,35 +59,42 @@ export class TrackCommand extends BaseCommand {
         },
       ],
     },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Pause,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Resume,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Refresh,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Repost,
-      },
-    },
   ];
+
+  // TrackCommand manually defines its component data (not using handler pattern yet)
+  override get data(): CommandData[] {
+    return [
+      ...this.commands,
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Pause,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Resume,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Refresh,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Repost,
+        },
+      },
+    ];
+  }
 
   execute(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;

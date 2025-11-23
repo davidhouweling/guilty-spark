@@ -18,8 +18,8 @@ import {
 } from "discord-api-types/v10";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import { subHours } from "date-fns";
-import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import { BaseCommand } from "../base/base.mjs";
+import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command.mjs";
+import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { NEAT_QUEUE_BOT_USER_ID, type QueueData } from "../../services/discord/discord.mjs";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed.mjs";
@@ -37,7 +37,7 @@ export enum InteractionButton {
 }
 
 export class StatsCommand extends BaseCommand {
-  readonly data: CommandData[] = [
+  readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "stats",
@@ -85,14 +85,21 @@ export class StatsCommand extends BaseCommand {
         },
       ],
     },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.LoadGames,
-      },
-    },
   ];
+
+  // StatsCommand manually defines its component data (not using handler pattern yet)
+  override get data(): CommandData[] {
+    return [
+      ...this.commands,
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.LoadGames,
+        },
+      },
+    ];
+  }
 
   execute(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;

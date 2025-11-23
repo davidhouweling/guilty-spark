@@ -17,8 +17,8 @@ import {
   InteractionType,
 } from "discord-api-types/v10";
 import { getTime } from "date-fns";
-import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import { BaseCommand } from "../base/base.mjs";
+import type { BaseInteraction, CommandData, ExecuteResponse, ApplicationCommandData } from "../base/base-command.mjs";
+import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
@@ -41,7 +41,7 @@ export enum InteractionButton {
 export const GamertagSearchModal = "gamertag_search_modal";
 
 export class ConnectCommand extends BaseCommand {
-  readonly data: CommandData[] = [
+  readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "connect",
@@ -49,56 +49,63 @@ export class ConnectCommand extends BaseCommand {
       default_member_permissions: null,
       options: [],
     },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Initiate,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Confirm,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Change,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Remove,
-      },
-    },
-    {
-      type: InteractionType.ModalSubmit,
-      data: {
-        components: [],
-        custom_id: GamertagSearchModal,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.SearchConfirm,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.SearchCancel,
-      },
-    },
   ];
+
+  // ConnectCommand manually defines its component data (not using handler pattern yet)
+  override get data(): CommandData[] {
+    return [
+      ...this.commands,
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.Initiate,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.Confirm,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.Change,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.Remove,
+        },
+      },
+      {
+        type: InteractionType.ModalSubmit,
+        data: {
+          components: [],
+          custom_id: GamertagSearchModal,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.SearchConfirm,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.SearchCancel,
+        },
+      },
+    ];
+  }
 
   override execute(interaction: BaseInteraction): ExecuteResponse {
     try {

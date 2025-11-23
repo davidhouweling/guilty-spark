@@ -15,7 +15,13 @@ import {
   ComponentType,
   ButtonStyle,
 } from "discord-api-types/v10";
-import { type CommandData, type ExecuteResponse, type BaseInteraction, BaseCommand } from "../base/base.mjs";
+import {
+  type ExecuteResponse,
+  type BaseInteraction,
+  type ApplicationCommandData,
+  type CommandData,
+  BaseCommand,
+} from "../base/base-command.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { type MapMode } from "../../services/halo/hcs.mjs";
@@ -23,7 +29,7 @@ import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } f
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config.mjs";
 
 export class MapsCommand extends BaseCommand {
-  readonly data: CommandData[] = [
+  readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "maps",
@@ -79,65 +85,72 @@ export class MapsCommand extends BaseCommand {
         },
       ],
     },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Initiate,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Roll1,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Roll3,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Roll5,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Roll7,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.StringSelect,
-        custom_id: InteractionComponent.PlaylistSelect,
-        values: [],
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.StringSelect,
-        custom_id: InteractionComponent.FormatSelect,
-        values: [],
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionComponent.Repost,
-      },
-    },
   ];
+
+  // MapsCommand manually defines its component data (not using handler pattern yet)
+  override get data(): CommandData[] {
+    return [
+      ...this.commands,
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Initiate,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Roll1,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Roll3,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Roll5,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Roll7,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionComponent.PlaylistSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionComponent.FormatSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionComponent.Repost,
+        },
+      },
+    ];
+  }
 
   execute(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
