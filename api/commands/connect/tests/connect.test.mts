@@ -15,7 +15,7 @@ import {
   Locale,
   ComponentType,
 } from "discord-api-types/v10";
-import { ConnectCommand, GamertagSearchModal, InteractionButton } from "../connect.mjs";
+import { ConnectCommand, InteractionButton } from "../connect.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import { EmbedColors } from "../../../embeds/colors.mjs";
@@ -634,7 +634,7 @@ describe("ConnectCommand", () => {
             type: ComponentType.ActionRow,
           },
         ],
-        custom_id: GamertagSearchModal,
+        custom_id: InteractionButton.GamertagSearchModal,
       },
     };
 

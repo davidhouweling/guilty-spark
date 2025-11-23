@@ -183,7 +183,7 @@ export class SetupCommand extends BaseCommand {
   ];
 
   override execute(interaction: BaseInteraction): ExecuteResponse {
-    const { type, guild_id: guildId } = interaction;
+    const { guild_id: guildId } = interaction;
 
     if (guildId == null) {
       return {
@@ -197,38 +197,30 @@ export class SetupCommand extends BaseCommand {
       };
     }
 
-    try {
-      switch (type) {
-        case InteractionType.ApplicationCommand: {
-          return this.deferReply(async () => this.handleApplicationCommand(interaction), true);
-        }
-        case InteractionType.MessageComponent:
-        case InteractionType.ModalSubmit: {
-          const customId = interaction.data.custom_id;
-          const handler = this.components[customId];
+    return super.execute(interaction);
+  }
 
-          if (!handler) {
-            throw new Error(`No handler found for component: ${customId}`);
-          }
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
+    const { type } = interaction;
 
-          return this.executeComponentHandler(handler, interaction);
-        }
-        default: {
-          throw new UnreachableError(type);
-        }
+    switch (type) {
+      case InteractionType.ApplicationCommand: {
+        return this.deferReply(async () => this.handleApplicationCommand(interaction), true);
       }
-    } catch (error) {
-      this.services.logService.error(error as Error);
+      case InteractionType.MessageComponent:
+      case InteractionType.ModalSubmit: {
+        const customId = interaction.data.custom_id;
+        const handler = this.components[customId];
 
-      return {
-        response: {
-          type: InteractionResponseType.ChannelMessageWithSource,
-          data: {
-            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-            flags: MessageFlags.Ephemeral,
-          },
-        },
-      };
+        if (!handler) {
+          throw new Error(`No handler found for component: ${customId}`);
+        }
+
+        return this.executeComponentHandler(handler, interaction);
+      }
+      default: {
+        throw new UnreachableError(type);
+      }
     }
   }
 

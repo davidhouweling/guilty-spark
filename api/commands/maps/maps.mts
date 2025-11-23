@@ -10,7 +10,6 @@ import {
   ApplicationCommandType,
   ApplicationCommandOptionType,
   InteractionResponseType,
-  MessageFlags,
   InteractionType,
   ComponentType,
   ButtonStyle,
@@ -125,41 +124,28 @@ export class MapsCommand extends BaseCommand {
     ),
   });
 
-  execute(interaction: BaseInteraction): ExecuteResponse {
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
-    try {
-      switch (type) {
-        case InteractionType.ApplicationCommand: {
-          return this.applicationCommandJob(interaction);
-        }
-        case InteractionType.MessageComponent: {
-          const customId = interaction.data.custom_id;
-          const handler = this.components[customId];
 
-          if (!handler) {
-            throw new Error(`No handler found for component: ${customId}`);
-          }
-
-          return this.executeComponentHandler(handler, interaction);
-        }
-        case InteractionType.ModalSubmit: {
-          throw new Error("This command cannot be used in this context.");
-        }
-        default:
-          throw new UnreachableError(type);
+    switch (type) {
+      case InteractionType.ApplicationCommand: {
+        return this.applicationCommandJob(interaction);
       }
-    } catch (error) {
-      this.services.logService.error(error as Error);
+      case InteractionType.MessageComponent: {
+        const customId = interaction.data.custom_id;
+        const handler = this.components[customId];
 
-      return {
-        response: {
-          type: InteractionResponseType.ChannelMessageWithSource,
-          data: {
-            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-            flags: MessageFlags.Ephemeral,
-          },
-        },
-      };
+        if (!handler) {
+          throw new Error(`No handler found for component: ${customId}`);
+        }
+
+        return this.executeComponentHandler(handler, interaction);
+      }
+      case InteractionType.ModalSubmit: {
+        throw new Error("This command cannot be used in this context.");
+      }
+      default:
+        throw new UnreachableError(type);
     }
   }
 

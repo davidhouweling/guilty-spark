@@ -22,7 +22,6 @@ import type {
   ExecuteResponse,
   ApplicationCommandData,
   ComponentHandlerMap,
-  CommandData,
 } from "../base/base-command.mjs";
 import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -42,9 +41,8 @@ export enum InteractionButton {
   Remove = "btn_connect_remove",
   SearchConfirm = "btn_connect_search_confirm",
   SearchCancel = "btn_connect_search_cancel",
+  GamertagSearchModal = "gamertag_search_modal",
 }
-
-export const GamertagSearchModal = "gamertag_search_modal";
 
 export class ConnectCommand extends BaseCommand {
   readonly commands: ApplicationCommandData[] = [
@@ -89,48 +87,62 @@ export class ConnectCommand extends BaseCommand {
     [InteractionButton.SearchCancel]: this.buttonHandler((interaction) =>
       this.deferUpdate(async () => this.applicationCommandJob(interaction)),
     ),
-  });
 
-  // Manual modal handler (not in enum since it's separate from buttons)
-  override get data(): CommandData[] {
-    return [
-      ...super.data,
-      {
-        type: InteractionType.ModalSubmit,
-        data: {
-          components: [],
-          custom_id: GamertagSearchModal,
-        },
-      },
-    ];
-  }
-
-  override execute(interaction: BaseInteraction): ExecuteResponse {
-    try {
-      return this.handleCommand(interaction);
-    } catch (error) {
-      this.services.logService.error(error as Error);
-
+    [InteractionButton.GamertagSearchModal]: this.modalSubmitHandler((interaction) => {
+      const connectLoadingEmbed = new ConnectLoadingEmbed();
       return {
         response: {
-          type: InteractionResponseType.ChannelMessageWithSource,
+          type: InteractionResponseType.UpdateMessage,
           data: {
-            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-            flags: MessageFlags.Ephemeral,
+            content: "",
+            embeds: [connectLoadingEmbed.embed],
+            components: [
+              {
+                type: ComponentType.ActionRow,
+                components: [
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Success,
+                    label: "Yes, this is me",
+                    custom_id: InteractionButton.SearchConfirm,
+                    emoji: { name: "👍" },
+                    disabled: true,
+                  },
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Secondary,
+                    label: "No, change search",
+                    custom_id: InteractionButton.Change,
+                    emoji: { name: "🔄" },
+                    disabled: true,
+                  },
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Danger,
+                    label: "Cancel",
+                    custom_id: InteractionButton.SearchCancel,
+                    emoji: { name: "🔙" },
+                    disabled: true,
+                  },
+                ],
+              },
+            ],
           },
         },
+        jobToComplete: async () => this.handleModalSubmit(interaction),
       };
-    }
-  }
+    }),
+  });
 
-  private handleCommand(interaction: BaseInteraction): ExecuteResponse {
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
 
     switch (type) {
       case InteractionType.ApplicationCommand: {
         return this.deferReply(async () => this.applicationCommandJob(interaction), true);
       }
-      case InteractionType.MessageComponent: {
+      case InteractionType.MessageComponent:
+      case InteractionType.ModalSubmit: {
         const customId = interaction.data.custom_id;
         const handler = this.components[customId];
 
@@ -139,50 +151,6 @@ export class ConnectCommand extends BaseCommand {
         }
 
         return this.executeComponentHandler(handler, interaction);
-      }
-      case InteractionType.ModalSubmit: {
-        const connectLoadingEmbed = new ConnectLoadingEmbed();
-        return {
-          response: {
-            type: InteractionResponseType.UpdateMessage,
-            data: {
-              content: "",
-              embeds: [connectLoadingEmbed.embed],
-              components: [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Success,
-                      label: "Yes, this is me",
-                      custom_id: InteractionButton.SearchConfirm,
-                      emoji: { name: "👍" },
-                      disabled: true,
-                    },
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Secondary,
-                      label: "No, change search",
-                      custom_id: InteractionButton.Change,
-                      emoji: { name: "🔄" },
-                      disabled: true,
-                    },
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Danger,
-                      label: "Cancel",
-                      custom_id: InteractionButton.SearchCancel,
-                      emoji: { name: "🔙" },
-                      disabled: true,
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-          jobToComplete: async () => this.handleModalSubmit(interaction),
-        };
       }
       default: {
         throw new UnreachableError(type);
@@ -403,7 +371,7 @@ export class ConnectCommand extends BaseCommand {
       type: InteractionResponseType.Modal,
       data: {
         title: "Gamertag search",
-        custom_id: GamertagSearchModal,
+        custom_id: InteractionButton.GamertagSearchModal,
         components: [
           {
             type: ComponentType.ActionRow,
@@ -452,10 +420,6 @@ export class ConnectCommand extends BaseCommand {
     const { discordService, haloService } = this.services;
 
     try {
-      if (interaction.data.custom_id !== GamertagSearchModal) {
-        throw new Error(`Unknown custom_id: ${interaction.data.custom_id}`);
-      }
-
       const locale = interaction.guild_locale ?? interaction.locale;
       const modalData = discordService.extractModalSubmitData(interaction);
       const gamertag = Preconditions.checkExists(modalData.get("gamertag"), "Gamertag is required");

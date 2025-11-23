@@ -101,61 +101,47 @@ export class StatsCommand extends BaseCommand {
     ];
   }
 
-  execute(interaction: BaseInteraction): ExecuteResponse {
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
 
-    try {
-      switch (type) {
-        case InteractionType.ApplicationCommand: {
-          const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
+    switch (type) {
+      case InteractionType.ApplicationCommand: {
+        const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
-          switch (subcommand.name) {
-            case "neatqueue": {
-              return this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
-            }
-            case "match": {
-              return this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
-            }
-            default: {
-              throw new Error("Unknown subcommand");
-            }
+        switch (subcommand.name) {
+          case "neatqueue": {
+            return this.handleNeatQueueSubCommand(interaction, subcommand.mappedOptions);
           }
-        }
-        case InteractionType.MessageComponent: {
-          const { custom_id } = interaction.data;
-          switch (custom_id) {
-            case InteractionButton.LoadGames.toString(): {
-              return {
-                response: {
-                  type: InteractionResponseType.DeferredMessageUpdate,
-                },
-                jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
-              };
-            }
-            default: {
-              throw new Error(`Unknown interaction: ${custom_id}`);
-            }
+          case "match": {
+            return this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
           }
-        }
-        case InteractionType.ModalSubmit: {
-          throw new Error("Modals not supported");
-        }
-        default: {
-          throw new UnreachableError(type);
+          default: {
+            throw new Error("Unknown subcommand");
+          }
         }
       }
-    } catch (error) {
-      this.services.logService.error(error as Error);
-
-      return {
-        response: {
-          type: InteractionResponseType.ChannelMessageWithSource,
-          data: {
-            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
-            flags: MessageFlags.Ephemeral,
-          },
-        },
-      };
+      case InteractionType.MessageComponent: {
+        const { custom_id } = interaction.data;
+        switch (custom_id) {
+          case InteractionButton.LoadGames.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
+          default: {
+            throw new Error(`Unknown interaction: ${custom_id}`);
+          }
+        }
+      }
+      case InteractionType.ModalSubmit: {
+        throw new Error("Modals not supported");
+      }
+      default: {
+        throw new UnreachableError(type);
+      }
     }
   }
 

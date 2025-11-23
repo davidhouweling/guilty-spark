@@ -29,7 +29,7 @@ export class TestCommand extends BaseCommand {
     return this.dataOverride ?? super.data;
   }
 
-  public execute(interaction: BaseInteraction): ExecuteResponse {
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
     return this.executeFn(interaction) as ExecuteResponse;
   }
 }

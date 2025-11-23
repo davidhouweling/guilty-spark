@@ -90,7 +90,34 @@ export abstract class BaseCommand {
     return [...this.commands, ...(this.components ? this.generateComponentData(this.components) : [])];
   }
 
-  abstract execute(interaction: BaseInteraction): ExecuteResponse;
+  /**
+   * Default execute implementation with error handling.
+   * Subclasses can override this if they need custom behavior (e.g., guild validation).
+   * Otherwise, they just implement handleInteraction() for their command logic.
+   */
+  execute(interaction: BaseInteraction): ExecuteResponse {
+    try {
+      return this.handleInteraction(interaction);
+    } catch (error) {
+      this.services.logService.error(error as Error);
+
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+  }
+
+  /**
+   * Command-specific interaction handling logic.
+   * Subclasses implement this instead of execute() to get automatic error handling.
+   */
+  protected abstract handleInteraction(interaction: BaseInteraction): ExecuteResponse;
 
   /**
    * Helper: Defers message update and runs job
