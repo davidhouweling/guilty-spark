@@ -39,7 +39,7 @@ const SCORING = {
     UNUSED_COMBO: 10,
     OVERUSED_MODE_MIN: 10,
   },
-} as const;
+};
 
 function applyImmediatePenalties(
   candidate: { mode: MapMode; map: string },

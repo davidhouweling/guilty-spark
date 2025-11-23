@@ -23,8 +23,8 @@ console.log("URL:", url.toString());
 
 const commandsToDeployMap = new Map<string, ApplicationCommandData>(
   Array.from(commands.values())
-    .flatMap(({ commands }) => commands)
-    .map((data) => [data.name, data] as const),
+    .flatMap((impl) => impl.commands)
+    .map((data) => [data.name, data]),
 );
 const commandsToDeploy = Array.from(commandsToDeployMap.values());
 

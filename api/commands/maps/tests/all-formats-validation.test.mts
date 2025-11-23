@@ -6,7 +6,7 @@ import { MapsFormatType, MapsPlaylistType } from "../../../services/database/typ
 describe("All Format Types - Distribution Analysis", () => {
   const services = installFakeServicesWith();
   const iterations = 100; // Run each format 100 times
-  const testCounts = [3, 5, 7] as const; // Test different game counts
+  const testCounts = [3, 5, 7]; // Test different game counts
 
   // Helper to analyze results
   const analyzeResults = (

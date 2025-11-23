@@ -132,7 +132,7 @@ export class ConnectCommand extends BaseCommand {
       }
       case InteractionType.MessageComponent: {
         const customId = interaction.data.custom_id;
-        const handler = this.components?.[customId];
+        const handler = this.components[customId];
 
         if (!handler) {
           throw new Error(`No handler found for component: ${customId}`);
