@@ -465,7 +465,7 @@ describe("MapsCommand", () => {
 
         expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
         if (response.type === InteractionResponseType.ChannelMessageWithSource) {
-          expect(response.data.content).toMatch(/Unreachable code with specified value/);
+          expect(response.data.content).toMatch(/No handler found for component/);
           expect(response.data.flags).toBe(MessageFlags.Ephemeral);
         }
       });

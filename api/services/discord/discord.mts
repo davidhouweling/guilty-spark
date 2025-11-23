@@ -36,7 +36,7 @@ import {
   PermissionFlagsBits,
   OverwriteType,
 } from "discord-api-types/v10";
-import type { BaseCommand, BaseInteraction } from "../../commands/base/base.mjs";
+import type { BaseCommand, BaseInteraction } from "../../commands/base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason } from "../database/types/discord_associations.mjs";

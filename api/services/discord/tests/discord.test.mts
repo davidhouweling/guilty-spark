@@ -26,8 +26,7 @@ import {
   aGuildMemberWith,
 } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
-import type { BaseCommand } from "../../../commands/base/base.mjs";
-import type { Services } from "../../install.mjs";
+import { aTestCommandWith } from "../../../commands/base/fakes/test-command.fake.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { AssociationReason } from "../../database/types/discord_associations.mjs";
 import { aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -245,9 +244,7 @@ describe("DiscordService", () => {
       it("executes the command and returns the response and jobToComplete", async () => {
         const jobToCompleteFn = vi.fn().mockResolvedValue(undefined);
         const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
-        const command: BaseCommand = {
-          services: {} as Services,
-          env: aFakeEnvWith(),
+        const command = aTestCommandWith({
           data: [
             {
               name: applicationCommandInteractionStatsMatch.data.name,
@@ -257,8 +254,8 @@ describe("DiscordService", () => {
               default_member_permissions: null,
             },
           ],
-          execute: executeFn,
-        };
+          executeFn,
+        });
         discordService.setCommands(new Map([[applicationCommandInteractionStatsMatch.data.name, command]]));
 
         const { response, jobToComplete } = discordService.handleInteraction(applicationCommandInteractionStatsMatch);
@@ -274,9 +271,7 @@ describe("DiscordService", () => {
         it("executes the command and returns the response and jobToComplete", async () => {
           const jobToCompleteFn = vi.fn().mockResolvedValue(undefined);
           const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
-          const command: BaseCommand = {
-            services: {} as Services,
-            env: aFakeEnvWith(),
+          const command = aTestCommandWith({
             data: [
               {
                 type: InteractionType.MessageComponent,
@@ -286,8 +281,8 @@ describe("DiscordService", () => {
                 },
               },
             ],
-            execute: executeFn,
-          };
+            executeFn,
+          });
           discordService.setCommands(new Map([["btn_yes", command]]));
 
           const { response, jobToComplete } = discordService.handleInteraction(fakeButtonClickInteraction);
@@ -326,9 +321,7 @@ describe("DiscordService", () => {
       it("executes the command and returns the response and jobToComplete", async () => {
         const jobToCompleteFn = vi.fn().mockResolvedValue(undefined);
         const executeFn = vi.fn().mockReturnValue({ response: new JsonResponse({}), jobToComplete: jobToCompleteFn });
-        const command: BaseCommand = {
-          services: {} as Services,
-          env: aFakeEnvWith(),
+        const command = aTestCommandWith({
           data: [
             {
               type: InteractionType.ModalSubmit,
@@ -338,8 +331,8 @@ describe("DiscordService", () => {
               },
             },
           ],
-          execute: executeFn,
-        };
+          executeFn,
+        });
         discordService.setCommands(new Map([["text_input_modal", command]]));
 
         const { response, jobToComplete } = discordService.handleInteraction(modalSubmitInteraction);

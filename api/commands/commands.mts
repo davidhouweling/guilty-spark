@@ -1,7 +1,7 @@
 import { ApplicationCommandType, InteractionType } from "discord-api-types/v10";
 import type { Services } from "../services/install.mjs";
 import { UnreachableError } from "../base/unreachable-error.mjs";
-import type { BaseCommand } from "./base/base.mjs";
+import type { BaseCommand } from "./base/base-command.mjs";
 import { ConnectCommand } from "./connect/connect.mjs";
 import { StatsCommand } from "./stats/stats.mjs";
 import { SetupCommand } from "./setup/setup.mjs";

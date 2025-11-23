@@ -1,11 +1,11 @@
 import "dotenv/config";
 import { inspect } from "util";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
-import { APIVersion, ApplicationCommandType, Routes } from "discord-api-types/v10";
+import { APIVersion, Routes } from "discord-api-types/v10";
 import { getCommands } from "../api/commands/commands.mjs";
 import type { Services } from "../api/services/install.mjs";
 import { Preconditions } from "../api/base/preconditions.mjs";
-import type { ApplicationCommandData } from "../api/commands/base/base.mjs";
+import type { ApplicationCommandData } from "../api/commands/base/base-command.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {
   DISCORD_APP_ID: Preconditions.checkExists(process.env.DISCORD_APP_ID, "DISCORD_APP_ID"),
@@ -23,14 +23,8 @@ console.log("URL:", url.toString());
 
 const commandsToDeployMap = new Map<string, ApplicationCommandData>(
   Array.from(commands.values())
-    .flatMap(({ data }) => data)
-    .map((data) => {
-      if (data.type === ApplicationCommandType.ChatInput) {
-        return [data.name, data] as const;
-      }
-      return undefined;
-    })
-    .filter((command) => command !== undefined),
+    .flatMap((impl) => impl.commands)
+    .map((data) => [data.name, data]),
 );
 const commandsToDeploy = Array.from(commandsToDeployMap.values());
 

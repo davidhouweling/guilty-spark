@@ -17,8 +17,13 @@ import {
   InteractionType,
 } from "discord-api-types/v10";
 import { getTime } from "date-fns";
-import type { BaseInteraction, CommandData, ExecuteResponse } from "../base/base.mjs";
-import { BaseCommand } from "../base/base.mjs";
+import type {
+  BaseInteraction,
+  ExecuteResponse,
+  ApplicationCommandData,
+  ComponentHandlerMap,
+} from "../base/base-command.mjs";
+import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
@@ -36,12 +41,11 @@ export enum InteractionButton {
   Remove = "btn_connect_remove",
   SearchConfirm = "btn_connect_search_confirm",
   SearchCancel = "btn_connect_search_cancel",
+  GamertagSearchModal = "gamertag_search_modal",
 }
 
-export const GamertagSearchModal = "gamertag_search_modal";
-
 export class ConnectCommand extends BaseCommand {
-  readonly data: CommandData[] = [
+  readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.ChatInput,
       name: "connect",
@@ -49,134 +53,104 @@ export class ConnectCommand extends BaseCommand {
       default_member_permissions: null,
       options: [],
     },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Initiate,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Confirm,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Change,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.Remove,
-      },
-    },
-    {
-      type: InteractionType.ModalSubmit,
-      data: {
-        components: [],
-        custom_id: GamertagSearchModal,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.SearchConfirm,
-      },
-    },
-    {
-      type: InteractionType.MessageComponent,
-      data: {
-        component_type: ComponentType.Button,
-        custom_id: InteractionButton.SearchCancel,
-      },
-    },
   ];
 
-  override execute(interaction: BaseInteraction): ExecuteResponse {
-    try {
-      return this.handleCommand(interaction);
-    } catch (error) {
-      this.services.logService.error(error as Error);
-
+  protected override readonly components: ComponentHandlerMap = this.createHandlerMap(InteractionButton, {
+    [InteractionButton.Initiate]: this.buttonHandler((interaction) => {
+      const connectLoadingEmbed = new ConnectLoadingEmbed();
       return {
         response: {
           type: InteractionResponseType.ChannelMessageWithSource,
           data: {
-            content: `Error: ${error instanceof Error ? error.message : "unknown"}`,
             flags: MessageFlags.Ephemeral,
+            embeds: [connectLoadingEmbed.embed],
           },
         },
+        jobToComplete: async () => this.applicationCommandJob(interaction),
       };
-    }
-  }
+    }),
 
-  private handleCommand(interaction: BaseInteraction): ExecuteResponse {
+    [InteractionButton.Confirm]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleConfirmButton(interaction)),
+    ),
+
+    [InteractionButton.Change]: this.buttonHandler(() => this.immediateResponse(this.handleChangeButton())),
+
+    [InteractionButton.Remove]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleRemoveButton(interaction)),
+    ),
+
+    [InteractionButton.SearchConfirm]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleConfirmSearchButton(interaction)),
+    ),
+
+    [InteractionButton.SearchCancel]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.applicationCommandJob(interaction)),
+    ),
+
+    [InteractionButton.GamertagSearchModal]: this.modalSubmitHandler((interaction) => {
+      const connectLoadingEmbed = new ConnectLoadingEmbed();
+      return {
+        response: {
+          type: InteractionResponseType.UpdateMessage,
+          data: {
+            content: "",
+            embeds: [connectLoadingEmbed.embed],
+            components: [
+              {
+                type: ComponentType.ActionRow,
+                components: [
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Success,
+                    label: "Yes, this is me",
+                    custom_id: InteractionButton.SearchConfirm,
+                    emoji: { name: "👍" },
+                    disabled: true,
+                  },
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Secondary,
+                    label: "No, change search",
+                    custom_id: InteractionButton.Change,
+                    emoji: { name: "🔄" },
+                    disabled: true,
+                  },
+                  {
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Danger,
+                    label: "Cancel",
+                    custom_id: InteractionButton.SearchCancel,
+                    emoji: { name: "🔙" },
+                    disabled: true,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        jobToComplete: async () => this.handleModalSubmit(interaction),
+      };
+    }),
+  });
+
+  protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
 
     switch (type) {
       case InteractionType.ApplicationCommand: {
-        return {
-          response: {
-            type: InteractionResponseType.DeferredChannelMessageWithSource,
-            data: { flags: MessageFlags.Ephemeral },
-          },
-          jobToComplete: async () => this.applicationCommandJob(interaction),
-        };
+        return this.deferReply(async () => this.applicationCommandJob(interaction), true);
       }
-      case InteractionType.MessageComponent: {
-        return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
-      }
+      case InteractionType.MessageComponent:
       case InteractionType.ModalSubmit: {
-        const connectLoadingEmbed = new ConnectLoadingEmbed();
-        return {
-          response: {
-            type: InteractionResponseType.UpdateMessage,
-            data: {
-              content: "",
-              embeds: [connectLoadingEmbed.embed],
-              components: [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Success,
-                      label: "Yes, this is me",
-                      custom_id: InteractionButton.SearchConfirm,
-                      emoji: { name: "👍" },
-                      disabled: true,
-                    },
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Secondary,
-                      label: "No, change search",
-                      custom_id: InteractionButton.Change,
-                      emoji: { name: "🔄" },
-                      disabled: true,
-                    },
-                    {
-                      type: ComponentType.Button,
-                      style: ButtonStyle.Danger,
-                      label: "Cancel",
-                      custom_id: InteractionButton.SearchCancel,
-                      emoji: { name: "🔙" },
-                      disabled: true,
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-          jobToComplete: async () => this.handleModalSubmit(interaction),
-        };
+        const customId = interaction.data.custom_id;
+        const handler = this.components[customId];
+
+        if (!handler) {
+          throw new Error(`No handler found for component: ${customId}`);
+        }
+
+        return this.executeComponentHandler(handler, interaction);
       }
       default: {
         throw new UnreachableError(type);
@@ -338,66 +312,6 @@ export class ConnectCommand extends BaseCommand {
     };
   }
 
-  private messageComponentResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const { custom_id } = interaction.data;
-
-    switch (custom_id as InteractionButton) {
-      case InteractionButton.Initiate: {
-        const connectLoadingEmbed = new ConnectLoadingEmbed();
-        return {
-          response: {
-            type: InteractionResponseType.ChannelMessageWithSource,
-            data: {
-              flags: MessageFlags.Ephemeral,
-              embeds: [connectLoadingEmbed.embed],
-            },
-          },
-          jobToComplete: async () => this.applicationCommandJob(interaction),
-        };
-      }
-      case InteractionButton.Confirm: {
-        return {
-          response: {
-            type: InteractionResponseType.DeferredMessageUpdate,
-          },
-          jobToComplete: async () => this.handleConfirmButton(interaction),
-        };
-      }
-      case InteractionButton.Change: {
-        return {
-          response: this.handleChangeButton(),
-        };
-      }
-      case InteractionButton.Remove: {
-        return {
-          response: {
-            type: InteractionResponseType.DeferredMessageUpdate,
-          },
-          jobToComplete: async () => this.handleRemoveButton(interaction),
-        };
-      }
-      case InteractionButton.SearchConfirm: {
-        return {
-          response: {
-            type: InteractionResponseType.DeferredMessageUpdate,
-          },
-          jobToComplete: async () => this.handleConfirmSearchButton(interaction),
-        };
-      }
-      case InteractionButton.SearchCancel: {
-        return {
-          response: {
-            type: InteractionResponseType.DeferredMessageUpdate,
-          },
-          jobToComplete: async () => this.applicationCommandJob(interaction),
-        };
-      }
-      default: {
-        throw new Error(`Unknown custom_id: ${custom_id}`);
-      }
-    }
-  }
-
   private async handleConfirmButton(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     const { databaseService, discordService, haloService } = this.services;
 
@@ -457,7 +371,7 @@ export class ConnectCommand extends BaseCommand {
       type: InteractionResponseType.Modal,
       data: {
         title: "Gamertag search",
-        custom_id: GamertagSearchModal,
+        custom_id: InteractionButton.GamertagSearchModal,
         components: [
           {
             type: ComponentType.ActionRow,
@@ -506,10 +420,6 @@ export class ConnectCommand extends BaseCommand {
     const { discordService, haloService } = this.services;
 
     try {
-      if (interaction.data.custom_id !== GamertagSearchModal) {
-        throw new Error(`Unknown custom_id: ${interaction.data.custom_id}`);
-      }
-
       const locale = interaction.guild_locale ?? interaction.locale;
       const modalData = discordService.extractModalSubmitData(interaction);
       const gamertag = Preconditions.checkExists(modalData.get("gamertag"), "Gamertag is required");
