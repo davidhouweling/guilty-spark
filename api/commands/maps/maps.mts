@@ -19,7 +19,7 @@ import {
   type ExecuteResponse,
   type BaseInteraction,
   type ApplicationCommandData,
-  type CommandData,
+  type ComponentHandlerMap,
   BaseCommand,
 } from "../base/base-command.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
@@ -87,70 +87,43 @@ export class MapsCommand extends BaseCommand {
     },
   ];
 
-  // MapsCommand manually defines its component data (not using handler pattern yet)
-  override get data(): CommandData[] {
-    return [
-      ...this.commands,
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Initiate,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Roll1,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Roll3,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Roll5,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Roll7,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.StringSelect,
-          custom_id: InteractionComponent.PlaylistSelect,
-          values: [],
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.StringSelect,
-          custom_id: InteractionComponent.FormatSelect,
-          values: [],
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Repost,
-        },
-      },
-    ];
-  }
+  protected override readonly components: ComponentHandlerMap = this.createHandlerMap(InteractionComponent, {
+    [InteractionComponent.Initiate]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleInitiate(interaction)),
+    ),
+
+    [InteractionComponent.Roll1]: this.buttonHandler((interaction) => {
+      this.getStateFromEmbed(interaction); // Validate synchronously
+      return this.deferUpdate(async () => this.handleReroll(interaction));
+    }),
+
+    [InteractionComponent.Roll3]: this.buttonHandler((interaction) => {
+      this.getStateFromEmbed(interaction); // Validate synchronously
+      return this.deferUpdate(async () => this.handleReroll(interaction));
+    }),
+
+    [InteractionComponent.Roll5]: this.buttonHandler((interaction) => {
+      this.getStateFromEmbed(interaction); // Validate synchronously
+      return this.deferUpdate(async () => this.handleReroll(interaction));
+    }),
+
+    [InteractionComponent.Roll7]: this.buttonHandler((interaction) => {
+      this.getStateFromEmbed(interaction); // Validate synchronously
+      return this.deferUpdate(async () => this.handleReroll(interaction));
+    }),
+
+    [InteractionComponent.PlaylistSelect]: this.stringSelectHandler((interaction) =>
+      this.deferUpdate(async () => this.handlePlaylistSelect(interaction)),
+    ),
+
+    [InteractionComponent.FormatSelect]: this.stringSelectHandler((interaction) =>
+      this.deferUpdate(async () => this.handleFormatSelect(interaction)),
+    ),
+
+    [InteractionComponent.Repost]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleRepost(interaction)),
+    ),
+  });
 
   execute(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
@@ -160,7 +133,14 @@ export class MapsCommand extends BaseCommand {
           return this.applicationCommandJob(interaction);
         }
         case InteractionType.MessageComponent: {
-          return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
+          const customId = interaction.data.custom_id;
+          const handler = this.components[customId];
+
+          if (!handler) {
+            throw new Error(`No handler found for component: ${customId}`);
+          }
+
+          return this.executeComponentHandler(handler, interaction);
         }
         case InteractionType.ModalSubmit: {
           throw new Error("This command cannot be used in this context.");
@@ -256,95 +236,116 @@ export class MapsCommand extends BaseCommand {
     return this.generateDeferredResponse(interaction, state, maps);
   }
 
-  private messageComponentResponse(
-    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
-  ): ExecuteResponse {
-    const customId = interaction.data.custom_id as InteractionComponent;
+  private async handleInitiate(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const count = 5;
+      const playlist = MapsPlaylistType.HCS_CURRENT;
+      const format = MapsFormatType.HCS;
+      const state = { count, playlist, format };
 
-    switch (customId) {
-      case InteractionComponent.Initiate: {
-        return this.initiateResponse(interaction as APIMessageComponentButtonInteraction);
-      }
-      case InteractionComponent.Roll1:
-      case InteractionComponent.Roll3:
-      case InteractionComponent.Roll5:
-      case InteractionComponent.Roll7: {
-        return this.rollResponse(interaction as APIMessageComponentButtonInteraction, customId);
-      }
-      case InteractionComponent.PlaylistSelect: {
-        return this.playlistSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
-      }
-      case InteractionComponent.FormatSelect: {
-        return this.formatSelectResponse(interaction as APIMessageComponentSelectMenuInteraction);
-      }
-      case InteractionComponent.Repost: {
-        return this.repostResponse(interaction as APIMessageComponentButtonInteraction);
-      }
-      default: {
-        throw new UnreachableError(customId);
-      }
+      const maps = await this.services.haloService.generateMaps(state);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
+      const response = this.createMapsResponse({
+        userId: Preconditions.checkExists(
+          interaction.member?.user.id ?? interaction.user?.id,
+          "expected either an interaction member id or user id but none found",
+        ),
+        ...state,
+        maps,
+        availableModes,
+      });
+
+      await this.services.discordService.createMessage(interaction.channel.id, response);
+    } catch (error) {
+      this.services.logService.error(error as Error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
-  private initiateResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const count = 5;
-    const playlist = MapsPlaylistType.HCS_CURRENT;
-    const format = MapsFormatType.HCS;
-    const newState = { count, playlist, format };
-    const mapsPromise = this.services.haloService.generateMaps(newState);
+  private async handleReroll(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const state = this.getStateFromEmbed(interaction);
+      const customId = interaction.data.custom_id as InteractionComponent;
+      const count = this.getCountFromInteractionButton(customId);
+      const newState = { ...state, count };
 
-    return this.generateDeferredResponse(interaction, newState, mapsPromise);
+      const maps = await this.services.haloService.generateMaps(newState);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(newState.playlist);
+      const response = this.createMapsResponse({
+        userId: Preconditions.checkExists(
+          interaction.member?.user.id ?? interaction.user?.id,
+          "expected either an interaction member id or user id but none found",
+        ),
+        ...newState,
+        maps,
+        availableModes,
+      });
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      this.services.logService.error(error as Error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
-  private rollResponse(
-    interaction: APIMessageComponentButtonInteraction,
-    customId: InteractionComponent,
-  ): ExecuteResponse {
-    const state = this.getStateFromEmbed(interaction);
-    const count = this.getCountFromInteractionButton(customId);
-    const newState = { ...state, count };
-    const mapsPromise = this.services.haloService.generateMaps(newState);
+  private async handlePlaylistSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    try {
+      const state = this.getStateFromEmbed(interaction);
+      const playlist = interaction.data.values[0] as MapsPlaylistType;
+      const newState = { ...state, playlist };
 
-    return this.generateDeferredResponse(interaction, newState, mapsPromise);
+      const maps = await this.services.haloService.generateMaps(newState);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(newState.playlist);
+      const response = this.createMapsResponse({
+        userId: Preconditions.checkExists(
+          interaction.member?.user.id ?? interaction.user?.id,
+          "expected either an interaction member id or user id but none found",
+        ),
+        ...newState,
+        maps,
+        availableModes,
+      });
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      this.services.logService.error(error as Error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
-  private playlistSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
-    const state = this.getStateFromEmbed(interaction);
-    const playlist = interaction.data.values[0] as MapsPlaylistType;
-    const newState = { ...state, playlist };
-    const mapsPromise = this.services.haloService.generateMaps(newState);
+  private async handleFormatSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    try {
+      const state = this.getStateFromEmbed(interaction);
+      const format = interaction.data.values[0] as MapsFormatType;
+      const newState = { ...state, format };
 
-    return this.generateDeferredResponse(interaction, newState, mapsPromise);
+      const maps = await this.services.haloService.generateMaps(newState);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(newState.playlist);
+      const response = this.createMapsResponse({
+        userId: Preconditions.checkExists(
+          interaction.member?.user.id ?? interaction.user?.id,
+          "expected either an interaction member id or user id but none found",
+        ),
+        ...newState,
+        maps,
+        availableModes,
+      });
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      this.services.logService.error(error as Error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
-  private formatSelectResponse(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
-    const state = this.getStateFromEmbed(interaction);
-    const format = interaction.data.values[0] as MapsFormatType;
-    const newState = { ...state, format };
-    const mapsPromise = this.services.haloService.generateMaps(newState);
+  private async handleRepost(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    await this.services.discordService.createMessage(interaction.channel.id, {
+      embeds: interaction.message.embeds,
+      components: interaction.message.components,
+      content: interaction.message.content,
+    });
 
-    return this.generateDeferredResponse(interaction, newState, mapsPromise);
-  }
-
-  private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    return {
-      response: {
-        type: InteractionResponseType.DeferredMessageUpdate,
-      },
-      jobToComplete: async (): Promise<void> => {
-        await this.services.discordService.createMessage(interaction.channel.id, {
-          embeds: interaction.message.embeds,
-          components: interaction.message.components,
-          content: interaction.message.content,
-        });
-
-        await this.services.discordService.deleteMessage(
-          interaction.channel.id,
-          interaction.message.id,
-          "Reposting maps",
-        );
-      },
-    };
+    await this.services.discordService.deleteMessage(interaction.channel.id, interaction.message.id, "Reposting maps");
   }
 
   private getCountFromInteractionButton(customId: InteractionComponent): number {

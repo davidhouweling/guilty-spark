@@ -8,14 +8,18 @@ import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   ChannelType,
-  ComponentType,
   InteractionResponseType,
   InteractionType,
   MessageFlags,
   InteractionContextType,
 } from "discord-api-types/v10";
 import { addMinutes } from "date-fns";
-import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command.mjs";
+import type {
+  BaseInteraction,
+  ExecuteResponse,
+  ApplicationCommandData,
+  ComponentHandlerMap,
+} from "../base/base-command.mjs";
 import { BaseCommand } from "../base/base-command.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
@@ -61,40 +65,15 @@ export class TrackCommand extends BaseCommand {
     },
   ];
 
-  // TrackCommand manually defines its component data (not using handler pattern yet)
-  override get data(): CommandData[] {
-    return [
-      ...this.commands,
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Pause,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Resume,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Refresh,
-        },
-      },
-      {
-        type: InteractionType.MessageComponent,
-        data: {
-          component_type: ComponentType.Button,
-          custom_id: InteractionComponent.Repost,
-        },
-      },
-    ];
-  }
+  protected override readonly components: ComponentHandlerMap = this.createHandlerMap(InteractionComponent, {
+    [InteractionComponent.Pause]: this.buttonHandler((interaction) => this.handlePause(interaction)),
+
+    [InteractionComponent.Resume]: this.buttonHandler((interaction) => this.handleResume(interaction)),
+
+    [InteractionComponent.Refresh]: this.buttonHandler((interaction) => this.handleRefresh(interaction)),
+
+    [InteractionComponent.Repost]: this.buttonHandler((interaction) => this.handleRepost(interaction)),
+  });
 
   execute(interaction: BaseInteraction): ExecuteResponse {
     const { type } = interaction;
@@ -105,7 +84,14 @@ export class TrackCommand extends BaseCommand {
           return this.applicationCommandJob(interaction);
         }
         case InteractionType.MessageComponent: {
-          return this.messageComponentResponse(interaction as APIMessageComponentButtonInteraction);
+          const customId = interaction.data.custom_id;
+          const handler = this.components[customId];
+
+          if (!handler) {
+            throw new Error(`No handler found for component: ${customId}`);
+          }
+
+          return this.executeComponentHandler(handler, interaction);
         }
         case InteractionType.ModalSubmit: {
           throw new Error("This command cannot be used in this context.");
@@ -317,29 +303,7 @@ export class TrackCommand extends BaseCommand {
     );
   }
 
-  private messageComponentResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
-    const customId = interaction.data.custom_id as InteractionComponent;
-
-    switch (customId) {
-      case InteractionComponent.Pause: {
-        return this.pauseResponse(interaction);
-      }
-      case InteractionComponent.Resume: {
-        return this.resumeResponse(interaction);
-      }
-      case InteractionComponent.Refresh: {
-        return this.refreshResponse(interaction);
-      }
-      case InteractionComponent.Repost: {
-        return this.repostResponse(interaction);
-      }
-      default: {
-        throw new UnreachableError(customId);
-      }
-    }
-  }
-
-  private pauseResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+  private handlePause(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     return {
       response: {
         type: InteractionResponseType.DeferredMessageUpdate,
@@ -394,7 +358,7 @@ export class TrackCommand extends BaseCommand {
     };
   }
 
-  private resumeResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+  private handleResume(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     return {
       response: {
         type: InteractionResponseType.DeferredMessageUpdate,
@@ -439,7 +403,7 @@ export class TrackCommand extends BaseCommand {
     };
   }
 
-  private refreshResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+  private handleRefresh(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     return {
       response: {
         type: InteractionResponseType.DeferredMessageUpdate,
@@ -493,7 +457,7 @@ export class TrackCommand extends BaseCommand {
     }
   }
 
-  private repostResponse(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
+  private handleRepost(interaction: APIMessageComponentButtonInteraction): ExecuteResponse {
     return {
       response: {
         type: InteractionResponseType.DeferredMessageUpdate,
