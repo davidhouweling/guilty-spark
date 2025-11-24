@@ -43,11 +43,11 @@
     "publish:pages": "npm run deploy --workspace=pages"
   },
   "dependencies": {
-    "@sentry/cli": "^2.58.0",
-    "@sentry/cloudflare": "^10.23.0",
+    "@sentry/cli": "^2.58.2",
+    "@sentry/cloudflare": "^10.26.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.38.33",
+    "discord-api-types": "^0.38.34",
     "discord-interactions": "^4.4.0",
     "halo-infinite-api": "^12.0.2",
     "itty-router": "^5.0.22",
@@ -56,11 +56,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@tsconfig/node24": "^24.0.1",
+    "@tsconfig/node24": "^24.0.3",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.0",
-    "@typescript-eslint/parser": "^8.46.3",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/parser": "^8.47.0",
+    "@vitest/coverage-v8": "^4.0.13",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.1",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -73,9 +73,9 @@
     "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.3",
+    "typescript-eslint": "^8.47.0",
     "vitest": "^4.0.6",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.46.0"
+    "wrangler": "^4.50.0"
   }
 }
