@@ -1,6 +1,6 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
-import type { APIChannel, APIMessage } from "discord-api-types/v10";
+import type { APIChannel, APIMessage, APIApplicationCommandInteraction, APIEmbed } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import { NeatQueueService } from "../neatqueue.mjs";
@@ -29,6 +29,7 @@ import {
   aGuildMemberWith,
   apiMessage,
   discordNeatQueueData,
+  fakeBaseAPIApplicationCommandInteraction,
   guild,
   guildMember,
   textChannel,
@@ -854,7 +855,8 @@ describe("NeatQueueService", () => {
               ? vi.spyOn(logService, "warn")
               : vi.spyOn(logService, "error");
 
-          getTeamsFromQueueSpy.mockReset().mockResolvedValue(null);
+          const errorMessage = "No queue found within the last 100 messages";
+          getTeamsFromQueueSpy.mockReset().mockRejectedValue(new EndUserError(errorMessage, { handled: true }));
 
           const { jobToComplete } = neatQueueService.handleRequest(
             getFakeNeatQueueData("matchCompleted"),
@@ -864,23 +866,24 @@ describe("NeatQueueService", () => {
           await jobToComplete?.();
 
           if (mode === NeatQueuePostSeriesDisplayMode.THREAD) {
-            expect(logSpy).toHaveBeenCalledExactlyOnceWith(
-              new EndUserError("Failed to find the results message", { handled: true }),
-              new Map([["reason", "Failed to post series data to thread"]]),
-            );
+            expect(logSpy).toHaveBeenCalledOnce();
+            const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
+            expect(error).toBeInstanceOf(EndUserError);
+            expect((error as EndUserError).endUserMessage).toBe(errorMessage);
+            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data to thread"]]));
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).not.toHaveBeenCalled();
           } else {
-            expect(logSpy).toHaveBeenCalledExactlyOnceWith(
-              new EndUserError("Failed to find the results message", {
-                data: {
-                  Channel: `<#results-channel-1>`,
-                  Completed: "<t:1732618080:f>",
-                  Queue: "2",
-                },
-              }),
-              new Map([["reason", "Failed to post series data direct to channel"]]),
-            );
+            expect(logSpy).toHaveBeenCalledOnce();
+            const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
+            expect(error).toBeInstanceOf(EndUserError);
+            expect((error as EndUserError).endUserMessage).toBe(errorMessage);
+            expect((error as EndUserError).data).toEqual({
+              Channel: `<#results-channel-1>`,
+              Completed: "<t:1732618080:f>",
+              Queue: "2",
+            });
+            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data direct to channel"]]));
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
             expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
@@ -1181,7 +1184,9 @@ describe("NeatQueueService", () => {
     });
 
     it("handles missing queue message gracefully", async () => {
-      vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(null);
+      vi.spyOn(discordService, "getTeamsFromQueueResult").mockRejectedValue(
+        new EndUserError("Error getting teams from queue result"),
+      );
       const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
       await neatQueueService.handleRetry({
@@ -1200,7 +1205,7 @@ describe("NeatQueueService", () => {
             "embeds": [
               {
                 "color": 16711680,
-                "description": "Failed to find the queue message in the last 100 messages of the channel",
+                "description": "Error getting teams from queue result",
                 "fields": [
                   {
                     "name": "Additional Information",
@@ -1233,6 +1238,60 @@ describe("NeatQueueService", () => {
       });
 
       expect(logWarnSpy).toHaveBeenCalledWith("Expected channel for retry", expect.any(Map));
+    });
+
+    it("processes retry with interaction parameter instead of message", async () => {
+      const fakeInteraction = {
+        ...fakeBaseAPIApplicationCommandInteraction,
+        channel: {
+          id: "channel-123",
+          type: ChannelType.GuildText,
+        },
+        token: "fake-interaction-token",
+      } as APIApplicationCommandInteraction;
+
+      const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
+      const updateDeferredReplySpy = vi.spyOn(discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        interaction: fakeInteraction,
+      });
+
+      expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalled();
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-interaction-token", expect.any(Object));
+    });
+
+    it("updates deferred reply with error when using interaction parameter", async () => {
+      const fakeInteraction = {
+        ...fakeBaseAPIApplicationCommandInteraction,
+        channel: {
+          id: "channel-123",
+          type: ChannelType.GuildText,
+        },
+        token: "fake-interaction-token",
+      } as APIApplicationCommandInteraction;
+
+      vi.spyOn(discordService, "getTeamsFromQueueResult").mockRejectedValue(new Error("Test error"));
+      const updateDeferredReplySpy = vi.spyOn(discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        interaction: fakeInteraction,
+      });
+
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-interaction-token",
+        expect.objectContaining<Parameters<typeof discordService.updateDeferredReply>[1]>({
+          embeds: expect.arrayContaining<APIEmbed>([
+            expect.objectContaining<APIEmbed>({
+              title: "Something went wrong",
+            }) as APIEmbed,
+          ]) as APIEmbed[],
+        }),
+      );
     });
   });
 

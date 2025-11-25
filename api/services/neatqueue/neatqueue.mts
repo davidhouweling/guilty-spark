@@ -7,6 +7,7 @@ import type {
   APIMessage,
   RESTPostAPIChannelMessageJSONBody,
   APIGuildMember,
+  APIApplicationCommandInteraction,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
@@ -178,15 +179,26 @@ export class NeatQueueService {
     errorEmbed,
     guildId,
     message,
+    interaction,
   }: {
     errorEmbed: EndUserError;
     guildId: string;
-    message: APIMessage;
-  }): Promise<void> {
+  } & (
+    | {
+        message: APIMessage;
+        interaction?: never;
+      }
+    | {
+        interaction: APIApplicationCommandInteraction;
+        message?: never;
+      }
+  )): Promise<void> {
     const { discordService, haloService, logService } = this;
+    const channelId = message != null ? message.channel_id : interaction.channel.id;
+    const messageId = message != null ? message.id : interaction.id;
 
     try {
-      const channel = await discordService.getChannel(message.channel_id);
+      const channel = await discordService.getChannel(channelId);
 
       if (
         channel.type !== ChannelType.GuildText &&
@@ -232,13 +244,6 @@ export class NeatQueueService {
           .reverse() ?? [];
 
       const queueMessage = await discordService.getTeamsFromQueueResult(guildId, queueChannel, queue);
-      if (queueMessage == null) {
-        throw new EndUserError("Failed to find the queue message in the last 100 messages of the channel", {
-          handled: true,
-          data: { Channel: queueChannel, Queue: queue.toString() },
-        });
-      }
-
       const series: MatchStats[] = [];
       const teams: MatchPlayer[][] = queueMessage.teams.map((team) =>
         team.players.map((player) => ({
@@ -317,17 +322,23 @@ export class NeatQueueService {
         })),
         substitutions: substitutionsEmbed,
       });
-      await discordService.editMessage(message.channel_id, message.id, {
+
+      let threadId = channelId;
+      const data: RESTPostAPIChannelMessageJSONBody = {
         content: "",
         embeds: [seriesOverviewEmbed],
         components: [],
-      });
+      };
+      if (message != null) {
+        await discordService.editMessage(channelId, message.id, data);
+      } else {
+        await discordService.updateDeferredReply(interaction.token, data);
+      }
 
-      let threadId = message.channel_id;
       if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
         const thread = await discordService.startThreadFromMessage(
-          message.channel_id,
-          message.id,
+          channelId,
+          messageId,
           `Queue #${queue.toString()} series stats`,
         );
         threadId = thread.id;
@@ -345,11 +356,15 @@ export class NeatQueueService {
         error.appendData({
           ...errorEmbed.data,
         });
-        await discordService.editMessage(message.channel_id, message.id, {
+        const data = {
           embeds: [error.discordEmbed],
           components: error.discordActions,
-        });
-
+        };
+        if (message != null) {
+          await discordService.editMessage(channelId, messageId, data);
+        } else {
+          await discordService.updateDeferredReply(interaction.token, data);
+        }
         return;
       }
 
@@ -359,10 +374,15 @@ export class NeatQueueService {
         ...errorEmbed.data,
       });
 
-      await discordService.editMessage(message.channel_id, message.id, {
+      const data = {
         embeds: [endUserError.discordEmbed],
         components: endUserError.discordActions,
-      });
+      };
+      if (message != null) {
+        await discordService.editMessage(channelId, messageId, data);
+      } else {
+        await discordService.updateDeferredReply(interaction.token, data);
+      }
     }
   }
 
@@ -1213,6 +1233,7 @@ export class NeatQueueService {
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
+    let foundResultsMessage = false;
     let useFallback = true;
     let thread: RESTPostAPIChannelThreadsResult | undefined;
 
@@ -1222,10 +1243,7 @@ export class NeatQueueService {
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
-      if (resultsMessage == null) {
-        useFallback = false;
-        throw new EndUserError("Failed to find the results message", { handled: true });
-      }
+      foundResultsMessage = true;
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
       thread = await discordService.startThreadFromMessage(
@@ -1253,6 +1271,10 @@ export class NeatQueueService {
       await this.postSeriesDetailsToChannel(thread.id, request.guild, series);
     } catch (error) {
       this.logService.warn(error as Error, new Map([["reason", "Failed to post series data to thread"]]));
+
+      if (!foundResultsMessage) {
+        return;
+      }
 
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
@@ -1282,7 +1304,7 @@ export class NeatQueueService {
     timeline: NeatQueueTimelineEvent[];
   }): Promise<void> {
     const { discordService } = this;
-    let useFallback = true;
+    let useFallback = false;
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueueResult(
@@ -1290,10 +1312,7 @@ export class NeatQueueService {
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
-      if (resultsMessage == null) {
-        useFallback = false;
-        throw new EndUserError("Failed to find the results message", { handled: true });
-      }
+      useFallback = true;
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
       const thread = await discordService.startThreadFromMessage(
@@ -1338,9 +1357,6 @@ export class NeatQueueService {
         neatQueueConfig.ResultsChannelId,
         request.match_number,
       );
-      if (resultsMessage == null) {
-        throw new EndUserError("Failed to find the results message");
-      }
 
       const finalTeams = this.getTeams(request);
       const substitutions = this.getSubstitutionsFromTimeline(timeline, finalTeams);

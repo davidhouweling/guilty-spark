@@ -29,7 +29,7 @@ import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 import { StatsReturnType } from "../../services/database/types/guild_config.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
-import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
+import { EndUserError } from "../../base/end-user-error.mjs";
 import { create } from "../../embeds/stats/create.mjs";
 
 export enum InteractionButton {
@@ -149,8 +149,29 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const channel = (options.get("channel") as string | undefined) ?? interaction.channel.id;
+    const optionsChannel = options.get("channel") as string | undefined;
+    let channel = optionsChannel ?? interaction.channel.id;
     const queue = options.get("queue") as number | undefined;
+
+    const channelType = interaction.channel.type;
+
+    if (
+      optionsChannel == null &&
+      (channelType === ChannelType.PublicThread ||
+        channelType === ChannelType.PrivateThread ||
+        channelType === ChannelType.AnnouncementThread)
+    ) {
+      if (queue == null) {
+        return {
+          response: {
+            type: InteractionResponseType.DeferredChannelMessageWithSource,
+          },
+          jobToComplete: async () => this.neatQueueSubCommandInThreadJob(interaction),
+        };
+      }
+
+      channel = interaction.channel.parent_id ?? interaction.channel.id;
+    }
 
     return {
       response: {
@@ -176,16 +197,6 @@ export class StatsCommand extends BaseCommand {
         databaseService.getGuildConfig(guildId),
         discordService.getTeamsFromQueueResult(guildId, channelId, queue),
       ]);
-      if (!queueData) {
-        throw new EndUserError(
-          `No queue found within the last 100 messages of <#${channelId}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
-          {
-            errorType: EndUserErrorType.WARNING,
-            handled: true,
-          },
-        );
-      }
-      this.services.logService.debug("Found queue data", new Map([["queueData", JSON.stringify(queueData)]]));
 
       computedQueue = queueData.queue;
       const startDateTime = subHours(queueData.timestamp, 6);
@@ -226,54 +237,8 @@ export class StatsCommand extends BaseCommand {
             `Queue #${queueData.queue.toString()} series stats`,
           );
 
-      const seriesTeamsEmbed = new SeriesTeamsEmbed({
-        discordService,
-        haloService,
-        guildConfig,
-        locale,
-      });
-      const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
-      await discordService.createMessage(thread.id, {
-        embeds: [seriesTeamsEmbedOutput],
-      });
-
-      const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
-      const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
-      const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
-      for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
-        await discordService.createMessage(thread.id, {
-          embeds: [seriesPlayersEmbedOutput],
-        });
-      }
-
-      if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
-        await discordService.createMessage(thread.id, {
-          components: [
-            {
-              type: ComponentType.ActionRow,
-              components: [
-                {
-                  type: ComponentType.Button,
-                  custom_id: InteractionButton.LoadGames,
-                  label: "Load game stats",
-                  style: 1,
-                  emoji: {
-                    name: "🎮",
-                  },
-                },
-              ],
-            },
-          ],
-        });
-      } else {
-        for (const match of series) {
-          const players = await haloService.getPlayerXuidsToGametags(match);
-          const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
-          const embed = await matchEmbed.getEmbed(match, players);
-
-          await discordService.createMessage(thread.id, { embeds: [embed] });
-        }
-      }
+      await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
+      await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
@@ -283,6 +248,106 @@ export class StatsCommand extends BaseCommand {
           Queue: computedQueue.toString(),
           Completed: discordService.getTimestamp(endDateTime.toISOString()),
         });
+      }
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async neatQueueSubCommandInThreadJob(interaction: APIApplicationCommandInteraction): Promise<void> {
+    const { databaseService, discordService, haloService, logService, neatQueueService } = this.services;
+    let previousEndUserError: EndUserError | undefined;
+
+    try {
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+
+      if (
+        interaction.channel.type !== ChannelType.PublicThread &&
+        interaction.channel.type !== ChannelType.PrivateThread &&
+        interaction.channel.type !== ChannelType.AnnouncementThread
+      ) {
+        throw new EndUserError("This command must be run in a thread channel.");
+      }
+      const threadChannelId = interaction.channel.id;
+      const [guildConfig, threadMessages] = await Promise.all([
+        databaseService.getGuildConfig(guildId),
+        this.services.discordService.getMessages(threadChannelId),
+      ]);
+      const firstMessage = threadMessages[threadMessages.length - 1];
+      if (
+        firstMessage?.referenced_message?.author.bot !== true ||
+        firstMessage.referenced_message.author.id !== NEAT_QUEUE_BOT_USER_ID
+      ) {
+        throw new EndUserError("The first message in this thread is not from NeatQueue.");
+      }
+      const queueMessage = firstMessage.referenced_message;
+
+      const guiltySparkMessages = threadMessages.filter(
+        (message) =>
+          message.author.id === this.env.DISCORD_APP_ID && (message.content !== "" || message.embeds.length > 0),
+      );
+      const errorMessages = guiltySparkMessages
+        .map((message) => (message.embeds[0] ? EndUserError.fromDiscordEmbed(message.embeds[0]) : null))
+        .filter((errorMessage) => errorMessage != null);
+
+      try {
+        await discordService.bulkDeleteMessages(
+          threadChannelId,
+          guiltySparkMessages.map((message) => message.id),
+          "Cleaning up previous Guilty Spark messages before computing data",
+        );
+      } catch (error) {
+        logService.error(error as Error, new Map([["threadChannelId", threadChannelId]]));
+      }
+
+      [previousEndUserError] = errorMessages;
+      if (
+        previousEndUserError?.data["Channel"] != null &&
+        previousEndUserError.data["Queue"] != null &&
+        previousEndUserError.data["Completed"] != null
+      ) {
+        await neatQueueService.handleRetry({
+          errorEmbed: previousEndUserError,
+          guildId,
+          interaction,
+        });
+      } else {
+        const queueData = await discordService.getTeamsFromMessage(guildId, queueMessage);
+        const locale = interaction.guild_locale ?? interaction.locale;
+        const startDateTime = subHours(queueData.timestamp, 6);
+        const endDateTime = queueData.timestamp;
+        const series = await haloService.getSeriesFromDiscordQueue({
+          teams: queueData.teams.map((team) =>
+            team.players.map((player) => ({
+              id: player.user.id,
+              username: player.user.username,
+              globalName: player.user.global_name,
+              guildNickname: player.nick ?? null,
+            })),
+          ),
+          startDateTime,
+          endDateTime,
+        });
+
+        const seriesEmbed = await this.createSeriesEmbed({
+          guildId,
+          channelId: queueMessage.channel_id,
+          locale,
+          queueData,
+          series,
+        });
+
+        await discordService.updateDeferredReply(interaction.token, {
+          embeds: [seriesEmbed],
+        });
+
+        await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
+        await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
+
+        await haloService.updateDiscordAssociations();
+      }
+    } catch (error) {
+      if (error instanceof EndUserError) {
+        error.appendData(previousEndUserError?.data ?? {});
       }
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -420,6 +485,73 @@ export class StatsCommand extends BaseCommand {
       );
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async postSeriesEmbedsToThread(
+    threadId: string,
+    series: MatchStats[],
+    guildConfig: GuildConfigRow,
+    locale: string,
+  ): Promise<void> {
+    const { discordService, haloService } = this.services;
+
+    const seriesTeamsEmbed = new SeriesTeamsEmbed({
+      discordService,
+      haloService,
+      guildConfig,
+      locale,
+    });
+    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
+    await discordService.createMessage(threadId, {
+      embeds: [seriesTeamsEmbedOutput],
+    });
+
+    const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
+    for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
+      await discordService.createMessage(threadId, {
+        embeds: [seriesPlayersEmbedOutput],
+      });
+    }
+  }
+
+  private async postGameStatsOrButton(
+    threadId: string,
+    series: MatchStats[],
+    guildConfig: GuildConfigRow,
+    locale: string,
+  ): Promise<void> {
+    const { discordService, haloService } = this.services;
+
+    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
+      await discordService.createMessage(threadId, {
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.LoadGames,
+                label: "Load game stats",
+                style: 1,
+                emoji: {
+                  name: "🎮",
+                },
+              },
+            ],
+          },
+        ],
+      });
+    } else {
+      for (const match of series) {
+        const players = await haloService.getPlayerXuidsToGametags(match);
+        const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
+        const embed = await matchEmbed.getEmbed(match, players);
+
+        await discordService.createMessage(threadId, { embeds: [embed] });
+      }
     }
   }
 
