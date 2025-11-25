@@ -1,6 +1,7 @@
 import { inspect } from "node:util";
 import { getUnixTime } from "date-fns";
 import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
+import type { Headers as fHeaders } from "undici-types/fetch.d.ts";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -273,24 +274,20 @@ export class DiscordService {
     return data;
   }
 
-  async getTeamsFromQueueResult(
-    guildId: string,
-    channelId: string,
-    queue: number | undefined,
-  ): Promise<QueueData | null> {
+  async getTeamsFromQueueResult(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
       queryParameters: { limit: 100 },
     });
 
-    const queueMessage = messages
-      .filter((message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID)
-      .find(
-        (message): boolean =>
-          message.embeds.find((embed) =>
-            new RegExp(`Winner For Queue#${queue != null ? queue.toString() : ""}`).test(embed.title ?? ""),
-          ) != null,
-      );
+    const queueMessage = this.findNeatQueueMessage(
+      messages,
+      (message) =>
+        message.embeds.find((embed) =>
+          new RegExp(`Winner For Queue#${queue != null ? queue.toString() : ""}`).test(embed.title ?? ""),
+        ) != null,
+    );
+
     if (!queueMessage) {
       this.logService.debug(
         "No queue message found",
@@ -299,7 +296,13 @@ export class DiscordService {
           ["queue", queue ?? ""],
         ]),
       );
-      return null;
+      throw new EndUserError(
+        `No queue found within the last 100 messages of <#${channelId}>${queue != null ? `, with queue number ${queue.toString()}` : ""}. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.`,
+        {
+          errorType: EndUserErrorType.WARNING,
+          handled: true,
+        },
+      );
     }
 
     this.logService.debug("Found queue message", new Map([["queueMessage", JSON.stringify(queueMessage)]]));
@@ -307,13 +310,50 @@ export class DiscordService {
     const embed = Preconditions.checkExists(queueMessage.embeds[0], "No embed found");
     const extractedQueueNumber = embed.title != null ? Number(/\b#(\d+)\b/.exec(embed.title)?.[1] ?? 0) : 0;
 
-    return this.buildQueueDataFromMessage(
+    const queueData = this.buildQueueDataFromMessage(
       guildId,
       queueMessage,
       embed,
       queue ?? extractedQueueNumber,
-      false, // Don't clean team names for result messages
+      false,
     );
+    this.logService.debug("Found queue data", new Map([["queueData", JSON.stringify(queueData)]]));
+    return queueData;
+  }
+
+  async getTeamsFromMessage(guildId: string, message: APIMessage): Promise<QueueData> {
+    if (!(message.author.bot ?? false) || message.author.id !== NEAT_QUEUE_BOT_USER_ID) {
+      throw new EndUserError("This message is not from NeatQueue.", {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    const [embed] = message.embeds;
+    if (!embed) {
+      throw new EndUserError("This NeatQueue message doesn't contain team information.", {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    const isResultMessage = /Winner For Queue#\d+/.test(embed.title ?? "");
+    if (!isResultMessage) {
+      throw new EndUserError("This NeatQueue message doesn't contain series results.", {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    const queueNumber = embed.title != null ? Number(/Queue#(\d+)/.exec(embed.title)?.[1] ?? 0) : 0;
+    if (queueNumber === 0) {
+      throw new EndUserError("Could not extract queue number from message.", {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    return this.buildQueueDataFromMessage(guildId, message, embed, queueNumber, false);
   }
 
   async getTeamsFromQueueChannel(guildId: string, channelId: string): Promise<QueueData | null> {
@@ -322,7 +362,6 @@ export class DiscordService {
       queryParameters: { limit: 100 },
     });
 
-    // First check if this is a NeatQueue channel at all
     const neatQueueMessages = messages.filter(
       (message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID,
     );
@@ -338,8 +377,9 @@ export class DiscordService {
     }
 
     // Look for active teams message (format: "⚔️ Queue#4680")
-    const activeTeamsMessage = neatQueueMessages.find(
-      (message): boolean => message.embeds.find((embed) => /^⚔️ Queue#\d+/.test(embed.title ?? "")) != null,
+    const activeTeamsMessage = this.findNeatQueueMessage(
+      neatQueueMessages,
+      (message) => message.embeds.find((embed) => /^⚔️ Queue#\d+/.test(embed.title ?? "")) != null,
     );
 
     if (!activeTeamsMessage) {
@@ -372,6 +412,14 @@ export class DiscordService {
       queueNumber,
       true, // Clean team names for active queue messages
     );
+  }
+
+  private findNeatQueueMessage(messages: APIMessage[], predicate: (message: APIMessage) => boolean): APIMessage | null {
+    const neatQueueMessages = messages.filter(
+      (message) => (message.author.bot ?? false) && message.author.id === NEAT_QUEUE_BOT_USER_ID,
+    );
+
+    return neatQueueMessages.find(predicate) ?? null;
   }
 
   private async buildQueueDataFromMessage(
@@ -547,6 +595,23 @@ export class DiscordService {
   async deleteMessage(channelId: string, messageId: string, reason: string): Promise<void> {
     await this.fetch(Routes.channelMessage(channelId, messageId), {
       method: "DELETE",
+      headers: {
+        "X-Audit-Log-Reason": reason,
+      },
+    });
+  }
+
+  async bulkDeleteMessages(channelId: string, messageIds: string[], reason: string): Promise<void> {
+    if (messageIds.length < 2 && messageIds[0] != null) {
+      return this.deleteMessage(channelId, messageIds[0], reason);
+    }
+    if (messageIds.length < 2 || messageIds.length > 100) {
+      throw new Error("Message IDs length must be between 2 and 100 for bulk delete.");
+    }
+
+    await this.fetch(Routes.channelBulkDelete(channelId), {
+      method: "POST",
+      body: JSON.stringify({ messages: messageIds }),
       headers: {
         "X-Audit-Log-Reason": reason,
       },
@@ -870,7 +935,7 @@ export class DiscordService {
             ["rateLimit", JSON.stringify(rateLimitFromResponse)],
           ]),
         );
-        this.logService.info("Response headers", new Map(Array.from(response.headers.entries())));
+        this.logService.info("Response headers", new Map(Array.from((response.headers as fHeaders).entries())));
 
         if (rateLimitFromResponse.reset != null) {
           this.setRateLimitInAppConfig(path, rateLimitFromResponse);

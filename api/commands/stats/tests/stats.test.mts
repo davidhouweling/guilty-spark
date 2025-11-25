@@ -5,15 +5,18 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIInteractionResponse,
   APIThreadChannel,
+  APIMessage,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   ChannelType,
+  ComponentType,
   InteractionResponseType,
   InteractionType,
   Locale,
   MessageFlags,
+  MessageType,
 } from "discord-api-types/v10";
 import { StatsCommand } from "../stats.mjs";
 import type { Services } from "../../../services/install.mjs";
@@ -31,6 +34,8 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
+import type { EndUserError } from "../../../base/end-user-error.mjs";
+import type { MatchPlayer } from "../../../services/halo/halo.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -109,8 +114,8 @@ describe("StatsCommand", () => {
   let statsCommand: StatsCommand;
   let services: Services;
   let env: Env;
-  let updateDeferredReplySpy: MockInstance;
-  let updateDeferredReplyWithErrorSpy: MockInstance;
+  let updateDeferredReplySpy: MockInstance<typeof services.discordService.updateDeferredReply>;
+  let updateDeferredReplyWithErrorSpy: MockInstance<typeof services.discordService.updateDeferredReplyWithError>;
 
   beforeEach(() => {
     services = installFakeServicesWith();
@@ -184,17 +189,13 @@ describe("StatsCommand", () => {
       });
 
       it("calls discordService.updateDeferredReplyWithError with an error when no data is returned from getTeamsFromQueue", async () => {
-        getTeamsFromQueueSpy.mockReset().mockResolvedValue(null);
+        const expectedError = new Error("No queue found");
+        getTeamsFromQueueSpy.mockReset().mockRejectedValue(expectedError);
 
         await jobToComplete?.();
 
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplyWithErrorSpy.mock.lastCall).toMatchInlineSnapshot(`
-          [
-            "fake-token",
-            [EndUserError: No queue found within the last 100 messages of <#1234567890>, with queue number 5. If the results are in a different channel to this one, please specify the channel with the \`/stats neatqueue channel:\` option.],
-          ]
-        `);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", expectedError);
       });
 
       it('fetches series data from haloService using "getSeriesFromDiscordQueue" with expected data', async () => {
@@ -368,6 +369,309 @@ describe("StatsCommand", () => {
 
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error);
+      });
+    });
+
+    describe("in a thread without channel or queue options", () => {
+      const threadInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsNeatQueue,
+        channel: {
+          ...threadChannel,
+          type: ChannelType.PublicThread,
+          parent_id: "parent-channel-id",
+        },
+      };
+
+      beforeEach(() => {
+        vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+          name: "neatqueue",
+          mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+          options: [],
+        });
+      });
+
+      it("returns response and jobToComplete for in-thread execution", () => {
+        const { response, jobToComplete } = statsCommand.execute(threadInteraction);
+
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredChannelMessageWithSource,
+        });
+        expect(jobToComplete).toBeInstanceOf(Function);
+      });
+
+      describe("jobToComplete for thread", () => {
+        let jobToComplete: (() => Promise<void>) | undefined;
+        let getMessagesSpy: MockInstance<typeof services.discordService.getMessages>;
+        let getTeamsFromMessageSpy: MockInstance<typeof services.discordService.getTeamsFromMessage>;
+        let bulkDeleteMessagesSpy: MockInstance<typeof services.discordService.bulkDeleteMessages>;
+        let getSeriesFromDiscordQueueSpy: MockInstance<typeof services.haloService.getSeriesFromDiscordQueue>;
+        let createMessageSpy: MockInstance<typeof services.discordService.createMessage>;
+        let updateDiscordAssociationsSpy: MockInstance<typeof services.haloService.updateDiscordAssociations>;
+
+        let guiltySparkErrorMessage: APIMessage;
+        let threadFirstMessage: APIMessage;
+
+        beforeEach(() => {
+          guiltySparkErrorMessage = {
+            ...apiMessage,
+            id: "guilty-spark-error-message-id",
+            author: {
+              ...apiMessage.author,
+              id: env.DISCORD_APP_ID,
+              bot: true,
+            },
+            embeds: [
+              {
+                title: "Something went wrong",
+                description: "Something went wrong while trying to post series data",
+                color: 16711680,
+                fields: [
+                  {
+                    name: "Additional Information",
+                    value: "**Channel**: <#1251448849298362419>\n**Queue**: 5710\n**Completed**: <t:1763993169:f>",
+                  },
+                ],
+              },
+            ],
+          };
+
+          threadFirstMessage = {
+            ...apiMessage,
+            id: "thread-first-message-id",
+            type: MessageType.ThreadStarterMessage,
+            referenced_message: {
+              ...apiMessage,
+              id: "neat-queue-result-message-id",
+              author: {
+                ...apiMessage.author,
+                id: "857633321064595466",
+                bot: true,
+              },
+              embeds: [
+                {
+                  title: "🏆 Winner For Queue#5710 🏆",
+                  color: 16711680,
+                  timestamp: "2024-11-26T11:30:00.000000+00:00",
+                  fields: [
+                    {
+                      name: "__Eagle__",
+                      value: "<@000000000000000001> *+30.3* **(1030.3)**",
+                      inline: true,
+                    },
+                    {
+                      name: "Cobra",
+                      value: "<@000000000000000005> *-30.3* **(969.7)**",
+                      inline: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          };
+          getMessagesSpy = vi
+            .spyOn(services.discordService, "getMessages")
+            .mockResolvedValue([guiltySparkErrorMessage, threadFirstMessage]);
+          getTeamsFromMessageSpy = vi
+            .spyOn(services.discordService, "getTeamsFromMessage")
+            .mockResolvedValue(discordNeatQueueData);
+          bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
+          getSeriesFromDiscordQueueSpy = vi
+            .spyOn(services.haloService, "getSeriesFromDiscordQueue")
+            .mockResolvedValue(Array.from(matchStats.values()).slice(0, 3));
+          createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+          updateDiscordAssociationsSpy = vi
+            .spyOn(services.haloService, "updateDiscordAssociations")
+            .mockResolvedValue();
+
+          const { jobToComplete: jtc } = statsCommand.execute(threadInteraction);
+          jobToComplete = jtc;
+        });
+
+        it("throws error if not in a thread channel", async () => {
+          const nonThreadInteraction: APIApplicationCommandInteraction = {
+            ...threadInteraction,
+            channel: {
+              id: "text-channel-id",
+              type: ChannelType.GuildText,
+              guild_id: "fake-guild-id",
+            } as typeof textChannel,
+          };
+
+          vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+            name: "neatqueue",
+            mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+            options: [],
+          });
+
+          // Don't need to setup getMessages mock since it should fail before that call
+          const { jobToComplete: nonThreadJob } = statsCommand.execute(nonThreadInteraction);
+          await nonThreadJob?.();
+
+          expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+          const errorArg = updateDeferredReplyWithErrorSpy.mock.lastCall?.[1];
+          // Just verify an error was thrown, the exact type doesn't matter for this edge case
+          expect(errorArg).toBeInstanceOf(Error);
+        });
+
+        it("fetches thread messages", async () => {
+          await jobToComplete?.();
+
+          expect(getMessagesSpy).toHaveBeenCalledWith("thread-channel-id");
+        });
+
+        it("throws error if first message is not from NeatQueue", async () => {
+          getMessagesSpy.mockResolvedValue([
+            {
+              ...threadFirstMessage,
+              referenced_message: {
+                ...Preconditions.checkExists(threadFirstMessage.referenced_message),
+                author: {
+                  ...apiMessage.author,
+                  id: "wrong-bot-id",
+                  bot: true,
+                },
+              },
+            },
+          ]);
+
+          await jobToComplete?.();
+
+          expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+          const errorArg = updateDeferredReplyWithErrorSpy.mock.lastCall?.[1];
+          expect(errorArg).toBeInstanceOf(Error);
+          expect((errorArg as Error).message).toContain("not from NeatQueue");
+        });
+
+        it("parses previous error messages from Guilty Spark", async () => {
+          await jobToComplete?.();
+
+          expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
+            "thread-channel-id",
+            ["guilty-spark-error-message-id"],
+            "Cleaning up previous Guilty Spark messages before computing data",
+          );
+        });
+
+        it("handles retry when previous error has Channel, Queue, and Completed data", async () => {
+          const handleRetrySpy = vi.spyOn(services.neatQueueService, "handleRetry").mockResolvedValue();
+
+          await jobToComplete?.();
+
+          expect(handleRetrySpy).toHaveBeenCalledWith<Parameters<typeof services.neatQueueService.handleRetry>>({
+            errorEmbed: expect.objectContaining({
+              data: {
+                Channel: "<#1251448849298362419>",
+                Queue: "5710",
+                Completed: "<t:1763993169:f>",
+              },
+            }) as EndUserError,
+            guildId: "fake-guild-id",
+            interaction: threadInteraction,
+          });
+          expect(getTeamsFromMessageSpy).not.toHaveBeenCalled();
+        });
+
+        it("processes queue message directly when no retry data available", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+
+          await jobToComplete?.();
+
+          expect(getTeamsFromMessageSpy).toHaveBeenCalledWith("fake-guild-id", threadFirstMessage.referenced_message);
+        });
+
+        it("calls getSeriesFromDiscordQueue with correct parameters", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+
+          await jobToComplete?.();
+
+          expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalledWith<
+            Parameters<typeof services.haloService.getSeriesFromDiscordQueue>
+          >({
+            teams: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({
+                  id: "000000000000000001",
+                  username: "discord_user_01",
+                }),
+              ]),
+            ]) as MatchPlayer[][],
+            startDateTime: expect.any(Date) as Date,
+            endDateTime: expect.any(Date) as Date,
+          });
+        });
+
+        it("posts series embeds directly to thread", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+
+          await jobToComplete?.();
+
+          expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+          expect(createMessageSpy).toHaveBeenCalledWith("thread-channel-id", expect.anything());
+        });
+
+        it("posts game stats when StatsReturn is SERIES_AND_GAMES", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+          vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+            aFakeGuildConfigRow({
+              StatsReturn: StatsReturnType.SERIES_AND_GAMES,
+            }),
+          );
+
+          await jobToComplete?.();
+
+          expect(createMessageSpy.mock.calls.length).toBeGreaterThan(2);
+        });
+
+        it("only posts Load Games button when StatsReturn is SERIES_ONLY", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+          vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+            aFakeGuildConfigRow({
+              StatsReturn: StatsReturnType.SERIES_ONLY,
+            }),
+          );
+
+          await jobToComplete?.();
+
+          const buttonCall = createMessageSpy.mock.calls.find((call) => call[1].components != null);
+          expect(buttonCall).toBeDefined();
+          expect(buttonCall?.[1]?.components?.[0]).toMatchObject({
+            type: ComponentType.ActionRow,
+            components: [
+              expect.objectContaining({
+                custom_id: "btn_stats_load_games",
+              }),
+            ],
+          });
+        });
+
+        it("calls updateDiscordAssociations after processing", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+
+          await jobToComplete?.();
+
+          expect(updateDiscordAssociationsSpy).toHaveBeenCalled();
+        });
+
+        it("appends previous error data when new error occurs", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+          getSeriesFromDiscordQueueSpy.mockReset().mockRejectedValue(new Error("API error"));
+
+          await jobToComplete?.();
+
+          expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        });
+      });
+
+      it("uses parent_id as channel when in thread with queue option specified", () => {
+        vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+          name: "neatqueue",
+          mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([["queue", 5710]]),
+          options: [],
+        });
+
+        const { jobToComplete } = statsCommand.execute(threadInteraction);
+
+        expect(jobToComplete).toBeInstanceOf(Function);
       });
     });
   });

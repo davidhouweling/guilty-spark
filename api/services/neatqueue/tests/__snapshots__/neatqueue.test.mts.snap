@@ -935,7 +935,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
     "embeds": [
       {
         "color": 16711680,
-        "description": "Failed to find the results message",
+        "description": "No queue found within the last 100 messages",
         "fields": [
           {
             "name": "Additional Information",
@@ -2204,7 +2204,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
     "embeds": [
       {
         "color": 16711680,
-        "description": "Failed to find the results message",
+        "description": "No queue found within the last 100 messages",
         "fields": [
           {
             "name": "Additional Information",

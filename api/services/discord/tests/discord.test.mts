@@ -6,6 +6,7 @@ import type {
   APIChannel,
   APIGuildMember,
   APIInteraction,
+  APIMessage,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -484,10 +485,10 @@ describe("DiscordService", () => {
       expect(result.teams[1]?.players).toHaveLength(4);
     });
 
-    it("returns null if no queue is found", async () => {
-      const result = await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000);
-
-      expect(result).toBeNull();
+    it("throws EndUserError if no queue is found", async () => {
+      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrowError(
+        "No queue found within the last 100 messages",
+      );
     });
 
     it("falls back to message timestamp when embed timestamp is missing", async () => {
@@ -533,6 +534,135 @@ describe("DiscordService", () => {
       );
 
       expect(result.timestamp).toEqual(new Date("2024-12-06T15:30:00.000Z"));
+    });
+  });
+
+  describe("getTeamsFromMessage()", () => {
+    const neatQueueMessage: APIMessage = {
+      ...Preconditions.checkExists(channelMessages[1]),
+      author: {
+        id: "857633321064595466",
+        username: "NeatQueue",
+        bot: true,
+      } as APIMessage["author"],
+    };
+
+    it("returns QueueData when given a valid NeatQueue result message", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (typeof path !== "string") {
+          throw new Error("unexpected path type");
+        }
+        const prefix = "https://discord.com/api/v10";
+        if (typeof path === "string" && path.startsWith(`${prefix}/guilds/fake-guild-id/members/`)) {
+          const id = path.slice(-2);
+          const apiUser: APIGuildMember = aGuildMemberWith({
+            user: {
+              id: `fake-id-${id}`,
+              username: `fake-username-${id}`,
+              global_name: `fake-global-name-${id}`,
+              discriminator: "1234",
+              avatar: "fake-avatar",
+            },
+          });
+
+          return Promise.resolve(new Response(JSON.stringify(apiUser)));
+        }
+
+        return Promise.reject(new Error(`Invalid path: ${path}`));
+      });
+
+      const result = await discordService.getTeamsFromMessage("fake-guild-id", neatQueueMessage);
+
+      expect(result.queue).toBe(7);
+      expect(result.teams).toHaveLength(2);
+      expect(result.teams[0]?.name).toBe("Eagle");
+      expect(result.teams[1]?.name).toBe("__Cobra__");
+    });
+
+    it("throws error if message is not from NeatQueue bot", async () => {
+      const nonBotMessage: APIMessage = {
+        ...neatQueueMessage,
+        author: {
+          id: "123456789",
+          username: "NotNeatQueue",
+          bot: false,
+        } as APIMessage["author"],
+      };
+
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrowError(
+        "not from NeatQueue",
+      );
+    });
+
+    it("throws error if message has no embeds", async () => {
+      const noEmbedMessage: APIMessage = {
+        ...neatQueueMessage,
+        embeds: [],
+      };
+
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrowError(
+        "doesn't contain team information",
+      );
+    });
+
+    it("throws error if message is not a result message", async () => {
+      const nonResultMessage: APIMessage = {
+        ...neatQueueMessage,
+        embeds: [
+          {
+            title: "⚔️ Queue#123",
+            fields: [],
+          },
+        ],
+      };
+
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrowError(
+        "doesn't contain series results",
+      );
+    });
+  });
+
+  describe("bulkDeleteMessages()", () => {
+    it("calls bulkDelete endpoint with correct parameters", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (
+          typeof path === "string" &&
+          path === "https://discord.com/api/v10/channels/fake-channel-id/messages/bulk-delete"
+        ) {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.reject(new Error(`Invalid path: ${typeof path === "string" ? path : "non-string path"}`));
+      });
+
+      await discordService.bulkDeleteMessages("fake-channel-id", ["msg1", "msg2"], "Test deletion");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel-id/messages/bulk-delete",
+        expect.objectContaining({
+          body: JSON.stringify({ messages: ["msg1", "msg2"] }),
+          method: "POST",
+        }),
+      );
+
+      const [callArgs] = mockFetch.mock.calls;
+      expect(callArgs?.[1]?.headers).toBeDefined();
+    });
+
+    it("falls back to single delete when only one message", async () => {
+      const deleteSpy = vi.spyOn(discordService, "deleteMessage").mockResolvedValue();
+
+      await discordService.bulkDeleteMessages("fake-channel-id", ["msg1"], "Single delete");
+
+      expect(deleteSpy).toHaveBeenCalledWith("fake-channel-id", "msg1", "Single delete");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("throws error if message count is > 100", async () => {
+      const manyMessages = Array.from({ length: 101 }, (_, i) => `msg${i.toString()}`);
+
+      await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrowError(
+        "between 2 and 100",
+      );
     });
   });
 
