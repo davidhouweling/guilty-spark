@@ -285,14 +285,23 @@ export class HaloService {
       } catch (error) {
         // temporary workaround for 500 errors
         if (error instanceof RequestError && error.response.status === 500) {
-          const users = await Promise.allSettled(usersArray.map(async (xuid) => this.getUserByGamertagOrXuid(xuid)));
+          const users = await Promise.allSettled(usersArray.map(async (xuid) => this.getUsersByXuids([xuid])));
           for (const [index, result] of users.entries()) {
             if (result.status === "fulfilled") {
-              const user = result.value;
-              this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
-            } else {
-              this.xuidToGamerTagCache.set(Preconditions.checkExists(usersArray[index]), "*Unknown*");
+              const [user] = result.value;
+              if (user) {
+                this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+              }
+              continue;
             }
+
+            const xboxId = Preconditions.checkExists(usersArray[index]);
+            const discordAssociation = await this.getDiscordAssociationByXboxId(xboxId);
+
+            this.xuidToGamerTagCache.set(
+              Preconditions.checkExists(usersArray[index]),
+              `*Unknown*${discordAssociation ? ` <@${discordAssociation.DiscordId}>` : ""}`,
+            );
           }
         } else {
           throw error;
@@ -303,15 +312,44 @@ export class HaloService {
     return this.xuidToGamerTagCache;
   }
 
+  async getUserByGamertag(gamertag: string): Promise<UserInfo> {
+    if (!gamertag) {
+      throw new Error("No user ID provided");
+    }
+
+    const kvCachedUser = await this.getUserByGamertagFromKVCache(gamertag);
+    if (kvCachedUser) {
+      return kvCachedUser;
+    }
+
+    const user = await this.infiniteClient.getUser(gamertag, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+      },
+    });
+
+    await this.updateUserKVCache(user);
+
+    return user;
+  }
+
   async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
     if (xuids.length === 0) {
       return [];
     }
-    return this.infiniteClient.getUsers(xuids, {
+
+    const kvCachedUsers = await Promise.all(xuids.map(async (xuid) => this.getUserByXuidFromKVCache(xuid)));
+    const missingXuids = xuids.filter((_, index) => kvCachedUsers[index] == null);
+
+    const fetchedUsers = await this.infiniteClient.getUsers(missingXuids, {
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
       },
     });
+
+    await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
+    const allUsers: UserInfo[] = [...kvCachedUsers.filter((user): user is UserInfo => user != null), ...fetchedUsers];
+    return allUsers;
   }
 
   getDurationInSeconds(duration: string): number {
@@ -374,18 +412,6 @@ export class HaloService {
     };
   }
 
-  async getUserByGamertagOrXuid(userId: string): Promise<UserInfo> {
-    if (!userId) {
-      throw new Error("No user ID provided");
-    }
-
-    return await this.infiniteClient.getUser(userId, {
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-      },
-    });
-  }
-
   async getRecentMatchHistory(
     gamertag: string,
     matchType: MatchType = MatchType.All,
@@ -394,7 +420,7 @@ export class HaloService {
     let user: UserInfo;
 
     try {
-      user = await this.getUserByGamertagOrXuid(gamertag);
+      user = await this.getUserByGamertag(gamertag);
     } catch (error) {
       if (error instanceof RequestError && error.response.status === 400) {
         this.logService.warn(error as Error);
@@ -566,7 +592,7 @@ export class HaloService {
     const unresolvedUsersByDiscordUsername = users.filter((user) => !this.userCache.has(user.id));
     // we can assume that xbox has already been searched for before
     const xboxUsersByDiscordUsernameResult = await Promise.allSettled(
-      unresolvedUsersByDiscordUsername.map(async (user) => this.getUserByGamertagOrXuid(user.username)),
+      unresolvedUsersByDiscordUsername.map(async (user) => this.getUserByGamertag(user.username)),
     );
     await Promise.all(
       xboxUsersByDiscordUsernameResult.map(async (result, index) =>
@@ -592,7 +618,7 @@ export class HaloService {
     const unresolvedUsersByDiscordGlobalNameResult = await Promise.allSettled(
       unresolvedUsersByDiscordGlobalName.map(async (user) =>
         user.globalName != null && user.globalName !== ""
-          ? this.getUserByGamertagOrXuid(user.globalName)
+          ? this.getUserByGamertag(user.globalName)
           : Promise.reject(new Error("No global name")),
       ),
     );
@@ -605,6 +631,33 @@ export class HaloService {
     this.logService.debug(
       `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
     );
+  }
+
+  private getGamertagKVCacheKey(gamertag: string): string {
+    return `cache.halo.gamertag.${gamertag}`;
+  }
+
+  private getXuidKVCacheKey(xuid: string): string {
+    return `cache.halo.xuid.${xuid}`;
+  }
+
+  private async getUserByGamertagFromKVCache(gamertag: string): Promise<UserInfo | null> {
+    return this.env.APP_DATA.get<UserInfo>(this.getGamertagKVCacheKey(gamertag), "json");
+  }
+
+  private async getUserByXuidFromKVCache(xuid: string): Promise<UserInfo | null> {
+    return this.env.APP_DATA.get<UserInfo>(this.getXuidKVCacheKey(xuid), "json");
+  }
+
+  private async updateUserKVCache(user: UserInfo): Promise<void> {
+    const serializedUser = JSON.stringify(user);
+    const opts = {
+      expirationTtl: TimeInSeconds["1_DAY"],
+    };
+    await Promise.all([
+      this.env.APP_DATA.put(this.getGamertagKVCacheKey(user.gamertag), serializedUser, opts),
+      this.env.APP_DATA.put(this.getXuidKVCacheKey(user.xuid), serializedUser, opts),
+    ]);
   }
 
   private async getPlayerMatches(
@@ -794,6 +847,21 @@ export class HaloService {
     }
 
     return xboxPlayersByTeam;
+  }
+
+  private async getDiscordAssociationByXboxId(xboxId: string): Promise<DiscordAssociationsRow | null> {
+    const cacheValue = this.userCache.values().find((value) => value.XboxId === xboxId);
+    if (cacheValue) {
+      return cacheValue;
+    }
+
+    const [dbValue] = await this.databaseService.getDiscordAssociationsByXboxId([xboxId]);
+    if (dbValue != null) {
+      this.userCache.set(dbValue.DiscordId, dbValue);
+      return dbValue;
+    }
+
+    return null;
   }
 
   private async fuzzyMatchTeam(discordTeam: MatchPlayer[], xboxXuids: string[]): Promise<void> {
