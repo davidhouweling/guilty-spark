@@ -33,6 +33,7 @@ import { EndUserError } from "../../base/end-user-error.mjs";
 import { create } from "../../embeds/stats/create.mjs";
 
 export enum InteractionButton {
+  Retry = "btn_stats_retry",
   LoadGames = "btn_stats_load_games",
 }
 
@@ -95,6 +96,13 @@ export class StatsCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
+          custom_id: InteractionButton.Retry,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
           custom_id: InteractionButton.LoadGames,
         },
       },
@@ -123,6 +131,14 @@ export class StatsCommand extends BaseCommand {
       case InteractionType.MessageComponent: {
         const { custom_id } = interaction.data;
         switch (custom_id) {
+          case InteractionButton.Retry.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.retryJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
           case InteractionButton.LoadGames.toString(): {
             return {
               response: {
@@ -396,6 +412,29 @@ export class StatsCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, {
         embeds: [embed],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async retryJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { discordService } = this.services;
+    try {
+      if (interaction.message.embeds[0] == null) {
+        throw new Error("No embed found in the message");
+      }
+
+      const [embed] = interaction.message.embeds;
+      const endUserError = EndUserError.fromDiscordEmbed(embed);
+      if (endUserError == null) {
+        throw new Error("No end user error found in the embed");
+      }
+
+      await this.services.neatQueueService.handleRetry({
+        errorEmbed: endUserError,
+        guildId: Preconditions.checkExists(interaction.guild_id),
+        interaction,
       });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);

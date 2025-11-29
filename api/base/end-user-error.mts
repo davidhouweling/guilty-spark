@@ -7,7 +7,7 @@ import {
 } from "discord-api-types/v10";
 import { UnreachableError } from "./unreachable-error.mjs";
 
-type EndUserErrorAction = "connect";
+type EndUserErrorAction = "connect" | "retry";
 
 interface EndUserErrorOptions {
   title?: string;
@@ -82,8 +82,6 @@ export class EndUserError extends Error {
     if (this.actions != null) {
       for (const action of this.actions) {
         switch (action) {
-          // leaving this here for future extensibility
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           case "connect": {
             components.push({
               type: ComponentType.Button,
@@ -92,6 +90,18 @@ export class EndUserError extends Error {
               custom_id: "btn_connect_initiate", // TODO: work out how to share with connect command that doesn't create circular dependency
               emoji: {
                 name: "🔗",
+              },
+            });
+            break;
+          }
+          case "retry": {
+            components.push({
+              type: ComponentType.Button,
+              label: "Retry",
+              style: ButtonStyle.Primary,
+              custom_id: "btn_stats_retry",
+              emoji: {
+                name: "🔄",
               },
             });
             break;

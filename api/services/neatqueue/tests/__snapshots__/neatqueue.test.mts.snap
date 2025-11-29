@@ -907,7 +907,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "other-channel-id",
   {
-    "components": [],
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_stats_retry",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Retry",
+            "style": 1,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 16711680,
@@ -2176,7 +2191,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "results-channel-1",
   {
-    "components": [],
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_stats_retry",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Retry",
+            "style": 1,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 16711680,
@@ -3481,7 +3511,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "thread-id",
   {
-    "components": [],
+    "components": [
+      {
+        "components": [
+          {
+            "custom_id": "btn_stats_retry",
+            "emoji": {
+              "name": "🔄",
+            },
+            "label": "Retry",
+            "style": 1,
+            "type": 2,
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 16711680,

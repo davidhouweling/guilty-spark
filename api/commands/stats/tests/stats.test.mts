@@ -6,6 +6,7 @@ import type {
   APIInteractionResponse,
   APIThreadChannel,
   APIMessage,
+  APIMessageComponentButtonInteraction,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -26,6 +27,7 @@ import {
   channelThreadsResult,
   discordNeatQueueData,
   fakeBaseAPIApplicationCommandInteraction,
+  fakeButtonClickInteraction,
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data.mjs";
@@ -34,7 +36,7 @@ import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
-import type { EndUserError } from "../../../base/end-user-error.mjs";
+import { EndUserError } from "../../../base/end-user-error.mjs";
 import type { MatchPlayer } from "../../../services/halo/halo.mjs";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
@@ -804,6 +806,118 @@ describe("StatsCommand", () => {
           },
         },
       });
+    });
+  });
+
+  describe("execute(): message component retry button", () => {
+    let retryButtonInteraction: APIMessageComponentButtonInteraction;
+    let handleRetrySpy: MockInstance<typeof services.neatQueueService.handleRetry>;
+
+    beforeEach(() => {
+      const errorEmbed = new EndUserError("Something went wrong", {
+        data: {
+          Channel: "<#1234567890>",
+          Queue: "5",
+          Completed: "<t:1700000000:f>",
+        },
+        actions: ["retry"],
+      });
+
+      retryButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        message: {
+          ...fakeButtonClickInteraction.message,
+          embeds: [errorEmbed.discordEmbed],
+        },
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_retry",
+        },
+      };
+
+      handleRetrySpy = vi.spyOn(services.neatQueueService, "handleRetry").mockResolvedValue();
+    });
+
+    it("returns DeferredMessageUpdate response for retry button", () => {
+      const { response, jobToComplete } = statsCommand.execute(retryButtonInteraction);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredMessageUpdate,
+      });
+      expect(jobToComplete).toBeInstanceOf(Function);
+    });
+
+    it("calls neatQueueService.handleRetry with correct parameters", async () => {
+      const { jobToComplete } = statsCommand.execute(retryButtonInteraction);
+      await jobToComplete?.();
+
+      expect(handleRetrySpy).toHaveBeenCalledOnce();
+      expect(handleRetrySpy).toHaveBeenCalledWith({
+        errorEmbed: EndUserError.fromDiscordEmbed(Preconditions.checkExists(retryButtonInteraction.message.embeds[0])),
+        guildId: "fake-guild-id",
+        interaction: retryButtonInteraction,
+      });
+    });
+
+    it("handles error when embed is missing from message", async () => {
+      const interactionWithoutEmbed = {
+        ...retryButtonInteraction,
+        message: {
+          ...retryButtonInteraction.message,
+          embeds: [],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interactionWithoutEmbed);
+      await jobToComplete?.();
+
+      expect(handleRetrySpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No embed found in the message",
+        }),
+      );
+    });
+
+    it("handles error when embed cannot be parsed as EndUserError", async () => {
+      const interactionWithInvalidEmbed = {
+        ...retryButtonInteraction,
+        message: {
+          ...retryButtonInteraction.message,
+          embeds: [
+            {
+              title: "Some title",
+              description: "Some description",
+              color: 0x123456, // Invalid color for EndUserError
+            },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interactionWithInvalidEmbed);
+      await jobToComplete?.();
+
+      expect(handleRetrySpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No end user error found in the embed",
+        }),
+      );
+    });
+
+    it("handles error when neatQueueService.handleRetry throws", async () => {
+      const retryError = new Error("Retry failed");
+      handleRetrySpy.mockReset().mockRejectedValue(retryError);
+
+      const { jobToComplete } = statsCommand.execute(retryButtonInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", retryError);
     });
   });
 });
