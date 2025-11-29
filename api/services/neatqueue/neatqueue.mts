@@ -8,6 +8,7 @@ import type {
   RESTPostAPIChannelMessageJSONBody,
   APIGuildMember,
   APIApplicationCommandInteraction,
+  APIMessageComponentButtonInteraction,
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
@@ -189,7 +190,7 @@ export class NeatQueueService {
         interaction?: never;
       }
     | {
-        interaction: APIApplicationCommandInteraction;
+        interaction: APIApplicationCommandInteraction | APIMessageComponentButtonInteraction;
         message?: never;
       }
   )): Promise<void> {

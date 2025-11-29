@@ -131,6 +131,50 @@ describe("EndUserError", () => {
         ],
       });
     });
+
+    it("returns retry button when retry action is specified", () => {
+      const error = new EndUserError("Test error", { actions: ["retry"] });
+      const actions = error.discordActions;
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toEqual({
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Primary,
+            label: "Retry",
+            custom_id: "btn_stats_retry",
+            emoji: {
+              name: "🔄",
+            },
+          },
+        ],
+      });
+    });
+
+    it("returns multiple buttons when multiple actions are specified", () => {
+      expect.assertions(5);
+      const error = new EndUserError("Test error", { actions: ["connect", "retry"] });
+      const actions = error.discordActions;
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0]?.type).toBe(ComponentType.ActionRow);
+
+      if (actions[0] && "components" in actions[0]) {
+        expect(actions[0].components).toHaveLength(2);
+        expect(actions[0].components[0]).toMatchObject({
+          type: ComponentType.Button,
+          label: "Connect",
+          custom_id: "btn_connect_initiate",
+        });
+        expect(actions[0].components[1]).toMatchObject({
+          type: ComponentType.Button,
+          label: "Retry",
+          custom_id: "btn_stats_retry",
+        });
+      }
+    });
   });
 
   describe("fromDiscordEmbed static method", () => {
