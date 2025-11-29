@@ -1321,7 +1321,7 @@ describe("NeatQueueService", () => {
         list_complete: true,
         cacheStatus: null,
       });
-      const appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
+      const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
       appDataGetSpy.mockResolvedValue(timeline);
       const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
@@ -1450,7 +1450,7 @@ describe("NeatQueueService", () => {
         list_complete: true,
         cacheStatus: null,
       });
-      const appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
+      const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
       appDataGetSpy.mockResolvedValue(timeline);
       vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
@@ -1474,8 +1474,8 @@ describe("NeatQueueService", () => {
       createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
       deleteMessageSpy = vi.spyOn(discordService, "deleteMessage").mockResolvedValue();
       getGuildConfigSpy = vi.spyOn(databaseService, "getGuildConfig");
-      appDataGetSpy = vi.spyOn(env.APP_DATA, "get") as MockInstance;
-      appDataPutSpy = vi.spyOn(env.APP_DATA, "put") as MockInstance;
+      appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
+      appDataPutSpy = vi.spyOn(env.APP_DATA, "put");
     });
 
     it("updates players embed when substitution occurs and player connections are enabled", async () => {
