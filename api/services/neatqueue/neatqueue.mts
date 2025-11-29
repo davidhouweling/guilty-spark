@@ -370,7 +370,9 @@ export class NeatQueueService {
       }
 
       this.logService.error(error as Error, new Map([["reason", "Unhandled error during retry"]]));
-      const endUserError = new EndUserError("An unexpected error occurred while retrying the neat queue job");
+      const endUserError = new EndUserError("An unexpected error occurred while retrying the neat queue job", {
+        actions: ["retry"],
+      });
       endUserError.appendData({
         ...errorEmbed.data,
       });
@@ -1559,7 +1561,11 @@ export class NeatQueueService {
   ): EndUserError {
     const { discordService } = this;
     const endUserError =
-      error instanceof EndUserError ? error : new EndUserError("Something went wrong while trying to post series data");
+      error instanceof EndUserError
+        ? error
+        : new EndUserError("Something went wrong while trying to post series data", {
+            actions: ["retry"],
+          });
     const matchStartedEvent = timeline.find(({ event }) => event.action === "MATCH_STARTED");
     const matchCompletedEvent = timeline.find(({ event }) => event.action === "MATCH_COMPLETED");
     const substitutionEvents = timeline.filter(
