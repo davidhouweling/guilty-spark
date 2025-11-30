@@ -2515,4 +2515,62 @@ describe("Halo service", () => {
       });
     });
   });
+
+  describe("getPlayerEsra", () => {
+    it("returns cached ESRA when available", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+      const cachedEsra = 1350;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      kvGetSpy.mockResolvedValue({
+        xuid,
+        playlistId,
+        computedAt: Date.now() - 86400000,
+        asOfDate: Date.now() - 86400000,
+        esra: cachedEsra,
+        lastMatchId: "match-0",
+        matchData: [],
+      });
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBe(cachedEsra);
+      expect(kvPutSpy).toHaveBeenCalledOnce(); // TTL refresh
+    });
+
+    it("returns undefined when player has no matches", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+
+      kvGetSpy.mockResolvedValue(null);
+      getPlayerMatchesSpy.mockResolvedValue([]);
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBeUndefined();
+      expect(kvPutSpy).not.toHaveBeenCalled();
+    });
+
+    it("handles API errors gracefully", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+
+      kvGetSpy.mockResolvedValue(null);
+      const request = new Request("https://example.com");
+      getPlayerMatchesSpy.mockRejectedValue(
+        new RequestError(request, new Response("Internal Server Error", { status: 500 })),
+      );
+
+      await expect(haloService.getPlayerEsra(xuid, playlistId)).rejects.toThrow();
+    });
+  });
 });

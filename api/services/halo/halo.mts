@@ -1,10 +1,13 @@
 import * as tinyduration from "tinyduration";
+
 import type {
   HaloInfiniteClient,
   MatchInfo,
+  MatchSkill,
   MatchStats,
   PlayerMatchHistory,
   PlaylistCsrContainer,
+  ResultContainer,
   UserInfo,
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
@@ -22,6 +25,7 @@ import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter.mjs";
+import { skillRankCombined } from "./skill-helpers.mjs";
 
 export interface MatchPlayer {
   id: string;
@@ -81,7 +85,23 @@ const TimeInSeconds = {
   "1_HOUR": 3600,
   "1_DAY": 86400,
   "1_WEEK": 604800,
+  "30_DAYS": 2592000,
 };
+
+interface EsraMatchData {
+  matchId: string;
+  esra: number;
+}
+
+interface EsraCacheValue {
+  xuid: string;
+  playlistId: string;
+  computedAt: string;
+  asOfDate: string;
+  esra: number;
+  lastMatchId: string;
+  matchData: EsraMatchData[];
+}
 
 export class HaloService {
   private readonly env: Env;
@@ -350,6 +370,76 @@ export class HaloService {
     await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
     const allUsers: UserInfo[] = [...kvCachedUsers.filter((user): user is UserInfo => user != null), ...fetchedUsers];
     return allUsers;
+  }
+
+  async getPlayerEsra(
+    xuid: string,
+    playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA,
+  ): Promise<number | undefined> {
+    const cacheKey = this.getEsraKVCacheKey(xuid, playlistId);
+    const cachedEsra = await this.getEsraFromKVCache(cacheKey);
+
+    if (cachedEsra) {
+      await this.refreshEsraKVCacheTTL(cacheKey, cachedEsra);
+      return cachedEsra.esra;
+    }
+
+    const matches = await this.getPlayerMatches(xuid, MatchType.Matchmaking, 200, 0);
+    const rankedArenaMatches = matches
+      .filter((match) => match.MatchInfo.Playlist?.AssetId === playlistId)
+      .slice(0, 100);
+
+    if (rankedArenaMatches.length === 0) {
+      return undefined;
+    }
+
+    const matchIds = rankedArenaMatches.map((m) => m.MatchId);
+    const lastMatchId = Preconditions.checkExists(matchIds[0]);
+    const computedAt = new Date().toISOString();
+    const asOfDate = Preconditions.checkExists(rankedArenaMatches[0]).MatchInfo.EndTime;
+
+    const esraValues: EsraMatchData[] = [];
+
+    for (const matchId of matchIds) {
+      try {
+        const skillResults: ResultContainer<MatchSkill>[] = await this.infiniteClient.getMatchSkill(matchId, [xuid], {
+          cf: {
+            cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+          },
+        });
+
+        const playerSkill = skillResults.find((r) => r.Id === xuid);
+        if (playerSkill?.ResultCode === 0) {
+          const esra = skillRankCombined(playerSkill.Result, "Expected");
+          if (esra !== undefined) {
+            esraValues.push({ matchId, esra });
+          }
+        }
+      } catch (error) {
+        this.logService.debug(`Failed to fetch skill for match ${matchId}: ${String(error)}`);
+        continue;
+      }
+    }
+
+    if (esraValues.length === 0) {
+      return undefined;
+    }
+
+    const averageEsra = esraValues.reduce((sum, data) => sum + data.esra, 0) / esraValues.length;
+
+    const cacheValue: EsraCacheValue = {
+      xuid,
+      playlistId,
+      computedAt,
+      asOfDate,
+      esra: averageEsra,
+      lastMatchId,
+      matchData: esraValues,
+    };
+
+    await this.updateEsraKVCache(cacheKey, cacheValue);
+
+    return averageEsra;
   }
 
   getDurationInSeconds(duration: string): number {
@@ -658,6 +748,24 @@ export class HaloService {
       this.env.APP_DATA.put(this.getGamertagKVCacheKey(user.gamertag), serializedUser, opts),
       this.env.APP_DATA.put(this.getXuidKVCacheKey(user.xuid), serializedUser, opts),
     ]);
+  }
+
+  private getEsraKVCacheKey(xuid: string, playlistId: string): string {
+    return `esra:${playlistId}:${xuid}`;
+  }
+
+  private async getEsraFromKVCache(cacheKey: string): Promise<EsraCacheValue | null> {
+    return this.env.APP_DATA.get<EsraCacheValue>(cacheKey, "json");
+  }
+
+  private async updateEsraKVCache(cacheKey: string, value: EsraCacheValue): Promise<void> {
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(value), {
+      expirationTtl: TimeInSeconds["30_DAYS"],
+    });
+  }
+
+  private async refreshEsraKVCacheTTL(cacheKey: string, value: EsraCacheValue): Promise<void> {
+    await this.updateEsraKVCache(cacheKey, value);
   }
 
   private async getPlayerMatches(

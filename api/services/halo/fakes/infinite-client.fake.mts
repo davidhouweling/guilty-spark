@@ -177,5 +177,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
   infiniteClient.getMedalsMetadataFile.mockResolvedValue(medalsMetadata);
 
+  infiniteClient.getMatchSkill.mockResolvedValue([]);
+
   return infiniteClient;
 }

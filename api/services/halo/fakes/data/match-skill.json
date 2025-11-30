@@ -1,0 +1,692 @@
+{
+  "Value": [
+    {
+      "Id": "xuid(2535451623062020)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1189.1583142736,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1227,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1200,
+            "SubTier": 0,
+            "NextTier": "Diamond",
+            "NextTierStart": 1250,
+            "NextSubTier": 1,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1236,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1200,
+            "SubTier": 0,
+            "NextTier": "Diamond",
+            "NextTierStart": 1250,
+            "NextSubTier": 1,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 18,
+            "Expected": 18.694341650496597,
+            "StdDev": 5.231362947728953
+          },
+          "Deaths": {
+            "Count": 15,
+            "Expected": 16.553595850384934,
+            "StdDev": 5.029383431278825
+          }
+        },
+        "TeamId": 0,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 18.694341650496597,
+            "Deaths": 16.553595850384934
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.7797833971809903,
+              "Deaths": 23.7369271046053
+            },
+            "Silver": {
+              "Kills": 0.9060670438536699,
+              "Deaths": 22.027176215465662
+            },
+            "Gold": {
+              "Kills": 6.159112405528245,
+              "Deaths": 20.319246953441084
+            },
+            "Platinum": {
+              "Kills": 12.369179654331985,
+              "Deaths": 18.536408197598647
+            },
+            "Diamond": {
+              "Kills": 18.57006487947371,
+              "Deaths": 16.593358985544757
+            },
+            "Onyx": {
+              "Kills": 25.644001736085468,
+              "Deaths": 14.310053294361497
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2535421118387489)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1189.1583142736,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1239,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1200,
+            "SubTier": 0,
+            "NextTier": "Diamond",
+            "NextTierStart": 1250,
+            "NextSubTier": 1,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1246,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1200,
+            "SubTier": 0,
+            "NextTier": "Diamond",
+            "NextTierStart": 1250,
+            "NextSubTier": 1,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 12,
+            "Expected": 18.34582894446504,
+            "StdDev": 5.236686882106039
+          },
+          "Deaths": {
+            "Count": 14,
+            "Expected": 16.665039715688756,
+            "StdDev": 5.028757965895748
+          }
+        },
+        "TeamId": 0,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 18.34582894446504,
+            "Deaths": 16.665039715688756
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.780382262005646,
+              "Deaths": 23.73692703307006
+            },
+            "Silver": {
+              "Kills": 0.9059837103940225,
+              "Deaths": 22.02717593697983
+            },
+            "Gold": {
+              "Kills": 6.1580396063009655,
+              "Deaths": 20.31924599269626
+            },
+            "Platinum": {
+              "Kills": 12.368628612636426,
+              "Deaths": 18.536405149029843
+            },
+            "Diamond": {
+              "Kills": 18.57002137035214,
+              "Deaths": 16.59334991178916
+            },
+            "Onyx": {
+              "Kills": 25.644001429003023,
+              "Deaths": 14.310027459031256
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2533274844642438)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1256.6484450482722,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1323,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1300,
+            "SubTier": 2,
+            "NextTier": "Diamond",
+            "NextTierStart": 1350,
+            "NextSubTier": 3,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1318,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1300,
+            "SubTier": 2,
+            "NextTier": "Diamond",
+            "NextTierStart": 1350,
+            "NextSubTier": 3,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 26,
+            "Expected": 19.87003418745768,
+            "StdDev": 5.237419582200139
+          },
+          "Deaths": {
+            "Count": 18,
+            "Expected": 18.12043153101871,
+            "StdDev": 4.959058113522863
+          }
+        },
+        "TeamId": 1,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 19.87003418745768,
+            "Deaths": 18.12043153101871
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.4740109259670591,
+              "Deaths": 26.848097700217647
+            },
+            "Silver": {
+              "Kills": -0.6004004907036044,
+              "Deaths": 25.041154717452226
+            },
+            "Gold": {
+              "Kills": 2.826865083798216,
+              "Deaths": 23.23656485103923
+            },
+            "Platinum": {
+              "Kills": 9.358341270654021,
+              "Deaths": 21.354307509391642
+            },
+            "Diamond": {
+              "Kills": 16.130390437711316,
+              "Deaths": 19.30789660891087
+            },
+            "Onyx": {
+              "Kills": 23.624152496887127,
+              "Deaths": 16.92015732903461
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2533274830383247)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1256.6484450482722,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1133,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1100,
+            "SubTier": 4,
+            "NextTier": "Platinum",
+            "NextTierStart": 1150,
+            "NextSubTier": 5,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1128,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1100,
+            "SubTier": 4,
+            "NextTier": "Platinum",
+            "NextTierStart": 1150,
+            "NextSubTier": 5,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 16,
+            "Expected": 15.298432134403463,
+            "StdDev": 5.244739948105644
+          },
+          "Deaths": {
+            "Count": 26,
+            "Expected": 20.110643970278243,
+            "StdDev": 5.00002797335217
+          }
+        },
+        "TeamId": 1,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 15.298432134403463,
+            "Deaths": 20.110643970278243
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.4464312298114776,
+              "Deaths": 27.441426311359663
+            },
+            "Silver": {
+              "Kills": -0.6065723824830768,
+              "Deaths": 25.59455311142924
+            },
+            "Gold": {
+              "Kills": 2.914957348130049,
+              "Deaths": 23.750093587815858
+            },
+            "Platinum": {
+              "Kills": 9.606909835875912,
+              "Deaths": 21.82628784444084
+            },
+            "Diamond": {
+              "Kills": 16.492624025567835,
+              "Deaths": 19.734861002334416
+            },
+            "Onyx": {
+              "Kills": 24.146287213204197,
+              "Deaths": 17.295261630516112
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2535461840898551)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1189.1583142736,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": -1,
+            "MeasurementMatchesRemaining": 1,
+            "Tier": "",
+            "TierStart": 0,
+            "SubTier": 0,
+            "NextTier": "",
+            "NextTierStart": 0,
+            "NextSubTier": 0,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1144,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1100,
+            "SubTier": 4,
+            "NextTier": "Platinum",
+            "NextTierStart": 1150,
+            "NextSubTier": 5,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 34,
+            "Expected": 19.41243982841044,
+            "StdDev": 5.2555504305386815
+          },
+          "Deaths": {
+            "Count": 12,
+            "Expected": 16.3234024368183,
+            "StdDev": 5.034562798119596
+          }
+        },
+        "TeamId": 0,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": {
+          "RewardId": "9ba8952d-5729-4c6e-a600-9bf2d2b13f6f",
+          "AwardedRewards": {
+            "Bronze": "cf4a1aeb-428a-4e2c-b391-33a7090a0950",
+            "Silver": "b0188281-77f6-47dd-8d44-4b53fd1f215c",
+            "Gold": "b17f1a6f-a83e-4d0c-bc9b-d1cb3ba2d802",
+            "Platinum": "56d7adff-3f96-420f-896e-6c91020cbb56"
+          }
+        },
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 19.41243982841044,
+            "Deaths": 16.3234024368183
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.7842953877065173,
+              "Deaths": 23.736926560431602
+            },
+            "Silver": {
+              "Kills": 0.9054400655992029,
+              "Deaths": 22.02717409853836
+            },
+            "Gold": {
+              "Kills": 6.1510149475363685,
+              "Deaths": 20.319239655326264
+            },
+            "Platinum": {
+              "Kills": 12.36498580514099,
+              "Deaths": 18.536385054942066
+            },
+            "Diamond": {
+              "Kills": 18.569728812749837,
+              "Deaths": 16.593290148040527
+            },
+            "Onyx": {
+              "Kills": 25.64399930317807,
+              "Deaths": 14.309857424706362
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2535418351231694)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1256.6484450482722,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1124,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1100,
+            "SubTier": 4,
+            "NextTier": "Platinum",
+            "NextTierStart": 1150,
+            "NextSubTier": 5,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1119,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1100,
+            "SubTier": 4,
+            "NextTier": "Platinum",
+            "NextTierStart": 1150,
+            "NextSubTier": 5,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 5,
+            "Expected": 15.692096512611911,
+            "StdDev": 5.341375032836958
+          },
+          "Deaths": {
+            "Count": 26,
+            "Expected": 20.154467568854805,
+            "StdDev": 5.0255822133384775
+          }
+        },
+        "TeamId": 1,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 15.692096512611911,
+            "Deaths": 20.154467568854805
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.4670146186588817,
+              "Deaths": 27.626841392666567
+            },
+            "Silver": {
+              "Kills": -0.6147707185843576,
+              "Deaths": 25.767489572115416
+            },
+            "Gold": {
+              "Kills": 2.9255576019476264,
+              "Deaths": 23.91056874637258
+            },
+            "Platinum": {
+              "Kills": 9.655461552857256,
+              "Deaths": 21.973770164669762
+            },
+            "Diamond": {
+              "Kills": 16.601854953194096,
+              "Deaths": 19.868238057747387
+            },
+            "Onyx": {
+              "Kills": 24.309418813066067,
+              "Deaths": 17.412272050697045
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2535409073652465)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1189.1583142736,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": -1,
+            "MeasurementMatchesRemaining": 5,
+            "Tier": "",
+            "TierStart": 0,
+            "SubTier": 0,
+            "NextTier": "",
+            "NextTierStart": 0,
+            "NextSubTier": 0,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": -1,
+            "MeasurementMatchesRemaining": 4,
+            "Tier": "",
+            "TierStart": 0,
+            "SubTier": 0,
+            "NextTier": "",
+            "NextTierStart": 0,
+            "NextSubTier": 0,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 22,
+            "Expected": 16.931756269983065,
+            "StdDev": 5.263782679904654
+          },
+          "Deaths": {
+            "Count": 14,
+            "Expected": 17.115610081167826,
+            "StdDev": 5.026862693109672
+          }
+        },
+        "TeamId": 0,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 16.931756269983065,
+            "Deaths": 17.115610081167826
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.7830063238139565,
+              "Deaths": 23.736926717129403
+            },
+            "Silver": {
+              "Kills": 0.9056189860039692,
+              "Deaths": 22.027174707773856
+            },
+            "Gold": {
+              "Kills": 6.153331833872744,
+              "Deaths": 20.319241754479723
+            },
+            "Platinum": {
+              "Kills": 12.366193928014587,
+              "Deaths": 18.536391707871168
+            },
+            "Diamond": {
+              "Kills": 18.56982678779213,
+              "Deaths": 16.59330992666035
+            },
+            "Onyx": {
+              "Kills": 25.644000026896887,
+              "Deaths": 14.30991367235527
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "xuid(2535420076033472)",
+      "ResultCode": 0,
+      "Result": {
+        "TeamMmr": 1256.6484450482722,
+        "RankRecap": {
+          "PreMatchCsr": {
+            "Value": 1213,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Diamond",
+            "TierStart": 1200,
+            "SubTier": 0,
+            "NextTier": "Diamond",
+            "NextTierStart": 1250,
+            "NextSubTier": 1,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          },
+          "PostMatchCsr": {
+            "Value": 1198,
+            "MeasurementMatchesRemaining": 0,
+            "Tier": "Platinum",
+            "TierStart": 1150,
+            "SubTier": 5,
+            "NextTier": "Diamond",
+            "NextTierStart": 1200,
+            "NextSubTier": 0,
+            "InitialMeasurementMatches": 5,
+            "DemotionProtectionMatchesRemaining": 0,
+            "InitialDemotionProtectionMatches": 3
+          }
+        },
+        "StatPerformances": {
+          "Kills": {
+            "Count": 8,
+            "Expected": 12.795252918973905,
+            "StdDev": 4.453272482497353
+          },
+          "Deaths": {
+            "Count": 16,
+            "Expected": 13.837892431766518,
+            "StdDev": 4.2493209017318465
+          }
+        },
+        "TeamId": 1,
+        "TeamMmrs": {
+          "0": 1189.1583142736,
+          "1": 1256.6484450482722
+        },
+        "RankedRewards": null,
+        "Counterfactuals": {
+          "SelfCounterfactuals": {
+            "Kills": 12.795252918973905,
+            "Deaths": 13.837892431766518
+          },
+          "TierCounterfactuals": {
+            "Bronze": {
+              "Kills": -0.47781113080470955,
+              "Deaths": 19.691021203926674
+            },
+            "Silver": {
+              "Kills": -0.45379240983759933,
+              "Deaths": 18.36560239434785
+            },
+            "Gold": {
+              "Kills": 1.9664368344229315,
+              "Deaths": 17.04153233216978
+            },
+            "Platinum": {
+              "Kills": 6.668755195178584,
+              "Deaths": 15.659321614986231
+            },
+            "Diamond": {
+              "Kills": 11.787106048478137,
+              "Deaths": 14.153099284143277
+            },
+            "Onyx": {
+              "Kills": 17.325459064402033,
+              "Deaths": 12.385051188314385
+            }
+          }
+        }
+      }
+    }
+  ]
+}

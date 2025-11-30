@@ -8,6 +8,8 @@ import type {
   PlayerMatchHistory,
   PlaylistAsset,
   MapModePairAsset,
+  ResultContainer,
+  MatchSkill,
 } from "halo-infinite-api";
 import type { HaloService, SeriesData } from "../halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -98,6 +100,17 @@ async function readMapModePairAssetVersion(assetId: string): Promise<MapModePair
   }
 }
 
+async function readMatchSkill(): Promise<ResultContainer<MatchSkill>[]> {
+  try {
+    const fileContents = await readFile(path.join(__dirname, "data", "match-skill.json"), "utf-8");
+    const data = JSON.parse(fileContents) as { Value: ResultContainer<MatchSkill>[] };
+    return data.Value;
+  } catch (error) {
+    console.error(`Failed to read match skill: ${error as Error}`);
+    throw error;
+  }
+}
+
 export const matchStats = new Map<string, MatchStats>(
   await Promise.all([
     readMatchStats("ctf.json"),
@@ -147,6 +160,8 @@ export const mapModePairKothLiveFire = await readMapModePairAssetVersion("91957e
 export const mapModePairSlayerLiveFire = await readMapModePairAssetVersion("be1c791b-fbae-4e8d-aeee-9f48df6fee9d");
 
 export const mapModePairCtfAquarius = await readMapModePairAssetVersion("2bb084c2-a047-4fe9-9023-4100cbe6860d");
+
+export const matchSkillData = await readMatchSkill();
 
 export const neatQueueSeriesData: SeriesData = {
   startDateTime: new Date("2024-11-26T06:30:00.000Z"),
