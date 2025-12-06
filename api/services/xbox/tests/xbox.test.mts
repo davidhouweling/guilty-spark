@@ -1,9 +1,22 @@
 import { afterEach } from "node:test";
-import type { Mock } from "vitest";
+import type { Mock, MockInstance } from "vitest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
+import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
+import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import type { ProfileUser } from "../xbox.mjs";
 import { XboxService } from "../xbox.mjs";
+
+function createMockXSAPIResponse(profileUsers: ProfileUser[]): FetchResponse<{
+  profileUsers: ProfileUser[];
+}> {
+  return {
+    data: { profileUsers },
+    response: new Response(),
+    headers: {},
+    statusCode: 200,
+  };
+}
 
 const validKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2025-01-01T03:00:00.000Z" });
 const expiredKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2024-12-31T23:59:00.000Z" });
@@ -104,7 +117,11 @@ describe("Xbox Service", () => {
 
       expect(putSpy).toHaveBeenCalledWith(
         "xboxToken",
-        JSON.stringify({ XSTSToken: "xsts_token", expiresOn: new Date("2025-01-01T06:00:00.000Z") }),
+        JSON.stringify({
+          XSTSToken: "xsts_token",
+          userHash: "user_hash",
+          expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+        }),
         { expirationTtl: 21600 },
       );
     });
@@ -121,6 +138,134 @@ describe("Xbox Service", () => {
 
       expect(deleteSpy).toHaveBeenCalledWith("xboxToken");
       expect(xboxService.tokenInfo).toBeNull();
+    });
+  });
+
+  describe("getUsersByXuids", () => {
+    let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
+
+    beforeEach(async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      await xboxService.loadCredentials();
+      xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
+    });
+
+    it("should return empty array when no xuids provided", async () => {
+      const result = await xboxService.getUsersByXuids([]);
+
+      expect(result).toEqual([]);
+      expect(xsapiClientGetSpy).not.toHaveBeenCalled();
+    });
+
+    it("should fetch user info by xuids and return gamertags", async () => {
+      const xuids = ["2533274844642438", "2533274844642439"];
+
+      xsapiClientGetSpy.mockImplementation(async (url) => {
+        if (url.includes("2533274844642438")) {
+          return Promise.resolve(
+            createMockXSAPIResponse([
+              {
+                id: "2533274844642438",
+                hostId: "2533274844642438",
+                settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+                isSponsoredUser: false,
+              },
+            ]),
+          );
+        }
+
+        return Promise.resolve(
+          createMockXSAPIResponse([
+            {
+              id: "2533274844642439",
+              hostId: "2533274844642439",
+              settings: [{ id: "Gamertag", value: "TestPlayer2" }],
+              isSponsoredUser: false,
+            },
+          ]),
+        );
+      });
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
+      expect(result[1]).toEqual({ xuid: "2533274844642439", gamertag: "TestPlayer2" });
+    });
+
+    it("should handle failed requests gracefully", async () => {
+      const xuids = ["2533274844642438", "2533274844642439"];
+
+      xsapiClientGetSpy
+        .mockResolvedValueOnce(
+          createMockXSAPIResponse([
+            {
+              id: "2533274844642438",
+              hostId: "2533274844642438",
+              settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+              isSponsoredUser: false,
+            },
+          ]),
+        )
+        .mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
+    });
+
+    it("should use Unknown gamertag when gamertag setting is missing", async () => {
+      const xuids = ["2533274844642438"];
+
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "Unknown" });
+    });
+
+    it("should filter out results with no profileUser data", async () => {
+      const xuids = ["2533274844642438"];
+
+      xsapiClientGetSpy.mockResolvedValueOnce(createMockXSAPIResponse([]));
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should refresh token if not loaded", async () => {
+      xboxService.tokenInfo = null;
+      authenticate.mockResolvedValueOnce(validAuthenticateResponse);
+
+      const xuids = ["2533274844642438"];
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(authenticate).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
     });
   });
 });
