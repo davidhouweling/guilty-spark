@@ -2,13 +2,14 @@ import * as tinyduration from "tinyduration";
 
 import type {
   HaloInfiniteClient,
+  MapModePairAsset,
   MatchInfo,
   MatchSkill,
   MatchStats,
   PlayerMatchHistory,
   PlaylistCsrContainer,
   ResultContainer,
-  UserInfo,
+  ServiceRecord,
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInMinutes, isAfter, isBefore } from "date-fns";
@@ -20,93 +21,34 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
+import type { XboxService } from "../xbox/xbox.mjs";
 import type { Format, MapMode } from "./hcs.mjs";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter.mjs";
 import { skillRankCombined } from "./skill-helpers.mjs";
+import type { SeriesData, EsraMatchData, EsraCacheValue, Medal, MatchPlayer, UserInfo } from "./types.mjs";
+import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types.mjs";
 
-export interface MatchPlayer {
-  id: string;
-  username: string;
-  globalName: string | null;
-  guildNickname: string | null;
-}
-
-export interface SeriesData {
-  startDateTime: Date;
-  endDateTime: Date;
-  teams: MatchPlayer[][];
-}
-
-export interface Medal {
-  name: string;
-  sortingWeight: number;
-  difficulty: string;
-  type: string;
-}
-
-export enum FetchablePlaylist {
-  RANKED_ARENA = "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
-  RANKED_DOUBLES = "fa5aa2a3-2428-4912-a023-e1eeea7b877c",
-  RANKED_FFA = "71734db4-4b8e-4682-9206-62b6eff92582",
-  RANKED_SLAYER = "dcb2e24e-05fb-4390-8076-32a0cdb4326e",
-  RANKED_SNIPERS = "a883e7e1-9aca-4296-9009-3733a0ca8081",
-  RANKED_SQUAD_BATTLE = "6dc5f699-d6d9-41c4-bdf8-7ae11dec2d1b",
-  RANKED_TACTICAL = "7c60fb3e-656c-4ada-a085-293562642e50",
-}
+export { FetchablePlaylist } from "./types.mjs";
+export type { MatchPlayer } from "./types.mjs";
 
 export interface HaloServiceOpts {
   env: Env;
   logService: LogService;
   databaseService: DatabaseService;
+  xboxService: XboxService;
   infiniteClient: HaloInfiniteClient;
   playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   roundRobinFn?: generateRoundRobinMapsFn;
-}
-
-const noMatchError = new EndUserError(
-  [
-    "Unable to match any of the Discord users to their Xbox accounts.",
-    "**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
-  ].join("\n"),
-  {
-    title: "No matches found",
-    errorType: EndUserErrorType.WARNING,
-    handled: true,
-    actions: ["connect"],
-  },
-);
-
-const TimeInSeconds = {
-  "1_MINUTE": 60,
-  "5_MINUTES": 300,
-  "1_HOUR": 3600,
-  "1_DAY": 86400,
-  "1_WEEK": 604800,
-  "30_DAYS": 2592000,
-};
-
-interface EsraMatchData {
-  matchId: string;
-  esra: number;
-}
-
-interface EsraCacheValue {
-  xuid: string;
-  playlistId: string;
-  computedAt: string;
-  asOfDate: string;
-  esra: number;
-  lastMatchId: string;
-  matchData: EsraMatchData[];
 }
 
 export class HaloService {
   private readonly env: Env;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
+  private readonly xboxService: XboxService;
   private readonly infiniteClient: HaloInfiniteClient;
   private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
@@ -121,6 +63,7 @@ export class HaloService {
     env,
     logService,
     databaseService,
+    xboxService,
     infiniteClient,
     playerMatchesRateLimiter,
     roundRobinFn = generateRoundRobinMaps,
@@ -128,6 +71,7 @@ export class HaloService {
     this.env = env;
     this.logService = logService;
     this.databaseService = databaseService;
+    this.xboxService = xboxService;
     this.infiniteClient = infiniteClient;
     this.roundRobinFn = roundRobinFn;
     this.playerMatchesRateLimiter = playerMatchesRateLimiter;
@@ -305,21 +249,27 @@ export class HaloService {
       } catch (error) {
         // temporary workaround for 500 errors
         if (error instanceof RequestError && error.response.status === 500) {
-          const users = await Promise.allSettled(usersArray.map(async (xuid) => this.getUsersByXuids([xuid])));
-          for (const [index, result] of users.entries()) {
-            if (result.status === "fulfilled") {
-              const [user] = result.value;
-              if (user) {
+          try {
+            const users = await this.xboxService.getUsersByXuids(usersArray);
+            for (const user of users) {
                 this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
               }
+          } catch (innerError) {
+            this.logService.warn(
+              innerError as Error,
+              new Map([["context", "Failed to fetch xbox gamertags in bulk fallback"]]),
+            );
+          }
+
+          for (const xboxId of usersArray) {
+            if (this.xuidToGamerTagCache.has(xboxId)) {
               continue;
             }
 
-            const xboxId = Preconditions.checkExists(usersArray[index]);
             const discordAssociation = await this.getDiscordAssociationByXboxId(xboxId);
 
             this.xuidToGamerTagCache.set(
-              Preconditions.checkExists(usersArray[index]),
+              Preconditions.checkExists(xboxId),
               `*Unknown*${discordAssociation ? ` <@${discordAssociation.DiscordId}>` : ""}`,
             );
           }

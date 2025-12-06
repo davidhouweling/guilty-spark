@@ -18,11 +18,14 @@ import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs
 import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakePlayerMatchesRateLimiterWith } from "../fakes/player-matches-rate-limiter.fake.mjs";
+import type { XboxService } from "../../xbox/xbox.mjs";
+import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake.mjs";
 
 describe("Halo service", () => {
   let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
+  let xboxService: XboxService;
   let infiniteClient: MockProxy<HaloInfiniteClient>;
   let haloService: HaloService;
 
@@ -33,12 +36,14 @@ describe("Halo service", () => {
     env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     databaseService = aFakeDatabaseServiceWith();
+    xboxService = aFakeXboxServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
     haloService = new HaloService({
       env,
       logService,
       databaseService,
+      xboxService,
       infiniteClient,
       playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
     });
@@ -1694,43 +1699,35 @@ describe("Halo service", () => {
       );
     });
 
-    it("handles 500 error by falling back to individual user lookups", async () => {
+    it("handles 500 error by falling back to XboxService.getUsersByXuids", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const response = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response));
 
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockResolvedValueOnce([
+        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
+        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
+      ]);
+
       const result = await haloService.getPlayerXuidsToGametags(match);
 
       expect(infiniteClient.getUsers).toHaveBeenCalled();
+      expect(xboxServiceSpy).toHaveBeenCalled();
       expect(result.size).toBeGreaterThan(0);
+      expect(result.get("0100000000000000")).toBe("XboxPlayer1");
+      expect(result.get("0200000000000000")).toBe("XboxPlayer2");
     });
 
-    it("marks unknown users with *Unknown* when individual lookup fails during 500 error recovery", async () => {
+    it("marks unknown users with *Unknown* when XboxService.getUsersByXuids fails during 500 error recovery", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
 
-      infiniteClient.getUsers.mockImplementation(async (xuids) => {
-        const results: UserInfo[] = [];
-        for (const xuid of xuids) {
-          if (xuid === "0200000000000000") {
-            return Promise.reject(new Error("User not found"));
-          }
-          results.push({
-            xuid,
-            gamertag: `gamertag${xuid}`,
-            gamerpic: {
-              small: `small${xuid}.png`,
-              medium: `medium${xuid}.png`,
-              large: `large${xuid}.png`,
-              xlarge: `xlarge${xuid}.png`,
-            },
-          });
-        }
-        return Promise.resolve(results);
-      });
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox service failed"));
 
       const result = await haloService.getPlayerXuidsToGametags(match);
 
@@ -1744,23 +1741,12 @@ describe("Halo service", () => {
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
 
-      infiniteClient.getUsers.mockImplementation(async (xuids) => {
-        if (xuids.length === 1 && xuids[0] === fakeXboxId) {
-          return Promise.reject(new Error("User not found"));
-        }
-        return Promise.resolve(
-          xuids.map((xuid) => ({
-            xuid,
-            gamertag: `gamertag${xuid}`,
-            gamerpic: {
-              small: `small${xuid}.png`,
-              medium: `medium${xuid}.png`,
-              large: `large${xuid}.png`,
-              xlarge: `xlarge${xuid}.png`,
-            },
-          })),
-        );
-      });
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockResolvedValueOnce([
+        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
+        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
+        // Missing fakeXboxId to simulate failure for that specific user
+      ]);
 
       const getDiscordAssociationsByXboxIdSpy = vi.spyOn(databaseService, "getDiscordAssociationsByXboxId");
       getDiscordAssociationsByXboxIdSpy.mockImplementation(async (xboxIds: string[]) => {
