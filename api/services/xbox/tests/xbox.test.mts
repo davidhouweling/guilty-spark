@@ -4,8 +4,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
 import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
-import type { ProfileUser } from "../xbox.mjs";
 import { XboxService } from "../xbox.mjs";
+import type { ProfileUser } from "../types.mjs";
 
 function createMockXSAPIResponse(profileUsers: ProfileUser[]): FetchResponse<{
   profileUsers: ProfileUser[];

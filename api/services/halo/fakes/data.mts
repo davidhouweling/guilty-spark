@@ -10,9 +10,11 @@ import type {
   MapModePairAsset,
   ResultContainer,
   MatchSkill,
+  ServiceRecord,
 } from "halo-infinite-api";
-import type { HaloService, SeriesData } from "../halo.mjs";
+import type { HaloService } from "../halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import type { SeriesData } from "../types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -111,6 +113,16 @@ async function readMatchSkill(): Promise<ResultContainer<MatchSkill>[]> {
   }
 }
 
+async function readServiceRecord(): Promise<ServiceRecord> {
+  try {
+    const fileContents = await readFile(path.join(__dirname, "data", "service-record.json"), "utf-8");
+    return JSON.parse(fileContents) as ServiceRecord;
+  } catch (error) {
+    console.error(`Failed to read service record: ${error as Error}`);
+    throw error;
+  }
+}
+
 export const matchStats = new Map<string, MatchStats>(
   await Promise.all([
     readMatchStats("ctf.json"),
@@ -162,6 +174,8 @@ export const mapModePairSlayerLiveFire = await readMapModePairAssetVersion("be1c
 export const mapModePairCtfAquarius = await readMapModePairAssetVersion("2bb084c2-a047-4fe9-9023-4100cbe6860d");
 
 export const matchSkillData = await readMatchSkill();
+
+export const serviceRecord = await readServiceRecord();
 
 export const neatQueueSeriesData: SeriesData = {
   startDateTime: new Date("2024-11-26T06:30:00.000Z"),
@@ -273,6 +287,13 @@ export function aFakePlayerMatchHistoryWith(overrides?: Partial<PlayerMatchHisto
   const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
   return {
     ...baseMatch,
+    ...overrides,
+  };
+}
+
+export function aFakeServiceRecordWith(overrides?: Partial<ServiceRecord>): ServiceRecord {
+  return {
+    ...serviceRecord,
     ...overrides,
   };
 }

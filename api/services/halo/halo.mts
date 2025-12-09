@@ -252,8 +252,8 @@ export class HaloService {
           try {
             const users = await this.xboxService.getUsersByXuids(usersArray);
             for (const user of users) {
-                this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
-              }
+              this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+            }
           } catch (innerError) {
             this.logService.warn(
               innerError as Error,
@@ -322,74 +322,207 @@ export class HaloService {
     return allUsers;
   }
 
+  async getServiceRecord(xuid: string): Promise<ServiceRecord> {
+    const serviceRecord = await this.infiniteClient.getUserServiceRecord(
+      this.wrapPlayerXuid(xuid),
+      {},
+      {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      },
+    );
+    return serviceRecord;
+  }
+
   async getPlayerEsra(
     xuid: string,
     playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA,
   ): Promise<number | undefined> {
-    const cacheKey = this.getEsraKVCacheKey(xuid, playlistId);
-    const cachedEsra = await this.getEsraFromKVCache(cacheKey);
+    try {
+      this.logService.debug(`[getPlayerEsra] Starting for xuid: ${xuid}, playlist: ${playlistId}`);
 
-    if (cachedEsra) {
-      await this.refreshEsraKVCacheTTL(cacheKey, cachedEsra);
-      return cachedEsra.esra;
-    }
+      const cacheKey = this.getEsraKVCacheKey(xuid, playlistId);
+      this.logService.debug(`[getPlayerEsra] Cache key: ${cacheKey}`);
 
-    const matches = await this.getPlayerMatches(xuid, MatchType.Matchmaking, 200, 0);
-    const rankedArenaMatches = matches
-      .filter((match) => match.MatchInfo.Playlist?.AssetId === playlistId)
-      .slice(0, 100);
+      // Get available game variant keys for the playlist
+      const playlistGameVariantKeys = await this.getPlaylistGameVariantKeys(playlistId);
+      const expectedVariantKeys = new Set(playlistGameVariantKeys);
+      this.logService.debug(
+        `[getPlayerEsra] Playlist has ${expectedVariantKeys.size.toString()} game variants: ${Array.from(expectedVariantKeys).join(", ")}`,
+      );
 
-    if (rankedArenaMatches.length === 0) {
-      return undefined;
-    }
+      const cachedEsra = await this.getEsraFromKVCache(cacheKey);
 
-    const matchIds = rankedArenaMatches.map((m) => m.MatchId);
-    const lastMatchId = Preconditions.checkExists(matchIds[0]);
-    const computedAt = new Date().toISOString();
-    const asOfDate = Preconditions.checkExists(rankedArenaMatches[0]).MatchInfo.EndTime;
+      if (cachedEsra) {
+        const cachedVariantKeys = new Set(Object.keys(cachedEsra.matchData));
+        this.logService.debug(
+          `[getPlayerEsra] Found cached ESRA: ${cachedEsra.esra.toString()}, computed at: ${cachedEsra.computedAt}, variants: ${cachedVariantKeys.size.toString()}`,
+        );
 
-    const esraValues: EsraMatchData[] = [];
+        // Invalidate cache if the variant keys don't match
+        const keysMatch =
+          cachedVariantKeys.size === expectedVariantKeys.size &&
+          Array.from(cachedVariantKeys).every((key) => expectedVariantKeys.has(key));
 
-    for (const matchId of matchIds) {
-      try {
-        const skillResults: ResultContainer<MatchSkill>[] = await this.infiniteClient.getMatchSkill(matchId, [xuid], {
-          cf: {
-            cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
-          },
-        });
+        if (!keysMatch) {
+          this.logService.debug(
+            `[getPlayerEsra] Variant keys mismatch (cached: ${Array.from(cachedVariantKeys).join(", ")}, expected: ${Array.from(expectedVariantKeys).join(", ")}), invalidating cache`,
+          );
+        } else {
+          await this.refreshEsraKVCacheTTL(cacheKey, cachedEsra);
+          this.logService.debug(`[getPlayerEsra] Refreshed cache TTL and returning cached value`);
+          return cachedEsra.esra;
+        }
+      }
 
-        const playerSkill = skillResults.find((r) => r.Id === xuid);
-        if (playerSkill?.ResultCode === 0) {
-          const esra = skillRankCombined(playerSkill.Result, "Expected");
-          if (esra !== undefined) {
-            esraValues.push({ matchId, esra });
+      this.logService.debug(`[getPlayerEsra] No valid cache found, fetching matches`);
+
+      // Collect one match per game variant (most recent for each variant)
+      const matchesByVariant = new Map<string, PlayerMatchHistory>();
+      const remainingVariants = new Set(expectedVariantKeys);
+      let totalMatchesFetched = 0;
+      const maxTotalMatches = 500;
+      const batchSize = 25;
+
+      while (remainingVariants.size > 0 && totalMatchesFetched < maxTotalMatches) {
+        const matches = await this.getPlayerMatches(xuid, MatchType.Matchmaking, batchSize, totalMatchesFetched);
+        this.logService.debug(
+          `[getPlayerEsra] Fetched batch: ${matches.length.toString()} matches (offset: ${totalMatchesFetched.toString()}, variants found: ${matchesByVariant.size.toString()}/${expectedVariantKeys.size.toString()})`,
+        );
+
+        if (matches.length === 0) {
+          this.logService.debug(
+            `[getPlayerEsra] No more matches available, stopping at ${totalMatchesFetched.toString()} total matches`,
+          );
+          break;
+        }
+
+        totalMatchesFetched += matches.length;
+
+        // Filter to playlist matches and organize by game variant
+        for (const match of matches) {
+          if (match.MatchInfo.Playlist?.AssetId !== playlistId) {
+            continue;
+          }
+
+          const variantKey = `${match.MatchInfo.UgcGameVariant.AssetId}:${match.MatchInfo.UgcGameVariant.VersionId}`;
+
+          // Only store if this variant is expected and we haven't found one yet
+          if (expectedVariantKeys.has(variantKey) && !matchesByVariant.has(variantKey)) {
+            matchesByVariant.set(variantKey, match);
+            remainingVariants.delete(variantKey);
+            this.logService.debug(`[getPlayerEsra] Found match for variant ${variantKey}: ${match.MatchId}`);
           }
         }
-      } catch (error) {
-        this.logService.debug(`Failed to fetch skill for match ${matchId}: ${String(error)}`);
-        continue;
+
+        // Stop if we've found at least one match for each expected variant
+        if (remainingVariants.size === 0) {
+          this.logService.debug(
+            `[getPlayerEsra] Found matches for all ${expectedVariantKeys.size.toString()} game variants, stopping search`,
+          );
+          break;
+        }
       }
+
+      this.logService.debug(
+        `[getPlayerEsra] Finished collection: ${totalMatchesFetched.toString()} total matches fetched, ${matchesByVariant.size.toString()} unique game variants found`,
+      );
+
+      if (matchesByVariant.size === 0) {
+        this.logService.debug(`[getPlayerEsra] No ranked arena matches found, returning undefined`);
+        return undefined;
+      }
+
+      // Get the most recent match overall for lastMatchId tracking
+      const allMatches = Array.from(matchesByVariant.values());
+      const sortedMatches = allMatches.sort(
+        (a, b) => new Date(b.MatchInfo.EndTime).getTime() - new Date(a.MatchInfo.EndTime).getTime(),
+      );
+      const lastMatchId = Preconditions.checkExists(sortedMatches[0]).MatchId;
+      const computedAt = new Date().toISOString();
+      const asOfDate = Preconditions.checkExists(sortedMatches[0]).MatchInfo.EndTime;
+
+      this.logService.debug(
+        `[getPlayerEsra] Processing ${matchesByVariant.size.toString()} matches (one per variant), last match: ${lastMatchId}, as of: ${asOfDate}`,
+      );
+
+      // Fetch skill data for each variant's match
+      const esraByVariant: Record<string, EsraMatchData> = {};
+
+      for (const [variantKey, match] of matchesByVariant.entries()) {
+        try {
+          this.logService.debug(`[getPlayerEsra] Fetching skill for variant ${variantKey}, match: ${match.MatchId}`);
+
+          const skillResults: ResultContainer<MatchSkill>[] = await this.infiniteClient.getMatchSkill(
+            match.MatchId,
+            [xuid],
+            {
+              cf: {
+                cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+              },
+            },
+          );
+
+          const playerSkill = skillResults.find((r) => r.Id === this.wrapPlayerXuid(xuid));
+          if (playerSkill?.ResultCode === 0) {
+            const esra = skillRankCombined(playerSkill.Result, "Expected");
+            if (esra !== undefined) {
+              esraByVariant[variantKey] = { matchId: match.MatchId, esra, gameMode: variantKey };
+              this.logService.debug(
+                `[getPlayerEsra] Variant ${variantKey}, match ${match.MatchId}: ESRA = ${esra.toString()}`,
+              );
+            } else {
+              this.logService.debug(
+                `[getPlayerEsra] Variant ${variantKey}, match ${match.MatchId}: ESRA undefined after skillRankCombined`,
+              );
+            }
+          } else {
+            this.logService.debug(
+              `[getPlayerEsra] Variant ${variantKey}, match ${match.MatchId}: Invalid result code ${playerSkill?.ResultCode.toString() ?? "null"}`,
+            );
+          }
+        } catch (error) {
+          this.logService.debug(
+            `[getPlayerEsra] Failed to fetch skill for variant ${variantKey}, match ${match.MatchId}: ${String(error)}`,
+          );
+          continue;
+        }
+      }
+
+      const esraValues = Object.values(esraByVariant);
+      this.logService.debug(
+        `[getPlayerEsra] Collected ${esraValues.length.toString()} valid ESRA values across variants`,
+      );
+
+      if (esraValues.length === 0) {
+        this.logService.debug(`[getPlayerEsra] No valid ESRA values found, returning undefined`);
+        return undefined;
+      }
+
+      const averageEsra = esraValues.reduce((sum, data) => sum + data.esra, 0) / esraValues.length;
+      this.logService.debug(
+        `[getPlayerEsra] Calculated average ESRA: ${averageEsra.toString()} across ${esraValues.length.toString()} variants`,
+      );
+
+      const cacheValue: EsraCacheValue = {
+        xuid,
+        playlistId,
+        computedAt,
+        asOfDate,
+        esra: averageEsra,
+        lastMatchId,
+        matchData: esraByVariant,
+      };
+
+      await this.updateEsraKVCache(cacheKey, cacheValue);
+      this.logService.debug(`[getPlayerEsra] Cached ESRA value and returning: ${averageEsra.toString()}`);
+
+      return averageEsra;
+    } catch (error) {
+      this.logService.error(error as Error, new Map([["context", `Failed to fetch ESRA for xuid ${xuid}`]]));
+      throw error;
     }
-
-    if (esraValues.length === 0) {
-      return undefined;
-    }
-
-    const averageEsra = esraValues.reduce((sum, data) => sum + data.esra, 0) / esraValues.length;
-
-    const cacheValue: EsraCacheValue = {
-      xuid,
-      playlistId,
-      computedAt,
-      asOfDate,
-      esra: averageEsra,
-      lastMatchId,
-      matchData: esraValues,
-    };
-
-    await this.updateEsraKVCache(cacheKey, cacheValue);
-
-    return averageEsra;
   }
 
   getDurationInSeconds(duration: string): number {
@@ -552,6 +685,100 @@ export class HaloService {
         f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
       ),
     });
+  }
+
+  getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
+    if (csr >= 1500) {
+      return { rankTier: "Onyx", subTier: 0 };
+    }
+    if (csr >= 1450) {
+      return { rankTier: "Diamond", subTier: 5 };
+    }
+    if (csr >= 1400) {
+      return { rankTier: "Diamond", subTier: 4 };
+    }
+    if (csr >= 1350) {
+      return { rankTier: "Diamond", subTier: 3 };
+    }
+    if (csr >= 1300) {
+      return { rankTier: "Diamond", subTier: 2 };
+    }
+    if (csr >= 1250) {
+      return { rankTier: "Diamond", subTier: 1 };
+    }
+    if (csr >= 1200) {
+      return { rankTier: "Diamond", subTier: 0 };
+    }
+    if (csr >= 1150) {
+      return { rankTier: "Platinum", subTier: 5 };
+    }
+    if (csr >= 1100) {
+      return { rankTier: "Platinum", subTier: 4 };
+    }
+    if (csr >= 1050) {
+      return { rankTier: "Platinum", subTier: 3 };
+    }
+    if (csr >= 1000) {
+      return { rankTier: "Platinum", subTier: 2 };
+    }
+    if (csr >= 950) {
+      return { rankTier: "Platinum", subTier: 1 };
+    }
+    if (csr >= 900) {
+      return { rankTier: "Platinum", subTier: 0 };
+    }
+    if (csr >= 850) {
+      return { rankTier: "Gold", subTier: 5 };
+    }
+    if (csr >= 800) {
+      return { rankTier: "Gold", subTier: 4 };
+    }
+    if (csr >= 750) {
+      return { rankTier: "Gold", subTier: 3 };
+    }
+    if (csr >= 700) {
+      return { rankTier: "Gold", subTier: 2 };
+    }
+    if (csr >= 650) {
+      return { rankTier: "Gold", subTier: 1 };
+    }
+    if (csr >= 600) {
+      return { rankTier: "Gold", subTier: 0 };
+    }
+    if (csr >= 550) {
+      return { rankTier: "Silver", subTier: 5 };
+    }
+    if (csr >= 500) {
+      return { rankTier: "Silver", subTier: 4 };
+    }
+    if (csr >= 450) {
+      return { rankTier: "Silver", subTier: 3 };
+    }
+    if (csr >= 400) {
+      return { rankTier: "Silver", subTier: 2 };
+    }
+    if (csr >= 350) {
+      return { rankTier: "Silver", subTier: 1 };
+    }
+    if (csr >= 300) {
+      return { rankTier: "Silver", subTier: 0 };
+    }
+    if (csr >= 250) {
+      return { rankTier: "Bronze", subTier: 5 };
+    }
+    if (csr >= 200) {
+      return { rankTier: "Bronze", subTier: 4 };
+    }
+    if (csr >= 150) {
+      return { rankTier: "Bronze", subTier: 3 };
+    }
+    if (csr >= 100) {
+      return { rankTier: "Bronze", subTier: 2 };
+    }
+    if (csr >= 50) {
+      return { rankTier: "Bronze", subTier: 1 };
+    }
+    return { rankTier: "Bronze", subTier: 0 };
   }
 
   async updateDiscordAssociations(): Promise<void> {
@@ -718,6 +945,14 @@ export class HaloService {
     await this.updateEsraKVCache(cacheKey, value);
   }
 
+  /**
+   *
+   * @param playerXuid the xbox xuid (not wrapped)
+   * @param type Match type
+   * @param count how many matches to get back, maximum of 25
+   * @param start starting index (allows us to page through results)
+   * @returns
+   */
   private async getPlayerMatches(
     playerXuid: string,
     type?: MatchType,
@@ -1351,15 +1586,7 @@ export class HaloService {
     });
   }
 
-  private async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<Record<MapMode, string[]>> {
-    const cacheKey = `halo-playlist-map-modes-${playlistId}`;
-    const cache = await this.env.APP_DATA.get<Record<MapMode, string[]>>(cacheKey, {
-      type: "json",
-    });
-    if (cache != null) {
-      return cache;
-    }
-
+  private async getPlaylistRotationEntries(playlistId: FetchablePlaylist): Promise<MapModePairAsset[]> {
     const playlist = await this.infiniteClient.getPlaylist(playlistId, {
       cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
     });
@@ -1379,23 +1606,33 @@ export class HaloService {
       ),
     );
 
-    const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
-      (accumulator, result) => {
-        if (result.status !== "fulfilled") {
-          return accumulator;
-        }
+    const resolvedEntries = rotationEntries
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
+    return resolvedEntries;
+  }
 
-        const mapMode = this.ucgMapNameToMapMode(result.value.UgcGameVariantLink.PublicName);
+  private async getPlaylistMapModes(playlistId: FetchablePlaylist): Promise<Record<MapMode, string[]>> {
+    const cacheKey = `halo-playlist-map-modes-${playlistId}`;
+    const cache = await this.env.APP_DATA.get<Record<MapMode, string[]>>(cacheKey, {
+      type: "json",
+    });
+    if (cache != null) {
+      return cache;
+    }
+
+    const rotationEntries = await this.getPlaylistRotationEntries(playlistId);
+
+    const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
+      (accumulator, entry) => {
+        const mapMode = this.ucgMapNameToMapMode(entry.UgcGameVariantLink.PublicName);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (accumulator[mapMode] == null) {
-          this.logService.warn(
-            `Unknown map mode encountered: ${mapMode}`,
-            new Map([["data", JSON.stringify(result.value)]]),
-          );
+          this.logService.warn(`Unknown map mode encountered: ${mapMode}`, new Map([["data", JSON.stringify(entry)]]));
           accumulator[mapMode] = [];
         }
 
-        accumulator[mapMode].push(result.value.MapLink.PublicName.replace("- Ranked", "").trim());
+        accumulator[mapMode].push(entry.MapLink.PublicName.replace("- Ranked", "").trim());
         return accumulator;
       },
       {
@@ -1409,10 +1646,30 @@ export class HaloService {
     );
 
     await this.env.APP_DATA.put(cacheKey, JSON.stringify(playlistMapModes), {
-      expirationTtl: 86400, // 1 day
+      expirationTtl: TimeInSeconds["1_DAY"],
     });
 
     return playlistMapModes;
+  }
+
+  private async getPlaylistGameVariantKeys(playlistId: FetchablePlaylist): Promise<string[]> {
+    const cacheKey = `halo-playlist-game-variant-keys-${playlistId}`;
+    const cache = await this.env.APP_DATA.get<string[]>(cacheKey, {
+      type: "json",
+    });
+    if (cache != null) {
+      return cache;
+    }
+    const rotationEntries = await this.getPlaylistRotationEntries(playlistId);
+    const modeKeys = rotationEntries.map(
+      (entry) => `${entry.UgcGameVariantLink.AssetId}:${entry.UgcGameVariantLink.VersionId}`,
+    );
+
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(modeKeys), {
+      expirationTtl: TimeInSeconds["1_DAY"],
+    });
+
+    return modeKeys;
   }
 
   private async getMapSet(playlist: MapsPlaylistType): Promise<Record<MapMode, string[]>> {

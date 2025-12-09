@@ -4,14 +4,16 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider.mjs
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import type { XboxService } from "../../xbox/xbox.mjs";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake.mjs";
+import type { TokenInfo } from "../../xbox/types.mjs";
 
 const validToken = {
   token: "spartan-token",
   expiresAt: DateTime.fromISO("2025-01-01T03:00:00.000Z"),
 };
 
-const validKvToken = {
+const validKvToken: TokenInfo = {
   XSTSToken: "xsts-token",
+  userHash: "user-hash",
   expiresOn: new Date("2025-01-01T03:00:00.000Z"),
 };
 

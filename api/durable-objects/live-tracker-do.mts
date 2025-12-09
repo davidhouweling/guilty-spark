@@ -5,7 +5,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds } from "date-fns";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
-import type { HaloService, SeriesData } from "../services/halo/halo.mjs";
+import type { HaloService } from "../services/halo/halo.mjs";
 import type { DatabaseService } from "../services/database/database.mjs";
 import { installServices as installServicesImpl } from "../services/install.mjs";
 import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
@@ -14,6 +14,7 @@ import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed.mj
 import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
 import { DiscordError } from "../services/discord/discord-error.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
+import type { SeriesData } from "../services/halo/types.mjs";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerState,

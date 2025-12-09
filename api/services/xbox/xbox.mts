@@ -1,24 +1,7 @@
 import { XSAPIClient, type authenticate } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
 import { Preconditions } from "../../base/preconditions.mjs";
-
-interface TokenInfo {
-  XSTSToken: string;
-  userHash: string;
-  expiresOn: Date;
-}
-
-export interface ProfileUser {
-  id: string;
-  hostId: string;
-  settings: { id: "GameDisplayName" | "GameDisplayPicRaw" | "Gamerscore" | "Gamertag"; value: string }[];
-  isSponsoredUser: boolean;
-}
-
-export interface XboxUserInfo {
-  xuid: string;
-  gamertag: string;
-}
+import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types.mjs";
 
 export interface XboxServiceOpts {
   env: Env;

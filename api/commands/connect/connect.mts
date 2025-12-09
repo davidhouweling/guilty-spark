@@ -641,7 +641,7 @@ export class ConnectCommand extends BaseCommand {
       if (errorEmbed.title === "No matches found") {
         await neatQueueService.handleRetry({
           errorEmbed,
-          guildId: Preconditions.checkExists(interaction.guild_id, "expected guild id"),
+          guildId: Preconditions.checkExists(interaction.guild?.id, "Expected to be ran in a guild"),
           message,
         });
 

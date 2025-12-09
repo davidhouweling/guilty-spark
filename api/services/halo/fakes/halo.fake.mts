@@ -1,6 +1,7 @@
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
+import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake.mjs";
 import type { HaloServiceOpts } from "../halo.mjs";
 import { HaloService } from "../halo.mjs";
 import { aFakeHaloInfiniteClient } from "./infinite-client.fake.mjs";
@@ -10,6 +11,7 @@ export function aFakeHaloServiceWith(opts: Partial<HaloServiceOpts> = {}): HaloS
   const env = opts.env ?? aFakeEnvWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
   const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith();
+  const xboxService = opts.xboxService ?? aFakeXboxServiceWith();
   const infiniteClient = opts.infiniteClient ?? aFakeHaloInfiniteClient();
   const playerMatchesRateLimiter = opts.playerMatchesRateLimiter ?? aFakePlayerMatchesRateLimiterWith();
 
@@ -17,6 +19,7 @@ export function aFakeHaloServiceWith(opts: Partial<HaloServiceOpts> = {}): HaloS
     env,
     logService,
     databaseService,
+    xboxService,
     infiniteClient,
     playerMatchesRateLimiter,
   });
