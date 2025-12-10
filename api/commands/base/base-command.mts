@@ -5,6 +5,8 @@ import type {
   APIMessageComponentButtonInteraction,
   APIModalSubmitInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APIUserApplicationCommandDMInteraction,
+  APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
 import { ComponentType, InteractionType, InteractionResponseType, MessageFlags } from "discord-api-types/v10";
 import type { Services } from "../../services/install.mjs";
@@ -22,7 +24,9 @@ export type BaseInteraction =
   | APIApplicationCommandInteraction
   | APIMessageComponentButtonInteraction
   | APIModalSubmitInteraction
-  | APIMessageComponentSelectMenuInteraction;
+  | APIMessageComponentSelectMenuInteraction
+  | APIUserApplicationCommandDMInteraction
+  | APIUserApplicationCommandGuildInteraction;
 export interface ExecuteResponse {
   response: APIInteractionResponse;
   jobToComplete?: () => Promise<void>;

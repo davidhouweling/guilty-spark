@@ -1,14 +1,21 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import { MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo } from "halo-infinite-api";
+import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
-import { matchStats, playerMatches, neatQueueSeriesData } from "../fakes/data.mjs";
+import {
+  matchStats,
+  playerMatches,
+  neatQueueSeriesData,
+  aFakeServiceRecordWith,
+  aFakePlayerMatchHistoryWith,
+  matchSkillData,
+} from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
@@ -18,11 +25,14 @@ import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs
 import { MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakePlayerMatchesRateLimiterWith } from "../fakes/player-matches-rate-limiter.fake.mjs";
+import type { XboxService } from "../../xbox/xbox.mjs";
+import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake.mjs";
 
 describe("Halo service", () => {
   let env: Env;
   let logService: LogService;
   let databaseService: DatabaseService;
+  let xboxService: XboxService;
   let infiniteClient: MockProxy<HaloInfiniteClient>;
   let haloService: HaloService;
 
@@ -33,12 +43,14 @@ describe("Halo service", () => {
     env = aFakeEnvWith();
     logService = aFakeLogServiceWith();
     databaseService = aFakeDatabaseServiceWith();
+    xboxService = aFakeXboxServiceWith();
     infiniteClient = aFakeHaloInfiniteClient();
 
     haloService = new HaloService({
       env,
       logService,
       databaseService,
+      xboxService,
       infiniteClient,
       playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
     });
@@ -1694,43 +1706,35 @@ describe("Halo service", () => {
       );
     });
 
-    it("handles 500 error by falling back to individual user lookups", async () => {
+    it("handles 500 error by falling back to XboxService.getUsersByXuids", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const response = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response));
 
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockResolvedValueOnce([
+        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
+        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
+      ]);
+
       const result = await haloService.getPlayerXuidsToGametags(match);
 
       expect(infiniteClient.getUsers).toHaveBeenCalled();
+      expect(xboxServiceSpy).toHaveBeenCalled();
       expect(result.size).toBeGreaterThan(0);
+      expect(result.get("0100000000000000")).toBe("XboxPlayer1");
+      expect(result.get("0200000000000000")).toBe("XboxPlayer2");
     });
 
-    it("marks unknown users with *Unknown* when individual lookup fails during 500 error recovery", async () => {
+    it("marks unknown users with *Unknown* when XboxService.getUsersByXuids fails during 500 error recovery", async () => {
       const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
 
-      infiniteClient.getUsers.mockImplementation(async (xuids) => {
-        const results: UserInfo[] = [];
-        for (const xuid of xuids) {
-          if (xuid === "0200000000000000") {
-            return Promise.reject(new Error("User not found"));
-          }
-          results.push({
-            xuid,
-            gamertag: `gamertag${xuid}`,
-            gamerpic: {
-              small: `small${xuid}.png`,
-              medium: `medium${xuid}.png`,
-              large: `large${xuid}.png`,
-              xlarge: `xlarge${xuid}.png`,
-            },
-          });
-        }
-        return Promise.resolve(results);
-      });
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox service failed"));
 
       const result = await haloService.getPlayerXuidsToGametags(match);
 
@@ -1744,23 +1748,12 @@ describe("Halo service", () => {
 
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
 
-      infiniteClient.getUsers.mockImplementation(async (xuids) => {
-        if (xuids.length === 1 && xuids[0] === fakeXboxId) {
-          return Promise.reject(new Error("User not found"));
-        }
-        return Promise.resolve(
-          xuids.map((xuid) => ({
-            xuid,
-            gamertag: `gamertag${xuid}`,
-            gamerpic: {
-              small: `small${xuid}.png`,
-              medium: `medium${xuid}.png`,
-              large: `large${xuid}.png`,
-              xlarge: `xlarge${xuid}.png`,
-            },
-          })),
-        );
-      });
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockResolvedValueOnce([
+        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
+        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
+        // Missing fakeXboxId to simulate failure for that specific user
+      ]);
 
       const getDiscordAssociationsByXboxIdSpy = vi.spyOn(databaseService, "getDiscordAssociationsByXboxId");
       getDiscordAssociationsByXboxIdSpy.mockImplementation(async (xboxIds: string[]) => {
@@ -2036,6 +2029,7 @@ describe("Halo service", () => {
         env,
         logService,
         databaseService,
+        xboxService,
         infiniteClient,
         playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
       });
@@ -2367,6 +2361,93 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getServiceRecord", () => {
+    it("returns service record for the specified xuid", async () => {
+      const xuid = "1234567890";
+      const mockServiceRecord = aFakeServiceRecordWith({
+        TimePlayed: "PT100H30M15S",
+        MatchesCompleted: 500,
+        Wins: 300,
+        Losses: 180,
+        Ties: 20,
+      });
+
+      infiniteClient.getUserServiceRecord.mockResolvedValue(mockServiceRecord);
+
+      const result = await haloService.getServiceRecord(xuid);
+
+      expect(infiniteClient.getUserServiceRecord).toHaveBeenCalledWith(
+        `xuid(${xuid})`,
+        {},
+        {
+          cf: {
+            cacheTtlByStatus: { "200-299": 60, 404: 60, "500-599": 0 },
+          },
+        },
+      );
+      expect(result).toEqual(mockServiceRecord);
+    });
+
+    it("throws error when API fails", async () => {
+      const xuid = "1234567890";
+      infiniteClient.getUserServiceRecord.mockRejectedValue(new Error("API Error"));
+
+      await expect(haloService.getServiceRecord(xuid)).rejects.toThrow("API Error");
+    });
+  });
+
+  describe("getRankTierFromCsr", () => {
+    it("returns Onyx for CSR >= 1500", () => {
+      expect(haloService.getRankTierFromCsr(1500)).toEqual({ rankTier: "Onyx", subTier: 0 });
+      expect(haloService.getRankTierFromCsr(2000)).toEqual({ rankTier: "Onyx", subTier: 0 });
+    });
+
+    it("returns Diamond tiers for CSR 1200-1499", () => {
+      expect(haloService.getRankTierFromCsr(1450)).toEqual({ rankTier: "Diamond", subTier: 5 });
+      expect(haloService.getRankTierFromCsr(1400)).toEqual({ rankTier: "Diamond", subTier: 4 });
+      expect(haloService.getRankTierFromCsr(1350)).toEqual({ rankTier: "Diamond", subTier: 3 });
+      expect(haloService.getRankTierFromCsr(1300)).toEqual({ rankTier: "Diamond", subTier: 2 });
+      expect(haloService.getRankTierFromCsr(1250)).toEqual({ rankTier: "Diamond", subTier: 1 });
+      expect(haloService.getRankTierFromCsr(1200)).toEqual({ rankTier: "Diamond", subTier: 0 });
+    });
+
+    it("returns Platinum tiers for CSR 900-1199", () => {
+      expect(haloService.getRankTierFromCsr(1150)).toEqual({ rankTier: "Platinum", subTier: 5 });
+      expect(haloService.getRankTierFromCsr(1100)).toEqual({ rankTier: "Platinum", subTier: 4 });
+      expect(haloService.getRankTierFromCsr(1050)).toEqual({ rankTier: "Platinum", subTier: 3 });
+      expect(haloService.getRankTierFromCsr(1000)).toEqual({ rankTier: "Platinum", subTier: 2 });
+      expect(haloService.getRankTierFromCsr(950)).toEqual({ rankTier: "Platinum", subTier: 1 });
+      expect(haloService.getRankTierFromCsr(900)).toEqual({ rankTier: "Platinum", subTier: 0 });
+    });
+
+    it("returns Gold tiers for CSR 600-899", () => {
+      expect(haloService.getRankTierFromCsr(850)).toEqual({ rankTier: "Gold", subTier: 5 });
+      expect(haloService.getRankTierFromCsr(800)).toEqual({ rankTier: "Gold", subTier: 4 });
+      expect(haloService.getRankTierFromCsr(750)).toEqual({ rankTier: "Gold", subTier: 3 });
+      expect(haloService.getRankTierFromCsr(700)).toEqual({ rankTier: "Gold", subTier: 2 });
+      expect(haloService.getRankTierFromCsr(650)).toEqual({ rankTier: "Gold", subTier: 1 });
+      expect(haloService.getRankTierFromCsr(600)).toEqual({ rankTier: "Gold", subTier: 0 });
+    });
+
+    it("returns Silver tiers for CSR 300-599", () => {
+      expect(haloService.getRankTierFromCsr(550)).toEqual({ rankTier: "Silver", subTier: 5 });
+      expect(haloService.getRankTierFromCsr(500)).toEqual({ rankTier: "Silver", subTier: 4 });
+      expect(haloService.getRankTierFromCsr(450)).toEqual({ rankTier: "Silver", subTier: 3 });
+      expect(haloService.getRankTierFromCsr(400)).toEqual({ rankTier: "Silver", subTier: 2 });
+      expect(haloService.getRankTierFromCsr(350)).toEqual({ rankTier: "Silver", subTier: 1 });
+      expect(haloService.getRankTierFromCsr(300)).toEqual({ rankTier: "Silver", subTier: 0 });
+    });
+
+    it("returns Bronze tiers for CSR 0-299", () => {
+      expect(haloService.getRankTierFromCsr(250)).toEqual({ rankTier: "Bronze", subTier: 5 });
+      expect(haloService.getRankTierFromCsr(200)).toEqual({ rankTier: "Bronze", subTier: 4 });
+      expect(haloService.getRankTierFromCsr(150)).toEqual({ rankTier: "Bronze", subTier: 3 });
+      expect(haloService.getRankTierFromCsr(100)).toEqual({ rankTier: "Bronze", subTier: 2 });
+      expect(haloService.getRankTierFromCsr(50)).toEqual({ rankTier: "Bronze", subTier: 1 });
+      expect(haloService.getRankTierFromCsr(0)).toEqual({ rankTier: "Bronze", subTier: 0 });
+    });
+  });
+
   describe("getMapModesForPlaylist()", () => {
     it("returns available map modes for HCS Current playlist", async () => {
       const result = await haloService.getMapModesForPlaylist(MapsPlaylistType.HCS_CURRENT);
@@ -2428,6 +2509,7 @@ describe("Halo service", () => {
         env,
         logService,
         databaseService,
+        xboxService,
         infiniteClient,
         playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
         roundRobinFn: mockRoundRobinFn,
@@ -2513,6 +2595,275 @@ describe("Halo service", () => {
       expect(infiniteClient.getPlaylist).toHaveBeenCalledWith(FetchablePlaylist.RANKED_ARENA, {
         cf: { cacheTtlByStatus: { "200-299": 86400, 404: 60, "500-599": 0 } },
       });
+    });
+  });
+
+  describe("getPlayerEsra", () => {
+    it("returns cached ESRA when available", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+      const cachedEsra = 1350;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      kvGetSpy.mockResolvedValueOnce({
+        xuid,
+        playlistId,
+        computedAt: new Date().toISOString(),
+        esra: cachedEsra,
+        lastMatchId: "match-0",
+        matchData: {
+          "mode1:v1": { matchId: "match-1", esra: 1340, gameMode: "mode1:v1", matchEndTime: new Date().toISOString() },
+          "mode2:v2": { matchId: "match-2", esra: 1350, gameMode: "mode2:v2", matchEndTime: new Date().toISOString() },
+          "mode3:v3": { matchId: "match-3", esra: 1360, gameMode: "mode3:v3", matchEndTime: new Date().toISOString() },
+        },
+      });
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBe(cachedEsra);
+      expect(kvPutSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns 0 when player has no matches", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+
+      kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1"]);
+      getPlayerMatchesSpy.mockResolvedValue([]);
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBe(0);
+      expect(kvPutSpy).toHaveBeenCalled();
+    });
+
+    it("handles API errors gracefully", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+
+      kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2"]);
+      const request = new Request("https://example.com");
+      getPlayerMatchesSpy.mockRejectedValue(
+        new RequestError(request, new Response("Internal Server Error", { status: 500 })),
+      );
+
+      await expect(haloService.getPlayerEsra(xuid, playlistId)).rejects.toThrow();
+    });
+
+    it("reuses cached variants and fetches only missing ones", async () => {
+      const xuid = "2535451623062020";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+      const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
+
+      // Cache has some variants that match, one that doesn't
+      kvGetSpy.mockResolvedValueOnce({
+        xuid,
+        playlistId,
+        computedAt: new Date(Date.now() - 86400000).toISOString(),
+        esra: 1350,
+        lastMatchId: "match-0",
+        matchData: {
+          "mode1:v1": { matchId: "match-1", esra: 1340, gameMode: "mode1:v1", matchEndTime: new Date().toISOString() },
+          "oldMode:v1": {
+            matchId: "match-old",
+            esra: 1350,
+            gameMode: "oldMode:v1",
+            matchEndTime: new Date().toISOString(),
+          },
+        },
+      });
+
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2", "mode3:v3"]);
+
+      // Setup matches for missing variants (mode2 and mode3)
+      const matches = [
+        aFakePlayerMatchHistoryWith({
+          MatchId: "new-match-2",
+          MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
+            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
+            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode2", VersionId: "v2" },
+            EndTime: new Date().toISOString(),
+          },
+        }),
+        aFakePlayerMatchHistoryWith({
+          MatchId: "new-match-3",
+          MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
+            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
+            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode3", VersionId: "v3" },
+            EndTime: new Date(Date.now() - 1000).toISOString(),
+          },
+        }),
+      ];
+      getPlayerMatchesSpy.mockResolvedValue(matches);
+
+      const realSkillData = Preconditions.checkExists(matchSkillData[0]);
+      getMatchSkillSpy.mockResolvedValue([realSkillData]);
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBeDefined();
+      expect(kvPutSpy).toHaveBeenCalled();
+      expect(getPlayerMatchesSpy).toHaveBeenCalled();
+      // Should only fetch skill for 2 new variants (mode2 and mode3), mode1 was cached
+      expect(getMatchSkillSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("computes new ESRA from matches across variants", async () => {
+      const xuid = "2535451623062020";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+      const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
+
+      kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["slayer:v1", "ctf:v1"]);
+
+      const matches = [
+        aFakePlayerMatchHistoryWith({
+          MatchId: "match-slayer",
+          MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
+            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
+            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "slayer", VersionId: "v1" },
+            EndTime: new Date().toISOString(),
+          },
+        }),
+        aFakePlayerMatchHistoryWith({
+          MatchId: "match-ctf",
+          MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
+            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
+            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "ctf", VersionId: "v1" },
+            EndTime: new Date(Date.now() - 1000).toISOString(),
+          },
+        }),
+      ];
+      getPlayerMatchesSpy.mockResolvedValue(matches);
+
+      // Use real match skill data for each variant
+      const skillData1 = Preconditions.checkExists(matchSkillData[0]);
+      const skillData2 = Preconditions.checkExists(matchSkillData[1]);
+
+      getMatchSkillSpy.mockResolvedValueOnce([skillData1]);
+      getMatchSkillSpy.mockResolvedValueOnce([skillData2]);
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBeDefined();
+      expect(typeof esra).toBe("number");
+      expect(kvPutSpy).toHaveBeenCalled();
+      expect(getMatchSkillSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns 0 when skill data unavailable for all variants", async () => {
+      const xuid = "xuid_1234567890123456";
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+      const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
+
+      kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1"]);
+
+      const matches = [
+        aFakePlayerMatchHistoryWith({
+          MatchId: "match-1",
+          MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
+            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
+            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode1", VersionId: "v1" },
+            EndTime: new Date().toISOString(),
+          },
+        }),
+      ];
+      getPlayerMatchesSpy.mockResolvedValue(matches);
+
+      getMatchSkillSpy.mockResolvedValue([
+        {
+          Id: `xuid(${xuid})`,
+          ResultCode: 1,
+          Result: {} as MatchSkill,
+        },
+      ]);
+
+      const esra = await haloService.getPlayerEsra(xuid, playlistId);
+
+      expect(esra).toBe(0);
+      expect(kvPutSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("getPlayersEsras", () => {
+    it("fetches ESRAs for multiple players", async () => {
+      const xuids = ["xuid_1", "xuid_2", "xuid_3"];
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValueOnce(1400);
+      getPlayerEsraSpy.mockResolvedValueOnce(1500);
+      getPlayerEsraSpy.mockResolvedValueOnce(1600);
+
+      const esraMap = await haloService.getPlayersEsras(xuids, playlistId);
+
+      expect(esraMap.size).toBe(3);
+      expect(esraMap.get("xuid_1")).toBe(1400);
+      expect(esraMap.get("xuid_2")).toBe(1500);
+      expect(esraMap.get("xuid_3")).toBe(1600);
+      expect(getPlayerEsraSpy).toHaveBeenCalledTimes(3);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", playlistId);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_2", playlistId);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_3", playlistId);
+    });
+
+    it("returns empty map when no xuids provided", async () => {
+      const esraMap = await haloService.getPlayersEsras([]);
+
+      expect(esraMap.size).toBe(0);
+    });
+
+    it("handles players with 0 ESRA", async () => {
+      const xuids = ["xuid_1", "xuid_2"];
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValueOnce(1400);
+      getPlayerEsraSpy.mockResolvedValueOnce(0);
+
+      const esraMap = await haloService.getPlayersEsras(xuids);
+
+      expect(esraMap.size).toBe(2);
+      expect(esraMap.get("xuid_1")).toBe(1400);
+      expect(esraMap.get("xuid_2")).toBe(0);
+    });
+
+    it("uses default RANKED_ARENA playlist when not specified", async () => {
+      const xuids = ["xuid_1"];
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValue(1400);
+
+      await haloService.getPlayersEsras(xuids);
+
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", FetchablePlaylist.RANKED_ARENA);
     });
   });
 });

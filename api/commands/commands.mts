@@ -7,6 +7,7 @@ import { StatsCommand } from "./stats/stats.mjs";
 import { SetupCommand } from "./setup/setup.mjs";
 import { MapsCommand } from "./maps/maps.mjs";
 import { TrackCommand } from "./track/track.mjs";
+import { ServiceRecordCommand } from "./service-record/service-record.mjs";
 
 export function getCommands(services: Services, env: Env): Map<string, BaseCommand> {
   const commandMap = new Map<string, BaseCommand>();
@@ -16,6 +17,7 @@ export function getCommands(services: Services, env: Env): Map<string, BaseComma
     new StatsCommand(services, env),
     new SetupCommand(services, env),
     new TrackCommand(services, env),
+    new ServiceRecordCommand(services, env),
   ];
 
   for (const command of commands) {
@@ -31,8 +33,11 @@ export function getCommands(services: Services, env: Env): Map<string, BaseComma
           commandMap.set(commandData.data.custom_id, command);
           break;
         }
+        case ApplicationCommandType.User: {
+          commandMap.set(commandData.name, command);
+          break;
+        }
         case ApplicationCommandType.Message:
-        case ApplicationCommandType.User:
         case ApplicationCommandType.PrimaryEntryPoint: {
           throw new Error("Unsupported command type");
         }

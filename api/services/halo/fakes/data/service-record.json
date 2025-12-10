@@ -1,0 +1,129 @@
+{
+  "Subqueries": {
+    "SeasonIds": ["Seasons/Season6.json", "Csr/Seasons/CsrSeason13-1.json"],
+    "GameVariantCategories": [6, 15, 18],
+    "IsRanked": [false, true],
+    "PlaylistAssetIds": ["edfef3ac-9cbe-4fa2-b949-8f29deafd483"],
+    "GameplayInteractions": null
+  },
+  "TimePlayed": "P56DT10H10M2.1280189S",
+  "MatchesCompleted": 8856,
+  "Wins": 4587,
+  "Losses": 4033,
+  "Ties": 203,
+  "CoreStats": {
+    "Score": 83888,
+    "PersonalScore": 17542775,
+    "RoundsWon": 5472,
+    "RoundsLost": 4863,
+    "RoundsTied": 483,
+    "Kills": 131868,
+    "Deaths": 111370,
+    "Assists": 51349,
+    "AverageKDA": 4.247327612165011,
+    "Suicides": 305,
+    "Betrayals": 51,
+    "GrenadeKills": 8971,
+    "HeadshotKills": 69816,
+    "MeleeKills": 14592,
+    "PowerWeaponKills": 15882,
+    "ShotsFired": 2814325,
+    "ShotsHit": 1432687,
+    "Accuracy": 50.906949268474676,
+    "DamageDealt": 39265987,
+    "DamageTaken": 34940971,
+    "CalloutAssists": 15600,
+    "VehicleDestroys": 449,
+    "DriverAssists": 81,
+    "Hijacks": 115,
+    "EmpAssists": 17,
+    "MaxKillingSpree": 22,
+    "Medals": [
+      {
+        "NameId": 2123530881,
+        "Count": 3181,
+        "TotalPersonalScoreAwarded": 0
+      },
+      {
+        "NameId": 3091261182,
+        "Count": 929,
+        "TotalPersonalScoreAwarded": 0
+      },
+      {
+        "NameId": 622331684,
+        "Count": 11673,
+        "TotalPersonalScoreAwarded": 0
+      }
+    ],
+    "DamageStats": {
+      "MeleeDamage": 870960,
+      "GrenadeDamage": 1915468,
+      "PowerWeaponDamage": 1689089
+    }
+  },
+  "CtfStats": {
+    "FlagCaptures": 195,
+    "FlagReturnersKilled": 13,
+    "FlagCarriersKilled": 217,
+    "FlagReturns": 94,
+    "KillsAsFlagCarrier": 68,
+    "FlagStealsDenied": 3,
+    "FlagRunners": 190,
+    "FlagCarrierKills": 226,
+    "TimeAsFlagCarrier": "PT2H2M53.4S",
+    "FlagScoringTicks": 51227
+  },
+  "EliminationStats": {
+    "AlliesRevived": 0,
+    "EliminationAssists": 0,
+    "Eliminations": 0,
+    "EnemyRevivesDenied": 0,
+    "Executions": 0,
+    "KillsAsLastPlayerStanding": 0,
+    "LastPlayersStandingKilled": 0,
+    "RoundsSurvived": 0,
+    "TimesRevivedByAlly": 0
+  },
+  "OddballStats": {
+    "KillsAsSkullCarrier": 164,
+    "SkullCarriersKilled": 363,
+    "SkullGrabs": 434,
+    "TimeAsSkullCarrier": "PT3H14M55.7S",
+    "SkullScoringTicks": 31908
+  },
+  "ZonesStats": {
+    "ZoneCaptures": 8651,
+    "ZoneDefensiveKills": 4224,
+    "ZoneOffensiveKills": 6380,
+    "ZoneSecures": 2337,
+    "TotalZoneOccupationTime": "P1DT10H39M8.8S",
+    "ZoneScoringTicks": 38105
+  },
+  "StockpileStats": {
+    "KillsAsPowerSeedCarrier": 1,
+    "PowerSeedCarriersKilled": 12,
+    "PowerSeedsDeposited": 13,
+    "PowerSeedsStolen": 2,
+    "TimeAsPowerSeedCarrier": "PT4M9.7S",
+    "TimeAsPowerSeedDriver": "PT1M16.7S"
+  },
+  "PvpStats": {
+    "Kills": 45665,
+    "Deaths": 43608,
+    "Assists": 20225
+  },
+  "PveStats": {
+    "Kills": 643,
+    "Deaths": 9,
+    "Assists": 112,
+    "MarineKills": 0,
+    "GruntKills": 542,
+    "JackalKills": 32,
+    "EliteKills": 6,
+    "BruteKills": 19,
+    "HunterKills": 0,
+    "SkimmerKills": 27,
+    "SentinelKills": 0,
+    "BossKills": 17
+  }
+}

@@ -183,9 +183,7 @@ export class SetupCommand extends BaseCommand {
   ];
 
   override execute(interaction: BaseInteraction): ExecuteResponse {
-    const { guild_id: guildId } = interaction;
-
-    if (guildId == null) {
+    if (interaction.guild?.id == null) {
       return {
         response: {
           type: InteractionResponseType.ChannelMessageWithSource,
@@ -230,7 +228,7 @@ export class SetupCommand extends BaseCommand {
 
   private async handleApplicationCommand(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const guildId = Preconditions.checkExists(interaction.guild?.id, "No guild ID on interaction");
 
     try {
       const [config, neatQueues] = await Promise.all([
@@ -465,7 +463,7 @@ export class SetupCommand extends BaseCommand {
 
   private async showNeatQueueInformerConfig(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const guildId = Preconditions.checkExists(interaction.guild?.id, "No guild ID on interaction");
 
     try {
       const config = await databaseService.getGuildConfig(guildId, true);
@@ -542,7 +540,7 @@ export class SetupCommand extends BaseCommand {
 
   private async handleTogglePlayerConnections(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const guildId = Preconditions.checkExists(interaction.guild?.id, "No guild ID on interaction");
 
     try {
       const config = await databaseService.getGuildConfig(guildId, true);
@@ -560,7 +558,7 @@ export class SetupCommand extends BaseCommand {
 
   private async handleToggleLiveTracking(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const guildId = Preconditions.checkExists(interaction.guild?.id, "No guild ID on interaction");
 
     try {
       const config = await databaseService.getGuildConfig(guildId, true);
@@ -581,7 +579,7 @@ export class SetupCommand extends BaseCommand {
 
   private async handleToggleChannelName(interaction: BaseInteraction): Promise<void> {
     const { discordService, databaseService } = this.services;
-    const guildId = Preconditions.checkExists(interaction.guild_id);
+    const guildId = Preconditions.checkExists(interaction.guild?.id, "No guild ID on interaction");
 
     try {
       const config = await databaseService.getGuildConfig(guildId, true);

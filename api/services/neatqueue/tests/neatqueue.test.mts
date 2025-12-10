@@ -211,6 +211,7 @@ describe("NeatQueueService", () => {
       let hasPermissionsSpy: MockInstance<typeof discordService.hasPermissions>;
       let createMessageSpy: MockInstance<typeof discordService.createMessage>;
       let getRankedArenaCsrsSpy: MockInstance<typeof haloService.getRankedArenaCsrs>;
+      let getPlayersEsrasSpy: MockInstance<typeof haloService.getPlayersEsras>;
       let getGuildConfigSpy: MockInstance<typeof databaseService.getGuildConfig>;
       let updateGuildConfigSpy: MockInstance<typeof databaseService.updateGuildConfig>;
       let warnSpy: MockInstance<typeof logService.warn>;
@@ -226,6 +227,9 @@ describe("NeatQueueService", () => {
         hasPermissionsSpy = vi.spyOn(discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
         createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+        getPlayersEsrasSpy = vi
+          .spyOn(haloService, "getPlayersEsras")
+          .mockResolvedValue(new Map([["0000000000001", 1350]]));
         getGuildConfigSpy = vi
           .spyOn(databaseService, "getGuildConfig")
           .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "Y" }));
@@ -289,7 +293,7 @@ describe("NeatQueueService", () => {
               "embeds": [
                 {
                   "color": 3447003,
-                  "description": "-# Legend: SP = season peak | ATP = all time peak",
+                  "description": "-# Legend: ESRA = expected skill rank average | ATP = all time peak",
                   "fields": [
                     {
                       "inline": true,
@@ -305,9 +309,9 @@ describe("NeatQueueService", () => {
                     },
                     {
                       "inline": true,
-                      "name": "Current Rank (SP, ATP)",
+                      "name": "Current Rank (ESRA, ATP)",
                       "value": "*-*
-          <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
+          <:Diamond6:1398928201975205958>1451 (<:Diamond4:1398928145700098201>1350, <:Onyx:1398928229087182992>1565)",
                     },
                   ],
                   "footer": {
@@ -341,6 +345,15 @@ describe("NeatQueueService", () => {
       it("logs a warning if haloService.getRankedArenaCsrs throws", async () => {
         const error = new Error("Failed to fetch ranked arena CSRs");
         getRankedArenaCsrsSpy.mockRejectedValue(error);
+
+        await jobToComplete();
+        expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
+        expect(createMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("logs a warning if haloService.getPlayersEsras throws", async () => {
+        const error = new Error("Failed to fetch player ESRAs");
+        getPlayersEsrasSpy.mockRejectedValue(error);
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
@@ -1298,12 +1311,16 @@ describe("NeatQueueService", () => {
   describe("updatePlayersEmbed", () => {
     let discordAssociationsSpy: MockInstance<typeof databaseService.getDiscordAssociations>;
     let getRankedArenaCsrsSpy: MockInstance<typeof haloService.getRankedArenaCsrs>;
+    let getPlayersEsrasSpy: MockInstance<typeof haloService.getPlayersEsras>;
 
     beforeEach(() => {
       discordAssociationsSpy = vi
         .spyOn(databaseService, "getDiscordAssociations")
         .mockResolvedValue([aFakeDiscordAssociationsRow()]);
       getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+      getPlayersEsrasSpy = vi
+        .spyOn(haloService, "getPlayersEsras")
+        .mockResolvedValue(new Map([["0000000000001", 1350]]));
     });
 
     it("updates the players embed when timeline and match started event exist", async () => {
@@ -1333,6 +1350,8 @@ describe("NeatQueueService", () => {
       expect(discordAssociationsSpy).toHaveBeenCalledWith(["discord_user_02", "discord_user_01"]);
       expect(getRankedArenaCsrsSpy).toHaveBeenCalledOnce();
       expect(getRankedArenaCsrsSpy).toHaveBeenCalledWith(["0000000000001"]);
+      expect(getPlayersEsrasSpy).toHaveBeenCalledOnce();
+      expect(getPlayersEsrasSpy).toHaveBeenCalledWith(["0000000000001"]);
       expect(editMessageSpy).toHaveBeenCalledOnce();
       expect(editMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
         [
@@ -1367,7 +1386,7 @@ describe("NeatQueueService", () => {
             "embeds": [
               {
                 "color": 3447003,
-                "description": "-# Legend: SP = season peak | ATP = all time peak",
+                "description": "-# Legend: ESRA = expected skill rank average | ATP = all time peak",
                 "fields": [
                   {
                     "inline": true,
@@ -1383,9 +1402,9 @@ describe("NeatQueueService", () => {
                   },
                   {
                     "inline": true,
-                    "name": "Current Rank (SP, ATP)",
+                    "name": "Current Rank (ESRA, ATP)",
                     "value": "*-*
-        <:Diamond6:1398928201975205958>1451 (<:Diamond6:1398928201975205958>1482, <:Onyx:1398928229087182992>1565)",
+        <:Diamond6:1398928201975205958>1451 (<:Diamond4:1398928145700098201>1350, <:Onyx:1398928229087182992>1565)",
                   },
                 ],
                 "footer": {

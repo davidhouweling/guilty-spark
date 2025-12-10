@@ -788,7 +788,14 @@ export class DiscordService {
   }
 
   getDiscordUserId(interaction: BaseInteraction): string {
-    return Preconditions.checkExists(interaction.member?.user ?? interaction.user, "No user found on interaction").id;
+    if ("member" in interaction) {
+      return Preconditions.checkExists(interaction.member.user, "No user found on interaction").id;
+    }
+    if ("user" in interaction) {
+      return interaction.user.id;
+    }
+
+    throw new Error("No user found on interaction");
   }
 
   getEmojiFromName(name: string): string {

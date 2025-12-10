@@ -65,6 +65,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     env,
     logService,
     databaseService,
+    xboxService,
     infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });

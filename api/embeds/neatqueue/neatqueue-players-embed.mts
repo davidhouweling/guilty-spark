@@ -12,9 +12,11 @@ import type { DiscordAssociationsRow } from "../../services/database/types/disco
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
 import { MapsPostType } from "../../services/database/types/guild_config.mjs";
+import type { HaloService } from "../../services/halo/halo.mjs";
 
 interface NeatQueuePlayersEmbedServices {
   discordService: DiscordService;
+  haloService: HaloService;
 }
 
 export interface PlayerData {
@@ -26,7 +28,8 @@ export interface NeatQueuePlayersEmbedData {
   players: PlayerData[];
   discordAssociations: DiscordAssociationsRow[];
   haloPlayersMap: Map<string, { gamertag: string; xuid: string }>;
-  rankedArenaCsrs: Map<string, { Current: RankData; SeasonMax: RankData; AllTimeMax: RankData }>;
+  rankedArenaCsrs: Map<string, { Current: RankData; AllTimeMax: RankData }>;
+  esras: Map<string, number>;
   mapsPostType: MapsPostType;
 }
 
@@ -53,7 +56,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
     const { discordService } = this.services;
 
     const sortedPlayers = [...players].sort((a, b) => a.name.localeCompare(b.name));
-    const titles = ["Player", "Halo Profile", "Current Rank (SP, ATP)"];
+    const titles = ["Player", "Halo Profile", "Current Rank (ESRA, ATP)"];
     const tableData: string[][] = [];
 
     for (const player of sortedPlayers) {
@@ -86,20 +89,13 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
       }
 
       const getRank = (value: number): string => (value >= 0 ? value.toString() : "-");
-      const { Current, SeasonMax, AllTimeMax } = rankData;
+      const { Current, AllTimeMax } = rankData;
       const currentRank = getRank(Current.Value);
       const currentRankEmoji = discordService.getRankEmoji({
         rankTier: Current.Tier,
         subTier: Current.SubTier,
         measurementMatchesRemaining: Current.MeasurementMatchesRemaining,
         initialMeasurementMatches: Current.InitialMeasurementMatches,
-      });
-      const seasonPeakRank = getRank(SeasonMax.Value);
-      const seasonPeakRankEmoji = discordService.getRankEmoji({
-        rankTier: SeasonMax.Tier,
-        subTier: SeasonMax.SubTier,
-        measurementMatchesRemaining: SeasonMax.MeasurementMatchesRemaining,
-        initialMeasurementMatches: SeasonMax.InitialMeasurementMatches,
       });
       const allTimePeakRank = getRank(AllTimeMax.Value);
       const allTimePeakRankEmoji = discordService.getRankEmoji({
@@ -112,7 +108,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
       tableData.push([
         `<@${player.id}>`,
         gamertagUrl,
-        `${currentRankEmoji}${currentRank} (${seasonPeakRankEmoji}${seasonPeakRank}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
+        `${currentRankEmoji}${currentRank} (${this.formatEsra(this.data.esras.get(association.XboxId) ?? 0)}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
       ]);
     }
 
@@ -133,7 +129,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
 
     return {
       title: "Players in queue",
-      description: `-# Legend: SP = season peak | ATP = all time peak${hasGuessedGamertags ? " | * = guessed gamertag" : ""}`,
+      description: `-# Legend: ESRA = expected skill rank average | ATP = all time peak${hasGuessedGamertags ? " | * = guessed gamertag" : ""}`,
       color: EmbedColors.INFO,
       fields,
       footer: {
@@ -174,5 +170,24 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
         components: buttons,
       },
     ];
+  }
+
+  private formatEsra(esra: number): string {
+    const { discordService, haloService } = this.services;
+
+    if (esra <= 0) {
+      return "-";
+    }
+
+    const roundedEsra = Math.round(esra);
+    const { rankTier, subTier } = haloService.getRankTierFromCsr(roundedEsra);
+    const esraEmoji = discordService.getRankEmoji({
+      rankTier,
+      subTier,
+      measurementMatchesRemaining: 0,
+      initialMeasurementMatches: 0,
+    });
+
+    return `${esraEmoji}${roundedEsra.toString()}`;
   }
 }
