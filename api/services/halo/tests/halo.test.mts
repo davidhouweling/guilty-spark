@@ -2606,30 +2606,26 @@ describe("Halo service", () => {
 
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
       const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
-      // First call: getPlaylistGameVariantKeys cache lookup (returns array of variant keys)
-      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2", "mode3:v3"]);
-      // Second call: getEsraFromKVCache (with "json" type, returns parsed object)
       kvGetSpy.mockResolvedValueOnce({
         xuid,
         playlistId,
-        computedAt: new Date(Date.now() - 86400000).toISOString(),
-        asOfDate: new Date(Date.now() - 86400000).toISOString(),
+        computedAt: new Date().toISOString(),
         esra: cachedEsra,
         lastMatchId: "match-0",
         matchData: {
-          "mode1:v1": { matchId: "match-1", esra: 1340, gameMode: "mode1:v1" },
-          "mode2:v2": { matchId: "match-2", esra: 1350, gameMode: "mode2:v2" },
-          "mode3:v3": { matchId: "match-3", esra: 1360, gameMode: "mode3:v3" },
+          "mode1:v1": { matchId: "match-1", esra: 1340, gameMode: "mode1:v1", matchEndTime: new Date().toISOString() },
+          "mode2:v2": { matchId: "match-2", esra: 1350, gameMode: "mode2:v2", matchEndTime: new Date().toISOString() },
+          "mode3:v3": { matchId: "match-3", esra: 1360, gameMode: "mode3:v3", matchEndTime: new Date().toISOString() },
         },
       });
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
       expect(esra).toBe(cachedEsra);
-      expect(kvPutSpy).toHaveBeenCalledOnce(); // TTL refresh
+      expect(kvPutSpy).not.toHaveBeenCalled();
     });
 
-    it("returns undefined when player has no matches", async () => {
+    it("returns 0 when player has no matches", async () => {
       const xuid = "xuid_1234567890123456";
       const playlistId = FetchablePlaylist.RANKED_ARENA;
 
@@ -2637,17 +2633,14 @@ describe("Halo service", () => {
       const kvPutSpy: MockInstance = vi.spyOn(env.APP_DATA, "put");
       const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
 
-      // Mock getPlaylistGameVariantKeys cache (first call) - return empty array
-      kvGetSpy.mockResolvedValueOnce([]);
-      // Mock getEsraFromKVCache (second call)
       kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1"]);
       getPlayerMatchesSpy.mockResolvedValue([]);
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
-      expect(esra).toBeUndefined();
-      // Should not cache ESRA result when no matches found
-      expect(kvPutSpy).not.toHaveBeenCalled();
+      expect(esra).toBe(0);
+      expect(kvPutSpy).toHaveBeenCalled();
     });
 
     it("handles API errors gracefully", async () => {
@@ -2657,10 +2650,8 @@ describe("Halo service", () => {
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
       const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
 
-      // Mock getPlaylistGameVariantKeys cache (first call)
-      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2"]);
-      // Mock getEsraFromKVCache (second call)
       kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2"]);
       const request = new Request("https://example.com");
       getPlayerMatchesSpy.mockRejectedValue(
         new RequestError(request, new Response("Internal Server Error", { status: 500 })),
@@ -2669,7 +2660,7 @@ describe("Halo service", () => {
       await expect(haloService.getPlayerEsra(xuid, playlistId)).rejects.toThrow();
     });
 
-    it("invalidates cache when variant keys mismatch", async () => {
+    it("reuses cached variants and fetches only missing ones", async () => {
       const xuid = "2535451623062020";
       const playlistId = FetchablePlaylist.RANKED_ARENA;
 
@@ -2678,41 +2669,35 @@ describe("Halo service", () => {
       const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
       const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
 
-      // Current playlist has these variants
-      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2", "mode3:v3"]);
-
-      // Cache has different variants (outdated)
+      // Cache has some variants that match, one that doesn't
       kvGetSpy.mockResolvedValueOnce({
         xuid,
         playlistId,
         computedAt: new Date(Date.now() - 86400000).toISOString(),
-        asOfDate: new Date(Date.now() - 86400000).toISOString(),
         esra: 1350,
         lastMatchId: "match-0",
         matchData: {
-          "oldMode1:v1": { matchId: "match-1", esra: 1340, gameMode: "oldMode1:v1" },
-          "oldMode2:v2": { matchId: "match-2", esra: 1350, gameMode: "oldMode2:v2" },
+          "mode1:v1": { matchId: "match-1", esra: 1340, gameMode: "mode1:v1", matchEndTime: new Date().toISOString() },
+          "oldMode:v1": {
+            matchId: "match-old",
+            esra: 1350,
+            gameMode: "oldMode:v1",
+            matchEndTime: new Date().toISOString(),
+          },
         },
       });
 
-      // Setup matches for new variants
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1", "mode2:v2", "mode3:v3"]);
+
+      // Setup matches for missing variants (mode2 and mode3)
       const matches = [
-        aFakePlayerMatchHistoryWith({
-          MatchId: "new-match-1",
-          MatchInfo: {
-            ...aFakePlayerMatchHistoryWith().MatchInfo,
-            Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
-            UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode1", VersionId: "v1" },
-            EndTime: new Date().toISOString(),
-          },
-        }),
         aFakePlayerMatchHistoryWith({
           MatchId: "new-match-2",
           MatchInfo: {
             ...aFakePlayerMatchHistoryWith().MatchInfo,
             Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
             UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode2", VersionId: "v2" },
-            EndTime: new Date(Date.now() - 1000).toISOString(),
+            EndTime: new Date().toISOString(),
           },
         }),
         aFakePlayerMatchHistoryWith({
@@ -2721,13 +2706,12 @@ describe("Halo service", () => {
             ...aFakePlayerMatchHistoryWith().MatchInfo,
             Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
             UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode3", VersionId: "v3" },
-            EndTime: new Date(Date.now() - 2000).toISOString(),
+            EndTime: new Date(Date.now() - 1000).toISOString(),
           },
         }),
       ];
       getPlayerMatchesSpy.mockResolvedValue(matches);
 
-      // Use real match skill data
       const realSkillData = Preconditions.checkExists(matchSkillData[0]);
       getMatchSkillSpy.mockResolvedValue([realSkillData]);
 
@@ -2736,6 +2720,8 @@ describe("Halo service", () => {
       expect(esra).toBeDefined();
       expect(kvPutSpy).toHaveBeenCalled();
       expect(getPlayerMatchesSpy).toHaveBeenCalled();
+      // Should only fetch skill for 2 new variants (mode2 and mode3), mode1 was cached
+      expect(getMatchSkillSpy).toHaveBeenCalledTimes(2);
     });
 
     it("computes new ESRA from matches across variants", async () => {
@@ -2747,8 +2733,8 @@ describe("Halo service", () => {
       const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
       const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
 
-      kvGetSpy.mockResolvedValueOnce(["slayer:v1", "ctf:v1"]);
       kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["slayer:v1", "ctf:v1"]);
 
       const matches = [
         aFakePlayerMatchHistoryWith({
@@ -2787,7 +2773,7 @@ describe("Halo service", () => {
       expect(getMatchSkillSpy).toHaveBeenCalledTimes(2);
     });
 
-    it("returns undefined when skill data unavailable for all variants", async () => {
+    it("returns 0 when skill data unavailable for all variants", async () => {
       const xuid = "xuid_1234567890123456";
       const playlistId = FetchablePlaylist.RANKED_ARENA;
 
@@ -2796,8 +2782,8 @@ describe("Halo service", () => {
       const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
       const getMatchSkillSpy = vi.spyOn(infiniteClient, "getMatchSkill");
 
-      kvGetSpy.mockResolvedValueOnce(["mode1:v1"]);
       kvGetSpy.mockResolvedValueOnce(null);
+      kvGetSpy.mockResolvedValueOnce(["mode1:v1"]);
 
       const matches = [
         aFakePlayerMatchHistoryWith({
@@ -2806,6 +2792,7 @@ describe("Halo service", () => {
             ...aFakePlayerMatchHistoryWith().MatchInfo,
             Playlist: { AssetKind: AssetKind.Playlist, AssetId: playlistId, VersionId: "v1" },
             UgcGameVariant: { AssetKind: AssetKind.UgcGameVariant, AssetId: "mode1", VersionId: "v1" },
+            EndTime: new Date().toISOString(),
           },
         }),
       ];
@@ -2821,8 +2808,8 @@ describe("Halo service", () => {
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
-      expect(esra).toBeUndefined();
-      expect(kvPutSpy).not.toHaveBeenCalled();
+      expect(esra).toBe(0);
+      expect(kvPutSpy).toHaveBeenCalled();
     });
   });
 });

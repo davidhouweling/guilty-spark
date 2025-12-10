@@ -162,7 +162,7 @@ export class ServiceRecordCommand extends BaseCommand {
           associationReason: AssociationReason,
           serviceRecord: serviceRecord.value,
           csr,
-          esra: esra.status === "fulfilled" ? esra.value : undefined,
+          esra: esra.status === "fulfilled" ? esra.value : 0,
         },
       );
       return embed.embed;

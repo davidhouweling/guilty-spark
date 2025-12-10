@@ -19,7 +19,7 @@ interface ServiceRecordEmbedData {
   gamertag: string;
   serviceRecord: ServiceRecord;
   csr: PlaylistCsrContainer;
-  esra: number | undefined;
+  esra: number;
 }
 
 export class ServiceRecordEmbed extends BaseTableEmbed {
@@ -117,10 +117,10 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
     return `${currentRankEmoji}${currentRank}`;
   }
 
-  private formatEsra(esra: number | undefined): string {
+  private formatEsra(esra: number): string {
     const { discordService, haloService } = this.services;
 
-    if (esra == null || esra <= 0) {
+    if (esra <= 0) {
       return "-";
     }
 

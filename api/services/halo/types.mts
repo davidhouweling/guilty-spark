@@ -59,13 +59,13 @@ export interface EsraMatchData {
   matchId: string;
   esra: number;
   gameMode: string; // ${AssetId}:${VersionId}
+  matchEndTime: string;
 }
 
 export interface EsraCacheValue {
   xuid: string;
   playlistId: string;
   computedAt: string;
-  asOfDate: string;
   esra: number;
   lastMatchId: string;
   matchData: Record<string, EsraMatchData>; // keyed by gameMode (${AssetId}:${VersionId})

@@ -83,7 +83,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -102,7 +102,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -121,7 +121,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -140,7 +140,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -171,7 +171,7 @@ describe("ServiceRecordEmbed", () => {
       expect(result.description).toContain("1350");
     });
 
-    it("displays dash for ESRA when undefined", () => {
+    it("displays dash for ESRA when 0", () => {
       const embed = new ServiceRecordEmbed(
         { haloService: services.haloService, discordService: services.discordService },
         {
@@ -181,7 +181,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 0,
         },
       );
 
@@ -200,7 +200,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -219,7 +219,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.USERNAME_SEARCH,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -238,7 +238,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.DISPLAY_NAME_SEARCH,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -257,7 +257,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.GAME_SIMILARITY,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -276,7 +276,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.MANUAL,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -303,7 +303,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: recordWithNoDamageTaken,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -330,7 +330,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: recordWithNoDamageDealt,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 
@@ -349,7 +349,7 @@ describe("ServiceRecordEmbed", () => {
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
           csr: mockCsrContainer,
-          esra: undefined,
+          esra: 1500,
         },
       );
 

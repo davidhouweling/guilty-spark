@@ -239,7 +239,7 @@ describe("ServiceRecordCommand", () => {
 
       getUsersByXuidsSpy.mockResolvedValue([{ xuid: "xbox-456", gamertag: "AnotherGamer" }]);
       getServiceRecordSpy.mockResolvedValue(mockServiceRecord);
-      getPlayerEsraSpy.mockResolvedValue(undefined);
+      getPlayerEsraSpy.mockResolvedValue(1500);
 
       const result = serviceRecordCommand.execute(slashCommandInteraction);
 
