@@ -54,9 +54,6 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
         `**All Time Peak Ranked Arena CSR:** ${this.formatCsr(csr.AllTimeMax)}`,
         `**Expected Skill Rating Averaged - ESRA:** ${this.formatEsra(this.data.esra)}`,
       ].join("\n"),
-      footer: {
-        text: "Some data cached for up to 1 day",
-      },
     };
   }
 

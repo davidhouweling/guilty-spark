@@ -338,25 +338,5 @@ describe("ServiceRecordEmbed", () => {
 
       expect(result.description).toContain("(0)");
     });
-
-    it("includes footer with caching notice", () => {
-      const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
-        {
-          locale: "en-US",
-          discordUserId: "123456789",
-          gamertag: "TestGamer",
-          associationReason: AssociationReason.CONNECTED,
-          serviceRecord: mockServiceRecord,
-          csr: mockCsrContainer,
-          esra: 1500,
-        },
-      );
-
-      const result = embed.embed;
-
-      expect(result.footer).toBeDefined();
-      expect(result.footer?.text).toBe("Some data cached for up to 1 day");
-    });
   });
 });
