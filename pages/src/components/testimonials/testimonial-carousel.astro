@@ -3,6 +3,7 @@ export interface TestimonialItem {
   text: string;
   who: string;
   discordServer: string;
+  discordLink?: string;
 }
 
 interface Props {
@@ -34,6 +35,10 @@ const slideCount = items.length;
           const tabId = `${id}-tab-${index}`;
           const isActive = index === 0;
 
+          // Split text into paragraphs on double newlines
+          const text: string = item.text;
+          const paragraphs: readonly string[] = text.split("\n\n");
+
           return (
             <article
               id={slideId}
@@ -47,10 +52,31 @@ const slideCount = items.length;
               data-carousel-slide
               data-index={index}
             >
-              <p class="testimonial-text">{item.text}</p>
+              <div class="testimonial-text">
+                {paragraphs.map((paragraph: string) => {
+                  // Split each paragraph on single newlines for line breaks
+                  const lines: string[] = paragraph.split("\n");
+                  return (
+                    <p>
+                      {lines.map((line: string, lIndex: number) => (
+                        <>
+                          {line}
+                          {lIndex < lines.length - 1 && <br />}
+                        </>
+                      ))}
+                    </p>
+                  );
+                })}
+              </div>
               <footer class="testimonial-meta">
                 <span class="testimonial-who">{item.who}</span>
-                <span class="testimonial-server">{item.discordServer}</span>
+                {item.discordLink ? (
+                  <a href={item.discordLink} target="_blank" rel="noopener noreferrer" class="testimonial-server-link">
+                    <span class="testimonial-server">{item.discordServer}</span>
+                  </a>
+                ) : (
+                  <span class="testimonial-server">{item.discordServer}</span>
+                )}
               </footer>
             </article>
           );
@@ -530,6 +556,14 @@ const slideCount = items.length;
     color: var(--halo-gray);
   }
 
+  .testimonial-text p {
+    margin: 0 0 1rem 0;
+  }
+
+  .testimonial-text p:last-child {
+    margin-bottom: 0;
+  }
+
   .testimonial-meta {
     display: flex;
     flex-direction: column;
@@ -549,6 +583,41 @@ const slideCount = items.length;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--halo-teal-primary);
+  }
+
+  .testimonial-server-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    transition: opacity 200ms ease;
+  }
+
+  .testimonial-server-link::after {
+    content: "";
+    display: inline-block;
+    width: 0.75em;
+    height: 0.75em;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235dd4d8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 200ms ease;
+  }
+
+  .testimonial-server-link:hover,
+  .testimonial-server-link:focus-visible {
+    opacity: 0.7;
+  }
+
+  .testimonial-server-link:hover::after {
+    transform: translate(2px, -2px);
+  }
+
+  .testimonial-server-link:focus-visible {
+    outline: 2px solid var(--halo-teal-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 
   .carousel-controls {

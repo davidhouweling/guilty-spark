@@ -21,8 +21,8 @@ import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro"
 import TestimonialCarousel from "../components/testimonials/testimonial-carousel.astro";
 
 const heroStats = [
-  { value: "18", label: "Servers" },
-  { value: "2100+", label: "Series Tracked" },
+  { value: "33", label: "Servers" },
+  { value: "2520+", label: "Series Tracked" },
   { value: "Free", label: "No cost to use" },
 ];
 
@@ -113,9 +113,16 @@ interface CommunityTestimonial {
   text: string;
   who: string;
   discordServer: string;
+  discordLink?: string;
 }
 
 const testimonialItems: CommunityTestimonial[] = [
+  {
+    text: "Guilty Spark has been nothing short of a game-changer for Clutch Academy. With our 4,000 members running customs, 8s, tournaments, and VOD reviews, monthly, we rely on systems that actually keep up with our community's pace. Guilty Spark elevates everything we do. \n\nThe integration with NeatQueue has transformed how we run matches. Stats are pulled instantly, series data is tracked seamlessly, and real-time performance metrics update in the background without us lifting a finger. Our players get accurate timelines of others in-queue games, our staff gets clean and reliable data for every series, and our competitive scene feels more professional than ever. \n\nBut what makes Guilty Spark special is not just the technology but the person behind it. The admin is genuinely one of the most dedicated and personable developers we've come across. He listens, he iterates, he fixes, he improves Spark consistently not because he has to, but because he cares about the Halo community and wants to build tools that help it grow. That attitude shows in every update he pushes and every feature he rolls out. He's a partner on the mission. \n\nWe're proud to use Guilty Spark at Clutch Academy and even prouder to support the people behind it.",
+    who: "ClutCh",
+    discordServer: "Clutch Academy",
+    discordLink: "https://discord.gg/clutchacademy",
+  },
   {
     text: "Our Dog Crew community (350+ ANZ members) absolutely loves Guilty Spark - it's made our games smoother, smarter, and way more engaging. Everyone from casuals to try-hards gets value out of it.",
     who: "Niz",
@@ -157,6 +164,14 @@ const testimonialItems: CommunityTestimonial[] = [
     </Container>
   </section>
 
+  <!-- Testimonials Section -->
+  <section class="testimonials-section" aria-label="Community testimonials">
+    <Container>
+      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
+      <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
+    </Container>
+  </section>
+
   <!-- Demo Section -->
   <section class="demo-section">
     <Container>
@@ -188,14 +203,6 @@ const testimonialItems: CommunityTestimonial[] = [
           ))
         }
       </div>
-    </Container>
-  </section>
-
-  <!-- Testimonials Section -->
-  <section class="testimonials-section" aria-label="Community testimonials">
-    <Container>
-      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
-      <TestimonialCarousel items={testimonialItems} autoRotateMs={3000} />
     </Container>
   </section>
 
@@ -244,7 +251,7 @@ const testimonialItems: CommunityTestimonial[] = [
 
   /* Hero Section */
   .hero-section {
-    min-height: 100vh;
+    min-height: 80vh;
     padding-top: 80px;
     padding-bottom: 2rem;
     background:
