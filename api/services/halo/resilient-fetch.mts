@@ -247,12 +247,52 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
       return fetchViaProxy(input, init);
     }
 
-    try {
+    function getRetryAfterMs(response: Response): number {
+      const retryAfter = response.headers.get("retry-after");
+      if (retryAfter === null) {
+        return 1000;
+      }
+
+      const parsedSeconds = Number.parseInt(retryAfter, 10);
+      if (!Number.isNaN(parsedSeconds)) {
+        return parsedSeconds * 1000;
+      }
+
+      const retryDate = new Date(retryAfter);
+      if (!Number.isNaN(retryDate.getTime())) {
+        return Math.max(0, retryDate.getTime() - Date.now());
+      }
+
+      return 1000;
+    }
+
+    async function fetchWithRetry(attempt = 1): Promise<Response> {
       const response = await fetch(input, init);
 
       logCacheStatus(response, url);
 
-      if (ISSUE_STATUS_CODES.includes(response.status as 429 | 526)) {
+      if (response.status === 429) {
+        const maxAttempts = 3;
+        if (attempt >= maxAttempts) {
+          logService.error(
+            new Error(`Max retry attempts (${maxAttempts.toString()}) reached for ${url}`),
+            new Map([["status", response.status.toString()]]),
+          );
+          return response;
+        }
+
+        const baseRetryMs = getRetryAfterMs(response);
+        const retryMs = baseRetryMs * Math.pow(2, attempt - 1);
+
+        logService.warn(
+          `Rate limit 429 for ${url}, retrying in ${retryMs.toString()}ms (attempt ${attempt.toString()}/${maxAttempts.toString()})`,
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, retryMs));
+        return await fetchWithRetry(attempt + 1);
+      }
+
+      if (ISSUE_STATUS_CODES.includes(response.status)) {
         logService.warn(`Rate limit error ${response.status.toString()} for ${url}`);
 
         await trackError(response.status, url);
@@ -264,6 +304,10 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
       }
 
       return response;
+    }
+
+    try {
+      return await fetchWithRetry();
     } catch (error) {
       logService.error(error as Error, new Map([["url", url]]));
       throw error;

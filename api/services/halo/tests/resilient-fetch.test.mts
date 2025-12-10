@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/unbound-method */
+import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import { createResilientFetch } from "../resilient-fetch.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -12,11 +9,18 @@ import {
 } from "../fakes/resilient-fetch.fake.mjs";
 import { KV_KEYS, CIRCUIT_BREAKER_CONFIG } from "../types.mjs";
 import type { LogService } from "../../log/types.mjs";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 
 describe("createResilientFetch", () => {
   let env: Env;
   let logService: LogService;
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof fetch>;
+  let kvGetSpy: MockInstance;
+  let kvPutSpy: MockInstance;
+  let logServiceErrorSpy: MockInstance<typeof logService.error>;
+  let logServiceWarnSpy: MockInstance<typeof logService.warn>;
+  let logServiceInfoSpy: MockInstance<typeof logService.info>;
+  let logServiceDebugSpy: MockInstance<typeof logService.debug>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -24,14 +28,15 @@ describe("createResilientFetch", () => {
       PROXY_WORKER_URL: "https://haloquery.com/proxy",
       MODE: "production",
     });
-    logService = {
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      fatal: vi.fn(),
-    };
+    logService = aFakeLogServiceWith();
+
     fetchSpy = vi.spyOn(globalThis, "fetch");
+    kvGetSpy = vi.spyOn(env.APP_DATA, "get");
+    kvPutSpy = vi.spyOn(env.APP_DATA, "put");
+    logServiceErrorSpy = vi.spyOn(logService, "error");
+    logServiceWarnSpy = vi.spyOn(logService, "warn");
+    logServiceInfoSpy = vi.spyOn(logService, "info");
+    logServiceDebugSpy = vi.spyOn(logService, "debug");
   });
 
   afterEach(() => {
@@ -41,7 +46,7 @@ describe("createResilientFetch", () => {
 
   describe("direct requests (no proxy)", () => {
     it("makes direct request when proxy is disabled and no circuit breaker", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -57,7 +62,7 @@ describe("createResilientFetch", () => {
     });
 
     it("makes direct request in production when master toggle is false and no circuit breaker", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -69,15 +74,15 @@ describe("createResilientFetch", () => {
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(env.APP_DATA.get).toHaveBeenCalledWith(KV_KEYS.PROXY_ENABLED);
-      expect(env.APP_DATA.get).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
+      expect(kvGetSpy).toHaveBeenCalledWith(KV_KEYS.PROXY_ENABLED);
+      expect(kvGetSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
     });
   });
 
   describe("master toggle", () => {
     it("uses proxy when master toggle is enabled and circuit breaker is active", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      const kvGetSpy = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -86,7 +91,6 @@ describe("createResilientFetch", () => {
         }
         return Promise.resolve(null);
       });
-      env.APP_DATA.get = kvGetSpy;
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
@@ -101,11 +105,11 @@ describe("createResilientFetch", () => {
         "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/hi/players/test",
         expect.anything(),
       );
-      expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Proxying request via URL rewrite"));
+      expect(logServiceInfoSpy).toHaveBeenCalledWith(expect.stringContaining("Proxying request via URL rewrite"));
     });
 
     it("does not use proxy when master toggle is enabled but circuit breaker is inactive", async () => {
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -129,7 +133,7 @@ describe("createResilientFetch", () => {
 
     it("does not use proxy when master toggle is disabled even if circuit breaker is active", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve(null);
         }
@@ -155,7 +159,7 @@ describe("createResilientFetch", () => {
   describe("circuit breaker", () => {
     it("uses proxy when master toggle is on and circuit breaker is active", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -182,13 +186,12 @@ describe("createResilientFetch", () => {
 
     it("activates circuit breaker after 3 errors in 15 minutes", async () => {
       const errorWindow = aFakeErrorWindowWith({ errorCount: 2 });
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key: string) => {
+      kvGetSpy.mockImplementation(async (key: string) => {
         if (key.startsWith(KV_KEYS.ERROR_WINDOW)) {
           return Promise.resolve(errorWindow);
         }
         return Promise.resolve(null);
       });
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
 
       fetchSpy
         .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
@@ -206,7 +209,7 @@ describe("createResilientFetch", () => {
       await vi.advanceTimersByTimeAsync(1000);
 
       // Should have tracked the error and activated circuit breaker
-      expect(env.APP_DATA.put).toHaveBeenCalledWith(
+      expect(kvPutSpy).toHaveBeenCalledWith(
         expect.stringContaining(KV_KEYS.ERROR_WINDOW),
         expect.any(String),
         expect.objectContaining({
@@ -215,25 +218,215 @@ describe("createResilientFetch", () => {
       );
 
       // Circuit breaker should be activated
-      expect(env.APP_DATA.put).toHaveBeenCalledWith(
+      expect(kvPutSpy).toHaveBeenCalledWith(
         KV_KEYS.CIRCUIT_BREAKER,
         expect.any(String),
         expect.objectContaining({
-          expirationTtl: expect.any(Number),
+          expirationTtl: expect.any(Number) as number,
         }),
       );
 
-      expect(logService.warn).toHaveBeenCalledWith(
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining("Circuit breaker activated"),
         expect.any(Map),
       );
     });
   });
 
+  describe("HTTP 429 retry logic", () => {
+    it("retries 429 with retry-after header (seconds format)", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      fetchSpy
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "2" },
+          }),
+        )
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit 429"));
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 2000ms (attempt 1/3)"));
+    });
+
+    it("retries 429 with retry-after header (HTTP date format)", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      const futureDate = new Date(Date.now() + 3000);
+      fetchSpy
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": futureDate.toUTCString() },
+          }),
+        )
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      await vi.advanceTimersByTimeAsync(3000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit 429"));
+    });
+
+    it("retries 429 with default 1 second when retry-after is missing", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      fetchSpy
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 429 }))
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 1000ms (attempt 1/3)"));
+    });
+
+    it("uses exponential backoff on repeated 429s", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      fetchSpy
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        )
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      // First retry: 1s × 2^0 = 1000ms
+      await vi.advanceTimersByTimeAsync(1000);
+      // Second retry: 1s × 2^1 = 2000ms
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 1000ms (attempt 1/3)"));
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 2000ms (attempt 2/3)"));
+    });
+
+    it("stops retrying after 3 attempts and returns failed response", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      fetchSpy
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      // First retry: 1000ms
+      await vi.advanceTimersByTimeAsync(1000);
+      // Second retry: 2000ms
+      await vi.advanceTimersByTimeAsync(2000);
+      const response = await promise;
+
+      expect(response.status).toBe(429);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(logServiceErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("Max retry attempts (3) reached") as string,
+        }),
+        expect.any(Map),
+      );
+    });
+
+    it("handles invalid retry-after header and falls back to 1 second", async () => {
+      kvGetSpy.mockResolvedValue(null);
+
+      fetchSpy
+        .mockResolvedValueOnce(
+          aFakeResponseWith({
+            status: 429,
+            headers: { "retry-after": "invalid" },
+          }),
+        )
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+      });
+
+      const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await promise;
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 1000ms (attempt 1/3)"));
+    });
+  });
+
   describe("rate limit error handling", () => {
     it("retries via proxy on 526 error", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
+      kvGetSpy.mockResolvedValue(null);
 
       fetchSpy
         .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
@@ -247,13 +440,12 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logService.warn).toHaveBeenCalledWith(expect.stringContaining("Rate limit error 526"));
-      expect(logService.info).toHaveBeenCalledWith(expect.stringContaining("Retrying via proxy"));
+      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit error 526"));
+      expect(logServiceInfoSpy).toHaveBeenCalledWith(expect.stringContaining("Retrying via proxy"));
     });
 
     it("does not retry via proxy when proxy is disabled", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 526 }));
 
       const resilientFetch = createResilientFetch({
@@ -272,7 +464,7 @@ describe("createResilientFetch", () => {
   describe("URL transformation", () => {
     it("transforms URL correctly for HaloQuery proxy", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -299,7 +491,7 @@ describe("createResilientFetch", () => {
 
     it("handles different subdomains correctly", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -328,7 +520,7 @@ describe("createResilientFetch", () => {
   describe("header preservation", () => {
     it("preserves all headers except host and content-length", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -368,8 +560,7 @@ describe("createResilientFetch", () => {
 
   describe("error tracking", () => {
     it("tracks errors with timestamp and URL", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy
         .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
         .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
@@ -385,7 +576,7 @@ describe("createResilientFetch", () => {
       // Advance timers to trigger the debounced KV write
       await vi.advanceTimersByTimeAsync(1000);
 
-      expect(env.APP_DATA.put).toHaveBeenCalledWith(
+      expect(kvPutSpy).toHaveBeenCalledWith(
         expect.stringContaining(KV_KEYS.ERROR_WINDOW),
         expect.stringMatching(/timestamp.*statusCode.*url/),
         expect.any(Object),
@@ -402,13 +593,12 @@ describe("createResilientFetch", () => {
         errorWindow.errors[0].timestamp = oldTimestamp;
       }
 
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key: string) => {
+      kvGetSpy.mockImplementation(async (key: string) => {
         if (key.startsWith(KV_KEYS.ERROR_WINDOW)) {
           return Promise.resolve(errorWindow);
         }
         return Promise.resolve(null);
       });
-      env.APP_DATA.put = vi.fn().mockResolvedValue(undefined);
 
       fetchSpy
         .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
@@ -423,16 +613,14 @@ describe("createResilientFetch", () => {
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
       // Should not activate circuit breaker since old error should be filtered
-      const circuitBreakerCalls = (env.APP_DATA.put as ReturnType<typeof vi.fn>).mock.calls.filter(
-        (call) => call[0] === KV_KEYS.CIRCUIT_BREAKER,
-      );
+      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === KV_KEYS.CIRCUIT_BREAKER);
       expect(circuitBreakerCalls).toHaveLength(0);
     });
   });
 
   describe("cache status logging", () => {
     it("logs cache HIT status for direct requests", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(
         aFakeResponseWith({
           status: 200,
@@ -451,14 +639,14 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logService.debug).toHaveBeenCalledWith(
+      expect(logServiceDebugSpy).toHaveBeenCalledWith(
         "Cache HIT for https://halostats.svc.halowaypoint.com/test",
         expect.objectContaining({
           size: 2,
         }),
       );
 
-      const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
+      const debugCalls = (logServiceDebugSpy as ReturnType<typeof vi.fn>).mock.calls;
       expect(debugCalls.length).toBeGreaterThan(0);
       const [debugCall] = debugCalls;
       expect(debugCall).toBeDefined();
@@ -470,7 +658,7 @@ describe("createResilientFetch", () => {
     });
 
     it("logs cache MISS status for direct requests", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(
         aFakeResponseWith({
           status: 200,
@@ -488,12 +676,12 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logService.debug).toHaveBeenCalledWith(
+      expect(logServiceDebugSpy).toHaveBeenCalledWith(
         "Cache MISS for https://halostats.svc.halowaypoint.com/test",
         expect.any(Map),
       );
 
-      const debugCalls = (logService.debug as ReturnType<typeof vi.fn>).mock.calls;
+      const debugCalls = (logServiceDebugSpy as ReturnType<typeof vi.fn>).mock.calls;
       expect(debugCalls.length).toBeGreaterThan(0);
       const [debugCall] = debugCalls;
       expect(debugCall).toBeDefined();
@@ -506,7 +694,7 @@ describe("createResilientFetch", () => {
 
     it("logs cache status with (via proxy) suffix for proxied requests", async () => {
       const circuitBreaker = aFakeCircuitBreakerStateWith();
-      env.APP_DATA.get = vi.fn().mockImplementation(async (key) => {
+      kvGetSpy.mockImplementation(async (key) => {
         if (key === KV_KEYS.PROXY_ENABLED) {
           return Promise.resolve("true");
         }
@@ -533,14 +721,14 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logService.debug).toHaveBeenCalledWith(
+      expect(logServiceDebugSpy).toHaveBeenCalledWith(
         "Cache HIT for https://halostats.svc.halowaypoint.com/test (via proxy)",
         expect.any(Map),
       );
     });
 
     it("does not log when cf-cache-status header is missing", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(
         aFakeResponseWith({
           status: 200,
@@ -556,7 +744,7 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logService.debug).not.toHaveBeenCalled();
+      expect(logServiceDebugSpy).not.toHaveBeenCalled();
     });
   });
 });
