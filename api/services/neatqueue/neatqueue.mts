@@ -1048,14 +1048,16 @@ export class NeatQueueService {
       "Ranked Arena CSRs",
       new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
     );
+    const esras = await haloService.getPlayersEsras(xboxIds);
 
     const playersEmbed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
         discordAssociations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: config.NeatQueueInformerMapsPost,
       },
     );

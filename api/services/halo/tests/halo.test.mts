@@ -2812,4 +2812,58 @@ describe("Halo service", () => {
       expect(kvPutSpy).toHaveBeenCalled();
     });
   });
+
+  describe("getPlayersEsras", () => {
+    it("fetches ESRAs for multiple players", async () => {
+      const xuids = ["xuid_1", "xuid_2", "xuid_3"];
+      const playlistId = FetchablePlaylist.RANKED_ARENA;
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValueOnce(1400);
+      getPlayerEsraSpy.mockResolvedValueOnce(1500);
+      getPlayerEsraSpy.mockResolvedValueOnce(1600);
+
+      const esraMap = await haloService.getPlayersEsras(xuids, playlistId);
+
+      expect(esraMap.size).toBe(3);
+      expect(esraMap.get("xuid_1")).toBe(1400);
+      expect(esraMap.get("xuid_2")).toBe(1500);
+      expect(esraMap.get("xuid_3")).toBe(1600);
+      expect(getPlayerEsraSpy).toHaveBeenCalledTimes(3);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", playlistId);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_2", playlistId);
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_3", playlistId);
+    });
+
+    it("returns empty map when no xuids provided", async () => {
+      const esraMap = await haloService.getPlayersEsras([]);
+
+      expect(esraMap.size).toBe(0);
+    });
+
+    it("handles players with 0 ESRA", async () => {
+      const xuids = ["xuid_1", "xuid_2"];
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValueOnce(1400);
+      getPlayerEsraSpy.mockResolvedValueOnce(0);
+
+      const esraMap = await haloService.getPlayersEsras(xuids);
+
+      expect(esraMap.size).toBe(2);
+      expect(esraMap.get("xuid_1")).toBe(1400);
+      expect(esraMap.get("xuid_2")).toBe(0);
+    });
+
+    it("uses default RANKED_ARENA playlist when not specified", async () => {
+      const xuids = ["xuid_1"];
+
+      const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
+      getPlayerEsraSpy.mockResolvedValue(1400);
+
+      await haloService.getPlayersEsras(xuids);
+
+      expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", FetchablePlaylist.RANKED_ARENA);
+    });
+  });
 });

@@ -8,13 +8,18 @@ import { MapsPostType } from "../../../services/database/types/guild_config.mjs"
 import { EmbedColors } from "../../colors.mjs";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
+import type { HaloService } from "../../../services/halo/halo.mjs";
+import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
 
 describe("NeatQueuePlayersEmbed", () => {
   let discordService: DiscordService;
+  let haloService: HaloService;
 
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
+    haloService = aFakeHaloServiceWith();
     vi.spyOn(discordService, "getRankEmoji").mockReturnValue("🏅");
+    vi.spyOn(haloService, "getRankTierFromCsr").mockReturnValue({ rankTier: "Platinum", subTier: 1 });
   });
 
   it("creates embed with connected players and ranks", () => {
@@ -58,13 +63,6 @@ describe("NeatQueuePlayersEmbed", () => {
             MeasurementMatchesRemaining: 0,
             InitialMeasurementMatches: 10,
           },
-          SeasonMax: {
-            Value: 1600,
-            Tier: "Diamond",
-            SubTier: 1,
-            MeasurementMatchesRemaining: 0,
-            InitialMeasurementMatches: 10,
-          },
           AllTimeMax: {
             Value: 1700,
             Tier: "Diamond",
@@ -84,13 +82,6 @@ describe("NeatQueuePlayersEmbed", () => {
             MeasurementMatchesRemaining: 0,
             InitialMeasurementMatches: 10,
           },
-          SeasonMax: {
-            Value: 1500,
-            Tier: "Platinum",
-            SubTier: 2,
-            MeasurementMatchesRemaining: 0,
-            InitialMeasurementMatches: 10,
-          },
           AllTimeMax: {
             Value: 1500,
             Tier: "Platinum",
@@ -102,13 +93,19 @@ describe("NeatQueuePlayersEmbed", () => {
       ],
     ]);
 
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
+      ["1000", 1450],
+      ["2000", 1350],
+    ]);
+
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -124,7 +121,7 @@ describe("NeatQueuePlayersEmbed", () => {
     expect(result.fields?.[1]?.name).toBe("Halo Profile");
     expect(result.fields?.[1]?.value).toContain("Player1");
     expect(result.fields?.[1]?.value).toContain("Player2");
-    expect(result.fields?.[2]?.name).toBe("Current Rank (SP, ATP)");
+    expect(result.fields?.[2]?.name).toBe("Current Rank (ESRA, ATP)");
     expect(result.fields?.[2]?.value).toContain("1500");
     expect(result.fields?.[2]?.value).toContain("1400");
   });
@@ -147,14 +144,16 @@ describe("NeatQueuePlayersEmbed", () => {
       ["1000", { xuid: "1000", gamertag: "Player1" }],
     ]);
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -170,14 +169,16 @@ describe("NeatQueuePlayersEmbed", () => {
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -203,14 +204,16 @@ describe("NeatQueuePlayersEmbed", () => {
       ["1000", { xuid: "1000", gamertag: "Player1" }],
     ]);
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -225,14 +228,16 @@ describe("NeatQueuePlayersEmbed", () => {
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -264,14 +269,16 @@ describe("NeatQueuePlayersEmbed", () => {
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.AUTO,
       },
     );
@@ -292,20 +299,22 @@ describe("NeatQueuePlayersEmbed", () => {
     }
   });
 
-  it("handles empty players list", () => {
+  it("only includes connect button when mapsPostType is not BUTTON", () => {
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
-        mapsPostType: MapsPostType.BUTTON,
+        esras,
+        mapsPostType: MapsPostType.AUTO,
       },
     );
 
@@ -329,14 +338,16 @@ describe("NeatQueuePlayersEmbed", () => {
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
     const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map();
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService },
+      { discordService, haloService },
       {
         players,
         discordAssociations: associations,
         haloPlayersMap,
         rankedArenaCsrs,
+        esras,
         mapsPostType: MapsPostType.BUTTON,
       },
     );
@@ -349,5 +360,218 @@ describe("NeatQueuePlayersEmbed", () => {
     expect(playerValues[0]).toContain("456"); // Alice
     expect(playerValues[1]).toContain("789"); // Bob
     expect(playerValues[2]).toContain("123"); // Charlie
+  });
+
+  it("formats ESRA with rank emoji and rounded value", () => {
+    const getRankTierFromCsrSpy = vi.spyOn(haloService, "getRankTierFromCsr");
+    const getRankEmojiSpy = vi.spyOn(discordService, "getRankEmoji");
+
+    const players: PlayerData[] = [
+      { id: "123", name: "Player1" },
+      { id: "456", name: "Player2" },
+    ];
+
+    const associations: DiscordAssociationsRow[] = [
+      {
+        DiscordId: "123",
+        XboxId: "1000",
+        AssociationReason: AssociationReason.MANUAL,
+        AssociationDate: Date.now(),
+        GamesRetrievable: GamesRetrievable.YES,
+        DiscordDisplayNameSearched: null,
+      },
+      {
+        DiscordId: "456",
+        XboxId: "2000",
+        AssociationReason: AssociationReason.MANUAL,
+        AssociationDate: Date.now(),
+        GamesRetrievable: GamesRetrievable.YES,
+        DiscordDisplayNameSearched: null,
+      },
+    ];
+
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map([
+      ["1000", { xuid: "1000", gamertag: "Player1" }],
+      ["2000", { xuid: "2000", gamertag: "Player2" }],
+    ]);
+
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map([
+      [
+        "1000",
+        {
+          Current: {
+            Value: 1500,
+            Tier: "Platinum",
+            SubTier: 1,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+          AllTimeMax: {
+            Value: 1600,
+            Tier: "Diamond",
+            SubTier: 1,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+        },
+      ],
+      [
+        "2000",
+        {
+          Current: {
+            Value: 1400,
+            Tier: "Gold",
+            SubTier: 5,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+          AllTimeMax: {
+            Value: 1500,
+            Tier: "Platinum",
+            SubTier: 2,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+        },
+      ],
+    ]);
+
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
+      ["1000", 1450.7], // Should round to 1451
+      ["2000", 1349.3], // Should round to 1349
+    ]);
+
+    const embed = new NeatQueuePlayersEmbed(
+      { discordService, haloService },
+      {
+        players,
+        discordAssociations: associations,
+        haloPlayersMap,
+        rankedArenaCsrs,
+        esras,
+        mapsPostType: MapsPostType.BUTTON,
+      },
+    );
+
+    const result = embed.embed;
+    const rankField = result.fields?.[2]?.value ?? "";
+
+    expect(getRankTierFromCsrSpy).toHaveBeenCalledWith(1451);
+    expect(getRankTierFromCsrSpy).toHaveBeenCalledWith(1349);
+
+    expect(getRankEmojiSpy).toHaveBeenCalledWith({
+      rankTier: "Platinum",
+      subTier: 1,
+      measurementMatchesRemaining: 0,
+      initialMeasurementMatches: 0,
+    });
+
+    // Check that the formatted ESRA includes emoji and rounded value
+    expect(rankField).toContain("🏅1451");
+    expect(rankField).toContain("🏅1349");
+  });
+
+  it("displays dash for zero or negative ESRA", () => {
+    const players: PlayerData[] = [
+      { id: "123", name: "Player1" },
+      { id: "456", name: "Player2" },
+    ];
+
+    const associations: DiscordAssociationsRow[] = [
+      {
+        DiscordId: "123",
+        XboxId: "1000",
+        AssociationReason: AssociationReason.MANUAL,
+        AssociationDate: Date.now(),
+        GamesRetrievable: GamesRetrievable.YES,
+        DiscordDisplayNameSearched: null,
+      },
+      {
+        DiscordId: "456",
+        XboxId: "2000",
+        AssociationReason: AssociationReason.MANUAL,
+        AssociationDate: Date.now(),
+        GamesRetrievable: GamesRetrievable.YES,
+        DiscordDisplayNameSearched: null,
+      },
+    ];
+
+    const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map([
+      ["1000", { xuid: "1000", gamertag: "Player1" }],
+      ["2000", { xuid: "2000", gamertag: "Player2" }],
+    ]);
+
+    const rankedArenaCsrs: NeatQueuePlayersEmbedData["rankedArenaCsrs"] = new Map([
+      [
+        "1000",
+        {
+          Current: {
+            Value: 1500,
+            Tier: "Platinum",
+            SubTier: 1,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+          AllTimeMax: {
+            Value: 1600,
+            Tier: "Diamond",
+            SubTier: 1,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+        },
+      ],
+      [
+        "2000",
+        {
+          Current: {
+            Value: 1400,
+            Tier: "Gold",
+            SubTier: 5,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+          AllTimeMax: {
+            Value: 1500,
+            Tier: "Platinum",
+            SubTier: 2,
+            MeasurementMatchesRemaining: 0,
+            InitialMeasurementMatches: 10,
+          },
+        },
+      ],
+    ]);
+
+    const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
+      ["1000", 0], // Zero ESRA
+      ["2000", -5], // Negative ESRA (edge case)
+    ]);
+
+    const embed = new NeatQueuePlayersEmbed(
+      { discordService, haloService },
+      {
+        players,
+        discordAssociations: associations,
+        haloPlayersMap,
+        rankedArenaCsrs,
+        esras,
+        mapsPostType: MapsPostType.BUTTON,
+      },
+    );
+
+    // Create spies to verify method calls
+    const getRankTierFromCsrSpy = vi.spyOn(haloService, "getRankTierFromCsr");
+
+    const result = embed.embed;
+    const rankField = result.fields?.[2]?.value ?? "";
+
+    // Both should show dash for ESRA
+    const lines = rankField.split("\n");
+    expect(lines[0]).toMatch(/\(-, 🏅1600\)/); // ESRA is dash, ATP is 1600
+    expect(lines[1]).toMatch(/\(-, 🏅1500\)/); // ESRA is dash, ATP is 1500
+
+    // Verify getRankTierFromCsr was NOT called for zero/negative ESRA
+    expect(getRankTierFromCsrSpy).not.toHaveBeenCalledWith(0);
+    expect(getRankTierFromCsrSpy).not.toHaveBeenCalledWith(-5);
   });
 });

@@ -335,6 +335,20 @@ export class HaloService {
     return serviceRecord;
   }
 
+  async getPlayersEsras(
+    xuids: string[],
+    playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA,
+  ): Promise<Map<string, number>> {
+    const esraMap = new Map<string, number>();
+
+    for (const xuid of xuids) {
+      const esra = await this.getPlayerEsra(xuid, playlistId);
+      esraMap.set(xuid, esra);
+    }
+
+    return esraMap;
+  }
+
   async getPlayerEsra(xuid: string, playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA): Promise<number> {
     try {
       const cacheKey = this.getEsraKVCacheKey(xuid, playlistId);
@@ -558,7 +572,7 @@ export class HaloService {
 
     const wrappedXuidsMap = new Map(xuids.map((xuid) => [xuid, this.wrapPlayerXuid(xuid)]));
     const playlistCsr = await this.infiniteClient.getPlaylistCsr(
-      "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
+      FetchablePlaylist.RANKED_ARENA,
       wrappedXuidsMap.values().toArray(),
       undefined,
       {
