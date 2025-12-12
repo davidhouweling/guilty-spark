@@ -49,7 +49,7 @@
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.38.36",
     "discord-interactions": "^4.4.0",
-    "halo-infinite-api": "^12.0.2",
+    "halo-infinite-api": "^14.1.0",
     "itty-router": "^5.0.22",
     "luxon": "^3.7.2",
     "tinyduration": "^3.4.1"
