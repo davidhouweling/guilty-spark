@@ -241,41 +241,10 @@ export class HaloService {
     if (uniqueXuids.size) {
       const usersArray = Array.from(uniqueXuids);
 
-      try {
-        const users = await this.getUsersByXuids(usersArray);
-        for (const user of users) {
-          this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
-        }
-      } catch (error) {
-        // temporary workaround for 500 errors
-        if (error instanceof RequestError && error.response.status === 500) {
-          try {
-            const users = await this.xboxService.getUsersByXuids(usersArray);
-            for (const user of users) {
-              this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
-            }
-          } catch (innerError) {
-            this.logService.warn(
-              innerError as Error,
-              new Map([["context", "Failed to fetch xbox gamertags in bulk fallback"]]),
-            );
-          }
-
-          for (const xboxId of usersArray) {
-            if (this.xuidToGamerTagCache.has(xboxId)) {
-              continue;
-            }
-
-            const discordAssociation = await this.getDiscordAssociationByXboxId(xboxId);
-
-            this.xuidToGamerTagCache.set(
-              Preconditions.checkExists(xboxId),
-              `*Unknown*${discordAssociation ? ` <@${discordAssociation.DiscordId}>` : ""}`,
-            );
-          }
-        } else {
-          throw error;
-        }
+      const users = await this.getUsersByXuids(usersArray);
+      for (const user of usersArray) {
+        const userInfo = users.find((u) => u.xuid === user);
+        this.xuidToGamerTagCache.set(user, userInfo?.gamertag ?? "*Unknown*");
       }
     }
 
@@ -292,11 +261,26 @@ export class HaloService {
       return kvCachedUser;
     }
 
-    const user = await this.infiniteClient.getUser(gamertag, {
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-      },
-    });
+    let user: UserInfo;
+    try {
+      user = await this.infiniteClient.getUser(gamertag, {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      });
+    } catch (error) {
+      if (error instanceof RequestError && error.response.status === 500) {
+        this.logService.info(
+          error,
+          new Map([
+            ["context", `Halo Infinite API returned 500 for gamertag ${gamertag}, falling back to Xbox Live API`],
+          ]),
+        );
+        user = await this.xboxService.getUserByGamertag(gamertag);
+      } else {
+        throw error;
+      }
+    }
 
     await this.updateUserKVCache(user);
 
@@ -311,11 +295,29 @@ export class HaloService {
     const kvCachedUsers = await Promise.all(xuids.map(async (xuid) => this.getUserByXuidFromKVCache(xuid)));
     const missingXuids = xuids.filter((_, index) => kvCachedUsers[index] == null);
 
-    const fetchedUsers = await this.infiniteClient.getUsers(missingXuids, {
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
-      },
-    });
+    let fetchedUsers: UserInfo[] = [];
+    try {
+      fetchedUsers = await this.infiniteClient.getUsers(missingXuids, {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+        },
+      });
+    } catch (error) {
+      if (error instanceof RequestError && error.response.status === 500) {
+        this.logService.info(
+          error,
+          new Map([
+            [
+              "context",
+              `Halo Infinite API returned 500 for ${missingXuids.length.toString()} xuids, falling back to Xbox Live API`,
+            ],
+          ]),
+        );
+        fetchedUsers = await this.xboxService.getUsersByXuids(missingXuids);
+      } else {
+        throw error;
+      }
+    }
 
     await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
     const allUsers: UserInfo[] = [...kvCachedUsers.filter((user): user is UserInfo => user != null), ...fetchedUsers];
@@ -1080,21 +1082,6 @@ export class HaloService {
     }
 
     return xboxPlayersByTeam;
-  }
-
-  private async getDiscordAssociationByXboxId(xboxId: string): Promise<DiscordAssociationsRow | null> {
-    const cacheValue = this.userCache.values().find((value) => value.XboxId === xboxId);
-    if (cacheValue) {
-      return cacheValue;
-    }
-
-    const [dbValue] = await this.databaseService.getDiscordAssociationsByXboxId([xboxId]);
-    if (dbValue != null) {
-      this.userCache.set(dbValue.DiscordId, dbValue);
-      return dbValue;
-    }
-
-    return null;
   }
 
   private async fuzzyMatchTeam(discordTeam: MatchPlayer[], xboxXuids: string[]): Promise<void> {

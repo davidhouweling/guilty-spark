@@ -37,6 +37,39 @@ export class XboxService {
     await this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
   }
 
+  async getUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
+    if (!gamertag) {
+      throw new Error("Gamertag cannot be empty");
+    }
+
+    if (!this.tokenInfo) {
+      await this.maybeRefreshXstsToken();
+    }
+    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
+
+    const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
+      `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
+      {
+        options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
+      },
+    );
+
+    if (response.statusCode !== 200) {
+      throw new Error(`Failed to fetch user with gamertag ${gamertag}: ${response.statusCode.toString()}`);
+    }
+
+    const [profileUser] = response.data.profileUsers;
+    if (!profileUser) {
+      throw new Error(`User with gamertag ${gamertag} not found`);
+    }
+
+    const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
+    return {
+      xuid: profileUser.id,
+      gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
+    };
+  }
+
   async getUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
     if (xuids.length === 0) {
       return [];
