@@ -1705,80 +1705,6 @@ describe("Halo service", () => {
         ]),
       );
     });
-
-    it("handles 500 error by falling back to XboxService.getUsersByXuids", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const response = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
-
-      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response));
-
-      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
-      xboxServiceSpy.mockResolvedValueOnce([
-        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
-        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
-      ]);
-
-      const result = await haloService.getPlayerXuidsToGametags(match);
-
-      expect(infiniteClient.getUsers).toHaveBeenCalled();
-      expect(xboxServiceSpy).toHaveBeenCalled();
-      expect(result.size).toBeGreaterThan(0);
-      expect(result.get("0100000000000000")).toBe("XboxPlayer1");
-      expect(result.get("0200000000000000")).toBe("XboxPlayer2");
-    });
-
-    it("marks unknown users with *Unknown* when XboxService.getUsersByXuids fails during 500 error recovery", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
-
-      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
-
-      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
-      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox service failed"));
-
-      const result = await haloService.getPlayerXuidsToGametags(match);
-
-      expect(result.get("0200000000000000")).toMatch(/^\*Unknown\*/);
-    });
-
-    it("includes Discord mention in unknown user tag when user is in cache after working around HTTP 500", async () => {
-      const fakeXboxId = "0500000000000000";
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
-
-      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
-
-      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
-      xboxServiceSpy.mockResolvedValueOnce([
-        { xuid: "0100000000000000", gamertag: "XboxPlayer1" },
-        { xuid: "0200000000000000", gamertag: "XboxPlayer2" },
-        // Missing fakeXboxId to simulate failure for that specific user
-      ]);
-
-      const getDiscordAssociationsByXboxIdSpy = vi.spyOn(databaseService, "getDiscordAssociationsByXboxId");
-      getDiscordAssociationsByXboxIdSpy.mockImplementation(async (xboxIds: string[]) => {
-        return Promise.resolve(
-          xboxIds
-            .map((xboxId) => {
-              if (xboxId === fakeXboxId) {
-                return aFakeDiscordAssociationsRow({
-                  DiscordId: "000000000000000005",
-                  XboxId: xboxId,
-                  GamesRetrievable: GamesRetrievable.YES,
-                  AssociationReason: AssociationReason.USERNAME_SEARCH,
-                });
-              }
-              return null;
-            })
-            .filter((result) => result !== null),
-        );
-      });
-
-      const result = await haloService.getPlayerXuidsToGametags(match);
-
-      const unknownTag = Preconditions.checkExists(result.get(fakeXboxId));
-      expect(unknownTag).toMatch(/^\*Unknown\* <@000000000000000005>$/);
-    });
   });
 
   describe("getUsersByXuids()", () => {
@@ -1970,6 +1896,47 @@ describe("Halo service", () => {
       expect(result[1]).toEqual(cachedUser2);
       expect(result[2]?.xuid).toBe("fetch1");
     });
+
+    it("falls back to Xbox service on 500 error and logs warning", async () => {
+      const xuids = ["xuid1", "xuid2"];
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
+
+      const xboxUsers = [
+        { xuid: "xuid1", gamertag: "XboxPlayer1" },
+        { xuid: "xuid2", gamertag: "XboxPlayer2" },
+      ];
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockResolvedValueOnce(xboxUsers);
+
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        expect.any(RequestError),
+        expect.objectContaining({
+          size: 1,
+        }),
+      );
+      const [logCallArgs] = logWarnSpy.mock.calls;
+      const contextMap = logCallArgs?.[1] as Map<string, string>;
+      expect(contextMap.get("context")).toContain("Halo Infinite API returned 500 for 2 xuids");
+      expect(contextMap.get("context")).toContain("falling back to Xbox Live API");
+      expect(result).toEqual(xboxUsers);
+    });
+
+    it("throws non-500 errors without fallback", async () => {
+      const xuids = ["xuid1", "xuid2"];
+      const response404 = new Response("Not Found", { status: 404, statusText: "Not Found" });
+      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response404));
+
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+
+      await expect(haloService.getUsersByXuids(xuids)).rejects.toThrow(RequestError);
+      expect(xboxServiceSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("getDurationInSeconds()", () => {
@@ -2126,6 +2093,44 @@ describe("Halo service", () => {
 
     it("throws error when no gamertag provided", async () => {
       return expect(haloService.getUserByGamertag("")).rejects.toThrow("No user ID provided");
+    });
+
+    it("falls back to Xbox service on 500 error and logs warning", async () => {
+      const gamertag = "TestGamer";
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      infiniteClient.getUser.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
+
+      const xboxUser = { xuid: "1234567890", gamertag };
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUserByGamertag");
+      xboxServiceSpy.mockResolvedValueOnce(xboxUser);
+
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      const result = await haloService.getUserByGamertag(gamertag);
+
+      expect(xboxServiceSpy).toHaveBeenCalledWith(gamertag);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        expect.any(RequestError),
+        expect.objectContaining({
+          size: 1,
+        }),
+      );
+      const [logCallArgs] = logWarnSpy.mock.calls;
+      const contextMap = logCallArgs?.[1] as Map<string, string>;
+      expect(contextMap.get("context")).toContain("Halo Infinite API returned 500 for gamertag TestGamer");
+      expect(contextMap.get("context")).toContain("falling back to Xbox Live API");
+      expect(result).toEqual(xboxUser);
+    });
+
+    it("throws non-500 errors without fallback", async () => {
+      const gamertag = "TestGamer";
+      const response404 = new Response("Not Found", { status: 404, statusText: "Not Found" });
+      infiniteClient.getUser.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response404));
+
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUserByGamertag");
+
+      await expect(haloService.getUserByGamertag(gamertag)).rejects.toThrow(RequestError);
+      expect(xboxServiceSpy).not.toHaveBeenCalled();
     });
   });
 

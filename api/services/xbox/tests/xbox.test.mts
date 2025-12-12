@@ -268,4 +268,110 @@ describe("Xbox Service", () => {
       expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
     });
   });
+
+  describe("getUserByGamertag", () => {
+    let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
+
+    beforeEach(async () => {
+      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      await xboxService.loadCredentials();
+      xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
+    });
+
+    it("should throw error when gamertag is empty", async () => {
+      await expect(xboxService.getUserByGamertag("")).rejects.toThrow("Gamertag cannot be empty");
+      expect(xsapiClientGetSpy).not.toHaveBeenCalled();
+    });
+
+    it("should fetch user info by gamertag and return xuid and gamertag", async () => {
+      const gamertag = "TestPlayer1";
+
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserByGamertag(gamertag);
+
+      expect(result).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
+      expect(xsapiClientGetSpy).toHaveBeenCalledWith(
+        `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
+        expect.objectContaining({
+          options: expect.objectContaining({
+            contractVersion: 2,
+          }),
+        }),
+      );
+    });
+
+    it("should use Unknown gamertag when gamertag setting is missing", async () => {
+      const gamertag = "TestPlayer1";
+
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserByGamertag(gamertag);
+
+      expect(result).toEqual({ xuid: "2533274844642438", gamertag: "Unknown" });
+    });
+
+    it("should throw error when user not found", async () => {
+      const gamertag = "NonExistentPlayer";
+
+      xsapiClientGetSpy.mockResolvedValueOnce(createMockXSAPIResponse([]));
+
+      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow(`User with gamertag ${gamertag} not found`);
+    });
+
+    it("should throw error when API returns non-200 status", async () => {
+      const gamertag = "TestPlayer1";
+
+      xsapiClientGetSpy.mockResolvedValueOnce({
+        data: { profileUsers: [] },
+        response: new Response(),
+        headers: {},
+        statusCode: 404,
+      });
+
+      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow(
+        `Failed to fetch user with gamertag ${gamertag}: 404`,
+      );
+    });
+
+    it("should refresh token if not loaded", async () => {
+      xboxService.tokenInfo = null;
+      authenticate.mockResolvedValueOnce(validAuthenticateResponse);
+
+      const gamertag = "TestPlayer1";
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserByGamertag(gamertag);
+
+      expect(authenticate).toHaveBeenCalled();
+      expect(result).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
+    });
+  });
 });
