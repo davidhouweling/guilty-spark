@@ -1897,7 +1897,7 @@ describe("Halo service", () => {
       expect(result[2]?.xuid).toBe("fetch1");
     });
 
-    it("falls back to Xbox service on 500 error and logs warning", async () => {
+    it("falls back to Xbox service on 500 error and logs info", async () => {
       const xuids = ["xuid1", "xuid2"];
       const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
@@ -1909,18 +1909,18 @@ describe("Halo service", () => {
       const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
       xboxServiceSpy.mockResolvedValueOnce(xboxUsers);
 
-      const logWarnSpy = vi.spyOn(logService, "warn");
+      const logInfoSpy = vi.spyOn(logService, "info");
 
       const result = await haloService.getUsersByXuids(xuids);
 
       expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
-      expect(logWarnSpy).toHaveBeenCalledWith(
+      expect(logInfoSpy).toHaveBeenCalledWith(
         expect.any(RequestError),
         expect.objectContaining({
           size: 1,
         }),
       );
-      const [logCallArgs] = logWarnSpy.mock.calls;
+      const [logCallArgs] = logInfoSpy.mock.calls;
       const contextMap = logCallArgs?.[1] as Map<string, string>;
       expect(contextMap.get("context")).toContain("Halo Infinite API returned 500 for 2 xuids");
       expect(contextMap.get("context")).toContain("falling back to Xbox Live API");
@@ -2095,7 +2095,7 @@ describe("Halo service", () => {
       return expect(haloService.getUserByGamertag("")).rejects.toThrow("No user ID provided");
     });
 
-    it("falls back to Xbox service on 500 error and logs warning", async () => {
+    it("falls back to Xbox service on 500 error and logs info", async () => {
       const gamertag = "TestGamer";
       const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
       infiniteClient.getUser.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
@@ -2104,18 +2104,18 @@ describe("Halo service", () => {
       const xboxServiceSpy = vi.spyOn(xboxService, "getUserByGamertag");
       xboxServiceSpy.mockResolvedValueOnce(xboxUser);
 
-      const logWarnSpy = vi.spyOn(logService, "warn");
+      const logInfoSpy = vi.spyOn(logService, "info");
 
       const result = await haloService.getUserByGamertag(gamertag);
 
       expect(xboxServiceSpy).toHaveBeenCalledWith(gamertag);
-      expect(logWarnSpy).toHaveBeenCalledWith(
+      expect(logInfoSpy).toHaveBeenCalledWith(
         expect.any(RequestError),
         expect.objectContaining({
           size: 1,
         }),
       );
-      const [logCallArgs] = logWarnSpy.mock.calls;
+      const [logCallArgs] = logInfoSpy.mock.calls;
       const contextMap = logCallArgs?.[1] as Map<string, string>;
       expect(contextMap.get("context")).toContain("Halo Infinite API returned 500 for gamertag TestGamer");
       expect(contextMap.get("context")).toContain("falling back to Xbox Live API");
