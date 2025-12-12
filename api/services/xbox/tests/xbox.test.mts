@@ -34,6 +34,7 @@ describe("Xbox Service", () => {
   let env: Env;
   let xboxService: XboxService;
   let authenticate: Mock<typeof xboxliveAuthenticate>;
+  let kvAppDataGetSpy: MockInstance;
 
   beforeEach(() => {
     const fakeEnv = aFakeEnvWith();
@@ -44,6 +45,8 @@ describe("Xbox Service", () => {
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
+
+    kvAppDataGetSpy = vi.spyOn(env.APP_DATA, "get");
   });
 
   afterEach(() => {
@@ -52,7 +55,7 @@ describe("Xbox Service", () => {
 
   describe("loadCredentials + get token", () => {
     it("should load credentials from the environment", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
       await xboxService.loadCredentials();
 
@@ -60,7 +63,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not load credentials if they are not available", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvAppDataGetSpy.mockResolvedValue(null);
 
       await xboxService.loadCredentials();
 
@@ -68,7 +71,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not load credentials if they are invalid", async () => {
-      env.APP_DATA.get = vi.fn().mockImplementation(() => {
+      kvAppDataGetSpy.mockImplementation(() => {
         throw new Error("Invalid JSON");
       });
 
@@ -79,7 +82,7 @@ describe("Xbox Service", () => {
 
   describe("loadCredentials + maybeRefreshXstsToken", () => {
     it("should refresh the token if it is expired", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(expiredKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(expiredKvToken));
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
       await xboxService.loadCredentials();
@@ -89,7 +92,7 @@ describe("Xbox Service", () => {
     });
 
     it("should not refresh the token if it is not expired", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
       await xboxService.loadCredentials();
       await xboxService.maybeRefreshXstsToken();
@@ -98,7 +101,7 @@ describe("Xbox Service", () => {
     });
 
     it("should refresh the token if it is not set", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvAppDataGetSpy.mockResolvedValue(null);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
       await xboxService.loadCredentials();
@@ -108,7 +111,7 @@ describe("Xbox Service", () => {
     });
 
     it("should update APP_DATA with the new token", async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(null);
+      kvAppDataGetSpy.mockResolvedValue(null);
       const putSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue(void 0);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
@@ -130,7 +133,7 @@ describe("Xbox Service", () => {
   describe("clearToken", () => {
     it("should clear the token", async () => {
       const deleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue(void 0);
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
       await xboxService.loadCredentials();
 
@@ -145,7 +148,7 @@ describe("Xbox Service", () => {
     let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
 
     beforeEach(async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
       await xboxService.loadCredentials();
       xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
     });
@@ -273,7 +276,7 @@ describe("Xbox Service", () => {
     let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
 
     beforeEach(async () => {
-      env.APP_DATA.get = vi.fn().mockResolvedValue(JSON.parse(validKvToken));
+      kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
       await xboxService.loadCredentials();
       xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
     });
@@ -305,7 +308,7 @@ describe("Xbox Service", () => {
         expect.objectContaining({
           options: expect.objectContaining({
             contractVersion: 2,
-          }),
+          }) as Record<string, unknown>,
         }),
       );
     });
