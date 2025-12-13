@@ -1,3 +1,5 @@
+/// <reference types="astro/client" />
+
 /**
  * Shared application constants
  */
