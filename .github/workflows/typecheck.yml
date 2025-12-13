@@ -31,3 +31,7 @@ jobs:
 
       - name: Run Typecheck
         run: npm run typecheck
+
+      - name: Run Pages Typecheck
+        working-directory: ./pages
+        run: npm run typecheck

@@ -15,4 +15,4 @@ export const GITHUB_REPO_NAME = "guilty-spark";
 // API host for WebSocket and API connections
 // In development: localhost:8787
 // In production: api.guilty-spark.app
-export const API_HOST = import.meta.env.PUBLIC_API_HOST ?? "api.guilty-spark.app";
+export const API_HOST = (import.meta.env.PUBLIC_API_HOST as string | undefined) ?? "api.guilty-spark.app";
