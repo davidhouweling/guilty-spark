@@ -1,0 +1,270 @@
+---
+import Layout from "../layouts/layout.astro";
+import Container from "../components/container.astro";
+---
+
+<Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
+  <Container>
+    <div class="tracker-demo">
+      <h1>Live Tracker WebSocket Demo</h1>
+      <p>Connect to a live tracker to see real-time updates</p>
+
+      <div id="connection-info" class="connection-info">
+        <div class="info-group">
+          <label>Guild ID:</label>
+          <span id="display-guildId">Not set</span>
+        </div>
+
+        <div class="info-group">
+          <label>Channel ID:</label>
+          <span id="display-channelId">Not set</span>
+        </div>
+
+        <div class="info-group">
+          <label>Queue Number:</label>
+          <span id="display-queueNumber">Not set</span>
+        </div>
+
+        <button type="button" id="disconnect-btn" disabled>Disconnect</button>
+      </div>
+
+      <div id="connection-status" class="status">
+        <strong>Status:</strong>
+        <span id="status-text">Disconnected</span>
+      </div>
+
+      <div id="data-container">
+        <h2>Live Tracker Data:</h2>
+        <pre id="tracker-data">No data yet. Connect to a live tracker to see updates.</pre>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<style>
+  .tracker-demo {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #fff;
+  }
+
+  p {
+    color: #999;
+    margin-bottom: 2rem;
+  }
+
+  .connection-info {
+    background: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+
+  .info-group {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .info-group:last-of-type {
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    color: #999;
+    font-weight: 500;
+    min-width: 120px;
+  }
+
+  .info-group span {
+    color: #fff;
+    font-family: "Courier New", monospace;
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #ed4245;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    background: #c03537;
+  }
+
+  button:disabled {
+    background: #444;
+    cursor: not-allowed;
+  }
+
+  .status {
+    background: #1a1a1a;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    color: #fff;
+  }
+
+  #status-text {
+    color: #faa61a;
+  }
+
+  #status-text.connected {
+    color: #43b581;
+  }
+
+  #status-text.error {
+    color: #ed4245;
+  }
+
+  #data-container {
+    background: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #fff;
+  }
+
+  #tracker-data {
+    background: #0d0d0d;
+    padding: 1rem;
+    border-radius: 4px;
+    color: #43b581;
+    font-family: "Courier New", monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+</style>
+
+<script>
+  let ws: WebSocket | null = null;
+  let wsUrl = "";
+
+  const disconnectBtn = document.getElementById("disconnect-btn") as HTMLButtonElement;
+  const statusText = document.getElementById("status-text") as HTMLSpanElement;
+  const trackerData = document.getElementById("tracker-data") as HTMLPreElement;
+
+  function updateStatus(status: string, className: string = "") {
+    statusText.textContent = status;
+    statusText.className = className;
+  }
+
+  function connect(guildId: string, channelId: string, queueNumber: string) {
+    if (!guildId || !channelId || !queueNumber) {
+      updateStatus("Missing required query parameters: guildId, channelId, queueNumber", "error");
+      trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
+      return;
+    }
+
+    // Determine WebSocket protocol based on current page protocol
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.hostname === "localhost" ? "localhost:8787" : "api.guilty-spark.app";
+    wsUrl = `${protocol}//${host}/ws/tracker/${guildId}/${channelId}/${queueNumber}`;
+
+    updateStatus("Connecting...", "");
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      updateStatus("Connected", "connected");
+      disconnectBtn.disabled = false;
+      trackerData.textContent = "Connected! Waiting for data...";
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        // Handle stop message
+        if (message.type === "stopped") {
+          trackerData.textContent = JSON.stringify(message, null, 2) + "\n\n🛑 Tracker has been stopped.";
+          updateStatus("Tracker Stopped", "error");
+        } else {
+          trackerData.textContent = JSON.stringify(message, null, 2);
+        }
+      } catch (error) {
+        trackerData.textContent = `Error parsing message: ${error}\n\n${event.data}`;
+      }
+    };
+
+    ws.onerror = (error) => {
+      updateStatus("Connection error", "error");
+      trackerData.textContent = `WebSocket error occurred. Check console for details.`;
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = (event) => {
+      disconnectBtn.disabled = true;
+      ws = null;
+
+      // Display close reason if available
+      if (event.code === 1000 && event.reason === "Tracker stopped") {
+        updateStatus("Tracker Stopped", "error");
+        if (!trackerData.textContent.includes("🛑")) {
+          trackerData.textContent += "\n\n🛑 Tracker has been stopped. Connection closed.";
+        }
+      } else if (event.code === 1000) {
+        updateStatus("Disconnected (Normal)", "");
+      } else {
+        updateStatus(`Disconnected (Code: ${event.code})`, "error");
+        if (event.reason) {
+          trackerData.textContent += `\n\nConnection closed: ${event.reason}`;
+        }
+      }
+    };
+  }
+
+  function disconnect() {
+    if (ws) {
+      ws.close();
+      ws = null;
+      updateStatus("Disconnected", "");
+      disconnectBtn.disabled = true;
+      trackerData.textContent = "Disconnected. Provide query parameters and reload to reconnect.";
+    }
+  }
+
+  disconnectBtn.addEventListener("click", disconnect);
+
+  // Read query parameters and update display on page load (client-side only)
+  const urlParams = new URLSearchParams(window.location.search);
+  const guildId = urlParams.get("guildId");
+  const channelId = urlParams.get("channelId");
+  const queueNumber = urlParams.get("queueNumber");
+
+  // Update the displayed parameter values
+  const displayGuildId = document.getElementById("display-guildId");
+  const displayChannelId = document.getElementById("display-channelId");
+  const displayQueueNumber = document.getElementById("display-queueNumber");
+
+  if (displayGuildId) displayGuildId.textContent = guildId || "Not set";
+  if (displayChannelId) displayChannelId.textContent = channelId || "Not set";
+  if (displayQueueNumber) displayQueueNumber.textContent = queueNumber || "Not set";
+
+  // Auto-connect if all query parameters are present
+  if (guildId && channelId && queueNumber) {
+    connect(guildId, channelId, queueNumber);
+  } else {
+    updateStatus("Waiting for query parameters", "");
+    trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
+  }
+</script>

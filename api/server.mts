@@ -28,6 +28,48 @@ export class Server {
       );
     });
 
+    this.router.get("/ws/tracker/:guildId/:channelId/:queueNumber", async (request, env: Env) => {
+      try {
+        const url = new URL(request.url);
+        const pathParts = url.pathname.split("/");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [_ws, _tracker, guildId, channelId, queueNumber] = pathParts;
+
+        if (
+          guildId == null ||
+          guildId == "" ||
+          channelId == null ||
+          channelId == "" ||
+          queueNumber == null ||
+          queueNumber == ""
+        ) {
+          return new Response("Missing required parameters: guildId, channelId, queueNumber", { status: 400 });
+        }
+
+        const queueNum = parseInt(queueNumber, 10);
+        if (isNaN(queueNum)) {
+          return new Response("Invalid queue number", { status: 400 });
+        }
+
+        // Get the Durable Object stub using the same naming pattern
+        const doId = env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNum.toString()}`);
+        const stub = env.LIVE_TRACKER_DO.get(doId);
+
+        // Forward the WebSocket upgrade request to the DO
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/websocket";
+
+        return await stub.fetch(
+          new Request(doUrl.toString(), {
+            headers: request.headers,
+          }),
+        );
+      } catch (error) {
+        console.error("WebSocket route error:", error);
+        return new Response("Internal Server Error", { status: 500 });
+      }
+    });
+
     this.router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
       try {
         const services = this.installServices({ env });
