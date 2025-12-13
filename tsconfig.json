@@ -17,5 +17,5 @@
     "sourceMap": true,
     "isolatedModules": true
   },
-  "exclude": ["dist"]
+  "exclude": ["dist", "pages"]
 }

@@ -30,19 +30,14 @@ export class Server {
 
     this.router.get("/ws/tracker/:guildId/:channelId/:queueNumber", async (request, env: Env) => {
       try {
-        const url = new URL(request.url);
-        const pathParts = url.pathname.split("/");
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const [_ws, _tracker, guildId, channelId, queueNumber] = pathParts;
+        // Extract parameters from itty-router
+        const { guildId, channelId, queueNumber } = request.params as {
+          guildId: string;
+          channelId: string;
+          queueNumber: string;
+        };
 
-        if (
-          guildId == null ||
-          guildId == "" ||
-          channelId == null ||
-          channelId == "" ||
-          queueNumber == null ||
-          queueNumber == ""
-        ) {
+        if (guildId === "" || channelId === "" || queueNumber === "") {
           return new Response("Missing required parameters: guildId, channelId, queueNumber", { status: 400 });
         }
 

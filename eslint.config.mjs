@@ -18,7 +18,7 @@ export default defineConfig(
       ".wrangler/",
       "coverage/",
       "dist/",
-      "node_modules/",
+      "node_modules/**/*",
       "patches/",
       "pages/.astro/**/*",
       "pages/dist/",
@@ -71,6 +71,31 @@ export default defineConfig(
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "import/order": "error",
       curly: "error",
+    },
+  },
+  {
+    files: ["pages/**/*.mts", "pages/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+      parserOptions: {
+        projectService: {
+          defaultProject: "./pages/tsconfig.json",
+        },
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: "./pages/tsconfig.json",
+        },
+        node: true,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
     },
   },
   ...astroConfigs.recommended,
