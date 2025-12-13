@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container.astro";
+import { API_HOST } from "../constants";
 ---
 
 <Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
@@ -155,116 +156,15 @@ import Container from "../components/container.astro";
   }
 </style>
 
+<script define:vars={{ apiHost: API_HOST }} is:inline>
+  // Injected from server-side: apiHost
+  window.__TRACKER_API_HOST__ = apiHost;
+</script>
+
 <script>
-  let ws: WebSocket | null = null;
-  let wsUrl = "";
-
-  const disconnectBtn = document.getElementById("disconnect-btn") as HTMLButtonElement;
-  const statusText = document.getElementById("status-text") as HTMLSpanElement;
-  const trackerData = document.getElementById("tracker-data") as HTMLPreElement;
-
-  function updateStatus(status: string, className: string = "") {
-    statusText.textContent = status;
-    statusText.className = className;
-  }
-
-  function connect(guildId: string, channelId: string, queueNumber: string) {
-    if (!guildId || !channelId || !queueNumber) {
-      updateStatus("Missing required query parameters: guildId, channelId, queueNumber", "error");
-      trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
-      return;
-    }
-
-    // Determine WebSocket protocol based on current page protocol
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.hostname === "localhost" ? "localhost:8787" : "api.guilty-spark.app";
-    wsUrl = `${protocol}//${host}/ws/tracker/${guildId}/${channelId}/${queueNumber}`;
-
-    updateStatus("Connecting...", "");
-
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      updateStatus("Connected", "connected");
-      disconnectBtn.disabled = false;
-      trackerData.textContent = "Connected! Waiting for data...";
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
-        // Handle stop message
-        if (message.type === "stopped") {
-          trackerData.textContent = JSON.stringify(message, null, 2) + "\n\n🛑 Tracker has been stopped.";
-          updateStatus("Tracker Stopped", "error");
-        } else {
-          trackerData.textContent = JSON.stringify(message, null, 2);
-        }
-      } catch (error) {
-        trackerData.textContent = `Error parsing message: ${error}\n\n${event.data}`;
-      }
-    };
-
-    ws.onerror = (error) => {
-      updateStatus("Connection error", "error");
-      trackerData.textContent = `WebSocket error occurred. Check console for details.`;
-      console.error("WebSocket error:", error);
-    };
-
-    ws.onclose = (event) => {
-      disconnectBtn.disabled = true;
-      ws = null;
-
-      // Display close reason if available
-      if (event.code === 1000 && event.reason === "Tracker stopped") {
-        updateStatus("Tracker Stopped", "error");
-        if (!trackerData.textContent.includes("🛑")) {
-          trackerData.textContent += "\n\n🛑 Tracker has been stopped. Connection closed.";
-        }
-      } else if (event.code === 1000) {
-        updateStatus("Disconnected (Normal)", "");
-      } else {
-        updateStatus(`Disconnected (Code: ${event.code})`, "error");
-        if (event.reason) {
-          trackerData.textContent += `\n\nConnection closed: ${event.reason}`;
-        }
-      }
-    };
-  }
-
-  function disconnect() {
-    if (ws) {
-      ws.close();
-      ws = null;
-      updateStatus("Disconnected", "");
-      disconnectBtn.disabled = true;
-      trackerData.textContent = "Disconnected. Provide query parameters and reload to reconnect.";
-    }
-  }
-
-  disconnectBtn.addEventListener("click", disconnect);
-
-  // Read query parameters and update display on page load (client-side only)
-  const urlParams = new URLSearchParams(window.location.search);
-  const guildId = urlParams.get("guildId");
-  const channelId = urlParams.get("channelId");
-  const queueNumber = urlParams.get("queueNumber");
-
-  // Update the displayed parameter values
-  const displayGuildId = document.getElementById("display-guildId");
-  const displayChannelId = document.getElementById("display-channelId");
-  const displayQueueNumber = document.getElementById("display-queueNumber");
-
-  if (displayGuildId) displayGuildId.textContent = guildId || "Not set";
-  if (displayChannelId) displayChannelId.textContent = channelId || "Not set";
-  if (displayQueueNumber) displayQueueNumber.textContent = queueNumber || "Not set";
-
-  // Auto-connect if all query parameters are present
-  if (guildId && channelId && queueNumber) {
-    connect(guildId, channelId, queueNumber);
-  } else {
-    updateStatus("Waiting for query parameters", "");
-    trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
-  }
+  import { initializeTracker } from "../scripts/tracker-client.mjs";
+  
+  // Use the globally set API host
+  const apiHost = window.__TRACKER_API_HOST__ || "api.guilty-spark.app";
+  initializeTracker(apiHost);
 </script>
