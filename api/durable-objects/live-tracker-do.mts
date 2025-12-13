@@ -104,6 +104,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           case "repost": {
             return await this.handleRepost(request);
           }
+          case "websocket": {
+            return await this.handleWebSocket(request);
+          }
           case undefined: {
             return new Response("Bad Request", { status: 400 });
           }
@@ -180,8 +183,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
                 ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
               ]),
             );
-            await this.state.storage.deleteAlarm();
-            await this.state.storage.deleteAll();
+            await this.dispose(
+              trackerState,
+              `Persistent errors: ${trackerState.errorState.consecutiveErrors.toString()} consecutive failures`,
+            );
             return;
           }
         }
@@ -226,8 +231,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
                 ["messageId", trackerState.liveMessageId],
               ]),
             );
-            await this.state.storage.deleteAlarm();
-            await this.state.storage.deleteAll();
+            await this.dispose(trackerState, "Discord channel not found (deleted or inaccessible)");
             return;
           }
 
@@ -326,14 +330,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       // 10003 = Unknown channel
       if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
         this.logService.warn(
-          "Live tracker channel not found, likely finished",
+          "Live tracker channel not found during start",
           new Map([
             ["channelId", trackerState.channelId],
             ["messageId", trackerState.liveMessageId],
           ]),
         );
-        await this.state.storage.deleteAlarm();
-        await this.state.storage.deleteAll();
+        await this.dispose(trackerState, "Discord channel not found during initialization");
         return this.createStartFailureResponse(trackerState);
       }
 
@@ -484,9 +487,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
-    await this.resetChannelName(trackerState);
-    await this.state.storage.deleteAlarm();
-    await this.state.storage.deleteAll();
+    await this.dispose(trackerState, "Explicitly stopped via handleStop");
 
     return this.createStopResponse(trackerState, embedData);
   }
@@ -558,14 +559,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       // 10003 = Unknown channel
       if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
         this.logService.warn(
-          "Live tracker channel not found, likely finished",
+          "Live tracker channel not found during refresh",
           new Map([
             ["channelId", trackerState.channelId],
             ["messageId", trackerState.liveMessageId],
           ]),
         );
-        await this.state.storage.deleteAlarm();
-        await this.state.storage.deleteAll();
+        await this.dispose(trackerState, "Discord channel not found during refresh");
         return this.createRefreshFailureResponse(trackerState);
       }
 
@@ -706,6 +706,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async setState(state: LiveTrackerState): Promise<void> {
     await this.state.storage.put("trackerState", state);
+    // Broadcast state update to all connected WebSocket clients
+    this.broadcastStateUpdate(state);
   }
 
   // Typed response helpers
@@ -1144,6 +1146,173 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ["error", String(error)],
         ]),
       );
+    }
+  }
+
+  // WebSocket Hibernation API handlers
+  async webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // Currently read-only - clients receive updates but cannot send commands
+    this.logService.info("WebSocket message received (ignored)", new Map([["messageType", typeof message]]));
+    return Promise.resolve();
+  }
+
+  async webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
+    const allWebSockets = this.state.getWebSockets();
+    this.logService.info(
+      "WebSocket client disconnected",
+      new Map([
+        ["code", code.toString()],
+        ["reason", reason],
+        ["wasClean", wasClean.toString()],
+        ["remainingClients", allWebSockets.length.toString()],
+      ]),
+    );
+
+    return Promise.resolve();
+  }
+
+  async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
+    this.logService.warn("WebSocket error", new Map([["error", String(error)]]));
+
+    return Promise.resolve();
+  }
+
+  private async handleWebSocket(request: Request): Promise<Response> {
+    const upgradeHeader = request.headers.get("Upgrade");
+    if (upgradeHeader !== "websocket") {
+      return new Response("Expected WebSocket upgrade", { status: 426 });
+    }
+
+    // Check if tracker exists before accepting connection
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response(
+        "Tracker not found. Start a tracker first using the /track command in the Discord queue channel.",
+        { status: 404 },
+      );
+    }
+
+    const webSocketPair = new WebSocketPair();
+    const client = webSocketPair[0];
+    const server = webSocketPair[1];
+
+    // Use hibernation API - allows DO to be evicted from memory while maintaining connection
+    this.state.acceptWebSocket(server);
+
+    const allWebSockets = this.state.getWebSockets();
+    this.logService.info(
+      "WebSocket client connected",
+      new Map([
+        ["totalClients", allWebSockets.length.toString()],
+        ["guildId", trackerState.guildId],
+        ["channelId", trackerState.channelId],
+        ["queueNumber", trackerState.queueNumber.toString()],
+      ]),
+    );
+
+    // Send current state immediately on connection
+    server.send(
+      JSON.stringify({
+        type: "state",
+        data: trackerState,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  }
+
+  private broadcastStateUpdate(state: LiveTrackerState): void {
+    const allWebSockets = this.state.getWebSockets();
+    if (allWebSockets.length === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: "state",
+      data: state,
+      timestamp: new Date().toISOString(),
+    });
+
+    for (const client of allWebSockets) {
+      try {
+        client.send(message);
+      } catch (error) {
+        this.logService.warn("Failed to send to WebSocket client", new Map([["error", String(error)]]));
+        // WebSocket will be cleaned up automatically by hibernation API
+      }
+    }
+  }
+
+  /**
+   * Centralized disposal method for all tracker termination scenarios.
+   * Ensures WebSocket clients are notified, resources are cleaned up, and storage is deleted.
+   */
+  private async dispose(trackerState: LiveTrackerState | null, reason: string): Promise<void> {
+    const allWebSockets = this.state.getWebSockets();
+    this.logService.info(
+      "Disposing tracker",
+      new Map([
+        ["reason", reason],
+        ["hasState", trackerState != null ? "true" : "false"],
+        ["webSocketClients", allWebSockets.length.toString()],
+      ]),
+    );
+
+    // Notify and close WebSocket clients if state exists
+    if (trackerState) {
+      this.broadcastStopMessage(trackerState);
+
+      // Attempt to reset channel name
+      try {
+        await this.resetChannelName(trackerState);
+      } catch (error) {
+        this.logService.info("Failed to reset channel name during disposal", new Map([["error", String(error)]]));
+      }
+    } else if (allWebSockets.length > 0) {
+      // Close any orphaned connections without state
+      this.logService.info(
+        "Closing orphaned WebSocket connections during disposal",
+        new Map([["clientCount", allWebSockets.length.toString()]]),
+      );
+      for (const client of allWebSockets) {
+        try {
+          client.close(1011, "Tracker disposed");
+        } catch (error) {
+          this.logService.info("Failed to close orphaned WebSocket client", new Map([["error", String(error)]]));
+        }
+      }
+    }
+
+    // Delete alarm and all storage
+    await this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAll();
+  }
+
+  private broadcastStopMessage(state: LiveTrackerState): void {
+    const allWebSockets = this.state.getWebSockets();
+
+    this.logService.info(
+      "Notifying WebSocket clients of tracker stop",
+      new Map([["clientCount", allWebSockets.length.toString()]]),
+    );
+
+    const message = JSON.stringify({
+      type: "stopped",
+      data: state,
+      timestamp: new Date().toISOString(),
+    });
+
+    for (const client of allWebSockets) {
+      try {
+        client.send(message);
+        client.close(1000, "Tracker stopped");
+      } catch (error) {
+        this.logService.warn("Failed to notify WebSocket client of stop", new Map([["error", String(error)]]));
+      }
     }
   }
 }
