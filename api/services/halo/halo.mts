@@ -934,7 +934,7 @@ export class HaloService {
   }
 
   private async updateUserKVCache(user: UserInfo): Promise<void> {
-    const cachedUserInfo: CachedUserInfo = { ...user, fetchedAt: Date.now() };
+    const cachedUserInfo: CachedUserInfo = { xuid: user.xuid, gamertag: user.gamertag, fetchedAt: Date.now() };
     const serializedUser = JSON.stringify(cachedUserInfo);
     const opts = {
       expirationTtl: TimeInSeconds["30_DAYS"],
