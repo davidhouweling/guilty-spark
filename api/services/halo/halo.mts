@@ -12,7 +12,7 @@ import type {
   ServiceRecord,
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
-import { differenceInMinutes, isAfter, isBefore } from "date-fns";
+import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
@@ -28,7 +28,15 @@ import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter.mjs";
 import { skillRankCombined } from "./skill-helpers.mjs";
-import type { SeriesData, EsraMatchData, EsraCacheValue, Medal, MatchPlayer, UserInfo } from "./types.mjs";
+import type {
+  SeriesData,
+  EsraMatchData,
+  EsraCacheValue,
+  Medal,
+  MatchPlayer,
+  UserInfo,
+  CachedUserInfo,
+} from "./types.mjs";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types.mjs";
 
 export { FetchablePlaylist } from "./types.mjs";
@@ -257,33 +265,23 @@ export class HaloService {
     }
 
     const kvCachedUser = await this.getUserByGamertagFromKVCache(gamertag);
-    if (kvCachedUser) {
+    if (kvCachedUser?.fetchedAt != null && differenceInDays(new Date(), new Date(kvCachedUser.fetchedAt)) < 1) {
       return kvCachedUser;
     }
 
-    let user: UserInfo;
-    try {
-      user = await this.infiniteClient.getUser(gamertag, {
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-        },
-      });
-    } catch (error) {
-      if (error instanceof RequestError && error.response.status === 500) {
-        this.logService.info(
-          error,
-          new Map([
-            ["context", `Halo Infinite API returned 500 for gamertag ${gamertag}, falling back to Xbox Live API`],
-          ]),
-        );
-        user = await this.xboxService.getUserByGamertag(gamertag);
-      } else {
-        throw error;
-      }
-    }
+    const user = await this.fetchWithResilientFallback(
+      async () =>
+        this.infiniteClient.getUser(gamertag, {
+          cf: {
+            cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+          },
+        }),
+      async () => this.xboxService.getUserByGamertag(gamertag),
+      kvCachedUser,
+      `gamertag ${gamertag}`,
+    );
 
     await this.updateUserKVCache(user);
-
     return user;
   }
 
@@ -293,34 +291,50 @@ export class HaloService {
     }
 
     const kvCachedUsers = await Promise.all(xuids.map(async (xuid) => this.getUserByXuidFromKVCache(xuid)));
-    const missingXuids = xuids.filter((_, index) => kvCachedUsers[index] == null);
+    const freshUsers: UserInfo[] = [];
+    const staleUsers: CachedUserInfo[] = [];
+    const missingXuids: string[] = [];
 
-    let fetchedUsers: UserInfo[] = [];
-    try {
-      fetchedUsers = await this.infiniteClient.getUsers(missingXuids, {
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
-        },
-      });
-    } catch (error) {
-      if (error instanceof RequestError && error.response.status === 500) {
-        this.logService.info(
-          error,
-          new Map([
-            [
-              "context",
-              `Halo Infinite API returned 500 for ${missingXuids.length.toString()} xuids, falling back to Xbox Live API`,
-            ],
-          ]),
-        );
-        fetchedUsers = await this.xboxService.getUsersByXuids(missingXuids);
+    for (const [index, cachedUser] of kvCachedUsers.entries()) {
+      if (cachedUser == null) {
+        missingXuids.push(Preconditions.checkExists(xuids[index]));
+      } else if (differenceInHours(new Date(), new Date(cachedUser.fetchedAt)) < 1) {
+        freshUsers.push(cachedUser);
       } else {
-        throw error;
+        staleUsers.push(cachedUser);
+        missingXuids.push(Preconditions.checkExists(xuids[index]));
       }
     }
 
+    if (missingXuids.length === 0) {
+      return freshUsers;
+    }
+
+    const fetchedUsers = await this.fetchWithResilientFallback(
+      async () =>
+        this.infiniteClient.getUsers(missingXuids, {
+          cf: {
+            cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
+          },
+        }),
+      async () => this.xboxService.getUsersByXuids(missingXuids),
+      staleUsers,
+      `${missingXuids.length.toString()} xuids`,
+      true,
+    );
+
+    const fetchedByXuid = new Map(fetchedUsers.map((user) => [user.xuid, user]));
+    const staleCandidates = staleUsers.filter((staleUser) => !fetchedByXuid.has(staleUser.xuid));
+
+    if (fetchedUsers.length < missingXuids.length && staleCandidates.length > 0) {
+      this.logService.info(
+        `Using ${staleCandidates.length.toString()} stale KV cached users as partial fallback`,
+        new Map([["xuids", staleCandidates.map((u) => u.xuid).join(", ")]]),
+      );
+    }
+
     await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
-    const allUsers: UserInfo[] = [...kvCachedUsers.filter((user): user is UserInfo => user != null), ...fetchedUsers];
+    const allUsers: UserInfo[] = [...freshUsers, ...fetchedUsers, ...staleCandidates];
     return allUsers;
   }
 
@@ -854,18 +868,66 @@ export class HaloService {
     return `cache.halo.xuid.${xuid}`;
   }
 
-  private async getUserByGamertagFromKVCache(gamertag: string): Promise<UserInfo | null> {
-    return this.env.APP_DATA.get<UserInfo>(this.getGamertagKVCacheKey(gamertag), "json");
+  private async getUserByGamertagFromKVCache(gamertag: string): Promise<CachedUserInfo | null> {
+    return this.env.APP_DATA.get<CachedUserInfo>(this.getGamertagKVCacheKey(gamertag), "json");
   }
 
-  private async getUserByXuidFromKVCache(xuid: string): Promise<UserInfo | null> {
-    return this.env.APP_DATA.get<UserInfo>(this.getXuidKVCacheKey(xuid), "json");
+  private async getUserByXuidFromKVCache(xuid: string): Promise<CachedUserInfo | null> {
+    return this.env.APP_DATA.get<CachedUserInfo>(this.getXuidKVCacheKey(xuid), "json");
+  }
+
+  private async fetchWithResilientFallback<T extends UserInfo | UserInfo[]>(
+    primaryFetch: () => Promise<T>,
+    fallbackFetch: () => Promise<T>,
+    staleCache: CachedUserInfo | CachedUserInfo[] | null,
+    identifier: string,
+    allowPartialFailure = false,
+  ): Promise<T> {
+    let result: T | undefined = undefined;
+    let haloError: Error | RequestError | null = null;
+
+    try {
+      result = await primaryFetch();
+    } catch (error) {
+      haloError = error as Error | RequestError;
+      if (error instanceof RequestError && error.response.status === 500) {
+        this.logService.info(
+          error,
+          new Map([["context", `Halo Infinite API returned 500 for ${identifier}, falling back to Xbox Live API`]]),
+        );
+        try {
+          result = await fallbackFetch();
+        } catch (xboxError) {
+          this.logService.info(
+            xboxError as Error,
+            new Map([["context", `Xbox Live API also failed for ${identifier}`]]),
+          );
+        }
+      }
+    }
+
+    // Handle complete failure - use stale cache if available
+    if (result == null || (Array.isArray(result) && result.length === 0 && !allowPartialFailure)) {
+      if (staleCache != null) {
+        const cacheArray = Array.isArray(staleCache) ? staleCache : [staleCache];
+        this.logService.info(
+          `Using ${cacheArray.length.toString()} stale KV cached user(s) for ${identifier}`,
+          new Map([["identifier", identifier]]),
+        );
+        return staleCache as unknown as T;
+      }
+
+      throw haloError ?? new Error(`Failed to fetch user(s) for ${identifier}`);
+    }
+
+    return result;
   }
 
   private async updateUserKVCache(user: UserInfo): Promise<void> {
-    const serializedUser = JSON.stringify(user);
+    const cachedUserInfo: CachedUserInfo = { ...user, fetchedAt: Date.now() };
+    const serializedUser = JSON.stringify(cachedUserInfo);
     const opts = {
-      expirationTtl: TimeInSeconds["1_DAY"],
+      expirationTtl: TimeInSeconds["30_DAYS"],
     };
     await Promise.all([
       this.env.APP_DATA.put(this.getGamertagKVCacheKey(user.gamertag), serializedUser, opts),
