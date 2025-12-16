@@ -3,6 +3,7 @@ import * as tinyduration from "tinyduration";
 import type {
   HaloInfiniteClient,
   MapModePairAsset,
+  MatchCount,
   MatchInfo,
   MatchSkill,
   MatchStats,
@@ -349,6 +350,15 @@ export class HaloService {
       },
     );
     return serviceRecord;
+  }
+
+  async getMatchCount(xuid: string): Promise<MatchCount> {
+    const matchCount = await this.infiniteClient.getPlayerMatchCount(this.wrapPlayerXuid(xuid), {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+      },
+    });
+    return matchCount;
   }
 
   async getPlayersEsras(
@@ -924,7 +934,7 @@ export class HaloService {
   }
 
   private async updateUserKVCache(user: UserInfo): Promise<void> {
-    const cachedUserInfo: CachedUserInfo = { ...user, fetchedAt: Date.now() };
+    const cachedUserInfo: CachedUserInfo = { xuid: user.xuid, gamertag: user.gamertag, fetchedAt: Date.now() };
     const serializedUser = JSON.stringify(cachedUserInfo);
     const opts = {
       expirationTtl: TimeInSeconds["30_DAYS"],

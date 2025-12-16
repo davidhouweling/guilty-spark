@@ -1,4 +1,4 @@
-import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord } from "halo-infinite-api";
+import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord, MatchCount } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/payloads/v10";
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
@@ -18,6 +18,7 @@ interface ServiceRecordEmbedData {
   associationReason: AssociationReason;
   gamertag: string;
   serviceRecord: ServiceRecord;
+  matchCount: MatchCount | undefined;
   csr: PlaylistCsrContainer;
   esra: number;
 }
@@ -42,12 +43,15 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
         `**Xbox Gamertag:** ${gamertag}`,
         `**Association reason:** ${this.formatAssociationReason(associationReason)}`,
         "",
-        `**Time played:** ${haloService.getReadableDuration(serviceRecord.TimePlayed, locale)}`,
-        `**Matchmaking games completed:** ${serviceRecord.MatchesCompleted.toLocaleString(locale)}`,
-        `**Wins : Losses : Ties:** ${serviceRecord.Wins.toLocaleString(locale)} : ${serviceRecord.Losses.toLocaleString(locale)} : ${serviceRecord.Ties.toLocaleString(locale)}`,
-        `**Win percentage: ** ${this.formatStatValue((serviceRecord.Wins / Math.max(serviceRecord.MatchesCompleted, 1)) * 100)}%`,
-        `**Total kills:deaths : assists (av KDA):** ${serviceRecord.CoreStats.Kills.toLocaleString(locale)} : ${serviceRecord.CoreStats.Deaths.toLocaleString(locale)} : ${serviceRecord.CoreStats.Assists.toLocaleString(locale)} (${serviceRecord.CoreStats.AverageKDA.toLocaleString(locale)})`,
-        `**Total Damage D:T (D/T):** ${serviceRecord.CoreStats.DamageDealt.toLocaleString(locale)} : ${serviceRecord.CoreStats.DamageTaken.toLocaleString(locale)} (${this.formatDamageRatio(serviceRecord.CoreStats.DamageDealt, serviceRecord.CoreStats.DamageTaken)})`,
+        `**Matchmade matches played:** ${this.data.matchCount?.MatchmadeMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        `**Custom matches played:** ${this.data.matchCount?.CustomMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        `**Local matches played:** ${this.data.matchCount?.LocalMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        "",
+        `**Matchmaking Time played:** ${haloService.getReadableDuration(serviceRecord.TimePlayed, locale)}`,
+        `**Matchmaking Wins : Losses : Ties:** ${serviceRecord.Wins.toLocaleString(locale)} : ${serviceRecord.Losses.toLocaleString(locale)} : ${serviceRecord.Ties.toLocaleString(locale)}`,
+        `**Matchmaking Win percentage: ** ${this.formatStatValue((serviceRecord.Wins / Math.max(serviceRecord.MatchesCompleted, 1)) * 100)}%`,
+        `**Matchmaking Total kills:deaths : assists (av KDA):** ${serviceRecord.CoreStats.Kills.toLocaleString(locale)} : ${serviceRecord.CoreStats.Deaths.toLocaleString(locale)} : ${serviceRecord.CoreStats.Assists.toLocaleString(locale)} (${serviceRecord.CoreStats.AverageKDA.toLocaleString(locale)})`,
+        `**Matchmaking Total Damage D:T (D/T):** ${serviceRecord.CoreStats.DamageDealt.toLocaleString(locale)} : ${serviceRecord.CoreStats.DamageTaken.toLocaleString(locale)} (${this.formatDamageRatio(serviceRecord.CoreStats.DamageDealt, serviceRecord.CoreStats.DamageTaken)})`,
         "",
         `**Current Ranked Arena CSR:** ${this.formatCsr(csr.Current)}`,
         `**Season Peak Ranked Arena CSR:** ${this.formatCsr(csr.SeasonMax)}`,

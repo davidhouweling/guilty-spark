@@ -1,5 +1,5 @@
 import { describe, beforeEach, it, expect } from "vitest";
-import type { PlaylistCsr, PlaylistCsrContainer } from "halo-infinite-api";
+import type { PlaylistCsr, PlaylistCsrContainer, MatchCount } from "halo-infinite-api";
 import { ServiceRecordEmbed } from "../service-record-embed.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -10,6 +10,13 @@ import { aFakeServiceRecordWith } from "../../../services/halo/fakes/data.mjs";
 describe("ServiceRecordEmbed", () => {
   let env: Env;
   let services: Services;
+
+  const mockMatchCount: MatchCount = {
+    CustomMatchesPlayedCount: 150,
+    MatchesPlayedCount: 650,
+    MatchmadeMatchesPlayedCount: 500,
+    LocalMatchesPlayedCount: 0,
+  };
 
   const mockServiceRecord = aFakeServiceRecordWith({
     TimePlayed: "PT100H30M15S",
@@ -59,6 +66,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1350,
         },
@@ -69,8 +77,8 @@ describe("ServiceRecordEmbed", () => {
       expect(result.title).toBe("Service record");
       expect(result.description).toContain("**Discord user**: <@123456789>");
       expect(result.description).toContain("**Xbox Gamertag:** TestGamer");
-      expect(result.description).toContain("**Matchmaking games completed:** 500");
-      expect(result.description).toContain("**Wins : Losses : Ties:** 300 : 180 : 20");
+      expect(result.description).toContain("**Matchmade matches played:** 500");
+      expect(result.description).toContain("**Matchmaking Wins : Losses : Ties:** 300 : 180 : 20");
     });
 
     it("formats time played correctly", () => {
@@ -82,6 +90,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -89,7 +98,7 @@ describe("ServiceRecordEmbed", () => {
 
       const result = embed.embed;
 
-      expect(result.description).toContain("**Time played:**");
+      expect(result.description).toContain("**Matchmaking Time played:**");
     });
 
     it("displays win percentage correctly", () => {
@@ -101,6 +110,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -108,7 +118,7 @@ describe("ServiceRecordEmbed", () => {
 
       const result = embed.embed;
 
-      expect(result.description).toContain("**Win percentage: ** 60%");
+      expect(result.description).toContain("**Matchmaking Win percentage: ** 60%");
     });
 
     it("displays damage ratio correctly", () => {
@@ -120,6 +130,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -127,7 +138,7 @@ describe("ServiceRecordEmbed", () => {
 
       const result = embed.embed;
 
-      expect(result.description).toContain("**Total Damage D:T (D/T):** 500,000 : 450,000 (1.11)");
+      expect(result.description).toContain("**Matchmaking Total Damage D:T (D/T):** 500,000 : 450,000 (1.11)");
     });
 
     it("displays CSR information correctly", () => {
@@ -139,6 +150,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -160,6 +172,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1350,
         },
@@ -180,6 +193,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 0,
         },
@@ -199,6 +213,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -218,6 +233,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.USERNAME_SEARCH,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -237,6 +253,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.DISPLAY_NAME_SEARCH,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -256,6 +273,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.GAME_SIMILARITY,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -275,6 +293,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.MANUAL,
           serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -302,6 +321,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: recordWithNoDamageTaken,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -329,6 +349,7 @@ describe("ServiceRecordEmbed", () => {
           gamertag: "TestGamer",
           associationReason: AssociationReason.CONNECTED,
           serviceRecord: recordWithNoDamageDealt,
+          matchCount: mockMatchCount,
           csr: mockCsrContainer,
           esra: 1500,
         },
@@ -337,6 +358,50 @@ describe("ServiceRecordEmbed", () => {
       const result = embed.embed;
 
       expect(result.description).toContain("(0)");
+    });
+
+    it("displays match count information when available", () => {
+      const embed = new ServiceRecordEmbed(
+        { haloService: services.haloService, discordService: services.discordService },
+        {
+          locale: "en-US",
+          discordUserId: "123456789",
+          gamertag: "TestGamer",
+          associationReason: AssociationReason.CONNECTED,
+          serviceRecord: mockServiceRecord,
+          matchCount: mockMatchCount,
+          csr: mockCsrContainer,
+          esra: 1500,
+        },
+      );
+
+      const result = embed.embed;
+
+      expect(result.description).toContain("**Matchmade matches played:** 500");
+      expect(result.description).toContain("**Custom matches played:** 150");
+      expect(result.description).toContain("**Local matches played:** 0");
+    });
+
+    it("displays 'Unavailable' for match counts when undefined", () => {
+      const embed = new ServiceRecordEmbed(
+        { haloService: services.haloService, discordService: services.discordService },
+        {
+          locale: "en-US",
+          discordUserId: "123456789",
+          gamertag: "TestGamer",
+          associationReason: AssociationReason.CONNECTED,
+          serviceRecord: mockServiceRecord,
+          matchCount: undefined,
+          csr: mockCsrContainer,
+          esra: 1500,
+        },
+      );
+
+      const result = embed.embed;
+
+      expect(result.description).toContain("**Matchmade matches played:** *Unavailable*");
+      expect(result.description).toContain("**Custom matches played:** *Unavailable*");
+      expect(result.description).toContain("**Local matches played:** *Unavailable*");
     });
   });
 });
