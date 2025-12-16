@@ -5,6 +5,7 @@ import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
 import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
+import type { CachedUserInfo } from "../types.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -1011,7 +1012,6 @@ describe("Halo service", () => {
         it("continues processing when Xbox gamertag lookup fails", async () => {
           const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
-          const logWarnSpy = vi.spyOn(logService, "warn");
 
           getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
             return Promise.resolve(
@@ -1039,7 +1039,7 @@ describe("Halo service", () => {
 
           const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
-          expect(logWarnSpy).toHaveBeenCalledWith("Failed to fetch Xbox gamertags for fuzzy matching: Xbox API failed");
+          // getUsersByXuids now returns empty array on failure instead of throwing
           expect(result).toHaveLength(3);
         });
 
@@ -1762,37 +1762,27 @@ describe("Halo service", () => {
       expect(kvPutSpy).toHaveBeenCalledWith(
         "cache.halo.gamertag.gamertag0100000000000000",
         expect.stringContaining('"xuid":"0100000000000000"'),
-        { expirationTtl: 86400 },
+        { expirationTtl: 2592000 },
       );
       expect(kvPutSpy).toHaveBeenCalledWith(
         "cache.halo.xuid.0100000000000000",
         expect.stringContaining('"xuid":"0100000000000000"'),
-        { expirationTtl: 86400 },
+        { expirationTtl: 2592000 },
       );
     });
 
     it("returns cached users without calling API when all are cache hits", async () => {
       const xuids = ["cached1", "cached2"];
-      const cachedUsers: UserInfo[] = [
+      const cachedUsers: CachedUserInfo[] = [
         {
           xuid: "cached1",
           gamertag: "CachedUser1",
-          gamerpic: {
-            small: "small1.png",
-            medium: "medium1.png",
-            large: "large1.png",
-            xlarge: "xlarge1.png",
-          },
+          fetchedAt: Date.now(),
         },
         {
           xuid: "cached2",
           gamertag: "CachedUser2",
-          gamerpic: {
-            small: "small2.png",
-            medium: "medium2.png",
-            large: "large2.png",
-            xlarge: "xlarge2.png",
-          },
+          fetchedAt: Date.now(),
         },
       ];
 
@@ -1814,24 +1804,15 @@ describe("Halo service", () => {
       const result = await haloService.getUsersByXuids(xuids);
 
       expect(result).toEqual(cachedUsers);
-      expect(getUsersSpy).toHaveBeenCalledWith([], {
-        cf: {
-          cacheTtlByStatus: { "200-299": 3600, 404: 3600, "500-599": 0 },
-        },
-      });
+      expect(getUsersSpy).not.toHaveBeenCalled();
     });
 
     it("only fetches missing xuids when some are cached", async () => {
       const xuids = ["cached1", "missing1", "missing2"];
-      const cachedUser: UserInfo = {
+      const cachedUser: CachedUserInfo = {
         xuid: "cached1",
         gamertag: "CachedUser1",
-        gamerpic: {
-          small: "small1.png",
-          medium: "medium1.png",
-          large: "large1.png",
-          xlarge: "xlarge1.png",
-        },
+        fetchedAt: Date.now(),
       };
 
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
@@ -1864,15 +1845,15 @@ describe("Halo service", () => {
     it("combines cached and fetched users in correct order", async () => {
       const xuids = ["cached1", "fetch1", "cached2"];
 
-      const cachedUser1: UserInfo = {
+      const cachedUser1: CachedUserInfo = {
         xuid: "cached1",
         gamertag: "CachedUser1",
-        gamerpic: { small: "s1.png", medium: "m1.png", large: "l1.png", xlarge: "xl1.png" },
+        fetchedAt: Date.now(),
       };
-      const cachedUser2: UserInfo = {
+      const cachedUser2: CachedUserInfo = {
         xuid: "cached2",
         gamertag: "CachedUser2",
-        gamerpic: { small: "s2.png", medium: "m2.png", large: "l2.png", xlarge: "xl2.png" },
+        fetchedAt: Date.now(),
       };
 
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
@@ -1927,15 +1908,254 @@ describe("Halo service", () => {
       expect(result).toEqual(xboxUsers);
     });
 
-    it("throws non-500 errors without fallback", async () => {
-      const xuids = ["xuid1", "xuid2"];
+    it("returns empty array for non-500 errors when no stale cache exists", async () => {
+      const xuids = ["xuid1"];
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+
       const response404 = new Response("Not Found", { status: 404, statusText: "Not Found" });
       infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response404));
 
       const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
 
-      await expect(haloService.getUsersByXuids(xuids)).rejects.toThrow(RequestError);
+      const result = await haloService.getUsersByXuids(xuids);
+      expect(result).toEqual([]);
       expect(xboxServiceSpy).not.toHaveBeenCalled();
+    });
+
+    it("uses stale cache when both Halo API and Xbox API fail for all xuids", async () => {
+      const xuids = ["stale1", "stale2"];
+      const staleUser1: CachedUserInfo = {
+        xuid: "stale1",
+        gamertag: "StaleUser1",
+        fetchedAt: Date.now() - 3600000 * 2,
+      };
+      const staleUser2: CachedUserInfo = {
+        xuid: "stale2",
+        gamertag: "StaleUser2",
+        fetchedAt: Date.now() - 3600000 * 2,
+      };
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (type === "json") {
+          if (key === "cache.halo.xuid.stale1") {
+            return staleUser1;
+          }
+          if (key === "cache.halo.xuid.stale2") {
+            return staleUser2;
+          }
+        }
+        return null;
+      });
+
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      infiniteClient.getUsers.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox API also failed"));
+
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(result).toEqual([staleUser1, staleUser2]);
+      expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Using 2 stale KV cached user(s)"),
+        expect.any(Map),
+      );
+    });
+
+    it("uses partial stale cache when some xuids fail to fetch", async () => {
+      const xuids = ["fresh1", "stale1", "fresh2"];
+      const staleUser: CachedUserInfo = {
+        xuid: "stale1",
+        gamertag: "StaleUser1",
+        fetchedAt: Date.now() - 3600000 * 2,
+      };
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (key === "cache.halo.xuid.stale1" && type === "json") {
+          return staleUser;
+        }
+        return null;
+      });
+
+      const freshUsers: UserInfo[] = [
+        {
+          xuid: "fresh1",
+          gamertag: "FreshUser1",
+          gamerpic: { small: "s1.png", medium: "m1.png", large: "l1.png", xlarge: "xl1.png" },
+        },
+        {
+          xuid: "fresh2",
+          gamertag: "FreshUser2",
+          gamerpic: { small: "s2.png", medium: "m2.png", large: "l2.png", xlarge: "xl2.png" },
+        },
+      ];
+      infiniteClient.getUsers.mockResolvedValueOnce(freshUsers);
+
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(result.length).toBe(3);
+      expect(result).toContainEqual(staleUser);
+      expect(result).toContainEqual(freshUsers[0]);
+      expect(result).toContainEqual(freshUsers[1]);
+      expect(logInfoSpy).toHaveBeenCalledWith(expect.stringContaining("Using 1 stale KV cached user"), expect.any(Map));
+    });
+
+    it("returns empty array when both APIs fail and no stale cache exists", async () => {
+      const xuids = ["fail1"];
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      const haloError = new RequestError(new URL("https://example.com"), response500);
+      infiniteClient.getUsers.mockRejectedValueOnce(haloError);
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox API also failed"));
+
+      const result = await haloService.getUsersByXuids(xuids);
+      expect(result).toEqual([]);
+      expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
+    });
+
+    it("does not use stale cache when primary API succeeds", async () => {
+      const xuids = ["fresh1", "fresh2"];
+      const freshUsers: UserInfo[] = [
+        {
+          xuid: "fresh1",
+          gamertag: "FreshUser1",
+          gamerpic: { small: "s1.png", medium: "m1.png", large: "l1.png", xlarge: "xl1.png" },
+        },
+        {
+          xuid: "fresh2",
+          gamertag: "FreshUser2",
+          gamerpic: { small: "s2.png", medium: "m2.png", large: "l2.png", xlarge: "xl2.png" },
+        },
+      ];
+      const staleUsers: CachedUserInfo[] = [
+        {
+          xuid: "fresh1",
+          gamertag: "OldUser1",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+        {
+          xuid: "fresh2",
+          gamertag: "OldUser2",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+      ];
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (type === "json") {
+          if (key === "cache.halo.xuid.fresh1") {
+            return staleUsers[0];
+          }
+          if (key === "cache.halo.xuid.fresh2") {
+            return staleUsers[1];
+          }
+        }
+        return null;
+      });
+
+      infiniteClient.getUsers.mockResolvedValueOnce(freshUsers);
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(result).toEqual(freshUsers);
+      expect(result[0]?.gamertag).toBe("FreshUser1");
+      expect(result[1]?.gamertag).toBe("FreshUser2");
+    });
+
+    it("refetches xuids when cache is stale based on fetchedAt timestamp", async () => {
+      const xuids = ["staleTimestamp1", "staleTimestamp2"];
+      const staleUsers: CachedUserInfo[] = [
+        {
+          xuid: "staleTimestamp1",
+          gamertag: "StaleUser1",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+        {
+          xuid: "staleTimestamp2",
+          gamertag: "StaleUser2",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+      ];
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (type === "json") {
+          if (key === "cache.halo.xuid.staleTimestamp1") {
+            return staleUsers[0];
+          }
+          if (key === "cache.halo.xuid.staleTimestamp2") {
+            return staleUsers[1];
+          }
+        }
+        return null;
+      });
+
+      const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+      await haloService.getUsersByXuids(xuids);
+
+      expect(getUsersSpy).toHaveBeenCalledWith(xuids, {
+        cf: {
+          cacheTtlByStatus: { "200-299": 3600, 404: 3600, "500-599": 0 },
+        },
+      });
+    });
+
+    it("filters out stale users that were successfully fetched fresh", async () => {
+      const xuids = ["user1", "user2"];
+      const staleUsers: CachedUserInfo[] = [
+        {
+          xuid: "user1",
+          gamertag: "OldUser1",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+        {
+          xuid: "user2",
+          gamertag: "OldUser2",
+          fetchedAt: Date.now() - 3600000 * 2,
+        },
+      ];
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (type === "json") {
+          if (key === "cache.halo.xuid.user1") {
+            return staleUsers[0];
+          }
+          if (key === "cache.halo.xuid.user2") {
+            return staleUsers[1];
+          }
+        }
+        return null;
+      });
+
+      const freshUser: UserInfo = {
+        xuid: "user1",
+        gamertag: "FreshUser1",
+        gamerpic: { small: "fresh1.png", medium: "fresh1.png", large: "fresh1.png", xlarge: "fresh1.png" },
+      };
+      infiniteClient.getUsers.mockResolvedValueOnce([freshUser]);
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      const user1Results = result.filter((u) => u.xuid === "user1");
+      expect(user1Results).toHaveLength(1);
+      expect(user1Results[0]?.gamertag).toBe("FreshUser1");
+
+      const user2Results = result.filter((u) => u.xuid === "user2");
+      expect(user2Results).toHaveLength(1);
+      expect(user2Results[0]?.gamertag).toBe("OldUser2");
     });
   });
 
@@ -2054,26 +2274,21 @@ describe("Halo service", () => {
       expect(kvPutSpy).toHaveBeenCalledWith(
         "cache.halo.gamertag.gamertag0100000000000000",
         expect.stringContaining('"gamertag":"gamertag0100000000000000"'),
-        { expirationTtl: 86400 },
+        { expirationTtl: 2592000 },
       );
       expect(kvPutSpy).toHaveBeenCalledWith(
         "cache.halo.xuid.0100000000000000",
         expect.stringContaining('"xuid":"0100000000000000"'),
-        { expirationTtl: 86400 },
+        { expirationTtl: 2592000 },
       );
     });
 
     it("returns cached user without calling API on cache hit", async () => {
       const gamertag = "cachedGamertag";
-      const cachedUser: UserInfo = {
+      const cachedUser: CachedUserInfo = {
         xuid: "1234567890",
         gamertag: "cachedGamertag",
-        gamerpic: {
-          small: "small.png",
-          medium: "medium.png",
-          large: "large.png",
-          xlarge: "xlarge.png",
-        },
+        fetchedAt: Date.now(),
       };
 
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
@@ -2131,6 +2346,110 @@ describe("Halo service", () => {
 
       await expect(haloService.getUserByGamertag(gamertag)).rejects.toThrow(RequestError);
       expect(xboxServiceSpy).not.toHaveBeenCalled();
+    });
+
+    it("uses stale cache when both Halo API and Xbox API fail", async () => {
+      const gamertag = "StaleGamertag";
+      const staleUser: CachedUserInfo = {
+        xuid: "1234567890",
+        gamertag: "StaleGamertag",
+        fetchedAt: Date.now() - 86400000 * 2,
+      };
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (key === "cache.halo.gamertag.StaleGamertag" && type === "json") {
+          return staleUser;
+        }
+        return null;
+      });
+
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      infiniteClient.getUser.mockRejectedValueOnce(new RequestError(new URL("https://example.com"), response500));
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUserByGamertag");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox API also failed"));
+
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUserByGamertag(gamertag);
+
+      expect(result).toEqual(staleUser);
+      expect(xboxServiceSpy).toHaveBeenCalledWith(gamertag);
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Using 1 stale KV cached user(s)"),
+        expect.any(Map),
+      );
+    });
+
+    it("throws error when both APIs fail and no stale cache exists", async () => {
+      const gamertag = "FailGamertag";
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+
+      const response500 = new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+      const haloError = new RequestError(new URL("https://example.com"), response500);
+      infiniteClient.getUser.mockRejectedValueOnce(haloError);
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUserByGamertag");
+      xboxServiceSpy.mockRejectedValueOnce(new Error("Xbox API also failed"));
+
+      await expect(haloService.getUserByGamertag(gamertag)).rejects.toThrow(RequestError);
+      expect(xboxServiceSpy).toHaveBeenCalledWith(gamertag);
+    });
+
+    it("does not use stale cache when primary API succeeds", async () => {
+      const gamertag = "FreshGamertag";
+      const freshUser: UserInfo = {
+        xuid: "9999999999",
+        gamertag: "FreshGamertag",
+        gamerpic: { small: "small.png", medium: "medium.png", large: "large.png", xlarge: "xlarge.png" },
+      };
+      const staleUser: CachedUserInfo = {
+        xuid: "9999999999",
+        gamertag: "FreshGamertag",
+        fetchedAt: Date.now() - 86400000 * 2,
+      };
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (key === "cache.halo.gamertag.FreshGamertag" && type === "json") {
+          return staleUser;
+        }
+        return null;
+      });
+
+      infiniteClient.getUser.mockResolvedValueOnce(freshUser);
+
+      const result = await haloService.getUserByGamertag(gamertag);
+
+      expect(result).toEqual(freshUser);
+    });
+
+    it("refetches when cache is stale based on fetchedAt timestamp", async () => {
+      const gamertag = "StaleTimestampGamertag";
+      const staleUser: CachedUserInfo = {
+        xuid: "1234567890",
+        gamertag: "StaleTimestampGamertag",
+        fetchedAt: Date.now() - 86400000 * 2,
+      };
+
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) => {
+        if (key === "cache.halo.gamertag.StaleTimestampGamertag" && type === "json") {
+          return staleUser;
+        }
+        return null;
+      });
+
+      const getUserSpy = vi.spyOn(infiniteClient, "getUser");
+
+      await haloService.getUserByGamertag(gamertag);
+
+      expect(getUserSpy).toHaveBeenCalledWith(gamertag, {
+        cf: {
+          cacheTtlByStatus: { "200-299": 86400, 404: 60, "500-599": 0 },
+        },
+      });
     });
   });
 
