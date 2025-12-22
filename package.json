@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@sentry/cli": "^2.58.4",
-    "@sentry/cloudflare": "^10.30.0",
+    "@sentry/cloudflare": "^10.32.1",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.38.37",
@@ -59,8 +59,8 @@
     "@tsconfig/node24": "^24.0.3",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
-    "@typescript-eslint/parser": "^8.49.0",
-    "@vitest/coverage-v8": "^4.0.15",
+    "@typescript-eslint/parser": "^8.50.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -73,9 +73,9 @@
     "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.49.0",
+    "typescript-eslint": "^8.50.0",
     "vitest": "^4.0.6",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.54.0"
+    "wrangler": "^4.56.0"
   }
 }
