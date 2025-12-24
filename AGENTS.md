@@ -120,6 +120,7 @@ npm run format:fix
 - **Dependencies**: Only mock constructor dependencies, never internal methods
 - **Data**: Use fake factories (`aFake...With()`) for test data
 - Tests must pass before committing
+- Do not override a property using `X.y = vi.fn()`, use `vi.SpyOn()` to preserve the original implementation
 
 ## Development Environment
 
