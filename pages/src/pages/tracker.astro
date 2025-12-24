@@ -2,159 +2,46 @@
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container.astro";
 import { API_HOST } from "../constants";
+import styles from "../styles/tracker.module.css";
 ---
 
 <Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
   <Container>
-    <div class="tracker-demo">
+    <div class={styles.trackerDemo}>
       <h1>Live Tracker WebSocket Demo</h1>
       <p>Connect to a live tracker to see real-time updates</p>
 
-      <div id="connection-info" class="connection-info">
-        <div class="info-group">
-          <label>Guild ID:</label>
-          <span id="display-guildId">Not set</span>
+      <div id="connection-info" class={styles.connectionInfo}>
+        <div class={styles.infoGroup}>
+          <label class={styles.infoLabel}>Guild ID:</label>
+          <span id="display-guildId" class={styles.infoValue}>Not set</span>
         </div>
 
-        <div class="info-group">
-          <label>Channel ID:</label>
-          <span id="display-channelId">Not set</span>
+        <div class={styles.infoGroup}>
+          <label class={styles.infoLabel}>Channel ID:</label>
+          <span id="display-channelId" class={styles.infoValue}>Not set</span>
         </div>
 
-        <div class="info-group">
-          <label>Queue Number:</label>
-          <span id="display-queueNumber">Not set</span>
+        <div class={styles.infoGroup}>
+          <label class={styles.infoLabel}>Queue Number:</label>
+          <span id="display-queueNumber" class={styles.infoValue}>Not set</span>
         </div>
 
-        <button type="button" id="disconnect-btn" disabled>Disconnect</button>
+        <button type="button" id="disconnect-btn" class={styles.disconnectButton} disabled>Disconnect</button>
       </div>
 
-      <div id="connection-status" class="status">
+      <div id="connection-status" class={styles.status}>
         <strong>Status:</strong>
         <span id="status-text">Disconnected</span>
       </div>
 
-      <div id="data-container">
+      <div id="data-container" class={styles.dataContainer}>
         <h2>Live Tracker Data:</h2>
         <pre id="tracker-data">No data yet. Connect to a live tracker to see updates.</pre>
       </div>
     </div>
   </Container>
 </Layout>
-
-<style>
-  .tracker-demo {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-  }
-
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: #fff;
-  }
-
-  p {
-    color: #999;
-    margin-bottom: 2rem;
-  }
-
-  .connection-info {
-    background: #1a1a1a;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .info-group {
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .info-group:last-of-type {
-    margin-bottom: 1.5rem;
-  }
-
-  label {
-    color: #999;
-    font-weight: 500;
-    min-width: 120px;
-  }
-
-  .info-group span {
-    color: #fff;
-    font-family: "Courier New", monospace;
-  }
-
-  button {
-    padding: 0.75rem 1.5rem;
-    background: #ed4245;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-
-  button:hover:not(:disabled) {
-    background: #c03537;
-  }
-
-  button:disabled {
-    background: #444;
-    cursor: not-allowed;
-  }
-
-  .status {
-    background: #1a1a1a;
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 2rem;
-    color: #fff;
-  }
-
-  #status-text {
-    color: #faa61a;
-  }
-
-  #status-text.connected {
-    color: #43b581;
-  }
-
-  #status-text.error {
-    color: #ed4245;
-  }
-
-  #data-container {
-    background: #1a1a1a;
-    padding: 1.5rem;
-    border-radius: 8px;
-  }
-
-  h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: #fff;
-  }
-
-  #tracker-data {
-    background: #0d0d0d;
-    padding: 1rem;
-    border-radius: 4px;
-    color: #43b581;
-    font-family: "Courier New", monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 600px;
-    overflow-y: auto;
-  }
-</style>
 
 <script define:vars={{ apiHost: API_HOST }} is:inline>
   // Injected from server-side: apiHost

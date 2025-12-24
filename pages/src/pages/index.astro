@@ -19,6 +19,7 @@ import CombatRecordMedia from "../components/demo-media/combat-record-media.astr
 import NeatQueueMedia from "../components/demo-media/neatqueue-media.astro";
 import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro";
 import TestimonialCarousel from "../components/testimonials/testimonial-carousel.astro";
+import styles from "../styles/index.module.css";
 
 const heroStats = [
   { value: "33", label: "Servers" },
@@ -133,39 +134,39 @@ const testimonialItems: CommunityTestimonial[] = [
 
 <Layout>
   <!-- Hero Section -->
-  <section class="hero-section">
-    <Container class="hero-content">
-      <div class="hero-badge">
-        <span class="badge-bracket">[</span>
+  <section class={styles.heroSection}>
+    <Container class={styles.heroContent}>
+      <div class={styles.heroBadge}>
+        <span class={styles.badgeBracket}>[</span>
         <span>Protocol Active</span>
-        <span class="badge-bracket">]</span>
+        <span class={styles.badgeBracket}>]</span>
       </div>
 
-      <h1 class="hero-title">
-        <span class="title-line">Guilty</span>
-        <span class="title-line">Spark</span>
+      <h1 class={styles.heroTitle}>
+        <span class={styles.titleLine}>Guilty</span>
+        <span class={styles.titleLine}>Spark</span>
       </h1>
 
-      <div class="hero-subtitle">Halo Infinite Combat Statistics Interface</div>
+      <div class={styles.heroSubtitle}>Halo Infinite Combat Statistics Interface</div>
 
-      <p class="hero-description">
+      <p class={styles.heroDescription}>
         Greetings, Reclaimer. I am 343 Guilty Spark, custodian of Installation 04's combat records. Access comprehensive
         telemetry analysis for your Halo Infinite custom games directly within Discord.
       </p>
 
-      <div class="hero-buttons">
+      <div class={styles.heroButtons}>
         <Button href={DISCORD_INVITE_URL} variant="primary" target="_blank" icon={DiscordLogo}>Add to Discord</Button>
       </div>
 
       <!-- Stats Display -->
-      <div class="stats-grid">
+      <div class={styles.statsGrid}>
         {heroStats.map(({ value, label }) => <StatCard value={value} label={label} />)}
       </div>
     </Container>
   </section>
 
   <!-- Testimonials Section -->
-  <section class="testimonials-section" aria-label="Community testimonials">
+  <section class={styles.testimonialsSection} aria-label="Community testimonials">
     <Container>
       <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
       <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
@@ -173,10 +174,10 @@ const testimonialItems: CommunityTestimonial[] = [
   </section>
 
   <!-- Demo Section -->
-  <section class="demo-section">
+  <section class={styles.demoSection}>
     <Container>
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
-      <div class="demo-grid">
+      <div class={styles.demoGrid}>
         {
           demoItems.map(({ title, description, iconVariant, Icon, Media, wide }) => (
             <DemoCard title={title} description={description} iconVariant={iconVariant} wide={wide}>
@@ -190,11 +191,11 @@ const testimonialItems: CommunityTestimonial[] = [
   </section>
 
   <!-- Features Section -->
-  <section id="features" class="features-section">
+  <section id="features" class={styles.featuresSection}>
     <Container>
       <SectionHeader title="Capabilities" subtitle="Advanced Combat Analysis Systems" />
 
-      <div class="features-grid">
+      <div class={styles.featuresGrid}>
         {
           featureItems.map(({ title, description, Icon }) => (
             <FeatureCard title={title} description={description}>
@@ -207,436 +208,24 @@ const testimonialItems: CommunityTestimonial[] = [
   </section>
 
   <!-- Commands Section -->
-  <section id="commands" class="commands-section">
+  <section id="commands" class={styles.commandsSection}>
     <Container>
       <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
 
-      <div class="commands-grid">
+      <div class={styles.commandsGrid}>
         {commandItems.map(({ command, description }) => <CommandCard command={command} description={description} />)}
       </div>
     </Container>
   </section>
 
   <!-- CTA Section -->
-  <section class="cta-section">
+  <section class={styles.ctaSection}>
     <Container>
-      <div class="cta-content">
-        <h2 class="cta-title">Ready to Deploy?</h2>
-        <p class="cta-text">Integrate combat statistics into your Discord server now.</p>
+      <div class={styles.ctaContent}>
+        <h2 class={styles.ctaTitle}>Ready to Deploy?</h2>
+        <p class={styles.ctaText}>Integrate combat statistics into your Discord server now.</p>
         <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank"> Activate Protocol </Button>
       </div>
     </Container>
   </section>
 </Layout>
-
-<style>
-  /* ============================================ */
-  /* Base Styles - Mobile First                  */
-  /* ============================================ */
-
-  /* Animations */
-  @keyframes scan {
-    0%,
-    100% {
-      transform: translateY(0);
-      opacity: 0;
-    }
-    50% {
-      opacity: 0.5;
-    }
-    100% {
-      transform: translateY(100vh);
-    }
-  }
-
-  /* Hero Section */
-  .hero-section {
-    min-height: 80vh;
-    padding-top: 80px;
-    padding-bottom: 2rem;
-    background:
-      radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.08) 0%, transparent 50%),
-      linear-gradient(
-        45deg,
-        transparent 48%,
-        rgba(93, 212, 216, 0.03) 49%,
-        rgba(93, 212, 216, 0.03) 51%,
-        transparent 52%
-      );
-  }
-
-  .hero-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.4rem 0.75rem;
-    background: rgba(13, 77, 82, 0.6);
-    border: 1px solid var(--halo-teal-primary);
-    font-family: var(--font-body);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    color: var(--halo-teal-primary);
-    margin-bottom: 2rem;
-    text-transform: uppercase;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .badge-bracket {
-    color: var(--halo-accent);
-    font-weight: 700;
-  }
-
-  .hero-title {
-    font-family: var(--font-heading);
-    font-size: clamp(3rem, 12vw, 8rem);
-    font-weight: 800;
-    line-height: 0.9;
-    letter-spacing: 0.05em;
-    color: var(--halo-white);
-    text-shadow:
-      0 0 20px rgba(93, 212, 216, 0.5),
-      0 0 40px rgba(93, 212, 216, 0.3);
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .title-line {
-    display: block;
-    background: linear-gradient(180deg, var(--halo-white) 0%, var(--halo-teal-primary) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-transform: uppercase;
-  }
-
-  .hero-subtitle {
-    font-family: var(--font-body);
-    font-size: clamp(0.9rem, 2vw, 1.3rem);
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    color: var(--halo-teal-primary);
-    margin-bottom: 2rem;
-    text-transform: uppercase;
-  }
-
-  .hero-description {
-    font-family: var(--font-body);
-    font-size: clamp(0.95rem, 2vw, 1.3rem);
-    font-weight: 400;
-    line-height: 1.8;
-    color: var(--halo-gray);
-    max-width: 800px;
-    margin: 0 auto 2rem;
-  }
-
-  .hero-buttons {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-    justify-content: center;
-    margin-bottom: 3rem;
-  }
-
-  /* Stats Grid */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  /* Sections */
-  .demo-section,
-  .features-section,
-  .testimonials-section,
-  .commands-section {
-    padding: 4rem 0;
-    background: var(--halo-bg-secondary);
-    position: relative;
-  }
-
-  .features-section,
-  .commands-section {
-    background: var(--halo-bg-primary);
-  }
-
-  /* Demo Section */
-  .demo-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 3rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  .demo-card {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .demo-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .demo-icon {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    color: var(--halo-teal-primary);
-    filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
-  }
-
-  .demo-icon-image {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-  }
-
-  .demo-icon-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    filter: brightness(0) saturate(100%) invert(79%) sepia(18%) saturate(1281%) hue-rotate(130deg) brightness(95%)
-      contrast(89%);
-  }
-
-  .demo-title {
-    font-family: var(--font-heading);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--halo-white);
-    text-transform: uppercase;
-  }
-
-  .demo-description {
-    font-family: var(--font-body);
-    font-size: 1rem;
-    font-weight: 400;
-    line-height: 1.7;
-    color: var(--halo-gray);
-    margin-bottom: 1.5rem;
-  }
-
-  .demo-image {
-    display: block;
-    margin: 0 auto;
-    border: 2px solid var(--halo-teal-dark);
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    image-rendering: crisp-edges;
-    transition: all 0.3s ease;
-  }
-
-  .demo-card.card-hover:hover .demo-image {
-    border-color: var(--halo-teal-primary);
-    box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
-  }
-
-  .demo-media-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    max-width: 700px;
-    margin: 0 auto;
-  }
-
-  .demo-media-item {
-    position: relative;
-  }
-
-  .demo-caption {
-    font-family: var(--font-body);
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--halo-gray);
-    text-align: center;
-    margin-top: 0.75rem;
-    letter-spacing: 0.05em;
-  }
-
-  /* Features Grid */
-  .features-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  /* Commands Grid */
-  .commands-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  /* CTA Section */
-  .cta-section {
-    padding: 5rem 0;
-    background: linear-gradient(180deg, var(--halo-bg-secondary) 0%, var(--halo-bg-primary) 100%);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .cta-section::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.1) 0%, transparent 70%);
-  }
-
-  .cta-content {
-    position: relative;
-    z-index: 2;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .cta-title {
-    font-family: var(--font-heading);
-    font-size: clamp(2.5rem, 6vw, 4rem);
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--halo-white);
-    text-shadow: 0 0 20px rgba(93, 212, 216, 0.4);
-    margin-bottom: 1.5rem;
-    text-transform: uppercase;
-  }
-
-  .cta-text {
-    font-family: var(--font-body);
-    font-size: clamp(1.1rem, 3vw, 1.3rem);
-    font-weight: 400;
-    color: var(--halo-gray);
-    margin-bottom: 3rem;
-  }
-
-  /* ============================================ */
-  /* Media Queries - Tablet and Above            */
-  /* ============================================ */
-
-  @media (--tablet-viewport) {
-    /* Hero Section */
-    .hero-section {
-      padding-top: 100px;
-      padding-bottom: 4rem;
-    }
-
-    .hero-badge {
-      gap: 0.5rem;
-      padding: 0.5rem 1.5rem;
-      font-size: 0.9rem;
-    }
-
-    .hero-subtitle {
-      letter-spacing: 0.2em;
-    }
-
-    .hero-description {
-      margin-bottom: 3rem;
-    }
-
-    .hero-buttons {
-      flex-direction: row;
-      align-items: center;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      margin-bottom: 4rem;
-    }
-
-    /* Stats Grid */
-    .stats-grid {
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1.5rem;
-    }
-
-    /* Sections */
-    .demo-section,
-    .features-section,
-    .commands-section {
-      padding: 6rem 0;
-    }
-
-    /* Demo Section */
-    .demo-card {
-      padding: 2rem;
-    }
-
-    .demo-title {
-      font-size: 1.5rem;
-    }
-
-    .demo-description {
-      font-size: 1.05rem;
-    }
-
-    .demo-media-grid {
-      gap: 2.5rem;
-    }
-
-    .demo-caption {
-      font-size: 0.9rem;
-    }
-
-    /* Features Grid */
-    .features-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    /* Commands Grid */
-    .commands-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    /* CTA Section */
-    .cta-section {
-      padding: 6rem 0;
-    }
-  }
-
-  /* ============================================ */
-  /* Media Queries - Desktop and Above           */
-  /* ============================================ */
-
-  @media (--desktop-viewport) {
-    .demo-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .demo-card-wide {
-      grid-column: 1 / -1;
-    }
-
-    .features-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .commands-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-</style>

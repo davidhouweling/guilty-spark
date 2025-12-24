@@ -1,0 +1,322 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+/* Hero Section */
+.heroSection {
+  min-height: 80vh;
+  padding-top: 80px;
+  padding-bottom: 2rem;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.08) 0%, transparent 50%),
+    linear-gradient(45deg, transparent 48%, rgba(93, 212, 216, 0.03) 49%, rgba(93, 212, 216, 0.03) 51%, transparent 52%);
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(13, 77, 82, 0.6);
+  border: 1px solid var(--halo-teal-primary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--halo-teal-primary);
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.badgeBracket {
+  color: var(--halo-accent);
+  font-weight: 700;
+}
+
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(3rem, 12vw, 8rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: 0.05em;
+  color: var(--halo-white);
+  text-shadow:
+    0 0 20px rgba(93, 212, 216, 0.5),
+    0 0 40px rgba(93, 212, 216, 0.3);
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.titleLine {
+  display: block;
+  background: linear-gradient(180deg, var(--halo-white) 0%, var(--halo-teal-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-transform: uppercase;
+}
+
+.heroSubtitle {
+  font-family: var(--font-body);
+  font-size: clamp(0.9rem, 2vw, 1.3rem);
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--halo-teal-primary);
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+}
+
+.heroDescription {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 2vw, 1.3rem);
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--halo-gray);
+  max-width: 800px;
+  margin: 0 auto 2rem;
+}
+
+.heroButtons {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Sections */
+.demoSection,
+.featuresSection,
+.testimonialsSection,
+.commandsSection {
+  padding: 4rem 0;
+  background: var(--halo-bg-secondary);
+  position: relative;
+}
+
+.featuresSection,
+.commandsSection {
+  background: var(--halo-bg-primary);
+}
+
+/* Demo Section */
+.demoGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Features Grid */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Commands Grid */
+.commandsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* CTA Section */
+.ctaSection {
+  padding: 5rem 0;
+  background: linear-gradient(180deg, var(--halo-bg-secondary) 0%, var(--halo-bg-primary) 100%);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaSection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(93, 212, 216, 0.1) 0%, transparent 70%);
+}
+
+.ctaContent {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.ctaTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--halo-white);
+  text-shadow: 0 0 20px rgba(93, 212, 216, 0.4);
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+}
+
+.ctaText {
+  font-family: var(--font-body);
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  font-weight: 400;
+  color: var(--halo-gray);
+  margin-bottom: 3rem;
+}
+
+/*
+  Global demo-media styles.
+  These classes are used by shared components under pages/src/components/demo-media/*
+  and by DemoCard/BaseCard hover behaviors.
+*/
+:global(.demo-image) {
+  display: block;
+  margin: 0 auto;
+  border: 2px solid var(--halo-teal-dark);
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  image-rendering: crisp-edges;
+  transition: all 0.3s ease;
+}
+
+:global(.demo-card.card-hover:hover .demo-image) {
+  border-color: var(--halo-teal-primary);
+  box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
+}
+
+:global(.demo-media-grid) {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+:global(.demo-media-item) {
+  position: relative;
+}
+
+:global(.demo-caption) {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--halo-gray);
+  text-align: center;
+  margin-top: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  /* Hero Section */
+  .heroSection {
+    padding-top: 100px;
+    padding-bottom: 4rem;
+  }
+
+  .heroBadge {
+    gap: 0.5rem;
+    padding: 0.5rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .heroSubtitle {
+    letter-spacing: 0.2em;
+  }
+
+  .heroDescription {
+    margin-bottom: 3rem;
+  }
+
+  .heroButtons {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 4rem;
+  }
+
+  /* Stats Grid */
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* Sections */
+  .demoSection,
+  .featuresSection,
+  .commandsSection {
+    padding: 6rem 0;
+  }
+
+  /* Features Grid */
+  .featuresGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Commands Grid */
+  .commandsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* CTA Section */
+  .ctaSection {
+    padding: 6rem 0;
+  }
+
+  :global(.demo-media-grid) {
+    gap: 2.5rem;
+  }
+
+  :global(.demo-caption) {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================ */
+/* Media Queries - Desktop and Above           */
+/* ============================================ */
+
+@media (--desktop-viewport) {
+  .demoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .featuresGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .commandsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
