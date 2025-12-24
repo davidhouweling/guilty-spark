@@ -1,5 +1,6 @@
 ---
 import BaseCard from "./base-card.astro";
+import styles from "../../styles/components/stat-card.module.css";
 
 interface Props {
   value: string;
@@ -11,40 +12,9 @@ const { value, label, class: className } = Astro.props;
 ---
 
 <BaseCard padding="none" class:list={["stat-card", className]}>
-  <div class="card-body">
-    <div class="stat-value">{value}</div>
-    <div class="stat-label">{label}</div>
+  <div class={styles.cardBody}>
+    <div class={styles.statValue}>{value}</div>
+    <div class={styles.statLabel}>{label}</div>
     <slot />
   </div>
 </BaseCard>
-
-<style>
-  .card-body {
-    padding: 1.25rem;
-    text-align: center;
-  }
-
-  .stat-value {
-    font-family: var(--font-mono);
-    font-size: clamp(2rem, 5vw, 2.5rem);
-    font-weight: 700;
-    color: var(--halo-teal-primary);
-    text-shadow: 0 0 15px rgba(93, 212, 216, 0.5);
-  }
-
-  .stat-label {
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--halo-gray);
-    margin-top: 0.5rem;
-    text-transform: uppercase;
-  }
-
-  @media (--tablet-viewport) {
-    .card-body {
-      padding: 1.5rem;
-    }
-  }
-</style>

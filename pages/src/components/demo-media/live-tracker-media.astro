@@ -2,44 +2,37 @@
 import type { ImageMetadata } from "astro";
 import LiveTrackerScreenshot from "../../assets/screenshot20250918-live-tracker.png";
 import LiveTrackerChannelScreenshot from "../../assets/screenshot20250918-live-tracker-channel-name.png";
+import "../../styles/components/demo-media.module.css";
 
 const trackerImage = LiveTrackerScreenshot as ImageMetadata;
 const channelImage = LiveTrackerChannelScreenshot as ImageMetadata;
 ---
 
-<div class="demo-media-grid">
-  <div class="demo-media-item">
+<div data-demo-media-grid>
+  <div data-demo-media-item>
     <img
       src={trackerImage.src}
       width={trackerImage.width}
       height={trackerImage.height}
       alt="Live tracker showing real-time match statistics"
       loading="lazy"
-      class="demo-image"
+      data-demo-image
       decoding="async"
       fetchpriority="low"
     />
-    <div class="demo-caption">Active series overview with sequential engagement analysis</div>
+    <div data-demo-caption>Active series overview with sequential engagement analysis</div>
   </div>
-  <div class="demo-media-item">
+  <div data-demo-media-item>
     <img
       src={channelImage.src}
       width={channelImage.width}
       height={channelImage.height}
       alt="Live tracker updating Discord channel name with series score"
       loading="lazy"
-      class="demo-image"
+      data-demo-image
       decoding="async"
       fetchpriority="low"
     />
-    <div class="demo-caption">Communication channel designation reflects current series tally</div>
+    <div data-demo-caption>Communication channel designation reflects current series tally</div>
   </div>
 </div>
-
-<style>
-  .demo-media-item :global(img),
-  .demo-media-item :global(video) {
-    max-width: 100%;
-    height: auto;
-  }
-</style>

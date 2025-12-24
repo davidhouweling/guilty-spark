@@ -1,0 +1,22 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.container {
+  padding-left: var(--gutter-mobile);
+  padding-right: var(--gutter-mobile);
+  margin-left: auto;
+  margin-right: auto;
+  max-width: calc(var(--content-width) + (var(--gutter-desktop) * 2));
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  .container {
+    padding-left: var(--gutter-desktop);
+    padding-right: var(--gutter-desktop);
+  }
+}

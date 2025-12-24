@@ -13,6 +13,7 @@ interface Props {
 }
 
 const { id = "testimonial-carousel", items, autoRotateMs = 3000 }: Props = Astro.props;
+import styles from "../../styles/components/testimonial-carousel.module.css";
 
 if (!Array.isArray(items) || items.length === 0) {
   throw new Error("TestimonialCarousel requires at least one testimonial");
@@ -22,13 +23,13 @@ const slideCount = items.length;
 ---
 
 <section
-  class="testimonial-carousel"
+  class={styles.testimonialCarousel}
   aria-label="Discord community testimonials"
   data-carousel-root
   data-carousel-rotate={autoRotateMs}
 >
-  <div class="carousel-window" data-carousel-window>
-    <div class="carousel-track" role="presentation" data-carousel-track>
+  <div class={styles.carouselWindow} data-carousel-window>
+    <div class={styles.carouselTrack} role="presentation" data-carousel-track>
       {
         items.map((item, index) => {
           const slideId = `${id}-slide-${index}`;
@@ -42,7 +43,7 @@ const slideCount = items.length;
           return (
             <article
               id={slideId}
-              class={`testimonial-card${isActive ? " is-active" : ""}`}
+              class={`${styles.testimonialCard}${isActive ? " is-active" : ""}`}
               role="tabpanel"
               aria-roledescription="slide"
               aria-label={`Testimonial ${index + 1} of ${slideCount}`}
@@ -52,7 +53,7 @@ const slideCount = items.length;
               data-carousel-slide
               data-index={index}
             >
-              <div class="testimonial-text">
+              <div class={styles.testimonialText}>
                 {paragraphs.map((paragraph: string) => {
                   // Split each paragraph on single newlines for line breaks
                   const lines: string[] = paragraph.split("\n");
@@ -68,14 +69,19 @@ const slideCount = items.length;
                   );
                 })}
               </div>
-              <footer class="testimonial-meta">
-                <span class="testimonial-who">{item.who}</span>
+              <footer class={styles.testimonialMeta}>
+                <span class={styles.testimonialWho}>{item.who}</span>
                 {item.discordLink ? (
-                  <a href={item.discordLink} target="_blank" rel="noopener noreferrer" class="testimonial-server-link">
-                    <span class="testimonial-server">{item.discordServer}</span>
+                  <a
+                    href={item.discordLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class={styles.testimonialServerLink}
+                  >
+                    <span class={styles.testimonialServer}>{item.discordServer}</span>
                   </a>
                 ) : (
-                  <span class="testimonial-server">{item.discordServer}</span>
+                  <span class={styles.testimonialServer}>{item.discordServer}</span>
                 )}
               </footer>
             </article>
@@ -85,7 +91,7 @@ const slideCount = items.length;
     </div>
   </div>
 
-  <div class="carousel-controls" role="tablist" aria-label="Select testimonial">
+  <div class={styles.carouselControls} role="tablist" aria-label="Select testimonial">
     {
       items.map((_item, index) => {
         const tabId = `${id}-tab-${index}`;
@@ -97,13 +103,14 @@ const slideCount = items.length;
             id={tabId}
             type="button"
             role="tab"
-            class={`carousel-dot${isActive ? " is-active" : ""}`}
-            aria-controls={slideId}
             aria-selected={isActive ? "true" : "false"}
+            aria-controls={slideId}
+            tabindex={isActive ? "0" : "-1"}
+            class={`${styles.carouselDot}${isActive ? " is-active" : ""}`}
             data-carousel-dot
             data-index={index}
           >
-            <span class="visually-hidden">View testimonial {index + 1}</span>
+            <span class={styles.visuallyHidden}>Testimonial {index + 1}</span>
           </button>
         );
       })
@@ -139,7 +146,8 @@ const slideCount = items.length;
       !(windowEl instanceof HTMLElement) ||
       !(track instanceof HTMLElement) ||
       slides.length === 0 ||
-      slides.length !== dots.length
+      dots.length === 0 ||
+      !Number.isFinite(autoRotateMs)
     ) {
       return;
     }
@@ -147,7 +155,6 @@ const slideCount = items.length;
     let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
     if (activeIndex === -1) {
       activeIndex = 0;
-      slides[0].classList.add("is-active");
     }
 
     const reduceMotionQuery =
@@ -331,374 +338,3 @@ const slideCount = items.length;
     }
   })();
 </script>
-
-<style>
-  /* Base Styles - Mobile First */
-
-  @keyframes testimonial-glitch-in {
-    0% {
-      opacity: 0;
-      transform: translateX(-6px) skewX(-4deg);
-      clip-path: inset(0 0 100% 0);
-      filter: hue-rotate(25deg) saturate(1.4);
-    }
-
-    20% {
-      opacity: 1;
-      transform: translateX(4px) skewX(2deg);
-      clip-path: inset(0 0 65% 0);
-      filter: contrast(1.3) saturate(1.2);
-    }
-
-    40% {
-      transform: translateX(-3px) skewX(-2deg);
-      clip-path: inset(10% 0 0 0);
-      filter: hue-rotate(-10deg);
-    }
-
-    60% {
-      transform: translateX(3px) skewX(1deg);
-      clip-path: inset(0 0 12% 0);
-      filter: saturate(1.1);
-    }
-
-    80% {
-      transform: translateX(-2px);
-      clip-path: inset(0 0 0 0);
-      filter: contrast(1.05);
-    }
-
-    100% {
-      opacity: 1;
-      transform: none;
-      clip-path: inset(0 0 0 0);
-      filter: none;
-    }
-  }
-
-  @keyframes testimonial-glitch-out {
-    0% {
-      opacity: 1;
-      transform: none;
-      clip-path: inset(0 0 0 0);
-      filter: none;
-    }
-
-    25% {
-      transform: translateX(-4px) skewX(-2deg);
-      clip-path: inset(0 0 32% 0);
-      filter: hue-rotate(-25deg) saturate(1.2);
-    }
-
-    50% {
-      transform: translateX(5px) skewX(3deg);
-      clip-path: inset(18% 0 0 0);
-      filter: contrast(1.25);
-    }
-
-    75% {
-      transform: translateX(-8px) skewX(-3deg);
-      clip-path: inset(0 0 54% 0);
-      filter: hue-rotate(20deg) saturate(1.3);
-    }
-
-    100% {
-      opacity: 0;
-      transform: translateX(-18px) skewX(-6deg);
-      clip-path: inset(0 0 100% 0);
-      filter: blur(4px) saturate(1.4);
-    }
-  }
-
-  @keyframes testimonial-glitch-lines {
-    0% {
-      opacity: 0.45;
-      transform: translate3d(-3px, -3px, 0);
-    }
-
-    25% {
-      opacity: 0.2;
-      transform: translate3d(4px, 2px, 0);
-    }
-
-    50% {
-      opacity: 0.35;
-      transform: translate3d(-5px, 3px, 0);
-    }
-
-    75% {
-      opacity: 0.25;
-      transform: translate3d(2px, -4px, 0);
-    }
-
-    100% {
-      opacity: 0;
-      transform: translate3d(0, 0, 0);
-    }
-  }
-
-  .testimonial-carousel {
-    padding: 2rem;
-    background: linear-gradient(180deg, rgba(18, 53, 55, 0.8) 0%, rgba(9, 22, 23, 0.95) 100%);
-    border: 1px solid rgba(93, 212, 216, 0.2);
-    border-radius: 1.5rem;
-    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-
-  .carousel-track {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  .carousel-window {
-    position: relative;
-  }
-
-  .testimonial-card {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 1.5rem;
-    background: rgba(8, 28, 30, 0.9);
-    border: 1px solid rgba(93, 212, 216, 0.2);
-    border-radius: 1rem;
-    transition: border-color 200ms ease;
-    position: relative;
-    box-sizing: border-box;
-    margin-bottom: 1px;
-  }
-
-  .testimonial-card.is-active {
-    border-color: rgba(93, 212, 216, 0.35);
-  }
-
-  .testimonial-carousel[data-carousel-ready] .carousel-window {
-    overflow: hidden;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .carousel-track {
-    display: flex;
-    gap: 0;
-    transform: translateX(0);
-    will-change: transform;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card {
-    flex: 0 0 100%;
-    max-width: 100%;
-    pointer-events: none;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card::before,
-  .testimonial-carousel[data-carousel-ready] .testimonial-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0;
-    mix-blend-mode: screen;
-    transition: opacity 120ms ease;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card::before {
-    background: repeating-linear-gradient(0deg, transparent 0 10px, rgba(93, 212, 216, 0.18) 10px 12px);
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card::after {
-    background: repeating-linear-gradient(90deg, rgba(252, 81, 133, 0.16) 0 1px, transparent 1px 4px);
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-active {
-    opacity: 1;
-    border-color: rgba(93, 212, 216, 0.35);
-    pointer-events: auto;
-    z-index: 2;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in,
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out {
-    text-shadow:
-      -2px 0 rgba(93, 212, 216, 0.4),
-      2px 0 rgba(252, 81, 133, 0.35);
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in {
-    animation: testimonial-glitch-in 400ms steps(6, end) forwards;
-    z-index: 4;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in::before,
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-in::after {
-    opacity: 0.45;
-    animation: testimonial-glitch-lines 400ms steps(6, end) forwards;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out {
-    animation: testimonial-glitch-out 350ms steps(5, end) forwards;
-    pointer-events: none;
-    z-index: 3;
-  }
-
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out::before,
-  .testimonial-carousel[data-carousel-ready] .testimonial-card.is-glitching-out::after {
-    opacity: 0.4;
-    animation: testimonial-glitch-lines 350ms steps(5, end) forwards;
-  }
-
-  .testimonial-text {
-    font-family: var(--font-body);
-    font-size: 1rem;
-    line-height: 1.8;
-    color: var(--halo-gray);
-  }
-
-  .testimonial-text p {
-    margin: 0 0 1rem 0;
-  }
-
-  .testimonial-text p:last-child {
-    margin-bottom: 0;
-  }
-
-  .testimonial-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-family: var(--font-body);
-  }
-
-  .testimonial-who {
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--halo-white);
-  }
-
-  .testimonial-server {
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--halo-teal-primary);
-  }
-
-  .testimonial-server-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    text-decoration: none;
-    transition: opacity 200ms ease;
-  }
-
-  .testimonial-server-link::after {
-    content: "";
-    display: inline-block;
-    width: 0.75em;
-    height: 0.75em;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235dd4d8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    transition: transform 200ms ease;
-  }
-
-  .testimonial-server-link:hover,
-  .testimonial-server-link:focus-visible {
-    opacity: 0.7;
-  }
-
-  .testimonial-server-link:hover::after {
-    transform: translate(2px, -2px);
-  }
-
-  .testimonial-server-link:focus-visible {
-    outline: 2px solid var(--halo-teal-primary);
-    outline-offset: 2px;
-    border-radius: 2px;
-  }
-
-  .carousel-controls {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .carousel-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(93, 212, 216, 0.6);
-    background: transparent;
-    cursor: pointer;
-    padding: 0;
-    transition:
-      background 200ms ease,
-      width 200ms ease,
-      border-color 200ms ease;
-  }
-
-  .carousel-dot.is-active {
-    width: 36px;
-    background: rgba(93, 212, 216, 0.45);
-    border-color: rgba(93, 212, 216, 0.9);
-  }
-
-  .carousel-dot:focus-visible {
-    outline: 2px solid var(--halo-teal-primary);
-    outline-offset: 2px;
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  /* Media Queries - Tablet and Above */
-  @media (--tablet-viewport) {
-    .testimonial-carousel {
-      padding: 2.5rem;
-    }
-
-    .carousel-track {
-      grid-column: span 12;
-    }
-
-    .testimonial-card {
-      padding: 2rem;
-    }
-
-    .testimonial-text {
-      font-size: 1.05rem;
-    }
-  }
-
-  /* Media Queries - Desktop and Above */
-  @media (--desktop-viewport) {
-    .testimonial-carousel {
-      padding: 3rem;
-    }
-
-    .testimonial-text {
-      font-size: 1.125rem;
-    }
-
-    .carousel-dot {
-      width: 14px;
-      height: 14px;
-    }
-
-    .carousel-dot.is-active {
-      width: 42px;
-    }
-  }
-</style>

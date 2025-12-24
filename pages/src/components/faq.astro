@@ -2,6 +2,7 @@
 // FAQ component template
 import SectionHeader from "./section-header.astro";
 import Container from "./container.astro";
+import styles from "../styles/components/faq.module.css";
 
 interface FAQItem {
   question: string;
@@ -15,122 +16,19 @@ interface Props {
 const { items } = Astro.props;
 ---
 
-<section id="faq" class="faq-section">
+<section id="faq" class={styles.faqSection}>
   <Container>
     <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />
 
-    <div class="faq-container">
+    <div class={styles.faqContainer}>
       {
         items.map((item) => (
-          <div class="faq-item">
-            <h3 class="faq-question">{item.question}</h3>
-            <p class="faq-answer" set:html={item.answer} />
+          <div class={styles.faqItem}>
+            <h3 class={styles.faqQuestion}>{item.question}</h3>
+            <p class={styles.faqAnswer} set:html={item.answer} />
           </div>
         ))
       }
     </div>
   </Container>
 </section>
-
-<style>
-  /* ============================================ */
-  /* Base Styles - Mobile First                  */
-  /* ============================================ */
-
-  .faq-section {
-    padding: 3rem 0;
-    background: var(--halo-bg-primary);
-    position: relative;
-  }
-
-  .faq-container {
-    max-width: 900px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .faq-item {
-    padding: 1.25rem;
-    background: rgba(15, 40, 48, 0.4);
-    border: 1px solid var(--halo-teal-dark);
-    border-left: 3px solid var(--halo-teal-primary);
-    transition: all 0.3s ease;
-  }
-
-  .faq-item:hover {
-    background: rgba(15, 40, 48, 0.6);
-    border-left-width: 5px;
-    box-shadow: 0 0 30px rgba(93, 212, 216, 0.15);
-  }
-
-  .faq-question {
-    font-family: var(--font-heading);
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: var(--halo-teal-primary);
-    margin-bottom: 1rem;
-    line-height: 1.3;
-    word-wrap: break-word;
-  }
-
-  .faq-answer {
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    font-weight: 400;
-    line-height: 1.8;
-    color: var(--halo-gray);
-  }
-
-  .faq-answer strong {
-    color: var(--halo-white);
-    font-weight: 600;
-  }
-
-  .faq-answer code {
-    font-family: var(--font-mono);
-    font-size: 0.95em;
-    padding: 0.2em 0.5em;
-    background: rgba(13, 77, 82, 0.5);
-    border: 1px solid var(--halo-teal-dark);
-    border-radius: 3px;
-    color: var(--halo-teal-primary);
-  }
-
-  .faq-answer a {
-    color: var(--halo-teal-primary);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: all 0.3s ease;
-  }
-
-  .faq-answer a:hover {
-    color: var(--halo-white);
-    border-bottom-color: var(--halo-teal-primary);
-    text-shadow: 0 0 8px rgba(93, 212, 216, 0.6);
-  }
-
-  /* ============================================ */
-  /* Media Queries - Tablet and Above            */
-  /* ============================================ */
-
-  @media (--tablet-viewport) {
-    .faq-section {
-      padding: 6rem 0;
-    }
-
-    .faq-item {
-      padding: 2rem;
-    }
-
-    .faq-question {
-      font-size: 1.4rem;
-    }
-
-    .faq-answer {
-      font-size: 1.05rem;
-    }
-  }
-</style>

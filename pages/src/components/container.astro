@@ -39,25 +39,9 @@ interface Props {
 }
 
 const { class: className, tagName: Element = "div" } = Astro.props;
+import styles from "../styles/components/container.module.css";
 ---
 
-<Element class:list={["container", className]}>
+<Element class:list={[styles.container, className]}>
   <slot />
 </Element>
-
-<style>
-  .container {
-    padding-left: var(--gutter-mobile);
-    padding-right: var(--gutter-mobile);
-    margin-left: auto;
-    margin-right: auto;
-    max-width: calc(var(--content-width) + (var(--gutter-desktop) * 2));
-  }
-
-  @media (--tablet-viewport) {
-    .container {
-      padding-left: var(--gutter-desktop);
-      padding-right: var(--gutter-desktop);
-    }
-  }
-</style>

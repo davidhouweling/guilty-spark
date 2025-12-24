@@ -190,49 +190,6 @@
   margin-bottom: 3rem;
 }
 
-/*
-  Global demo-media styles.
-  These classes are used by shared components under pages/src/components/demo-media/*
-  and by DemoCard/BaseCard hover behaviors.
-*/
-:global(.demo-image) {
-  display: block;
-  margin: 0 auto;
-  border: 2px solid var(--halo-teal-dark);
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  image-rendering: crisp-edges;
-  transition: all 0.3s ease;
-}
-
-:global(.demo-card.card-hover:hover .demo-image) {
-  border-color: var(--halo-teal-primary);
-  box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
-}
-
-:global(.demo-media-grid) {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-:global(.demo-media-item) {
-  position: relative;
-}
-
-:global(.demo-caption) {
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--halo-gray);
-  text-align: center;
-  margin-top: 0.75rem;
-  letter-spacing: 0.05em;
-}
-
 /* ============================================ */
 /* Media Queries - Tablet and Above            */
 /* ============================================ */

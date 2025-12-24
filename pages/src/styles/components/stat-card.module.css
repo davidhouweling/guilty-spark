@@ -1,0 +1,28 @@
+.cardBody {
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  font-weight: 700;
+  color: var(--halo-teal-primary);
+  text-shadow: 0 0 15px rgba(93, 212, 216, 0.5);
+}
+
+.statLabel {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--halo-gray);
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+}
+
+@media (--tablet-viewport) {
+  .cardBody {
+    padding: 1.5rem;
+  }
+}

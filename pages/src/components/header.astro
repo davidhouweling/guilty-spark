@@ -3,6 +3,7 @@
 import Logo from "./logo.astro";
 import Container from "./container.astro";
 import { SUPPORT_SERVER_URL, GITHUB_URL } from "../constants";
+import styles from "../styles/components/header.module.css";
 
 const navLinks = [
   { href: "/faq", label: "FAQ", external: false },
@@ -11,24 +12,24 @@ const navLinks = [
 ];
 ---
 
-<nav class="halo-nav" aria-label="Primary">
-  <Container class="nav-container">
+<nav id="halo-nav" class={styles.haloNav} aria-label="Primary">
+  <Container class={styles.navContainer}>
     <Logo variant="nav" />
 
     <!-- Mobile menu button -->
     <button
       id="nav-toggle"
-      class="mobile-menu-btn"
+      class={styles.mobileMenuBtn}
       aria-label="Toggle navigation menu"
       aria-expanded="false"
       aria-controls="nav-links"
     >
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
+      <span class={styles.hamburgerLine}></span>
+      <span class={styles.hamburgerLine}></span>
+      <span class={styles.hamburgerLine}></span>
     </button>
 
-    <div id="nav-links" class="nav-links" hidden>
+    <div id="nav-links" class={styles.navLinks} hidden>
       {
         navLinks.map((link) => (
           <a
@@ -46,7 +47,7 @@ const navLinks = [
 
 <script>
   // Mobile menu toggle
-  const nav = document.querySelector(".halo-nav");
+  const nav = document.querySelector("#halo-nav");
   if (!nav) {
     throw new Error("Navigation element not found");
   }
@@ -143,161 +144,3 @@ const navLinks = [
   syncMenuToViewport(tabletQuery);
   tabletQuery.addEventListener("change", syncMenuToViewport);
 </script>
-
-<style>
-  /* ============================================ */
-  /* Base Styles - Mobile First                  */
-  /* ============================================ */
-
-  /* Navigation */
-  .halo-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 70px;
-    background: rgba(13, 31, 38, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--halo-teal-dark);
-    z-index: 100;
-  }
-
-  .nav-container {
-    height: 100%;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .nav-links {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    right: 0;
-    background: rgba(13, 31, 38, 0.98);
-    backdrop-filter: blur(10px);
-    display: flex;
-    flex-direction: column;
-    padding: 2rem 1.5rem;
-    gap: 0;
-    border-bottom: 1px solid var(--halo-teal-dark);
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s ease;
-  }
-
-  .nav-links.active {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .nav-links a {
-    font-family: var(--font-heading);
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--halo-teal-primary);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    position: relative;
-    text-transform: uppercase;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--halo-teal-darker);
-  }
-
-  .nav-links a:last-child {
-    border-bottom: none;
-  }
-
-  .nav-links a:hover {
-    color: var(--halo-white);
-    text-shadow: 0 0 10px rgba(93, 212, 216, 0.8);
-    padding-left: 0.5rem;
-  }
-
-  /* Mobile menu button */
-  .mobile-menu-btn {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    z-index: 101;
-    min-width: 44px;
-    min-height: 44px;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .hamburger-line {
-    width: 25px;
-    height: 2px;
-    background: var(--halo-teal-primary);
-    transition: all 0.3s ease;
-  }
-
-  .mobile-menu-btn.active .hamburger-line:nth-child(1) {
-    transform: rotate(45deg) translate(7px, 7px);
-  }
-
-  .mobile-menu-btn.active .hamburger-line:nth-child(2) {
-    opacity: 0;
-  }
-
-  .mobile-menu-btn.active .hamburger-line:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
-  }
-
-  /* ============================================ */
-  /* Media Queries - Tablet and Above            */
-  /* ============================================ */
-
-  @media (--tablet-viewport) {
-    .mobile-menu-btn {
-      display: none;
-    }
-
-    .nav-links {
-      position: static;
-      flex-direction: row;
-      gap: 2rem;
-      padding: 0;
-      background: transparent;
-      border-bottom: none;
-      transform: none;
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .nav-links a {
-      padding: 0;
-      border-bottom: none;
-    }
-
-    .nav-links a::after {
-      content: "";
-      position: absolute;
-      bottom: -5px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background: var(--halo-teal-primary);
-      transition: width 0.3s ease;
-    }
-
-    .nav-links a:hover {
-      padding-left: 0;
-    }
-
-    .nav-links a:hover::after {
-      width: 100%;
-      box-shadow: 0 0 10px var(--halo-teal-primary);
-    }
-  }
-</style>

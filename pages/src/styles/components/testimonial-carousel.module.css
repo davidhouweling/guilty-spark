@@ -1,0 +1,368 @@
+/* Base Styles - Mobile First */
+
+@keyframes testimonialGlitchIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-6px) skewX(-4deg);
+    clip-path: inset(0 0 100% 0);
+    filter: hue-rotate(25deg) saturate(1.4);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateX(4px) skewX(2deg);
+    clip-path: inset(0 0 65% 0);
+    filter: contrast(1.3) saturate(1.2);
+  }
+
+  40% {
+    transform: translateX(-3px) skewX(-2deg);
+    clip-path: inset(10% 0 0 0);
+    filter: hue-rotate(-10deg);
+  }
+
+  60% {
+    transform: translateX(3px) skewX(1deg);
+    clip-path: inset(0 0 12% 0);
+    filter: saturate(1.1);
+  }
+
+  80% {
+    transform: translateX(-2px);
+    clip-path: inset(0 0 0 0);
+    filter: contrast(1.05);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+    filter: none;
+  }
+}
+
+@keyframes testimonialGlitchOut {
+  0% {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+    filter: none;
+  }
+
+  25% {
+    transform: translateX(-4px) skewX(-2deg);
+    clip-path: inset(0 0 32% 0);
+    filter: hue-rotate(-25deg) saturate(1.2);
+  }
+
+  50% {
+    transform: translateX(5px) skewX(3deg);
+    clip-path: inset(18% 0 0 0);
+    filter: contrast(1.25);
+  }
+
+  75% {
+    transform: translateX(-8px) skewX(-3deg);
+    clip-path: inset(0 0 54% 0);
+    filter: hue-rotate(20deg) saturate(1.3);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-18px) skewX(-6deg);
+    clip-path: inset(0 0 100% 0);
+    filter: blur(4px) saturate(1.4);
+  }
+}
+
+@keyframes testimonialGlitchLines {
+  0% {
+    opacity: 0.45;
+    transform: translate3d(-3px, -3px, 0);
+  }
+
+  25% {
+    opacity: 0.2;
+    transform: translate3d(4px, 2px, 0);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: translate3d(-5px, 3px, 0);
+  }
+
+  75% {
+    opacity: 0.25;
+    transform: translate3d(2px, -4px, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.testimonialCarousel {
+  padding: 2rem;
+  background: linear-gradient(180deg, rgba(18, 53, 55, 0.8) 0%, rgba(9, 22, 23, 0.95) 100%);
+  border: 1px solid rgba(93, 212, 216, 0.2);
+  border-radius: 1.5rem;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.carouselTrack {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.carouselWindow {
+  position: relative;
+}
+
+.testimonialCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(8, 28, 30, 0.9);
+  border: 1px solid rgba(93, 212, 216, 0.2);
+  border-radius: 1rem;
+  transition: border-color 200ms ease;
+  position: relative;
+  box-sizing: border-box;
+  margin-bottom: 1px;
+}
+
+.testimonialCard:global(.is-active) {
+  border-color: rgba(93, 212, 216, 0.35);
+}
+
+.testimonialCarousel[data-carousel-ready] .carouselWindow {
+  overflow: hidden;
+}
+
+.testimonialCarousel[data-carousel-ready] .carouselTrack {
+  display: flex;
+  gap: 0;
+  transform: translateX(0);
+  will-change: transform;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard {
+  flex: 0 0 100%;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard::before,
+.testimonialCarousel[data-carousel-ready] .testimonialCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 120ms ease;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard::before {
+  background: repeating-linear-gradient(0deg, transparent 0 10px, rgba(93, 212, 216, 0.18) 10px 12px);
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard::after {
+  background: repeating-linear-gradient(90deg, rgba(252, 81, 133, 0.16) 0 1px, transparent 1px 4px);
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-active) {
+  opacity: 1;
+  border-color: rgba(93, 212, 216, 0.35);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in),
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out) {
+  text-shadow:
+    -2px 0 rgba(93, 212, 216, 0.4),
+    2px 0 rgba(252, 81, 133, 0.35);
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in) {
+  animation: testimonialGlitchIn 400ms steps(6, end) forwards;
+  z-index: 4;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in)::before,
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in)::after {
+  opacity: 0.45;
+  animation: testimonialGlitchLines 400ms steps(6, end) forwards;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out) {
+  animation: testimonialGlitchOut 350ms steps(5, end) forwards;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out)::before,
+.testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out)::after {
+  opacity: 0.4;
+  animation: testimonialGlitchLines 350ms steps(5, end) forwards;
+}
+
+.testimonialText {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--halo-gray);
+}
+
+.testimonialText p {
+  margin: 0 0 1rem 0;
+}
+
+.testimonialText p:last-child {
+  margin-bottom: 0;
+}
+
+.testimonialMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-family: var(--font-body);
+}
+
+.testimonialWho {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--halo-white);
+}
+
+.testimonialServer {
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--halo-teal-primary);
+}
+
+.testimonialServerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  transition: opacity 200ms ease;
+}
+
+.testimonialServerLink::after {
+  content: "";
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235dd4d8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: transform 200ms ease;
+}
+
+.testimonialServerLink:hover,
+.testimonialServerLink:focus-visible {
+  opacity: 0.7;
+}
+
+.testimonialServerLink:hover::after {
+  transform: translate(2px, -2px);
+}
+
+.testimonialServerLink:focus-visible {
+  outline: 2px solid var(--halo-teal-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.carouselControls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.carouselDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(93, 212, 216, 0.6);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 200ms ease,
+    width 200ms ease,
+    border-color 200ms ease;
+}
+
+.carouselDot:global(.is-active) {
+  width: 36px;
+  background: rgba(93, 212, 216, 0.45);
+  border-color: rgba(93, 212, 216, 0.9);
+}
+
+.carouselDot:focus-visible {
+  outline: 2px solid var(--halo-teal-primary);
+  outline-offset: 2px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Media Queries - Tablet and Above */
+@media (--tablet-viewport) {
+  .testimonialCarousel {
+    padding: 2.5rem;
+  }
+
+  .carouselTrack {
+    grid-column: span 12;
+  }
+
+  .testimonialCard {
+    padding: 2rem;
+  }
+
+  .testimonialText {
+    font-size: 1.05rem;
+  }
+}
+
+/* Media Queries - Desktop and Above */
+@media (--desktop-viewport) {
+  .testimonialCarousel {
+    padding: 3rem;
+  }
+
+  .testimonialText {
+    font-size: 1.125rem;
+  }
+
+  .carouselDot {
+    width: 14px;
+    height: 14px;
+  }
+
+  .carouselDot:global(.is-active) {
+    width: 42px;
+  }
+}
