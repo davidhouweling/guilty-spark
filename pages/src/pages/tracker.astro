@@ -1,8 +1,10 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container.astro";
+import BaseCard from "../components/cards/base-card.astro";
 import { API_HOST } from "../constants";
 import styles from "../styles/tracker.module.css";
+import { ReactIntegrationCheck } from "../components/react/react-integration-check";
 ---
 
 <Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
@@ -10,6 +12,10 @@ import styles from "../styles/tracker.module.css";
     <div class={styles.trackerDemo}>
       <h1>Live Tracker WebSocket Demo</h1>
       <p>Connect to a live tracker to see real-time updates</p>
+
+      <BaseCard>
+        <ReactIntegrationCheck client:load />
+      </BaseCard>
 
       <div id="connection-info" class={styles.connectionInfo}>
         <div class={styles.infoGroup}>
