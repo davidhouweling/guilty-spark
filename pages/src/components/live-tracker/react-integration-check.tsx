@@ -9,7 +9,12 @@ export function ReactIntegrationCheck(): React.ReactElement {
       <p>
         <strong>React island:</strong> mounted at {mountedAt}
       </p>
-      <button type="button" onClick={() => setClicks((c) => c + 1)}>
+      <button
+        type="button"
+        onClick={() => {
+          setClicks((c) => c + 1);
+        }}
+      >
         Clicks: {clicks}
       </button>
     </section>

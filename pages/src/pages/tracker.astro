@@ -1,10 +1,9 @@
 ---
 import Layout from "../layouts/layout.astro";
-import Container from "../components/container.astro";
-import BaseCard from "../components/cards/base-card.astro";
+import Container from "../components/container/container.astro";
 import { API_HOST } from "../constants";
-import styles from "../styles/tracker.module.css";
-import { ReactIntegrationCheck } from "../components/react/react-integration-check";
+import styles from "./_styles/tracker.module.css";
+import { TrackerWebSocketDemo } from "../components/live-tracker/tracker-websocket-demo";
 ---
 
 <Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
@@ -13,51 +12,7 @@ import { ReactIntegrationCheck } from "../components/react/react-integration-che
       <h1>Live Tracker WebSocket Demo</h1>
       <p>Connect to a live tracker to see real-time updates</p>
 
-      <BaseCard>
-        <ReactIntegrationCheck client:load />
-      </BaseCard>
-
-      <div id="connection-info" class={styles.connectionInfo}>
-        <div class={styles.infoGroup}>
-          <label class={styles.infoLabel}>Guild ID:</label>
-          <span id="display-guildId" class={styles.infoValue}>Not set</span>
-        </div>
-
-        <div class={styles.infoGroup}>
-          <label class={styles.infoLabel}>Channel ID:</label>
-          <span id="display-channelId" class={styles.infoValue}>Not set</span>
-        </div>
-
-        <div class={styles.infoGroup}>
-          <label class={styles.infoLabel}>Queue Number:</label>
-          <span id="display-queueNumber" class={styles.infoValue}>Not set</span>
-        </div>
-
-        <button type="button" id="disconnect-btn" class={styles.disconnectButton} disabled>Disconnect</button>
-      </div>
-
-      <div id="connection-status" class={styles.status}>
-        <strong>Status:</strong>
-        <span id="status-text">Disconnected</span>
-      </div>
-
-      <div id="data-container" class={styles.dataContainer}>
-        <h2>Live Tracker Data:</h2>
-        <pre id="tracker-data">No data yet. Connect to a live tracker to see updates.</pre>
-      </div>
+      <TrackerWebSocketDemo client:load apiHost={API_HOST} />
     </div>
   </Container>
 </Layout>
-
-<script define:vars={{ apiHost: API_HOST }} is:inline>
-  // Injected from server-side: apiHost
-  window.__TRACKER_API_HOST__ = apiHost;
-</script>
-
-<script>
-  import { initializeTracker } from "../scripts/tracker-client.mjs";
-
-  // Use the globally set API host
-  const apiHost = window.__TRACKER_API_HOST__ || "api.guilty-spark.app";
-  initializeTracker(apiHost);
-</script>

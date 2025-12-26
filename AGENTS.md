@@ -69,6 +69,18 @@ npm run format:fix
 - **Accessibility**: Preserve established ARIA attributes, focus handling, and keyboard support patterns when extending interactive components.
 - **Rendering Patterns**: Prefer data-driven rendering—extend typed configuration arrays and map to components instead of duplicating inline markup.
 
+## Conventions (Contracts, API, Pages)
+
+- **Feature folders**: Group related code under a single feature folder (e.g. `live-tracker/`) rather than scattering files at top level.
+- **Types live beside implementation**:
+  - Contracts: `contracts/src/<feature>/types.mts` and other modules in the same folder.
+  - API/Pages: keep feature/service types colocated with the feature/service.
+- **Fakes live under the feature**: Use `<feature>/fakes/` (not a standalone global `fakes/`).
+  - Use `fakes/data.mts` for deterministic sample fixtures/data.
+  - Use separate fake implementations for behavior (e.g. service fakes) when needed.
+- **Imports**:
+  - Prefer importing from stable package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`) over deep relative paths across packages.
+
 ## CSS/Styling Principles (Pages Project)
 
 - **Mobile-First Approach**: Start with mobile base styles, enhance progressively for larger screens

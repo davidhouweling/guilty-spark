@@ -13,7 +13,7 @@ interface Props {
 }
 
 const { id = "testimonial-carousel", items, autoRotateMs = 3000 }: Props = Astro.props;
-import styles from "../../styles/components/testimonial-carousel.module.css";
+import styles from "./testimonial-carousel.module.css";
 
 if (!Array.isArray(items) || items.length === 0) {
   throw new Error("TestimonialCarousel requires at least one testimonial");

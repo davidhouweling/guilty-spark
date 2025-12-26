@@ -2,3 +2,5 @@
 build
 coverage
 worker-configuration.d.ts
+pages/.astro
+pages/dist

@@ -2,24 +2,6 @@
 /* Base Styles - Mobile First                  */
 /* ============================================ */
 
-.trackerDemo {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.trackerDemo h1 {
-  font-family: var(--font-heading);
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: var(--halo-white);
-}
-
-.trackerDemo p {
-  color: var(--halo-gray);
-  margin-bottom: 2rem;
-}
-
 .connectionInfo {
   background: var(--halo-bg-card);
   padding: 1.5rem;
@@ -141,14 +123,4 @@
   word-wrap: break-word;
   max-height: 600px;
   overflow-y: auto;
-}
-
-/* ============================================ */
-/* Media Queries - Tablet and Above            */
-/* ============================================ */
-
-@media (--tablet-viewport) {
-  .trackerDemo {
-    padding: 2.5rem 0;
-  }
 }

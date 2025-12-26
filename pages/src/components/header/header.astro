@@ -1,9 +1,9 @@
 ---
 // Header/Navigation component
-import Logo from "./logo.astro";
-import Container from "./container.astro";
-import { SUPPORT_SERVER_URL, GITHUB_URL } from "../constants";
-import styles from "../styles/components/header.module.css";
+import Logo from "../logo/logo.astro";
+import Container from "../container/container.astro";
+import { SUPPORT_SERVER_URL, GITHUB_URL } from "../../constants";
+import styles from "./header.module.css";
 
 const navLinks = [
   { href: "/faq", label: "FAQ", external: false },

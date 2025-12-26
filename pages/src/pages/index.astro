@@ -1,13 +1,13 @@
 ---
 import Layout from "../layouts/layout.astro";
-import Button from "../components/button.astro";
+import Button from "../components/button/button.astro";
 import CommandCard from "../components/cards/command-card.astro";
 import DemoCard from "../components/cards/demo-card.astro";
 import FeatureCard from "../components/cards/feature-card.astro";
 import StatCard from "../components/cards/stat-card.astro";
-import SectionHeader from "../components/section-header.astro";
+import SectionHeader from "../components/section-header/section-header.astro";
 import { DISCORD_INVITE_URL } from "../constants";
-import Container from "../components/container.astro";
+import Container from "../components/container/container.astro";
 import DiscordLogo from "../assets/discord-logo.png";
 import MatchStatisticsIcon from "../components/icons/match-statistics-icon.astro";
 import LiveTrackingIcon from "../components/icons/live-tracking-icon.astro";
@@ -19,7 +19,7 @@ import CombatRecordMedia from "../components/demo-media/combat-record-media.astr
 import NeatQueueMedia from "../components/demo-media/neatqueue-media.astro";
 import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro";
 import TestimonialCarousel from "../components/testimonials/testimonial-carousel.astro";
-import styles from "../styles/index.module.css";
+import styles from "./_styles/index.module.css";
 
 const heroStats = [
   { value: "33", label: "Servers" },

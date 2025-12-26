@@ -30,7 +30,7 @@ export default defineConfig(
     ],
   },
   {
-    files: ["**/*.mts", "**/*.ts", "**/*.mjs", "**/*.js"],
+    files: ["**/*.mts", "**/*.ts", "**/*.tsx", "**/*.mjs", "**/*.js"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",
@@ -74,7 +74,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["pages/**/*.mts", "pages/**/*.ts"],
+    files: ["pages/**/*.mts", "pages/**/*.ts", "pages/**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",

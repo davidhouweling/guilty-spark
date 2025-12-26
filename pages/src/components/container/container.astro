@@ -39,7 +39,7 @@ interface Props {
 }
 
 const { class: className, tagName: Element = "div" } = Astro.props;
-import styles from "../styles/components/container.module.css";
+import styles from "./container.module.css";
 ---
 
 <Element class:list={[styles.container, className]}>
