@@ -2,86 +2,54 @@
 /* Base Styles - Mobile First                  */
 /* ============================================ */
 
-.connectionInfo {
-  background: var(--halo-bg-card);
-  padding: 1.5rem;
-  border: 1px solid rgba(93, 212, 216, 0.25);
-  margin-bottom: 2rem;
+.headerBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
 }
 
-.infoGroup {
-  margin-bottom: 1rem;
+.headerLeft {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.headerTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  line-height: 1.2;
+  color: var(--halo-white);
+}
+
+.headerSubtitle {
+  font-family: var(--font-body);
+  color: var(--halo-gray);
+}
+
+.headerRight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.headerMetaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 1rem;
 }
 
-.infoGroup:last-of-type {
-  margin-bottom: 1.5rem;
-}
-
-.infoLabel {
+.headerMetaLabel {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
   color: var(--halo-gray);
-  font-weight: 600;
-  min-width: 120px;
 }
 
-.infoValue {
-  color: var(--halo-white);
-  font-family: var(--font-mono);
-}
-
-.disconnectButton {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.5rem;
+.headerMetaValue {
   font-family: var(--font-body);
   font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-decoration: none;
-  background: var(--halo-teal-darker);
-  border: 1px solid var(--halo-teal-primary);
-  color: var(--halo-white);
-  transition: all 0.3s ease;
-  overflow: hidden;
-  text-transform: uppercase;
-  min-height: 48px;
-  cursor: pointer;
-}
-
-.disconnectButton::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(93, 212, 216, 0.1), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.disconnectButton:hover::before {
-  opacity: 1;
-}
-
-.disconnectButton:hover:not(:disabled) {
-  border-color: var(--halo-white);
-  box-shadow: 0 0 20px rgba(93, 212, 216, 0.5);
-  color: var(--halo-white);
-  text-shadow: 0 0 10px rgba(93, 212, 216, 0.8);
-}
-
-.disconnectButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.status {
-  background: var(--halo-bg-card);
-  padding: 1rem;
-  border: 1px solid rgba(93, 212, 216, 0.25);
-  margin-bottom: 2rem;
   color: var(--halo-white);
 }
 
@@ -104,23 +72,85 @@
   border: 1px solid rgba(93, 212, 216, 0.25);
 }
 
-.dataContainer h2 {
+.sectionTitle {
   font-family: var(--font-heading);
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin: 1.25rem 0 0.75rem;
   color: var(--halo-white);
 }
 
-#tracker-data {
+.notice {
   background: var(--halo-bg-secondary);
   padding: 1rem;
   color: var(--halo-accent);
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  border: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.teams {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.teamCard {
+  background: var(--halo-bg-secondary);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  padding: 1rem;
+}
+
+.teamName {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-heading);
+  color: var(--halo-white);
+}
+
+.playerList {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--halo-white);
+}
+
+.tableWrap {
   overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-height: 600px;
-  overflow-y: auto;
+}
+
+.matchesTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--halo-bg-secondary);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  color: var(--halo-white);
+}
+
+.matchesTable th,
+.matchesTable td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.matchesTable th {
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--halo-gray);
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  .headerBar {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .headerRight {
+    min-width: 260px;
+  }
+
+  .teams {
+    grid-template-columns: 1fr 1fr;
+  }
 }

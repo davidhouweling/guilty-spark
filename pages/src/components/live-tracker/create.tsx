@@ -40,14 +40,7 @@ export function TrackerWebSocketDemoFactory({ services }: TrackerWebSocketDemoFa
   );
   const model = TrackerWebSocketDemoPresenter.present(snapshot);
 
-  return (
-    <TrackerWebSocketDemoView
-      model={model}
-      onDisconnect={() => {
-        presenter.disconnect();
-      }}
-    />
-  );
+  return <TrackerWebSocketDemoView model={model} />;
 }
 
 export function TrackerWebSocketDemo({ apiHost }: TrackerWebSocketDemoAppProps): React.ReactElement {

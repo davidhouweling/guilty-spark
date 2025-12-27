@@ -1,26 +1,18 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
-import type { Services } from "../../services/install";
+import type { Services } from "../../services/types";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
 import type { TrackerWebSocketDemoSnapshot, TrackerWebSocketDemoStore } from "./tracker-websocket-demo.store";
+import type { TrackerWebSocketDemoViewModel } from "./types";
+import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
   readonly services: Services;
   readonly getUrl: () => URL;
   readonly store: TrackerWebSocketDemoStore;
-}
-
-export interface TrackerWebSocketDemoViewModel {
-  readonly guildIdText: string;
-  readonly channelIdText: string;
-  readonly queueNumberText: string;
-  readonly disconnectDisabled: boolean;
-  readonly statusText: string;
-  readonly statusClassName: string;
-  readonly rawMessageText: string;
 }
 
 export class TrackerWebSocketDemoPresenter {
@@ -39,7 +31,6 @@ export class TrackerWebSocketDemoPresenter {
 
   public static present(snapshot: TrackerWebSocketDemoSnapshot): TrackerWebSocketDemoViewModel {
     const guildIdText = snapshot.params.guildId.length > 0 ? snapshot.params.guildId : "Not set";
-    const channelIdText = snapshot.params.channelId.length > 0 ? snapshot.params.channelId : "Not set";
     const queueNumberText = snapshot.params.queueNumber.length > 0 ? snapshot.params.queueNumber : "Not set";
 
     let statusClassName = "";
@@ -51,12 +42,12 @@ export class TrackerWebSocketDemoPresenter {
 
     return {
       guildIdText,
-      channelIdText,
       queueNumberText,
-      disconnectDisabled: !snapshot.hasConnection,
       statusText: snapshot.statusText,
       statusClassName,
       rawMessageText: snapshot.rawMessageText,
+      state: snapshot.lastMessage?.type === "state" ? toLiveTrackerStateRenderModel(snapshot.lastMessage) : null,
+      isStopped: snapshot.lastMessage?.type === "stopped",
     };
   }
 
@@ -101,12 +92,13 @@ export class TrackerWebSocketDemoPresenter {
         connectionState: "idle",
         statusText: "Waiting for query parameters",
         rawMessageText: TrackerWebSocketDemoPresenter.usageText,
+        lastMessage: null,
         hasConnection: false,
       });
       return;
     }
 
-    this.disconnectInternal({ emitDisconnectedUi: false });
+    this.disconnect();
 
     const previous = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
@@ -120,16 +112,12 @@ export class TrackerWebSocketDemoPresenter {
     this.connectInternal(TrackerWebSocketDemoPresenter.toIdentity(params));
   }
 
-  public disconnect(): void {
-    this.disconnectInternal({ emitDisconnectedUi: true });
-  }
-
   public dispose(): void {
     this.isDisposed = true;
-    this.disconnectInternal({ emitDisconnectedUi: false });
+    this.disconnect();
   }
 
-  private disconnectInternal(options: { readonly emitDisconnectedUi: boolean }): void {
+  private disconnect(): void {
     this.messageSubscription?.unsubscribe();
     this.statusSubscription?.unsubscribe();
     this.messageSubscription = null;
@@ -140,22 +128,11 @@ export class TrackerWebSocketDemoPresenter {
       this.connection = null;
     }
 
-    if (!options.emitDisconnectedUi) {
-      const current = this.config.store.getSnapshot();
-      this.config.store.setSnapshot({
-        ...current,
-        hasConnection: false,
-      });
-      return;
-    }
-
     const current = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
       ...current,
-      connectionState: "disconnected",
-      statusText: "Disconnected",
-      rawMessageText: "Disconnected. Provide query parameters and reload to reconnect.",
       hasConnection: false,
+      lastMessage: null,
     });
   }
 
@@ -242,9 +219,21 @@ export class TrackerWebSocketDemoPresenter {
       }
 
       const snapshot = this.config.store.getSnapshot();
+
+      const nextRawMessageText = ((): string => {
+        if (message.type !== "stopped") {
+          return snapshot.rawMessageText;
+        }
+
+        return snapshot.rawMessageText.includes("🛑")
+          ? snapshot.rawMessageText
+          : `${snapshot.rawMessageText}\n\n🛑 Tracker has been stopped.`;
+      })();
+
       this.config.store.setSnapshot({
         ...snapshot,
-        rawMessageText: JSON.stringify(message, null, 2),
+        rawMessageText: nextRawMessageText,
+        lastMessage: message,
       });
     });
   }

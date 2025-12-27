@@ -2,17 +2,11 @@
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import { API_HOST } from "../constants";
-import styles from "./_styles/tracker.module.css";
 import { TrackerWebSocketDemo } from "../components/live-tracker/create";
 ---
 
 <Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
   <Container>
-    <div class={styles.trackerDemo}>
-      <h1>Live Tracker WebSocket Demo</h1>
-      <p>Connect to a live tracker to see real-time updates</p>
-
-      <TrackerWebSocketDemo client:load apiHost={API_HOST} />
-    </div>
+    <TrackerWebSocketDemo client:load apiHost={API_HOST} />
   </Container>
 </Layout>

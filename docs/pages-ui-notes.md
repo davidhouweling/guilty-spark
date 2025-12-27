@@ -5,7 +5,7 @@
 - Pages uses Astro + CSS Modules everywhere.
 - React integration is enabled via `@astrojs/react`.
 - `/tracker` page mounts a React island.
-- Pages has a Services layer (`pages/src/services/`) with REAL vs FAKE selected by `import.meta.env.MODE`.
+- Pages has a Services layer (`pages/src/services/`) with REAL vs FAKE selected by `import.meta.env.MODE` (supports `--mode=fake`).
 - Live Tracker contracts + runtime parsing live in `contracts/` and are shared by API + Pages.
 
 ## Goals
@@ -31,7 +31,8 @@
   - [x] FAKE deterministic stream with manual stepping for tests (`pages/src/services/live-tracker/fakes/*`).
 - [x] Add unit tests:
   - [x] Fake service deterministic behavior (`pages/src/services/live-tracker/fakes/tests/live-tracker.fake.test.ts`).
-  - [x] React component test for the current tracker island (`pages/src/components/live-tracker/tests/tracker-websocket-demo.test.tsx`).
+  - [x] React component test for the tracker island factory (`pages/src/components/live-tracker/tests/tracker-websocket-demo.test.tsx`).
+  - [x] Unit test for state view-model transformation (`pages/src/components/live-tracker/tests/state-render-model.test.ts`).
 - [x] Repository conventions:
   - [x] Co-locate component CSS modules with components.
   - [x] Keep page CSS near pages without breaking routing (use `pages/src/pages/_styles/`).
@@ -107,3 +108,8 @@ Status:
 5. Cleanup (as we stabilize the UI):
 
 - Delete the old integration scaffolding (e.g., `pages/src/components/live-tracker/react-integration-check.tsx`) once it’s no longer useful.
+
+## Notes
+
+- Fake mode dev server: run `npm start -- --mode=fake` from the `pages/` folder.
+- Tests should render `TrackerWebSocketDemoFactory` directly and inject `services` rather than stubbing install logic in React.

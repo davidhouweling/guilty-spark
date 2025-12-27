@@ -1,3 +1,4 @@
+import type { LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
 
 export type TrackerWebSocketDemoConnectionState = "idle" | LiveTrackerConnectionStatus;
@@ -13,6 +14,7 @@ export interface TrackerWebSocketDemoSnapshot {
   readonly connectionState: TrackerWebSocketDemoConnectionState;
   readonly statusText: string;
   readonly rawMessageText: string;
+  readonly lastMessage: LiveTrackerMessage | null;
   readonly hasConnection: boolean;
 }
 
@@ -30,6 +32,7 @@ export class TrackerWebSocketDemoStore {
       connectionState: "idle",
       statusText: "Waiting for query parameters",
       rawMessageText: "Usage: /tracker?guildId=123&channelId=456&queueNumber=1",
+      lastMessage: null,
       hasConnection: false,
     };
   }

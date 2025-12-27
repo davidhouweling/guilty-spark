@@ -63,7 +63,7 @@ describe("TrackerWebSocketDemo", () => {
     render(<TrackerWebSocketDemoFactory services={services} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Status:")).toBeInTheDocument();
+      expect(screen.getByText("Status")).toBeInTheDocument();
     });
 
     await waitFor(() => {
@@ -77,7 +77,9 @@ describe("TrackerWebSocketDemo", () => {
     connection.step();
 
     await waitFor(() => {
-      expect(screen.getByText(/"type": "state"/)).toBeInTheDocument();
+      expect(screen.getByText("Teams")).toBeInTheDocument();
     });
+
+    expect(screen.getByText("Matches")).toBeInTheDocument();
   });
 });

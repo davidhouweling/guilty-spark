@@ -3,15 +3,14 @@
 /* ============================================ */
 
 .haloNav {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   height: 70px;
   background: rgba(13, 31, 38, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--halo-teal-dark);
-  z-index: 100;
+  margin-bottom: 16px;
+  z-index: 10;
 }
 
 .navContainer {
