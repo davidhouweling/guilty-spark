@@ -6,6 +6,12 @@ export interface LiveTrackerScenario {
   readonly frames: readonly LiveTrackerMessage[];
 }
 
+export interface FakeLiveTrackerScenarioFactoryOpts {
+  readonly baseScenario?: LiveTrackerScenario;
+  readonly intervalMs?: number;
+  readonly frames?: readonly LiveTrackerMessage[];
+}
+
 function cloneStateWithMatches(
   state: LiveTrackerStateMessage,
   matchIdsToInclude: readonly string[],
@@ -46,5 +52,14 @@ export function createSampleScenario(): LiveTrackerScenario {
   return {
     intervalMs: 1200,
     frames,
+  };
+}
+
+export function aFakeLiveTrackerScenarioWith(opts: FakeLiveTrackerScenarioFactoryOpts = {}): LiveTrackerScenario {
+  const baseScenario = opts.baseScenario ?? createSampleScenario();
+
+  return {
+    intervalMs: opts.intervalMs ?? baseScenario.intervalMs,
+    frames: opts.frames ?? baseScenario.frames,
   };
 }

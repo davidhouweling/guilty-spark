@@ -8,11 +8,17 @@ import type {
   LiveTrackerSubscription,
 } from "../types";
 import type { LiveTrackerScenario } from "./scenario";
+import { aFakeLiveTrackerScenarioWith } from "./scenario";
 
 export type FakeLiveTrackerServiceMode = "interval" | "manual";
 
 interface FakeLiveTrackerServiceOptions {
   readonly mode: FakeLiveTrackerServiceMode;
+}
+
+export interface FakeLiveTrackerServiceFactoryOpts {
+  readonly scenario?: LiveTrackerScenario;
+  readonly mode?: FakeLiveTrackerServiceMode;
 }
 
 class FakeLiveTrackerConnection implements LiveTrackerConnection {
@@ -131,4 +137,12 @@ export class FakeLiveTrackerService implements LiveTrackerService {
 
     return connection;
   }
+}
+
+export function aFakeLiveTrackerServiceWith(opts: FakeLiveTrackerServiceFactoryOpts = {}): FakeLiveTrackerService {
+  const scenario = opts.scenario ?? aFakeLiveTrackerScenarioWith();
+
+  return new FakeLiveTrackerService(scenario, {
+    mode: opts.mode,
+  });
 }
