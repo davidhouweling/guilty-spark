@@ -33,6 +33,7 @@
   - [x] Fake service deterministic behavior (`pages/src/services/live-tracker/fakes/tests/live-tracker.fake.test.ts`).
   - [x] React component test for the tracker island factory (`pages/src/components/live-tracker/tests/tracker-websocket-demo.test.tsx`).
   - [x] Unit test for state view-model transformation (`pages/src/components/live-tracker/tests/state-render-model.test.ts`).
+  - [x] Black-box wiring test for the `/tracker` island (`pages/src/pages/_tests/tracker.test.tsx`).
 - [x] Repository conventions:
   - [x] Co-locate component CSS modules with components.
   - [x] Keep page CSS near pages without breaking routing (use `pages/src/pages/_styles/`).

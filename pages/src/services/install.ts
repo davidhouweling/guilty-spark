@@ -5,7 +5,8 @@ export type PagesMode = "REAL" | "FAKE";
 
 function getMode(): PagesMode {
   const mode = import.meta.env.MODE;
-  return mode.toLowerCase() === "fake" ? "FAKE" : "REAL";
+  const normalized = mode.toLowerCase();
+  return normalized === "fake" || normalized === "test" ? "FAKE" : "REAL";
 }
 
 export async function installServices(apiHost: string): Promise<Services> {

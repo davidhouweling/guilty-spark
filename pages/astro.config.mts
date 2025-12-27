@@ -12,4 +12,5 @@ export default defineConfig({
   }),
   integrations: [react()],
   scopedStyleStrategy: "class",
+  trailingSlash: "never",
 });
