@@ -6,6 +6,7 @@
   background: var(--halo-bg-primary);
   border-top: 1px solid var(--halo-teal-dark);
   padding: 3rem 0 1.5rem;
+  margin-top: 16px;
 }
 
 .footerContent {
@@ -29,11 +30,12 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--halo-white);
+  margin-top: 0;
   margin-bottom: 0.75rem;
   text-transform: uppercase;
 }
 
-.footerSection a {
+.footerLink {
   display: block;
   font-family: var(--font-body);
   font-size: 0.9rem;
@@ -43,7 +45,7 @@
   transition: all 0.3s ease;
 }
 
-.footerSection a:hover {
+.footerLink:hover {
   color: var(--halo-teal-primary);
   padding-left: 0.5rem;
 }
@@ -97,7 +99,7 @@
     margin-bottom: 1rem;
   }
 
-  .footerSection a {
+  .footerLink {
     font-size: 0.95rem;
     margin-bottom: 0.75rem;
   }

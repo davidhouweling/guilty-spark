@@ -36,7 +36,7 @@ const footerSections = [
           <div class={styles.footerSection}>
             <h4 class={styles.footerHeading}>{section.heading}</h4>
             {section.links.map((link) => (
-              <a href={link.href} target="_blank" rel="noopener noreferrer">
+              <a class={styles.footerLink} href={link.href} target="_blank" rel="noopener noreferrer">
                 {link.label}
               </a>
             ))}
