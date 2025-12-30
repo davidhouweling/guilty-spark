@@ -1,0 +1,38 @@
+---
+import type { ImageMetadata } from "astro";
+import styles from "./button.module.css";
+
+interface Props {
+  href: string;
+  variant?: "primary" | "secondary";
+  size?: "default" | "large";
+  target?: "_blank" | "_self";
+  class?: string;
+  icon?: ImageMetadata;
+  iconAlt?: string;
+}
+
+const { href, variant = "primary", size = "default", target, class: className, icon, iconAlt = "" } = Astro.props;
+const rel = target === "_blank" ? "noopener noreferrer" : undefined;
+---
+
+<a
+  href={href}
+  target={target}
+  rel={rel}
+  class:list={[
+    styles.haloBtn,
+    variant === "primary" ? styles.btnPrimary : styles.btnSecondary,
+    size === "large" && styles.large,
+    className,
+  ]}
+>
+  <span class:list={[styles.btnCorner, styles.tl]}></span>
+  <span class:list={[styles.btnCorner, styles.tr]}></span>
+  <span class:list={[styles.btnCorner, styles.bl]}></span>
+  <span class:list={[styles.btnCorner, styles.br]}></span>
+  <span class={styles.btnContent}>
+    {icon && <img src={icon.src} alt={iconAlt} class={styles.btnIcon} />}
+    <slot />
+  </span>
+</a>

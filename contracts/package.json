@@ -1,0 +1,11 @@
+{
+  "name": "@guilty-spark/contracts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./base/*": "./src/base/*.mts",
+    "./live-tracker/*": "./src/live-tracker/*.mts",
+    "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.mts"
+  }
+}

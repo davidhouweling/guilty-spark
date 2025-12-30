@@ -1,0 +1,15 @@
+---
+import GuiltySparkIcon from "../../assets/guilty-spark-icon.png";
+import styles from "./logo.module.css";
+
+interface Props {
+  variant?: "nav" | "footer";
+}
+
+const { variant = "nav" } = Astro.props;
+---
+
+<a href="/" class:list={[styles.logo, variant === "nav" ? styles.nav : styles.footer]}>
+  <img src={GuiltySparkIcon.src} alt="Guilty Spark" />
+  <span>Guilty Spark</span>
+</a>

@@ -1,0 +1,66 @@
+.featureCard {
+  position: relative;
+}
+
+.featureCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 0;
+  background: var(--halo-teal-primary);
+  transition: height 0.3s ease;
+}
+
+.featureCard:hover::before {
+  height: 100%;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem;
+}
+
+.featureIcon {
+  width: 60px;
+  height: 60px;
+  color: var(--halo-teal-primary);
+  filter: drop-shadow(0 0 8px rgba(93, 212, 216, 0.5));
+}
+
+.cardTitle {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--halo-white);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.cardText {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.7;
+  color: var(--halo-gray);
+  margin: 0;
+}
+
+@media (--tablet-viewport) {
+  .cardBody {
+    gap: 2rem;
+    padding: 2rem;
+  }
+
+  .cardTitle {
+    font-size: 1.5rem;
+  }
+
+  .cardText {
+    font-size: 1.05rem;
+  }
+}

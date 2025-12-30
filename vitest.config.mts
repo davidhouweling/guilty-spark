@@ -17,5 +17,29 @@ export default defineConfig({
       reportOnFailure: true,
       exclude: [...coverageConfigDefaults.exclude, "scripts/**/*", "**/fakes/**", "**/install.mts"],
     },
+
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "api",
+          environment: "node",
+          include: ["api/**/*.test.mts", "api/**/*.spec.mts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "pages",
+          environment: "jsdom",
+          include: [
+            "pages/src/**/*.test.ts",
+            "pages/src/**/*.test.tsx",
+            "pages/src/**/*.spec.ts",
+            "pages/src/**/*.spec.tsx",
+          ],
+        },
+      },
+    ],
   },
 });

@@ -164,6 +164,23 @@ const createMockTrackerState = (): LiveTrackerState => ({
   },
 });
 
+const aMatchSummaryWith = (
+  overrides: Partial<LiveTrackerState["discoveredMatches"][string]> = {},
+): LiveTrackerState["discoveredMatches"][string] => ({
+  matchId: "match-id",
+  gameTypeAndMap: "Slayer: Recharge",
+  gameType: "Slayer",
+  gameTypeIconUrl: "data:,",
+  gameTypeThumbnailUrl: "data:,",
+  gameMap: "Recharge",
+  gameMapThumbnailUrl: "data:,",
+  duration: "7m 30s",
+  gameScore: "50:47",
+  gameSubScore: null,
+  endTime: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+  ...overrides,
+});
+
 const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerState => ({
   guildId: "guild-123",
   channelId: "channel-456",
@@ -243,20 +260,24 @@ const createMockTrackerStateWithMatches = (): LiveTrackerState => {
   return {
     ...baseState,
     discoveredMatches: {
-      match1: {
+      match1: aMatchSummaryWith({
         matchId: "match1",
-        gameTypeAndMap: "Slayer on Recharge",
+        gameTypeAndMap: "Slayer: Recharge",
+        gameType: "Slayer",
+        gameMap: "Recharge",
         duration: "7m 30s",
         gameScore: "50:47",
-        endTime: new Date(),
-      },
-      match2: {
+        endTime: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+      }),
+      match2: aMatchSummaryWith({
         matchId: "match2",
-        gameTypeAndMap: "Slayer on Streets",
+        gameTypeAndMap: "Slayer: Streets",
+        gameType: "Slayer",
+        gameMap: "Streets",
         duration: "8m 15s",
         gameScore: "50:42",
-        endTime: new Date(),
-      },
+        endTime: new Date("2024-01-01T00:10:00.000Z").toISOString(),
+      }),
     },
     rawMatches: {
       match1: {} as MatchStats, // Mock raw match data
@@ -718,7 +739,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1133,15 +1154,15 @@ describe("LiveTrackerDO", () => {
               gameTypeAndMap: expect.any(String) as string,
               duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
-              endTime: expect.any(Date) as Date,
-            }) as MatchStats,
+              endTime: expect.any(String) as string,
+            }) as LiveTrackerState["discoveredMatches"][string],
             "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
               matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
               gameTypeAndMap: expect.any(String) as string,
               duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
-              endTime: expect.any(Date) as Date,
-            }) as MatchStats,
+              endTime: expect.any(String) as string,
+            }) as LiveTrackerState["discoveredMatches"][string],
           }) as LiveTrackerState["discoveredMatches"],
           rawMatches: expect.objectContaining({
             "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
@@ -1178,7 +1199,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Network error"));
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
@@ -1226,7 +1247,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
@@ -1314,13 +1335,15 @@ describe("LiveTrackerDO", () => {
         // Update to match the mock data (2 teams, 8 players)
         ...eightPlayerSetup,
         discoveredMatches: {
-          "existing-match-id": {
+          "existing-match-id": aMatchSummaryWith({
             matchId: "existing-match-id",
-            gameTypeAndMap: "Slayer on Aquarius",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameMap: "Aquarius",
             duration: "7m 30s",
             gameScore: "50:47",
-            endTime: new Date("2024-01-01T10:00:00Z"),
-          },
+            endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+          }),
         },
         rawMatches: {
           "existing-match-id": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -1365,13 +1388,15 @@ describe("LiveTrackerDO", () => {
           },
         ],
         discoveredMatches: {
-          "pre-sub-match": {
+          "pre-sub-match": aMatchSummaryWith({
             matchId: "pre-sub-match",
-            gameTypeAndMap: "CTF on Catalyst",
+            gameTypeAndMap: "CTF: Catalyst",
+            gameType: "CTF",
+            gameMap: "Catalyst",
             duration: "8m 45s",
             gameScore: "3:2",
-            endTime: new Date("2024-01-01T10:00:00Z"),
-          },
+            endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+          }),
         },
         rawMatches: {
           "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
@@ -1435,7 +1460,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1537,13 +1562,15 @@ describe("LiveTrackerDO", () => {
           substitutionCount: 0,
         },
         discoveredMatches: {
-          "9535b946-f30c-4a43-b852-000000slayer": {
+          "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
-            gameTypeAndMap: "Slayer on Aquarius",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameMap: "Aquarius",
             duration: "5m 00s",
             gameScore: "50:49",
-            endTime: new Date("2024-01-01T10:00:00Z"),
-          },
+            endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+          }),
         },
         rawMatches: {
           "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1605,7 +1632,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       const warnSpy = vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
@@ -1656,13 +1683,15 @@ describe("LiveTrackerDO", () => {
           },
         ],
         discoveredMatches: {
-          "9535b946-f30c-4a43-b852-000000slayer": {
+          "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
             matchId: "9535b946-f30c-4a43-b852-000000slayer",
-            gameTypeAndMap: "Slayer on Aquarius",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameMap: "Aquarius",
             duration: "5m 00s",
             gameScore: "50:49",
-            endTime: new Date("2024-01-01T10:00:00Z"),
-          },
+            endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+          }),
         },
         rawMatches: {
           "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1687,7 +1716,9 @@ describe("LiveTrackerDO", () => {
         .mockResolvedValueOnce("Slayer on Aquarius")
         .mockResolvedValueOnce("CTF on Bazaar");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValueOnce("5:00").mockReturnValueOnce("7:30");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValueOnce("50:49").mockReturnValueOnce("3:2");
+      vi.spyOn(services.haloService, "getMatchScore")
+        .mockReturnValueOnce({ gameScore: "50:49", gameSubScore: null })
+        .mockReturnValueOnce({ gameScore: "3:2", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1743,13 +1774,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1780,7 +1813,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
           ...apiMessage,
@@ -1804,13 +1837,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1841,7 +1876,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
           ...apiMessage,
@@ -1870,13 +1905,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1894,7 +1931,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -1909,13 +1946,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -1949,7 +1988,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -1969,13 +2008,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -2004,7 +2045,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -2019,13 +2060,15 @@ describe("LiveTrackerDO", () => {
           status: "active",
           isPaused: false,
           discoveredMatches: {
-            "9535b946-f30c-4a43-b852-000000slayer": {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
               matchId: "9535b946-f30c-4a43-b852-000000slayer",
-              gameTypeAndMap: "Slayer on Aquarius",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
               duration: "5m 00s",
               gameScore: "50:49",
-              endTime: new Date("2024-01-01T10:00:00Z"),
-            },
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
@@ -2054,7 +2097,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -2478,13 +2521,15 @@ describe("LiveTrackerDO", () => {
 
     it("maintains match history when substitution happens between alarms", async () => {
       const existingMatches = {
-        "pre-sub-match": {
+        "pre-sub-match": aMatchSummaryWith({
           matchId: "pre-sub-match",
-          gameTypeAndMap: "CTF on Catalyst",
+          gameTypeAndMap: "CTF: Catalyst",
+          gameType: "CTF",
+          gameMap: "Catalyst",
           duration: "8m 45s",
           gameScore: "3:2",
-          endTime: new Date("2024-01-01T10:00:00Z"),
-        },
+          endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+        }),
       };
 
       const eightPlayerSetup = createEightPlayerSetup();

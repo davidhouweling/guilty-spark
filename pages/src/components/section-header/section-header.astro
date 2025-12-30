@@ -1,0 +1,18 @@
+---
+interface Props {
+  title: string;
+  subtitle: string;
+}
+
+const { title, subtitle } = Astro.props;
+import styles from "./section-header.module.css";
+---
+
+<div class={styles.sectionHeader}>
+  <h2 class={styles.sectionTitle}>
+    <span class={styles.titleBracket}>&lt;</span>
+    {title}
+    <span class={styles.titleBracket}>/&gt;</span>
+  </h2>
+  <div class={styles.sectionSubtitle}>{subtitle}</div>
+</div>

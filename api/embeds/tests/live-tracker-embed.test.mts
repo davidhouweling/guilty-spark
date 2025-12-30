@@ -1,29 +1,43 @@
 import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
-import { LiveTrackerEmbed, type EnrichedMatchData, type LiveTrackerEmbedData } from "../live-tracker-embed.mjs";
+import { LiveTrackerEmbed } from "../live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
 
 describe("LiveTrackerEmbed", () => {
   let discordService: DiscordService;
   let getTimestampSpy: MockInstance<DiscordService["getTimestamp"]>;
 
-  const testEnrichedMatches: EnrichedMatchData[] = [
+  const testEnrichedMatches: LiveTrackerMatchSummary[] = [
     {
       matchId: "match-1",
       gameTypeAndMap: "Slayer on Aquarius",
+      gameType: "Slayer",
+      gameTypeIconUrl: "https://example.com/slayer-icon.png",
+      gameTypeThumbnailUrl: "https://example.com/slayer-thumb.png",
+      gameMap: "Aquarius",
+      gameMapThumbnailUrl: "https://example.com/aquarius-thumb.png",
       duration: "8m 45s",
       gameScore: "50:42",
-      endTime: new Date("2024-01-01T10:15:00Z"),
+      gameSubScore: null,
+      endTime: "2024-01-01T10:15:00Z",
     },
     {
       matchId: "match-2",
       gameTypeAndMap: "CTF on Catalyst",
+      gameType: "CTF",
+      gameTypeIconUrl: "https://example.com/ctf-icon.png",
+      gameTypeThumbnailUrl: "https://example.com/ctf-thumb.png",
+      gameMap: "Catalyst",
+      gameMapThumbnailUrl: "https://example.com/catalyst-thumb.png",
       duration: "12m 30s",
       gameScore: "3:2",
-      endTime: new Date("2024-01-01T10:30:00Z"),
+      gameSubScore: null,
+      endTime: "2024-01-01T10:30:00Z",
     },
   ];
 
@@ -214,20 +228,25 @@ describe("LiveTrackerEmbed", () => {
         const { actions } = liveTrackerEmbed;
 
         expect(actions).toHaveLength(2);
-        expect(actions[1]).toEqual(
-          expect.objectContaining({
-            type: ComponentType.ActionRow,
-            components: [
-              expect.objectContaining({
-                type: ComponentType.Button,
-                custom_id: "btn_track_repost",
-                label: "Move to bottom of chat",
-                style: ButtonStyle.Secondary,
-                emoji: { name: "⏬" },
-              }),
-            ],
-          }),
-        );
+        expect(actions[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: "btn_track_repost",
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: { name: "⏬" },
+            },
+            {
+              type: ComponentType.Button,
+              label: "View in browser (BETA)",
+              style: ButtonStyle.Link,
+              emoji: { name: "🌐" },
+              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+            },
+          ],
+        });
       });
 
       it("includes repost button for paused state", () => {
@@ -242,20 +261,25 @@ describe("LiveTrackerEmbed", () => {
         const { actions } = liveTrackerEmbed;
 
         expect(actions).toHaveLength(2);
-        expect(actions[1]).toEqual(
-          expect.objectContaining({
-            type: ComponentType.ActionRow,
-            components: [
-              expect.objectContaining({
-                type: ComponentType.Button,
-                custom_id: "btn_track_repost",
-                label: "Move to bottom of chat",
-                style: ButtonStyle.Secondary,
-                emoji: { name: "⏬" },
-              }),
-            ],
-          }),
-        );
+        expect(actions[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: "btn_track_repost",
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: { name: "⏬" },
+            },
+            {
+              type: ComponentType.Button,
+              label: "View in browser (BETA)",
+              style: ButtonStyle.Link,
+              emoji: { name: "🌐" },
+              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+            },
+          ],
+        });
       });
 
       it("does not include repost button for stopped state", () => {
@@ -376,27 +400,45 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("orders substitutions chronologically relative to match end times", () => {
-      const enrichedMatches: EnrichedMatchData[] = [
+      const enrichedMatches: LiveTrackerMatchSummary[] = [
         {
           matchId: "match-1",
           gameTypeAndMap: "Slayer on Aquarius",
+          gameType: "Slayer",
+          gameTypeIconUrl: "https://example.com/slayer-icon.png",
+          gameTypeThumbnailUrl: "https://example.com/slayer-thumb.png",
+          gameMap: "Aquarius",
+          gameMapThumbnailUrl: "https://example.com/aquarius-thumb.png",
           duration: "8m 45s",
           gameScore: "50:42",
-          endTime: new Date("2024-01-01T10:15:00Z"),
+          gameSubScore: null,
+          endTime: "2024-01-01T10:15:00Z",
         },
         {
           matchId: "match-2",
           gameTypeAndMap: "CTF on Catalyst",
+          gameType: "CTF",
+          gameTypeIconUrl: "https://example.com/ctf-icon.png",
+          gameTypeThumbnailUrl: "https://example.com/ctf-thumb.png",
+          gameMap: "Catalyst",
+          gameMapThumbnailUrl: "https://example.com/catalyst-thumb.png",
           duration: "12m 30s",
           gameScore: "3:2",
-          endTime: new Date("2024-01-01T10:30:00Z"),
+          gameSubScore: null,
+          endTime: "2024-01-01T10:30:00Z",
         },
         {
           matchId: "match-3",
           gameTypeAndMap: "Strongholds on Streets",
+          gameType: "Strongholds",
+          gameTypeIconUrl: "https://example.com/strongholds-icon.png",
+          gameTypeThumbnailUrl: "https://example.com/strongholds-thumb.png",
+          gameMap: "Streets",
+          gameMapThumbnailUrl: "https://example.com/streets-thumb.png",
           duration: "15m 12s",
           gameScore: "250:200",
-          endTime: new Date("2024-01-01T10:45:00Z"),
+          gameSubScore: null,
+          endTime: "2024-01-01T10:45:00Z",
         },
       ];
 

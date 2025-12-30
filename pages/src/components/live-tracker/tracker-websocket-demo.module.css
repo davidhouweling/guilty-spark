@@ -1,0 +1,236 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.headerBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.headerTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  line-height: 1.2;
+  color: var(--halo-white);
+}
+
+.headerSubtitle {
+  font-family: var(--font-body);
+  color: var(--halo-gray);
+}
+
+.headerRight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.headerMetaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.headerMetaLabel {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--halo-gray);
+}
+
+.headerMetaValue {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--halo-white);
+}
+
+/* Keep IDs since the existing JS targets them */
+#status-text {
+  color: var(--halo-cyan);
+}
+
+#status-text.connected {
+  color: var(--halo-accent);
+}
+
+#status-text.error {
+  color: var(--halo-cyan);
+}
+
+.dataContainer {
+  background: var(--halo-bg-card);
+  padding: 1.5rem;
+  border: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.sectionTitle {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  margin: 1.25rem 0 0.75rem;
+  color: var(--halo-white);
+}
+
+.notice {
+  background: var(--halo-bg-secondary);
+  padding: 1rem;
+  color: var(--halo-accent);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.seriesOverview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.seriesScores {
+  flex: 1;
+}
+
+.seriesScoresList {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  color: var(--halo-white);
+}
+
+.seriesScore {
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  font-size: 2rem;
+  font-weight: 700;
+  height: 120px;
+  margin: 0 0 1rem;
+  background-color: var(--halo-bg-secondary);
+
+  /* Image comes from JSX via CSS var so we can layer theme overlays for contrast */
+  --series-score-bg: none;
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 25%, transparent);
+  --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
+
+  background-image:
+    linear-gradient(to bottom, var(--series-score-overlay), var(--series-score-overlay)),
+    radial-gradient(circle at 1px 1px, var(--series-score-dot) 1px, transparent 1.5px), var(--series-score-bg);
+  background-size:
+    100% 100%,
+    10px 10px,
+    cover;
+  background-position:
+    center,
+    0 0,
+    center;
+  background-repeat: no-repeat, repeat, no-repeat;
+
+  /* Extra readability on high-contrast backgrounds */
+  text-shadow:
+    0 1px 2px var(--halo-bg-secondary),
+    0 0 10px var(--halo-bg-secondary);
+}
+
+.seriesSubScore {
+  display: block;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.gameTypeAndMap {
+  display: block;
+  font-size: 1.5rem;
+}
+
+.teamCard {
+  background: var(--halo-bg-secondary);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.teamName {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-heading);
+  color: var(--halo-white);
+}
+
+.playerList {
+  margin: 0;
+  padding: 0;
+  color: var(--halo-white);
+  list-style-type: none;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.matchesTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--halo-bg-secondary);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  color: var(--halo-white);
+}
+
+.matchesTable th,
+.matchesTable td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.matchesTable th {
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--halo-gray);
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  .headerBar {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .headerRight {
+    min-width: 260px;
+  }
+
+  .seriesOverview {
+    flex-direction: row;
+
+    > :nth-child(1) {
+      order: 2;
+    }
+
+    > :nth-child(2) {
+      order: 1;
+    }
+
+    > :nth-child(3) {
+      order: 3;
+    }
+  }
+}

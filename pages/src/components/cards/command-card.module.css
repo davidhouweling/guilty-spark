@@ -1,0 +1,46 @@
+.commandCard {
+  border-left: 3px solid var(--halo-teal-primary);
+}
+
+.commandCard:hover {
+  background: rgba(13, 77, 82, 0.5);
+  border-left-width: 5px;
+  box-shadow: 0 0 20px rgba(93, 212, 216, 0.2);
+}
+
+.cardBody {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.commandName {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--halo-teal-primary);
+}
+
+.commandText {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--halo-gray);
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (--tablet-viewport) {
+  .cardBody {
+    padding: 1.5rem;
+  }
+
+  .commandName {
+    font-size: 1.3rem;
+  }
+
+  .commandText {
+    font-size: 1rem;
+  }
+}

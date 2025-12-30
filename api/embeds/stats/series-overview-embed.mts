@@ -59,7 +59,7 @@ export class SeriesOverviewEmbed {
     for (const seriesMatch of series) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = this.haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
-      const gameScore = this.haloService.getMatchScore(seriesMatch, locale);
+      const { gameScore, gameSubScore } = this.haloService.getMatchScore(seriesMatch, locale);
 
       while (subs[0]) {
         const [substitution] = subs;
@@ -80,10 +80,11 @@ export class SeriesOverviewEmbed {
         }
       }
 
+      const gameResult = gameSubScore != null ? `${gameScore} (${gameSubScore})` : gameScore;
       tableData.push([
         `[${gameTypeAndMap}](https://halodatahive.com/Infinite/Match/${seriesMatch.MatchId})`,
         gameDuration,
-        gameScore,
+        gameResult,
       ]);
     }
 

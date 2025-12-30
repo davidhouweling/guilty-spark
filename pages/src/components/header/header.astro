@@ -1,0 +1,146 @@
+---
+// Header/Navigation component
+import Logo from "../logo/logo.astro";
+import Container from "../container/container.astro";
+import { SUPPORT_SERVER_URL, GITHUB_URL } from "../../constants";
+import styles from "./header.module.css";
+
+const navLinks = [
+  { href: "/faq", label: "FAQ", external: false },
+  { href: GITHUB_URL, label: "GitHub", external: true },
+  { href: SUPPORT_SERVER_URL, label: "Support", external: true },
+];
+---
+
+<nav id="halo-nav" class={styles.haloNav} aria-label="Primary">
+  <Container class={styles.navContainer}>
+    <Logo variant="nav" />
+
+    <!-- Mobile menu button -->
+    <button
+      id="nav-toggle"
+      class={styles.mobileMenuBtn}
+      aria-label="Toggle navigation menu"
+      aria-expanded="false"
+      aria-controls="nav-links"
+    >
+      <span class={styles.hamburgerLine}></span>
+      <span class={styles.hamburgerLine}></span>
+      <span class={styles.hamburgerLine}></span>
+    </button>
+
+    <div id="nav-links" class={styles.navLinks} hidden>
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            target={link.external ? "_blank" : undefined}
+            rel={link.external ? "noopener noreferrer" : undefined}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </div>
+  </Container>
+</nav>
+
+<script>
+  // Mobile menu toggle
+  const nav = document.querySelector("#halo-nav");
+  if (!nav) {
+    throw new Error("Navigation element not found");
+  }
+
+  const toggleButton = nav.querySelector<HTMLButtonElement>("#nav-toggle");
+  const menu = nav.querySelector<HTMLDivElement>("#nav-links");
+
+  if (!toggleButton || !menu) {
+    throw new Error("Navigation toggle or menu not found");
+  }
+
+  const tabletQuery = window.matchMedia("(min-width: 750px)");
+
+  const closeMenu = () => {
+    toggleButton.setAttribute("aria-expanded", "false");
+    toggleButton.classList.remove("active");
+    menu.classList.remove("active");
+    if (tabletQuery.matches) {
+      menu.hidden = false;
+    } else {
+      menu.hidden = true;
+    }
+  };
+
+  const openMenu = () => {
+    toggleButton.setAttribute("aria-expanded", "true");
+    toggleButton.classList.add("active");
+    menu.classList.add("active");
+    menu.hidden = false;
+  };
+
+  const toggleMenu = () => {
+    const isExpanded = toggleButton.getAttribute("aria-expanded") === "true";
+    if (isExpanded) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  };
+
+  toggleButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleMenu();
+  });
+
+  menu.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLAnchorElement) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!nav.contains(event.target as Node)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    if (!nav.contains(event.target as Node)) {
+      closeMenu();
+    }
+  });
+
+  toggleButton.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+      toggleButton.focus();
+    }
+  });
+
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+      toggleButton.focus();
+    }
+  });
+
+  const syncMenuToViewport = (query: MediaQueryList | MediaQueryListEvent) => {
+    if (query.matches) {
+      toggleButton.hidden = true;
+      menu.hidden = false;
+      toggleButton.setAttribute("aria-expanded", "false");
+      toggleButton.classList.remove("active");
+      menu.classList.remove("active");
+    } else {
+      toggleButton.hidden = false;
+      if (toggleButton.getAttribute("aria-expanded") !== "true") {
+        menu.hidden = true;
+        menu.classList.remove("active");
+      }
+    }
+  };
+
+  syncMenuToViewport(tabletQuery);
+  tabletQuery.addEventListener("change", syncMenuToViewport);
+</script>

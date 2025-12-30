@@ -3,6 +3,7 @@
   "include": [".astro/types.d.ts", "**/*", "src/env.d.ts"],
   "exclude": ["dist"],
   "compilerOptions": {
-    "types": ["./worker-configuration.d.ts", "node"]
+    "types": ["./worker-configuration.d.ts", "node"],
+    "jsx": "react-jsx"
   }
 }

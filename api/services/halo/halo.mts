@@ -182,7 +182,7 @@ export class HaloService {
     }
   }
 
-  getMatchScore(match: MatchStats, locale: string): string {
+  getMatchScore(match: MatchStats, locale: string): { gameScore: string; gameSubScore: string | null } {
     const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
     const scoreString = scoreCompare.map((value) => value.toLocaleString(locale)).join(":");
 
@@ -192,10 +192,10 @@ export class HaloService {
       );
       const roundsString = roundsCompare.join(":");
 
-      return `${roundsString} (${scoreString})`;
+      return { gameScore: roundsString, gameSubScore: scoreString };
     }
 
-    return scoreString;
+    return { gameScore: scoreString, gameSubScore: null };
   }
 
   getSeriesScore(matches: MatchStats[], locale: string): string {

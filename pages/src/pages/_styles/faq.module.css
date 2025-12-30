@@ -1,0 +1,18 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.faqPage {
+  padding-top: 60px; /* Account for fixed header on mobile */
+  min-height: 100vh;
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  .faqPage {
+    padding-top: 70px;
+  }
+}

@@ -1,0 +1,117 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.haloFooter {
+  background: var(--halo-bg-primary);
+  border-top: 1px solid var(--halo-teal-dark);
+  padding: 3rem 0 1.5rem;
+  margin-top: 16px;
+}
+
+.footerContent {
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+.footerDesc {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--halo-gray);
+  line-height: 1.6;
+}
+
+.footerHeading {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--halo-white);
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+
+.footerLink {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--halo-gray);
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.footerLink:hover {
+  color: var(--halo-teal-primary);
+  padding-left: 0.5rem;
+}
+
+.footerBottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 2rem;
+  border-top: 1px solid var(--halo-teal-darker);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+}
+
+.footerLegal,
+.footerVersion {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--halo-gray);
+}
+
+.footerVersion {
+  font-family: var(--font-mono);
+  color: var(--halo-teal-dark);
+  text-transform: uppercase;
+}
+
+/* ============================================ */
+/* Media Queries - Tablet and Above            */
+/* ============================================ */
+
+@media (--tablet-viewport) {
+  .haloFooter {
+    padding: 4rem 0 2rem;
+  }
+
+  .footerContent {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 3rem;
+  }
+
+  .footerDesc {
+    font-size: 0.95rem;
+  }
+
+  .footerHeading {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .footerLink {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .footerBottom {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .footerLegal,
+  .footerVersion {
+    font-size: 0.9rem;
+  }
+}

@@ -1,0 +1,34 @@
+---
+// FAQ component template
+import SectionHeader from "../section-header/section-header.astro";
+import Container from "../container/container.astro";
+import styles from "./faq.module.css";
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FAQItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<section id="faq" class={styles.faqSection}>
+  <Container>
+    <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />
+
+    <div class={styles.faqContainer}>
+      {
+        items.map((item) => (
+          <div class={styles.faqItem}>
+            <h3 class={styles.faqQuestion}>{item.question}</h3>
+            <p class={styles.faqAnswer} set:html={item.answer} />
+          </div>
+        ))
+      }
+    </div>
+  </Container>
+</section>

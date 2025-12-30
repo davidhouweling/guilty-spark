@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/layout.astro";
-import FAQ from "../components/faq.astro";
+import FAQ from "../components/faq/faq.astro";
+import styles from "./_styles/faq.module.css";
 
 const faqItems = [
   {
@@ -46,28 +47,7 @@ const faqItems = [
   title="FAQ - Guilty Spark"
   description="Frequently asked questions about Guilty Spark, the Halo Infinite Discord bot for match statistics and NeatQueue integration."
 >
-  <div class="faq-page">
+  <div class={styles.faqPage}>
     <FAQ items={faqItems} />
   </div>
 </Layout>
-
-<style>
-  /* ============================================ */
-  /* Base Styles - Mobile First                  */
-  /* ============================================ */
-
-  .faq-page {
-    padding-top: 60px; /* Account for fixed header on mobile */
-    min-height: 100vh;
-  }
-
-  /* ============================================ */
-  /* Media Queries - Tablet and Above            */
-  /* ============================================ */
-
-  @media (--tablet-viewport) {
-    .faq-page {
-      padding-top: 70px;
-    }
-  }
-</style>

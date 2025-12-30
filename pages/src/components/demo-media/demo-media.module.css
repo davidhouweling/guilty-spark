@@ -1,0 +1,31 @@
+:global([data-demo-media-grid]) {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+:global([data-demo-media-item]) {
+  position: relative;
+}
+
+:global([data-demo-caption]) {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--halo-gray);
+  text-align: center;
+  margin-top: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+@media (--tablet-viewport) {
+  :global([data-demo-media-grid]) {
+    gap: 2.5rem;
+  }
+
+  :global([data-demo-caption]) {
+    font-size: 0.9rem;
+  }
+}
