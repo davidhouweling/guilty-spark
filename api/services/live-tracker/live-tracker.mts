@@ -17,7 +17,8 @@ import type {
 } from "../../durable-objects/types.mjs";
 import type { LogService } from "../log/types.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
-import { LiveTrackerEmbed, type LiveTrackerEmbedData } from "../../embeds/live-tracker-embed.mjs";
+import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
 
 export interface LiveTrackerContext {
   userId: string;

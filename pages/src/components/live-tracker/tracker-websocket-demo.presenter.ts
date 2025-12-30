@@ -33,6 +33,13 @@ export class TrackerWebSocketDemoPresenter {
     const guildIdText = snapshot.params.guildId.length > 0 ? snapshot.params.guildId : "Not set";
     const queueNumberText = snapshot.params.queueNumber.length > 0 ? snapshot.params.queueNumber : "Not set";
 
+    const guildNameText =
+      snapshot.lastMessage?.type === "state"
+        ? snapshot.lastMessage.data.guildName
+        : snapshot.params.guildId.length > 0
+          ? `Guild ${snapshot.params.guildId}`
+          : "Not set";
+
     let statusClassName = "";
     if (snapshot.connectionState === "connected") {
       statusClassName = "connected";
@@ -41,7 +48,7 @@ export class TrackerWebSocketDemoPresenter {
     }
 
     return {
-      guildIdText,
+      guildNameText,
       queueNumberText,
       statusText: snapshot.statusText,
       statusClassName,

@@ -23,7 +23,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { apiMessage, discordNeatQueueData, fakeButtonClickInteraction } from "../../discord/fakes/data.mjs";
-import type { LiveTrackerEmbedData } from "../../../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../../../live-tracker/types.mjs";
 
 describe("LiveTrackerService", () => {
   let service: LiveTrackerService;

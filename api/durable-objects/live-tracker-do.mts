@@ -8,7 +8,7 @@ import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
 import type { DatabaseService } from "../services/database/database.mjs";
 import { installServices as installServicesImpl } from "../services/install.mjs";
-import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
@@ -29,6 +29,7 @@ import type {
   LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
 } from "./types.mjs";
+import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -153,7 +154,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ]),
         );
 
-        let enrichedMatches: EnrichedMatchData[] = [];
+        let enrichedMatches: LiveTrackerMatchSummary[] = [];
         const fetchStartTime = Date.now();
 
         try {
@@ -707,7 +708,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async setState(state: LiveTrackerState): Promise<void> {
     await this.state.storage.put("trackerState", state);
     // Broadcast state update to all connected WebSocket clients
-    this.broadcastStateUpdate(state);
+    await this.broadcastStateUpdate(state);
   }
 
   // Typed response helpers
@@ -846,7 +847,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
   }
 
-  private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<EnrichedMatchData[]> {
+  private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<LiveTrackerMatchSummary[]> {
     try {
       const teams: SeriesData["teams"] = trackerState.teams.map((team) =>
         team.playerIds.map((playerId) => {
@@ -917,12 +918,33 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
       const gameScore = this.haloService.getMatchScore(match, "en-US");
 
-      const enrichedMatch: EnrichedMatchData = {
+      let gameType = "*Unknown Game Type*";
+      let gameMap = "*Unknown Map*";
+
+      const colonSplit = gameTypeAndMap.split(":");
+      if (colonSplit.length > 1) {
+        gameType = colonSplit[0]?.trim() ?? "*Unknown Game Type*";
+        gameMap = colonSplit.slice(1).join(":").trim();
+      } else {
+        const separator = " on ";
+        const onIndex = gameTypeAndMap.indexOf(separator);
+        if (onIndex > 0) {
+          gameType = gameTypeAndMap.slice(0, onIndex).trim();
+          gameMap = gameTypeAndMap.slice(onIndex + separator.length).trim();
+        }
+      }
+
+      const enrichedMatch: LiveTrackerMatchSummary = {
         matchId: match.MatchId,
         gameTypeAndMap,
+        gameType,
+        gameTypeIconUrl: "data:,",
+        gameTypeThumbnailUrl: "data:,",
+        gameMap,
+        gameMapThumbnailUrl: "data:,",
         duration,
         gameScore,
-        endTime: new Date(match.MatchInfo.EndTime),
+        endTime: new Date(match.MatchInfo.EndTime).toISOString(),
       };
 
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
@@ -1214,7 +1236,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     server.send(
       JSON.stringify({
         type: "state",
-        data: trackerState,
+        data: this.stateToContractData(trackerState),
         timestamp: new Date().toISOString(),
       }),
     );
@@ -1225,15 +1247,16 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     });
   }
 
-  private broadcastStateUpdate(state: LiveTrackerState): void {
+  private async broadcastStateUpdate(state: LiveTrackerState): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
     if (allWebSockets.length === 0) {
       return;
     }
 
+    const data: LiveTrackerStateData = await this.stateToContractData(state);
     const message = JSON.stringify({
       type: "state",
-      data: state,
+      data,
       timestamp: new Date().toISOString(),
     });
 
@@ -1245,6 +1268,31 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         // WebSocket will be cleaned up automatically by hibernation API
       }
     }
+  }
+
+  private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
+    const guild = await this.discordService.getGuild(state.guildId);
+
+    return {
+      guildId: state.guildId,
+      guildName: guild.name,
+      channelId: state.channelId,
+      queueNumber: state.queueNumber,
+      status: state.status,
+      players: Object.values(state.players).map((player) => ({
+        id: player.user.id,
+        discordUsername: player.nick ?? player.user.global_name ?? player.user.username,
+      })),
+      teams: state.teams,
+      substitutions: state.substitutions.map((sub) => ({
+        playerOutId: sub.playerOutId,
+        playerInId: sub.playerInId,
+        teamIndex: sub.teamIndex,
+        timestamp: sub.timestamp,
+      })),
+      discoveredMatches: Object.values(state.discoveredMatches),
+      lastUpdateTime: state.lastUpdateTime,
+    };
   }
 
   /**

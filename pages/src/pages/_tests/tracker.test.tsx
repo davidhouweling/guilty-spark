@@ -13,16 +13,16 @@ describe("/tracker page wiring", () => {
     render(<TrackerWebSocketDemo apiHost="http://example.local" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /Guild\s*1/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Sample\s*Guild/i })).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Queue\s*#\s*\d+/i)).toBeInTheDocument();
     expect(screen.getByText(/Status/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Teams")).toBeInTheDocument();
+      expect(screen.getByText(/Series overview/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Matches")).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for first match to complete/i)).toBeInTheDocument();
   });
 });

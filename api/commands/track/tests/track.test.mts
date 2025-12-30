@@ -18,7 +18,7 @@ import {
   Locale,
 } from "discord-api-types/v10";
 import { TrackCommand } from "../track.mjs";
-import type { LiveTrackerEmbedData } from "../../../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../../../live-tracker/types.mjs";
 import { InteractionComponent } from "../../../embeds/live-tracker-embed.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -293,9 +293,14 @@ describe("TrackCommand", () => {
             {
               matchId: "match1",
               gameTypeAndMap: "Slayer on Recharge",
+              gameType: "Slayer",
+              gameTypeIconUrl: "data:,",
+              gameTypeThumbnailUrl: "data:,",
+              gameMap: "Recharge",
+              gameMapThumbnailUrl: "data:,",
               duration: "7m 30s",
               gameScore: "50:47",
-              endTime: new Date(),
+              endTime: new Date().toISOString(),
             },
           ],
           seriesScore: "2:1",
@@ -391,9 +396,14 @@ describe("TrackCommand", () => {
             {
               matchId: "match1",
               gameTypeAndMap: "Slayer on Recharge",
+              gameType: "Slayer",
+              gameTypeIconUrl: "data:,",
+              gameTypeThumbnailUrl: "data:,",
+              gameMap: "Recharge",
+              gameMapThumbnailUrl: "data:,",
               duration: "7m 30s",
               gameScore: "50:47",
-              endTime: new Date(),
+              endTime: new Date().toISOString(),
             },
           ],
           seriesScore: "2:1",

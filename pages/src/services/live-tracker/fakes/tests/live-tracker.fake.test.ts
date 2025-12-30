@@ -16,15 +16,16 @@ describe("FakeLiveTrackerService (fake mode)", () => {
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
-        userId: "u",
         guildId: "1",
+        guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,
-        status: "tracking",
+        status: "active",
         lastUpdateTime: "2025-01-01T00:00:00.000Z",
-        players: {},
+        players: [],
         teams: [],
-        discoveredMatches: {},
+        substitutions: [],
+        discoveredMatches: [],
       },
     };
 

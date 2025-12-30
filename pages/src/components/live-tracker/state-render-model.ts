@@ -1,33 +1,16 @@
 import type { LiveTrackerMatchSummary, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
+import { Preconditions } from "../../base/preconditions.mts";
 import type { LiveTrackerMatchRenderModel, LiveTrackerStateRenderModel } from "./types";
-
-function getPlayerDisplayName(
-  member: LiveTrackerStateMessage["data"]["players"][string] | undefined,
-  id: string,
-): string {
-  if (!member) {
-    return id;
-  }
-
-  if (member.nick !== null && member.nick.length > 0) {
-    return member.nick;
-  }
-
-  if (member.user.global_name !== null && member.user.global_name.length > 0) {
-    return member.user.global_name;
-  }
-
-  if (member.user.username.length > 0) {
-    return member.user.username;
-  }
-
-  return id;
-}
 
 function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchRenderModel {
   return {
     matchId: summary.matchId,
     gameTypeAndMap: summary.gameTypeAndMap,
+    gameType: summary.gameType,
+    gameTypeIconUrl: summary.gameTypeIconUrl,
+    gameTypeThumbnailUrl: summary.gameTypeThumbnailUrl,
+    gameMap: summary.gameMap,
+    gameMapThumbnailUrl: summary.gameMapThumbnailUrl,
     duration: summary.duration,
     gameScore: summary.gameScore,
     endTime: summary.endTime,
@@ -35,16 +18,21 @@ function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchR
 }
 
 export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage): LiveTrackerStateRenderModel {
-  const matches = Object.values(message.data.discoveredMatches)
+  const matches = message.data.discoveredMatches
     .map((match) => toMatchRenderModel(match))
     .sort((a, b) => a.endTime.localeCompare(b.endTime));
 
+  const playersById = new Map(message.data.players.map((player) => [player.id, player] as const));
+
   const teams = message.data.teams.map((team) => {
     const players = team.playerIds.map((playerId) => {
-      const member = message.data.players[playerId];
+      const member = Preconditions.checkExists(
+        playersById.get(playerId),
+        `Missing player '${playerId}' from state players list`,
+      );
       return {
         id: playerId,
-        displayName: getPlayerDisplayName(member, playerId),
+        displayName: member.discordUsername,
       };
     });
 
@@ -55,7 +43,7 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
   });
 
   return {
-    userId: message.data.userId,
+    guildName: message.data.guildName,
     queueNumber: message.data.queueNumber,
     status: message.data.status,
     lastUpdateTime: message.data.lastUpdateTime,

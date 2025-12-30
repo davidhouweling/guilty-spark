@@ -25,15 +25,29 @@ describe("TrackerWebSocketDemo", () => {
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
-        userId: "u",
         guildId: "1",
+        guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,
-        status: "tracking",
+        status: "active",
         lastUpdateTime: "2025-01-01T00:00:00.000Z",
-        players: {},
+        players: [{ id: "p1", discordUsername: "Player 1" }],
         teams: [],
-        discoveredMatches: {},
+        substitutions: [],
+        discoveredMatches: [
+          {
+            matchId: "m1",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameTypeIconUrl: "data:,",
+            gameTypeThumbnailUrl: "data:,",
+            gameMap: "Aquarius",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:49",
+            endTime: "2025-01-01T00:00:00.000Z",
+          },
+        ],
       },
     };
 
@@ -66,10 +80,6 @@ describe("TrackerWebSocketDemo", () => {
       expect(screen.getByText("Status")).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("Connected")).toBeInTheDocument();
-    });
-
     if (!isSteppableLiveTrackerConnection(connection)) {
       throw new Error("Expected steppable fake connection in manual mode");
     }
@@ -77,7 +87,7 @@ describe("TrackerWebSocketDemo", () => {
     connection.step();
 
     await waitFor(() => {
-      expect(screen.getByText("Teams")).toBeInTheDocument();
+      expect(screen.getByText(/Series overview/i)).toBeInTheDocument();
     });
 
     expect(screen.getByText("Matches")).toBeInTheDocument();

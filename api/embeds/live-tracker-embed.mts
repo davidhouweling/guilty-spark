@@ -8,6 +8,7 @@ import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import { addMinutes, compareAsc, isBefore } from "date-fns";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import { Preconditions } from "../base/preconditions.mjs";
+import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 import { EmbedColors } from "./colors.mjs";
 
@@ -16,46 +17,6 @@ export enum InteractionComponent {
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Repost = "btn_track_repost",
-}
-
-export type TrackingStatus = "active" | "paused" | "stopped";
-
-export interface EnrichedMatchData {
-  matchId: string;
-  gameTypeAndMap: string;
-  duration: string;
-  gameScore: string;
-  endTime: Date | string;
-}
-
-export interface LiveTrackerEmbedData {
-  userId: string;
-  guildId: string;
-  channelId: string;
-  queueNumber: number;
-  status: TrackingStatus;
-  isPaused: boolean;
-  lastUpdated: Date | string | undefined;
-  nextCheck: Date | string | undefined;
-  enrichedMatches: EnrichedMatchData[] | undefined;
-  seriesScore: string | undefined;
-  substitutions?:
-    | {
-        playerOutId: string;
-        playerInId: string;
-        teamIndex: number;
-        teamName: string;
-        timestamp: string;
-      }[]
-    | undefined;
-  errorState:
-    | {
-        consecutiveErrors: number;
-        backoffMinutes: number;
-        lastSuccessTime: string;
-        lastErrorMessage?: string | undefined;
-      }
-    | undefined;
 }
 
 interface LiveTrackerEmbedServices {
@@ -96,7 +57,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore, endTime } of enrichedMatches) {
         while (substitutionIndex < sortedSubstitutions.length) {
           const substitution = sortedSubstitutions[substitutionIndex];
-          if (!substitution || isBefore(endTime, substitution.timestamp)) {
+          if (!substitution || isBefore(new Date(endTime), new Date(substitution.timestamp))) {
             break;
           }
 
@@ -249,11 +210,11 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     };
   }
 
-  private isEffectivelyPaused(status: TrackingStatus, isPaused: boolean): boolean {
+  private isEffectivelyPaused(status: LiveTrackerEmbedData["status"], isPaused: boolean): boolean {
     return isPaused || status === "paused";
   }
 
-  private getStatusText(status: TrackingStatus, isPaused: boolean): string {
+  private getStatusText(status: LiveTrackerEmbedData["status"], isPaused: boolean): string {
     if (this.isEffectivelyPaused(status, isPaused)) {
       return "Live Tracking Paused";
     }
@@ -263,7 +224,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     return "Live Tracking Active";
   }
 
-  private getEmbedColor(status: TrackingStatus, isPaused: boolean): number {
+  private getEmbedColor(status: LiveTrackerEmbedData["status"], isPaused: boolean): number {
     if (this.isEffectivelyPaused(status, isPaused)) {
       return EmbedColors.WARNING;
     }

@@ -1,3 +1,5 @@
+import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+
 export interface LiveTrackerPlayerRenderModel {
   readonly id: string;
   readonly displayName: string;
@@ -11,22 +13,27 @@ export interface LiveTrackerTeamRenderModel {
 export interface LiveTrackerMatchRenderModel {
   readonly matchId: string;
   readonly gameTypeAndMap: string;
+  readonly gameType: string;
+  readonly gameTypeIconUrl: string;
+  readonly gameTypeThumbnailUrl: string;
+  readonly gameMap: string;
+  readonly gameMapThumbnailUrl: string;
   readonly duration: string;
   readonly gameScore: string;
   readonly endTime: string;
 }
 
 export interface LiveTrackerStateRenderModel {
-  readonly userId: string;
+  readonly guildName: string;
   readonly queueNumber: number;
-  readonly status: string;
+  readonly status: LiveTrackerStatus;
   readonly lastUpdateTime: string;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly matches: readonly LiveTrackerMatchRenderModel[];
 }
 
 export interface TrackerWebSocketDemoViewModel {
-  readonly guildIdText: string;
+  readonly guildNameText: string;
   readonly queueNumberText: string;
   readonly statusText: string;
   readonly statusClassName: string;

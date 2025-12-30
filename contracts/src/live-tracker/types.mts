@@ -4,24 +4,24 @@ export interface LiveTrackerIdentity {
   readonly queueNumber: string;
 }
 
+export type LiveTrackerStatus = "active" | "paused" | "stopped";
+
 export interface LiveTrackerMatchSummary {
   readonly matchId: string;
   readonly gameTypeAndMap: string;
+  readonly gameType: string;
+  readonly gameTypeIconUrl: string;
+  readonly gameTypeThumbnailUrl: string;
+  readonly gameMap: string;
+  readonly gameMapThumbnailUrl: string;
   readonly duration: string;
   readonly gameScore: string;
   readonly endTime: string;
 }
 
-export interface LiveTrackerDiscordUser {
+export interface LiveTrackerPlayer {
   readonly id: string;
-  readonly username: string;
-  readonly global_name: string | null;
-  readonly avatar: string | null;
-}
-
-export interface LiveTrackerGuildMember {
-  readonly nick: string | null;
-  readonly user: LiveTrackerDiscordUser;
+  readonly discordUsername: string;
 }
 
 export interface LiveTrackerTeam {
@@ -30,14 +30,20 @@ export interface LiveTrackerTeam {
 }
 
 export interface LiveTrackerStateData {
-  readonly userId: string;
   readonly guildId: string;
+  readonly guildName: string;
   readonly channelId: string;
   readonly queueNumber: number;
-  readonly status: string;
-  readonly players: Readonly<Record<string, LiveTrackerGuildMember>>;
+  readonly status: LiveTrackerStatus;
+  readonly players: readonly LiveTrackerPlayer[];
   readonly teams: readonly LiveTrackerTeam[];
-  readonly discoveredMatches: Readonly<Record<string, LiveTrackerMatchSummary>>;
+  readonly substitutions: {
+    playerOutId: string;
+    playerInId: string;
+    teamIndex: number;
+    timestamp: string;
+  }[];
+  readonly discoveredMatches: readonly LiveTrackerMatchSummary[];
   readonly lastUpdateTime: string;
 }
 

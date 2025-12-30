@@ -1,6 +1,7 @@
 import type { APIGuildMember } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import type { LiveTrackerEmbedData, EnrichedMatchData } from "../embeds/live-tracker-embed.mjs";
+import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
+import type { LiveTrackerMatchSummary, LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
 
 // Input types for requests to the LiveTracker DO
 export interface LiveTrackerStartRequest {
@@ -31,7 +32,7 @@ export interface LiveTrackerState {
   channelId: string;
   queueNumber: number;
   isPaused: boolean;
-  status: "active" | "paused" | "stopped";
+  status: LiveTrackerStatus;
   liveMessageId?: string | undefined;
   startTime: string;
   lastUpdateTime: string;
@@ -55,7 +56,7 @@ export interface LiveTrackerState {
     lastSuccessTime: string;
     lastErrorMessage?: string | undefined;
   };
-  discoveredMatches: Record<string, EnrichedMatchData>;
+  discoveredMatches: Record<string, LiveTrackerMatchSummary>;
   rawMatches: Record<string, MatchStats>;
   lastMessageState: {
     matchCount: number;

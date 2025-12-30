@@ -17,13 +17,8 @@ function cloneStateWithMatches(
   matchIdsToInclude: readonly string[],
   timestamp: string,
 ): LiveTrackerStateMessage {
-  const discoveredMatches: Record<string, LiveTrackerStateMessage["data"]["discoveredMatches"][string]> = {};
-
-  for (const matchId of matchIdsToInclude) {
-    if (Object.prototype.hasOwnProperty.call(state.data.discoveredMatches, matchId)) {
-      discoveredMatches[matchId] = state.data.discoveredMatches[matchId];
-    }
-  }
+  const allowedMatchIds = new Set(matchIdsToInclude);
+  const discoveredMatches = state.data.discoveredMatches.filter((match) => allowedMatchIds.has(match.matchId));
 
   return {
     type: "state",
@@ -37,7 +32,7 @@ function cloneStateWithMatches(
 }
 
 export function createSampleScenario(): LiveTrackerScenario {
-  const allMatchIds = Object.keys(sampleLiveTrackerStateMessage.data.discoveredMatches);
+  const allMatchIds = sampleLiveTrackerStateMessage.data.discoveredMatches.map((match) => match.matchId);
 
   const baseTimestamp = new Date(sampleLiveTrackerStateMessage.timestamp);
   const frames: LiveTrackerMessage[] = [];

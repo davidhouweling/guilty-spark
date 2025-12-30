@@ -86,7 +86,7 @@
   border: 1px solid rgba(93, 212, 216, 0.25);
 }
 
-.teams {
+.seriesOverview {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
@@ -106,8 +106,9 @@
 
 .playerList {
   margin: 0;
-  padding-left: 1.25rem;
+  padding: 0;
   color: var(--halo-white);
+  list-style-type: none;
 }
 
 .tableWrap {

@@ -1,43 +1,61 @@
-import { readJsonArray, readJsonObject, readNullableString, readNumber, readString } from "../base/json-readers.mjs";
+import { readJsonArray, readJsonObject, readNumber, readString } from "../base/json-readers.mjs";
 import type { JsonValue } from "../base/json.mts";
 import type {
-  LiveTrackerGuildMember,
+  LiveTrackerPlayer,
   LiveTrackerMatchSummary,
   LiveTrackerMessage,
+  LiveTrackerStatus,
   LiveTrackerStateData,
   LiveTrackerStateMessage,
   LiveTrackerTeam,
 } from "./types.mts";
 
-function parseGuildMember(value: JsonValue): LiveTrackerGuildMember {
-  const member = readJsonObject(value);
-  if (!member) {
-    throw new Error("Invalid guild member payload");
+function parseStatus(value: JsonValue): LiveTrackerStatus | null {
+  const status = readString(value);
+  if (status === "active" || status === "paused" || status === "stopped") {
+    return status;
+  }
+  return null;
+}
+
+function parsePlayer(value: JsonValue): LiveTrackerPlayer | null {
+  const player = readJsonObject(value);
+  if (!player) {
+    return null;
   }
 
-  const user = readJsonObject(member["user"] ?? null);
-  if (!user) {
-    throw new Error("Invalid guild member payload");
-  }
-
-  const id = readString(user["id"] ?? null);
-  const username = readString(user["username"] ?? null);
-  const global_name = readNullableString(user["global_name"] ?? null);
-  const avatar = readNullableString(user["avatar"] ?? null);
-  const nick = readNullableString(member["nick"] ?? null);
-
-  if (id === null || username === null) {
-    throw new Error("Invalid guild member payload");
+  const id = readString(player["id"] ?? null);
+  const discordUsername = readString(player["discordUsername"] ?? null);
+  if (id === null || discordUsername === null) {
+    return null;
   }
 
   return {
-    nick,
-    user: {
-      id,
-      username,
-      global_name,
-      avatar,
-    },
+    id,
+    discordUsername,
+  };
+}
+
+function parseSubstitution(value: JsonValue): LiveTrackerStateData["substitutions"][number] | null {
+  const substitution = readJsonObject(value);
+  if (!substitution) {
+    return null;
+  }
+
+  const playerOutId = readString(substitution["playerOutId"] ?? null);
+  const playerInId = readString(substitution["playerInId"] ?? null);
+  const teamIndex = readNumber(substitution["teamIndex"] ?? null);
+  const timestamp = readString(substitution["timestamp"] ?? null);
+
+  if (playerOutId === null || playerInId === null || teamIndex === null || timestamp === null) {
+    return null;
+  }
+
+  return {
+    playerOutId,
+    playerInId,
+    teamIndex,
+    timestamp,
   };
 }
 
@@ -76,17 +94,38 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
 
   const matchId = readString(match["matchId"] ?? null);
   const gameTypeAndMap = readString(match["gameTypeAndMap"] ?? null);
+  const gameType = readString(match["gameType"] ?? null);
+  const gameTypeIconUrl = readString(match["gameTypeIconUrl"] ?? null);
+  const gameTypeThumbnailUrl = readString(match["gameTypeThumbnailUrl"] ?? null);
+  const gameMap = readString(match["gameMap"] ?? null);
+  const gameMapThumbnailUrl = readString(match["gameMapThumbnailUrl"] ?? null);
   const duration = readString(match["duration"] ?? null);
   const gameScore = readString(match["gameScore"] ?? null);
   const endTime = readString(match["endTime"] ?? null);
 
-  if (matchId === null || gameTypeAndMap === null || duration === null || gameScore === null || endTime === null) {
+  if (
+    matchId === null ||
+    gameTypeAndMap === null ||
+    gameType === null ||
+    gameTypeIconUrl === null ||
+    gameTypeThumbnailUrl === null ||
+    gameMap === null ||
+    gameMapThumbnailUrl === null ||
+    duration === null ||
+    gameScore === null ||
+    endTime === null
+  ) {
     return null;
   }
 
   return {
     matchId,
     gameTypeAndMap,
+    gameType,
+    gameTypeIconUrl,
+    gameTypeThumbnailUrl,
+    gameMap,
+    gameMapThumbnailUrl,
     duration,
     gameScore,
     endTime,
@@ -99,38 +138,39 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     return null;
   }
 
-  const userId = readString(data["userId"] ?? null);
   const guildId = readString(data["guildId"] ?? null);
+  const guildName = readString(data["guildName"] ?? null);
   const channelId = readString(data["channelId"] ?? null);
   const queueNumber = readNumber(data["queueNumber"] ?? null);
-  const status = readString(data["status"] ?? null);
+  const status = parseStatus(data["status"] ?? null);
   const lastUpdateTime = readString(data["lastUpdateTime"] ?? null);
-  const playersObj = readJsonObject(data["players"] ?? null);
+  const playersArray = readJsonArray(data["players"] ?? null);
   const teamsArray = readJsonArray(data["teams"] ?? null);
-  const matchesObj = readJsonObject(data["discoveredMatches"] ?? null);
+  const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
+  const matchesArray = readJsonArray(data["discoveredMatches"] ?? null);
 
   if (
-    userId === null ||
     guildId === null ||
+    guildName === null ||
     channelId === null ||
     queueNumber === null ||
     status === null ||
     lastUpdateTime === null ||
-    playersObj === null ||
+    playersArray === null ||
     teamsArray === null ||
-    matchesObj === null
+    substitutionsArray === null ||
+    matchesArray === null
   ) {
     return null;
   }
 
-  const players: Record<string, LiveTrackerGuildMember> = {};
-  for (const playerId of Object.keys(playersObj)) {
-    const memberValue = playersObj[playerId] ?? null;
-    try {
-      players[playerId] = parseGuildMember(memberValue);
-    } catch {
+  const players: LiveTrackerPlayer[] = [];
+  for (const playerValue of playersArray) {
+    const player = parsePlayer(playerValue);
+    if (!player) {
       return null;
     }
+    players.push(player);
   }
 
   const teams: LiveTrackerTeam[] = [];
@@ -142,24 +182,33 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     teams.push(team);
   }
 
-  const discoveredMatches: Record<string, LiveTrackerMatchSummary> = {};
-  for (const matchKey of Object.keys(matchesObj)) {
-    const matchValue = matchesObj[matchKey] ?? null;
+  const substitutions: LiveTrackerStateData["substitutions"] = [];
+  for (const substitutionValue of substitutionsArray) {
+    const substitution = parseSubstitution(substitutionValue);
+    if (!substitution) {
+      return null;
+    }
+    substitutions.push(substitution);
+  }
+
+  const discoveredMatches: LiveTrackerMatchSummary[] = [];
+  for (const matchValue of matchesArray) {
     const match = parseMatchSummary(matchValue);
     if (!match) {
       return null;
     }
-    discoveredMatches[matchKey] = match;
+    discoveredMatches.push(match);
   }
 
   return {
-    userId,
     guildId,
+    guildName,
     channelId,
     queueNumber,
     status,
     players,
     teams,
+    substitutions,
     discoveredMatches,
     lastUpdateTime,
   };
