@@ -228,20 +228,25 @@ describe("LiveTrackerEmbed", () => {
         const { actions } = liveTrackerEmbed;
 
         expect(actions).toHaveLength(2);
-        expect(actions[1]).toEqual(
-          expect.objectContaining({
-            type: ComponentType.ActionRow,
-            components: [
-              expect.objectContaining({
-                type: ComponentType.Button,
-                custom_id: "btn_track_repost",
-                label: "Move to bottom of chat",
-                style: ButtonStyle.Secondary,
-                emoji: { name: "⏬" },
-              }),
-            ],
-          }),
-        );
+        expect(actions[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: "btn_track_repost",
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: { name: "⏬" },
+            },
+            {
+              type: ComponentType.Button,
+              label: "View in browser (BETA)",
+              style: ButtonStyle.Link,
+              emoji: { name: "🌐" },
+              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+            },
+          ],
+        });
       });
 
       it("includes repost button for paused state", () => {
@@ -256,20 +261,25 @@ describe("LiveTrackerEmbed", () => {
         const { actions } = liveTrackerEmbed;
 
         expect(actions).toHaveLength(2);
-        expect(actions[1]).toEqual(
-          expect.objectContaining({
-            type: ComponentType.ActionRow,
-            components: [
-              expect.objectContaining({
-                type: ComponentType.Button,
-                custom_id: "btn_track_repost",
-                label: "Move to bottom of chat",
-                style: ButtonStyle.Secondary,
-                emoji: { name: "⏬" },
-              }),
-            ],
-          }),
-        );
+        expect(actions[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: "btn_track_repost",
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: { name: "⏬" },
+            },
+            {
+              type: ComponentType.Button,
+              label: "View in browser (BETA)",
+              style: ButtonStyle.Link,
+              emoji: { name: "🌐" },
+              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+            },
+          ],
+        });
       });
 
       it("does not include repost button for stopped state", () => {

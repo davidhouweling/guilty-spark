@@ -30,7 +30,6 @@ export class TrackerWebSocketDemoPresenter {
   }
 
   public static present(snapshot: TrackerWebSocketDemoSnapshot): TrackerWebSocketDemoViewModel {
-    const guildIdText = snapshot.params.guildId.length > 0 ? snapshot.params.guildId : "Not set";
     const queueNumberText = snapshot.params.queueNumber.length > 0 ? snapshot.params.queueNumber : "Not set";
 
     const guildNameText =
