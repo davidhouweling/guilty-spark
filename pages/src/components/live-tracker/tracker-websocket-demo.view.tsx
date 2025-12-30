@@ -44,18 +44,20 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
           <>
             <h2 className={styles.sectionTitle}>Series overview</h2>
             <div className={styles.seriesOverview}>
-              <div className={styles.seriesScores}>
+              <section className={styles.seriesScores}>
                 {hasMatches ? (
-                  <div>
+                  <>
                     <h3 className={styles.teamName}>Series scores</h3>
                     <ul className={styles.seriesScoresList}>
                       {model.state.matches.map((match) => (
                         <li
                           key={match.matchId}
                           className={styles.seriesScore}
-                          style={{
-                            backgroundImage: `url(${match.gameTypeThumbnailUrl}), url(${match.gameMapThumbnailUrl})`,
-                          }}
+                          style={((): React.CSSProperties & { readonly "--series-score-bg": string } => {
+                            return {
+                              "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
+                            };
+                          })()}
                         >
                           {match.gameScore}
                           {match.gameSubScore != null ? (
@@ -63,14 +65,15 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
                           ) : (
                             ""
                           )}
+                          <span className={styles.gameTypeAndMap}>{match.gameTypeAndMap}</span>
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </>
                 ) : (
                   <div className={styles.notice}>⏳ Waiting for first match to complete...</div>
                 )}
-              </div>
+              </section>
               {model.state.teams.map((team) => {
                 return (
                   <section key={team.name} className={styles.teamCard}>
