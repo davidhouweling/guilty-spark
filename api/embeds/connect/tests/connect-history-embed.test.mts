@@ -31,7 +31,7 @@ describe("ConnectHistoryEmbed", () => {
         ],
       } as never,
     ]);
-    vi.spyOn(haloService, "getMatchScore").mockReturnValue("50 - 30");
+    vi.spyOn(haloService, "getMatchScore").mockReturnValue({ gameScore: "50:30", gameSubScore: null });
     vi.spyOn(discordService, "getTimestamp").mockReturnValue("<t:1732615200:R>");
 
     const embed = new ConnectHistoryEmbed({ discordService, haloService }, { gamertag: "TestPlayer", locale: "en-US" });
@@ -45,7 +45,7 @@ describe("ConnectHistoryEmbed", () => {
     expect(result.fields?.[0]?.name).toBe("Game");
     expect(result.fields?.[0]?.value).toBe("Slayer on Live Fire");
     expect(result.fields?.[1]?.name).toBe("Result");
-    expect(result.fields?.[1]?.value).toBe("Win - 50 - 30");
+    expect(result.fields?.[1]?.value).toBe("Win - 50:30");
     expect(result.fields?.[2]?.name).toBe("When");
     expect(result.fields?.[2]?.value).toBe("<t:1732615200:R>");
   });
@@ -95,7 +95,9 @@ describe("ConnectHistoryEmbed", () => {
       { MatchId: "match-001-slayer", Teams: [{ TeamId: 0, Stats: { Score: 50 } }] } as never,
       { MatchId: "match-002-ctf", Teams: [{ TeamId: 1, Stats: { Score: 2 } }] } as never,
     ]);
-    vi.spyOn(haloService, "getMatchScore").mockReturnValueOnce("50 - 30").mockReturnValueOnce("2 - 3");
+    vi.spyOn(haloService, "getMatchScore")
+      .mockReturnValueOnce({ gameScore: "50:30", gameSubScore: null })
+      .mockReturnValueOnce({ gameScore: "2:3", gameSubScore: null });
     vi.spyOn(discordService, "getTimestamp")
       .mockReturnValueOnce("<t:1732615200:R>")
       .mockReturnValueOnce("<t:1732618800:R>");
@@ -106,7 +108,7 @@ describe("ConnectHistoryEmbed", () => {
 
     expect(result.fields).toHaveLength(3);
     expect(result.fields?.[0]?.value).toBe("Slayer on Live Fire\nCTF on Recharge");
-    expect(result.fields?.[1]?.value).toBe("Win - 50 - 30\nLoss - 2 - 3");
+    expect(result.fields?.[1]?.value).toBe("Win - 50:30\nLoss - 2:3");
     expect(result.fields?.[2]?.value).toBe("<t:1732615200:R>\n<t:1732618800:R>");
   });
 });

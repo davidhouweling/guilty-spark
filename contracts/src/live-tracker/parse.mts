@@ -101,6 +101,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const gameMapThumbnailUrl = readString(match["gameMapThumbnailUrl"] ?? null);
   const duration = readString(match["duration"] ?? null);
   const gameScore = readString(match["gameScore"] ?? null);
+  const gameSubScore = readString(match["gameSubScore"] ?? null);
   const endTime = readString(match["endTime"] ?? null);
 
   if (
@@ -128,6 +129,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     gameMapThumbnailUrl,
     duration,
     gameScore,
+    gameSubScore,
     endTime,
   };
 }

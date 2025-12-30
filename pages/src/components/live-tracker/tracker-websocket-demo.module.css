@@ -92,6 +92,40 @@
   gap: 1rem;
 }
 
+.seriesScoresList {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  color: var(--halo-white);
+}
+
+.seriesScore {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  font-size: 1.5rem;
+  font-weight: 700;
+  height: 120px;
+  margin: 0 0 1rem;
+  background-position:
+    left center,
+    right center;
+  background-size:
+    50% 100%,
+    50% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-blend-mode: overlay;
+}
+
+.seriesSubScore {
+  display: block;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
 .teamCard {
   background: var(--halo-bg-secondary);
   border: 1px solid rgba(93, 212, 216, 0.25);

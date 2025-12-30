@@ -45,6 +45,7 @@ describe("TrackerWebSocketDemo", () => {
             gameMapThumbnailUrl: "data:,",
             duration: "10m 0s",
             gameScore: "50:49",
+            gameSubScore: null,
             endTime: "2025-01-01T00:00:00.000Z",
           },
         ],

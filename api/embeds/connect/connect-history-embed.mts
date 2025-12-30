@@ -53,12 +53,12 @@ export class ConnectHistoryEmbed {
                   recentHistory.map(async (match) => {
                     const outcome = haloService.getMatchOutcome(match.Outcome);
                     const [matchDetail] = await haloService.getMatchDetails([match.MatchId]);
-                    const matchScore = haloService.getMatchScore(
+                    const { gameScore, gameSubScore } = haloService.getMatchScore(
                       Preconditions.checkExists(matchDetail, `Cannot find match with match id ${match.MatchId}`),
                       locale,
                     );
 
-                    return `${outcome} - ${matchScore}`;
+                    return `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
                   }),
                 )
               ).join("\n"),

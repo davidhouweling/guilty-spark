@@ -23,6 +23,7 @@ describe("LiveTrackerEmbed", () => {
       gameMapThumbnailUrl: "https://example.com/aquarius-thumb.png",
       duration: "8m 45s",
       gameScore: "50:42",
+      gameSubScore: null,
       endTime: "2024-01-01T10:15:00Z",
     },
     {
@@ -35,6 +36,7 @@ describe("LiveTrackerEmbed", () => {
       gameMapThumbnailUrl: "https://example.com/catalyst-thumb.png",
       duration: "12m 30s",
       gameScore: "3:2",
+      gameSubScore: null,
       endTime: "2024-01-01T10:30:00Z",
     },
   ];
@@ -399,6 +401,7 @@ describe("LiveTrackerEmbed", () => {
           gameMapThumbnailUrl: "https://example.com/aquarius-thumb.png",
           duration: "8m 45s",
           gameScore: "50:42",
+          gameSubScore: null,
           endTime: "2024-01-01T10:15:00Z",
         },
         {
@@ -411,6 +414,7 @@ describe("LiveTrackerEmbed", () => {
           gameMapThumbnailUrl: "https://example.com/catalyst-thumb.png",
           duration: "12m 30s",
           gameScore: "3:2",
+          gameSubScore: null,
           endTime: "2024-01-01T10:30:00Z",
         },
         {
@@ -423,6 +427,7 @@ describe("LiveTrackerEmbed", () => {
           gameMapThumbnailUrl: "https://example.com/streets-thumb.png",
           duration: "15m 12s",
           gameScore: "250:200",
+          gameSubScore: null,
           endTime: "2024-01-01T10:45:00Z",
         },
       ];

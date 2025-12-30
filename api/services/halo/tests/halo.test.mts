@@ -1497,15 +1497,15 @@ describe("Halo service", () => {
 
   describe("getMatchScore()", () => {
     it.each([
-      { matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", score: "3:0" },
-      { matchId: "e20900f9-4c6c-4003-a175-00000000koth", score: "3:2" },
-      { matchId: "9535b946-f30c-4a43-b852-000000slayer", score: "44:50" },
-      { matchId: "cf0fb794-2df1-4ba1-9415-00000oddball", score: "1:2 (198:256)" },
-      { matchId: "099deb74-3f60-48cf-8784-0strongholds", score: "175:250" },
-    ])("returns the score for match $matchId", ({ matchId, score }) => {
+      { matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", matchScore: { gameScore: "3:0", gameSubScore: null } },
+      { matchId: "e20900f9-4c6c-4003-a175-00000000koth", matchScore: { gameScore: "3:2", gameSubScore: null } },
+      { matchId: "9535b946-f30c-4a43-b852-000000slayer", matchScore: { gameScore: "44:50", gameSubScore: null } },
+      { matchId: "cf0fb794-2df1-4ba1-9415-00000oddball", matchScore: { gameScore: "1:2", gameSubScore: "198:256" } },
+      { matchId: "099deb74-3f60-48cf-8784-0strongholds", matchScore: { gameScore: "175:250", gameSubScore: null } },
+    ])("returns the score for match $matchId", ({ matchId, matchScore: score }) => {
       const result = haloService.getMatchScore(Preconditions.checkExists(matchStats.get(matchId)), "en-US");
 
-      expect(result).toBe(score);
+      expect(result).toEqual(score);
     });
   });
 

@@ -16,6 +16,7 @@ export interface LiveTrackerMatchSummary {
   readonly gameMapThumbnailUrl: string;
   readonly duration: string;
   readonly gameScore: string;
+  readonly gameSubScore: string | null;
   readonly endTime: string;
 }
 

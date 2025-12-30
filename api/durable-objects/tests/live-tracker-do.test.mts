@@ -176,6 +176,7 @@ const aMatchSummaryWith = (
   gameMapThumbnailUrl: "data:,",
   duration: "7m 30s",
   gameScore: "50:47",
+  gameSubScore: null,
   endTime: new Date("2024-01-01T00:00:00.000Z").toISOString(),
   ...overrides,
 });
@@ -738,7 +739,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1198,7 +1199,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("Network error"));
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
@@ -1246,7 +1247,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
@@ -1459,7 +1460,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1631,7 +1632,7 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       const warnSpy = vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
@@ -1715,7 +1716,9 @@ describe("LiveTrackerDO", () => {
         .mockResolvedValueOnce("Slayer on Aquarius")
         .mockResolvedValueOnce("CTF on Bazaar");
       vi.spyOn(services.haloService, "getReadableDuration").mockReturnValueOnce("5:00").mockReturnValueOnce("7:30");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValueOnce("50:49").mockReturnValueOnce("3:2");
+      vi.spyOn(services.haloService, "getMatchScore")
+        .mockReturnValueOnce({ gameScore: "50:49", gameSubScore: null })
+        .mockReturnValueOnce({ gameScore: "3:2", gameSubScore: null });
 
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
         ...apiMessage,
@@ -1810,7 +1813,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
           ...apiMessage,
@@ -1873,7 +1876,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50:49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
         vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
         vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
           ...apiMessage,
@@ -1928,7 +1931,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -1985,7 +1988,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -2042,7 +2045,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 
@@ -2094,7 +2097,7 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(services.haloService, "getReadableDuration").mockReturnValue("5:00");
-        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue("50-49");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
 
         await liveTrackerDO.alarm();
 

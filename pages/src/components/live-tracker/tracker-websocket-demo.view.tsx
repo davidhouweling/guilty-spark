@@ -48,9 +48,22 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
                 {hasMatches ? (
                   <div>
                     <h3 className={styles.teamName}>Series scores</h3>
-                    <ul className={styles.seriesScore}>
+                    <ul className={styles.seriesScoresList}>
                       {model.state.matches.map((match) => (
-                        <li key={match.matchId}>{match.gameScore}</li>
+                        <li
+                          key={match.matchId}
+                          className={styles.seriesScore}
+                          style={{
+                            backgroundImage: `url(${match.gameTypeThumbnailUrl}), url(${match.gameMapThumbnailUrl})`,
+                          }}
+                        >
+                          {match.gameScore}
+                          {match.gameSubScore != null ? (
+                            <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                          ) : (
+                            ""
+                          )}
+                        </li>
                       ))}
                     </ul>
                   </div>

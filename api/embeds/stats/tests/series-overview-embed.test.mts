@@ -29,7 +29,7 @@ describe("SeriesOverviewEmbed", () => {
 
     vi.spyOn(haloService, "getGameTypeAndMap").mockResolvedValue("CTF on Bazaar");
     vi.spyOn(haloService, "getReadableDuration").mockReturnValue("10m 30s");
-    vi.spyOn(haloService, "getMatchScore").mockReturnValue("3-1");
+    vi.spyOn(haloService, "getMatchScore").mockReturnValue({ gameScore: "3-1", gameSubScore: null });
     vi.spyOn(discordService, "getTimestamp").mockReturnValue("<t:1700000000:f>");
   });
 

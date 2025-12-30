@@ -13,6 +13,7 @@ function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchR
     gameMapThumbnailUrl: summary.gameMapThumbnailUrl,
     duration: summary.duration,
     gameScore: summary.gameScore,
+    gameSubScore: summary.gameSubScore,
     endTime: summary.endTime,
   };
 }
