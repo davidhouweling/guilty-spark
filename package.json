@@ -44,7 +44,7 @@
     "publish:pages": "npm run deploy --workspace=pages"
   },
   "dependencies": {
-    "@sentry/cli": "^2.58.4",
+    "@sentry/cli": "^3.0.1",
     "@sentry/cloudflare": "^10.32.1",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
