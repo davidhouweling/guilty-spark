@@ -16,7 +16,7 @@
     "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/react": "^4.3.1",
     "@guilty-spark/contracts": "file:../contracts",
-    "astro": "^5.16.6",
+    "astro": "^5.16.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -33,7 +33,7 @@
     "postcss-load-config": "^6.0.1",
     "postcss-nesting": "^13.0.2",
     "postcss-normalize": "^13.0.1",
-    "postcss-preset-env": "^10.5.0",
+    "postcss-preset-env": "^10.6.1",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "typescript": "^5.9.3"
