@@ -45,23 +45,23 @@
   },
   "dependencies": {
     "@sentry/cli": "^2.58.4",
-    "@sentry/cloudflare": "^10.32.1",
+    "@sentry/cloudflare": "^10.34.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
     "discord-api-types": "^0.38.37",
     "discord-interactions": "^4.4.0",
-    "halo-infinite-api": "^14.2.1",
+    "halo-infinite-api": "^14.2.2",
     "itty-router": "^5.0.22",
     "luxon": "^3.7.2",
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@tsconfig/node24": "^24.0.3",
+    "@tsconfig/node24": "^24.0.4",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
-    "@typescript-eslint/parser": "^8.50.0",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@typescript-eslint/parser": "^8.53.0",
+    "@vitest/coverage-v8": "^4.0.17",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -71,15 +71,15 @@
     "jsdom": "^26.1.0",
     "ngrok": "^5.0.0-beta.2",
     "patch-package": "^8.0.1",
-    "prettier": "^3.7.4",
+    "prettier": "^3.8.0",
     "prettier-plugin-astro": "^0.14.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0",
+    "typescript-eslint": "^8.53.0",
     "vitest": "^4.0.6",
     "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.56.0"
+    "wrangler": "^4.59.2"
   }
 }
