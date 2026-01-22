@@ -213,6 +213,15 @@ export abstract class BaseCommand {
   }
 
   /**
+   * Helper: Alias for modalSubmitHandler for consistency
+   */
+  protected modalHandler(
+    handler: ComponentHandler<InteractionType.ModalSubmit>,
+  ): ComponentHandlerDefinition<InteractionType.ModalSubmit> {
+    return this.modalSubmitHandler(handler);
+  }
+
+  /**
    * Helper: Create a validated handler map
    * Ensures all enum values have corresponding handlers
    */
