@@ -203,8 +203,7 @@ export class HaloService {
     for (const [index, match] of matches.entries()) {
       const nextMatch = matches[index + 1];
       if (
-        nextMatch &&
-        nextMatch.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
+        nextMatch?.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
         nextMatch.MatchInfo.MapVariant.VersionId === match.MatchInfo.MapVariant.VersionId &&
         nextMatch.MatchInfo.GameVariantCategory === match.MatchInfo.GameVariantCategory
       ) {
@@ -806,8 +805,7 @@ export class HaloService {
     const unknownGameSimilarityUsers = users.filter((user) => {
       const cachedUser = this.userCache.get(user.id);
       return (
-        cachedUser != null &&
-        cachedUser.AssociationReason === AssociationReason.GAME_SIMILARITY &&
+        cachedUser?.AssociationReason === AssociationReason.GAME_SIMILARITY &&
         cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
       );
     });

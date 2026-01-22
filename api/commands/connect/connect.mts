@@ -200,7 +200,7 @@ export class ConnectCommand extends BaseCommand {
     const actions: APIButtonComponent[] = [];
     const embeds: APIEmbed[] = [];
 
-    if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
+    if (association?.GamesRetrievable === GamesRetrievable.YES) {
       const usersByXuids = await haloService.getUsersByXuids([association.XboxId]);
       if (usersByXuids[0] != null) {
         searchedGamertag = usersByXuids[0].gamertag;
@@ -261,7 +261,7 @@ export class ConnectCommand extends BaseCommand {
     const connectMainEmbed = new ConnectMainEmbed({ fields: [whatGuiltySparkKnowsField] });
     embeds.push(connectMainEmbed.embed);
 
-    if (association != null && association.GamesRetrievable === GamesRetrievable.YES) {
+    if (association?.GamesRetrievable === GamesRetrievable.YES) {
       const historyEmbedInstance = new ConnectHistoryEmbed(
         { discordService, haloService },
         {
