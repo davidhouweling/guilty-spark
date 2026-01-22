@@ -1234,10 +1234,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
 
     // Send current state immediately on connection
+    const data = await this.stateToContractData(trackerState);
     server.send(
       JSON.stringify({
         type: "state",
-        data: this.stateToContractData(trackerState),
+        data,
         timestamp: new Date().toISOString(),
       }),
     );
@@ -1254,7 +1255,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return;
     }
 
-    const data: LiveTrackerStateData = await this.stateToContractData(state);
+    const data = await this.stateToContractData(state);
     const message = JSON.stringify({
       type: "state",
       data,
