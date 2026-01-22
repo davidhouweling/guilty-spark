@@ -4,6 +4,7 @@ import type {
   APIGuildMember,
   APIMessage,
   APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
   APIModalSubmitInteraction,
   APIPingInteraction,
   APITextChannel,
@@ -361,7 +362,7 @@ function aFakeNeatQueueMessageWith(opts: Partial<APIMessage> = {}): APIMessage {
 }
 
 export const guild: APIGuild = {
-  id: "9999999999999999999",
+  id: "fake-guild-id",
   name: "Guilty Spark Test Server",
   icon: null,
   description: null,
@@ -790,3 +791,430 @@ export const channelThreadsResult: RESTPostAPIChannelThreadsResult = {
   type: ChannelType.PublicThread,
   applied_tags: [],
 };
+
+// Wizard interaction builders
+export function aWizardModalSubmitWith(opts: {
+  customId: string;
+  inputCustomId: string;
+  inputValue: string;
+  embedDescription?: string;
+  embedTitle?: string;
+}): APIModalSubmitInteraction {
+  return {
+    ...fakeBaseInteraction,
+    channel: {
+      guild_id: "test-guild-id",
+      id: "test-channel-id",
+      last_message_id: "fake-last-message-id",
+      name: "general",
+      nsfw: false,
+      parent_id: "fake-parent-id",
+      position: 0,
+      rate_limit_per_user: 0,
+      topic: null,
+      type: ChannelType.GuildText,
+    },
+    channel_id: "test-channel-id",
+    guild: {
+      features: [],
+      id: "test-guild-id",
+      locale: Locale.EnglishUS,
+    },
+    guild_id: "test-guild-id",
+    guild_locale: Locale.EnglishUS,
+    data: {
+      components: [
+        {
+          components: [
+            {
+              custom_id: opts.inputCustomId,
+              type: ComponentType.TextInput,
+              value: opts.inputValue,
+            },
+          ],
+          type: ComponentType.ActionRow,
+        },
+      ],
+      custom_id: opts.customId,
+    },
+    message: {
+      application_id: "fake-application-id",
+      attachments: [],
+      author: {
+        avatar: null,
+        avatar_decoration_data: null,
+        bot: true,
+        discriminator: "2015",
+        global_name: null,
+        id: "fake-guilty-spark-id",
+        public_flags: 524288,
+        username: "Guilty Spark",
+      },
+      channel_id: "fake-channel-id",
+      components: [],
+      content: "",
+      edited_timestamp: null,
+      embeds: [
+        {
+          title: opts.embedTitle ?? "Add NeatQueue Integration",
+          description: opts.embedDescription ?? "Follow the prompts",
+        },
+      ],
+      flags: MessageFlags.Ephemeral,
+      id: "fake-message-id",
+      interaction: {
+        id: "fake-interaction-id",
+        name: "setup",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      interaction_metadata: {
+        authorizing_integration_owners: {},
+        id: "fake-interaction-metadata-id",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      mention_everyone: false,
+      mention_roles: [],
+      mentions: [],
+      pinned: false,
+      position: 0,
+      timestamp: "2025-01-22T00:00:00.000Z",
+      tts: false,
+      type: MessageType.Default,
+      webhook_id: "fake-webhook-id",
+    },
+    type: InteractionType.ModalSubmit,
+    version: 1,
+  };
+}
+
+export function aWizardButtonInteractionWith(opts: {
+  customId: string;
+  embedDescription?: string;
+  embedTitle?: string;
+}): APIMessageComponentButtonInteraction {
+  return {
+    ...fakeBaseInteraction,
+    channel: {
+      guild_id: "test-guild-id",
+      id: "test-channel-id",
+      last_message_id: "fake-last-message-id",
+      name: "general",
+      nsfw: false,
+      parent_id: "fake-parent-id",
+      position: 0,
+      rate_limit_per_user: 0,
+      topic: null,
+      type: ChannelType.GuildText,
+    },
+    channel_id: "test-channel-id",
+    guild: {
+      features: [],
+      id: "test-guild-id",
+      locale: Locale.EnglishUS,
+    },
+    guild_id: "test-guild-id",
+    guild_locale: Locale.EnglishUS,
+    data: {
+      component_type: ComponentType.Button,
+      custom_id: opts.customId,
+    },
+    message: {
+      application_id: "fake-application-id",
+      attachments: [],
+      author: {
+        avatar: null,
+        avatar_decoration_data: null,
+        bot: true,
+        discriminator: "2015",
+        global_name: null,
+        id: "fake-guilty-spark-id",
+        public_flags: 524288,
+        username: "Guilty Spark",
+      },
+      channel_id: "fake-channel-id",
+      components: [
+        {
+          components: [
+            {
+              custom_id: opts.customId,
+              label: "Button",
+              style: ButtonStyle.Primary,
+              type: ComponentType.Button,
+            },
+          ],
+          type: ComponentType.ActionRow,
+        },
+      ],
+      content: "",
+      edited_timestamp: null,
+      embeds: [
+        {
+          title: opts.embedTitle ?? "Add NeatQueue Integration",
+          description: opts.embedDescription ?? "Follow the prompts",
+        },
+      ],
+      flags: MessageFlags.Ephemeral,
+      id: "fake-message-id",
+      interaction: {
+        id: "fake-interaction-id",
+        name: "setup",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      interaction_metadata: {
+        authorizing_integration_owners: {},
+        id: "fake-interaction-metadata-id",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      mention_everyone: false,
+      mention_roles: [],
+      mentions: [],
+      pinned: false,
+      position: 0,
+      timestamp: "2025-01-22T00:00:00.000Z",
+      tts: false,
+      type: MessageType.Default,
+      webhook_id: "fake-webhook-id",
+    },
+    type: InteractionType.MessageComponent,
+    version: 1,
+  };
+}
+
+export function aWizardChannelSelectWith(opts: {
+  customId: string;
+  channelId: string;
+  embedDescription?: string;
+}): APIMessageComponentSelectMenuInteraction {
+  return {
+    ...fakeBaseInteraction,
+    channel: {
+      guild_id: "test-guild-id",
+      id: "test-channel-id",
+      last_message_id: "fake-last-message-id",
+      name: "general",
+      nsfw: false,
+      parent_id: "fake-parent-id",
+      position: 0,
+      rate_limit_per_user: 0,
+      topic: null,
+      type: ChannelType.GuildText,
+    },
+    channel_id: "test-channel-id",
+    guild: {
+      features: [],
+      id: "test-guild-id",
+      locale: Locale.EnglishUS,
+    },
+    guild_id: "test-guild-id",
+    guild_locale: Locale.EnglishUS,
+    data: {
+      component_type: ComponentType.ChannelSelect,
+      custom_id: opts.customId,
+      values: [opts.channelId],
+      resolved: {
+        channels: {
+          [opts.channelId]: {
+            id: opts.channelId,
+            type: ChannelType.GuildText,
+            name: "test-channel",
+            permissions: "0",
+          },
+        },
+      },
+    },
+    message: {
+      application_id: "fake-application-id",
+      attachments: [],
+      author: {
+        avatar: null,
+        avatar_decoration_data: null,
+        bot: true,
+        discriminator: "2015",
+        global_name: null,
+        id: "fake-guilty-spark-id",
+        public_flags: 524288,
+        username: "Guilty Spark",
+      },
+      channel_id: "fake-channel-id",
+      components: [],
+      content: "",
+      edited_timestamp: null,
+      embeds: [
+        {
+          title: "Add NeatQueue Integration",
+          description: opts.embedDescription ?? "Follow the prompts",
+        },
+      ],
+      flags: MessageFlags.Ephemeral,
+      id: "fake-message-id",
+      interaction: {
+        id: "fake-interaction-id",
+        name: "setup",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      interaction_metadata: {
+        authorizing_integration_owners: {},
+        id: "fake-interaction-metadata-id",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      mention_everyone: false,
+      mention_roles: [],
+      mentions: [],
+      pinned: false,
+      position: 0,
+      timestamp: "2025-01-22T00:00:00.000Z",
+      tts: false,
+      type: MessageType.Default,
+      webhook_id: "fake-webhook-id",
+    },
+    type: InteractionType.MessageComponent,
+    version: 1,
+  };
+}
+
+export function aWizardStringSelectWith(opts: {
+  customId: string;
+  value: string;
+  embedDescription?: string;
+  embedTitle?: string;
+}): APIMessageComponentSelectMenuInteraction {
+  return {
+    ...fakeBaseInteraction,
+    channel: {
+      guild_id: "test-guild-id",
+      id: "test-channel-id",
+      last_message_id: "fake-last-message-id",
+      name: "general",
+      nsfw: false,
+      parent_id: "fake-parent-id",
+      position: 0,
+      rate_limit_per_user: 0,
+      topic: null,
+      type: ChannelType.GuildText,
+    },
+    channel_id: "test-channel-id",
+    guild: {
+      features: [],
+      id: "test-guild-id",
+      locale: Locale.EnglishUS,
+    },
+    guild_id: "test-guild-id",
+    guild_locale: Locale.EnglishUS,
+    data: {
+      component_type: ComponentType.StringSelect,
+      custom_id: opts.customId,
+      values: [opts.value],
+    },
+    message: {
+      application_id: "fake-application-id",
+      attachments: [],
+      author: {
+        avatar: null,
+        avatar_decoration_data: null,
+        bot: true,
+        discriminator: "2015",
+        global_name: null,
+        id: "fake-guilty-spark-id",
+        public_flags: 524288,
+        username: "Guilty Spark",
+      },
+      channel_id: "fake-channel-id",
+      components: [],
+      content: "",
+      edited_timestamp: null,
+      embeds: [
+        {
+          title: opts.embedTitle ?? "Edit NeatQueue Integration",
+          description: opts.embedDescription ?? "Select what to edit",
+        },
+      ],
+      flags: MessageFlags.Ephemeral,
+      id: "fake-message-id",
+      interaction: {
+        id: "fake-interaction-id",
+        name: "setup",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      interaction_metadata: {
+        authorizing_integration_owners: {},
+        id: "fake-interaction-metadata-id",
+        type: InteractionType.ApplicationCommand,
+        user: {
+          avatar: null,
+          avatar_decoration_data: null,
+          discriminator: "0",
+          global_name: "fake-user-global-name",
+          id: "discord_user_01",
+          username: "fake-username",
+        },
+      },
+      mention_everyone: false,
+      mention_roles: [],
+      mentions: [],
+      pinned: false,
+      position: 0,
+      timestamp: "2025-01-22T00:00:00.000Z",
+      tts: false,
+      type: MessageType.Default,
+      webhook_id: "fake-webhook-id",
+    },
+    type: InteractionType.MessageComponent,
+    version: 1,
+  };
+}
