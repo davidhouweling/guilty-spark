@@ -14,6 +14,7 @@ import type {
   LiveTrackerRepostResponse,
   LiveTrackerState,
   LiveTrackerRefreshCooldownErrorResponse,
+  LiveTrackerRefreshRequest,
 } from "../../durable-objects/types.mjs";
 import type { LogService } from "../log/types.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
@@ -220,12 +221,17 @@ export class LiveTrackerService {
   /**
    * Refreshes a live tracker manually
    */
-  async refreshTracker(context: LiveTrackerContext): Promise<LiveTrackerRefreshResponse> {
+  async refreshTracker(context: LiveTrackerContext, matchCompleted?: boolean): Promise<LiveTrackerRefreshResponse> {
     this.logService.info("Refreshing live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
+    const request: LiveTrackerRefreshRequest = {
+      matchCompleted: matchCompleted === true,
+    };
     const response = await doStub.fetch("http://do/refresh", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
     });
 
     const result = await response.json<LiveTrackerRefreshResponse>();
