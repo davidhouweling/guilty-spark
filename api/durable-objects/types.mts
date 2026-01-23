@@ -21,6 +21,10 @@ export interface LiveTrackerSubstitutionRequest {
   playerInId: string;
 }
 
+export interface LiveTrackerRefreshRequest {
+  matchCompleted?: boolean;
+}
+
 export interface LiveTrackerRepostRequest {
   newMessageId: string;
 }

@@ -872,6 +872,82 @@ describe("LiveTrackerDO", () => {
           expect(savedTimestamp).toBeLessThanOrEqual(afterTime);
         }
       });
+
+      it("bypasses cooldown when matchCompleted is true", async () => {
+        const trackerState = createMockTrackerState();
+        // Set lastRefreshAttempt to 5 seconds ago (within 30 second cooldown)
+        trackerState.lastRefreshAttempt = new Date(Date.now() - 5000).toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchCompleted: true }),
+          }),
+        );
+
+        expect(response.status).toBe(200);
+        const data: { success: boolean } = await response.json();
+        expect(data.success).toBe(true);
+      });
+
+      it("skips Discord updates when matchCompleted is true", async () => {
+        const trackerState = createMockTrackerStateWithMatches();
+        trackerState.lastRefreshAttempt = new Date(Date.now() - 5000).toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+
+        const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchCompleted: true }),
+          }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(editMessageSpy).not.toHaveBeenCalled();
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(deleteMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("still updates state when matchCompleted is true", async () => {
+        const trackerState = createMockTrackerState();
+        trackerState.lastRefreshAttempt = new Date(Date.now() - 5000).toISOString();
+        trackerState.checkCount = 5;
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchCompleted: true }),
+          }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(storagePutSpy).toHaveBeenCalledWith(
+          "trackerState",
+          expect.objectContaining({
+            checkCount: 6,
+            lastRefreshAttempt: expect.any(String) as string,
+          }),
+        );
+      });
     });
   });
 

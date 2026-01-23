@@ -17,6 +17,7 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { guild, textChannel, guildMember } from "../../discord/fakes/data.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
+import { matchStats } from "../../halo/fakes/data.mjs";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker.mjs";
 import type {
@@ -29,6 +30,7 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerSubstitutionResponse,
   LiveTrackerStopResponse,
+  LiveTrackerRefreshResponse,
 } from "../../../durable-objects/types.mjs";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -649,6 +651,101 @@ describe("NeatQueueService Live Tracker Integration", () => {
         channelId: mockMatchCompletedRequest.channel,
         queueNumber: mockMatchCompletedRequest.match_number,
       });
+    });
+
+    it("refreshes live tracker with matchCompleted flag when active", async () => {
+      const refreshTrackerSpy = vi.spyOn(liveTrackerService, "refreshTracker");
+      const match1 = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+      const match2 = Preconditions.checkExists(Array.from(matchStats.values())[1]);
+      const mockRawMatches = {
+        [match1.MatchId]: match1,
+        [match2.MatchId]: match2,
+      };
+
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: aFakeLiveTrackerStateWith({
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
+          guildId: mockMatchCompletedRequest.guild,
+          channelId: mockMatchCompletedRequest.channel,
+          rawMatches: mockRawMatches,
+        }),
+      };
+
+      const mockRefreshResponse: LiveTrackerRefreshResponse = {
+        success: true as const,
+        state: mockStatusResponse.state,
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
+      stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
+
+      await callMatchCompletedJob(mockMatchCompletedRequest);
+
+      expect(refreshTrackerSpy).toHaveBeenCalledWith(
+        {
+          userId: "",
+          guildId: mockMatchCompletedRequest.guild,
+          channelId: mockMatchCompletedRequest.channel,
+          queueNumber: mockMatchCompletedRequest.match_number,
+        },
+        true,
+      );
+    });
+
+    it("uses refreshed raw matches when available", async () => {
+      const refreshTrackerSpy = vi.spyOn(liveTrackerService, "refreshTracker");
+      const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
+      const match1 = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+      const match2 = Preconditions.checkExists(Array.from(matchStats.values())[1]);
+      const mockRawMatches = {
+        [match1.MatchId]: match1,
+        [match2.MatchId]: match2,
+      };
+
+      const mockStatusResponse: LiveTrackerStatusResponse = {
+        state: aFakeLiveTrackerStateWith({
+          status: "active",
+          queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
+          guildId: mockMatchCompletedRequest.guild,
+          channelId: mockMatchCompletedRequest.channel,
+          rawMatches: {},
+        }),
+      };
+
+      const mockRefreshResponse: LiveTrackerRefreshResponse = {
+        success: true as const,
+        state: {
+          ...mockStatusResponse.state,
+          rawMatches: mockRawMatches,
+        },
+      };
+
+      getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
+      refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
+      stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
+
+      // Mock the series data fetching to verify it wasn't called
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([]);
+
+      await callMatchCompletedJob(mockMatchCompletedRequest);
+
+      expect(refreshTrackerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queueNumber: mockMatchCompletedRequest.match_number,
+        }),
+        true,
+      );
+
+      // Verify that getSeriesFromDiscordQueue was NOT called since we used the refreshed data
+      // (Note: It may be called for other purposes, so we check it wasn't called with the timeline params)
+      expect(getSeriesFromDiscordQueueSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          teams: expect.any(Array) as Parameters<HaloService["getSeriesFromDiscordQueue"]>[0]["teams"],
+        }),
+        expect.any(Boolean),
+      );
     });
   });
 });

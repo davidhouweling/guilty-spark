@@ -854,7 +854,40 @@ export class NeatQueueService {
     let errorOccurred = false;
 
     try {
-      series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+      const context = {
+        userId: "", // Not needed for status check
+        guildId: request.guild,
+        channelId: request.channel,
+        queueNumber: request.match_number,
+      };
+      const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
+      if (liveTrackerStatus?.state.status === "active") {
+        const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
+        if (isSuccessResponse(refreshResult)) {
+          this.logService.info(
+            "MatchCompletedJob: Retrieved series data from live tracker",
+            new Map([
+              ["guildId", request.guild],
+              ["channelId", request.channel],
+              ["queueNumber", request.match_number.toString()],
+              ["matchCount", Object.keys(refreshResult.state.rawMatches).length.toString()],
+            ]),
+          );
+          series = Object.values(refreshResult.state.rawMatches);
+        }
+      }
+
+      if (series.length === 0) {
+        this.logService.info(
+          "MatchCompletedJob: Falling back to timeline for series data",
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+          ]),
+        );
+        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+      }
     } catch (error) {
       this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;

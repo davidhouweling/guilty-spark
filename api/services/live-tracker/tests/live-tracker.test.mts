@@ -361,6 +361,30 @@ describe("LiveTrackerService", () => {
       expect(result).toEqual(mockResponse);
       expect(fetch).toHaveBeenCalledWith("http://do/refresh", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchCompleted: false }),
+      });
+    });
+
+    it("sends matchCompleted flag when provided", async () => {
+      const mockResponse: LiveTrackerRefreshResponse = {
+        success: true,
+        state: state,
+      };
+
+      fetch.mockResolvedValue(
+        aFakeResponseWith({
+          json: vi.fn().mockResolvedValue(mockResponse),
+        }),
+      );
+
+      const result = await service.refreshTracker(liveTrackerContext, true);
+
+      expect(result).toEqual(mockResponse);
+      expect(fetch).toHaveBeenCalledWith("http://do/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchCompleted: true }),
       });
     });
 

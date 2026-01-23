@@ -28,6 +28,7 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
+  LiveTrackerRefreshRequest,
 } from "./types.mjs";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 
@@ -94,7 +95,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
             return await this.handleStop();
           }
           case "refresh": {
-            return await this.handleRefresh();
+            return await this.handleRefresh(request);
           }
           case "substitution": {
             return await this.handleSubstitution(request);
@@ -493,7 +494,19 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return this.createStopResponse(trackerState, embedData);
   }
 
-  private async handleRefresh(): Promise<Response> {
+  private async handleRefresh(request: Request): Promise<Response> {
+    let body: LiveTrackerRefreshRequest = { matchCompleted: false };
+
+    try {
+      const text = await request.text();
+      if (text && text.trim() !== "") {
+        body = JSON.parse(text) as LiveTrackerRefreshRequest;
+      }
+    } catch (error) {
+      // If parsing fails, use default values
+      this.logService.warn("Failed to parse refresh request body, using defaults", new Map([["error", String(error)]]));
+    }
+
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -503,7 +516,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Cannot refresh stopped tracker", { status: 400 });
     }
 
-    if (trackerState.lastRefreshAttempt != null && trackerState.lastRefreshAttempt !== "") {
+    if (
+      body.matchCompleted !== true &&
+      trackerState.lastRefreshAttempt != null &&
+      trackerState.lastRefreshAttempt !== ""
+    ) {
       const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
       const currentTime = new Date();
       const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
@@ -549,8 +566,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
         const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
 
-        await this.updateChannelName(trackerState, seriesScore, false);
-        await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+        if (body.matchCompleted !== true) {
+          await this.updateChannelName(trackerState, seriesScore, false);
+          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+        }
       }
 
       await this.setState(trackerState);
