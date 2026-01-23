@@ -166,7 +166,7 @@ const wizardSteps: WizardStep[] = [
                 style: TextInputStyle.Short,
                 required: true,
                 min_length: 16,
-                max_length: 16,
+                max_length: 32,
               },
             ],
           },
