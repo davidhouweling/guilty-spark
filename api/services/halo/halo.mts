@@ -54,6 +54,8 @@ export interface HaloServiceOpts {
 }
 
 export class HaloService {
+  private static readonly HISTORICAL_MATCH_BOOST = 0.4;
+
   private readonly env: Env;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
@@ -1346,6 +1348,10 @@ export class HaloService {
     }[] = [];
 
     for (const discordUser of discordUsers) {
+      // Check if this Discord user has a previous association
+      const cachedUser = this.userCache.get(discordUser.id);
+      const previousXuid = cachedUser?.XboxId != null && cachedUser.XboxId !== "" ? cachedUser.XboxId : null;
+
       for (const xboxGamertag of xboxGamertags) {
         const xuid = this.getXuidFromGamertag(xboxGamertag, xboxGamertagMap);
 
@@ -1355,10 +1361,19 @@ export class HaloService {
           xboxGamertag,
         );
 
+        // Apply historical match boost if this xuid matches a previous association
+        let finalScore = bestScore;
+        if (previousXuid === xuid) {
+          finalScore = Math.min(1.0, bestScore + HaloService.HISTORICAL_MATCH_BOOST);
+          this.logService.debug(
+            `Historical match boost applied: Discord user ${discordUser.id} previously matched to ${xuid}. Score: ${bestScore.toFixed(2)} → ${finalScore.toFixed(2)}`,
+          );
+        }
+
         scores.push({
           discordUserId: discordUser.id,
           xuid,
-          score: bestScore,
+          score: finalScore,
           bestMatchingDiscordName,
           discordNameScores: nameScores.join(", "),
         });

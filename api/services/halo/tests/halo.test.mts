@@ -1423,6 +1423,365 @@ describe("Halo service", () => {
           );
         });
       });
+
+      describe("historical match boost", () => {
+        it("applies boost when Discord user was previously matched to same Xbox xuid", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const logDebugSpy = vi.spyOn(logService, "debug");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => {
+              // Provide gamertags that generally match Discord usernames
+              const gamertags = [
+                "discord_user_01", // xuid 0100000000000000
+                "ChangedGamertag02", // xuid 0200000000000000 - name changed but same xuid
+                "discord_user_03", // xuid 0300000000000000
+                "gamertag0000000000004", // xuid 0400000000000000
+                "discord_user_05", // xuid 0500000000000000
+                "discord_user_06", // xuid 0600000000000000
+                "discord_user_07", // xuid 0700000000000000
+                "discord_user_08", // xuid 0800000000000000
+              ];
+              return gamertags[index] ?? `gamertag${String(index + 1).padStart(2, "0")}`;
+            }),
+          );
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001", // Use 13-character xuid that mock supports
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+                if (id === "000000000000000002") {
+                  // Previously matched via game similarity to xuid 0200000000000000
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0200000000000000",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logDebugSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/Historical match boost applied: Discord user 000000000000000002.*0200000000000000/),
+          );
+        });
+
+        it("does not apply boost when Discord user has no previous xuid association", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const logDebugSpy = vi.spyOn(logService, "debug");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => {
+              const gamertags = [
+                "discord_user_01",
+                "discord_user_02",
+                "discord_user_03",
+                "gamertag0000000000004",
+                "discord_user_05",
+                "discord_user_06",
+                "discord_user_07",
+                "discord_user_08",
+              ];
+              return gamertags[index] ?? `gamertag${String(index + 1).padStart(2, "0")}`;
+            }),
+          );
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001", // Use 13-character xuid that mock supports
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logDebugSpy).not.toHaveBeenCalledWith(expect.stringMatching(/Historical match boost applied/));
+        });
+
+        it("does not apply boost when previous xuid is not in current series", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const logDebugSpy = vi.spyOn(logService, "debug");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          getUsersSpy.mockImplementation(
+            mockGetUsersWithPatternedUsers((index) => {
+              const gamertags = [
+                "discord_user_01",
+                "discord_user_02",
+                "discord_user_03",
+                "gamertag0000000000004",
+                "discord_user_05",
+                "discord_user_06",
+                "discord_user_07",
+                "discord_user_08",
+              ];
+              return gamertags[index] ?? `gamertag${String(index + 1).padStart(2, "0")}`;
+            }),
+          );
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001", // Use 13-character xuid that mock supports
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+                if (id === "000000000000000002") {
+                  // Previously matched to a different xuid not in this series
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "9999999999999999",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logDebugSpy).not.toHaveBeenCalledWith(
+            expect.stringMatching(/Historical match boost applied.*9999999999999999/),
+          );
+        });
+
+        it("boosts score enough to win over competing similar names", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001", // Use 13-character xuid that mock supports
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+                if (id === "000000000000000002") {
+                  // Previously matched to xuid 0200000000000000 (Team 0)
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0200000000000000",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+                if (id === "000000000000000003") {
+                  // Previously matched to xuid 0500000000000000 (Team 0)
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0500000000000000",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          // Map specific xuids to specific gamertags - similar enough to users but less than historical boost
+          getUsersSpy.mockImplementation(async (xuids: string[]) => {
+            return Promise.resolve(
+              xuids.map((xuid) => {
+                const gamertag = ((): string => {
+                  if (xuid === "0200000000000000") {
+                    return "user_02_modified";
+                  } // Similar to discord_user_02 but different
+                  if (xuid === "0500000000000000") {
+                    return "user_03_modified";
+                  } // Similar to discord_user_03 but different
+                  if (xuid === "0100000000000000") {
+                    return "completely_different_01";
+                  }
+                  if (xuid === "0400000000000000") {
+                    return "completely_different_04";
+                  }
+                  if (xuid === "0800000000000000") {
+                    return "completely_different_05";
+                  }
+                  if (xuid === "0900000000000000") {
+                    return "completely_different_06";
+                  }
+                  if (xuid === "1100000000000000") {
+                    return "completely_different_07";
+                  }
+                  if (xuid === "1200000000000000") {
+                    return "completely_different_08";
+                  }
+                  return `gamertag${xuid.slice(-2)}`;
+                })();
+                return createXboxUser(xuid, gamertag);
+              }),
+            );
+          });
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.updateDiscordAssociations();
+
+          // With historical boost, each user should match back to their previous xuid
+          expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expect.objectContaining({
+                DiscordId: "000000000000000002",
+                XboxId: "0200000000000000", // Matched back to historical xuid
+                AssociationReason: AssociationReason.GAME_SIMILARITY,
+              }),
+              expect.objectContaining({
+                DiscordId: "000000000000000003",
+                XboxId: "0500000000000000", // Matched back to historical xuid
+                AssociationReason: AssociationReason.GAME_SIMILARITY,
+              }),
+            ]),
+          );
+        });
+
+        it("applies boost to multiple users with historical associations", async () => {
+          const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+          const logDebugSpy = vi.spyOn(logService, "debug");
+          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
+
+          // Map specific xuids to gamertags that are similar but not exact matches
+          getUsersSpy.mockImplementation(async (xuids: string[]) => {
+            return Promise.resolve(
+              xuids.map((xuid) => {
+                const gamertag = ((): string => {
+                  if (xuid === "0200000000000000") {
+                    return "ChangedName02";
+                  } // Changed from discord_user_02
+                  if (xuid === "0500000000000000") {
+                    return "ChangedName03";
+                  } // Changed from discord_user_03
+                  if (xuid === "0100000000000000") {
+                    return "completely_different_01";
+                  }
+                  if (xuid === "0400000000000000") {
+                    return "completely_different_04";
+                  }
+                  if (xuid === "0800000000000000") {
+                    return "completely_different_05";
+                  }
+                  if (xuid === "0900000000000000") {
+                    return "completely_different_06";
+                  }
+                  if (xuid === "1100000000000000") {
+                    return "completely_different_07";
+                  }
+                  if (xuid === "1200000000000000") {
+                    return "completely_different_08";
+                  }
+                  return `gamertag${xuid.slice(-2)}`;
+                })();
+                return createXboxUser(xuid, gamertag);
+              }),
+            );
+          });
+
+          getDiscordAssociationsSpy.mockImplementation(async (discordIds: string[]) => {
+            return Promise.resolve(
+              discordIds.map((id) => {
+                if (id === "000000000000000001") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0000000000001", // Use 13-character xuid that mock supports
+                    GamesRetrievable: GamesRetrievable.YES,
+                    AssociationReason: AssociationReason.USERNAME_SEARCH,
+                  });
+                }
+                if (id === "000000000000000002") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0200000000000000",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+                if (id === "000000000000000003") {
+                  return aFakeDiscordAssociationsRow({
+                    DiscordId: id,
+                    XboxId: "0500000000000000",
+                    GamesRetrievable: GamesRetrievable.UNKNOWN,
+                    AssociationReason: AssociationReason.GAME_SIMILARITY,
+                  });
+                }
+
+                return aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                });
+              }),
+            );
+          });
+
+          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+          expect(logDebugSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/Historical match boost applied: Discord user 000000000000000002/),
+          );
+          expect(logDebugSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/Historical match boost applied: Discord user 000000000000000003/),
+          );
+        });
+      });
     });
   });
 
