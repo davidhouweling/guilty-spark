@@ -809,7 +809,7 @@ export class SetupCommand extends BaseCommand {
         const error = new EndUserError(
           Array.from(errors.entries())
             .map(([channelId, message]) => `- <#${channelId}>: ${message}`)
-            .join("\\n"),
+            .join("\n"),
           {
             title: "Unable to save due to the following errors",
             handled: true,
@@ -865,7 +865,7 @@ export class SetupCommand extends BaseCommand {
                 (neatQueue) =>
                   `- <#${neatQueue.ChannelId}> (results: <#${neatQueue.ResultsChannelId}>): ${displayModeOptions.find((mode) => mode.value === neatQueue.PostSeriesMode.toString())?.label ?? "Unknown"}${neatQueue.PostSeriesChannelId != null ? ` into <#${neatQueue.PostSeriesChannelId}>` : ""}`,
               )
-              .join("\\n")
+              .join("\n")
           : "*None*",
       });
 
@@ -1195,7 +1195,7 @@ export class SetupCommand extends BaseCommand {
                     "1. Switch to the queue channel if you are not already there",
                     "2. Use NeatQueue's `/webhook delete` command",
                     "3. Click the \u2705 Confirm deletion button below to complete the deletion",
-                  ].join("\\n"),
+                  ].join("\n"),
                   color: 0xff0000,
                 },
               ],
