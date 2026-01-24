@@ -296,7 +296,7 @@ describe("StatsCommand", () => {
           expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
             "1299532381308325949",
             "1314562775950954626",
-            "Queue #777 series stats",
+            "Queue #777 series stats (🦅 3:0 🐍)",
           );
         });
 

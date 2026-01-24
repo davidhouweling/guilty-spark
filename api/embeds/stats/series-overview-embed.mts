@@ -96,7 +96,7 @@ export class SeriesOverviewEmbed {
       Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime),
     );
     const embed: APIEmbed = {
-      title: `Series stats for queue #${queue.toString()}`,
+      title: `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale)})`,
       description: `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
       url: `https://discord.com/channels/${guildId}/${channelId}/${messageId}`,
       color: EmbedColors.INFO,

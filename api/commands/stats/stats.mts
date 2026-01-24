@@ -250,7 +250,7 @@ export class StatsCommand extends BaseCommand {
         : await discordService.startThreadFromMessage(
             message.channel_id,
             message.id,
-            `Queue #${queueData.queue.toString()} series stats`,
+            `Queue #${queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale)})`,
           );
 
       await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);

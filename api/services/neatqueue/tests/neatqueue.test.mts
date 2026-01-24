@@ -820,7 +820,7 @@ describe("NeatQueueService", () => {
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,
             messageId,
-            `Queue #2 series stats`,
+            `Queue #2 series stats (🦅 2:0 🐍)`,
           );
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
@@ -845,7 +845,7 @@ describe("NeatQueueService", () => {
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,
             messageId,
-            `Queue #2 series stats`,
+            `Queue #2 series stats (🦅 2:0 🐍)`,
           );
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(6);
@@ -917,7 +917,7 @@ describe("NeatQueueService", () => {
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,
             messageId,
-            `Queue #2 series stats`,
+            `Queue #2 series stats (🦅 2:0 🐍)`,
           );
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
         });
@@ -1032,7 +1032,7 @@ describe("NeatQueueService", () => {
           expect(discordServiceStartThreadFromMessageSpy).toHaveBeenCalledWith(
             channelId,
             messageId,
-            `Queue #2 series stats`,
+            `Queue #2 series stats (🦅 1:1 🐍)`,
           );
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
