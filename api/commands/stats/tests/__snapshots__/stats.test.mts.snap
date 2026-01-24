@@ -241,7 +241,7 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls 
 11:8",
           },
         ],
-        "title": "Series stats for queue #777",
+        "title": "Series stats for queue #777 (🦅 3:0 🐍)",
         "url": "https://discord.com/channels/fake-guild-id/1234567890/1310523001611096064",
       },
     ],
