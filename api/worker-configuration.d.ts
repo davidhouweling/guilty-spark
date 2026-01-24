@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20251008.0 2025-04-01 nodejs_compat
 declare namespace Cloudflare {
 	interface GlobalProps {
-		mainModule: typeof import("./api/worker.mjs");
+		mainModule: typeof import("./worker.mjs");
 		durableNamespaces: "LiveTrackerDO";
 	}
 	interface Env {
@@ -18,7 +18,7 @@ declare namespace Cloudflare {
 		PROXY_WORKER_URL: string;
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
-		LIVE_TRACKER_DO: DurableObjectNamespace<import("./api/worker.mjs").LiveTrackerDO>;
+		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker.mjs").LiveTrackerDO>;
 		DB: D1Database;
 	}
 }
@@ -6177,7 +6177,7 @@ type AIGatewayHeaders = {
     [key: string]: string | number | boolean | object;
 };
 type AIGatewayUniversalRequest = {
-    provider: AIGatewayProviders | string; // eslint-disable-line
+    provider: AIGatewayProviders | string;  
     endpoint: string;
     headers: Partial<AIGatewayHeaders>;
     query: unknown;
@@ -6193,7 +6193,7 @@ declare abstract class AiGateway {
         gateway?: UniversalGatewayOptions;
         extraHeaders?: object;
     }): Promise<Response>;
-    getUrl(provider?: AIGatewayProviders | string): Promise<string>; // eslint-disable-line
+    getUrl(provider?: AIGatewayProviders | string): Promise<string>;  
 }
 interface AutoRAGInternalError extends Error {
 }
