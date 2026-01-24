@@ -17,8 +17,8 @@
     "@astrojs/react": "^4.3.1",
     "@guilty-spark/contracts": "file:../contracts",
     "astro": "^5.16.15",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
@@ -34,8 +34,8 @@
     "postcss-nesting": "^14.0.0",
     "postcss-normalize": "^13.0.1",
     "postcss-preset-env": "^11.1.1",
-    "@types/react": "^18.3.24",
-    "@types/react-dom": "^18.3.7",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3"
   }
 }
