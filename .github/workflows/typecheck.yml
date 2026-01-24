@@ -29,8 +29,9 @@ jobs:
       - name: Copy environment file
         run: cp .example.dev.vars .dev.vars
 
-      - name: Run Typecheck
-        run: npm run typecheck
+      - name: Run API Typecheck
+        working-directory: ./api
+        run: npm run build
 
       - name: Run Pages Typecheck
         working-directory: ./pages

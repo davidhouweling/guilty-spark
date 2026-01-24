@@ -1,0 +1,38 @@
+{
+  "name": "@guilty-spark/api",
+  "version": "1.0.0",
+  "author": "David Houweling",
+  "description": "Discord bot API for Halo Infinite statistics and live tracking",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "main": "worker.mts",
+  "scripts": {
+    "start": "wrangler dev",
+    "register": "tsx --env-file=../.dev.vars scripts/deploy-commands.mts",
+    "build": "tsc --project tsconfig.build.json",
+    "build:generate-types": "wrangler types",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@guilty-spark/contracts": "file:../contracts",
+    "@sentry/cli": "^3.1.0",
+    "@sentry/cloudflare": "^10.36.0",
+    "@xboxreplay/xboxlive-auth": "^5.1.0",
+    "date-fns": "^4.1.0",
+    "discord-api-types": "^0.38.37",
+    "discord-interactions": "^4.4.0",
+    "halo-infinite-api": "^14.2.2",
+    "itty-router": "^5.0.22",
+    "luxon": "^3.7.2",
+    "tinyduration": "^3.4.1"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.1",
+    "dotenv": "^17.2.3",
+    "wrangler": "^4.60.0"
+  }
+}

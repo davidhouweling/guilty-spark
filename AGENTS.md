@@ -6,6 +6,12 @@ Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provid
 
 **Tech Stack**: TypeScript, Cloudflare Workers, D1 Database, Durable Objects, Discord API
 
+**Monorepo Structure**:
+
+- `api/` - Discord bot Cloudflare Worker
+- `pages/` - Cloudflare Pages website
+- `contracts/` - Shared types and contracts between workspaces
+
 ## Setup Commands
 
 ```bash
@@ -33,11 +39,11 @@ npm run format:fix
 
 **Core Services**:
 
-- `src/worker.mts` - Main Cloudflare Worker entry point
-- `src/server.mts` - Request routing and dependency injection
-- `src/services/install.mts` - Service configuration and wiring
-- `src/commands/` - Discord slash commands and interactions
-- `src/durable-objects/` - Persistent state management for live tracking
+- `api/worker.mts` - Main Cloudflare Worker entry point
+- `api/server.mts` - Request routing and dependency injection
+- `api/services/install.mts` - Service configuration and wiring
+- `api/commands/` - Discord slash commands and interactions
+- `api/durable-objects/` - Persistent state management for live tracking
 
 **Key Commands**:
 
@@ -48,10 +54,13 @@ npm run format:fix
 
 ## File Structure
 
-- `src/` - Source code with `.mts` extensions for Node ESM
-- `src/commands/` - Discord command implementations
-- `src/services/` - Business logic and external integrations
-- `src/durable-objects/` - Cloudflare Durable Objects for state
+- `api/` - Discord bot API source code with `.mts` extensions for Node ESM
+  - `api/commands/` - Discord command implementations
+  - `api/services/` - Business logic and external integrations
+  - `api/durable-objects/` - Cloudflare Durable Objects for state
+- `pages/` - Cloudflare Pages website
+  - `pages/src/` - Astro components, pages, and styles
+- `contracts/` - Shared types and contracts
 - Tests in sibling `tests/` folders, fakes in `fakes/` folders
 - Use `.mjs` for imports, never `.mts`
 - Import Astro components directly (e.g., `../components/cards/demo-card.astro`); avoid `.astro` barrel files that break eslint resolution.

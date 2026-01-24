@@ -1,7 +1,7 @@
 import type { APIGuildMember } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 import type { LiveTrackerMatchSummary, LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 
 // Input types for requests to the LiveTracker DO
 export interface LiveTrackerStartRequest {

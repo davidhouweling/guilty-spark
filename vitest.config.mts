@@ -15,7 +15,7 @@ export default defineConfig({
     coverage: {
       reporter: ["text", "json-summary", "json", "html"],
       reportOnFailure: true,
-      exclude: [...coverageConfigDefaults.exclude, "scripts/**/*", "**/fakes/**", "**/install.mts"],
+      exclude: [...coverageConfigDefaults.exclude, "api/scripts/**/*", "**/fakes/**", "**/install.mts"],
     },
 
     projects: [

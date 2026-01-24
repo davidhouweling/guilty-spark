@@ -7,6 +7,7 @@
   "type": "module",
   "private": true,
   "workspaces": [
+    "api",
     "pages",
     "contracts"
   ],
@@ -21,13 +22,12 @@
     "url": "https://github.com/davidhouweling/guilty-spark/issues"
   },
   "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
-  "main": "api/app.mts",
   "scripts": {
     "postinstall": "patch-package",
-    "start": "wrangler dev",
+    "start:api": "npm run start --workspace=api",
     "start:pages": "npm run start --workspace=pages",
     "ngrok": "ngrok http 8787",
-    "register": "tsx --env-file=.dev.vars scripts/deploy-commands.mts",
+    "register": "npm run register --workspace=api",
     "test": "vitest run",
     "test:update-snapshot": "vitest -u",
     "test:coverage": "vitest --coverage.enabled true",
@@ -37,32 +37,17 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "typecheck:pages": "npm run typecheck --workspace=pages",
-    "build:generate-types": "wrangler types",
-    "build": "tsc --project tsconfig.build.json",
+    "build:api": "npm run build --workspace=api",
     "build:pages": "npm run build --workspace=pages",
-    "publish": "wrangler deploy",
-    "publish:pages": "npm run deploy --workspace=pages"
-  },
-  "dependencies": {
-    "@sentry/cli": "^3.1.0",
-    "@sentry/cloudflare": "^10.36.0",
-    "@xboxreplay/xboxlive-auth": "^5.1.0",
-    "date-fns": "^4.1.0",
-    "discord-api-types": "^0.38.37",
-    "discord-interactions": "^4.4.0",
-    "halo-infinite-api": "^14.2.2",
-    "itty-router": "^5.0.22",
-    "luxon": "^3.7.2",
-    "tinyduration": "^3.4.1"
+    "deploy:api": "npm run deploy --workspace=api",
+    "deploy:pages": "npm run deploy --workspace=pages"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@tsconfig/node24": "^24.0.4",
-    "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "^8.53.1",
     "@vitest/coverage-v8": "^4.0.18",
-    "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-astro": "^1.5.0",
@@ -79,7 +64,6 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.53.1",
     "vitest": "^4.0.6",
-    "vitest-mock-extended": "^3.1.0",
-    "wrangler": "^4.60.0"
+    "vitest-mock-extended": "^3.1.0"
   }
 }
