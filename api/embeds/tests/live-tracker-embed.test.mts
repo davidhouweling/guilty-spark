@@ -1,12 +1,12 @@
 import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
 import { LiveTrackerEmbed } from "../live-tracker-embed.mjs";
 import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
 
 describe("LiveTrackerEmbed", () => {
   let discordService: DiscordService;

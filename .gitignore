@@ -58,7 +58,7 @@ jspm_packages/
 .vscode-test
 
 # don't save any of the json files that may have fetched in the scripts run
-scripts/*.json
+api/scripts/*.json
 
 # test output for vitest to use in publish to github action
 test-results
