@@ -40,6 +40,7 @@ jobs:
         run: npm ci
 
       - name: Build Worker and Generate Source Maps
+        working-directory: ./api
         run: |
           echo "🔨 Building worker with source maps..."
           npx wrangler deploy --env=${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }} --dry-run --outdir=./.wrangler/build
@@ -48,6 +49,7 @@ jobs:
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
+          workingDirectory: "api"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
@@ -72,7 +74,7 @@ jobs:
 
       - name: Set output directories
         run: |
-          echo "WRANGLER_BUILD_DIR=.wrangler/build" >> $GITHUB_ENV
+          echo "WRANGLER_BUILD_DIR=api/.wrangler/build" >> $GITHUB_ENV
 
       - name: Upload Source Maps to Sentry
         env:
