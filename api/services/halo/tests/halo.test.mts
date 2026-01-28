@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, MapModePairAsset } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo } from "../types.mjs";
@@ -3555,7 +3555,7 @@ describe("Halo service", () => {
     const assetId = "test-asset-id";
     const versionId = "test-version-id";
 
-    const createMapLinkFiles = (fileRelativePaths: string[]) => ({
+    const createMapLinkFiles = (fileRelativePaths: string[]): MapModePairAsset["MapLink"]["Files"] => ({
       Prefix: "https://example.com/",
       FileRelativePaths: fileRelativePaths,
       PrefixEndpoint: {
