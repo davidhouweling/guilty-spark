@@ -953,14 +953,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         }
       }
 
+      const { AssetId, VersionId } = match.MatchInfo.MapVariant;
+      const mapThumbnailUrl = await this.haloService.getMapThumbnailUrl(AssetId, VersionId);
+
       const enrichedMatch: LiveTrackerMatchSummary = {
         matchId: match.MatchId,
         gameTypeAndMap,
         gameType,
-        gameTypeIconUrl: "data:,",
-        gameTypeThumbnailUrl: "data:,",
         gameMap,
-        gameMapThumbnailUrl: "data:,",
+        gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
         duration,
         gameScore,
         gameSubScore,

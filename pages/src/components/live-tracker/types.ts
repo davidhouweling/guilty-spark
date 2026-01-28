@@ -14,8 +14,6 @@ export interface LiveTrackerMatchRenderModel {
   readonly matchId: string;
   readonly gameTypeAndMap: string;
   readonly gameType: string;
-  readonly gameTypeIconUrl: string;
-  readonly gameTypeThumbnailUrl: string;
   readonly gameMap: string;
   readonly gameMapThumbnailUrl: string;
   readonly duration: string;

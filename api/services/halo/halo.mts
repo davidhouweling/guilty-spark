@@ -752,6 +752,40 @@ export class HaloService {
     return { rankTier: "Bronze", subTier: 0 };
   }
 
+  async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
+    try {
+      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, assetId, versionId, {
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
+        },
+      });
+
+      const { Prefix, FileRelativePaths } = asset.MapLink.Files;
+
+      const thumbnailFile = FileRelativePaths.find((file) => file.includes("thumbnail"));
+      if (thumbnailFile != null) {
+        return `${Prefix}${thumbnailFile}`;
+      }
+
+      const heroFile = FileRelativePaths.find((file) => file.includes("hero"));
+      if (heroFile != null) {
+        return `${Prefix}${heroFile}`;
+      }
+
+      if (FileRelativePaths.length > 0) {
+        return `${Prefix}${Preconditions.checkExists(FileRelativePaths[0])}`;
+      }
+
+      return null;
+    } catch (error) {
+      this.logService.warn(
+        error as Error,
+        new Map([["context", `Failed to fetch map thumbnail for assetId ${assetId}, versionId ${versionId}`]]),
+      );
+      return null;
+    }
+  }
+
   async updateDiscordAssociations(): Promise<void> {
     this.logService.debug(
       "Updating discord associations",

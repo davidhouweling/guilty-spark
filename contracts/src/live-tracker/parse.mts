@@ -95,8 +95,6 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const matchId = readString(match["matchId"] ?? null);
   const gameTypeAndMap = readString(match["gameTypeAndMap"] ?? null);
   const gameType = readString(match["gameType"] ?? null);
-  const gameTypeIconUrl = readString(match["gameTypeIconUrl"] ?? null);
-  const gameTypeThumbnailUrl = readString(match["gameTypeThumbnailUrl"] ?? null);
   const gameMap = readString(match["gameMap"] ?? null);
   const gameMapThumbnailUrl = readString(match["gameMapThumbnailUrl"] ?? null);
   const duration = readString(match["duration"] ?? null);
@@ -108,8 +106,6 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     matchId === null ||
     gameTypeAndMap === null ||
     gameType === null ||
-    gameTypeIconUrl === null ||
-    gameTypeThumbnailUrl === null ||
     gameMap === null ||
     gameMapThumbnailUrl === null ||
     duration === null ||
@@ -123,8 +119,6 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     matchId,
     gameTypeAndMap,
     gameType,
-    gameTypeIconUrl,
-    gameTypeThumbnailUrl,
     gameMap,
     gameMapThumbnailUrl,
     duration,

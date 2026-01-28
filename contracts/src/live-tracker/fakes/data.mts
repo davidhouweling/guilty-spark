@@ -32,9 +32,6 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     matchId: "85022d98-5829-4da2-85ae-32b8cb48bbdd",
     gameTypeAndMap: "Oddball: Vacancy - Ranked",
     gameType: "Oddball",
-    gameTypeIconUrl: "data:,",
-    gameTypeThumbnailUrl:
-      "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/ugcgamevariant/751bcc9d-aace-45a1-8d71-358f0bc89f7e/227d4ffc-d67f-449a-8315-a1f82854d2ed/images/hero.png",
     gameMap: "Vacancy - Ranked",
     gameMapThumbnailUrl:
       "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/6a1e8432-88ae-4430-8f7d-9ffefc97cc8d/cad79980-9d49-4b10-9da5-5b6d638cc533/images/hero.jpg",
@@ -47,9 +44,6 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     matchId: "4ddc5187-d08d-48fc-96a3-8a490e577795",
     gameTypeAndMap: "Oddball: Vacancy - Ranked",
     gameType: "Oddball",
-    gameTypeIconUrl: "data:,",
-    gameTypeThumbnailUrl:
-      "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/ugcgamevariant/751bcc9d-aace-45a1-8d71-358f0bc89f7e/227d4ffc-d67f-449a-8315-a1f82854d2ed/images/hero.png",
     gameMap: "Vacancy - Ranked",
     gameMapThumbnailUrl:
       "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/6a1e8432-88ae-4430-8f7d-9ffefc97cc8d/cad79980-9d49-4b10-9da5-5b6d638cc533/images/hero.jpg",
@@ -62,9 +56,6 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     matchId: "d127af7f-079c-4b28-a3ae-6e1bcdd44438",
     gameTypeAndMap: "King of the Hill: Live Fire - Ranked",
     gameType: "King of the Hill",
-    gameTypeIconUrl: "data:,",
-    gameTypeThumbnailUrl:
-      "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/ugcgamevariant/88c22b1f-2d64-48b9-bab1-26fe4721fb23/43e75f3a-eee5-4147-b9d3-19782fac58f8/images/hero.png",
     gameMap: "Live Fire - Ranked",
     gameMapThumbnailUrl:
       "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/309253f8-7a75-48ff-83e1-e7fb3db2ac47/86a644f0-5063-40b8-b601-ce361439da72/images/hero.jpg",
@@ -77,9 +68,6 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     matchId: "688cc0ac-2266-40e2-a3dd-a1f5b992f046",
     gameTypeAndMap: "Capture the Flag: Fortress - Ranked",
     gameType: "Capture the Flag",
-    gameTypeIconUrl: "data:,",
-    gameTypeThumbnailUrl:
-      "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/ugcgamevariant/4cb279b7-a064-4df6-9058-02cdc6825d93/1392d27e-e7e3-41d9-93f9-420c66cff577/images/hero.png",
     gameMap: "Fortress - Ranked",
     gameMapThumbnailUrl:
       "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/a54808fb-9bf5-432a-a3c3-f76cbea944c1/f8fe5de8-694e-4787-9ece-dea86b37e6be/images/hero.jpg",
