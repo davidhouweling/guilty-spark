@@ -170,8 +170,6 @@ const aMatchSummaryWith = (
   matchId: "match-id",
   gameTypeAndMap: "Slayer: Recharge",
   gameType: "Slayer",
-  gameTypeIconUrl: "data:,",
-  gameTypeThumbnailUrl: "data:,",
   gameMap: "Recharge",
   gameMapThumbnailUrl: "data:,",
   duration: "7m 30s",

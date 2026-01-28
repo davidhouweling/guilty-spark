@@ -7,8 +7,6 @@ function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchR
     matchId: summary.matchId,
     gameTypeAndMap: summary.gameTypeAndMap,
     gameType: summary.gameType,
-    gameTypeIconUrl: summary.gameTypeIconUrl,
-    gameTypeThumbnailUrl: summary.gameTypeThumbnailUrl,
     gameMap: summary.gameMap,
     gameMapThumbnailUrl: summary.gameMapThumbnailUrl,
     duration: summary.duration,

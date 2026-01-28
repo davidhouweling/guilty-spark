@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, MapModePairAsset } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo } from "../types.mjs";
@@ -16,6 +16,7 @@ import {
   aFakeServiceRecordWith,
   aFakePlayerMatchHistoryWith,
   matchSkillData,
+  aFakeMapModePairAssetWith,
 } from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -3547,6 +3548,161 @@ describe("Halo service", () => {
       await haloService.getPlayersEsras(xuids);
 
       expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", FetchablePlaylist.RANKED_ARENA);
+    });
+  });
+
+  describe("getMapThumbnailUrl()", () => {
+    const assetId = "test-asset-id";
+    const versionId = "test-version-id";
+
+    const createMapLinkFiles = (fileRelativePaths: string[]): MapModePairAsset["MapLink"]["Files"] => ({
+      Prefix: "https://example.com/",
+      FileRelativePaths: fileRelativePaths,
+      PrefixEndpoint: {
+        AuthorityId: "iUgcFiles",
+        Path: "/ugcstorage/map/test/",
+        QueryString: null,
+        RetryPolicyId: "linearretry",
+        TopicName: "",
+        AcknowledgementTypeId: 0,
+        AuthenticationLifetimeExtensionSupported: false,
+        ClearanceAware: false,
+      },
+    });
+
+    it("returns thumbnail URL when thumbnail file exists", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/thumbnail.png", "images/hero.png"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/thumbnail.png");
+      expect(getSpecificAssetVersionSpy).toHaveBeenCalledOnce();
+      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.MapModePair, assetId, versionId, {
+        cf: {
+          cacheTtlByStatus: { "200-299": 604800, 404: 86400, "500-599": 0 },
+        },
+      });
+    });
+
+    it("returns hero URL when thumbnail file does not exist but hero file exists", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/hero.png", "images/screenshot1.png"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/hero.png");
+    });
+
+    it("returns first file URL when neither thumbnail nor hero file exists", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/screenshot1.png", "images/screenshot2.png"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/screenshot1.png");
+    });
+
+    it("returns null when FileRelativePaths is empty", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles([]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null and logs warning when API call fails", async () => {
+      const error = new Error("API Error");
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockRejectedValue(error);
+
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBeNull();
+      expect(logWarnSpy).toHaveBeenCalledOnce();
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        error,
+        new Map([["context", `Failed to fetch map thumbnail for assetId ${assetId}, versionId ${versionId}`]]),
+      );
+    });
+
+    it("uses correct cache configuration for asset requests", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/thumbnail.png"]),
+        }),
+      );
+
+      await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.MapModePair, assetId, versionId, {
+        cf: {
+          cacheTtlByStatus: {
+            "200-299": 604800, // 1 week
+            404: 86400, // 1 day
+            "500-599": 0, // No cache on server errors
+          },
+        },
+      });
+    });
+
+    it("prioritizes thumbnail over hero when both exist", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/hero.png", "images/thumbnail.png"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/thumbnail.png");
+    });
+
+    it("handles file paths with thumbnail substring in the name", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/map_thumbnail_large.jpg"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/map_thumbnail_large.jpg");
+    });
+
+    it("handles file paths with hero substring in the name", async () => {
+      const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
+      getSpecificAssetVersionSpy.mockResolvedValue(
+        aFakeMapModePairAssetWith({
+          mapLinkFiles: createMapLinkFiles(["images/hero_image.png"]),
+        }),
+      );
+
+      const result = await haloService.getMapThumbnailUrl(assetId, versionId);
+
+      expect(result).toBe("https://example.com/images/hero_image.png");
     });
   });
 });

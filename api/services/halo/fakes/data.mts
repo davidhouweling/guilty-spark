@@ -297,3 +297,148 @@ export function aFakeServiceRecordWith(overrides?: Partial<ServiceRecord>): Serv
     ...overrides,
   };
 }
+
+export function aFakeMapModePairAssetWith(overrides?: {
+  readonly mapLinkFiles?: {
+    readonly Prefix: string;
+    readonly FileRelativePaths: string[];
+    readonly PrefixEndpoint: {
+      readonly AuthorityId: string;
+      readonly Path: string;
+      readonly QueryString: string | null;
+      readonly RetryPolicyId: string;
+      readonly TopicName: string;
+      readonly AcknowledgementTypeId: number;
+      readonly AuthenticationLifetimeExtensionSupported: boolean;
+      readonly ClearanceAware: boolean;
+    };
+  };
+}): MapModePairAsset {
+  return {
+    AssetId: "test-asset-id",
+    VersionId: "test-version-id",
+    PublicName: "Test Map Mode Pair",
+    Description: "Test description",
+    Files: {
+      Prefix: "https://example.com/ugcgamevariant/",
+      FileRelativePaths: ["images/hero.png", "images/thumbnail.png"],
+      PrefixEndpoint: {
+        AuthorityId: "iUgcFiles",
+        Path: "/ugcstorage/ugcgamevariant/test/",
+        QueryString: null,
+        RetryPolicyId: "linearretry",
+        TopicName: "",
+        AcknowledgementTypeId: 0,
+        AuthenticationLifetimeExtensionSupported: false,
+        ClearanceAware: false,
+      },
+    },
+    MapLink: {
+      Tags: [],
+      AssetId: "map-asset-id",
+      VersionId: "map-version-id",
+      PublicName: "Test Map",
+      Description: "Test map description",
+      Files: overrides?.mapLinkFiles ?? {
+        Prefix: "https://example.com/",
+        FileRelativePaths: ["images/thumbnail.png", "images/hero.png"],
+        PrefixEndpoint: {
+          AuthorityId: "iUgcFiles",
+          Path: "/ugcstorage/map/test/",
+          QueryString: null,
+          RetryPolicyId: "linearretry",
+          TopicName: "",
+          AcknowledgementTypeId: 0,
+          AuthenticationLifetimeExtensionSupported: false,
+          ClearanceAware: false,
+        },
+      },
+      Contributors: [],
+      AssetHome: 1,
+      AssetStats: {
+        PlaysRecent: 0,
+        PlaysAllTime: 0,
+        Favorites: 0,
+        Likes: 0,
+        Bookmarks: 0,
+        ParentAssetCount: 0,
+        AverageRating: 0,
+        NumberOfRatings: 0,
+      },
+      InspectionResult: 0,
+      CloneBehavior: 0,
+      Order: 0,
+      PublishedDate: {
+        ISO8601Date: "2024-01-01T00:00:00Z",
+      },
+      VersionNumber: 1,
+      Admin: "xuid(0)",
+    },
+    UgcGameVariantLink: {
+      Tags: [],
+      AssetId: "engine-variant-id",
+      VersionId: "engine-version-id",
+      PublicName: "Test Game Variant",
+      Description: "Test game variant",
+      Files: {
+        Prefix: "https://example.com/enginegamevariant/",
+        FileRelativePaths: [],
+        PrefixEndpoint: {
+          AuthorityId: "iUgcFiles",
+          Path: "/ugcstorage/enginegamevariant/test/",
+          QueryString: null,
+          RetryPolicyId: "linearretry",
+          TopicName: "",
+          AcknowledgementTypeId: 0,
+          AuthenticationLifetimeExtensionSupported: false,
+          ClearanceAware: false,
+        },
+      },
+      Contributors: [],
+      AssetHome: 1,
+      AssetStats: {
+        PlaysRecent: 0,
+        PlaysAllTime: 0,
+        Favorites: 0,
+        Likes: 0,
+        Bookmarks: 0,
+        ParentAssetCount: 0,
+        AverageRating: 0,
+        NumberOfRatings: 0,
+      },
+      InspectionResult: 50,
+      CloneBehavior: 1,
+      Order: 0,
+      PublishedDate: {
+        ISO8601Date: "2024-01-01T00:00:00Z",
+      },
+      VersionNumber: 1,
+      Admin: "aaid(test)",
+    },
+    Contributors: [],
+    AssetHome: 1,
+    AssetStats: {
+      PlaysRecent: 0,
+      PlaysAllTime: 0,
+      Favorites: 0,
+      Likes: 0,
+      Bookmarks: 0,
+      ParentAssetCount: 0,
+      AverageRating: 0,
+      NumberOfRatings: 0,
+    },
+    InspectionResult: 0,
+    CloneBehavior: 0,
+    Order: 0,
+    PublishedDate: {
+      ISO8601Date: "2024-01-01T00:00:00Z",
+    },
+    VersionNumber: 1,
+    Admin: "xuid(0)",
+    Tags: [],
+    CustomData: {
+      KeyValues: {},
+      HasNodeGraph: false,
+    },
+  };
+}

@@ -39,8 +39,6 @@ describe("TrackerWebSocketDemo", () => {
             matchId: "m1",
             gameTypeAndMap: "Slayer: Aquarius",
             gameType: "Slayer",
-            gameTypeIconUrl: "data:,",
-            gameTypeThumbnailUrl: "data:,",
             gameMap: "Aquarius",
             gameMapThumbnailUrl: "data:,",
             duration: "10m 0s",

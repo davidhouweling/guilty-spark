@@ -1,9 +1,41 @@
 import React from "react";
+import assaultPng from "../../assets/game-modes/assault.png";
+import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
+import strongholdsPng from "../../assets/game-modes/strongholds.png";
+import oddballPng from "../../assets/game-modes/oddball.png";
+import slayerPng from "../../assets/game-modes/slayer.png";
+import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import styles from "./tracker-websocket-demo.module.css";
 import type { TrackerWebSocketDemoViewModel } from "./types";
 
 interface TrackerWebsocketDemoProps {
   readonly model: TrackerWebSocketDemoViewModel;
+}
+
+function gameModeIconUrl(gameMode: string): ImageMetadata {
+  // todo: resolve the rest of the game modes
+  console.log(gameMode);
+  switch (gameMode) {
+    case "Capture the Flag": {
+      return captureTheFlagPng;
+    }
+    case "Strongholds": {
+      return strongholdsPng;
+    }
+    case "Oddball": {
+      return oddballPng;
+    }
+    case "King of the Hill": {
+      return kingOfTheHillPng;
+    }
+    case "Neutral Bomb": {
+      return assaultPng;
+    }
+    case "Slayer":
+    default: {
+      return slayerPng;
+    }
+  }
 }
 
 export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): React.ReactElement {
@@ -59,6 +91,11 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
                             };
                           })()}
                         >
+                          <img
+                            src={gameModeIconUrl(match.gameType).src}
+                            alt={match.gameType}
+                            className={styles.gameTypeIcon}
+                          />
                           {match.gameScore}
                           {match.gameSubScore != null ? (
                             <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
