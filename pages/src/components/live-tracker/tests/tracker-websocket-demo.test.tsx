@@ -19,7 +19,7 @@ function isSteppableLiveTrackerConnection(
 
 describe("TrackerWebSocketDemo", () => {
   it("renders status and updates when messages arrive", async () => {
-    window.history.pushState({}, "", "/tracker?guildId=1&channelId=2&queueNumber=3");
+    window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
     const stateMessage: LiveTrackerStateMessage = {
       type: "state",
@@ -59,7 +59,6 @@ describe("TrackerWebSocketDemo", () => {
 
     const identity = {
       guildId: "1",
-      channelId: "2",
       queueNumber: "3",
     };
 

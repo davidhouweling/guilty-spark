@@ -1,6 +1,5 @@
 export interface LiveTrackerIdentity {
   readonly guildId: string;
-  readonly channelId: string;
   readonly queueNumber: string;
 }
 

@@ -5,7 +5,11 @@ import type {
   LiveTrackerConnectionStatus,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
-import type { TrackerWebSocketDemoSnapshot, TrackerWebSocketDemoStore } from "./tracker-websocket-demo.store";
+import type {
+  TrackerWebSocketDemoParams,
+  TrackerWebSocketDemoSnapshot,
+  TrackerWebSocketDemoStore,
+} from "./tracker-websocket-demo.store";
 import type { TrackerWebSocketDemoViewModel } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
@@ -16,7 +20,7 @@ interface Config {
 }
 
 export class TrackerWebSocketDemoPresenter {
-  public static readonly usageText = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
+  public static readonly usageText = "Usage: /tracker?server=123&queue=1";
 
   private readonly config: Config;
 
@@ -30,13 +34,13 @@ export class TrackerWebSocketDemoPresenter {
   }
 
   public static present(snapshot: TrackerWebSocketDemoSnapshot): TrackerWebSocketDemoViewModel {
-    const queueNumberText = snapshot.params.queueNumber.length > 0 ? snapshot.params.queueNumber : "Not set";
+    const queueNumberText = snapshot.params.queue.length > 0 ? snapshot.params.queue : "Not set";
 
     const guildNameText =
       snapshot.lastMessage?.type === "state"
         ? snapshot.lastMessage.data.guildName
-        : snapshot.params.guildId.length > 0
-          ? `Guild ${snapshot.params.guildId}`
+        : snapshot.params.server.length > 0
+          ? `Guild ${snapshot.params.server}`
           : "Not set";
 
     let statusClassName = "";
@@ -57,35 +61,21 @@ export class TrackerWebSocketDemoPresenter {
     };
   }
 
-  private static parseParamsFromUrl(url: URL): {
-    readonly guildId: string;
-    readonly channelId: string;
-    readonly queueNumber: string;
-  } {
+  private static parseParamsFromUrl(url: URL): TrackerWebSocketDemoParams {
     return {
-      guildId: url.searchParams.get("guildId") ?? "",
-      channelId: url.searchParams.get("channelId") ?? "",
-      queueNumber: url.searchParams.get("queueNumber") ?? "",
+      server: url.searchParams.get("server") ?? "",
+      queue: url.searchParams.get("queue") ?? "",
     };
   }
 
-  private static canConnect(params: {
-    readonly guildId: string;
-    readonly channelId: string;
-    readonly queueNumber: string;
-  }): boolean {
-    return params.guildId.length > 0 && params.channelId.length > 0 && params.queueNumber.length > 0;
+  private static canConnect(params: TrackerWebSocketDemoParams): boolean {
+    return params.server.length > 0 && params.queue.length > 0;
   }
 
-  private static toIdentity(params: {
-    readonly guildId: string;
-    readonly channelId: string;
-    readonly queueNumber: string;
-  }): LiveTrackerIdentity {
+  private static toIdentity(params: TrackerWebSocketDemoParams): LiveTrackerIdentity {
     return {
-      guildId: params.guildId,
-      channelId: params.channelId,
-      queueNumber: params.queueNumber,
+      guildId: params.server,
+      queueNumber: params.queue,
     };
   }
 

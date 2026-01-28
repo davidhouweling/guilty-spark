@@ -893,7 +893,7 @@ describe("LiveTrackerService", () => {
       await service.pauseTracker(liveTrackerContext);
 
       expect(idFromNameSpy).toHaveBeenCalledWith(
-        `${liveTrackerContext.guildId}:${liveTrackerContext.channelId}:${liveTrackerContext.queueNumber.toString()}`,
+        `${liveTrackerContext.guildId}:${liveTrackerContext.queueNumber.toString()}`,
       );
     });
 

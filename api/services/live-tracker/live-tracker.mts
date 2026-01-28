@@ -516,9 +516,7 @@ export class LiveTrackerService {
   }
 
   private getDurableObjectStub(context: LiveTrackerContext): DurableObjectStub<LiveTrackerDO> {
-    const doId = this.env.LIVE_TRACKER_DO.idFromName(
-      `${context.guildId}:${context.channelId}:${context.queueNumber.toString()}`,
-    );
+    const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
 
     return this.env.LIVE_TRACKER_DO.get(doId);
   }

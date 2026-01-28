@@ -8,7 +8,7 @@ import { TrackerWebSocketDemo } from "../../components/live-tracker/create";
 
 describe("/tracker page wiring", () => {
   it("boots the tracker island via the services installer", async () => {
-    window.history.pushState({}, "", "/tracker?guildId=1&channelId=2&queueNumber=3");
+    window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
     render(<TrackerWebSocketDemo apiHost="http://example.local" />);
 

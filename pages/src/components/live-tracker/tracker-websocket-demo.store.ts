@@ -4,9 +4,8 @@ import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/ty
 export type TrackerWebSocketDemoConnectionState = "idle" | LiveTrackerConnectionStatus;
 
 export interface TrackerWebSocketDemoParams {
-  readonly guildId: string;
-  readonly channelId: string;
-  readonly queueNumber: string;
+  readonly server: string;
+  readonly queue: string;
 }
 
 export interface TrackerWebSocketDemoSnapshot {
@@ -25,13 +24,12 @@ export class TrackerWebSocketDemoStore {
   public constructor() {
     this.snapshot = {
       params: {
-        guildId: "",
-        channelId: "",
-        queueNumber: "",
+        server: "",
+        queue: "",
       },
       connectionState: "idle",
       statusText: "Waiting for query parameters",
-      rawMessageText: "Usage: /tracker?guildId=123&channelId=456&queueNumber=1",
+      rawMessageText: "Usage: /tracker?server=1234567890&queue=123",
       lastMessage: null,
       hasConnection: false,
     };
