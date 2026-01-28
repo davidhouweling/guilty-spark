@@ -240,7 +240,7 @@ describe("LiveTrackerEmbed", () => {
               label: "View in browser (BETA)",
               style: ButtonStyle.Link,
               emoji: { name: "🌐" },
-              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+              url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
             },
             */
           ],
@@ -275,7 +275,7 @@ describe("LiveTrackerEmbed", () => {
               label: "View in browser (BETA)",
               style: ButtonStyle.Link,
               emoji: { name: "🌐" },
-              url: `https://guilty-spark.app/tracker?guildId=guild123&channelId=channel123&queueNumber=42`,
+              url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
             },
             */
           ],

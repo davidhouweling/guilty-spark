@@ -204,7 +204,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
             emoji: {
               name: "🌐",
             },
-            url: `https://guilty-spark.app/tracker?guildId=${guildId}&channelId=${channelId}&queueNumber=${queueNumber.toString()}`,
+            url: `https://guilty-spark.app/tracker?server=${guildId}&queue=${queueNumber.toString()}`,
           },
           */
         ],

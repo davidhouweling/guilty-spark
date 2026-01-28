@@ -14,16 +14,16 @@ function updateStatus(status: string, className = ""): void {
   statusText.className = className;
 }
 
-export function connect(apiHost: string, guildId: string, channelId: string, queueNumber: string): void {
-  if (!guildId || !channelId || !queueNumber) {
-    updateStatus("Missing required query parameters: guildId, channelId, queueNumber", "error");
-    trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
+export function connect(apiHost: string, guildId: string, queueNumber: string): void {
+  if (!guildId || !queueNumber) {
+    updateStatus("Missing required query parameters: guildId, queueNumber", "error");
+    trackerData.textContent = "Usage: /tracker?server=123&queue=1";
     return;
   }
 
   // Determine WebSocket protocol based on current page protocol
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  wsUrl = `${protocol}//${apiHost}/ws/tracker/${guildId}/${channelId}/${queueNumber}`;
+  wsUrl = `${protocol}//${apiHost}/ws/tracker/${guildId}/${queueNumber}`;
 
   updateStatus("Connecting...", "");
 
@@ -93,30 +93,25 @@ export function initializeTracker(apiHost: string): void {
 
   // Read query parameters and update display on page load (client-side only)
   const urlParams = new URLSearchParams(window.location.search);
-  const guildId = urlParams.get("guildId");
-  const channelId = urlParams.get("channelId");
-  const queueNumber = urlParams.get("queueNumber");
+  const guildId = urlParams.get("server");
+  const queueNumber = urlParams.get("queue");
 
   // Update the displayed parameter values
   const displayGuildId = document.getElementById("display-guildId");
-  const displayChannelId = document.getElementById("display-channelId");
   const displayQueueNumber = document.getElementById("display-queueNumber");
 
   if (displayGuildId) {
     displayGuildId.textContent = guildId ?? "Not set";
-  }
-  if (displayChannelId) {
-    displayChannelId.textContent = channelId ?? "Not set";
   }
   if (displayQueueNumber) {
     displayQueueNumber.textContent = queueNumber ?? "Not set";
   }
 
   // Auto-connect if all query parameters are present
-  if (guildId !== null && channelId !== null && queueNumber !== null) {
-    connect(apiHost, guildId, channelId, queueNumber);
+  if (guildId !== null && queueNumber !== null) {
+    connect(apiHost, guildId, queueNumber);
   } else {
     updateStatus("Waiting for query parameters", "");
-    trackerData.textContent = "Usage: /tracker?guildId=123&channelId=456&queueNumber=1";
+    trackerData.textContent = "Usage: /tracker?server=123&queue=1";
   }
 }

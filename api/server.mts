@@ -28,17 +28,16 @@ export class Server {
       );
     });
 
-    this.router.get("/ws/tracker/:guildId/:channelId/:queueNumber", async (request, env: Env) => {
+    this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
-        const { guildId, channelId, queueNumber } = request.params as {
+        const { guildId, queueNumber } = request.params as {
           guildId: string;
-          channelId: string;
           queueNumber: string;
         };
 
-        if (guildId === "" || channelId === "" || queueNumber === "") {
-          return new Response("Missing required parameters: guildId, channelId, queueNumber", { status: 400 });
+        if (guildId === "" || queueNumber === "") {
+          return new Response("Missing required parameters: guildId, queueNumber", { status: 400 });
         }
 
         const queueNum = parseInt(queueNumber, 10);
@@ -47,7 +46,7 @@ export class Server {
         }
 
         // Get the Durable Object stub using the same naming pattern
-        const doId = env.LIVE_TRACKER_DO.idFromName(`${guildId}:${channelId}:${queueNum.toString()}`);
+        const doId = env.LIVE_TRACKER_DO.idFromName(`${guildId}:${queueNum.toString()}`);
         const stub = env.LIVE_TRACKER_DO.get(doId);
 
         // Forward the WebSocket upgrade request to the DO

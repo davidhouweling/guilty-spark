@@ -39,7 +39,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
     const messages: LiveTrackerMessage[] = [];
     const statuses: string[] = [];
 
-    const connection = service.connect({ guildId: "1", channelId: "2", queueNumber: "3" });
+    const connection = service.connect({ guildId: "1", queueNumber: "3" });
 
     connection.subscribe((message) => {
       messages.push(message);
