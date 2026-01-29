@@ -14,7 +14,6 @@ interface LiveTrackerProps {
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
   // todo: resolve the rest of the game modes
-  console.log(gameMode);
   switch (gameMode) {
     case "Capture the Flag": {
       return captureTheFlagPng;
@@ -43,6 +42,11 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
 
   return (
     <>
+      <title>
+        {`${model.guildNameText} ${
+          model.state ? `#${model.state.queueNumber.toString()}` : model.queueNumberText
+        } : Live Tracker - Guilty Spark`}
+      </title>
       <div className={styles.headerBar}>
         <div className={styles.headerLeft}>
           <h1 className={styles.headerTitle}>{model.guildNameText}</h1>
