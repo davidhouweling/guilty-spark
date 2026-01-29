@@ -5,11 +5,11 @@ import strongholdsPng from "../../assets/game-modes/strongholds.png";
 import oddballPng from "../../assets/game-modes/oddball.png";
 import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
-import styles from "./tracker-websocket-demo.module.css";
-import type { TrackerWebSocketDemoViewModel } from "./types";
+import styles from "./live-tracker.module.css";
+import type { LiveTrackerViewModel } from "./types";
 
-interface TrackerWebsocketDemoProps {
-  readonly model: TrackerWebSocketDemoViewModel;
+interface LiveTrackerProps {
+  readonly model: LiveTrackerViewModel;
 }
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
@@ -38,7 +38,7 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
   }
 }
 
-export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): React.ReactElement {
+export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
   return (

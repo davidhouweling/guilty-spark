@@ -4,13 +4,13 @@ import React from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-import { TrackerWebSocketDemo } from "../../components/live-tracker/create";
+import { LiveTracker } from "../../components/live-tracker/create";
 
 describe("/tracker page wiring", () => {
   it("boots the tracker island via the services installer", async () => {
     window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
-    render(<TrackerWebSocketDemo apiHost="http://example.local" />);
+    render(<LiveTracker apiHost="http://example.local" />);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Sample\s*Guild/i })).toBeInTheDocument();

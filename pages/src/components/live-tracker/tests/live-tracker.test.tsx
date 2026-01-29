@@ -1,6 +1,5 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
@@ -9,7 +8,7 @@ import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../.
 import type { Services } from "../../../services/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
-import { TrackerWebSocketDemoFactory } from "../create";
+import { LiveTrackerFactory } from "../create";
 
 function isSteppableLiveTrackerConnection(
   connection: LiveTrackerConnection,
@@ -17,7 +16,7 @@ function isSteppableLiveTrackerConnection(
   return "step" in connection && typeof connection.step === "function";
 }
 
-describe("TrackerWebSocketDemo", () => {
+describe("LiveTracker", () => {
   it("renders status and updates when messages arrive", async () => {
     window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
@@ -72,7 +71,7 @@ describe("TrackerWebSocketDemo", () => {
       liveTrackerService,
     };
 
-    render(<TrackerWebSocketDemoFactory services={services} />);
+    render(<LiveTrackerFactory services={services} />);
 
     await waitFor(() => {
       expect(screen.getByText("Status")).toBeInTheDocument();
