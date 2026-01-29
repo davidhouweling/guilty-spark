@@ -106,7 +106,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                           ) : (
                             ""
                           )}
-                          <span className={styles.gameTypeAndMap}>{match.gameTypeAndMap}</span>
+                          <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
                         </li>
                       ))}
                     </ul>

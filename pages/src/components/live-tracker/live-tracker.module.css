@@ -146,7 +146,7 @@
 
 .seriesSubScore {
   display: block;
-  font-size: 1rem;
+  font-size: 0.75rem;
   font-weight: 400;
 }
 
@@ -157,7 +157,7 @@
 
 .gameTypeAndMap {
   display: block;
-  font-size: 1.5rem;
+  font-size: 1rem;
 }
 
 .teamCard {
@@ -238,5 +238,17 @@
     > :nth-child(3) {
       order: 3;
     }
+  }
+}
+
+@media (--desktop-viewport) {
+  .seriesScoresList {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  .seriesScore {
+    flex: 1;
   }
 }
