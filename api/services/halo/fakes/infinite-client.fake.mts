@@ -157,6 +157,20 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
       if (assetId === "2bb084c2-a047-4fe9-9023-4100cbe6860d") {
         return Promise.resolve(mapModePairCtfAquarius);
       }
+      // For test cases that use test-asset-id, return a MapModePair structure
+      if (assetId === "test-asset-id") {
+        return Promise.resolve({
+          ...assetVersion,
+          AssetId: assetId,
+          PublicName: getFakeName(assetId),
+          VersionId: version,
+          MapLink: {
+            ...assetVersion,
+            AssetId: assetId,
+            VersionId: version,
+          },
+        });
+      }
     }
 
     return Promise.resolve({
