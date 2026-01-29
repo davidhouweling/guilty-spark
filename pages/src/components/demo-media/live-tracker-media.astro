@@ -2,37 +2,35 @@
 import type { ImageMetadata } from "astro";
 import LiveTrackerScreenshot from "../../assets/screenshot20250918-live-tracker.png";
 import LiveTrackerChannelScreenshot from "../../assets/screenshot20250918-live-tracker-channel-name.png";
-import "./demo-media.module.css";
+import styles from "./demo-media.module.css";
 
 const trackerImage = LiveTrackerScreenshot as ImageMetadata;
 const channelImage = LiveTrackerChannelScreenshot as ImageMetadata;
 ---
 
-<div data-demo-media-grid>
-  <div data-demo-media-item>
+<div class={styles.grid}>
+  <div class={styles.gridItem}>
     <img
       src={trackerImage.src}
       width={trackerImage.width}
       height={trackerImage.height}
       alt="Live tracker showing real-time match statistics"
       loading="lazy"
-      data-demo-image
       decoding="async"
       fetchpriority="low"
     />
-    <div data-demo-caption>Active series overview with sequential engagement analysis</div>
+    <div class={styles.gridCaption}>Active series overview with sequential engagement analysis</div>
   </div>
-  <div data-demo-media-item>
+  <div class={styles.gridItem}>
     <img
       src={channelImage.src}
       width={channelImage.width}
       height={channelImage.height}
       alt="Live tracker updating Discord channel name with series score"
       loading="lazy"
-      data-demo-image
       decoding="async"
       fetchpriority="low"
     />
-    <div data-demo-caption>Communication channel designation reflects current series tally</div>
+    <div class={styles.gridCaption}>Communication channel designation reflects current series tally</div>
   </div>
 </div>

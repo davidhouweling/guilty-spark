@@ -5,17 +5,16 @@ import styles from "./demo-card.module.css";
 interface Props {
   title: string;
   description: string;
-  wide?: boolean;
   iconVariant?: "default" | "image";
   class?: string;
 }
 
-const { title, description, wide = false, iconVariant = "default", class: className } = Astro.props;
+const { title, description, iconVariant = "default", class: className } = Astro.props;
 const hasIcon = Astro.slots.has("icon");
 const hasMedia = Astro.slots.has("media");
 ---
 
-<BaseCard padding="lg" interactive class:list={[wide && "demo-card-wide", className]} data-demo-card>
+<BaseCard padding="lg" interactive class:list={[styles.demoCard, className]}>
   <div class={styles.demoCardInner}>
     <div class={styles.demoHeader}>
       {

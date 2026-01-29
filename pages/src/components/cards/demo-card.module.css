@@ -60,10 +60,6 @@
 .demoMedia :global(video) {
   max-width: 100%;
   height: auto;
-}
-
-/* Cross-component image styling via data attributes (works in Astro + React) */
-:global([data-demo-image]) {
   display: block;
   margin: 0 auto;
   border: 2px solid var(--halo-teal-dark);
@@ -74,7 +70,8 @@
   transition: all 0.3s ease;
 }
 
-:global([data-demo-card]):hover :global([data-demo-image]) {
+.demoCard:hover :global(img),
+.demoCard:hover :global(video) {
   border-color: var(--halo-teal-primary);
   box-shadow: 0 4px 30px rgba(93, 212, 216, 0.3);
 }

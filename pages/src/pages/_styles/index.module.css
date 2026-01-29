@@ -251,12 +251,8 @@
     padding: 6rem 0;
   }
 
-  :global(.demo-media-grid) {
+  .demoGrid {
     gap: 2.5rem;
-  }
-
-  :global(.demo-caption) {
-    font-size: 0.9rem;
   }
 }
 
@@ -267,6 +263,10 @@
 @media (--desktop-viewport) {
   .demoGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .demoGrid > :last-child:nth-child(odd) {
+    grid-column: span 2;
   }
 
   .featuresGrid {

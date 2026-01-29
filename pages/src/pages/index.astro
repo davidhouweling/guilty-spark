@@ -79,7 +79,6 @@ interface DemoItem {
   iconVariant: "default" | "image";
   Icon: typeof MatchStatisticsIcon;
   Media: typeof CombatRecordMedia;
-  wide?: boolean;
 }
 
 const demoItems: DemoItem[] = [
@@ -106,7 +105,6 @@ const demoItems: DemoItem[] = [
     iconVariant: "default",
     Icon: LiveTrackingIcon,
     Media: LiveTrackerMedia,
-    wide: true,
   },
 ];
 
@@ -179,8 +177,8 @@ const testimonialItems: CommunityTestimonial[] = [
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class={styles.demoGrid}>
         {
-          demoItems.map(({ title, description, iconVariant, Icon, Media, wide }) => (
-            <DemoCard title={title} description={description} iconVariant={iconVariant} wide={wide}>
+          demoItems.map(({ title, description, iconVariant, Icon, Media }) => (
+            <DemoCard title={title} description={description} iconVariant={iconVariant}>
               <Icon slot="icon" />
               <Media slot="media" />
             </DemoCard>
