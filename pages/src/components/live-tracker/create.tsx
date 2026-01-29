@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import "react-time-ago/locale/en";
 import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";

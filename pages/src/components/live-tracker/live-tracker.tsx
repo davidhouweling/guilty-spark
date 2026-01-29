@@ -1,4 +1,5 @@
 import React from "react";
+import ReactTimeAgo from "react-time-ago";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -58,7 +59,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         <div className={styles.headerRight}>
           <div className={styles.headerMetaRow}>
             <span className={styles.headerMetaLabel}>Last updated</span>
-            <span className={styles.headerMetaValue}>{model.state ? model.state.lastUpdateTime : "-"}</span>
+            <span className={styles.headerMetaValue}>
+              {model.state ? <ReactTimeAgo date={new Date(model.state.lastUpdateTime)} locale="en" /> : "-"}
+            </span>
           </div>
           <div className={styles.headerMetaRow}>
             <span className={styles.headerMetaLabel}>Status</span>
