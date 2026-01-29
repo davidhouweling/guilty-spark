@@ -754,13 +754,13 @@ export class HaloService {
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
     try {
-      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, assetId, versionId, {
+      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
         cf: {
           cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
         },
       });
 
-      const { Prefix, FileRelativePaths } = asset.MapLink.Files;
+      const { Prefix, FileRelativePaths } = asset.Files;
 
       const thumbnailFile = FileRelativePaths.find((file) => file.includes("thumbnail"));
       if (thumbnailFile != null) {

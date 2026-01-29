@@ -298,6 +298,13 @@ export function aFakeServiceRecordWith(overrides?: Partial<ServiceRecord>): Serv
   };
 }
 
+export function aFakeMapAssetWith(overrides?: Partial<MapAsset>): MapAsset {
+  return {
+    ...assetVersion,
+    ...overrides,
+  };
+}
+
 export function aFakeMapModePairAssetWith(overrides?: {
   readonly mapLinkFiles?: {
     readonly Prefix: string;

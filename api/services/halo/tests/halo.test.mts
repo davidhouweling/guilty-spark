@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, MapModePairAsset } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, Asset } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo } from "../types.mjs";
@@ -16,7 +16,7 @@ import {
   aFakeServiceRecordWith,
   aFakePlayerMatchHistoryWith,
   matchSkillData,
-  aFakeMapModePairAssetWith,
+  aFakeMapAssetWith,
 } from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -3555,7 +3555,7 @@ describe("Halo service", () => {
     const assetId = "test-asset-id";
     const versionId = "test-version-id";
 
-    const createMapLinkFiles = (fileRelativePaths: string[]): MapModePairAsset["MapLink"]["Files"] => ({
+    const createMapLinkFiles = (fileRelativePaths: string[]): Asset["Files"] => ({
       Prefix: "https://example.com/",
       FileRelativePaths: fileRelativePaths,
       PrefixEndpoint: {
@@ -3573,8 +3573,8 @@ describe("Halo service", () => {
     it("returns thumbnail URL when thumbnail file exists", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/thumbnail.png", "images/hero.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/thumbnail.png", "images/hero.png"]),
         }),
       );
 
@@ -3582,7 +3582,7 @@ describe("Halo service", () => {
 
       expect(result).toBe("https://example.com/images/thumbnail.png");
       expect(getSpecificAssetVersionSpy).toHaveBeenCalledOnce();
-      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.MapModePair, assetId, versionId, {
+      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.Map, assetId, versionId, {
         cf: {
           cacheTtlByStatus: { "200-299": 604800, 404: 86400, "500-599": 0 },
         },
@@ -3592,8 +3592,8 @@ describe("Halo service", () => {
     it("returns hero URL when thumbnail file does not exist but hero file exists", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/hero.png", "images/screenshot1.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/hero.png", "images/screenshot1.png"]),
         }),
       );
 
@@ -3605,8 +3605,8 @@ describe("Halo service", () => {
     it("returns first file URL when neither thumbnail nor hero file exists", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/screenshot1.png", "images/screenshot2.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/screenshot1.png", "images/screenshot2.png"]),
         }),
       );
 
@@ -3618,8 +3618,8 @@ describe("Halo service", () => {
     it("returns null when FileRelativePaths is empty", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles([]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles([]),
         }),
       );
 
@@ -3648,14 +3648,14 @@ describe("Halo service", () => {
     it("uses correct cache configuration for asset requests", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/thumbnail.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/thumbnail.png"]),
         }),
       );
 
       await haloService.getMapThumbnailUrl(assetId, versionId);
 
-      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.MapModePair, assetId, versionId, {
+      expect(getSpecificAssetVersionSpy).toHaveBeenCalledWith(AssetKind.Map, assetId, versionId, {
         cf: {
           cacheTtlByStatus: {
             "200-299": 604800, // 1 week
@@ -3669,8 +3669,8 @@ describe("Halo service", () => {
     it("prioritizes thumbnail over hero when both exist", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/hero.png", "images/thumbnail.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/hero.png", "images/thumbnail.png"]),
         }),
       );
 
@@ -3682,8 +3682,8 @@ describe("Halo service", () => {
     it("handles file paths with thumbnail substring in the name", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/map_thumbnail_large.jpg"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/map_thumbnail_large.jpg"]),
         }),
       );
 
@@ -3695,8 +3695,8 @@ describe("Halo service", () => {
     it("handles file paths with hero substring in the name", async () => {
       const getSpecificAssetVersionSpy = vi.spyOn(infiniteClient, "getSpecificAssetVersion");
       getSpecificAssetVersionSpy.mockResolvedValue(
-        aFakeMapModePairAssetWith({
-          mapLinkFiles: createMapLinkFiles(["images/hero_image.png"]),
+        aFakeMapAssetWith({
+          Files: createMapLinkFiles(["images/hero_image.png"]),
         }),
       );
 
