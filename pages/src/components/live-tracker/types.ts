@@ -31,7 +31,7 @@ export interface LiveTrackerStateRenderModel {
   readonly matches: readonly LiveTrackerMatchRenderModel[];
 }
 
-export interface TrackerWebSocketDemoViewModel {
+export interface LiveTrackerViewModel {
   readonly guildNameText: string;
   readonly queueNumberText: string;
   readonly statusText: string;

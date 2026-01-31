@@ -1,4 +1,4 @@
-:global([data-demo-media-grid]) {
+.grid {
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -6,11 +6,11 @@
   margin: 0 auto;
 }
 
-:global([data-demo-media-item]) {
+.gridItem {
   position: relative;
 }
 
-:global([data-demo-caption]) {
+.gridCaption {
   font-family: var(--font-body);
   font-size: 0.85rem;
   font-weight: 500;
@@ -21,11 +21,11 @@
 }
 
 @media (--tablet-viewport) {
-  :global([data-demo-media-grid]) {
+  .grid {
     gap: 2.5rem;
   }
 
-  :global([data-demo-caption]) {
+  .gridCaption {
     font-size: 0.9rem;
   }
 }

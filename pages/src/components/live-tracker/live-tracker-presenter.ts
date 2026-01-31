@@ -5,21 +5,17 @@ import type {
   LiveTrackerConnectionStatus,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
-import type {
-  TrackerWebSocketDemoParams,
-  TrackerWebSocketDemoSnapshot,
-  TrackerWebSocketDemoStore,
-} from "./tracker-websocket-demo.store";
-import type { TrackerWebSocketDemoViewModel } from "./types";
+import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
+import type { LiveTrackerViewModel } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
   readonly services: Services;
   readonly getUrl: () => URL;
-  readonly store: TrackerWebSocketDemoStore;
+  readonly store: LiveTrackerStore;
 }
 
-export class TrackerWebSocketDemoPresenter {
+export class LiveTrackerPresenter {
   public static readonly usageText = "Usage: /tracker?server=123&queue=1";
 
   private readonly config: Config;
@@ -33,7 +29,7 @@ export class TrackerWebSocketDemoPresenter {
     this.config = config;
   }
 
-  public static present(snapshot: TrackerWebSocketDemoSnapshot): TrackerWebSocketDemoViewModel {
+  public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
     const queueNumberText = snapshot.params.queue.length > 0 ? snapshot.params.queue : "Not set";
 
     const guildNameText =
@@ -61,18 +57,18 @@ export class TrackerWebSocketDemoPresenter {
     };
   }
 
-  private static parseParamsFromUrl(url: URL): TrackerWebSocketDemoParams {
+  private static parseParamsFromUrl(url: URL): LiveTrackerParams {
     return {
       server: url.searchParams.get("server") ?? "",
       queue: url.searchParams.get("queue") ?? "",
     };
   }
 
-  private static canConnect(params: TrackerWebSocketDemoParams): boolean {
+  private static canConnect(params: LiveTrackerParams): boolean {
     return params.server.length > 0 && params.queue.length > 0;
   }
 
-  private static toIdentity(params: TrackerWebSocketDemoParams): LiveTrackerIdentity {
+  private static toIdentity(params: LiveTrackerParams): LiveTrackerIdentity {
     return {
       guildId: params.server,
       queueNumber: params.queue,
@@ -80,14 +76,14 @@ export class TrackerWebSocketDemoPresenter {
   }
 
   public start(): void {
-    const params = TrackerWebSocketDemoPresenter.parseParamsFromUrl(this.config.getUrl());
+    const params = LiveTrackerPresenter.parseParamsFromUrl(this.config.getUrl());
 
-    if (!TrackerWebSocketDemoPresenter.canConnect(params)) {
+    if (!LiveTrackerPresenter.canConnect(params)) {
       this.config.store.setSnapshot({
         params,
         connectionState: "idle",
         statusText: "Waiting for query parameters",
-        rawMessageText: TrackerWebSocketDemoPresenter.usageText,
+        rawMessageText: LiveTrackerPresenter.usageText,
         lastMessage: null,
         hasConnection: false,
       });
@@ -105,7 +101,7 @@ export class TrackerWebSocketDemoPresenter {
       hasConnection: false,
     });
 
-    this.connectInternal(TrackerWebSocketDemoPresenter.toIdentity(params));
+    this.connectInternal(LiveTrackerPresenter.toIdentity(params));
   }
 
   public dispose(): void {

@@ -1,20 +1,20 @@
 import React from "react";
+import ReactTimeAgo from "react-time-ago";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
 import oddballPng from "../../assets/game-modes/oddball.png";
 import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
-import styles from "./tracker-websocket-demo.module.css";
-import type { TrackerWebSocketDemoViewModel } from "./types";
+import styles from "./live-tracker.module.css";
+import type { LiveTrackerViewModel } from "./types";
 
-interface TrackerWebsocketDemoProps {
-  readonly model: TrackerWebSocketDemoViewModel;
+interface LiveTrackerProps {
+  readonly model: LiveTrackerViewModel;
 }
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
   // todo: resolve the rest of the game modes
-  console.log(gameMode);
   switch (gameMode) {
     case "Capture the Flag": {
       return captureTheFlagPng;
@@ -38,11 +38,16 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
   }
 }
 
-export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): React.ReactElement {
+export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
   return (
     <>
+      <title>
+        {`${model.guildNameText} ${
+          model.state ? `#${model.state.queueNumber.toString()}` : model.queueNumberText
+        } : Live Tracker - Guilty Spark`}
+      </title>
       <div className={styles.headerBar}>
         <div className={styles.headerLeft}>
           <h1 className={styles.headerTitle}>{model.guildNameText}</h1>
@@ -54,7 +59,9 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
         <div className={styles.headerRight}>
           <div className={styles.headerMetaRow}>
             <span className={styles.headerMetaLabel}>Last updated</span>
-            <span className={styles.headerMetaValue}>{model.state ? model.state.lastUpdateTime : "-"}</span>
+            <span className={styles.headerMetaValue}>
+              {model.state ? <ReactTimeAgo date={new Date(model.state.lastUpdateTime)} locale="en" /> : "-"}
+            </span>
           </div>
           <div className={styles.headerMetaRow}>
             <span className={styles.headerMetaLabel}>Status</span>
@@ -102,7 +109,7 @@ export function TrackerWebSocketDemoView({ model }: TrackerWebsocketDemoProps): 
                           ) : (
                             ""
                           )}
-                          <span className={styles.gameTypeAndMap}>{match.gameTypeAndMap}</span>
+                          <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
                         </li>
                       ))}
                     </ul>

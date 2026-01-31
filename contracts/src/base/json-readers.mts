@@ -23,3 +23,29 @@ export function readNumber(value: JsonValue): number | null {
 export function readNullableString(value: JsonValue): string | null {
   return value === null ? null : readString(value);
 }
+
+export function readRecord(value: JsonValue): Record<string, unknown> | null {
+  const obj = readJsonObject(value);
+  if (!obj) {
+    return null;
+  }
+  return obj as Record<string, unknown>;
+}
+
+export function readStringRecord(value: JsonValue): Record<string, string> | null {
+  const obj = readJsonObject(value);
+  if (!obj) {
+    return null;
+  }
+
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const stringVal = readString(val);
+    if (stringVal === null) {
+      return null;
+    }
+    result[key] = stringVal;
+  }
+
+  return result;
+}

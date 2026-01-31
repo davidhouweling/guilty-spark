@@ -2,11 +2,11 @@
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import { API_HOST } from "../constants";
-import { TrackerWebSocketDemo } from "../components/live-tracker/create";
+import { LiveTracker } from "../components/live-tracker/create";
 ---
 
-<Layout title="Live Tracker WebSocket Demo" description="Real-time live tracker data via WebSocket">
+<Layout title="Live Tracker - Guilty Spark" description="Real-time live tracker">
   <Container>
-    <TrackerWebSocketDemo client:load apiHost={API_HOST} />
+    <LiveTracker client:load apiHost={API_HOST} />
   </Container>
 </Layout>

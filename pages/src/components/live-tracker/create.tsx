@@ -1,24 +1,25 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import "react-time-ago/locale/en";
 import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
-import { TrackerWebSocketDemoPresenter } from "./tracker-websocket-demo.presenter";
-import { TrackerWebSocketDemoStore } from "./tracker-websocket-demo.store";
-import { TrackerWebSocketDemoView } from "./tracker-websocket-demo.view";
+import { LiveTrackerPresenter } from "./live-tracker-presenter";
+import { LiveTrackerStore } from "./live-tracker-store";
+import { LiveTrackerView } from "./live-tracker";
 
-interface TrackerWebSocketDemoAppProps {
+interface LiveTrackerAppProps {
   readonly apiHost: string;
 }
 
-interface TrackerWebSocketDemoFactoryProps {
+interface LiveTrackerFactoryProps {
   readonly services: Services;
 }
 
-export function TrackerWebSocketDemoFactory({ services }: TrackerWebSocketDemoFactoryProps): React.ReactElement {
-  const store = useMemo(() => new TrackerWebSocketDemoStore(), []);
+export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
+  const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
-    return new TrackerWebSocketDemoPresenter({
+    return new LiveTrackerPresenter({
       services,
       getUrl: (): URL => new URL(window.location.href),
       store,
@@ -38,12 +39,12 @@ export function TrackerWebSocketDemoFactory({ services }: TrackerWebSocketDemoFa
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
-  const model = TrackerWebSocketDemoPresenter.present(snapshot);
+  const model = LiveTrackerPresenter.present(snapshot);
 
-  return <TrackerWebSocketDemoView model={model} />;
+  return <LiveTrackerView model={model} />;
 }
 
-export function TrackerWebSocketDemo({ apiHost }: TrackerWebSocketDemoAppProps): React.ReactElement {
+export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
   const [loadingServices, setLoadingServices] = React.useState<ComponentLoaderStatus>(ComponentLoaderStatus.PENDING);
   const [services, setServices] = React.useState<Services | null>(null);
 
@@ -74,7 +75,7 @@ export function TrackerWebSocketDemo({ apiHost }: TrackerWebSocketDemoAppProps):
     };
   }, [apiHost]);
 
-  const loaded = services ? <TrackerWebSocketDemoFactory services={services} /> : <div>Error</div>;
+  const loaded = services ? <LiveTrackerFactory services={services} /> : <div>Error</div>;
 
   return (
     <ComponentLoader
