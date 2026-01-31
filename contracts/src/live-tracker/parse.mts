@@ -1,4 +1,11 @@
-import { readJsonArray, readJsonObject, readNumber, readString } from "../base/json-readers.mjs";
+import {
+  readJsonArray,
+  readJsonObject,
+  readNumber,
+  readRecord,
+  readString,
+  readStringRecord,
+} from "../base/json-readers.mjs";
 import type { JsonValue } from "../base/json.mts";
 import type {
   LiveTrackerPlayer,
@@ -101,6 +108,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const gameScore = readString(match["gameScore"] ?? null);
   const gameSubScore = readString(match["gameSubScore"] ?? null);
   const endTime = readString(match["endTime"] ?? null);
+  const playerXuidToGametag = readStringRecord(match["playerXuidToGametag"] ?? null);
 
   if (
     matchId === null ||
@@ -110,7 +118,8 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     gameMapThumbnailUrl === null ||
     duration === null ||
     gameScore === null ||
-    endTime === null
+    endTime === null ||
+    playerXuidToGametag === null
   ) {
     return null;
   }
@@ -125,6 +134,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     gameScore,
     gameSubScore,
     endTime,
+    playerXuidToGametag,
   };
 }
 
@@ -144,6 +154,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
   const teamsArray = readJsonArray(data["teams"] ?? null);
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
   const matchesArray = readJsonArray(data["discoveredMatches"] ?? null);
+  const rawMatches = readRecord(data["rawMatches"] ?? null);
 
   if (
     guildId === null ||
@@ -155,7 +166,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     playersArray === null ||
     teamsArray === null ||
     substitutionsArray === null ||
-    matchesArray === null
+    matchesArray === null ||
+    rawMatches === null
   ) {
     return null;
   }
@@ -206,6 +218,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     teams,
     substitutions,
     discoveredMatches,
+    rawMatches,
     lastUpdateTime,
   };
 }

@@ -176,6 +176,7 @@ const aMatchSummaryWith = (
   gameScore: "50:47",
   gameSubScore: null,
   endTime: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+  playerXuidToGametag: {},
   ...overrides,
 });
 

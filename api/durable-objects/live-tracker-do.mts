@@ -956,6 +956,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const { AssetId, VersionId } = match.MatchInfo.MapVariant;
       const mapThumbnailUrl = await this.haloService.getMapThumbnailUrl(AssetId, VersionId);
 
+      const playerXuidToGametagMap = await this.haloService.getPlayerXuidsToGametags(match);
+      const playerXuidToGametag: Record<string, string> = {};
+      for (const [xuid, gamertag] of playerXuidToGametagMap.entries()) {
+        playerXuidToGametag[xuid] = gamertag;
+      }
+
       const enrichedMatch: LiveTrackerMatchSummary = {
         matchId: match.MatchId,
         gameTypeAndMap,
@@ -966,6 +972,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         gameScore,
         gameSubScore,
         endTime: new Date(match.MatchInfo.EndTime).toISOString(),
+        playerXuidToGametag,
       };
 
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
@@ -1313,6 +1320,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: sub.timestamp,
       })),
       discoveredMatches: Object.values(state.discoveredMatches),
+      rawMatches: state.rawMatches,
       lastUpdateTime: state.lastUpdateTime,
     };
   }

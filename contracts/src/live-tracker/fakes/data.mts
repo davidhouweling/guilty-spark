@@ -39,6 +39,7 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     gameScore: "0:2",
     gameSubScore: "18:165",
     endTime: "2025-12-24T02:59:47.384Z",
+    playerXuidToGametag: {},
   },
   {
     matchId: "4ddc5187-d08d-48fc-96a3-8a490e577795",
@@ -51,6 +52,7 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     gameScore: "0:1",
     gameSubScore: "69:100",
     endTime: "2025-12-24T03:07:37.120Z",
+    playerXuidToGametag: {},
   },
   {
     matchId: "d127af7f-079c-4b28-a3ae-6e1bcdd44438",
@@ -63,6 +65,7 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     gameScore: "4:3",
     gameSubScore: null,
     endTime: "2025-12-24T03:25:55.588Z",
+    playerXuidToGametag: {},
   },
   {
     matchId: "688cc0ac-2266-40e2-a3dd-a1f5b992f046",
@@ -75,6 +78,7 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
     gameScore: "1:2",
     gameSubScore: null,
     endTime: "2025-12-24T03:41:30.534Z",
+    playerXuidToGametag: {},
   },
 ];
 
@@ -90,6 +94,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     teams,
     substitutions: [],
     discoveredMatches,
+    rawMatches: {},
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
   },
   timestamp: "2025-12-24T03:52:10.687Z",

@@ -15,6 +15,7 @@ export interface LiveTrackerMatchSummary {
   readonly gameScore: string;
   readonly gameSubScore: string | null;
   readonly endTime: string;
+  readonly playerXuidToGametag: Record<string, string>;
 }
 
 export interface LiveTrackerPlayer {
@@ -42,6 +43,7 @@ export interface LiveTrackerStateData {
     timestamp: string;
   }[];
   readonly discoveredMatches: readonly LiveTrackerMatchSummary[];
+  readonly rawMatches: Record<string, unknown>;
   readonly lastUpdateTime: string;
 }
 

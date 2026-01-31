@@ -23,6 +23,7 @@ describe("LiveTrackerEmbed", () => {
       gameScore: "50:42",
       gameSubScore: null,
       endTime: "2024-01-01T10:15:00Z",
+      playerXuidToGametag: {},
     },
     {
       matchId: "match-2",
@@ -34,6 +35,7 @@ describe("LiveTrackerEmbed", () => {
       gameScore: "3:2",
       gameSubScore: null,
       endTime: "2024-01-01T10:30:00Z",
+      playerXuidToGametag: {},
     },
   ];
 
@@ -411,6 +413,7 @@ describe("LiveTrackerEmbed", () => {
           gameScore: "50:42",
           gameSubScore: null,
           endTime: "2024-01-01T10:15:00Z",
+      playerXuidToGametag: {},
         },
         {
           matchId: "match-2",
@@ -422,6 +425,7 @@ describe("LiveTrackerEmbed", () => {
           gameScore: "3:2",
           gameSubScore: null,
           endTime: "2024-01-01T10:30:00Z",
+      playerXuidToGametag: {},
         },
         {
           matchId: "match-3",
@@ -433,6 +437,7 @@ describe("LiveTrackerEmbed", () => {
           gameScore: "250:200",
           gameSubScore: null,
           endTime: "2024-01-01T10:45:00Z",
+      playerXuidToGametag: {},
         },
       ];
 

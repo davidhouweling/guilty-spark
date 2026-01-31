@@ -1,5 +1,4 @@
 import * as tinyduration from "tinyduration";
-
 import type {
   HaloInfiniteClient,
   MapModePairAsset,
