@@ -2,10 +2,13 @@
 .matchStatsContainer {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   margin: 2rem 0;
-  padding: 1.5rem;
+  padding: 1.5rem 0;
   background: var(--halo-bg-secondary, #0a0e14);
   border: 1px solid rgba(93, 212, 216, 0.25);
+  border-left: none;
+  border-right: none;
   position: relative;
   isolation: isolate;
 }
@@ -138,7 +141,7 @@
 }
 
 .statsTable th {
-  padding: 0.5rem;
+  padding: 1rem;
   text-align: left;
   font-size: 0.7rem;
   font-weight: 600;
@@ -164,7 +167,7 @@
 }
 
 .statsTable td {
-  padding: 0.5rem;
+  padding: 0.5rem 1rem;
   font-size: 0.8125rem;
   color: var(--halo-white, #ffffff);
   white-space: nowrap;
@@ -195,6 +198,23 @@
 
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
+  .matchStatsContainer {
+    border-left: 1px solid rgba(93, 212, 216, 0.25);
+    border-right: 1px solid rgba(93, 212, 216, 0.25);
+  }
+
+  .matchTitle {
+    padding: 0 var(--gutter-desktop, 32px);
+  }
+
+  .matchMetadata {
+    padding: 0 var(--gutter-desktop, 32px);
+  }
+
+  .subsectionHeader {
+    padding: 0 var(--gutter-desktop, 32px);
+  }
+
   .teamStats {
     padding: 1.25rem;
   }

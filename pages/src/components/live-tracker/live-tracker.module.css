@@ -68,8 +68,10 @@
 
 .dataContainer {
   background: var(--halo-bg-card);
-  padding: 1.5rem;
+  padding: 1.5rem 0;
   border: 1px solid rgba(93, 212, 216, 0.25);
+  border-left: none;
+  border-right: none;
 }
 
 .sectionTitle {
@@ -81,7 +83,6 @@
 
 .notice {
   background: var(--halo-bg-secondary);
-  padding: 1rem;
   color: var(--halo-accent);
   border: 1px solid rgba(93, 212, 216, 0.25);
 }
