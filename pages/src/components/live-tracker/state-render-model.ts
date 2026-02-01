@@ -1,8 +1,13 @@
 import type { LiveTrackerMatchSummary, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "../../base/preconditions.mts";
 import type { LiveTrackerMatchRenderModel, LiveTrackerStateRenderModel } from "./types";
 
-function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchRenderModel {
+function toMatchRenderModel(
+  summary: LiveTrackerMatchSummary,
+  rawMatches: Record<string, unknown>,
+): LiveTrackerMatchRenderModel {
+  const rawMatchStats = rawMatches[summary.matchId];
   return {
     matchId: summary.matchId,
     gameTypeAndMap: summary.gameTypeAndMap,
@@ -13,12 +18,14 @@ function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchR
     gameScore: summary.gameScore,
     gameSubScore: summary.gameSubScore,
     endTime: summary.endTime,
+    rawMatchStats: (rawMatchStats ?? null) as MatchStats | null,
+    playerXuidToGametag: summary.playerXuidToGametag,
   };
 }
 
 export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage): LiveTrackerStateRenderModel {
   const matches = message.data.discoveredMatches
-    .map((match) => toMatchRenderModel(match))
+    .map((match) => toMatchRenderModel(match, message.data.rawMatches))
     .sort((a, b) => a.endTime.localeCompare(b.endTime));
 
   const playersById = new Map(message.data.players.map((player) => [player.id, player] as const));

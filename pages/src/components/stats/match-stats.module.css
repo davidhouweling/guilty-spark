@@ -1,0 +1,135 @@
+/* Match Stats Container */
+.matchStatsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+/* Team Stats */
+.teamStats {
+  background: var(--halo-bg-secondary, #0a0e14);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+.teamHeader {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: var(--halo-white, #ffffff);
+  font-family: var(--font-heading, "Orbitron", sans-serif);
+}
+
+.subsectionHeader {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem 0;
+  color: var(--halo-gray, #9ca3af);
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+/* Team Totals */
+.teamTotals {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+}
+
+/* Player Stats */
+.playerStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Table Styles */
+.tableWrapper {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.statsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--halo-bg-primary, #000000);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+.statsTable thead {
+  background: var(--halo-bg-secondary, #0a0e14);
+}
+
+.statsTable th {
+  padding: 0.5rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--halo-gray, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+  white-space: pre-line;
+  vertical-align: bottom;
+}
+
+.statsTable tbody tr {
+  border-bottom: 1px solid rgba(93, 212, 216, 0.15);
+  transition: background-color 0.2s ease;
+}
+
+.statsTable tbody tr:hover {
+  background: rgba(93, 212, 216, 0.05);
+}
+
+.statsTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.statsTable td {
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--halo-white, #ffffff);
+  white-space: nowrap;
+}
+
+.labelCell {
+  font-weight: 500;
+  color: var(--halo-white, #ffffff);
+}
+
+.statCell {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.statCell.bestInTeam {
+  font-weight: 700;
+}
+
+.statCell.bestInMatch {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: #10b981;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+/* Media Queries - Desktop and Above */
+@media (--desktop-viewport) {
+  .matchStatsContainer {
+    gap: 1.5rem;
+  }
+
+  .teamStats {
+    padding: 1.25rem;
+  }
+
+  .statsTable th,
+  .statsTable td {
+    font-size: 0.875rem;
+  }
+}

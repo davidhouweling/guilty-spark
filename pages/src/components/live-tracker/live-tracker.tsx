@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
@@ -6,6 +6,9 @@ import strongholdsPng from "../../assets/game-modes/strongholds.png";
 import oddballPng from "../../assets/game-modes/oddball.png";
 import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
+import { createMatchStatsPresenter } from "../stats/create";
+import type { MatchStatsData } from "../stats/types";
+import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 
@@ -40,6 +43,28 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
 
 export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
   const hasMatches = model.state != null && model.state.matches.length > 0;
+
+  const allMatchStats = useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
+    if (!model.state) {
+      return [];
+    }
+
+    return model.state.matches.map((match) => {
+      if (match.rawMatchStats == null) {
+        return { matchId: match.matchId, data: null };
+      }
+
+      try {
+        const matchStats = match.rawMatchStats;
+        const presenter = createMatchStatsPresenter(matchStats.MatchInfo.GameVariantCategory);
+        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
+        return { matchId: match.matchId, data: presenter.getData(matchStats, playerMap) };
+      } catch (error) {
+        console.error("Error processing match stats:", error);
+        return { matchId: match.matchId, data: null };
+      }
+    });
+  }, [model.state]);
 
   return (
     <>
@@ -135,30 +160,38 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             {hasMatches && (
               <>
                 <h2 className={styles.sectionTitle}>Matches</h2>
-                <div className={styles.tableWrap}>
-                  <table className={styles.matchesTable}>
-                    <thead>
-                      <tr>
-                        <th>Game</th>
-                        <th>Duration</th>
-                        <th>Score</th>
-                        <th>End time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {model.state.matches.map((match) => {
-                        return (
-                          <tr key={match.matchId}>
-                            <td>{match.gameTypeAndMap}</td>
-                            <td>{match.duration}</td>
-                            <td>{match.gameScore}</td>
-                            <td>{match.endTime}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                {model.state.matches.map((match, index) => {
+                  const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
+
+                  return (
+                    <div key={match.matchId} className={styles.matchSection}>
+                      <h3 className={styles.matchTitle}>
+                        Match {index + 1}: {match.gameTypeAndMap}
+                      </h3>
+
+                      <div className={styles.matchMetadata}>
+                        <div className={styles.matchMetaItem}>
+                          <span className={styles.matchMetaLabel}>Duration:</span>
+                          <span className={styles.matchMetaValue}>{match.duration}</span>
+                        </div>
+                        <div className={styles.matchMetaItem}>
+                          <span className={styles.matchMetaLabel}>Score:</span>
+                          <span className={styles.matchMetaValue}>{match.gameScore}</span>
+                        </div>
+                        <div className={styles.matchMetaItem}>
+                          <span className={styles.matchMetaLabel}>End time:</span>
+                          <span className={styles.matchMetaValue}>{match.endTime}</span>
+                        </div>
+                      </div>
+
+                      {matchStats?.data ? (
+                        <MatchStatsView data={matchStats.data} />
+                      ) : (
+                        <div className={styles.notice}>Match stats unavailable</div>
+                      )}
+                    </div>
+                  );
+                })}
               </>
             )}
           </>
