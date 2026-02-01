@@ -18,6 +18,7 @@ npm start -- --mode=fake
 ```
 
 **How it works**:
+
 - When `import.meta.env.MODE` is `"fake"` or `"test"`, the app uses `FakeLiveTrackerService` instead of `RealLiveTrackerService`
 - Mock WebSocket connection simulates messages with configurable intervals
 - Sample scenarios defined in `src/services/live-tracker/fakes/scenario.ts`
@@ -32,12 +33,14 @@ Connects to an actual Guilty Spark API backend via WebSocket for live data.
 npm start
 ```
 
-**Prerequisites**: 
+**Prerequisites**:
+
 - API server running (configure via `PUBLIC_API_HOST` env var)
 - WebSocket endpoint: `ws://[host]/ws/tracker/{guildId}/{queueNumber}`
 
 **Configuration**:
 Edit `.env.development` to set the API host:
+
 ```bash
 # Local development
 PUBLIC_API_HOST=localhost:8787
@@ -47,6 +50,7 @@ PUBLIC_API_HOST=api.guilty-spark.app
 ```
 
 **How it works**:
+
 - Astro defaults to `MODE="development"`, which triggers real mode
 - `installServices()` returns `RealLiveTrackerService` that creates actual WebSocket connections
 - Connects to backend at configured `PUBLIC_API_HOST`
