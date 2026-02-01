@@ -77,3 +77,32 @@ a {
 a:hover {
   color: var(--halo-accent);
 }
+/* Scrollbar Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(93, 212, 216, 0.4) var(--halo-bg-secondary);
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--halo-bg-secondary);
+  border-left: 1px solid rgba(93, 212, 216, 0.15);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(93, 212, 216, 0.4);
+  border-radius: 6px;
+  border: 2px solid var(--halo-bg-secondary);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(93, 212, 216, 0.6);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--halo-bg-secondary);
+}
