@@ -30,23 +30,29 @@ export function MatchStats({
   const statColumns = data[0]?.players[0]?.values ?? [];
 
   return (
-    <div
-      className={styles.matchStatsContainer}
-      style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
-    >
-      <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      <h3 className={styles.matchTitle}>
-        Match {matchNumber}: {gameTypeAndMap}
-      </h3>
-      <p className={styles.matchMetadata}>
-        <span className={styles.matchMetaLabel}>Score:</span> <span className={styles.matchMetaValue}>{score}</span>
-        <span className={styles.matchMetaSeparator}>•</span>
-        <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-        <span className={styles.matchMetaValue}>{duration}</span>
-        <span className={styles.matchMetaSeparator}>•</span>
-        <span className={styles.matchMetaLabel}>End time:</span>{" "}
-        <span className={styles.matchMetaValue}>{endTime}</span>
-      </p>
+    <div className={styles.matchStatsContainer}>
+      <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
+        <div className={styles.matchHeaderContent}>
+          <h3 className={styles.matchTitle}>
+            Match {matchNumber}: {gameTypeAndMap}
+          </h3>
+          <ul className={styles.matchMetadata}>
+            <li>
+              <span className={styles.matchMetaLabel}>Score:</span>{" "}
+              <span className={styles.matchMetaValue}>{score}</span>
+            </li>
+            <li>
+              <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+              <span className={styles.matchMetaValue}>{duration}</span>
+            </li>
+            <li>
+              <span className={styles.matchMetaLabel}>End time:</span>{" "}
+              <span className={styles.matchMetaValue}>{endTime}</span>
+            </li>
+          </ul>
+        </div>
+        <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
+      </div>
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Team Totals</h3>
