@@ -163,32 +163,22 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 {model.state.matches.map((match, index) => {
                   const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
 
-                  return (
-                    <div key={match.matchId} className={styles.matchSection}>
-                      <h3 className={styles.matchTitle}>
-                        Match {index + 1}: {match.gameTypeAndMap}
-                      </h3>
-
-                      <div className={styles.matchMetadata}>
-                        <div className={styles.matchMetaItem}>
-                          <span className={styles.matchMetaLabel}>Duration:</span>
-                          <span className={styles.matchMetaValue}>{match.duration}</span>
-                        </div>
-                        <div className={styles.matchMetaItem}>
-                          <span className={styles.matchMetaLabel}>Score:</span>
-                          <span className={styles.matchMetaValue}>{match.gameScore}</span>
-                        </div>
-                        <div className={styles.matchMetaItem}>
-                          <span className={styles.matchMetaLabel}>End time:</span>
-                          <span className={styles.matchMetaValue}>{match.endTime}</span>
-                        </div>
-                      </div>
-
-                      {matchStats?.data ? (
-                        <MatchStatsView data={matchStats.data} />
-                      ) : (
-                        <div className={styles.notice}>Match stats unavailable</div>
-                      )}
+                  return matchStats?.data ? (
+                    <MatchStatsView
+                      key={match.matchId}
+                      data={matchStats.data}
+                      backgroundImageUrl={match.gameMapThumbnailUrl}
+                      gameModeIconUrl={gameModeIconUrl(match.gameType).src}
+                      gameModeAlt={match.gameType}
+                      matchNumber={index + 1}
+                      gameTypeAndMap={match.gameTypeAndMap}
+                      duration={match.duration}
+                      score={match.gameScore}
+                      endTime={match.endTime}
+                    />
+                  ) : (
+                    <div key={match.matchId} className={styles.notice}>
+                      Match stats unavailable
                     </div>
                   );
                 })}

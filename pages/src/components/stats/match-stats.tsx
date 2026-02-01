@@ -5,14 +5,53 @@ import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {
   readonly data: MatchStatsData[];
+  readonly backgroundImageUrl: string;
+  readonly gameModeIconUrl: string;
+  readonly gameModeAlt: string;
+  readonly matchNumber: number;
+  readonly gameTypeAndMap: string;
+  readonly duration: string;
+  readonly score: string;
+  readonly endTime: string;
 }
 
-export function MatchStats({ data }: MatchStatsProps): React.ReactElement {
+export function MatchStats({
+  data,
+  backgroundImageUrl,
+  gameModeIconUrl,
+  gameModeAlt,
+  matchNumber,
+  gameTypeAndMap,
+  duration,
+  score,
+  endTime,
+}: MatchStatsProps): React.ReactElement {
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
   const statColumns = data[0]?.players[0]?.values ?? [];
 
   return (
-    <div className={styles.matchStatsContainer}>
+    <div
+      className={styles.matchStatsContainer}
+      style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
+    >
+      <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
+      <h3 className={styles.matchTitle}>
+        Match {matchNumber}: {gameTypeAndMap}
+      </h3>
+      <div className={styles.matchMetadata}>
+        <div className={styles.matchMetaItem}>
+          <span className={styles.matchMetaLabel}>Duration:</span>
+          <span className={styles.matchMetaValue}>{duration}</span>
+        </div>
+        <div className={styles.matchMetaItem}>
+          <span className={styles.matchMetaLabel}>Score:</span>
+          <span className={styles.matchMetaValue}>{score}</span>
+        </div>
+        <div className={styles.matchMetaItem}>
+          <span className={styles.matchMetaLabel}>End time:</span>
+          <span className={styles.matchMetaValue}>{endTime}</span>
+        </div>
+      </div>
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Team Totals</h3>
