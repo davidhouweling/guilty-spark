@@ -144,7 +144,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       </ul>
                     </>
                   ) : (
-                    <div className={styles.notice}>⏳ Waiting for first match to complete...</div>
+                    <div className={`${styles.notice} ${styles.noticeFlexFill}`}>
+                      ⏳ Waiting for first match to complete...
+                    </div>
                   )}
                 </section>
                 {model.state.teams.map((team) => {

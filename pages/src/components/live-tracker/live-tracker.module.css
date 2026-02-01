@@ -85,6 +85,7 @@
   background: var(--halo-bg-secondary);
   color: var(--halo-accent);
   border: 1px solid rgba(93, 212, 216, 0.25);
+  padding: 1rem;
 }
 
 .seriesOverview {
@@ -95,6 +96,13 @@
 
 .seriesScores {
   flex: 1;
+}
+
+.noticeFlexFill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .seriesScoresList {
