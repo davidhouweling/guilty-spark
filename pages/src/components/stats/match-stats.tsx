@@ -38,20 +38,15 @@ export function MatchStats({
       <h3 className={styles.matchTitle}>
         Match {matchNumber}: {gameTypeAndMap}
       </h3>
-      <div className={styles.matchMetadata}>
-        <div className={styles.matchMetaItem}>
-          <span className={styles.matchMetaLabel}>Duration:</span>
-          <span className={styles.matchMetaValue}>{duration}</span>
-        </div>
-        <div className={styles.matchMetaItem}>
-          <span className={styles.matchMetaLabel}>Score:</span>
-          <span className={styles.matchMetaValue}>{score}</span>
-        </div>
-        <div className={styles.matchMetaItem}>
-          <span className={styles.matchMetaLabel}>End time:</span>
-          <span className={styles.matchMetaValue}>{endTime}</span>
-        </div>
-      </div>
+      <p className={styles.matchMetadata}>
+        <span className={styles.matchMetaLabel}>Score:</span> <span className={styles.matchMetaValue}>{score}</span>
+        <span className={styles.matchMetaSeparator}>•</span>
+        <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+        <span className={styles.matchMetaValue}>{duration}</span>
+        <span className={styles.matchMetaSeparator}>•</span>
+        <span className={styles.matchMetaLabel}>End time:</span>{" "}
+        <span className={styles.matchMetaValue}>{endTime}</span>
+      </p>
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Team Totals</h3>
