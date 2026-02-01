@@ -13,4 +13,9 @@ export default defineConfig({
   integrations: [react()],
   scopedStyleStrategy: "class",
   trailingSlash: "never",
+  vite: {
+    optimizeDeps: {
+      exclude: ["halo-infinite-api"],
+    },
+  },
 });

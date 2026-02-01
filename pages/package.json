@@ -19,7 +19,8 @@
     "astro": "^5.16.15",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-time-ago": "^7.4.1"
+    "react-time-ago": "^7.4.1",
+    "tinyduration": "^3.4.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
@@ -30,6 +31,7 @@
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.23",
+    "halo-infinite-api": "^14.2.2",
     "postcss": "^8.5.6",
     "postcss-clamp": "^4.1.0",
     "postcss-custom-media": "^12.0.0",

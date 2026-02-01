@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
-import "react-time-ago/locale/en";
+import TimeAgo from "javascript-time-ago";
+import en from "javascript-time-ago/locale/en";
 import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -14,6 +15,8 @@ interface LiveTrackerAppProps {
 interface LiveTrackerFactoryProps {
   readonly services: Services;
 }
+
+TimeAgo.addDefaultLocale(en);
 
 export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
