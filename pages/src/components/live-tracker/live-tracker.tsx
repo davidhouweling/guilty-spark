@@ -115,7 +115,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 <section className={styles.seriesScores}>
                   {hasMatches ? (
                     <>
-                      <h3 className={styles.teamName}>Series scores</h3>
+                      <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                        {model.state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
+                      </h3>
                       <ul className={styles.seriesScoresList}>
                         {model.state.matches.map((match) => (
                           <li

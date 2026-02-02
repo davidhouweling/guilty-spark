@@ -155,6 +155,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
   const matchesArray = readJsonArray(data["discoveredMatches"] ?? null);
   const rawMatches = readRecord(data["rawMatches"] ?? null);
+  const seriesScore = readString(data["seriesScore"] ?? null);
 
   if (
     guildId === null ||
@@ -167,7 +168,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     teamsArray === null ||
     substitutionsArray === null ||
     matchesArray === null ||
-    rawMatches === null
+    rawMatches === null ||
+    seriesScore === null
   ) {
     return null;
   }
@@ -219,6 +221,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     substitutions,
     discoveredMatches,
     rawMatches,
+    seriesScore,
     lastUpdateTime,
   };
 }

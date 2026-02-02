@@ -118,6 +118,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     substitutions: [],
     discoveredMatches,
     rawMatches: sampleRawMatches,
+    seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
   },
   timestamp: "2025-12-24T03:52:10.687Z",

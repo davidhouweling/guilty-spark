@@ -62,6 +62,7 @@ export interface LiveTrackerState {
   };
   discoveredMatches: Record<string, LiveTrackerMatchSummary>;
   rawMatches: Record<string, MatchStats>;
+  seriesScore: string;
   lastMessageState: {
     matchCount: number;
     substitutionCount: number;
