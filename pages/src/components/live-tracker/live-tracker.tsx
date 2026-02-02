@@ -9,6 +9,9 @@ import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { createMatchStatsPresenter } from "../stats/create";
 import type { MatchStatsData } from "../stats/types";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
+import { SeriesStats } from "../stats/series-stats";
+import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
+import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { Container } from "../container/container";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
@@ -67,6 +70,40 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     });
   }, [model.state]);
 
+  const seriesStats = useMemo((): { teamData: MatchStatsData[]; playerData: MatchStatsData[] } | null => {
+    if (!model.state || model.state.matches.length === 0) {
+      return null;
+    }
+
+    const rawMatchStats = model.state.matches
+      .map((match) => match.rawMatchStats)
+      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
+
+    if (rawMatchStats.length === 0) {
+      return null;
+    }
+
+    try {
+      const teamPresenter = new SeriesTeamStatsPresenter();
+      const playerPresenter = new SeriesPlayerStatsPresenter();
+
+      const allPlayerXuidToGametag = new Map<string, string>();
+      for (const match of model.state.matches) {
+        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          allPlayerXuidToGametag.set(xuid, gamertag);
+        }
+      }
+
+      return {
+        teamData: teamPresenter.getSeriesData(rawMatchStats),
+        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag),
+      };
+    } catch (error) {
+      console.error("Error processing series stats:", error);
+      return null;
+    }
+  }, [model.state]);
+
   return (
     <>
       <title>
@@ -115,7 +152,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 <section className={styles.seriesScores}>
                   {hasMatches ? (
                     <>
-                      <h3 className={styles.teamName}>Series scores</h3>
+                      <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                        {model.state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
+                      </h3>
                       <ul className={styles.seriesScoresList}>
                         {model.state.matches.map((match) => (
                           <li
@@ -127,24 +166,28 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                               };
                             })()}
                           >
-                            <img
-                              src={gameModeIconUrl(match.gameType).src}
-                              alt={match.gameType}
-                              className={styles.gameTypeIcon}
-                            />
-                            {match.gameScore}
-                            {match.gameSubScore != null ? (
-                              <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                            ) : (
-                              ""
-                            )}
-                            <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                            <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
+                              <img
+                                src={gameModeIconUrl(match.gameType).src}
+                                alt={match.gameType}
+                                className={styles.gameTypeIcon}
+                              />
+                              {match.gameScore}
+                              {match.gameSubScore != null ? (
+                                <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                              ) : (
+                                ""
+                              )}
+                              <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                            </a>
                           </li>
                         ))}
                       </ul>
                     </>
                   ) : (
-                    <div className={styles.notice}>⏳ Waiting for first match to complete...</div>
+                    <div className={`${styles.notice} ${styles.noticeFlexFill}`}>
+                      ⏳ Waiting for first match to complete...
+                    </div>
                   )}
                 </section>
                 {model.state.teams.map((team) => {
@@ -161,6 +204,16 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 })}
               </div>
             </Container>
+            {seriesStats && (
+              <Container mobileDown="0">
+                <SeriesStats
+                  teamData={seriesStats.teamData}
+                  playerData={seriesStats.playerData}
+                  title="Series Totals"
+                  subtitle="Legend: Bold = Best in team | Underline = Best overall"
+                />
+              </Container>
+            )}
             {hasMatches && (
               <>
                 <Container>
@@ -173,6 +226,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                     <Container key={match.matchId} mobileDown="0">
                       <MatchStatsView
                         data={matchStats.data}
+                        id={match.matchId}
                         backgroundImageUrl={match.gameMapThumbnailUrl}
                         gameModeIconUrl={gameModeIconUrl(match.gameType).src}
                         gameModeAlt={match.gameType}

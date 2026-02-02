@@ -203,6 +203,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
           const rawMatchesArray = Object.values(trackerState.rawMatches);
           const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+          trackerState.seriesScore = seriesScore;
           const liveTrackerEmbed = new LiveTrackerEmbed(
             { discordService: this.discordService },
             {
@@ -278,6 +279,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       substitutions: [],
       discoveredMatches: {},
       rawMatches: {},
+      seriesScore: "🦅 0:0 🐍",
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
@@ -303,6 +305,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
       const rawMatchesArray = Object.values(trackerState.rawMatches);
       const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      trackerState.seriesScore = seriesScore;
       const liveTrackerEmbed = new LiveTrackerEmbed(
         { discordService: this.discordService },
         {
@@ -379,6 +382,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
         const rawMatchesArray = Object.values(trackerState.rawMatches);
         const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
         const embedData: LiveTrackerEmbedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
@@ -427,6 +431,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
         const rawMatchesArray = Object.values(trackerState.rawMatches);
         const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
         const embedData: LiveTrackerEmbedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
@@ -467,6 +472,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
         const rawMatchesArray = Object.values(trackerState.rawMatches);
         const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
         embedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
@@ -549,6 +555,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
         const rawMatchesArray = Object.values(trackerState.rawMatches);
         const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
         const embedData: LiveTrackerEmbedData = {
           userId: trackerState.userId,
           guildId: trackerState.guildId,
@@ -1321,6 +1328,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       })),
       discoveredMatches: Object.values(state.discoveredMatches),
       rawMatches: state.rawMatches,
+      seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
     };
   }

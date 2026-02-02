@@ -24,8 +24,6 @@ export interface MatchStatsData {
 
 export interface MatchStatsPlayerData {
   name: string;
-  rank: number;
-  personalScore: number;
   values: MatchStatsValues[];
 }
 

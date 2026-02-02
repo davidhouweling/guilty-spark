@@ -55,5 +55,6 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
+    seriesScore: message.data.seriesScore,
   };
 }

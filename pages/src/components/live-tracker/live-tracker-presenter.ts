@@ -33,8 +33,8 @@ export class LiveTrackerPresenter {
     const queueNumberText = snapshot.params.queue.length > 0 ? snapshot.params.queue : "Not set";
 
     const guildNameText =
-      snapshot.lastMessage?.type === "state"
-        ? snapshot.lastMessage.data.guildName
+      snapshot.lastStateMessage?.type === "state"
+        ? snapshot.lastStateMessage.data.guildName
         : snapshot.params.server.length > 0
           ? `Guild ${snapshot.params.server}`
           : "Not set";
@@ -52,7 +52,8 @@ export class LiveTrackerPresenter {
       statusText: snapshot.statusText,
       statusClassName,
       rawMessageText: snapshot.rawMessageText,
-      state: snapshot.lastMessage?.type === "state" ? toLiveTrackerStateRenderModel(snapshot.lastMessage) : null,
+      state:
+        snapshot.lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(snapshot.lastStateMessage) : null,
       isStopped: snapshot.lastMessage?.type === "stopped",
     };
   }
@@ -85,6 +86,7 @@ export class LiveTrackerPresenter {
         statusText: "Waiting for query parameters",
         rawMessageText: LiveTrackerPresenter.usageText,
         lastMessage: null,
+        lastStateMessage: null,
         hasConnection: false,
       });
       return;
@@ -125,6 +127,7 @@ export class LiveTrackerPresenter {
       ...current,
       hasConnection: false,
       lastMessage: null,
+      lastStateMessage: null,
     });
   }
 
@@ -226,6 +229,7 @@ export class LiveTrackerPresenter {
         ...snapshot,
         rawMessageText: nextRawMessageText,
         lastMessage: message,
+        lastStateMessage: message.type === "state" ? message : snapshot.lastStateMessage,
       });
     });
   }

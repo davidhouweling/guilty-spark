@@ -14,6 +14,7 @@ export interface LiveTrackerSnapshot {
   readonly statusText: string;
   readonly rawMessageText: string;
   readonly lastMessage: LiveTrackerMessage | null;
+  readonly lastStateMessage: LiveTrackerMessage | null;
   readonly hasConnection: boolean;
 }
 
@@ -31,6 +32,7 @@ export class LiveTrackerStore {
       statusText: "Waiting for query parameters",
       rawMessageText: "Usage: /tracker?server=1234567890&queue=123",
       lastMessage: null,
+      lastStateMessage: null,
       hasConnection: false,
     };
   }

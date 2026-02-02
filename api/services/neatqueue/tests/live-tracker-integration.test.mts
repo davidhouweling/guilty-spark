@@ -129,6 +129,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -308,6 +309,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -391,6 +393,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -433,6 +436,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -471,6 +475,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -535,6 +540,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -596,6 +602,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -626,6 +633,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
           discoveredMatches: {},
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 0,
@@ -711,6 +719,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           guildId: mockMatchCompletedRequest.guild,
           channelId: mockMatchCompletedRequest.channel,
           rawMatches: {},
+          seriesScore: "D83eDd85 0:0 D83dDc0d",
         }),
       };
 

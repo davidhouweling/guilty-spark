@@ -153,6 +153,7 @@ const createMockTrackerState = (): LiveTrackerState => ({
   substitutions: [],
   discoveredMatches: {},
   rawMatches: {},
+  seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
     backoffMinutes: 3,
@@ -204,6 +205,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
   substitutions: [],
   discoveredMatches: {},
   rawMatches: {},
+  seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
     lastErrorMessage: undefined,
@@ -241,6 +243,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
   substitutions: [],
   discoveredMatches: {},
   rawMatches: {},
+  seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
     lastErrorMessage: undefined,
@@ -1173,6 +1176,7 @@ describe("LiveTrackerDO", () => {
         substitutions: [],
         discoveredMatches: {},
         rawMatches: {},
+        seriesScore: "🦅 0:0 🐍",
         errorState: {
           consecutiveErrors: 0,
           lastErrorMessage: undefined,

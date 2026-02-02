@@ -27,6 +27,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
         substitutions: [],
         discoveredMatches: [],
         rawMatches: {},
+        seriesScore: "🦅 0:0 🐍",
       },
     };
 

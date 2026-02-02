@@ -5,6 +5,7 @@ import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {
   readonly data: MatchStatsData[];
+  readonly id: string;
   readonly backgroundImageUrl: string;
   readonly gameModeIconUrl: string;
   readonly gameModeAlt: string;
@@ -17,6 +18,7 @@ interface MatchStatsProps {
 
 export function MatchStats({
   data,
+  id,
   backgroundImageUrl,
   gameModeIconUrl,
   gameModeAlt,
@@ -30,23 +32,29 @@ export function MatchStats({
   const statColumns = data[0]?.players[0]?.values ?? [];
 
   return (
-    <div
-      className={styles.matchStatsContainer}
-      style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
-    >
-      <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      <h3 className={styles.matchTitle}>
-        Match {matchNumber}: {gameTypeAndMap}
-      </h3>
-      <p className={styles.matchMetadata}>
-        <span className={styles.matchMetaLabel}>Score:</span> <span className={styles.matchMetaValue}>{score}</span>
-        <span className={styles.matchMetaSeparator}>•</span>
-        <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-        <span className={styles.matchMetaValue}>{duration}</span>
-        <span className={styles.matchMetaSeparator}>•</span>
-        <span className={styles.matchMetaLabel}>End time:</span>{" "}
-        <span className={styles.matchMetaValue}>{endTime}</span>
-      </p>
+    <div className={styles.matchStatsContainer} id={id}>
+      <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
+        <div className={styles.matchHeaderContent}>
+          <h3 className={styles.matchTitle}>
+            Match {matchNumber}: {gameTypeAndMap}
+          </h3>
+          <ul className={styles.matchMetadata}>
+            <li>
+              <span className={styles.matchMetaLabel}>Score:</span>{" "}
+              <span className={styles.matchMetaValue}>{score}</span>
+            </li>
+            <li>
+              <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+              <span className={styles.matchMetaValue}>{duration}</span>
+            </li>
+            <li>
+              <span className={styles.matchMetaLabel}>End time:</span>{" "}
+              <span className={styles.matchMetaValue}>{endTime}</span>
+            </li>
+          </ul>
+        </div>
+        <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
+      </div>
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Team Totals</h3>
@@ -88,8 +96,6 @@ export function MatchStats({
               <tr>
                 <th>Team</th>
                 <th>Gamertag</th>
-                <th>Rank</th>
-                <th>Score</th>
                 {statColumns.map((stat) => (
                   <th key={stat.name}>{stat.name}</th>
                 ))}
@@ -101,8 +107,6 @@ export function MatchStats({
                   <tr key={`${teamData.teamId.toString()}-${player.name}`}>
                     <td className={styles.labelCell}>Team {teamData.teamId + 1}</td>
                     <td className={styles.labelCell}>{player.name}</td>
-                    <td className={styles.labelCell}>{player.rank}</td>
-                    <td className={styles.labelCell}>{player.personalScore}</td>
                     {player.values.map((stat) => (
                       <td
                         key={stat.name}

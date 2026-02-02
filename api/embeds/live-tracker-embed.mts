@@ -166,7 +166,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get actions(): APIMessageTopLevelComponent[] {
-    const { status, /* guildId, channelId, queueNumber, */ isPaused } = this.data;
+    const { status, guildId, queueNumber, isPaused } = this.data;
     const components: APIButtonComponentWithCustomId[] = [];
 
     if (status !== "stopped") {
@@ -196,7 +196,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         type: ComponentType.ActionRow,
         components: [
           this.createButton(InteractionComponent.Repost, "Move to bottom of chat", ButtonStyle.Secondary, "⏬"),
-          /*
           {
             type: ComponentType.Button,
             label: "View in browser (BETA)",
@@ -206,7 +205,6 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
             },
             url: `https://guilty-spark.app/tracker?server=${guildId}&queue=${queueNumber.toString()}`,
           },
-          */
         ],
       });
     }

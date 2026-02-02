@@ -138,6 +138,7 @@ describe("TrackCommand", () => {
             },
             discoveredMatches: {},
             rawMatches: {},
+            seriesScore: "🦅 0:0 🐍",
             lastMessageState: {
               matchCount: 0,
               substitutionCount: 0,

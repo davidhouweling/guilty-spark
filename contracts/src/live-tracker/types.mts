@@ -44,6 +44,7 @@ export interface LiveTrackerStateData {
   }[];
   readonly discoveredMatches: readonly LiveTrackerMatchSummary[];
   readonly rawMatches: Record<string, unknown>;
+  readonly seriesScore: string;
   readonly lastUpdateTime: string;
 }
 

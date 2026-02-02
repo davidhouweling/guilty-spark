@@ -1,56 +1,40 @@
 /* Match Stats Container */
 .matchStatsContainer {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin: 2rem 0;
-  padding: 1.5rem 0;
   background: var(--halo-bg-secondary, #0a0e14);
   border: 1px solid rgba(93, 212, 216, 0.25);
   border-left: none;
   border-right: none;
-  position: relative;
-  isolation: isolate;
+  scroll-margin-top: 90px;
 }
 
-.matchStatsContainer::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 250px;
-  background-image: var(--match-bg);
+.matchHeader {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem;
+  background-image:
+    linear-gradient(to bottom, transparent 50%, var(--halo-bg-secondary) 100%),
+    linear-gradient(to bottom, rgba(10, 14, 20, 0.5), rgba(10, 14, 20, 0.5)), var(--match-bg);
   background-size: cover;
   background-position: center;
-  z-index: -1;
-  mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 1) 0%,
-    rgba(0, 0, 0, 0.9) 40%,
-    rgba(0, 0, 0, 0.6) 60%,
-    rgba(0, 0, 0, 0.3) 80%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 1) 0%,
-    rgba(0, 0, 0, 0.9) 40%,
-    rgba(0, 0, 0, 0.6) 60%,
-    rgba(0, 0, 0, 0.3) 80%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  filter: brightness(0.7) contrast(1.2);
+}
+
+.matchHeaderContent {
+  flex: 1;
+  min-width: 0;
 }
 
 .gameModeIcon {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
+  flex-shrink: 0;
   width: 2.5rem;
   height: 2.5rem;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-  z-index: 1;
 }
 
 .matchTitle {
@@ -61,7 +45,9 @@
 }
 
 .matchMetadata {
-  margin: 0 0 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font-family: var(--font-body, "Inter", sans-serif);
   font-size: 0.9rem;
   line-height: 1.5;
@@ -104,6 +90,7 @@
   font-size: 1rem;
   font-weight: 500;
   margin: 0 0 0.375rem 0;
+  padding: 0 var(--gutter-mobile, 12px);
   color: var(--halo-gray, #9ca3af);
   font-family: var(--font-body, "Inter", sans-serif);
 }
@@ -185,15 +172,30 @@
 
 .statCell.bestInTeam {
   font-weight: 700;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 .statCell.bestInMatch {
-  font-weight: 700;
   text-decoration: underline;
   text-decoration-color: #10b981;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
-  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+/* Media Queries - Tablet and Above */
+@media (--tablet-viewport) {
+  .matchHeader {
+    align-items: center;
+  }
+
+  .matchMetadata {
+    display: flex;
+    gap: 4ch;
+  }
+
+  .subsectionHeader {
+    padding: 0 var(--gutter-tablet, 16px);
+  }
 }
 
 /* Media Queries - Desktop and Above */
@@ -201,14 +203,6 @@
   .matchStatsContainer {
     border-left: 1px solid rgba(93, 212, 216, 0.25);
     border-right: 1px solid rgba(93, 212, 216, 0.25);
-  }
-
-  .matchTitle {
-    padding: 0 var(--gutter-desktop, 32px);
-  }
-
-  .matchMetadata {
-    padding: 0 var(--gutter-desktop, 32px);
   }
 
   .subsectionHeader {

@@ -32,6 +32,7 @@ export interface LiveTrackerStateRenderModel {
   readonly lastUpdateTime: string;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly matches: readonly LiveTrackerMatchRenderModel[];
+  readonly seriesScore: string;
 }
 
 export interface LiveTrackerViewModel {
