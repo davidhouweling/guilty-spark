@@ -104,13 +104,16 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }, [model.state]);
 
+  const title: string[] = [model.guildNameText];
+  if (model.state) {
+    title.push(`#${model.state.queueNumber.toString()}`);
+    title.push(`(${model.state.seriesScore})`);
+  }
+  title.push("| Live Tracker - Guilty Spark");
+
   return (
     <>
-      <title>
-        {`${model.guildNameText} ${
-          model.state ? `#${model.state.queueNumber.toString()}` : model.queueNumberText
-        } : Live Tracker - Guilty Spark`}
-      </title>
+      <title>{title.join(" ")}</title>
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
