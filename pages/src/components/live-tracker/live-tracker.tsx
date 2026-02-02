@@ -104,13 +104,16 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }, [model.state]);
 
+  const title: string[] = [model.guildNameText];
+  if (model.state) {
+    title.push(`#${model.state.queueNumber.toString()}`);
+    title.push(`(${model.state.seriesScore})`);
+  }
+  title.push("| Live Tracker - Guilty Spark");
+
   return (
     <>
-      <title>
-        {`${model.guildNameText} ${
-          model.state ? `#${model.state.queueNumber.toString()}` : model.queueNumberText
-        } : Live Tracker - Guilty Spark`}
-      </title>
+      <title>{title.join(" ")}</title>
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
@@ -139,9 +142,11 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
 
       <Container mobileDown="0" className={styles.dataContainer}>
         {model.isStopped ? (
-          <div className={styles.notice}>
-            {model.rawMessageText.length > 0 ? model.rawMessageText : "🛑 Tracker stopped."}
-          </div>
+          <Container>
+            <div className={styles.notice}>
+              {model.rawMessageText.length > 0 ? model.rawMessageText : "🛑 Tracker stopped."}
+            </div>
+          </Container>
         ) : null}
 
         {model.state ? (
@@ -247,7 +252,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             )}
           </>
         ) : (
-          <div className={styles.notice}>{model.rawMessageText}</div>
+          <Container>
+            <div className={styles.notice}>{model.rawMessageText}</div>
+          </Container>
         )}
       </Container>
     </>

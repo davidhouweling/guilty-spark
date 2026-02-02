@@ -175,15 +175,11 @@ export class LiveTrackerPresenter {
         }
 
         if (status === "stopped") {
-          const nextText = snapshot.rawMessageText.includes("🛑")
-            ? snapshot.rawMessageText
-            : `${snapshot.rawMessageText}\n\n🛑 Tracker has been stopped.`;
-
           this.config.store.setSnapshot({
             ...snapshot,
             connectionState: status,
             statusText: "Tracker Stopped",
-            rawMessageText: nextText,
+            rawMessageText: "🛑 Tracker has been stopped.",
           });
           return;
         }
