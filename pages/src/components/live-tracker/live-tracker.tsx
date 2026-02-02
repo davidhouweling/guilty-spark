@@ -142,9 +142,11 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
 
       <Container mobileDown="0" className={styles.dataContainer}>
         {model.isStopped ? (
-          <div className={styles.notice}>
-            {model.rawMessageText.length > 0 ? model.rawMessageText : "🛑 Tracker stopped."}
-          </div>
+          <Container>
+            <div className={styles.notice}>
+              {model.rawMessageText.length > 0 ? model.rawMessageText : "🛑 Tracker stopped."}
+            </div>
+          </Container>
         ) : null}
 
         {model.state ? (
@@ -250,7 +252,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             )}
           </>
         ) : (
-          <div className={styles.notice}>{model.rawMessageText}</div>
+          <Container>
+            <div className={styles.notice}>{model.rawMessageText}</div>
+          </Container>
         )}
       </Container>
     </>
