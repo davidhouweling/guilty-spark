@@ -127,18 +127,20 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                               };
                             })()}
                           >
-                            <img
-                              src={gameModeIconUrl(match.gameType).src}
-                              alt={match.gameType}
-                              className={styles.gameTypeIcon}
-                            />
-                            {match.gameScore}
-                            {match.gameSubScore != null ? (
-                              <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                            ) : (
-                              ""
-                            )}
-                            <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                            <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
+                              <img
+                                src={gameModeIconUrl(match.gameType).src}
+                                alt={match.gameType}
+                                className={styles.gameTypeIcon}
+                              />
+                              {match.gameScore}
+                              {match.gameSubScore != null ? (
+                                <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                              ) : (
+                                ""
+                              )}
+                              <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                            </a>
                           </li>
                         ))}
                       </ul>
@@ -175,6 +177,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                     <Container key={match.matchId} mobileDown="0">
                       <MatchStatsView
                         data={matchStats.data}
+                        id={match.matchId}
                         backgroundImageUrl={match.gameMapThumbnailUrl}
                         gameModeIconUrl={gameModeIconUrl(match.gameType).src}
                         gameModeAlt={match.gameType}

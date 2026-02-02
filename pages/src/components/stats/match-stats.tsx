@@ -5,6 +5,7 @@ import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {
   readonly data: MatchStatsData[];
+  readonly id: string;
   readonly backgroundImageUrl: string;
   readonly gameModeIconUrl: string;
   readonly gameModeAlt: string;
@@ -17,6 +18,7 @@ interface MatchStatsProps {
 
 export function MatchStats({
   data,
+  id,
   backgroundImageUrl,
   gameModeIconUrl,
   gameModeAlt,
@@ -30,7 +32,7 @@ export function MatchStats({
   const statColumns = data[0]?.players[0]?.values ?? [];
 
   return (
-    <div className={styles.matchStatsContainer}>
+    <div className={styles.matchStatsContainer} id={id}>
       <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
         <div className={styles.matchHeaderContent}>
           <h3 className={styles.matchTitle}>

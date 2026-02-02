@@ -1,5 +1,6 @@
 /* Match Stats Container */
 .matchStatsContainer {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -8,7 +9,7 @@
   border: 1px solid rgba(93, 212, 216, 0.25);
   border-left: none;
   border-right: none;
-  position: relative;
+  scroll-margin-top: 90px;
 }
 
 .matchHeader {
