@@ -94,8 +94,6 @@ export function MatchStats({
               <tr>
                 <th>Team</th>
                 <th>Gamertag</th>
-                <th>Rank</th>
-                <th>Score</th>
                 {statColumns.map((stat) => (
                   <th key={stat.name}>{stat.name}</th>
                 ))}
@@ -107,8 +105,6 @@ export function MatchStats({
                   <tr key={`${teamData.teamId.toString()}-${player.name}`}>
                     <td className={styles.labelCell}>Team {teamData.teamId + 1}</td>
                     <td className={styles.labelCell}>{player.name}</td>
-                    <td className={styles.labelCell}>{player.rank}</td>
-                    <td className={styles.labelCell}>{player.personalScore}</td>
                     {player.values.map((stat) => (
                       <td
                         key={stat.name}

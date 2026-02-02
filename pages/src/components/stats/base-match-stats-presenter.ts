@@ -7,9 +7,12 @@ import { StatsValueSortBy } from "./types";
 export abstract class BaseMatchStatsPresenter {
   protected abstract getPlayerObjectiveStats(stats: Stats): StatsCollection;
 
-  protected getPlayerSlayerStats(stats: Stats): StatsCollection {
+  protected getPlayerSlayerStats(stats: Stats, rank: number): StatsCollection {
     const { CoreStats } = stats;
+
     return new Map([
+      ["Rank", { value: rank, sortBy: StatsValueSortBy.ASC }],
+      ["Score", { value: CoreStats.PersonalScore, sortBy: StatsValueSortBy.DESC }],
       ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
       ["Deaths", { value: CoreStats.Deaths, sortBy: StatsValueSortBy.ASC }],
       ["Assists", { value: CoreStats.Assists, sortBy: StatsValueSortBy.DESC }],
@@ -72,7 +75,10 @@ export abstract class BaseMatchStatsPresenter {
 
         return [
           player.PlayerId,
-          new Map([...this.getPlayerSlayerStats(stats.Stats), ...this.getPlayerObjectiveStats(stats.Stats)]),
+          new Map([
+            ...this.getPlayerSlayerStats(stats.Stats, player.Rank),
+            ...this.getPlayerObjectiveStats(stats.Stats),
+          ]),
         ];
       }),
     );
@@ -83,7 +89,7 @@ export abstract class BaseMatchStatsPresenter {
       const teamPlayers = this.getTeamPlayers([match], team);
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
       const teamStats = new Map([
-        ...this.getPlayerSlayerStats(team.Stats),
+        ...this.getPlayerSlayerStats(team.Stats, team.Rank),
         ...this.getPlayerObjectiveStats(team.Stats),
       ]);
 
@@ -97,12 +103,6 @@ export abstract class BaseMatchStatsPresenter {
                 `Unable to find player gamertag for XUID ${playerXuid}`,
               )
             : "Bot";
-        const {
-          Stats: { CoreStats: coreStats },
-        } = Preconditions.checkExists(
-          teamPlayer.PlayerTeamStats.find((pts) => pts.TeamId === team.TeamId),
-          "Unable to match player to team",
-        );
 
         const outputStats = this.transformStats(
           matchBestValues,
@@ -111,8 +111,6 @@ export abstract class BaseMatchStatsPresenter {
         );
         playerStats.push({
           name: playerGamertag,
-          rank: teamPlayer.Rank,
-          personalScore: coreStats.PersonalScore,
           values: outputStats,
         });
       }
