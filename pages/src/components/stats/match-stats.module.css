@@ -171,15 +171,14 @@
 
 .statCell.bestInTeam {
   font-weight: 700;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 .statCell.bestInMatch {
-  font-weight: 700;
   text-decoration: underline;
   text-decoration-color: #10b981;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
-  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 /* Media Queries - Tablet and Above */
