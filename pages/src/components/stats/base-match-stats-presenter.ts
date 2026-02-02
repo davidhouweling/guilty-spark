@@ -69,6 +69,14 @@ export abstract class BaseMatchStatsPresenter {
 
   getData(match: MatchStats, players: Map<string, string>): MatchStatsData[] {
     const results: MatchStatsData[] = [];
+
+    const teamsStats = new Map<number, StatsCollection>(
+      match.Teams.map((team) => [
+        team.TeamId,
+        new Map([...this.getPlayerSlayerStats(team.Stats, team.Rank), ...this.getPlayerObjectiveStats(team.Stats)]),
+      ]),
+    );
+
     const playersStats = new Map<string, StatsCollection>(
       match.Players.map((player) => {
         const stats = Preconditions.checkExists(player.PlayerTeamStats[0]);
@@ -83,7 +91,8 @@ export abstract class BaseMatchStatsPresenter {
       }),
     );
 
-    const matchBestValues = this.getBestStatValues(playersStats);
+    const matchBestTeamValues = this.getBestStatValues(teamsStats);
+    const matchBestPlayerValues = this.getBestStatValues(playersStats);
 
     for (const team of match.Teams) {
       const teamPlayers = this.getTeamPlayers([match], team);
@@ -105,7 +114,7 @@ export abstract class BaseMatchStatsPresenter {
             : "Bot";
 
         const outputStats = this.transformStats(
-          matchBestValues,
+          matchBestPlayerValues,
           teamBestValues,
           Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
         );
@@ -117,7 +126,7 @@ export abstract class BaseMatchStatsPresenter {
 
       results.push({
         teamId: team.TeamId,
-        teamStats: this.transformTeamStats(matchBestValues, teamStats),
+        teamStats: this.transformTeamStats(matchBestTeamValues, teamStats),
         players: playerStats,
       });
     }
