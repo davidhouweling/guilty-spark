@@ -591,6 +591,8 @@ export class SetupCommand extends BaseCommand {
           return undefined;
         }
         case ComponentType.ActionRow:
+        case ComponentType.Checkbox:
+        case ComponentType.CheckboxGroup:
         case ComponentType.TextInput:
         case ComponentType.UserSelect:
         case ComponentType.RoleSelect:
@@ -600,6 +602,7 @@ export class SetupCommand extends BaseCommand {
         case ComponentType.Thumbnail:
         case ComponentType.MediaGallery:
         case ComponentType.File:
+        case ComponentType.RadioGroup:
         case ComponentType.Separator:
         case ComponentType.ContentInventoryEntry:
         case ComponentType.Container:
