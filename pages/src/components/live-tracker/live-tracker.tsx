@@ -9,6 +9,9 @@ import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { createMatchStatsPresenter } from "../stats/create";
 import type { MatchStatsData } from "../stats/types";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
+import { SeriesStats } from "../stats/series-stats";
+import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
+import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { Container } from "../container/container";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
@@ -65,6 +68,40 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         return { matchId: match.matchId, data: null };
       }
     });
+  }, [model.state]);
+
+  const seriesStats = useMemo((): { teamData: MatchStatsData[]; playerData: MatchStatsData[] } | null => {
+    if (!model.state || model.state.matches.length === 0) {
+      return null;
+    }
+
+    const rawMatchStats = model.state.matches
+      .map((match) => match.rawMatchStats)
+      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
+
+    if (rawMatchStats.length === 0) {
+      return null;
+    }
+
+    try {
+      const teamPresenter = new SeriesTeamStatsPresenter();
+      const playerPresenter = new SeriesPlayerStatsPresenter();
+
+      const allPlayerXuidToGametag = new Map<string, string>();
+      for (const match of model.state.matches) {
+        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          allPlayerXuidToGametag.set(xuid, gamertag);
+        }
+      }
+
+      return {
+        teamData: teamPresenter.getSeriesData(rawMatchStats),
+        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag),
+      };
+    } catch (error) {
+      console.error("Error processing series stats:", error);
+      return null;
+    }
   }, [model.state]);
 
   return (
@@ -167,6 +204,16 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 })}
               </div>
             </Container>
+            {seriesStats && (
+              <Container mobileDown="0">
+                <SeriesStats
+                  teamData={seriesStats.teamData}
+                  playerData={seriesStats.playerData}
+                  title="Series Totals"
+                  subtitle="Legend: Bold = Best in team | Underline = Best overall"
+                />
+              </Container>
+            )}
             {hasMatches && (
               <>
                 <Container>
