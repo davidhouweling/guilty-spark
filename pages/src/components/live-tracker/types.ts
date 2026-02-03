@@ -25,6 +25,15 @@ export interface LiveTrackerMatchRenderModel {
   readonly playerXuidToGametag: Record<string, string>;
 }
 
+export interface LiveTrackerSubstitutionRenderModel {
+  readonly playerOutId: string;
+  readonly playerOutDisplayName: string;
+  readonly playerInId: string;
+  readonly playerInDisplayName: string;
+  readonly teamName: string;
+  readonly timestamp: string;
+}
+
 export interface LiveTrackerStateRenderModel {
   readonly guildName: string;
   readonly queueNumber: number;
@@ -32,6 +41,7 @@ export interface LiveTrackerStateRenderModel {
   readonly lastUpdateTime: string;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly matches: readonly LiveTrackerMatchRenderModel[];
+  readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly seriesScore: string;
 }
 
