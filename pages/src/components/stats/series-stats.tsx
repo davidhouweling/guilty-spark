@@ -74,8 +74,8 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
         sortingFn: "basic",
       },
       {
-        id: "player",
-        header: "Player",
+        id: "gamertag",
+        header: "Gamertag",
         accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): string => row.player.name,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
