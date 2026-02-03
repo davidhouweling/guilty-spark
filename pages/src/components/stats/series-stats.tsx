@@ -1,5 +1,9 @@
 import React from "react";
-import type { MatchStatsData } from "./types";
+import classNames from "classnames";
+import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
+import tableStyles from "../table/table.module.css";
+import { TeamIcon } from "../icons/team-icon";
+import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import styles from "./match-stats.module.css";
 
 interface SeriesStatsProps {
@@ -12,6 +16,107 @@ interface SeriesStatsProps {
 export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesStatsProps): React.ReactElement {
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
+
+  // Define team stats columns
+  const teamColumns = React.useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
+    if (!hasTeamStats) {
+      return [];
+    }
+
+    const statColumns = teamData[0].teamStats;
+    return [
+      {
+        id: "team",
+        header: "Team",
+        accessorFn: (row: MatchStatsData): number => row.teamId,
+        cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
+        headerClassName: undefined,
+        cellClassName: tableStyles.labelCell,
+        sortingFn: "basic",
+      },
+      ...statColumns.map((stat) => ({
+        id: stat.name,
+        header: stat.name,
+        accessorFn: (row: MatchStatsData): number => {
+          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          return teamStat?.value ?? 0;
+        },
+        cell: (value: unknown, row: MatchStatsData): React.ReactNode => {
+          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          return teamStat?.display ?? String(value);
+        },
+        headerClassName: undefined,
+        cellClassName: (row: MatchStatsData): string => {
+          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          return classNames(tableStyles.statCell, {
+            [tableStyles.bestInMatch]: teamStat?.bestInMatch ?? false,
+          });
+        },
+        sortingFn: "basic" as const,
+      })),
+    ];
+  }, [teamData, hasTeamStats]);
+
+  // Define player stats columns
+  const playerColumns = React.useMemo<SortableTableColumn<MatchStatsData & { player: MatchStatsPlayerData }>[]>(() => {
+    if (!hasPlayerStats) {
+      return [];
+    }
+
+    const statColumns = playerData[0].players[0].values;
+    return [
+      {
+        id: "team",
+        header: "Team",
+        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => row.teamId,
+        cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
+        headerClassName: undefined,
+        cellClassName: tableStyles.labelCell,
+        sortingFn: "basic",
+      },
+      {
+        id: "gamertag",
+        header: "Gamertag",
+        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): string => row.player.name,
+        headerClassName: undefined,
+        cellClassName: tableStyles.labelCell,
+        sortingFn: "alphanumeric",
+      },
+      ...statColumns.map((stat) => ({
+        id: stat.name,
+        header: stat.name,
+        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => {
+          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          return playerStat?.value ?? 0;
+        },
+        cell: (value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => {
+          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          return playerStat?.display ?? String(value);
+        },
+        headerClassName: undefined,
+        cellClassName: (row: MatchStatsData & { player: MatchStatsPlayerData }): string => {
+          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          return classNames(tableStyles.statCell, {
+            [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
+            [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,
+          });
+        },
+        sortingFn: "basic" as const,
+      })),
+    ];
+  }, [playerData, hasPlayerStats]);
+
+  // Flatten player data for table
+  const flattenedPlayerData = React.useMemo(
+    () =>
+      playerData.flatMap((team) =>
+        team.players.map((player) => ({
+          ...team,
+          player,
+        })),
+      ),
+    [playerData],
+  );
 
   return (
     <div className={styles.matchStatsContainer}>
@@ -32,72 +137,24 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3>
-          <div className={styles.tableWrapper}>
-            <table className={styles.statsTable}>
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  {teamData[0].teamStats.map((stat) => (
-                    <th key={stat.name}>{stat.name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {teamData.map((team) => (
-                  <tr key={team.teamId}>
-                    <td className={styles.labelCell}>Team {team.teamId + 1}</td>
-                    {team.teamStats.map((stat) => (
-                      <td
-                        key={stat.name}
-                        className={`${styles.statCell} ${stat.bestInMatch ? styles.bestInMatch : ""}`}
-                      >
-                        {stat.display}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <SortableTable
+            data={teamData}
+            columns={teamColumns}
+            getRowKey={(row) => row.teamId.toString()}
+            ariaLabel="Accumulated team statistics"
+          />
         </div>
       )}
 
       {hasPlayerStats && (
         <div className={styles.playerStats}>
           <h3 className={styles.subsectionHeader}>Accumulated Player Stats</h3>
-          <div className={styles.tableWrapper}>
-            <table className={styles.statsTable}>
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Player</th>
-                  {playerData[0].players[0].values.map((stat) => (
-                    <th key={stat.name}>{stat.name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {playerData.map((team) =>
-                  team.players.map((player) => (
-                    <tr key={`${team.teamId.toString()}-${player.name}`}>
-                      <td className={styles.labelCell}>Team {team.teamId + 1}</td>
-                      <td className={styles.labelCell}>{player.name}</td>
-                      {player.values.map((stat) => (
-                        <td
-                          key={stat.name}
-                          className={`${styles.statCell} ${
-                            stat.bestInTeam ? styles.bestInTeam : ""
-                          } ${stat.bestInMatch ? styles.bestInMatch : ""}`}
-                        >
-                          {stat.display}
-                        </td>
-                      ))}
-                    </tr>
-                  )),
-                )}
-              </tbody>
-            </table>
-          </div>
+          <SortableTable
+            data={flattenedPlayerData}
+            columns={playerColumns}
+            getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+            ariaLabel="Accumulated player statistics"
+          />
         </div>
       )}
     </div>

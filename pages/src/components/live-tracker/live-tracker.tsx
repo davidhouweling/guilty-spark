@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
+import classNames from "classnames";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -13,6 +14,7 @@ import { SeriesStats } from "../stats/series-stats";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { Container } from "../container/container";
+import { Alert } from "../alert/alert";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 
@@ -132,7 +134,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             </div>
             <div className={styles.headerMetaRow}>
               <span className={styles.headerMetaLabel}>Status</span>
-              <span id="status-text" className={`${styles.headerMetaValue} ${model.statusClassName}`}>
+              <span id="status-text" className={classNames(styles.headerMetaValue, model.statusClassName)}>
                 {model.state ? model.state.status : model.statusText}
               </span>
             </div>
@@ -143,9 +145,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       <Container mobileDown="0" className={styles.dataContainer}>
         {model.isStopped ? (
           <Container>
-            <div className={styles.notice}>
-              {model.rawMessageText.length > 0 ? model.rawMessageText : "🛑 Tracker stopped."}
-            </div>
+            <Alert variant="error" icon="🛑">
+              {model.rawMessageText.length > 0 ? model.rawMessageText : "Tracker stopped."}
+            </Alert>
           </Container>
         ) : null}
 
@@ -190,8 +192,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       </ul>
                     </>
                   ) : (
-                    <div className={`${styles.notice} ${styles.noticeFlexFill}`}>
-                      ⏳ Waiting for first match to complete...
+                    <div className={styles.noticeFlexFill}>
+                      <Alert variant="info" icon="⏳">
+                        Waiting for first match to complete...
+                      </Alert>
                     </div>
                   )}
                 </section>
@@ -243,8 +247,8 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       />
                     </Container>
                   ) : (
-                    <Container key={match.matchId} className={styles.notice}>
-                      Match stats unavailable
+                    <Container key={match.matchId}>
+                      <Alert variant="warning">Match stats unavailable</Alert>
                     </Container>
                   );
                 })}
@@ -253,7 +257,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
           </>
         ) : (
           <Container>
-            <div className={styles.notice}>{model.rawMessageText}</div>
+            <Alert variant="info">{model.rawMessageText}</Alert>
           </Container>
         )}
       </Container>
