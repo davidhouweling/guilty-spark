@@ -1,7 +1,11 @@
 import type { LiveTrackerMatchSummary, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "../../base/preconditions.mts";
-import type { LiveTrackerMatchRenderModel, LiveTrackerStateRenderModel } from "./types";
+import type {
+  LiveTrackerMatchRenderModel,
+  LiveTrackerStateRenderModel,
+  LiveTrackerSubstitutionRenderModel,
+} from "./types";
 
 function toMatchRenderModel(
   summary: LiveTrackerMatchSummary,
@@ -48,6 +52,30 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     };
   });
 
+  const substitutions: LiveTrackerSubstitutionRenderModel[] = message.data.substitutions.map((sub) => {
+    const playerOut = Preconditions.checkExists(
+      playersById.get(sub.playerOutId),
+      `Missing player out '${sub.playerOutId}' from state players list`,
+    );
+    const playerIn = Preconditions.checkExists(
+      playersById.get(sub.playerInId),
+      `Missing player in '${sub.playerInId}' from state players list`,
+    );
+    const team = Preconditions.checkExists(
+      message.data.teams[sub.teamIndex],
+      `Invalid team index '${sub.teamIndex.toString()}'`,
+    );
+
+    return {
+      playerOutId: sub.playerOutId,
+      playerOutDisplayName: playerOut.discordUsername,
+      playerInId: sub.playerInId,
+      playerInDisplayName: playerIn.discordUsername,
+      teamName: team.name,
+      timestamp: sub.timestamp,
+    };
+  });
+
   return {
     guildName: message.data.guildName,
     queueNumber: message.data.queueNumber,
@@ -55,6 +83,7 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
+    substitutions,
     seriesScore: message.data.seriesScore,
   };
 }

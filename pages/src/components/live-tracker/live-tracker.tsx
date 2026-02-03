@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
+import { compareAsc } from "date-fns";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -49,6 +50,14 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
 
 export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
   const hasMatches = model.state != null && model.state.matches.length > 0;
+
+  // Sort substitutions by timestamp for rendering between matches
+  const sortedSubstitutions = useMemo(() => {
+    if (!model.state) {
+      return [];
+    }
+    return [...model.state.substitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
+  }, [model.state]);
 
   const allMatchStats = useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
     if (!model.state) {
@@ -228,31 +237,83 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 <Container>
                   <h2 className={styles.sectionTitle}>Matches</h2>
                 </Container>
-                {model.state.matches.map((match, index) => {
-                  const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
+                {((): React.ReactElement[] => {
+                  const elements: React.ReactElement[] = [];
+                  let substitutionIndex = 0;
 
-                  return matchStats?.data ? (
-                    <Container key={match.matchId} mobileDown="0">
-                      <MatchStatsView
-                        data={matchStats.data}
-                        id={match.matchId}
-                        backgroundImageUrl={match.gameMapThumbnailUrl}
-                        gameModeIconUrl={gameModeIconUrl(match.gameType).src}
-                        gameModeAlt={match.gameType}
-                        matchNumber={index + 1}
-                        gameTypeAndMap={match.gameTypeAndMap}
-                        duration={match.duration}
-                        score={match.gameScore}
-                        endTime={match.endTime}
-                      />
-                    </Container>
-                  ) : (
-                    <Container key={match.matchId}>
-                      <Alert variant="warning">Match stats unavailable</Alert>
-                    </Container>
-                  );
-                })}
+                  for (const [matchIndex, match] of model.state.matches.entries()) {
+                    // Add any substitutions that occurred before this match
+                    while (substitutionIndex < sortedSubstitutions.length) {
+                      const substitution = sortedSubstitutions[substitutionIndex];
+                      if (new Date(match.endTime) < new Date(substitution.timestamp)) {
+                        break;
+                      }
+
+                      elements.push(
+                        <Container key={`sub-${substitution.timestamp}`}>
+                          <Alert variant="info" icon="↔️">
+                            <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                            <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                          </Alert>
+                        </Container>,
+                      );
+                      substitutionIndex++;
+                    }
+
+                    // Add match
+                    const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
+
+                    elements.push(
+                      matchStats?.data ? (
+                        <Container key={match.matchId} mobileDown="0">
+                          <MatchStatsView
+                            data={matchStats.data}
+                            id={match.matchId}
+                            backgroundImageUrl={match.gameMapThumbnailUrl}
+                            gameModeIconUrl={gameModeIconUrl(match.gameType).src}
+                            gameModeAlt={match.gameType}
+                            matchNumber={matchIndex + 1}
+                            gameTypeAndMap={match.gameTypeAndMap}
+                            duration={match.duration}
+                            score={match.gameScore}
+                            endTime={match.endTime}
+                          />
+                        </Container>
+                      ) : (
+                        <Container key={match.matchId}>
+                          <Alert variant="warning">Match stats unavailable</Alert>
+                        </Container>
+                      ),
+                    );
+                  }
+
+                  // Add any remaining substitutions that occurred after the last match
+                  while (substitutionIndex < sortedSubstitutions.length) {
+                    const substitution = sortedSubstitutions[substitutionIndex];
+                    elements.push(
+                      <Container key={`sub-${substitution.timestamp}`}>
+                        <Alert variant="info" icon="↔️">
+                          <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                          <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                        </Alert>
+                      </Container>,
+                    );
+                    substitutionIndex++;
+                  }
+
+                  return elements;
+                })()}
               </>
+            )}
+            {!hasMatches && sortedSubstitutions.length > 0 && (
+              <Container>
+                {sortedSubstitutions.map((substitution) => (
+                  <Alert key={substitution.timestamp} variant="info" icon="↔️">
+                    <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                    <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                  </Alert>
+                ))}
+              </Container>
             )}
           </>
         ) : (
