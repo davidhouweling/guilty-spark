@@ -1,0 +1,132 @@
+/* Table Wrapper */
+.tableWrapper {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+/* Base Table */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--halo-bg-primary, #000000);
+  border: 1px solid rgba(93, 212, 216, 0.25);
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+/* Table Header */
+.table thead {
+  background: var(--halo-bg-secondary, #0a0e14);
+}
+
+.table th {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--halo-gray, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+  white-space: pre-line;
+  vertical-align: bottom;
+}
+
+/* Sortable Header */
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sortableHeader:hover {
+  background: rgba(93, 212, 216, 0.1);
+  color: var(--halo-accent, #5dd4d8);
+}
+
+.sortableHeader:focus-visible {
+  outline: 2px solid var(--halo-accent, #5dd4d8);
+  outline-offset: -2px;
+}
+
+/* Sort Indicator */
+.sortIndicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.25rem;
+  font-size: 0.625rem;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.sortableHeader:hover .sortIndicator {
+  opacity: 1;
+}
+
+.sortedAsc .sortIndicator,
+.sortedDesc .sortIndicator {
+  opacity: 1;
+  color: var(--halo-accent, #5dd4d8);
+}
+
+.sortedAsc {
+  font-weight: 700;
+  color: var(--halo-white, #ffffff);
+}
+
+.sortedDesc {
+  font-weight: 700;
+  color: var(--halo-white, #ffffff);
+}
+
+/* Table Body */
+.table tbody tr {
+  border-bottom: 1px solid rgba(93, 212, 216, 0.15);
+  transition: background-color 0.2s ease;
+}
+
+.table tbody tr:hover {
+  background: rgba(93, 212, 216, 0.05);
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table td {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--halo-white, #ffffff);
+  white-space: nowrap;
+}
+
+/* Cell Variants */
+.labelCell {
+  font-weight: 500;
+  color: var(--halo-white, #ffffff);
+}
+
+.statCell {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.statCell.bestInTeam {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.statCell.bestInMatch {
+  text-decoration: underline;
+  text-decoration-color: #10b981;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Media Queries - Desktop and Above */
+@media (--desktop-viewport) {
+  .table th,
+  .table td {
+    font-size: 0.875rem;
+  }
+}
