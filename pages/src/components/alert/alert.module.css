@@ -1,0 +1,86 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid;
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.alertContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.alertIcon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.alertMessage {
+  flex: 1;
+}
+
+.alertDismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.alertDismiss:hover {
+  opacity: 1;
+}
+
+.alertDismiss:focus-visible {
+  opacity: 1;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Variant Styles */
+.alertInfo {
+  background: var(--halo-bg-secondary);
+  color: var(--halo-teal-primary);
+  border-color: rgba(93, 212, 216, 0.25);
+}
+
+.alertSuccess {
+  background: rgba(0, 255, 170, 0.05);
+  color: var(--halo-accent);
+  border-color: rgba(0, 255, 170, 0.25);
+}
+
+.alertWarning {
+  background: rgba(255, 193, 7, 0.05);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.25);
+}
+
+.alertError {
+  background: rgba(244, 67, 54, 0.05);
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.25);
+}

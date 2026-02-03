@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import styles from "./container.module.css";
 
 interface ContainerProps {
@@ -29,7 +30,7 @@ export function Container({
   } as React.CSSProperties;
 
   return (
-    <div className={`${styles.container} ${className ?? ""}`} style={combinedStyle}>
+    <div className={classNames(styles.container, className)} style={combinedStyle}>
       {children}
     </div>
   );

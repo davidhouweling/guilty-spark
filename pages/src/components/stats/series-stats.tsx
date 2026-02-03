@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import type { MatchStatsData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -49,7 +50,7 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
                     {team.teamStats.map((stat) => (
                       <td
                         key={stat.name}
-                        className={`${styles.statCell} ${stat.bestInMatch ? styles.bestInMatch : ""}`}
+                        className={classNames(styles.statCell, { [styles.bestInMatch]: stat.bestInMatch })}
                       >
                         {stat.display}
                       </td>
@@ -85,9 +86,10 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
                       {player.values.map((stat) => (
                         <td
                           key={stat.name}
-                          className={`${styles.statCell} ${
-                            stat.bestInTeam ? styles.bestInTeam : ""
-                          } ${stat.bestInMatch ? styles.bestInMatch : ""}`}
+                          className={classNames(styles.statCell, {
+                            [styles.bestInTeam]: stat.bestInTeam,
+                            [styles.bestInMatch]: stat.bestInMatch,
+                          })}
                         >
                           {stat.display}
                         </td>

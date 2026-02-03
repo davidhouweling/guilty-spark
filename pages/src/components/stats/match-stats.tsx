@@ -1,5 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import React from "react";
+import classNames from "classnames";
 import type { MatchStatsData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -75,7 +76,7 @@ export function MatchStats({
                     {teamData.teamStats.map((stat) => (
                       <td
                         key={stat.name}
-                        className={`${styles.statCell} ${stat.bestInMatch ? styles.bestInMatch : ""}`}
+                        className={classNames(styles.statCell, { [styles.bestInMatch]: stat.bestInMatch })}
                       >
                         {stat.display}
                       </td>
@@ -110,9 +111,10 @@ export function MatchStats({
                     {player.values.map((stat) => (
                       <td
                         key={stat.name}
-                        className={`${styles.statCell} ${
-                          stat.bestInTeam ? styles.bestInTeam : ""
-                        } ${stat.bestInMatch ? styles.bestInMatch : ""}`}
+                        className={classNames(styles.statCell, {
+                          [styles.bestInTeam]: stat.bestInTeam,
+                          [styles.bestInMatch]: stat.bestInMatch,
+                        })}
                       >
                         {stat.display}
                       </td>
