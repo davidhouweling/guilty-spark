@@ -2,6 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
+import { TeamIcon } from "../icons/team-icon";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -28,7 +29,7 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
         id: "team",
         header: "Team",
         accessorFn: (row: MatchStatsData): number => row.teamId,
-        cell: (value: unknown): React.ReactNode => `Team ${((value as number) + 1).toString()}`,
+        cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
         sortingFn: "basic",
@@ -68,7 +69,7 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
         id: "team",
         header: "Team",
         accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => row.teamId,
-        cell: (value: unknown): React.ReactNode => `Team ${((value as number) + 1).toString()}`,
+        cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
         sortingFn: "basic",
