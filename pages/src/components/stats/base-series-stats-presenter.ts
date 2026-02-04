@@ -106,6 +106,10 @@ export abstract class BaseSeriesStatsPresenter {
     const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
     for (const match of matches) {
       for (const player of match.Players) {
+        if (!player.ParticipationInfo.PresentAtBeginning) {
+          continue;
+        }
+
         if (!uniquePlayersMap.has(player.PlayerId)) {
           uniquePlayersMap.set(player.PlayerId, player);
         }
