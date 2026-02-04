@@ -1,52 +1,54 @@
 /* ============================================ */
+
 /* Base Styles - Mobile First                  */
+
 /* ============================================ */
 
 .faqSection {
-  padding: 3rem 0;
   background: var(--halo-bg-primary);
+  padding: 3rem 0;
   position: relative;
 }
 
 .faqContainer {
-  max-width: 900px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  margin: 0 auto;
+  max-width: 900px;
 }
 
 .faqItem {
-  padding: 1.25rem;
-  background: rgba(15, 40, 48, 0.4);
+  background: rgb(15 40 48 / 40%);
   border: 1px solid var(--halo-teal-dark);
   border-left: 3px solid var(--halo-teal-primary);
+  padding: 1.25rem;
   transition: all 0.3s ease;
 }
 
 .faqItem:hover {
-  background: rgba(15, 40, 48, 0.6);
+  background: rgb(15 40 48 / 60%);
   border-left-width: 5px;
-  box-shadow: 0 0 30px rgba(93, 212, 216, 0.15);
+  box-shadow: 0 0 30px rgb(93 212 216 / 15%);
 }
 
 .faqQuestion {
+  color: var(--halo-teal-primary);
   font-family: var(--font-heading);
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--halo-teal-primary);
-  margin-bottom: 1rem;
   line-height: 1.3;
-  word-wrap: break-word;
+  margin-bottom: 1rem;
+  overflow-wrap: break-word;
 }
 
 .faqAnswer {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.8;
-  color: var(--halo-gray);
 }
 
 .faqAnswer strong {
@@ -55,30 +57,32 @@
 }
 
 .faqAnswer code {
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  padding: 0.2em 0.5em;
-  background: rgba(13, 77, 82, 0.5);
+  background: rgb(13 77 82 / 50%);
   border: 1px solid var(--halo-teal-dark);
   border-radius: 3px;
   color: var(--halo-teal-primary);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  padding: 0.2em 0.5em;
 }
 
 .faqAnswer a {
+  border-bottom: 1px solid transparent;
   color: var(--halo-teal-primary);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
   transition: all 0.3s ease;
 }
 
 .faqAnswer a:hover {
-  color: var(--halo-white);
   border-bottom-color: var(--halo-teal-primary);
-  text-shadow: 0 0 8px rgba(93, 212, 216, 0.6);
+  color: var(--halo-white);
+  text-shadow: 0 0 8px rgb(93 212 216 / 60%);
 }
 
 /* ============================================ */
+
 /* Media Queries - Tablet and Above            */
+
 /* ============================================ */
 
 @media (--tablet-viewport) {

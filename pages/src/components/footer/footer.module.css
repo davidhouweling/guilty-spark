@@ -1,47 +1,49 @@
 /* ============================================ */
+
 /* Base Styles - Mobile First                  */
+
 /* ============================================ */
 
 .haloFooter {
   background: var(--halo-bg-primary);
   border-top: 1px solid var(--halo-teal-dark);
-  padding: 3rem 0 1.5rem;
   margin-top: 16px;
+  padding: 3rem 0 1.5rem;
 }
 
 .footerContent {
-  max-width: 1200px;
-  margin: 0 auto 3rem;
   display: grid;
-  grid-template-columns: 1fr;
   gap: 2rem;
+  grid-template-columns: 1fr;
+  margin: 0 auto 3rem;
+  max-width: 1200px;
 }
 
 .footerDesc {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-size: 0.9rem;
-  color: var(--halo-gray);
   line-height: 1.6;
 }
 
 .footerHeading {
+  color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--halo-white);
-  margin-top: 0;
   margin-bottom: 0.75rem;
+  margin-top: 0;
   text-transform: uppercase;
 }
 
 .footerLink {
+  color: var(--halo-gray);
   display: block;
   font-family: var(--font-body);
   font-size: 0.9rem;
-  color: var(--halo-gray);
-  text-decoration: none;
   margin-bottom: 0.5rem;
+  text-decoration: none;
   transition: all 0.3s ease;
 }
 
@@ -51,33 +53,35 @@
 }
 
 .footerBottom {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-top: 2rem;
+  align-items: center;
   border-top: 1px solid var(--halo-teal-darker);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
   gap: 1rem;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding-top: 2rem;
+  text-align: center;
 }
 
 .footerLegal,
 .footerVersion {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-size: 0.85rem;
-  color: var(--halo-gray);
 }
 
 .footerVersion {
-  font-family: var(--font-mono);
   color: var(--halo-teal-dark);
+  font-family: var(--font-mono);
   text-transform: uppercase;
 }
 
 /* ============================================ */
+
 /* Media Queries - Tablet and Above            */
+
 /* ============================================ */
 
 @media (--tablet-viewport) {
@@ -86,8 +90,8 @@
   }
 
   .footerContent {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 3rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 
   .footerDesc {

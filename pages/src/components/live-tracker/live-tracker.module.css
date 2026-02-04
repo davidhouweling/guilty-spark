@@ -1,5 +1,7 @@
 /* ============================================ */
+
 /* Base Styles - Mobile First                  */
+
 /* ============================================ */
 
 .headerBar {
@@ -16,16 +18,16 @@
 }
 
 .headerTitle {
-  margin: 0;
+  color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: 1.6rem;
   line-height: 1.2;
-  color: var(--halo-white);
+  margin: 0;
 }
 
 .headerSubtitle {
-  font-family: var(--font-body);
   color: var(--halo-gray);
+  font-family: var(--font-body);
 }
 
 .headerRight {
@@ -35,22 +37,22 @@
 }
 
 .headerMetaRow {
-  display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  display: flex;
   gap: 1rem;
+  justify-content: space-between;
 }
 
 .headerMetaLabel {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-size: 0.85rem;
-  color: var(--halo-gray);
 }
 
 .headerMetaValue {
+  color: var(--halo-white);
   font-family: var(--font-body);
   font-size: 0.9rem;
-  color: var(--halo-white);
 }
 
 /* Keep IDs since the existing JS targets them */
@@ -68,21 +70,21 @@
 
 .dataContainer {
   background: var(--halo-bg-card);
+  border: 1px solid rgb(93 212 216 / 25%);
   padding: 1.5rem 0;
-  border: 1px solid rgba(93, 212, 216, 0.25);
 }
 
 .sectionTitle {
+  color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: 1.5rem;
   margin: 1.25rem 0 0.75rem;
-  color: var(--halo-white);
 }
 
 .notice {
   background: var(--halo-bg-secondary);
+  border: 1px solid rgb(93 212 216 / 25%);
   color: var(--halo-accent);
-  border: 1px solid rgba(93, 212, 216, 0.25);
   padding: 1rem;
 }
 
@@ -97,57 +99,56 @@
 }
 
 .noticeFlexFill {
-  flex: 1;
-  display: flex;
   align-items: center;
+  display: flex;
+  flex: 1;
   justify-content: center;
 }
 
 .seriesScoresList {
+  color: var(--halo-white);
+  list-style-type: none;
   margin: 0;
   padding: 0;
-  list-style-type: none;
-  color: var(--halo-white);
 }
 
 .seriesScore {
-  margin: 0 0 1rem;
   background-color: var(--halo-bg-secondary);
-
-  /* Image comes from JSX via CSS var so we can layer theme overlays for contrast */
-  --series-score-bg: none;
-  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 25%, transparent);
-  --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
-
   background-image:
     linear-gradient(to bottom, var(--series-score-overlay), var(--series-score-overlay)),
     radial-gradient(circle at 1px 1px, var(--series-score-dot) 1px, transparent 1.5px), var(--series-score-bg);
-  background-size:
-    100% 100%,
-    10px 10px,
-    cover;
   background-position:
     center,
     0 0,
     center;
   background-repeat: no-repeat, repeat, no-repeat;
+  background-size:
+    100% 100%,
+    10px 10px,
+    cover;
+  margin: 0 0 1rem;
+
+  /* Image comes from JSX via CSS var so we can layer theme overlays for contrast */
+  --series-score-bg: none;
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 25%, transparent);
+  --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
 }
 
 .seriesScoreLink {
+  align-items: center;
+  border: 1px solid rgb(93 212 216 / 25%);
   box-sizing: border-box;
   color: inherit;
-  text-decoration: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border: 1px solid rgba(93, 212, 216, 0.25);
   font-size: 2rem;
   font-weight: 700;
-  padding: 16px;
   height: 100%;
+  justify-content: center;
+  padding: 16px;
+  position: relative;
   text-align: center;
+  text-decoration: none;
   text-shadow:
     0 1px 2px var(--halo-bg-secondary),
     0 0 10px var(--halo-bg-secondary);
@@ -160,8 +161,8 @@
 }
 
 .gameTypeIcon {
-  width: 60px;
   height: 60px;
+  width: 60px;
 }
 
 .gameTypeAndMap {
@@ -170,13 +171,13 @@
 }
 
 .teamCard {
+  align-items: center;
   background: var(--halo-bg-secondary);
-  border: 1px solid rgba(93, 212, 216, 0.25);
-  padding: 1rem;
+  border: 1px solid rgb(93 212 216 / 25%);
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  padding: 1rem;
   text-align: center;
 }
 
@@ -187,16 +188,16 @@
 }
 
 .teamName {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-heading);
   color: var(--halo-white);
+  font-family: var(--font-heading);
+  margin: 0 0 0.75rem;
 }
 
 .playerList {
-  margin: 0;
-  padding: 0;
   color: var(--halo-white);
   list-style-type: none;
+  margin: 0;
+  padding: 0;
 }
 
 .tableWrap {
@@ -204,42 +205,42 @@
 }
 
 .matchesTable {
-  width: 100%;
-  border-collapse: collapse;
   background: var(--halo-bg-secondary);
-  border: 1px solid rgba(93, 212, 216, 0.25);
+  border: 1px solid rgb(93 212 216 / 25%);
+  border-collapse: collapse;
   color: var(--halo-white);
+  width: 100%;
 }
 
 .matchesTable th,
 .matchesTable td {
-  text-align: left;
+  border-bottom: 1px solid rgb(93 212 216 / 25%);
   padding: 0.75rem;
-  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
+  text-align: left;
 }
 
 .matchesTable th {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-weight: 700;
-  color: var(--halo-gray);
 }
 
 .detailsButton {
-  padding: 0.5rem 1rem;
   background: var(--halo-bg-secondary);
-  color: var(--halo-accent);
-  border: 1px solid rgba(93, 212, 216, 0.5);
+  border: 1px solid rgb(93 212 216 / 50%);
   border-radius: 4px;
+  color: var(--halo-accent);
   cursor: pointer;
   font-family: var(--font-body);
   font-size: 0.875rem;
+  padding: 0.5rem 1rem;
   transition: all 0.2s ease;
 }
 
 .detailsButton:hover {
   background: var(--halo-accent);
-  color: var(--halo-bg-primary);
   border-color: var(--halo-accent);
+  color: var(--halo-bg-primary);
 }
 
 .detailsButton:focus {
@@ -248,13 +249,15 @@
 }
 
 /* ============================================ */
+
 /* Media Queries - Tablet and Above            */
+
 /* ============================================ */
 
 @media (--tablet-viewport) {
   .headerBar {
-    flex-direction: row;
     align-items: flex-start;
+    flex-direction: row;
     justify-content: space-between;
   }
 

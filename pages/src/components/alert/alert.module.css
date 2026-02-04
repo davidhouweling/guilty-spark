@@ -1,24 +1,26 @@
 /* ============================================ */
+
 /* Base Styles - Mobile First                  */
+
 /* ============================================ */
 
 .alert {
-  display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem;
-  border-radius: 4px;
   border: 1px solid;
+  border-radius: 4px;
+  display: flex;
   font-family: var(--font-body);
+  gap: 1rem;
+  justify-content: space-between;
   line-height: 1.5;
+  padding: 1rem;
 }
 
 .alertContent {
-  display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  display: flex;
   flex: 1;
+  gap: 0.75rem;
 }
 
 .alertIcon {
@@ -32,21 +34,21 @@
 }
 
 .alertDismiss {
-  flex-shrink: 0;
+  align-items: center;
   background: none;
   border: none;
   color: inherit;
-  font-size: 1.5rem;
-  line-height: 1;
   cursor: pointer;
-  padding: 0;
-  width: 1.5rem;
-  height: 1.5rem;
   display: flex;
-  align-items: center;
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  height: 1.5rem;
   justify-content: center;
+  line-height: 1;
   opacity: 0.7;
+  padding: 0;
   transition: opacity 0.2s ease;
+  width: 1.5rem;
 }
 
 .alertDismiss:hover {
@@ -54,33 +56,33 @@
 }
 
 .alertDismiss:focus-visible {
-  opacity: 1;
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
   border-radius: 2px;
+  opacity: 1;
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
 }
 
 /* Variant Styles */
 .alertInfo {
   background: var(--halo-bg-secondary);
+  border-color: rgb(93 212 216 / 25%);
   color: var(--halo-teal-primary);
-  border-color: rgba(93, 212, 216, 0.25);
 }
 
 .alertSuccess {
-  background: rgba(0, 255, 170, 0.05);
+  background: rgb(0 255 170 / 5%);
+  border-color: rgb(0 255 170 / 25%);
   color: var(--halo-accent);
-  border-color: rgba(0, 255, 170, 0.25);
 }
 
 .alertWarning {
-  background: rgba(255, 193, 7, 0.05);
+  background: rgb(255 193 7 / 5%);
+  border-color: rgb(255 193 7 / 25%);
   color: #ffc107;
-  border-color: rgba(255, 193, 7, 0.25);
 }
 
 .alertError {
-  background: rgba(244, 67, 54, 0.05);
+  background: rgb(244 67 54 / 5%);
+  border-color: rgb(244 67 54 / 25%);
   color: #f44336;
-  border-color: rgba(244, 67, 54, 0.25);
 }

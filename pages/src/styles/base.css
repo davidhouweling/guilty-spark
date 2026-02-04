@@ -1,71 +1,47 @@
-@import "./variables.css";
+@import url("./variables.css");
 
 html {
-  font-family: var(--font-body);
   background: var(--halo-bg-primary);
   color: var(--halo-white);
+  font-family: var(--font-body);
   scroll-behavior: smooth;
 }
 
 body {
-  min-height: 100vh;
   line-height: 1.6;
-  position: relative;
   margin: 0;
+  min-height: 100vh;
+  position: relative;
 }
 
 body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 212, 255, 0.03) 2px,
-      rgba(0, 212, 255, 0.03) 4px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 212, 255, 0.03) 2px,
-      rgba(0, 212, 255, 0.03) 4px
-    );
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(0 212 255 / 3%) 2px, rgb(0 212 255 / 3%) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgb(0 212 255 / 3%) 2px, rgb(0 212 255 / 3%) 4px);
   background-size: 100px 100px;
+  content: "";
+  inset: 0;
   pointer-events: none;
+  position: fixed;
   z-index: 0;
 }
 
 body::after {
+  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 15%), rgb(0 0 0 / 15%) 1px, transparent 1px, transparent 2px);
   content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.15),
-    rgba(0, 0, 0, 0.15) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-  pointer-events: none;
-  z-index: 1;
+  inset: 0;
   opacity: 0.3;
+  pointer-events: none;
+  position: fixed;
+  z-index: 1;
 }
 
 code {
-  font-family: var(--font-mono);
-  background: rgba(0, 212, 255, 0.1);
-  padding: 0.2em 0.4em;
+  background: rgb(0 212 255 / 10%);
   border-radius: 3px;
+  font-family: var(--font-mono);
   font-size: 0.9em;
+  padding: 0.2em 0.4em;
 }
 
 a {
@@ -77,30 +53,31 @@ a {
 a:hover {
   color: var(--halo-accent);
 }
+
 /* Scrollbar Styling */
 * {
+  scrollbar-color: rgb(93 212 216 / 40%) var(--halo-bg-secondary);
   scrollbar-width: thin;
-  scrollbar-color: rgba(93, 212, 216, 0.4) var(--halo-bg-secondary);
 }
 
 *::-webkit-scrollbar {
-  width: 12px;
   height: 12px;
+  width: 12px;
 }
 
 *::-webkit-scrollbar-track {
   background: var(--halo-bg-secondary);
-  border-left: 1px solid rgba(93, 212, 216, 0.15);
+  border-left: 1px solid rgb(93 212 216 / 15%);
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(93, 212, 216, 0.4);
-  border-radius: 6px;
+  background: rgb(93 212 216 / 40%);
   border: 2px solid var(--halo-bg-secondary);
+  border-radius: 6px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(93, 212, 216, 0.6);
+  background: rgb(93 212 216 / 60%);
 }
 
 *::-webkit-scrollbar-corner {

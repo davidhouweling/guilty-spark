@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  max-width: 700px;
   margin: 0 auto;
+  max-width: 700px;
 }
 
 .gridItem {
@@ -11,13 +11,13 @@
 }
 
 .gridCaption {
+  color: var(--halo-gray);
   font-family: var(--font-body);
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--halo-gray);
-  text-align: center;
-  margin-top: 0.75rem;
   letter-spacing: 0.05em;
+  margin-top: 0.75rem;
+  text-align: center;
 }
 
 @media (--tablet-viewport) {
