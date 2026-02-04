@@ -69,6 +69,8 @@ export interface LiveTrackerState {
   };
   channelManagePermissionCache?: boolean;
   lastRefreshAttempt?: string;
+  refreshInProgress?: boolean;
+  refreshStartedAt?: string | undefined;
 }
 
 // Success response types
