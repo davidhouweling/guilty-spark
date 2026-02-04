@@ -41,5 +41,23 @@ describe("SeriesPlayersEmbed", () => {
       const result = await seriesPlayersEmbed.getSeriesEmbed(matches, playerXuidsToGametags, locale);
       expect(result).toMatchSnapshot();
     });
+
+    it("excludes players not present at beginning", async () => {
+      const modifiedCtfMatch = structuredClone(ctfMatch);
+      const modifiedKothMatch = structuredClone(kothMatch);
+      const modifiedSlayerMatch = structuredClone(slayerMatch);
+
+      // Set first player in each match as not present at beginning
+      Preconditions.checkExists(modifiedCtfMatch.Players[0]).ParticipationInfo.PresentAtBeginning = false;
+      Preconditions.checkExists(modifiedKothMatch.Players[0]).ParticipationInfo.PresentAtBeginning = false;
+      Preconditions.checkExists(modifiedSlayerMatch.Players[0]).ParticipationInfo.PresentAtBeginning = false;
+
+      const modifiedMatches = [modifiedCtfMatch, modifiedKothMatch, modifiedSlayerMatch];
+      const result = await seriesPlayersEmbed.getSeriesEmbed(modifiedMatches, playerXuidsToGametags, locale);
+
+      // Player should not appear in results
+      const allFieldNames = result.flatMap((embed) => embed.fields?.map((field) => field.name) ?? []);
+      expect(allFieldNames.every((name) => !name.includes("gamertag0100000000000000"))).toBe(true);
+    });
   });
 });

@@ -65,6 +65,10 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const playerMatches = new Map<string, MatchStats[]>();
     for (const match of matches) {
       for (const player of match.Players) {
+        if (!player.ParticipationInfo.PresentAtBeginning) {
+          continue;
+        }
+
         const pm = playerMatches.get(player.PlayerId) ?? [];
         pm.push(match);
         playerMatches.set(player.PlayerId, pm);
@@ -78,6 +82,10 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const playerCoreStats = new Map<string, Stats["CoreStats"]>();
     for (const match of matches) {
       for (const player of match.Players) {
+        if (!player.ParticipationInfo.PresentAtBeginning) {
+          continue;
+        }
+
         const { PlayerId } = player;
         const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<GameVariantCategory>;
         const { CoreStats } = stats.Stats;

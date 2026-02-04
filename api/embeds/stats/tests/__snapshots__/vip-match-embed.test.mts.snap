@@ -116,7 +116,7 @@ Deaths: 10
 Assists: 3
 KDA: **9**
 Headshot kills: 2
-Shots H:F (acc): __**378**__:__**775**__ (48.77%)
+Shots H:F (acc): __**378**__:__**775**__ **(48.77%)**
 Damage D:T (D/T): **6,247**:4,444 **(1.41)**
 Avg life time (damage/life): **37s** __**(624.7)**__
 VIP kills: **5**
@@ -135,7 +135,7 @@ Time as VIP: 45s
 Deaths: 16
 Assists: **7**
 KDA: -5.66
-Headshot kills: 3
+Headshot kills: **3**
 Shots H:F (acc): 133:352 (37.78%)
 Damage D:T (D/T): 4,597:5,035 (0.91)
 Avg life time (damage/life): 20s (287.31)
@@ -153,26 +153,6 @@ Time as VIP: 2m 34s",
 ",
       "value": "
 ",
-    },
-    {
-      "inline": true,
-      "name": "gamertag09 (Rank: 2 | Score: 1,050)",
-      "value": "Kills: 9
-Deaths: 7
-Assists: 3
-KDA: 3
-Headshot kills: **7**
-Shots H:F (acc): 125:246 **(50.81%)**
-Damage D:T (D/T): 3,175:2,433 (1.3)
-Avg life time (damage/life): 34s (453.57)
-VIP kills: 2
-VIP Assists: 0
-Kills as VIP: 2
-Times selected as VIP: 1
-Max killing spree as VIP: 2
-Longest Time as VIP: 1m 6s
-Time as VIP: 1m 6s
-2x<:NoScope:1322882248516702220> <:OfftheRack:1322884747881353279> <:Snipe:1322872969571340370> <:BackSmack:1322872596135546891>",
     },
     {
       "inline": true,
@@ -195,42 +175,16 @@ Time as VIP: __**2m 49s**__
 2x<:DoubleKill:1322814147980689430> <:Reversal:1322872797701083166> <:BackSmack:1322872596135546891> <:Killjoy:1322802841039147129>",
     },
     {
-      "inline": false,
-      "name": "
-",
-      "value": "
-",
-    },
-    {
       "inline": true,
       "name": "gamertag08 (Rank: 9 | Score: 0)",
       "value": "Kills: 0
-Deaths: 4
+Deaths: __**4**__
 Assists: 0
 KDA: -4
 Headshot kills: 0
 Shots H:F (acc): 9:55 (16.36%)
-Damage D:T (D/T): 194:1,020 (0.19)
+Damage D:T (D/T): 194:__**1,020**__ (0.19)
 Avg life time (damage/life): 21s (48.5)
-VIP kills: 0
-VIP Assists: 0
-Kills as VIP: 0
-Times selected as VIP: 0
-Max killing spree as VIP: 0
-Longest Time as VIP: 0s
-Time as VIP: 0s",
-    },
-    {
-      "inline": true,
-      "name": "Bot (Rank: 9 | Score: 0)",
-      "value": "Kills: 0
-Deaths: __**0**__
-Assists: 0
-KDA: 0
-Headshot kills: 0
-Shots H:F (acc): 0:0 (0%)
-Damage D:T (D/T): 0:__**0**__ (0)
-Avg life time (damage/life): 0s (0)
 VIP kills: 0
 VIP Assists: 0
 Kills as VIP: 0

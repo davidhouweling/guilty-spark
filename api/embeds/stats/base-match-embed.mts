@@ -119,7 +119,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     };
 
     const playersStats = new Map<string, EmbedPlayerStats>(
-      match.Players.map((player) => {
+      match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).map((player) => {
         const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<TCategory>;
 
         return [
@@ -199,6 +199,10 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
     for (const match of matches) {
       for (const player of match.Players) {
+        if (!player.ParticipationInfo.PresentAtBeginning) {
+          continue;
+        }
+
         if (!uniquePlayersMap.has(player.PlayerId)) {
           uniquePlayersMap.set(player.PlayerId, player);
         }
