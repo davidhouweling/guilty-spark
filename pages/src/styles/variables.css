@@ -5,8 +5,8 @@
 
 :root {
   /* Typography - Halo-inspired fonts */
-  --font-heading: "Saira Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-body: "Oxanium", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-heading: "Saira Condensed", -apple-system, blinkmacsystemfont, "Segoe UI", system-ui, sans-serif;
+  --font-body: "Oxanium", -apple-system, blinkmacsystemfont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "Orbitron", "Courier New", monospace;
 
   /* Gutters */
@@ -24,5 +24,5 @@
   --halo-cyan: #00d4ff;
   --halo-white: #e8f4f8;
   --halo-gray: #8fa3b0;
-  --halo-accent: #00ffaa;
+  --halo-accent: #0fa;
 }

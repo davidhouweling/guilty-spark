@@ -1,28 +1,28 @@
 /* Match Stats Container */
 .matchStatsContainer {
-  position: relative;
+  background: var(--halo-bg-secondary, #0a0e14);
+  border: 1px solid rgb(93 212 216 / 25%);
+  border-left: none;
+  border-right: none;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin: 2rem 0;
-  background: var(--halo-bg-secondary, #0a0e14);
-  border: 1px solid rgba(93, 212, 216, 0.25);
-  border-left: none;
-  border-right: none;
+  position: relative;
   scroll-margin-top: 90px;
 }
 
 .matchHeader {
-  display: flex;
-  gap: 0.75rem;
   align-items: flex-start;
-  justify-content: space-between;
-  padding: 1rem;
   background-image:
     linear-gradient(to bottom, transparent 50%, var(--halo-bg-secondary) 100%),
-    linear-gradient(to bottom, rgba(10, 14, 20, 0.5), rgba(10, 14, 20, 0.5)), var(--match-bg);
-  background-size: cover;
+    linear-gradient(to bottom, rgb(10 14 20 / 50%), rgb(10 14 20 / 50%)), var(--match-bg);
   background-position: center;
+  background-size: cover;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 1rem;
 }
 
 .matchHeaderContent {
@@ -31,27 +31,27 @@
 }
 
 .gameModeIcon {
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 50%));
   flex-shrink: 0;
-  width: 2.5rem;
   height: 2.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  width: 2.5rem;
 }
 
 .matchTitle {
-  margin: 0 0 0.5rem;
+  color: var(--halo-white, #fff);
   font-family: var(--font-heading, "Orbitron", sans-serif);
   font-size: 1.25rem;
-  color: var(--halo-white, #ffffff);
+  margin: 0 0 0.5rem;
 }
 
 .matchMetadata {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  color: var(--halo-white, #fff);
   font-family: var(--font-body, "Inter", sans-serif);
   font-size: 0.9rem;
   line-height: 1.5;
-  color: var(--halo-white, #ffffff);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .matchMetaLabel {
@@ -60,46 +60,46 @@
 }
 
 .matchMetaValue {
-  color: var(--halo-white, #ffffff);
+  color: var(--halo-white, #fff);
   font-weight: 600;
 }
 
 .matchMetaSeparator {
-  margin: 0 0.5rem;
   color: var(--halo-gray, #9ca3af);
+  margin: 0 0.5rem;
   opacity: 0.5;
 }
 
 /* Team Stats */
 .teamStats {
   background: var(--halo-bg-secondary, #0a0e14);
+  border: 1px solid rgb(93 212 216 / 25%);
   border-radius: 8px;
   padding: 1rem;
-  border: 1px solid rgba(93, 212, 216, 0.25);
 }
 
 .teamHeader {
+  color: var(--halo-white, #fff);
+  font-family: var(--font-heading, "Orbitron", sans-serif);
   font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 0.75rem 0;
-  color: var(--halo-white, #ffffff);
-  font-family: var(--font-heading, "Orbitron", sans-serif);
+  margin: 0 0 0.75rem;
 }
 
 .subsectionHeader {
-  font-size: 1rem;
-  font-weight: 500;
-  margin: 0 0 0.375rem 0;
-  padding: 0 var(--gutter-mobile, 12px);
   color: var(--halo-gray, #9ca3af);
   font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 0.375rem;
+  padding: 0 var(--gutter-mobile, 12px);
 }
 
 /* Team Totals */
 .teamTotals {
+  border-bottom: 1px solid rgb(93 212 216 / 25%);
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
 }
 
 /* Player Stats */
@@ -111,16 +111,16 @@
 
 /* Table Styles */
 .tableWrapper {
-  overflow-x: auto;
   margin-top: 0.5rem;
+  overflow-x: auto;
 }
 
 .statsTable {
-  width: 100%;
+  background: var(--halo-bg-primary, #000);
+  border: 1px solid rgb(93 212 216 / 25%);
   border-collapse: collapse;
-  background: var(--halo-bg-primary, #000000);
-  border: 1px solid rgba(93, 212, 216, 0.25);
   font-family: var(--font-body, "Inter", sans-serif);
+  width: 100%;
 }
 
 .statsTable thead {
@@ -128,25 +128,25 @@
 }
 
 .statsTable th {
-  padding: 1rem;
-  text-align: left;
+  border-bottom: 1px solid rgb(93 212 216 / 25%);
+  color: var(--halo-gray, #9ca3af);
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--halo-gray, #9ca3af);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
-  white-space: pre-line;
+  padding: 1rem;
+  text-align: left;
+  text-transform: uppercase;
   vertical-align: bottom;
+  white-space: pre-line;
 }
 
 .statsTable tbody tr {
-  border-bottom: 1px solid rgba(93, 212, 216, 0.15);
+  border-bottom: 1px solid rgb(93 212 216 / 15%);
   transition: background-color 0.2s ease;
 }
 
 .statsTable tbody tr:hover {
-  background: rgba(93, 212, 216, 0.05);
+  background: rgb(93 212 216 / 5%);
 }
 
 .statsTable tbody tr:last-child {
@@ -154,15 +154,15 @@
 }
 
 .statsTable td {
-  padding: 0.5rem 1rem;
+  color: var(--halo-white, #fff);
   font-size: 0.8125rem;
-  color: var(--halo-white, #ffffff);
+  padding: 0.5rem 1rem;
   white-space: nowrap;
 }
 
 .labelCell {
+  color: var(--halo-white, #fff);
   font-weight: 500;
-  color: var(--halo-white, #ffffff);
 }
 
 .statCell {
@@ -172,7 +172,7 @@
 
 .statCell.bestInTeam {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  text-shadow: 0 0 8px rgb(16 185 129 / 60%);
 }
 
 .statCell.bestInMatch {
@@ -201,8 +201,8 @@
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
   .matchStatsContainer {
-    border-left: 1px solid rgba(93, 212, 216, 0.25);
-    border-right: 1px solid rgba(93, 212, 216, 0.25);
+    border-left: 1px solid rgb(93 212 216 / 25%);
+    border-right: 1px solid rgb(93 212 216 / 25%);
   }
 
   .subsectionHeader {

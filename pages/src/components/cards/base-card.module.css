@@ -1,9 +1,9 @@
 .card {
-  position: relative;
-  display: block;
+  background: rgb(15 40 48 / 40%);
   border: 1px solid var(--halo-teal-dark);
-  background: rgba(15, 40, 48, 0.4);
   color: inherit;
+  display: block;
+  position: relative;
   text-decoration: none;
   transition:
     border-color 0.3s ease,
@@ -28,19 +28,19 @@
 }
 
 .surface {
-  background: rgba(15, 40, 48, 0.4);
+  background: rgb(15 40 48 / 40%);
 }
 
 .muted {
-  background: rgba(13, 31, 38, 0.6);
+  background: rgb(13 31 38 / 60%);
 }
 
 .accent {
-  background: rgba(13, 77, 82, 0.3);
+  background: rgb(13 77 82 / 30%);
 }
 
 .cardHover:hover {
+  background: rgb(15 40 48 / 60%);
   border-color: var(--halo-teal-primary);
-  box-shadow: 0 0 30px rgba(93, 212, 216, 0.2);
-  background: rgba(15, 40, 48, 0.6);
+  box-shadow: 0 0 30px rgb(93 212 216 / 20%);
 }

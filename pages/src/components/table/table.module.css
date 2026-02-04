@@ -1,16 +1,16 @@
 /* Table Wrapper */
 .tableWrapper {
-  overflow-x: auto;
   margin-top: 0.5rem;
+  overflow-x: auto;
 }
 
 /* Base Table */
 .table {
-  width: 100%;
+  background: var(--halo-bg-primary, #000);
+  border: 1px solid rgb(93 212 216 / 25%);
   border-collapse: collapse;
-  background: var(--halo-bg-primary, #000000);
-  border: 1px solid rgba(93, 212, 216, 0.25);
   font-family: var(--font-body, "Inter", sans-serif);
+  width: 100%;
 }
 
 /* Table Header */
@@ -19,28 +19,28 @@
 }
 
 .table th {
-  padding: 1rem;
-  text-align: left;
+  border-bottom: 1px solid rgb(93 212 216 / 25%);
+  color: var(--halo-gray, #9ca3af);
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--halo-gray, #9ca3af);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(93, 212, 216, 0.25);
-  white-space: pre-line;
+  padding: 1rem;
+  text-align: left;
+  text-transform: uppercase;
   vertical-align: bottom;
+  white-space: pre-line;
 }
 
 /* Sortable Header */
 .sortableHeader {
   cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
   position: relative;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
 .sortableHeader:hover {
-  background: rgba(93, 212, 216, 0.1);
+  background: rgb(93 212 216 / 10%);
   color: var(--halo-accent, #5dd4d8);
 }
 
@@ -51,10 +51,10 @@
 
 /* Sort Indicator */
 .sortIndicator {
-  display: inline-flex;
   align-items: center;
-  margin-left: 0.25rem;
+  display: inline-flex;
   font-size: 0.625rem;
+  margin-left: 0.25rem;
   opacity: 0.5;
   transition: opacity 0.2s ease;
 }
@@ -65,28 +65,28 @@
 
 .sortedAsc .sortIndicator,
 .sortedDesc .sortIndicator {
-  opacity: 1;
   color: var(--halo-accent, #5dd4d8);
+  opacity: 1;
 }
 
 .sortedAsc {
+  color: var(--halo-white, #fff);
   font-weight: 700;
-  color: var(--halo-white, #ffffff);
 }
 
 .sortedDesc {
+  color: var(--halo-white, #fff);
   font-weight: 700;
-  color: var(--halo-white, #ffffff);
 }
 
 /* Table Body */
 .table tbody tr {
-  border-bottom: 1px solid rgba(93, 212, 216, 0.15);
+  border-bottom: 1px solid rgb(93 212 216 / 15%);
   transition: background-color 0.2s ease;
 }
 
 .table tbody tr:hover {
-  background: rgba(93, 212, 216, 0.05);
+  background: rgb(93 212 216 / 5%);
 }
 
 .table tbody tr:last-child {
@@ -94,16 +94,16 @@
 }
 
 .table td {
-  padding: 0.5rem 1rem;
+  color: var(--halo-white, #fff);
   font-size: 0.8125rem;
-  color: var(--halo-white, #ffffff);
+  padding: 0.5rem 1rem;
   white-space: nowrap;
 }
 
 /* Cell Variants */
 .labelCell {
+  color: var(--halo-white, #fff);
   font-weight: 500;
-  color: var(--halo-white, #ffffff);
 }
 
 .statCell {
@@ -113,7 +113,7 @@
 
 .statCell.bestInTeam {
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  text-shadow: 0 0 8px rgb(16 185 129 / 60%);
 }
 
 .statCell.bestInMatch {
