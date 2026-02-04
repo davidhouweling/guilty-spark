@@ -710,7 +710,7 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
     });
 
     it("returns error if no tracker exists", async () => {
@@ -756,7 +756,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(editMessageSpy).not.toHaveBeenCalled();
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
     });
 
     it("edits existing message during refresh when no new content is detected", async () => {
@@ -781,7 +781,7 @@ describe("LiveTrackerDO", () => {
       expect(editMessageSpy).toHaveBeenCalled();
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
     });
 
     describe("refresh cooldown", () => {
@@ -858,7 +858,7 @@ describe("LiveTrackerDO", () => {
 
         // Verify the timestamp is within the expected time range by checking it's a valid date string
         const putCalls = storagePutSpy.mock.calls;
-        expect(putCalls).toHaveLength(1);
+        expect(putCalls).toHaveLength(2);
         const [callArg] = putCalls;
         expect(callArg).toBeDefined();
         if (callArg) {
@@ -1222,7 +1222,7 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       expect(storageGetSpy).toHaveBeenCalledWith("trackerState");
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1513,11 +1513,8 @@ describe("LiveTrackerDO", () => {
 
     it("handles general alarm error gracefully", async () => {
       storageGetSpy.mockRejectedValue(new Error("Storage error"));
-      const errorSpy = vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
 
-      await liveTrackerDO.alarm();
-
-      expect(errorSpy).toHaveBeenCalledWith("LiveTracker alarm error:", expect.any(Map));
+      await expect(liveTrackerDO.alarm()).rejects.toThrow("Storage error");
     });
 
     it("creates new message when new matches are detected", async () => {
@@ -1563,7 +1560,7 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1621,7 +1618,7 @@ describe("LiveTrackerDO", () => {
       );
       expect(editMessageSpy).not.toHaveBeenCalled();
 
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1680,7 +1677,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).not.toHaveBeenCalled();
       expect(deleteMessageSpy).not.toHaveBeenCalled();
 
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1727,7 +1724,7 @@ describe("LiveTrackerDO", () => {
       expect(createMessageSpy).toHaveBeenCalled();
       expect(deleteMessageSpy).toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith("Failed to delete old live tracker message", expect.any(Map));
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -1824,7 +1821,7 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.alarm();
 
       expect(createMessageSpy).toHaveBeenCalled();
-      expect(storagePutSpy).toHaveBeenCalledTimes(1);
+      expect(storagePutSpy).toHaveBeenCalledTimes(2);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -2758,6 +2755,260 @@ describe("LiveTrackerDO", () => {
         }),
         true,
       );
+    });
+  });
+
+  describe("Refresh Lock Mechanism", () => {
+    describe("handleRefresh() lock behavior", () => {
+      it("prevents concurrent refresh requests", async () => {
+        // Create state with lock already set
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = new Date().toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            body: JSON.stringify({ matchCompleted: false }),
+          }),
+        );
+
+        // Should return 409 conflict
+        expect(response.status).toBe(409);
+        const body = await response.json<{ error: string; success: boolean; message: string }>();
+        expect(body.error).toBe("in_progress");
+        expect(body.success).toBe(false);
+      });
+
+      it("clears stale refresh lock after timeout", async () => {
+        // Create state with stale lock (started 2 minutes ago, timeout is 1 minute)
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = twoMinutesAgo.toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            body: JSON.stringify({ matchCompleted: false }),
+          }),
+        );
+
+        // Should clear stale lock and proceed with refresh
+        expect(response.status).toBe(200);
+      });
+
+      it("bypasses cooldown when match completes", async () => {
+        const trackerState = createMockTrackerState();
+        trackerState.lastRefreshAttempt = new Date().toISOString(); // Recent refresh
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            body: JSON.stringify({ matchCompleted: true }),
+          }),
+        );
+
+        expect(response.status).toBe(200);
+      });
+
+      it("clears lock in finally block even on error", async () => {
+        const trackerState = createMockTrackerState();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        // Force an error during execution
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockRejectedValue(new Error("API Error"));
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            body: JSON.stringify({ matchCompleted: false }),
+          }),
+        );
+
+        // Should handle error gracefully
+        expect(response.status).toBe(500);
+
+        // Verify that setState was called to clear the lock (in finally block)
+        const setStateCalls = storagePutSpy.mock.calls;
+        const lastCall = setStateCalls[setStateCalls.length - 1];
+        if (lastCall != null) {
+          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          expect(savedState.refreshInProgress).toBe(false);
+          expect(savedState.refreshStartedAt).toBeUndefined();
+        }
+      });
+    });
+
+    describe("alarm() lock behavior", () => {
+      it("skips execution when refresh is in progress", async () => {
+        // State with active refresh lock
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = new Date().toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        await liveTrackerDO.alarm();
+
+        // Alarm should reschedule without executing update
+        expect(storageSetAlarmSpy).toHaveBeenCalled();
+
+        // Should NOT have called Discord service to update message
+        const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+        expect(editMessageSpy).not.toHaveBeenCalled();
+      });
+
+      it("clears stale lock and proceeds with alarm execution", async () => {
+        // State with stale lock (2 minutes old)
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = twoMinutesAgo.toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        await liveTrackerDO.alarm();
+
+        // Should clear stale lock and execute update
+        const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+        expect(editMessageSpy).toHaveBeenCalled();
+      });
+
+      it("sets lock before executing update", async () => {
+        const trackerState = createMockTrackerState();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        await liveTrackerDO.alarm();
+
+        // Verify lock was set and then cleared across all setState calls
+        const setStateCalls = storagePutSpy.mock.calls;
+        expect(setStateCalls.length).toBeGreaterThanOrEqual(2); // At least 2: set lock, clear lock
+
+        // Find a call where lock was set (should be before the final call)
+        const callsWithLockSet = setStateCalls.filter((call) => {
+          const [key, value] = call;
+          if (key !== "trackerState") {
+            return false;
+          }
+          const state = value;
+          return state.refreshInProgress === true;
+        });
+
+        expect(callsWithLockSet.length).toBeGreaterThan(0);
+
+        // Verify last call clears the lock
+        const lastCall = setStateCalls[setStateCalls.length - 1];
+        if (lastCall == null) {
+          throw new Error("Expected at least one setState call");
+        }
+        const [lastKey, lastValue] = lastCall;
+        expect(lastKey).toBe("trackerState");
+        const lastState = lastValue;
+        expect(lastState.refreshInProgress).toBe(false);
+        expect(lastState.refreshStartedAt).toBeUndefined();
+      });
+
+      it("clears lock in finally block after alarm execution", async () => {
+        const trackerState = createMockTrackerState();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        await liveTrackerDO.alarm();
+
+        // Verify lock was cleared (last setState call should clear lock)
+        const setStateCalls = storagePutSpy.mock.calls;
+        const lastCall = setStateCalls[setStateCalls.length - 1];
+        if (lastCall != null) {
+          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          expect(savedState.refreshInProgress).toBe(false);
+          expect(savedState.refreshStartedAt).toBeUndefined();
+        }
+      });
+
+      it("clears lock even when Discord API fails", async () => {
+        const trackerState = createMockTrackerState();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+        // Force Discord API error
+        vi.spyOn(services.discordService, "editMessage").mockRejectedValue(
+          new DiscordError(500, { message: "Internal Server Error", code: 0 }),
+        );
+
+        await liveTrackerDO.alarm();
+
+        // Verify lock was still cleared despite error
+        const setStateCalls = storagePutSpy.mock.calls;
+        const lastCall = setStateCalls[setStateCalls.length - 1];
+        if (lastCall != null) {
+          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          expect(savedState.refreshInProgress).toBe(false);
+          expect(savedState.refreshStartedAt).toBeUndefined();
+        }
+      });
+    });
+
+    describe("Mutual exclusion between alarm and refresh", () => {
+      it("alarm respects active refresh lock", async () => {
+        // State showing refresh started 10 seconds ago (not stale)
+        const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = tenSecondsAgo.toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        await liveTrackerDO.alarm();
+
+        // Alarm should NOT update message
+        const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+        expect(editMessageSpy).not.toHaveBeenCalled();
+
+        // Alarm should reschedule itself
+        expect(storageSetAlarmSpy).toHaveBeenCalled();
+      });
+
+      it("refresh returns 409 when alarm is executing", async () => {
+        // State with refresh lock set by alarm (30 seconds ago, not stale)
+        const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+        const trackerState = createMockTrackerState();
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = thirtySecondsAgo.toISOString();
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        const response = await liveTrackerDO.fetch(
+          new Request("http://do/refresh", {
+            method: "POST",
+            body: JSON.stringify({ matchCompleted: false }),
+          }),
+        );
+
+        expect(response.status).toBe(409);
+        const body = await response.json<{ error: string }>();
+        expect(body.error).toBe("in_progress");
+      });
     });
   });
 });

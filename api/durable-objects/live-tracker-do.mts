@@ -44,8 +44,8 @@ const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 const ERROR_THRESHOLD_MINUTES = 10;
 
-// Refresh cooldown constant - 30 seconds
 const REFRESH_COOLDOWN_MS = 30 * 1000;
+const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
 
 export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -129,11 +129,22 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       Sentry.setTag("durableObject", "LiveTrackerDO");
       Sentry.setTag("method", "alarm");
 
+      const trackerState = await this.getState();
+      if (trackerState?.status !== "active" || trackerState.isPaused) {
+        return;
+      }
+
       try {
-        const trackerState = await this.getState();
-        if (trackerState?.status !== "active" || trackerState.isPaused) {
+        if (this.checkAndHandleStaleLock(trackerState)) {
+          this.logService.info("Refresh in progress, skipping alarm execution");
+          const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+          await this.state.storage.setAlarm(addMilliseconds(new Date(), nextAlarmInterval).getTime());
           return;
         }
+
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = new Date().toISOString();
+        await this.setState(trackerState);
 
         Sentry.setContext("trackerState", {
           queueNumber: trackerState.queueNumber,
@@ -155,75 +166,19 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ]),
         );
 
-        let enrichedMatches: LiveTrackerMatchSummary[] = [];
         const fetchStartTime = Date.now();
-
         try {
-          enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+          await this.executeTrackerUpdate(trackerState);
           const fetchDurationMs = Date.now() - fetchStartTime;
 
           this.logService.info(
-            `Fetched ${enrichedMatches.length.toString()} total matches for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
+            `Alarm update completed for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
             new Map([
-              ["totalMatches", enrichedMatches.length.toString()],
               ["fetchDurationMs", fetchDurationMs.toString()],
               ["searchStartTime", new Date(trackerState.searchStartTime).toISOString()],
               ["currentTime", new Date().toISOString()],
             ]),
           );
-
-          this.handleSuccess(trackerState);
-        } catch (error) {
-          this.logService.warn("Failed to fetch series data, using empty data", new Map([["error", String(error)]]));
-          this.handleError(trackerState, String(error));
-
-          if (this.shouldStopDueToErrors(trackerState)) {
-            this.logService.error(
-              `Stopping live tracker due to persistent errors (${trackerState.errorState.consecutiveErrors.toString()} consecutive errors)`,
-              new Map([
-                ["queueNumber", trackerState.queueNumber.toString()],
-                ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
-              ]),
-            );
-            await this.dispose(
-              trackerState,
-              `Persistent errors: ${trackerState.errorState.consecutiveErrors.toString()} consecutive failures`,
-            );
-            return;
-          }
-        }
-
-        trackerState.checkCount += 1;
-        const currentTime = new Date();
-        trackerState.lastUpdateTime = currentTime.toISOString();
-
-        try {
-          const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-          const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
-
-          const rawMatchesArray = Object.values(trackerState.rawMatches);
-          const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
-          trackerState.seriesScore = seriesScore;
-          const liveTrackerEmbed = new LiveTrackerEmbed(
-            { discordService: this.discordService },
-            {
-              userId: trackerState.userId,
-              guildId: trackerState.guildId,
-              channelId: trackerState.channelId,
-              queueNumber: trackerState.queueNumber,
-              status: "active",
-              isPaused: false,
-              lastUpdated: currentTime,
-              nextCheck: nextCheckTime,
-              enrichedMatches,
-              seriesScore,
-              substitutions: trackerState.substitutions,
-              errorState: trackerState.errorState,
-            },
-          );
-
-          await this.updateChannelName(trackerState, seriesScore, false);
-          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
         } catch (error) {
           // 10003 = Unknown channel
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
@@ -238,6 +193,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
             return;
           }
 
+          // If executeTrackerUpdate threw due to disposal, don't reschedule
+          if (error instanceof Error && error.message.includes("Tracker stopped due to persistent errors")) {
+            return;
+          }
+
           this.logService.error(
             "Failed to update live tracker message",
             new Map([
@@ -248,13 +208,23 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           this.handleError(trackerState, `Discord update failed: ${String(error)}`);
         }
 
-        await this.setState(trackerState);
-
         const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-        await this.state.storage.setAlarm(Date.now() + nextAlarmInterval);
+        await this.state.storage.setAlarm(addMilliseconds(new Date(), nextAlarmInterval).getTime());
       } catch (error) {
         this.logService.error("LiveTracker alarm error:", new Map([["error", String(error)]]));
         Sentry.captureException(error);
+      } finally {
+        // Always clear the lock and persist state
+        await this.setState({
+          ...trackerState,
+          refreshInProgress: false,
+          refreshStartedAt: undefined,
+        }).catch((error: unknown) => {
+          this.logService.error(
+            "Failed to clear refresh lock in alarm finally block",
+            new Map([["error", String(error)]]),
+          );
+        });
       }
     });
   }
@@ -348,7 +318,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
     }
 
-    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
     return this.createStartSuccessResponse(trackerState);
   }
 
@@ -422,7 +392,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     trackerState.lastUpdateTime = currentTime.toISOString();
     await this.setState(trackerState);
 
-    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
     if (Object.keys(trackerState.discoveredMatches).length > 0) {
       try {
@@ -501,105 +471,103 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRefresh(request: Request): Promise<Response> {
-    let body: LiveTrackerRefreshRequest = { matchCompleted: false };
-
-    try {
-      const text = await request.text();
-      if (text && text.trim() !== "") {
-        body = JSON.parse(text) as LiveTrackerRefreshRequest;
-      }
-    } catch (error) {
-      // If parsing fails, use default values
-      this.logService.warn("Failed to parse refresh request body, using defaults", new Map([["error", String(error)]]));
-    }
-
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
     }
 
-    if (trackerState.status === "stopped") {
-      return new Response("Cannot refresh stopped tracker", { status: 400 });
+    if (this.checkAndHandleStaleLock(trackerState)) {
+      this.logService.info("Refresh already in progress, ignoring concurrent request");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "in_progress",
+          message: "A refresh is already in progress, please wait",
+        }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
-    if (
-      body.matchCompleted !== true &&
-      trackerState.lastRefreshAttempt != null &&
-      trackerState.lastRefreshAttempt !== ""
-    ) {
-      const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
-      const currentTime = new Date();
-      const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
-
-      if (timeSinceLastAttempt < REFRESH_COOLDOWN_MS) {
-        const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
-        const cooldownEndsAt = addMilliseconds(currentTime, remainingMs);
-        const cooldownTimestamp = this.discordService.getTimestamp(cooldownEndsAt.toISOString(), "R");
-
-        return this.createRefreshCooldownResponse(
-          `Refresh cooldown active, next refresh available ${cooldownTimestamp}`,
-        );
-      }
-    }
+    trackerState.refreshInProgress = true;
+    trackerState.refreshStartedAt = new Date().toISOString();
+    await this.setState(trackerState);
 
     try {
-      const currentTime = new Date();
-      trackerState.lastRefreshAttempt = currentTime.toISOString();
-      trackerState.checkCount += 1;
-      trackerState.lastUpdateTime = currentTime.toISOString();
+      let body: LiveTrackerRefreshRequest = { matchCompleted: false };
 
-      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-        const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-        const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+      try {
+        const text = await request.text();
+        if (text && text.trim() !== "") {
+          body = JSON.parse(text) as LiveTrackerRefreshRequest;
+        }
+      } catch (error) {
+        // If parsing fails, use default values
+        this.logService.warn(
+          "Failed to parse refresh request body, using defaults",
+          new Map([["error", String(error)]]),
+        );
+      }
 
-        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
-        const rawMatchesArray = Object.values(trackerState.rawMatches);
-        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
-        trackerState.seriesScore = seriesScore;
-        const embedData: LiveTrackerEmbedData = {
-          userId: trackerState.userId,
-          guildId: trackerState.guildId,
-          channelId: trackerState.channelId,
-          queueNumber: trackerState.queueNumber,
-          status: trackerState.status,
-          isPaused: trackerState.isPaused,
-          lastUpdated: currentTime,
-          nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
-          enrichedMatches: enrichedMatches,
-          seriesScore,
-          substitutions: trackerState.substitutions,
-          errorState: trackerState.errorState,
-        };
+      if (trackerState.status === "stopped") {
+        return new Response("Cannot refresh stopped tracker", { status: 400 });
+      }
 
-        const liveTrackerEmbed = new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
+      if (
+        body.matchCompleted !== true &&
+        trackerState.lastRefreshAttempt != null &&
+        trackerState.lastRefreshAttempt !== ""
+      ) {
+        const lastAttemptTime = new Date(trackerState.lastRefreshAttempt);
+        const currentTime = new Date();
+        const timeSinceLastAttempt = differenceInMilliseconds(currentTime, lastAttemptTime);
 
-        if (body.matchCompleted !== true) {
-          await this.updateChannelName(trackerState, seriesScore, false);
-          await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+        if (timeSinceLastAttempt < REFRESH_COOLDOWN_MS) {
+          const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
+          const cooldownEndsAt = addMilliseconds(currentTime, remainingMs);
+          const cooldownTimestamp = this.discordService.getTimestamp(cooldownEndsAt.toISOString(), "R");
+
+          return this.createRefreshCooldownResponse(
+            `Refresh cooldown active, next refresh available ${cooldownTimestamp}`,
+          );
         }
       }
 
-      await this.setState(trackerState);
+      try {
+        trackerState.lastRefreshAttempt = new Date().toISOString();
 
-      return this.createRefreshSuccessResponse(trackerState);
-    } catch (error) {
-      // 10003 = Unknown channel
-      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
-        this.logService.warn(
-          "Live tracker channel not found during refresh",
-          new Map([
-            ["channelId", trackerState.channelId],
-            ["messageId", trackerState.liveMessageId],
-          ]),
-        );
-        await this.dispose(trackerState, "Discord channel not found during refresh");
-        return this.createRefreshFailureResponse(trackerState);
+        const skipMessageUpdate = body.matchCompleted === true;
+        await this.executeTrackerUpdate(trackerState, { skipMessageUpdate });
+
+        return this.createRefreshSuccessResponse(trackerState);
+      } catch (error) {
+        // 10003 = Unknown channel
+        if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
+          this.logService.warn(
+            "Live tracker channel not found during refresh",
+            new Map([
+              ["channelId", trackerState.channelId],
+              ["messageId", trackerState.liveMessageId],
+            ]),
+          );
+          await this.dispose(trackerState, "Discord channel not found during refresh");
+          return this.createRefreshFailureResponse(trackerState);
+        }
+
+        this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
+        this.handleError(trackerState, `Refresh failed: ${String(error)}`);
+        return new Response("Internal Server Error", { status: 500 });
       }
-
-      this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
-      this.handleError(trackerState, `Refresh failed: ${String(error)}`);
-      await this.setState(trackerState);
-      return new Response("Internal Server Error", { status: 500 });
+    } finally {
+      await this.setState({
+        ...trackerState,
+        refreshInProgress: false,
+        refreshStartedAt: undefined,
+      }).catch((error: unknown) => {
+        this.logService.error("Failed to clear refresh lock in finally block", new Map([["error", String(error)]]));
+      });
     }
   }
 
@@ -871,6 +839,96 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     return trackerState.errorState.backoffMinutes * 60 * 1000 - EXECUTION_BUFFER_MS;
+  }
+
+  private async executeTrackerUpdate(
+    trackerState: LiveTrackerState,
+    options: { skipMessageUpdate?: boolean } = {},
+  ): Promise<void> {
+    const { skipMessageUpdate = false } = options;
+
+    let enrichedMatches: LiveTrackerMatchSummary[] = [];
+
+    try {
+      enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+      this.handleSuccess(trackerState);
+    } catch (error) {
+      this.logService.warn("Failed to fetch series data, using empty data", new Map([["error", String(error)]]));
+      this.handleError(trackerState, String(error));
+
+      if (this.shouldStopDueToErrors(trackerState)) {
+        this.logService.error(
+          `Stopping live tracker due to persistent errors (${trackerState.errorState.consecutiveErrors.toString()} consecutive errors)`,
+          new Map([
+            ["queueNumber", trackerState.queueNumber.toString()],
+            ["lastError", trackerState.errorState.lastErrorMessage ?? "unknown"],
+          ]),
+        );
+        await this.dispose(
+          trackerState,
+          `Persistent errors: ${trackerState.errorState.consecutiveErrors.toString()} consecutive failures`,
+        );
+        throw new Error("Tracker stopped due to persistent errors");
+      }
+    }
+
+    trackerState.checkCount += 1;
+    const currentTime = new Date();
+    trackerState.lastUpdateTime = currentTime.toISOString();
+
+    if (skipMessageUpdate) {
+      return;
+    }
+
+    const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+    const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+
+    const rawMatchesArray = Object.values(trackerState.rawMatches);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    trackerState.seriesScore = seriesScore;
+
+    const liveTrackerEmbed = new LiveTrackerEmbed(
+      { discordService: this.discordService },
+      {
+        userId: trackerState.userId,
+        guildId: trackerState.guildId,
+        channelId: trackerState.channelId,
+        queueNumber: trackerState.queueNumber,
+        status: trackerState.status,
+        isPaused: trackerState.isPaused,
+        lastUpdated: currentTime,
+        nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
+        enrichedMatches,
+        seriesScore,
+        substitutions: trackerState.substitutions,
+        errorState: trackerState.errorState,
+      },
+    );
+
+    await this.updateChannelName(trackerState, seriesScore, false);
+    await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+  }
+
+  private checkAndHandleStaleLock(trackerState: LiveTrackerState): boolean {
+    if (trackerState.refreshInProgress === true && trackerState.refreshStartedAt != null) {
+      const refreshStartTime = new Date(trackerState.refreshStartedAt);
+      const currentTime = new Date();
+      const timeSinceRefreshStart = differenceInMilliseconds(currentTime, refreshStartTime);
+
+      if (timeSinceRefreshStart >= REFRESH_STALE_TIMEOUT_MS) {
+        this.logService.warn(
+          "Refresh lock is stale, clearing",
+          new Map([["staleDurationMs", timeSinceRefreshStart.toString()]]),
+        );
+        trackerState.refreshInProgress = false;
+        trackerState.refreshStartedAt = undefined;
+        return false;
+      }
+
+      return true;
+    }
+
+    return false;
   }
 
   private async fetchAndMergeSeriesData(trackerState: LiveTrackerState): Promise<LiveTrackerMatchSummary[]> {
