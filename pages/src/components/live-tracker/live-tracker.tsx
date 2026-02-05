@@ -152,11 +152,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       </Container>
 
       <Container mobileDown="0" className={styles.dataContainer}>
-        {model.isStopped ? (
+        {model.state?.status === "stopped" ? (
           <Container>
-            <Alert variant="error" icon="🛑">
-              {model.rawMessageText.length > 0 ? model.rawMessageText : "Tracker stopped."}
-            </Alert>
+            <Alert variant="info">The series has completed. Tracker stopped.</Alert>
           </Container>
         ) : null}
 
@@ -318,7 +316,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
           </>
         ) : (
           <Container>
-            <Alert variant="info">{model.rawMessageText}</Alert>
+            <Alert variant="info">{model.statusText}</Alert>
           </Container>
         )}
       </Container>

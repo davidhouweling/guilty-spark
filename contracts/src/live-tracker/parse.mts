@@ -240,15 +240,7 @@ export function tryParseLiveTrackerMessage(payload: string): LiveTrackerMessage 
   }
 
   const typeValue = readString(root["type"] ?? null);
-  if (typeValue === null) {
-    return null;
-  }
-
-  if (typeValue === "stopped") {
-    return { type: "stopped" };
-  }
-
-  if (typeValue !== "state") {
+  if (typeValue === null || typeValue !== "state") {
     return null;
   }
 

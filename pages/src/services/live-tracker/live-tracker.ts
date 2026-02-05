@@ -63,7 +63,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
       listener(message);
     }
 
-    if (message.type === "stopped") {
+    if (message.data.status === "stopped") {
       this.handleStatus("stopped");
       this.disconnect();
     }
@@ -107,7 +107,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
     ws.onclose = (event: CloseEvent): void => {
       if (event.code === 1000 && event.reason === "Tracker stopped") {
-        connection.handleMessage({ type: "stopped" });
+        connection.handleStatus("stopped");
         return;
       }
 

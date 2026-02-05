@@ -465,6 +465,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
+    trackerState.status = "stopped";
+
     await this.dispose(trackerState, "Explicitly stopped via handleStop");
 
     return this.createStopResponse(trackerState, embedData);
@@ -1408,7 +1410,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     // Notify and close WebSocket clients if state exists
     if (trackerState) {
-      this.broadcastStopMessage(trackerState);
+      await this.broadcastStopMessage(trackerState);
 
       // Attempt to reset channel name
       try {
@@ -1436,7 +1438,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await this.state.storage.deleteAll();
   }
 
-  private broadcastStopMessage(state: LiveTrackerState): void {
+  private async broadcastStopMessage(state: LiveTrackerState): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
 
     this.logService.info(
@@ -1444,18 +1446,32 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       new Map([["clientCount", allWebSockets.length.toString()]]),
     );
 
-    const message = JSON.stringify({
-      type: "stopped",
-      data: state,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      // Send final state update with status='stopped' so the frontend receives complete state
+      const data = await this.stateToContractData(state);
+      const message = JSON.stringify({
+        type: "state",
+        data,
+        timestamp: new Date().toISOString(),
+      });
 
-    for (const client of allWebSockets) {
-      try {
-        client.send(message);
-        client.close(1000, "Tracker stopped");
-      } catch (error) {
-        this.logService.warn("Failed to notify WebSocket client of stop", new Map([["error", String(error)]]));
+      for (const client of allWebSockets) {
+        try {
+          client.send(message);
+          client.close(1000, "Tracker stopped");
+        } catch (error) {
+          this.logService.warn("Failed to notify WebSocket client of stop", new Map([["error", String(error)]]));
+        }
+      }
+    } catch (error) {
+      this.logService.warn("Failed to build stop message state", new Map([["error", String(error)]]));
+      // Close websockets without sending final state if we can't build it
+      for (const client of allWebSockets) {
+        try {
+          client.close(1000, "Tracker stopped");
+        } catch (closeError) {
+          this.logService.warn("Failed to close WebSocket client", new Map([["error", String(closeError)]]));
+        }
       }
     }
   }

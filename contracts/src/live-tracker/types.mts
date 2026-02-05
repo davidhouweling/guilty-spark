@@ -54,8 +54,4 @@ export interface LiveTrackerStateMessage {
   readonly timestamp: string;
 }
 
-export interface LiveTrackerStoppedMessage {
-  readonly type: "stopped";
-}
-
-export type LiveTrackerMessage = LiveTrackerStateMessage | LiveTrackerStoppedMessage;
+export type LiveTrackerMessage = LiveTrackerStateMessage;

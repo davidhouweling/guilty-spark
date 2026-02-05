@@ -51,10 +51,8 @@ export class LiveTrackerPresenter {
       queueNumberText,
       statusText: snapshot.statusText,
       statusClassName,
-      rawMessageText: snapshot.rawMessageText,
       state:
         snapshot.lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(snapshot.lastStateMessage) : null,
-      isStopped: snapshot.lastMessage?.type === "stopped",
     };
   }
 
@@ -83,9 +81,7 @@ export class LiveTrackerPresenter {
       this.config.store.setSnapshot({
         params,
         connectionState: "idle",
-        statusText: "Waiting for query parameters",
-        rawMessageText: LiveTrackerPresenter.usageText,
-        lastMessage: null,
+        statusText: LiveTrackerPresenter.usageText,
         lastStateMessage: null,
         hasConnection: false,
       });
@@ -126,7 +122,6 @@ export class LiveTrackerPresenter {
     this.config.store.setSnapshot({
       ...current,
       hasConnection: false,
-      lastMessage: null,
       lastStateMessage: null,
     });
   }
@@ -158,9 +153,6 @@ export class LiveTrackerPresenter {
             ...snapshot,
             connectionState: status,
             statusText: "Connected",
-            rawMessageText: snapshot.rawMessageText.includes("Usage:")
-              ? "Connected! Waiting for data..."
-              : snapshot.rawMessageText,
           });
           return;
         }
@@ -179,7 +171,6 @@ export class LiveTrackerPresenter {
             ...snapshot,
             connectionState: status,
             statusText: "Tracker Stopped",
-            rawMessageText: "🛑 Tracker has been stopped.",
           });
           return;
         }
@@ -193,13 +184,13 @@ export class LiveTrackerPresenter {
           return;
         }
 
-        const suffix = detail !== undefined && detail.length > 0 ? `\n\nConnection closed: ${detail}` : "";
+        const errorText =
+          detail !== undefined && detail.length > 0 ? `Connection error: ${detail}` : "Connection error";
 
         this.config.store.setSnapshot({
           ...snapshot,
           connectionState: "error",
-          statusText: "Connection error",
-          rawMessageText: `${snapshot.rawMessageText}${suffix}`,
+          statusText: errorText,
         });
       },
     );
@@ -211,21 +202,9 @@ export class LiveTrackerPresenter {
 
       const snapshot = this.config.store.getSnapshot();
 
-      const nextRawMessageText = ((): string => {
-        if (message.type !== "stopped") {
-          return snapshot.rawMessageText;
-        }
-
-        return snapshot.rawMessageText.includes("🛑")
-          ? snapshot.rawMessageText
-          : `${snapshot.rawMessageText}\n\n🛑 Tracker has been stopped.`;
-      })();
-
       this.config.store.setSnapshot({
         ...snapshot,
-        rawMessageText: nextRawMessageText,
-        lastMessage: message,
-        lastStateMessage: message.type === "state" ? message : snapshot.lastStateMessage,
+        lastStateMessage: message,
       });
     });
   }
