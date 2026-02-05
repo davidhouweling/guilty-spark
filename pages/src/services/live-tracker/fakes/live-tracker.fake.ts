@@ -109,7 +109,7 @@ class FakeLiveTrackerConnection implements LiveTrackerConnection {
 
     this.emitMessage(message);
 
-    if (message.type === "stopped") {
+    if (message.data.status === "stopped") {
       this.emitStatus("stopped");
       this.disconnectInternal({ emitDisconnectedStatus: false });
     }

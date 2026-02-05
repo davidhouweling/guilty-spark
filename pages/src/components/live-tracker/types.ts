@@ -50,7 +50,5 @@ export interface LiveTrackerViewModel {
   readonly queueNumberText: string;
   readonly statusText: string;
   readonly statusClassName: string;
-  readonly rawMessageText: string;
   readonly state: LiveTrackerStateRenderModel | null;
-  readonly isStopped: boolean;
 }

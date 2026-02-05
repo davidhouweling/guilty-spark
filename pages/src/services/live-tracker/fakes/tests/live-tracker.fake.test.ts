@@ -31,9 +31,18 @@ describe("FakeLiveTrackerService (fake mode)", () => {
       },
     };
 
+    const stoppedStateMessage: LiveTrackerStateMessage = {
+      type: "state",
+      timestamp: "2025-01-01T00:01:00.000Z",
+      data: {
+        ...stateMessage.data,
+        status: "stopped",
+      },
+    };
+
     const scenario = {
       intervalMs: 10,
-      frames: [stateMessage, { type: "stopped" }] satisfies readonly LiveTrackerMessage[],
+      frames: [stateMessage, stoppedStateMessage] satisfies readonly LiveTrackerMessage[],
     };
 
     const service = new FakeLiveTrackerService(scenario, { mode: "manual" });
