@@ -40,6 +40,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
 
         const stats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
         const outputStats = this.transformStats(seriesBestValues, teamBestValues, stats);
+        const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
 
         const playedGames = playerMatches.get(teamPlayer.PlayerId)?.length ?? 0;
         const gamesInfo =
@@ -48,6 +49,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         playerStats.push({
           name: `${playerGamertag}${gamesInfo}`,
           values: outputStats,
+          medals: this.extractMedals(playerCoreStats),
         });
       }
 
@@ -251,5 +253,17 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
       bestInMatch: matchBestValues.get(key) === statValue,
       display: display ?? this.formatStatValue(statValue),
     };
+  }
+
+  private extractMedals(coreStats: Stats["CoreStats"]): {
+    name: string;
+    count: number;
+    sortingWeight: number;
+  }[] {
+    return coreStats.Medals.map((medal) => ({
+      name: medal.NameId.toString(),
+      count: medal.Count,
+      sortingWeight: medal.TotalPersonalScoreAwarded,
+    })).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 }

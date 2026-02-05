@@ -113,6 +113,10 @@ export abstract class BaseMatchStatsPresenter {
               )
             : "Bot";
 
+        const playerTeamStats = Preconditions.checkExists(
+          teamPlayer.PlayerTeamStats.find((pts) => pts.TeamId === team.TeamId),
+        );
+
         const outputStats = this.transformStats(
           matchBestPlayerValues,
           teamBestValues,
@@ -121,6 +125,7 @@ export abstract class BaseMatchStatsPresenter {
         playerStats.push({
           name: playerGamertag,
           values: outputStats,
+          medals: this.extractMedals(playerTeamStats.Stats.CoreStats),
         });
       }
 
@@ -257,6 +262,18 @@ export abstract class BaseMatchStatsPresenter {
 
   private getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+  }
+
+  private extractMedals(coreStats: MatchStats["Teams"][0]["Stats"]["CoreStats"]): {
+    name: string;
+    count: number;
+    sortingWeight: number;
+  }[] {
+    return coreStats.Medals.map((medal) => ({
+      name: medal.NameId.toString(),
+      count: medal.Count,
+      sortingWeight: medal.TotalPersonalScoreAwarded,
+    })).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 
   private transformTeamStats(matchBestValues: Map<string, number>, teamStats: StatsCollection): MatchStatsValues[] {

@@ -25,6 +25,7 @@ export interface MatchStatsData {
 export interface MatchStatsPlayerData {
   name: string;
   values: MatchStatsValues[];
+  medals: { name: string; count: number; sortingWeight: number }[];
 }
 
 export interface MatchStatsValues {

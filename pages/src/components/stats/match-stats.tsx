@@ -4,6 +4,7 @@ import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
+import { MedalIcon } from "../icons/medal-icon";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -116,6 +117,26 @@ export function MatchStats({
         },
         sortingFn: "basic" as const,
       })),
+      {
+        id: "medals",
+        header: "Medals",
+        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => {
+          return row.player.medals.reduce((sum, medal) => sum + medal.count, 0);
+        },
+        cell: (_value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => (
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+            {row.player.medals.slice(0, 10).map((medal, idx) => (
+              <span key={idx} style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                {medal.count > 1 ? <span style={{ fontSize: "0.85em" }}>{medal.count}×</span> : null}
+                <MedalIcon medalName={medal.name} size="small" />
+              </span>
+            ))}
+          </div>
+        ),
+        headerClassName: undefined,
+        cellClassName: tableStyles.statCell,
+        sortingFn: "basic" as const,
+      },
     ];
   }, [data]);
 
