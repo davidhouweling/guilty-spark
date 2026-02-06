@@ -1038,6 +1038,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         duration,
         gameScore,
         gameSubScore,
+        startTime: new Date(match.MatchInfo.StartTime).toISOString(),
         endTime: new Date(match.MatchInfo.EndTime).toISOString(),
         playerXuidToGametag,
       };

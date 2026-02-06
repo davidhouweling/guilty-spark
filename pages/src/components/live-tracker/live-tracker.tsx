@@ -274,6 +274,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                             gameTypeAndMap={match.gameTypeAndMap}
                             duration={match.duration}
                             score={match.gameScore}
+                            startTime={match.startTime}
                             endTime={match.endTime}
                           />
                         </Container>

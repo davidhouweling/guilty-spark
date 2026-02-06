@@ -43,6 +43,7 @@ describe("LiveTracker", () => {
             duration: "10m 0s",
             gameScore: "50:49",
             gameSubScore: null,
+            startTime: "2024-12-31T23:50:00.000Z",
             endTime: "2025-01-01T00:00:00.000Z",
             playerXuidToGametag: { "123": "GamerTag1" },
           },

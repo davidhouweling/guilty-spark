@@ -21,6 +21,7 @@ function toMatchRenderModel(
     duration: summary.duration,
     gameScore: summary.gameScore,
     gameSubScore: summary.gameSubScore,
+    startTime: summary.startTime,
     endTime: summary.endTime,
     rawMatchStats: (rawMatchStats ?? null) as MatchStats | null,
     playerXuidToGametag: summary.playerXuidToGametag,
