@@ -49,6 +49,7 @@ describe("LiveTracker", () => {
         ],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
+        medalMetadata: {},
       },
     };
 

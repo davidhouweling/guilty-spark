@@ -7,5 +7,8 @@
     "./base/*": "./src/base/*.mts",
     "./live-tracker/*": "./src/live-tracker/*.mts",
     "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.mts"
+  },
+  "devDependencies": {
+    "halo-infinite-api": "^14.2.2"
   }
 }

@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
+import { MedalIcon } from "../icons/medal-icon";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -54,6 +55,29 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
         },
         sortingFn: "basic" as const,
       })),
+      {
+        id: "medals",
+        header: "Medals",
+        accessorFn: (row: MatchStatsData): number => {
+          return row.players.reduce(
+            (teamTotal, player) => teamTotal + player.medals.reduce((sum, medal) => sum + medal.count, 0),
+            0,
+          );
+        },
+        cell: (_value: unknown, row: MatchStatsData): React.ReactNode => (
+          <div className={styles.medalsContainer}>
+            {row.teamMedals.map((medal, idx) => (
+              <span key={idx} className={styles.medalItem}>
+                {medal.count > 1 ? <span className={styles.medalCount}>{medal.count}×</span> : null}
+                <MedalIcon medalName={medal.name} size="small" />
+              </span>
+            ))}
+          </div>
+        ),
+        headerClassName: undefined,
+        cellClassName: tableStyles.statCell,
+        sortingFn: "basic" as const,
+      },
     ];
   }, [teamData, hasTeamStats]);
 
@@ -103,6 +127,26 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
         },
         sortingFn: "basic" as const,
       })),
+      {
+        id: "medals",
+        header: "Medals",
+        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => {
+          return row.player.medals.reduce((sum, medal) => sum + medal.count, 0);
+        },
+        cell: (_value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => (
+          <div className={styles.medalsContainer}>
+            {row.player.medals.map((medal, idx) => (
+              <span key={idx} className={styles.medalItem}>
+                {medal.count > 1 ? <span className={styles.medalCount}>{medal.count}×</span> : null}
+                <MedalIcon medalName={medal.name} size="small" />
+              </span>
+            ))}
+          </div>
+        ),
+        headerClassName: undefined,
+        cellClassName: tableStyles.statCell,
+        sortingFn: "basic" as const,
+      },
     ];
   }, [playerData, hasPlayerStats]);
 

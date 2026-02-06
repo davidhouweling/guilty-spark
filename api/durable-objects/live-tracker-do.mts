@@ -1368,6 +1368,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
+    const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
     return {
       guildId: state.guildId,
@@ -1390,7 +1391,41 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       rawMatches: state.rawMatches,
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
+      medalMetadata,
     };
+  }
+
+  private async getMedalMetadataFromMatches(
+    rawMatches: Record<string, MatchStats>,
+  ): Promise<Record<number, { name: string; sortingWeight: number }>> {
+    const medalIds = new Set<number>();
+    for (const match of Object.values(rawMatches)) {
+      for (const team of match.Teams) {
+        for (const medal of team.Stats.CoreStats.Medals) {
+          medalIds.add(medal.NameId);
+        }
+      }
+      for (const player of match.Players) {
+        for (const teamStats of player.PlayerTeamStats) {
+          for (const medal of teamStats.Stats.CoreStats.Medals) {
+            medalIds.add(medal.NameId);
+          }
+        }
+      }
+    }
+
+    const medalMetadata: Record<number, { name: string; sortingWeight: number }> = {};
+    for (const medalId of medalIds) {
+      const medal = await this.haloService.getMedal(medalId);
+      if (medal != null) {
+        medalMetadata[medalId] = {
+          name: medal.name,
+          sortingWeight: medal.sortingWeight,
+        };
+      }
+    }
+
+    return medalMetadata;
   }
 
   /**

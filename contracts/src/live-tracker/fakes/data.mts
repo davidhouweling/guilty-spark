@@ -1,3 +1,4 @@
+import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import type {
   LiveTrackerMatchSummary,
   LiveTrackerPlayer,
@@ -8,6 +9,11 @@ import match1 from "./85022d98-5829-4da2-85ae-32b8cb48bbdd.json" with { type: "j
 import match2 from "./4ddc5187-d08d-48fc-96a3-8a490e577795.json" with { type: "json" };
 import match3 from "./d127af7f-079c-4b28-a3ae-6e1bcdd44438.json" with { type: "json" };
 import match4 from "./688cc0ac-2266-40e2-a3dd-a1f5b992f046.json" with { type: "json" };
+
+const matchStats1 = match1 as unknown as MatchStats<GameVariantCategory.MultiplayerOddball>;
+const matchStats2 = match2 as unknown as MatchStats<GameVariantCategory.MultiplayerOddball>;
+const matchStats3 = match3 as unknown as MatchStats<GameVariantCategory.MultiplayerKingOfTheHill>;
+const matchStats4 = match4 as unknown as MatchStats<GameVariantCategory.MultiplayerCtf>;
 
 const players: LiveTrackerPlayer[] = [
   { id: "1189356946680188960", discordUsername: "isydneyzz" },
@@ -98,11 +104,11 @@ const discoveredMatches: LiveTrackerMatchSummary[] = [
 ];
 
 // Sample raw match data - imported from real match JSON files
-const sampleRawMatches: Record<string, unknown> = {
-  "85022d98-5829-4da2-85ae-32b8cb48bbdd": match1,
-  "4ddc5187-d08d-48fc-96a3-8a490e577795": match2,
-  "d127af7f-079c-4b28-a3ae-6e1bcdd44438": match3,
-  "688cc0ac-2266-40e2-a3dd-a1f5b992f046": match4,
+const sampleRawMatches: Record<string, MatchStats> = {
+  "85022d98-5829-4da2-85ae-32b8cb48bbdd": matchStats1,
+  "4ddc5187-d08d-48fc-96a3-8a490e577795": matchStats2,
+  "d127af7f-079c-4b28-a3ae-6e1bcdd44438": matchStats3,
+  "688cc0ac-2266-40e2-a3dd-a1f5b992f046": matchStats4,
 };
 
 export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
@@ -120,6 +126,36 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     rawMatches: sampleRawMatches,
     seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
+    medalMetadata: {
+      269174970: { name: "Boxer", sortingWeight: 50 },
+      548533137: { name: "Back Smack", sortingWeight: 50 },
+      555849395: { name: "Bodyguard", sortingWeight: 50 },
+      580478179: { name: "Hill Guardian", sortingWeight: 100 },
+      622331684: { name: "Double Kill", sortingWeight: 100 },
+      835814121: { name: "Overkill", sortingWeight: 220 },
+      1169571763: { name: "Shot Caller", sortingWeight: 100 },
+      1211820913: { name: "Fastball", sortingWeight: 200 },
+      1284032216: { name: "Wingman", sortingWeight: 50 },
+      1512363953: { name: "Perfect", sortingWeight: 100 },
+      2063152177: { name: "Triple Kill", sortingWeight: 150 },
+      2123530881: { name: "Reversal", sortingWeight: 50 },
+      2477555653: { name: "Spotter", sortingWeight: 50 },
+      2602963073: { name: "No Scope", sortingWeight: 100 },
+      2625820422: { name: "From the Grave", sortingWeight: 50 },
+      2780740615: { name: "Killing Spree", sortingWeight: 100 },
+      2852571933: { name: "Rifleman", sortingWeight: 50 },
+      3091261182: { name: "Last Shot", sortingWeight: 50 },
+      3217141618: { name: "Achilles Spine", sortingWeight: 150 },
+      3233952928: { name: "Killjoy", sortingWeight: 50 },
+      3334154676: { name: "Guardian Angel", sortingWeight: 50 },
+      3488248720: { name: "Stopped Short", sortingWeight: 50 },
+      3655682764: { name: "Stick", sortingWeight: 50 },
+      3732790338: { name: "Fumble", sortingWeight: 100 },
+      3905838030: { name: "Cluster Luck", sortingWeight: 100 },
+      4100966367: { name: "Extermination", sortingWeight: 200 },
+      4229934157: { name: "Snipe", sortingWeight: 50 },
+      4277328263: { name: "Sharpshooter", sortingWeight: 50 },
+    },
   },
   timestamp: "2025-12-24T03:52:10.687Z",
 };

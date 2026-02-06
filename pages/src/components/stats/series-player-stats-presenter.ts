@@ -1,12 +1,16 @@
-import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
+import type { MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
 import { Preconditions } from "../../base/preconditions.mts";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
-import type { MatchStatsData, MatchStatsPlayerData, PlayerTeamStats, StatsCollection, StatsValue } from "./types";
+import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 
 export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
-  getSeriesData(matches: MatchStats[], players: Map<string, string>): MatchStatsData[] {
+  getSeriesData(
+    matches: MatchStats[],
+    players: Map<string, string>,
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): MatchStatsData[] {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
 
@@ -40,6 +44,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
 
         const stats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
         const outputStats = this.transformStats(seriesBestValues, teamBestValues, stats);
+        const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
 
         const playedGames = playerMatches.get(teamPlayer.PlayerId)?.length ?? 0;
         const gamesInfo =
@@ -48,6 +53,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         playerStats.push({
           name: `${playerGamertag}${gamesInfo}`,
           values: outputStats,
+          medals: this.extractMedals(playerCoreStats, medalMetadata),
         });
       }
 
@@ -55,6 +61,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         teamId: team.TeamId,
         teamStats: [],
         players: playerStats,
+        teamMedals: this.aggregateTeamMedals(playerStats),
       });
     }
 
@@ -76,36 +83,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     }
 
     return playerMatches;
-  }
-
-  private aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
-    const playerCoreStats = new Map<string, Stats["CoreStats"]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        const { PlayerId } = player;
-        const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<GameVariantCategory>;
-        const { CoreStats } = stats.Stats;
-
-        if (!playerCoreStats.has(PlayerId)) {
-          playerCoreStats.set(PlayerId, CoreStats);
-          continue;
-        }
-
-        const mergedStats = this.mergeCoreStats(Preconditions.checkExists(playerCoreStats.get(PlayerId)), CoreStats);
-        playerCoreStats.set(PlayerId, mergedStats);
-      }
-    }
-
-    // adjust some of the values which should be averages rather than sums
-    for (const [playerId, stats] of playerCoreStats.entries()) {
-      playerCoreStats.set(playerId, this.adjustAveragesInCoreStats(stats, matches.length));
-    }
-
-    return playerCoreStats;
   }
 
   private getPlayerSlayerStats(stats: Stats): StatsCollection {
@@ -149,6 +126,19 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
           value: this.getDurationInSeconds(CoreStats.AverageLifeDuration),
           sortBy: StatsValueSortBy.DESC,
           display: this.getReadableDuration(CoreStats.AverageLifeDuration),
+        },
+      ],
+      [
+        "Avg damage per life",
+        {
+          value:
+            CoreStats.DamageDealt === 0
+              ? 0
+              : CoreStats.Deaths === 0
+                ? Number.POSITIVE_INFINITY
+                : CoreStats.DamageDealt / CoreStats.Deaths,
+          sortBy: StatsValueSortBy.DESC,
+          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
         },
       ],
     ]);
@@ -251,5 +241,23 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
       bestInMatch: matchBestValues.get(key) === statValue,
       display: display ?? this.formatStatValue(statValue),
     };
+  }
+
+  private extractMedals(
+    coreStats: Stats["CoreStats"],
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): {
+    name: string;
+    count: number;
+    sortingWeight: number;
+  }[] {
+    return coreStats.Medals.map((medal) => {
+      const metadata = medalMetadata?.[medal.NameId];
+      return {
+        name: metadata?.name ?? medal.NameId.toString(),
+        count: medal.Count,
+        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
+      };
+    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 }

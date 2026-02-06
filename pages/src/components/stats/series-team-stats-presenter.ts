@@ -2,11 +2,15 @@ import type { MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
 import { Preconditions } from "../../base/preconditions.mts";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
-import type { MatchStatsData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
+import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 
 export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
-  getSeriesData(matches: MatchStats[]): MatchStatsData[] {
+  getSeriesData(
+    matches: MatchStats[],
+    players: Map<string, string>,
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): MatchStatsData[] {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
 
@@ -17,14 +21,37 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
     }
 
     const bestTeamValues = this.getBestStatValues(teamStats);
+    const playersCoreStats = this.aggregatePlayerCoreStats(matches);
 
     for (const team of firstMatch.Teams) {
       const stats = Preconditions.checkExists(teamStats.get(team.TeamId));
+      const teamPlayers = this.getTeamPlayersFromMatches(matches, team);
+
+      const playerStats: MatchStatsPlayerData[] = [];
+      for (const teamPlayer of teamPlayers) {
+        const playerXuid = this.getPlayerXuid(teamPlayer);
+        const playerGamertag =
+          teamPlayer.PlayerType === 1
+            ? Preconditions.checkExists(
+                players.get(playerXuid),
+                `Unable to find player gamertag for XUID ${playerXuid}`,
+              )
+            : "Bot";
+
+        const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
+
+        playerStats.push({
+          name: playerGamertag,
+          values: [],
+          medals: this.extractMedals(playerCoreStats, medalMetadata),
+        });
+      }
 
       results.push({
         teamId: team.TeamId,
         teamStats: this.transformTeamStats(bestTeamValues, stats),
-        players: [],
+        players: playerStats,
+        teamMedals: this.aggregateTeamMedals(playerStats),
       });
     }
 
@@ -72,6 +99,19 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
           value: this.getDurationInSeconds(CoreStats.AverageLifeDuration),
           sortBy: StatsValueSortBy.DESC,
           display: this.getReadableDuration(CoreStats.AverageLifeDuration),
+        },
+      ],
+      [
+        "Avg damage per life",
+        {
+          value:
+            CoreStats.DamageDealt === 0
+              ? 0
+              : CoreStats.Deaths === 0
+                ? Number.POSITIVE_INFINITY
+                : CoreStats.DamageDealt / CoreStats.Deaths,
+          sortBy: StatsValueSortBy.DESC,
+          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
         },
       ],
     ]);
@@ -181,5 +221,23 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
       bestInMatch: matchBestValues.get(key) === statValue,
       display: display ?? this.formatStatValue(statValue),
     };
+  }
+
+  private extractMedals(
+    coreStats: Stats["CoreStats"],
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): {
+    name: string;
+    count: number;
+    sortingWeight: number;
+  }[] {
+    return coreStats.Medals.map((medal) => {
+      const metadata = medalMetadata?.[medal.NameId];
+      return {
+        name: metadata?.name ?? medal.NameId.toString(),
+        count: medal.Count,
+        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
+      };
+    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 }

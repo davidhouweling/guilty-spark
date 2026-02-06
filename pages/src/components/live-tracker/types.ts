@@ -43,6 +43,7 @@ export interface LiveTrackerStateRenderModel {
   readonly matches: readonly LiveTrackerMatchRenderModel[];
   readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly seriesScore: string;
+  readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
 }
 
 export interface LiveTrackerViewModel {

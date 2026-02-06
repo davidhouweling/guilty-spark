@@ -67,7 +67,11 @@ export abstract class BaseMatchStatsPresenter {
     ]);
   }
 
-  getData(match: MatchStats, players: Map<string, string>): MatchStatsData[] {
+  getData(
+    match: MatchStats,
+    players: Map<string, string>,
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): MatchStatsData[] {
     const results: MatchStatsData[] = [];
 
     const teamsStats = new Map<number, StatsCollection>(
@@ -113,6 +117,10 @@ export abstract class BaseMatchStatsPresenter {
               )
             : "Bot";
 
+        const playerTeamStats = Preconditions.checkExists(
+          teamPlayer.PlayerTeamStats.find((pts) => pts.TeamId === team.TeamId),
+        );
+
         const outputStats = this.transformStats(
           matchBestPlayerValues,
           teamBestValues,
@@ -121,6 +129,7 @@ export abstract class BaseMatchStatsPresenter {
         playerStats.push({
           name: playerGamertag,
           values: outputStats,
+          medals: this.extractMedals(playerTeamStats.Stats.CoreStats, medalMetadata),
         });
       }
 
@@ -128,9 +137,27 @@ export abstract class BaseMatchStatsPresenter {
         teamId: team.TeamId,
         teamStats: this.transformTeamStats(matchBestTeamValues, teamStats),
         players: playerStats,
+        teamMedals: this.aggregateTeamMedals(playerStats),
       });
     }
     return results;
+  }
+
+  protected aggregateTeamMedals(
+    players: MatchStatsPlayerData[],
+  ): { name: string; count: number; sortingWeight: number }[] {
+    const medalMap = new Map<string, { name: string; count: number; sortingWeight: number }>();
+    for (const player of players) {
+      for (const medal of player.medals) {
+        const existing = medalMap.get(medal.name);
+        if (existing) {
+          existing.count += medal.count;
+        } else {
+          medalMap.set(medal.name, { ...medal });
+        }
+      }
+    }
+    return Array.from(medalMap.values()).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 
   protected getDurationInSeconds(duration: string): number {
@@ -257,6 +284,24 @@ export abstract class BaseMatchStatsPresenter {
 
   private getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+  }
+
+  private extractMedals(
+    coreStats: MatchStats["Teams"][0]["Stats"]["CoreStats"],
+    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
+  ): {
+    name: string;
+    count: number;
+    sortingWeight: number;
+  }[] {
+    return coreStats.Medals.map((medal) => {
+      const metadata = medalMetadata?.[medal.NameId];
+      return {
+        name: metadata?.name ?? medal.NameId.toString(),
+        count: medal.Count,
+        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
+      };
+    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 
   private transformTeamStats(matchBestValues: Map<string, number>, teamStats: StatsCollection): MatchStatsValues[] {

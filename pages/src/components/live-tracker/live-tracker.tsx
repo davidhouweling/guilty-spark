@@ -73,7 +73,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         const matchStats = match.rawMatchStats;
         const presenter = createMatchStatsPresenter(matchStats.MatchInfo.GameVariantCategory);
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return { matchId: match.matchId, data: presenter.getData(matchStats, playerMap) };
+        return { matchId: match.matchId, data: presenter.getData(matchStats, playerMap, model.state?.medalMetadata) };
       } catch (error) {
         console.error("Error processing match stats:", error);
         return { matchId: match.matchId, data: null };
@@ -106,8 +106,8 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       }
 
       return {
-        teamData: teamPresenter.getSeriesData(rawMatchStats),
-        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag),
+        teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
+        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
       };
     } catch (error) {
       console.error("Error processing series stats:", error);
