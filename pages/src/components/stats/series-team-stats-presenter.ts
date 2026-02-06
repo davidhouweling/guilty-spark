@@ -101,6 +101,19 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
           display: this.getReadableDuration(CoreStats.AverageLifeDuration),
         },
       ],
+      [
+        "Avg damage per life",
+        {
+          value:
+            CoreStats.DamageDealt === 0
+              ? 0
+              : CoreStats.Deaths === 0
+                ? Number.POSITIVE_INFINITY
+                : CoreStats.DamageDealt / CoreStats.Deaths,
+          sortBy: StatsValueSortBy.DESC,
+          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
+        },
+      ],
     ]);
   }
 
