@@ -85,5 +85,6 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     matches,
     substitutions,
     seriesScore: message.data.seriesScore,
+    medalMetadata: message.data.medalMetadata,
   };
 }

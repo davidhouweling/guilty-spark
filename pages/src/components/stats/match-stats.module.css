@@ -182,6 +182,22 @@
   text-underline-offset: 3px;
 }
 
+.medalsContainer {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.medalItem {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+}
+
+.medalCount {
+  font-size: 0.85em;
+}
+
 /* Media Queries - Tablet and Above */
 @media (--tablet-viewport) {
   .matchHeader {

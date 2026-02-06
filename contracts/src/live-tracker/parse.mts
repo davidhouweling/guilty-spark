@@ -1,3 +1,4 @@
+import type { MatchStats } from "halo-infinite-api";
 import {
   readJsonArray,
   readJsonObject,
@@ -154,8 +155,9 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
   const teamsArray = readJsonArray(data["teams"] ?? null);
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
   const matchesArray = readJsonArray(data["discoveredMatches"] ?? null);
-  const rawMatches = readRecord(data["rawMatches"] ?? null);
+  const rawMatches = readRecord<string, MatchStats>(data["rawMatches"] ?? null);
   const seriesScore = readString(data["seriesScore"] ?? null);
+  const medalMetadata = readRecord<string, { name: string; sortingWeight: number }>(data["medalMetadata"] ?? null);
 
   if (
     guildId === null ||
@@ -169,7 +171,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     substitutionsArray === null ||
     matchesArray === null ||
     rawMatches === null ||
-    seriesScore === null
+    seriesScore === null ||
+    medalMetadata === null
   ) {
     return null;
   }
@@ -223,6 +226,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     rawMatches,
     seriesScore,
     lastUpdateTime,
+    medalMetadata,
   };
 }
 

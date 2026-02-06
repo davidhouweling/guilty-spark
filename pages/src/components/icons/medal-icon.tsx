@@ -336,7 +336,9 @@ const sizeMap = new Map<MedalIconProps["size"], number>([
 ]);
 
 export function MedalIcon({ medalName, size = "medium" }: MedalIconProps): JSX.Element | null {
-  const medalSrc = medals.get(medalName);
+  // Normalize medal name by removing spaces to match our medal map keys
+  const normalizedMedalName = medalName.replace(/\s+/g, "");
+  const medalSrc = medals.get(normalizedMedalName);
   if (medalSrc == null) {
     return null;
   }

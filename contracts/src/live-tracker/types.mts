@@ -46,6 +46,7 @@ export interface LiveTrackerStateData {
   readonly rawMatches: Record<string, unknown>;
   readonly seriesScore: string;
   readonly lastUpdateTime: string;
+  readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
 }
 
 export interface LiveTrackerStateMessage {

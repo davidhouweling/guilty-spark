@@ -24,12 +24,12 @@ export function readNullableString(value: JsonValue): string | null {
   return value === null ? null : readString(value);
 }
 
-export function readRecord(value: JsonValue): Record<string, unknown> | null {
+export function readRecord<K extends string | number | symbol, T>(value: JsonValue): Record<K, T> | null {
   const obj = readJsonObject(value);
   if (!obj) {
     return null;
   }
-  return obj as Record<string, unknown>;
+  return obj as Record<K, T>;
 }
 
 export function readStringRecord(value: JsonValue): Record<string, string> | null {

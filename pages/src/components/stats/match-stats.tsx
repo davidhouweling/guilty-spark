@@ -72,6 +72,29 @@ export function MatchStats({
         },
         sortingFn: "basic" as const,
       })),
+      {
+        id: "medals",
+        header: "Medals",
+        accessorFn: (row: MatchStatsData): number => {
+          return row.players.reduce(
+            (teamTotal, player) => teamTotal + player.medals.reduce((sum, medal) => sum + medal.count, 0),
+            0,
+          );
+        },
+        cell: (_value: unknown, row: MatchStatsData): React.ReactNode => (
+          <div className={styles.medalsContainer}>
+            {row.teamMedals.map((medal, idx) => (
+              <span key={idx} className={styles.medalItem}>
+                {medal.count > 1 ? <span className={styles.medalCount}>{medal.count}×</span> : null}
+                <MedalIcon medalName={medal.name} size="small" />
+              </span>
+            ))}
+          </div>
+        ),
+        headerClassName: undefined,
+        cellClassName: tableStyles.statCell,
+        sortingFn: "basic" as const,
+      },
     ];
   }, [data, hasTeamStats]);
 
@@ -124,10 +147,10 @@ export function MatchStats({
           return row.player.medals.reduce((sum, medal) => sum + medal.count, 0);
         },
         cell: (_value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => (
-          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-            {row.player.medals.slice(0, 10).map((medal, idx) => (
-              <span key={idx} style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-                {medal.count > 1 ? <span style={{ fontSize: "0.85em" }}>{medal.count}×</span> : null}
+          <div className={styles.medalsContainer}>
+            {row.player.medals.map((medal, idx) => (
+              <span key={idx} className={styles.medalItem}>
+                {medal.count > 1 ? <span className={styles.medalCount}>{medal.count}×</span> : null}
                 <MedalIcon medalName={medal.name} size="small" />
               </span>
             ))}

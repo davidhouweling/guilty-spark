@@ -19,6 +19,7 @@ describe("tryParseLiveTrackerMessage", () => {
         discoveredMatches: [],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
+        medalMetadata: {},
       },
     });
 
@@ -47,6 +48,7 @@ describe("tryParseLiveTrackerMessage", () => {
         discoveredMatches: [],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
+        medalMetadata: {},
       },
     });
 
@@ -152,6 +154,7 @@ describe("tryParseLiveTrackerMessage", () => {
           discoveredMatches: [],
           rawMatches: {},
           seriesScore: "🦅 0:0 🐍",
+          medalMetadata: {},
         },
       });
 
