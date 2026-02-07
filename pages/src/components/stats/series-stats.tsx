@@ -5,16 +5,17 @@ import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
+import type { SeriesMetadata } from "./series-metadata";
 import styles from "./match-stats.module.css";
 
 interface SeriesStatsProps {
   readonly teamData: MatchStatsData[];
   readonly playerData: MatchStatsData[];
   readonly title: string;
-  readonly subtitle?: string;
+  readonly metadata: SeriesMetadata | null;
 }
 
-export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesStatsProps): React.ReactElement {
+export function SeriesStats({ teamData, playerData, title, metadata }: SeriesStatsProps): React.ReactElement {
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
 
@@ -170,11 +171,26 @@ export function SeriesStats({ teamData, playerData, title, subtitle }: SeriesSta
       >
         <div className={styles.matchHeaderContent}>
           <h3 className={styles.matchTitle}>{title}</h3>
-          {subtitle != null && subtitle.length > 0 ? (
-            <div className={styles.matchMetadata}>
-              <span className={styles.matchMetaValue}>{subtitle}</span>
-            </div>
-          ) : null}
+          {metadata != null && (
+            <ul className={styles.matchMetadata}>
+              <li>
+                <span className={styles.matchMetaLabel}>Score:</span>{" "}
+                <span className={styles.matchMetaValue}>{metadata.score}</span>
+              </li>
+              <li>
+                <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+                <span className={styles.matchMetaValue}>{metadata.duration}</span>
+              </li>
+              <li>
+                <span className={styles.matchMetaLabel}>Start time:</span>{" "}
+                <span className={styles.matchMetaValue}>{new Date(metadata.startTime).toLocaleString()}</span>
+              </li>
+              <li>
+                <span className={styles.matchMetaLabel}>End time:</span>{" "}
+                <span className={styles.matchMetaValue}>{new Date(metadata.endTime).toLocaleString()}</span>
+              </li>
+            </ul>
+          )}
         </div>
       </div>
 

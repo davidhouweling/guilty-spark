@@ -14,6 +14,7 @@ import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
+import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import styles from "./live-tracker.module.css";
@@ -81,7 +82,11 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     });
   }, [model.state]);
 
-  const seriesStats = useMemo((): { teamData: MatchStatsData[]; playerData: MatchStatsData[] } | null => {
+  const seriesStats = useMemo((): {
+    teamData: MatchStatsData[];
+    playerData: MatchStatsData[];
+    metadata: SeriesMetadata | null;
+  } | null => {
     if (!model.state || model.state.matches.length === 0) {
       return null;
     }
@@ -105,9 +110,12 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         }
       }
 
+      const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
+
       return {
         teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
         playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
+        metadata,
       };
     } catch (error) {
       console.error("Error processing series stats:", error);
@@ -226,7 +234,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   teamData={seriesStats.teamData}
                   playerData={seriesStats.playerData}
                   title="Series Totals"
-                  subtitle="Legend: Bold = Best in team | Underline = Best overall"
+                  metadata={seriesStats.metadata}
                 />
               </Container>
             )}
