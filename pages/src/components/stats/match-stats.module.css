@@ -16,7 +16,7 @@
   align-items: flex-start;
   background-image:
     linear-gradient(to bottom, transparent 50%, var(--halo-bg-secondary) 100%),
-    linear-gradient(to bottom, rgb(10 14 20 / 50%), rgb(10 14 20 / 50%)), var(--match-bg);
+    linear-gradient(to bottom, rgb(10 14 20 / 50%), rgb(10 14 20 / 0%)), var(--match-bg);
   background-position: center;
   background-size: cover;
   display: flex;

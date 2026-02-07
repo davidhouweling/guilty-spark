@@ -176,6 +176,7 @@ const aMatchSummaryWith = (
   duration: "7m 30s",
   gameScore: "50:47",
   gameSubScore: null,
+  startTime: new Date("2023-12-31T23:52:30.000Z").toISOString(),
   endTime: new Date("2024-01-01T00:00:00.000Z").toISOString(),
   playerXuidToGametag: {},
   ...overrides,
@@ -1233,6 +1234,7 @@ describe("LiveTrackerDO", () => {
               gameTypeAndMap: expect.any(String) as string,
               duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
+              startTime: expect.any(String) as string,
               endTime: expect.any(String) as string,
             }) as LiveTrackerState["discoveredMatches"][string],
             "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
@@ -1240,6 +1242,7 @@ describe("LiveTrackerDO", () => {
               gameTypeAndMap: expect.any(String) as string,
               duration: expect.any(String) as string,
               gameScore: expect.any(String) as string,
+              startTime: expect.any(String) as string,
               endTime: expect.any(String) as string,
             }) as LiveTrackerState["discoveredMatches"][string],
           }) as LiveTrackerState["discoveredMatches"],

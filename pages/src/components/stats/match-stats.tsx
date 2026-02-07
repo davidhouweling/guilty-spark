@@ -18,6 +18,7 @@ interface MatchStatsProps {
   readonly gameTypeAndMap: string;
   readonly duration: string;
   readonly score: string;
+  readonly startTime: string;
   readonly endTime: string;
 }
 
@@ -31,6 +32,7 @@ export function MatchStats({
   gameTypeAndMap,
   duration,
   score,
+  startTime,
   endTime,
 }: MatchStatsProps): React.ReactElement {
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
@@ -192,8 +194,12 @@ export function MatchStats({
               <span className={styles.matchMetaValue}>{duration}</span>
             </li>
             <li>
+              <span className={styles.matchMetaLabel}>Start time:</span>{" "}
+              <span className={styles.matchMetaValue}>{new Date(startTime).toLocaleString()}</span>
+            </li>
+            <li>
               <span className={styles.matchMetaLabel}>End time:</span>{" "}
-              <span className={styles.matchMetaValue}>{endTime}</span>
+              <span className={styles.matchMetaValue}>{new Date(endTime).toLocaleString()}</span>
             </li>
           </ul>
         </div>

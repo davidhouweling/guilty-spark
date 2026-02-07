@@ -14,6 +14,7 @@ export interface LiveTrackerMatchSummary {
   readonly duration: string;
   readonly gameScore: string;
   readonly gameSubScore: string | null;
+  readonly startTime: string;
   readonly endTime: string;
   readonly playerXuidToGametag: Record<string, string>;
 }

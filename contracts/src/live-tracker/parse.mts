@@ -108,6 +108,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const duration = readString(match["duration"] ?? null);
   const gameScore = readString(match["gameScore"] ?? null);
   const gameSubScore = readString(match["gameSubScore"] ?? null);
+  const startTime = readString(match["startTime"] ?? null);
   const endTime = readString(match["endTime"] ?? null);
   const playerXuidToGametag = readStringRecord(match["playerXuidToGametag"] ?? null);
 
@@ -119,6 +120,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     gameMapThumbnailUrl === null ||
     duration === null ||
     gameScore === null ||
+    startTime === null ||
     endTime === null ||
     playerXuidToGametag === null
   ) {
@@ -134,6 +136,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     duration,
     gameScore,
     gameSubScore,
+    startTime,
     endTime,
     playerXuidToGametag,
   };
