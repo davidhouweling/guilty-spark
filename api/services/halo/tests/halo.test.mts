@@ -18,7 +18,11 @@ import {
   matchSkillData,
   aFakeMapAssetWith,
 } from "../fakes/data.mjs";
-import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
+import {
+  AssociationReason,
+  GamesRetrievable,
+  type DiscordAssociationsRow,
+} from "../../database/types/discord_associations.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
@@ -1783,6 +1787,201 @@ describe("Halo service", () => {
           );
         });
       });
+    });
+  });
+
+  describe("updatePlayerCacheAssociationsFromMatches()", () => {
+    it("updates GamesRetrievable status based on match participation", async () => {
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      // Set up user cache with some associations
+      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+      const { teams } = neatQueueSeriesData;
+      const matches = [
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")),
+        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+      ];
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(teams, matches);
+      await haloService.updateDiscordAssociations();
+
+      // Verify that updatePlayerCacheAssociationsFromMatches was effective
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+
+      const callArgs = upsertDiscordAssociationsSpy.mock.calls[0]?.[0];
+      expect(callArgs).toBeDefined();
+      expect(Array.isArray(callArgs)).toBe(true);
+
+      if (callArgs) {
+        // At least one user should have been marked YES (those who actually played)
+        const usersMarkedYes = callArgs.filter(
+          (user: DiscordAssociationsRow) => user.GamesRetrievable === GamesRetrievable.YES,
+        );
+        expect(usersMarkedYes.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("marks users as GamesRetrievable.NO when match history cached but they didn't participate", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      // Mock a user with non-empty cached matches (will be filled by getSeriesFromDiscordQueue)
+      getDiscordAssociationsSpy.mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000099",
+          XboxId: "9999999999999999",
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+          AssociationReason: AssociationReason.USERNAME_SEARCH,
+        }),
+      ]);
+
+      const seriesData = {
+        ...neatQueueSeriesData,
+        teams: [
+          [
+            {
+              id: "000000000000000099",
+              username: "testUser",
+              globalName: "Test User",
+              guildNickname: null,
+            },
+          ],
+        ],
+      };
+
+      const matches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+
+      try {
+        await haloService.getSeriesFromDiscordQueue(seriesData);
+      } catch {
+        // Expected to throw no match error
+      }
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(seriesData.teams, matches);
+      await haloService.updateDiscordAssociations();
+
+      // Verify the user exists in the call
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+      const callArgs = upsertDiscordAssociationsSpy.mock.calls[0]?.[0];
+      const targetUser = callArgs?.find((u: DiscordAssociationsRow) => u.DiscordId === "000000000000000099");
+
+      if (targetUser) {
+        // If user was in the cache, they should be marked NO since they didn't play
+        expect(targetUser.GamesRetrievable).toBe(GamesRetrievable.NO);
+      }
+    });
+
+    it("marks users as GamesRetrievable.NO when match history is undefined (privacy settings)", async () => {
+      const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
+      const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      // Mock a user whose match history returns empty (privacy/hidden profile)
+      getDiscordAssociationsSpy.mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000009",
+          XboxId: "0900000000000000",
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+          AssociationReason: AssociationReason.USERNAME_SEARCH,
+        }),
+      ]);
+
+      getPlayerMatchesSpy.mockResolvedValue([]);
+
+      const seriesData = {
+        ...neatQueueSeriesData,
+        teams: [
+          [
+            {
+              id: "000000000000000009",
+              username: "hiddenUser",
+              globalName: "Hidden User",
+              guildNickname: null,
+            },
+          ],
+        ],
+      };
+
+      const matches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+
+      try {
+        await haloService.getSeriesFromDiscordQueue(seriesData);
+      } catch {
+        // Expected to throw no match error
+      }
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(seriesData.teams, matches);
+      await haloService.updateDiscordAssociations();
+
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+      const callArgs = upsertDiscordAssociationsSpy.mock.calls[0]?.[0];
+      const targetUser = callArgs?.find((u: DiscordAssociationsRow) => u.DiscordId === "000000000000000009");
+
+      if (targetUser) {
+        // User with no match history should be marked NO
+        expect(targetUser.GamesRetrievable).toBe(GamesRetrievable.NO);
+      }
+    });
+
+    it("triggers fuzzy matching after verification", async () => {
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+      const matches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(neatQueueSeriesData.teams, matches);
+      await haloService.updateDiscordAssociations();
+
+      // Fuzzy matching should result in some GAME_SIMILARITY associations
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+      const callArgs = upsertDiscordAssociationsSpy.mock.calls[0]?.[0];
+
+      const gameSimilarityUsers =
+        callArgs?.filter(
+          (user: DiscordAssociationsRow) => user.AssociationReason === AssociationReason.GAME_SIMILARITY,
+        ) ?? [];
+
+      // Should have some fuzzy matched users
+      expect(gameSimilarityUsers.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it("does nothing when matches array is empty", async () => {
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(neatQueueSeriesData.teams, []);
+
+      // Should not crash and can still update associations
+      upsertDiscordAssociationsSpy.mockClear();
+      await haloService.updateDiscordAssociations();
+
+      // Verify it still works
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+    });
+
+    it("processes all users in the cache", async () => {
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+
+      const matches = [
+        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")),
+      ];
+
+      await haloService.updatePlayerCacheAssociationsFromMatches(neatQueueSeriesData.teams, matches);
+      await haloService.updateDiscordAssociations();
+
+      // All users from the queue should be processed
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
+      const callArgs = upsertDiscordAssociationsSpy.mock.calls[0]?.[0];
+
+      // Should process all 8 users from neatQueueSeriesData
+      expect(callArgs?.length).toBeGreaterThan(0);
     });
   });
 

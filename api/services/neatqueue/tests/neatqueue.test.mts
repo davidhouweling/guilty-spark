@@ -25,6 +25,8 @@ import { getFakeNeatQueueData } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest } from "../types.mjs";
 import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
+import type { LiveTrackerStatusSuccessResponse, LiveTrackerRefreshResponse } from "../../../durable-objects/types.mjs";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
 import {
   aGuildMemberWith,
   apiMessage,
@@ -53,6 +55,7 @@ describe("NeatQueueService", () => {
   let databaseService: DatabaseService;
   let discordService: DiscordService;
   let haloService: HaloService;
+  let liveTrackerService: ReturnType<typeof aFakeLiveTrackerServiceWith>;
   let neatQueueService: NeatQueueService;
 
   beforeEach(() => {
@@ -64,7 +67,7 @@ describe("NeatQueueService", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    const liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
+    liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     neatQueueService = new NeatQueueService({
       env,
       logService,
@@ -862,6 +865,97 @@ describe("NeatQueueService", () => {
           expect(haloServiceUpdateDiscordAssociationsSpy).toHaveBeenCalled();
         });
 
+        it("calls haloService.updatePlayerCacheAssociationsFromMatches when series data is available", async () => {
+          const updatePlayerCacheAssociationsSpy = vi.spyOn(haloService, "updatePlayerCacheAssociationsFromMatches");
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+          await jobToComplete?.();
+
+          expect(updatePlayerCacheAssociationsSpy).toHaveBeenCalled();
+          const [callArgs] = updatePlayerCacheAssociationsSpy.mock.calls;
+          const [teams, matches] = callArgs ?? [];
+
+          // Verify teams parameter structure
+          expect(Array.isArray(teams)).toBe(true);
+          expect(teams?.length).toBeGreaterThan(0);
+
+          // Verify matches parameter structure
+          expect(Array.isArray(matches)).toBe(true);
+          expect(matches?.length).toBeGreaterThan(0);
+          expect(matches?.[0]).toHaveProperty("MatchId");
+        });
+
+        it("calls updatePlayerCacheAssociationsFromMatches in parallel with posting series data", async () => {
+          const updatePlayerCacheAssociationsSpy = vi
+            .spyOn(haloService, "updatePlayerCacheAssociationsFromMatches")
+            .mockResolvedValue(undefined);
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+          await jobToComplete?.();
+
+          // Both should have been called
+          expect(updatePlayerCacheAssociationsSpy).toHaveBeenCalled();
+          expect(discordServiceCreateMessageSpy).toHaveBeenCalled();
+
+          // Verify updatePlayerCacheAssociationsFromMatches was called before updateDiscordAssociations
+          expect(updatePlayerCacheAssociationsSpy).toHaveBeenCalledBefore(haloServiceUpdateDiscordAssociationsSpy);
+        });
+
+        it("does not call updatePlayerCacheAssociationsFromMatches when series retrieval fails", async () => {
+          const updatePlayerCacheAssociationsSpy = vi.spyOn(haloService, "updatePlayerCacheAssociationsFromMatches");
+          haloServiceGetSeriesFromDiscordQueueSpy.mockReset().mockRejectedValue(new Error("Failed to get series"));
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+          await jobToComplete?.();
+
+          expect(updatePlayerCacheAssociationsSpy).not.toHaveBeenCalled();
+          expect(haloServiceUpdateDiscordAssociationsSpy).toHaveBeenCalled();
+        });
+
+        it("retrieves team composition from queue results when using live tracker data", async () => {
+          const updatePlayerCacheAssociationsSpy = vi.spyOn(haloService, "updatePlayerCacheAssociationsFromMatches");
+          const statusResponse: LiveTrackerStatusSuccessResponse = {
+            state: aFakeLiveTrackerStateWith({ status: "active" }),
+          };
+          const refreshResponse: LiveTrackerRefreshResponse = {
+            success: true,
+            state: aFakeLiveTrackerStateWith({
+              rawMatches: {
+                match1: Preconditions.checkExists(Array.from(matchStats.values())[0]),
+                match2: Preconditions.checkExists(Array.from(matchStats.values())[1]),
+              },
+            }),
+          };
+          vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue(statusResponse);
+          vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue(refreshResponse);
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+          await jobToComplete?.();
+
+          // Should fetch queue message to get teams
+          expect(getTeamsFromQueueSpy).toHaveBeenCalled();
+
+          // Should call with teams from queue message
+          expect(updatePlayerCacheAssociationsSpy).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              expect.any(Array), // Team arrays
+            ]),
+            expect.arrayContaining([expect.objectContaining({ MatchId: expect.any(String) as string })]),
+          );
+        });
+
         it("handles missing results message", async () => {
           const logSpy =
             mode === NeatQueuePostSeriesDisplayMode.THREAD
@@ -883,23 +977,22 @@ describe("NeatQueueService", () => {
             const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
             expect(error).toBeInstanceOf(EndUserError);
             expect((error as EndUserError).endUserMessage).toBe(errorMessage);
-            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data to thread"]]));
+            expect(reasonMap).toEqual(new Map([["reason", "Failed to post error to thread"]]));
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).not.toHaveBeenCalled();
           } else {
-            expect(logSpy).toHaveBeenCalledOnce();
-            const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
-            expect(error).toBeInstanceOf(EndUserError);
-            expect((error as EndUserError).endUserMessage).toBe(errorMessage);
-            expect((error as EndUserError).data).toEqual({
-              Channel: `<#results-channel-1>`,
-              Completed: "<t:1732618080:f>",
-              Queue: "2",
-            });
-            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data direct to channel"]]));
+            // For MESSAGE/CHANNEL modes, postErrorByChannel successfully posts the error message
+            expect(logSpy).not.toHaveBeenCalled();
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
-            expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
+
+            // Verify the error message was posted
+            const [postedChannelId, messageData] = discordServiceCreateMessageSpy.mock.calls[0] ?? [];
+            expect(postedChannelId).toBe(
+              mode === NeatQueuePostSeriesDisplayMode.MESSAGE ? "results-channel-1" : "other-channel-id",
+            );
+            expect(messageData).toHaveProperty("embeds");
+            expect(messageData).toHaveProperty("components");
             expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
           }
         });
