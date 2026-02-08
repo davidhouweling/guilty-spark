@@ -785,30 +785,6 @@ export class HaloService {
     }
   }
 
-  async updatePlayerCacheAssociationsFromMatches(teams: MatchPlayer[][], matches: MatchStats[]): Promise<void> {
-    if (matches.length === 0) {
-      return;
-    }
-
-    for (const user of this.userCache.values()) {
-      const { XboxId } = user;
-      const playerHistory = this.playerMatchesCache.get(XboxId);
-
-      // using `some` here because there could be substitutions in the series
-      // as long as the player participated in at least one match in the series, we can be fairly confident that they are associated correctly
-      // even if their association reason is something less reliable like display name search
-      const hasMatchInSeries = playerHistory?.some((match) =>
-        matches.some((seriesMatch) => match.MatchId === seriesMatch.MatchId),
-      );
-      this.userCache.set(user.DiscordId, {
-        ...user,
-        GamesRetrievable: hasMatchInSeries === true ? GamesRetrievable.YES : GamesRetrievable.NO,
-      });
-    }
-
-    await this.fuzzyMatchUnassociatedUsers(teams, [Preconditions.checkExists(matches[matches.length - 1])]);
-  }
-
   async updateDiscordAssociations(): Promise<void> {
     this.logService.debug(
       "Updating discord associations",

@@ -17,7 +17,7 @@ import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.mjs";
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
-import type { LiveTrackerContext, LiveTrackerService } from "../live-tracker/live-tracker.mjs";
+import type { LiveTrackerService } from "../live-tracker/live-tracker.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   SeriesOverviewEmbedFinalTeams,
@@ -847,26 +847,24 @@ export class NeatQueueService {
     request: NeatQueueMatchCompletedRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    const { discordService, haloService, liveTrackerService, logService } = this;
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-    let teams: MatchPlayer[][] = [];
     let series: MatchStats[] = [];
     let errorOccurred = false;
 
     try {
-      const context: LiveTrackerContext = {
+      const context = {
         userId: "", // Not needed for status check
         guildId: request.guild,
         channelId: request.channel,
         queueNumber: request.match_number,
       };
-      const liveTrackerStatus = await liveTrackerService.getTrackerStatus(context);
+      const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
       if (liveTrackerStatus?.state.status === "active") {
-        const refreshResult = await liveTrackerService.refreshTracker(context, true);
+        const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
         if (isSuccessResponse(refreshResult)) {
-          logService.info(
+          this.logService.info(
             "MatchCompletedJob: Retrieved series data from live tracker",
             new Map([
               ["guildId", request.guild],
@@ -875,27 +873,12 @@ export class NeatQueueService {
               ["matchCount", Object.keys(refreshResult.state.rawMatches).length.toString()],
             ]),
           );
-          const queueMessage = await discordService.getTeamsFromQueueResult(
-            neatQueueConfig.GuildId,
-            neatQueueConfig.ResultsChannelId,
-            request.match_number,
-          );
-
-          teams = queueMessage.teams.map((team) =>
-            team.players.map((player) => ({
-              id: player.user.id,
-              username: player.user.username,
-              globalName: player.user.global_name,
-              guildNickname: player.nick ?? null,
-            })),
-          );
-
           series = Object.values(refreshResult.state.rawMatches);
         }
       }
 
       if (series.length === 0) {
-        logService.info(
+        this.logService.info(
           "MatchCompletedJob: Falling back to timeline for series data",
           new Map([
             ["guildId", request.guild],
@@ -906,7 +889,7 @@ export class NeatQueueService {
         series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
       }
     } catch (error) {
-      logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
+      this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
 
       const opts = { request, neatQueueConfig, handledError: error as Error, timeline };
@@ -915,18 +898,14 @@ export class NeatQueueService {
 
     if (!errorOccurred && series.length > 0) {
       const opts = { request, neatQueueConfig, series, timeline };
-
-      await Promise.all([
-        this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts),
-        haloService.updatePlayerCacheAssociationsFromMatches(teams, series),
-      ]);
+      await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
     await Promise.all([
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
       this.deletePlayersMessageId(request, neatQueueConfig),
-      haloService.updateDiscordAssociations(),
+      this.haloService.updateDiscordAssociations(),
     ]);
   }
 

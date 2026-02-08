@@ -485,64 +485,6 @@ describe("DiscordService", () => {
       expect(result.teams[1]?.players).toHaveLength(4);
     });
 
-    it("caches channel messages and doesn't fetch again on subsequent calls", async () => {
-      // First call - should fetch
-      await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7);
-      expect(mockFetch).toHaveBeenCalledTimes(9); // 8 guild member fetches + 1 channel messages fetch
-
-      mockFetch.mockClear();
-
-      // Second call - should use cache
-      await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7);
-      expect(mockFetch).toHaveBeenCalledTimes(0); // No new fetches, all from cache
-    });
-
-    it("caches messages per channel independently", async () => {
-      // First call to fake-channel
-      await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 7);
-
-      mockFetch.mockClear();
-
-      // Call to different channel should fetch new messages
-      mockFetch.mockImplementation(async (path) => {
-        if (typeof path !== "string") {
-          throw new Error("unexpected path type");
-        }
-        const prefix = "https://discord.com/api/v10";
-        if (path === `${prefix}/channels/fake-channel-2/messages?limit=100`) {
-          return Promise.resolve(new Response(JSON.stringify(channelMessages)));
-        }
-        if (typeof path === "string" && path.startsWith(`${prefix}/guilds/fake-guild-id/members/`)) {
-          const id = path.slice(-2);
-          const apiUser: APIGuildMember = aGuildMemberWith({
-            user: {
-              id: `fake-id-${id}`,
-              username: `fake-username-${id}`,
-              global_name: `fake-global-name-${id}`,
-              discriminator: "1234",
-              avatar: "fake-avatar",
-            },
-          });
-          return Promise.resolve(new Response(JSON.stringify(apiUser)));
-        }
-
-        return Promise.reject(new Error(`Invalid path: ${path}`));
-      });
-
-      await discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel-2", 7);
-      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel-2/messages?limit=100", {
-        body: null,
-        headers: new Headers({
-          Authorization: "Bot DISCORD_TOKEN",
-          "content-type": "application/json;charset=UTF-8",
-        }),
-        method: "GET",
-        queryParameters: {
-          limit: 100,
-        },
-      });
-    });
-
     it("throws EndUserError if no queue is found", async () => {
       await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrowError(
         "No queue found within the last 100 messages",
