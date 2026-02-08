@@ -785,8 +785,52 @@ export class HaloService {
     }
   }
 
+  async updatePlayerCacheAssociationsFromMatches(teams: MatchPlayer[][], matches: MatchStats[]): Promise<void> {
+    if (matches.length === 0) {
+      return;
+    }
+
+    this.logService.info(
+      "updatePlayerCacheAssociationsFromMatches - original user cache",
+      new Map([
+        ["matches", matches.map((m) => m.MatchId).join(", ")],
+        ["userCache", JSON.stringify(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }]))],
+      ]),
+    );
+
+    const copyUserCache = new Map(this.userCache);
+
+    for (const user of this.userCache.values()) {
+      const { XboxId } = user;
+      const playerHistory = this.playerMatchesCache.get(XboxId);
+
+      // using `some` here because there could be substitutions in the series
+      // as long as the player participated in at least one match in the series, we can be fairly confident that they are associated correctly
+      // even if their association reason is something less reliable like display name search
+      const hasMatchInSeries = playerHistory?.some((match) =>
+        matches.some((seriesMatch) => match.MatchId === seriesMatch.MatchId),
+      );
+      copyUserCache.set(user.DiscordId, {
+        ...user,
+        GamesRetrievable: hasMatchInSeries === true ? GamesRetrievable.YES : GamesRetrievable.NO,
+      });
+    }
+
+    this.logService.info(
+      "updatePlayerCacheAssociationsFromMatches - updated user cache",
+      new Map([
+        [
+          "copyUserCache",
+          JSON.stringify(Array.from(copyUserCache.entries()).map(([key, value]) => [key, { ...value }])),
+        ],
+      ]),
+    );
+
+    await this.fuzzyMatchUnassociatedUsers(teams, [Preconditions.checkExists(matches[matches.length - 1])]);
+  }
+
   async updateDiscordAssociations(): Promise<void> {
-    this.logService.debug(
+    this.logService.info(
       "Updating discord associations",
       new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );

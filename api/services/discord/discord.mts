@@ -126,6 +126,7 @@ export class DiscordService {
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
+  private readonly messagesCache = new Map<string, APIMessage[]>();
   private readonly userCache = new Map<string, APIGuildMember>();
   private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
@@ -275,10 +276,13 @@ export class DiscordService {
   }
 
   async getTeamsFromQueueResult(guildId: string, channelId: string, queue: number | undefined): Promise<QueueData> {
-    const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
-      method: "GET",
-      queryParameters: { limit: 100 },
-    });
+    const messages =
+      this.messagesCache.get(channelId) ??
+      (await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
+        method: "GET",
+        queryParameters: { limit: 100 },
+      }));
+    this.messagesCache.set(channelId, messages);
 
     const queueMessage = this.findNeatQueueMessage(
       messages,

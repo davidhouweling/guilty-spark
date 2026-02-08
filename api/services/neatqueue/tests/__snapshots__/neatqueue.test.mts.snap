@@ -942,30 +942,6 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > handles missing results message 1`] = `
-[
-  "other-channel-id",
-  {
-    "components": [],
-    "embeds": [
-      {
-        "color": 16711680,
-        "description": "No queue found within the last 100 messages",
-        "fields": [
-          {
-            "name": "Additional Information",
-            "value": "**Channel**: <#results-channel-1>
-**Queue**: 2
-**Completed**: <t:1732618080:f>",
-          },
-        ],
-        "title": "Something went wrong",
-      },
-    ],
-  },
-]
-`;
-
 exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > handles substitution event by merging match data and displaying all players data 1`] = `
 [
   [
@@ -2211,30 +2187,6 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       {
         "color": 16711680,
         "description": "Something went wrong while trying to post series data",
-        "fields": [
-          {
-            "name": "Additional Information",
-            "value": "**Channel**: <#results-channel-1>
-**Queue**: 2
-**Completed**: <t:1732618080:f>",
-          },
-        ],
-        "title": "Something went wrong",
-      },
-    ],
-  },
-]
-`;
-
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > handles missing results message 1`] = `
-[
-  "results-channel-1",
-  {
-    "components": [],
-    "embeds": [
-      {
-        "color": 16711680,
-        "description": "No queue found within the last 100 messages",
         "fields": [
           {
             "name": "Additional Information",
