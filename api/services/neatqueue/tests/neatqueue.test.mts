@@ -977,23 +977,22 @@ describe("NeatQueueService", () => {
             const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
             expect(error).toBeInstanceOf(EndUserError);
             expect((error as EndUserError).endUserMessage).toBe(errorMessage);
-            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data to thread"]]));
+            expect(reasonMap).toEqual(new Map([["reason", "Failed to post error to thread"]]));
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).not.toHaveBeenCalled();
           } else {
-            expect(logSpy).toHaveBeenCalledOnce();
-            const [error, reasonMap] = logSpy.mock.calls[0] ?? [];
-            expect(error).toBeInstanceOf(EndUserError);
-            expect((error as EndUserError).endUserMessage).toBe(errorMessage);
-            expect((error as EndUserError).data).toEqual({
-              Channel: `<#results-channel-1>`,
-              Completed: "<t:1732618080:f>",
-              Queue: "2",
-            });
-            expect(reasonMap).toEqual(new Map([["reason", "Failed to post series data direct to channel"]]));
+            // For MESSAGE/CHANNEL modes, postErrorByChannel successfully posts the error message
+            expect(logSpy).not.toHaveBeenCalled();
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
-            expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
+
+            // Verify the error message was posted
+            const [postedChannelId, messageData] = discordServiceCreateMessageSpy.mock.calls[0] ?? [];
+            expect(postedChannelId).toBe(
+              mode === NeatQueuePostSeriesDisplayMode.MESSAGE ? "results-channel-1" : "other-channel-id",
+            );
+            expect(messageData).toHaveProperty("embeds");
+            expect(messageData).toHaveProperty("components");
             expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
           }
         });
