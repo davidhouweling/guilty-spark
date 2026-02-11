@@ -12,6 +12,7 @@ export enum MapsPostType {
 export enum MapsPlaylistType {
   HCS_CURRENT = "C",
   HCS_HISTORICAL = "H",
+  LUCID_EVO = "L",
   RANKED_ARENA = "R",
   RANKED_SLAYER = "S",
   RANKED_SNIPERS = "N",

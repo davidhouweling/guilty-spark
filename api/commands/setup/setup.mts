@@ -1888,6 +1888,46 @@ export class SetupCommand extends BaseCommand {
                     value: MapsPlaylistType.HCS_HISTORICAL,
                     description: "All maps and modes that have been played at any HCS major event",
                   },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.LUCID_EVO),
+                    value: MapsPlaylistType.LUCID_EVO,
+                    description: "The maps and modes available in the Halo Infinite Evo (Lucid Maps)",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_ARENA),
+                    value: MapsPlaylistType.RANKED_ARENA,
+                    description: "The current ranked arena playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_SLAYER),
+                    value: MapsPlaylistType.RANKED_SLAYER,
+                    description: "The current ranked slayer playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_SNIPERS),
+                    value: MapsPlaylistType.RANKED_SNIPERS,
+                    description: "The current ranked snipers playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_TACTICAL),
+                    value: MapsPlaylistType.RANKED_TACTICAL,
+                    description: "The current ranked tactical playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_DOUBLES),
+                    value: MapsPlaylistType.RANKED_DOUBLES,
+                    description: "The current ranked doubles playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_FFA),
+                    value: MapsPlaylistType.RANKED_FFA,
+                    description: "The current ranked FFA playlist maps and modes",
+                  },
+                  {
+                    label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_SQUAD_BATTLE),
+                    value: MapsPlaylistType.RANKED_SQUAD_BATTLE,
+                    description: "The current ranked squad battle playlist maps and modes",
+                  },
                 ],
                 placeholder: "Configure playlist",
               },
@@ -2034,6 +2074,9 @@ export class SetupCommand extends BaseCommand {
       }
       case MapsPlaylistType.HCS_HISTORICAL: {
         return "HCS - Historical";
+      }
+      case MapsPlaylistType.LUCID_EVO: {
+        return "Halo Infinite Evo (Lucid Maps)";
       }
       case MapsPlaylistType.RANKED_ARENA: {
         return "Ranked Arena";

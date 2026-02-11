@@ -53,6 +53,12 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
               },
               {
                 "default": false,
+                "description": "Halo Infinite Evo (Lucid Maps) playlist",
+                "label": "Halo Infinite Evo (Lucid Maps)",
+                "value": "L",
+              },
+              {
+                "default": false,
                 "description": "Ranked Arena playlist",
                 "label": "Ranked Arena",
                 "value": "R",

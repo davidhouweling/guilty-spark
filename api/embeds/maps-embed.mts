@@ -26,6 +26,7 @@ export enum InteractionComponent {
 export const mapPlaylistLabels: Record<MapsPlaylistType, string> = {
   [MapsPlaylistType.HCS_CURRENT]: "HCS - Current",
   [MapsPlaylistType.HCS_HISTORICAL]: "HCS - Historical",
+  [MapsPlaylistType.LUCID_EVO]: "Halo Infinite Evo (Lucid Maps)",
   [MapsPlaylistType.RANKED_ARENA]: "Ranked Arena",
   [MapsPlaylistType.RANKED_SLAYER]: "Ranked Slayer",
   [MapsPlaylistType.RANKED_SNIPERS]: "Ranked Snipers",
@@ -38,6 +39,7 @@ export const mapPlaylistLabels: Record<MapsPlaylistType, string> = {
 export const mapPlaylistDescriptions: Record<MapsPlaylistType, string> = {
   [MapsPlaylistType.HCS_CURRENT]: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
   [MapsPlaylistType.HCS_HISTORICAL]: "All maps and modes that have been played at any HCS major event",
+  [MapsPlaylistType.LUCID_EVO]: "Halo Infinite Evo (Lucid Maps) playlist",
   [MapsPlaylistType.RANKED_ARENA]: "Ranked Arena playlist",
   [MapsPlaylistType.RANKED_SLAYER]: "Ranked Slayer playlist",
   [MapsPlaylistType.RANKED_SNIPERS]: "Ranked Snipers playlist",
