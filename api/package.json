@@ -12,7 +12,7 @@
   "main": "worker.mts",
   "scripts": {
     "start": "wrangler dev",
-    "register": "tsx --env-file=../.dev.vars scripts/deploy-commands.mts",
+    "register": "tsx --env-file=.dev.vars scripts/deploy-commands.mts",
     "build": "tsc --project tsconfig.build.json",
     "build:generate-types": "wrangler types",
     "typecheck": "tsc --noEmit",
