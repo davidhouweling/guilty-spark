@@ -44,6 +44,7 @@ import { AssociationReason } from "../database/types/discord_associations.mjs";
 import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
+import { TimeInSeconds } from "../halo/types.mjs";
 import { JsonResponse } from "./json-response.mjs";
 import { AppEmojis } from "./emoji.mjs";
 import { DiscordError } from "./discord-error.mjs";
@@ -511,23 +512,35 @@ export class DiscordService {
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {
-    return this.fetch<APIGuild>(Routes.guild(guildId));
+    return this.fetch<APIGuild>(Routes.guild(guildId), {
+      method: "GET",
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+    });
   }
 
   async getChannel(channelId: string): Promise<APIChannel> {
-    return this.fetch<APIChannel>(Routes.channel(channelId));
+    return this.fetch<APIChannel>(Routes.channel(channelId), {
+      method: "GET",
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+    });
   }
 
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {
     return this.fetch<APIChannel[]>(Routes.guildChannels(guildId), {
       method: "GET",
       queryParameters: { limit: 100 },
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
     });
   }
 
   async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
     if (!this.userCache.has(userId)) {
-      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId));
+      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+        method: "GET",
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["5_MINUTES"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      });
       this.userCache.set(userId, user);
     }
 
@@ -535,7 +548,10 @@ export class DiscordService {
   }
 
   async getMessage(channelId: string, messageId: string): Promise<APIMessage> {
-    return this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId));
+    return this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
+      method: "GET",
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+    });
   }
 
   async getMessageFromInteractionToken(interactionToken: string): Promise<RESTGetAPIWebhookWithTokenMessageResult> {
