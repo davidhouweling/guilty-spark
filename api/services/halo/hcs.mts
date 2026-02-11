@@ -38,6 +38,15 @@ export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {
   "Neutral Bomb": ["Aquarius", "Fortress"],
 };
 
+export const LUCID_EVO_MAPS: Record<MapMode, string[]> = {
+  Slayer: ["Aquarius", "Live Fire", "Recharge", "Solitude"],
+  "Capture the Flag": ["Aquarius", "Bazaar", "Catalyst", "Forbidden"],
+  Strongholds: ["Recharge", "Solitude", "Streets"],
+  Oddball: ["Live Fire", "Recharge", "Streets"],
+  "King of the Hill": ["Live Fire", "Recharge", "Solitude", "Streets"],
+  "Neutral Bomb": [],
+};
+
 export const ALL_MODES: MapMode[] = [
   "Slayer",
   "Capture the Flag",

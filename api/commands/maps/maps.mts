@@ -58,6 +58,10 @@ export class MapsCommand extends BaseCommand {
               name: mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL],
               value: MapsPlaylistType.HCS_HISTORICAL,
             },
+            {
+              name: mapPlaylistLabels[MapsPlaylistType.LUCID_EVO],
+              value: MapsPlaylistType.LUCID_EVO,
+            },
             { name: mapPlaylistLabels[MapsPlaylistType.RANKED_ARENA], value: MapsPlaylistType.RANKED_ARENA },
             { name: mapPlaylistLabels[MapsPlaylistType.RANKED_SLAYER], value: MapsPlaylistType.RANKED_SLAYER },
             { name: mapPlaylistLabels[MapsPlaylistType.RANKED_SNIPERS], value: MapsPlaylistType.RANKED_SNIPERS },

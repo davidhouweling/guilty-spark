@@ -23,7 +23,7 @@ import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
 import type { XboxService } from "../xbox/xbox.mjs";
 import type { Format, MapMode } from "./hcs.mjs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs.mjs";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT, LUCID_EVO_MAPS } from "./hcs.mjs";
 import type { generateRoundRobinMapsFn } from "./round-robin.mjs";
 import { generateRoundRobinMaps } from "./round-robin.mjs";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter.mjs";
@@ -1724,6 +1724,9 @@ export class HaloService {
       }
       case MapsPlaylistType.HCS_HISTORICAL: {
         return HISTORICAL_HCS_MAPS;
+      }
+      case MapsPlaylistType.LUCID_EVO: {
+        return LUCID_EVO_MAPS;
       }
       case MapsPlaylistType.RANKED_ARENA: {
         return await this.getPlaylistMapModes(FetchablePlaylist.RANKED_ARENA);
