@@ -785,6 +785,110 @@ export class HaloService {
     }
   }
 
+  async validateDiscordAssociationsFromMatches(
+    players: MatchPlayer[][],
+    matches: MatchStats[],
+    playerXuidToGametag: Map<string, string>,
+  ): Promise<void> {
+    this.logService.info(
+      "Validating discord associations from matches",
+      new Map([
+        ["player", JSON.stringify(players)],
+        ["matches", JSON.stringify(matches.map((match) => match.MatchId))],
+      ]),
+    );
+    const allPlayers = players.flat();
+    const discordAssociations = await this.databaseService.getDiscordAssociations(
+      allPlayers.map((player) => player.id),
+    );
+    const xuidsFromMatches = new Set(
+      matches.flatMap((match) =>
+        match.Players.filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning).map(
+          (player) => this.getPlayerXuid(player),
+        ),
+      ),
+    );
+
+    for (const association of discordAssociations) {
+      this.logService.info(
+        `Validating association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId}`,
+      );
+      if (xuidsFromMatches.has(association.XboxId)) {
+        const playerHistory = await this.getPlayerMatches(association.XboxId, MatchType.All);
+        const hasMatchInSeries = playerHistory.some((match) =>
+          matches.some((seriesMatch) => seriesMatch.MatchId === match.MatchId),
+        );
+
+        association.GamesRetrievable = hasMatchInSeries ? GamesRetrievable.YES : GamesRetrievable.NO;
+      } else {
+        association.GamesRetrievable = GamesRetrievable.NO;
+      }
+      this.logService.info(
+        `Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
+          association.GamesRetrievable === GamesRetrievable.YES ? "valid" : "invalid"
+        }`,
+      );
+
+      this.userCache.set(association.DiscordId, association);
+    }
+
+    const unassociatedPlayers = allPlayers.filter((player) => {
+      const association = this.userCache.get(player.id);
+      return association == null || association.GamesRetrievable === GamesRetrievable.UNKNOWN;
+    });
+    this.logService.info(
+      `Found ${unassociatedPlayers.length.toString()} unassociated players after validating existing associations: ${unassociatedPlayers
+        .map((player) => player.username)
+        .join(", ")}`,
+    );
+
+    const gametagToXuidMap = new Map(
+      Array.from(playerXuidToGametag.entries()).map(([xuid, gamertag]) => [gamertag.toLowerCase(), xuid]),
+    );
+    for (const player of unassociatedPlayers) {
+      const computeSearch = async (xuid: string, associationReason: AssociationReason): Promise<void> => {
+        const playerHistory = await this.getPlayerMatches(xuid, MatchType.All);
+        const hasMatchInSeries = playerHistory.some((match) =>
+          matches.some((seriesMatch) => seriesMatch.MatchId === match.MatchId),
+        );
+        this.logService.info(
+          `Searched for matches for unassociated player ${player.username} (associationReason: ${associationReason}) with Xbox ID ${xuid}. Found ${playerHistory.length.toString()} matches, ${hasMatchInSeries ? "at least one match in series" : "no matches in series"}`,
+        );
+
+        const association: DiscordAssociationsRow = {
+          DiscordId: player.id,
+          XboxId: xuid,
+          AssociationReason: associationReason,
+          AssociationDate: Date.now(),
+          GamesRetrievable: hasMatchInSeries ? GamesRetrievable.YES : GamesRetrievable.NO,
+          DiscordDisplayNameSearched: player.username,
+        };
+        this.userCache.set(player.id, association);
+        this.logService.info(
+          `Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
+            association.GamesRetrievable === GamesRetrievable.YES ? "valid" : "invalid"
+          }`,
+        );
+      };
+
+      const usernameToXuid = gametagToXuidMap.get(player.username.toLowerCase());
+      const globalNameToXuid =
+        player.globalName != null ? gametagToXuidMap.get(player.globalName.toLowerCase()) : undefined;
+      const nicknameToXuid =
+        player.guildNickname != null ? gametagToXuidMap.get(player.guildNickname.toLowerCase()) : undefined;
+      if (usernameToXuid != null) {
+        await computeSearch(usernameToXuid, AssociationReason.USERNAME_SEARCH);
+      } else if (globalNameToXuid != null) {
+        await computeSearch(globalNameToXuid, AssociationReason.DISPLAY_NAME_SEARCH);
+      } else if (nicknameToXuid != null) {
+        await computeSearch(nicknameToXuid, AssociationReason.DISPLAY_NAME_SEARCH);
+      }
+    }
+
+    const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
+    await this.fuzzyMatchUnassociatedUsers(players, [lastMatch]);
+  }
+
   async updateDiscordAssociations(): Promise<void> {
     this.logService.debug(
       "Updating discord associations",
@@ -1190,6 +1294,9 @@ export class HaloService {
   }
 
   private async fuzzyMatchTeam(discordTeam: MatchPlayer[], xboxXuids: string[]): Promise<void> {
+    this.logService.info(
+      `Fuzzy matching for team with Discord users ${discordTeam.map((user) => user.username).join(", ")} and Xbox xuids ${xboxXuids.join(", ")}`,
+    );
     // Get unassociated Discord users (those with NO or UNKNOWN games retrievable)
     const unassociatedUsers = discordTeam.filter((player) => {
       const cachedUser = this.userCache.get(player.id);
@@ -1201,12 +1308,14 @@ export class HaloService {
     });
 
     if (unassociatedUsers.length === 0) {
+      this.logService.info("No unassociated Discord users found for this team, skipping fuzzy matching");
       return;
     }
 
     const { xboxGamertags, xboxGamertagMap } = await this.getXboxGamertagMap(xboxXuids);
 
     if (xboxGamertags.length === 0) {
+      this.logService.warn("No Xbox gamertags found for fuzzy matching, skipping");
       return;
     }
 

@@ -1,8 +1,16 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
-import type { APIChannel, APIMessage, APIApplicationCommandInteraction, APIEmbed } from "discord-api-types/v10";
+import type {
+  APIChannel,
+  APIMessage,
+  APIApplicationCommandInteraction,
+  APIEmbed,
+  APIGuildMember,
+} from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import {
@@ -19,6 +27,8 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
+import type { LiveTrackerService } from "../../live-tracker/live-tracker.mjs";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
 import { getFakeNeatQueueData } from "../fakes/data.mjs";
@@ -53,6 +63,7 @@ describe("NeatQueueService", () => {
   let databaseService: DatabaseService;
   let discordService: DiscordService;
   let haloService: HaloService;
+  let liveTrackerService: LiveTrackerService;
   let neatQueueService: NeatQueueService;
 
   beforeEach(() => {
@@ -64,7 +75,7 @@ describe("NeatQueueService", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
-    const liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
+    liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     neatQueueService = new NeatQueueService({
       env,
       logService,
@@ -1071,6 +1082,85 @@ describe("NeatQueueService", () => {
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(3, "thread-id-2", expect.any(Object));
           });
         }
+      });
+
+      it("validates discord associations when live tracker is active with discovered matches", async () => {
+        // Mock live tracker state
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+
+        const validateSpy = vi.spyOn(haloService, "validateDiscordAssociationsFromMatches").mockResolvedValue();
+
+        // Setup live tracker data
+        const match = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+        const rawMatches: Record<string, MatchStats> = {
+          [match.MatchId]: match,
+        };
+
+        const teams: { name: string; playerIds: string[] }[] = [{ name: "Cobra", playerIds: ["user1"] }];
+
+        const players: Record<string, APIGuildMember> = {
+          user1: aGuildMemberWith({
+            user: { id: "user1", username: "User1", global_name: "GlobalUser1", discriminator: "0000", avatar: null },
+          }),
+        };
+
+        const discoveredMatches: Record<string, LiveTrackerMatchSummary> = {
+          [match.MatchId]: {
+            matchId: match.MatchId,
+            gameMap: "Live Fire",
+            gameType: "Slayer",
+            gameTypeAndMap: "Slayer on Live Fire",
+            gameMapThumbnailUrl: "http://example.com/thumb.jpg",
+            duration: "10:00",
+            gameScore: "50-48",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: { "xuid-1": "Gamertag1" },
+          },
+        };
+
+        const state = aFakeLiveTrackerStateWith({
+          rawMatches,
+          discoveredMatches,
+          teams,
+          players,
+        });
+
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: true,
+          state,
+        });
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        expect(validateSpy).toHaveBeenCalled();
+        const callArgs = Preconditions.checkExists(validateSpy.mock.calls[0]);
+
+        // Check mapped players
+        expect(callArgs[0]).toHaveLength(1);
+        const argPlayers = Preconditions.checkExists(callArgs[0]);
+        const argTeamPlayers = Preconditions.checkExists(argPlayers[0]);
+        const argPlayer = Preconditions.checkExists(argTeamPlayers[0]);
+
+        expect(argPlayer).toEqual(
+          expect.objectContaining({
+            id: "user1",
+            username: "User1",
+            globalName: "GlobalUser1",
+          }),
+        );
+
+        const [, , passedMap] = callArgs;
+        expect(passedMap).toBeInstanceOf(Map);
+        expect(passedMap.get("xuid-1")).toBe("Gamertag1");
       });
     });
 

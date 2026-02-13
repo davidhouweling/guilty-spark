@@ -418,7 +418,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const response = await liveTrackerDO.fetch(
@@ -2294,7 +2294,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
@@ -2347,7 +2347,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const beforeSubstitution = Date.now();
@@ -2374,7 +2374,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
@@ -2389,7 +2389,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
@@ -2405,7 +2405,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const beforeSubstitution = Date.now();
@@ -2432,7 +2432,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       const getSeriesSpy = vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
@@ -2482,25 +2482,25 @@ describe("LiveTrackerDO", () => {
       expect(text).toBe("Player not found in teams");
     });
 
-    it("returns 400 when new player not found in Discord", async () => {
+    it("returns 500 when new player not found in Discord", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getGuildMember").mockRejectedValue(new Error("Not Found"));
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(500);
       const text = await response.text();
-      expect(text).toBe("New player not found");
+      expect(text).toBe("Internal Server Error");
     });
 
     it("handles Discord API errors during player lookup gracefully", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       storageGetSpy.mockResolvedValue(trackerState);
 
-      vi.spyOn(services.discordService, "getUsers").mockRejectedValue(new Error("Discord API error"));
+      vi.spyOn(services.discordService, "getGuildMember").mockRejectedValue(new Error("Discord API error"));
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));
@@ -2515,7 +2515,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer1 = createTestPlayer("newplayer1", "newplayer1", "0003", "New Player 1");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer1]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer1);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer1"));
@@ -2524,7 +2524,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(updatedState);
 
       const newPlayer2 = createTestPlayer("newplayer2", "newplayer2", "0004", "New Player 2");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer2]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer2);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("newplayer1", "newplayer2"));
 
@@ -2542,7 +2542,7 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
 
       const newPlayer = createTestPlayer("newplayer", "newplayer", "0003", "New Player");
-      vi.spyOn(services.discordService, "getUsers").mockResolvedValue([newPlayer]);
+      vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(newPlayer);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
 
       await liveTrackerDO.fetch(createSubstitutionRequest("player1", "newplayer"));

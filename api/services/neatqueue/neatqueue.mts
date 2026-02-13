@@ -864,16 +864,44 @@ export class NeatQueueService {
       if (liveTrackerStatus?.state.status === "active") {
         const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
         if (isSuccessResponse(refreshResult)) {
+          const { rawMatches, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
           this.logService.info(
             "MatchCompletedJob: Retrieved series data from live tracker",
             new Map([
               ["guildId", request.guild],
               ["channelId", request.channel],
               ["queueNumber", request.match_number.toString()],
-              ["matchCount", Object.keys(refreshResult.state.rawMatches).length.toString()],
+              ["matchCount", Object.keys(rawMatches).length.toString()],
             ]),
           );
-          series = Object.values(refreshResult.state.rawMatches);
+          series = Object.values(rawMatches);
+
+          if (series.length > 0) {
+            const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
+              team.playerIds.map((playerId) => {
+                const guildMember = Preconditions.checkExists(refreshedPlayers[playerId]);
+                return {
+                  id: playerId,
+                  username: guildMember.user.username,
+                  globalName: guildMember.user.global_name,
+                  guildNickname: guildMember.nick ?? null,
+                };
+              }),
+            );
+
+            const playerXuidToGametags = Object.values(discoveredMatches).reduce<Map<string, string>>((acc, match) => {
+              for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+                acc.set(playerXuid, gamertag);
+              }
+              return acc;
+            }, new Map<string, string>());
+
+            await this.haloService.validateDiscordAssociationsFromMatches(
+              mappedTeamPlayers,
+              series,
+              playerXuidToGametags,
+            );
+          }
         }
       }
 
