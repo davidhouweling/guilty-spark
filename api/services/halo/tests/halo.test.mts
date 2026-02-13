@@ -1,11 +1,11 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
-import { AssetKind, MatchOutcome, RequestError } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, Asset } from "halo-infinite-api";
+import { AssetKind, MatchOutcome, RequestError, MatchType } from "halo-infinite-api";
+import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, Asset, MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
-import type { CachedUserInfo } from "../types.mjs";
+import type { CachedUserInfo, MatchPlayer } from "../types.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
@@ -3741,17 +3741,24 @@ describe("Halo service", () => {
         ],
       ];
 
+      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
       const matches: MatchStats[] = [
         {
+          ...fakeMatch,
           MatchId: "match1",
           Players: [
             {
+              ...Preconditions.checkExists(fakeMatch.Players[0]),
               PlayerId: `xuid(${playerXuid})`,
               PlayerType: 1,
-              ParticipationInfo: { PresentAtBeginning: true },
+              BotAttributes: {},
+              ParticipationInfo: {
+                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
+                PresentAtBeginning: true,
+              },
             },
-          ] as unknown as MatchStats["Players"],
-        } as unknown as MatchStats,
+          ],
+        },
       ];
 
       const playerXuidToGametag = new Map([[playerXuid, gamertag]]);
@@ -3764,24 +3771,42 @@ describe("Halo service", () => {
         }),
       ]);
 
-      const getPlayerMatchesSpy = vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+      infiniteClient.getPlayerMatches.mockResolvedValue([
         {
+          ...aFakePlayerMatchHistoryWith(),
           MatchId: "match1",
           MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
             StartTime: new Date().toISOString(),
           },
-        } as unknown as PlayerMatchHistory,
+        },
       ]);
 
-      // Mock fuzzy match to avoid side effects
-      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+      // Mock fuzzy match dependencies to avoid side effects
+      infiniteClient.getUsers.mockResolvedValue([]);
+
+      const upsertSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
       await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+      await haloService.updateDiscordAssociations();
 
-      const cachedUser = (haloService as any).userCache.get(discordId);
-      expect(cachedUser).toBeDefined();
-      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.YES);
-      expect(getPlayerMatchesSpy).toHaveBeenCalledWith(playerXuid, expect.anything());
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith(
+        playerXuid,
+        MatchType.All,
+        undefined,
+        undefined,
+        expect.anything(),
+      );
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            DiscordId: discordId,
+            XboxId: playerXuid,
+            GamesRetrievable: GamesRetrievable.YES,
+          }),
+        ]),
+      );
     });
 
     it("invalidates discord associations when player is not found in matches", async () => {
@@ -3799,20 +3824,27 @@ describe("Halo service", () => {
         ],
       ];
 
+      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
       const matches: MatchStats[] = [
         {
+          ...fakeMatch,
           MatchId: "match1",
           Players: [
             {
+              ...Preconditions.checkExists(fakeMatch.Players[0]),
               PlayerId: `xuid(${playerXuid})`,
               PlayerType: 1,
-              ParticipationInfo: { PresentAtBeginning: true },
+              BotAttributes: {},
+              ParticipationInfo: {
+                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
+                PresentAtBeginning: true,
+              },
             },
-          ] as unknown as MatchStats["Players"],
-        } as unknown as MatchStats,
+          ],
+        },
       ];
 
-      const playerXuidToGametag = new Map();
+      const playerXuidToGametag = new Map<string, string>();
 
       vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
         aFakeDiscordAssociationsRow({
@@ -3822,22 +3854,33 @@ describe("Halo service", () => {
         }),
       ]);
 
-      vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+      infiniteClient.getPlayerMatches.mockResolvedValue([
         {
+          ...aFakePlayerMatchHistoryWith(),
           MatchId: "match2", // Different match ID
           MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
             StartTime: new Date().toISOString(),
           },
-        } as unknown as PlayerMatchHistory,
+        },
       ]);
 
-      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+      infiniteClient.getUsers.mockResolvedValue([]);
+
+      const upsertSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
       await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+      await haloService.updateDiscordAssociations();
 
-      const cachedUser = (haloService as any).userCache.get(discordId);
-      expect(cachedUser).toBeDefined();
-      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.NO);
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            DiscordId: discordId,
+            XboxId: playerXuid,
+            GamesRetrievable: GamesRetrievable.NO,
+          }),
+        ]),
+      );
     });
 
     it("attempts to discover new associations via display name search", async () => {
@@ -3856,17 +3899,23 @@ describe("Halo service", () => {
         ],
       ];
 
+      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
       const matches: MatchStats[] = [
         {
+          ...fakeMatch,
           MatchId: "match1",
           Players: [
             {
+              ...Preconditions.checkExists(fakeMatch.Players[0]),
               PlayerId: `xuid(${playerXuid})`,
               PlayerType: 1,
-              ParticipationInfo: { PresentAtBeginning: true },
+              ParticipationInfo: {
+                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
+                PresentAtBeginning: true,
+              },
             },
-          ] as unknown as MatchStats["Players"],
-        } as unknown as MatchStats,
+          ],
+        },
       ];
 
       const playerXuidToGametag = new Map([[playerXuid, gamertag]]);
@@ -3874,24 +3923,42 @@ describe("Halo service", () => {
       // No existing associations
       vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
 
-      vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+      infiniteClient.getPlayerMatches.mockResolvedValue([
         {
+          ...aFakePlayerMatchHistoryWith(),
           MatchId: "match1",
           MatchInfo: {
+            ...aFakePlayerMatchHistoryWith().MatchInfo,
             StartTime: new Date().toISOString(),
           },
-        } as unknown as PlayerMatchHistory,
+        },
       ]);
 
-      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+      infiniteClient.getUsers.mockResolvedValue([]);
+
+      const upsertSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
       await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+      await haloService.updateDiscordAssociations();
 
-      const cachedUser = (haloService as any).userCache.get(discordId);
-      expect(cachedUser).toBeDefined();
-      expect(cachedUser.XboxId).toBe(playerXuid);
-      expect(cachedUser.AssociationReason).toBe(AssociationReason.USERNAME_SEARCH);
-      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.YES);
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith(
+        playerXuid,
+        MatchType.All,
+        undefined,
+        undefined,
+        expect.anything(),
+      );
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            DiscordId: discordId,
+            XboxId: playerXuid,
+            AssociationReason: AssociationReason.USERNAME_SEARCH,
+            GamesRetrievable: GamesRetrievable.YES,
+          }),
+        ]),
+      );
     });
   });
 });
