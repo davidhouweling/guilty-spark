@@ -1072,6 +1072,67 @@ describe("NeatQueueService", () => {
           });
         }
       });
+
+      it("validates discord associations when live tracker is active with discovered matches", async () => {
+        // Mock live tracker state
+        vi.spyOn((neatQueueService as any).liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          success: true,
+          state: { status: "active" },
+        });
+
+        const validateSpy = vi.spyOn(haloService, "validateDiscordAssociationsFromMatches").mockResolvedValue();
+
+        // Setup live tracker data
+        const rawMatches = {
+          "match-id-1": { MatchId: "match-id-1" },
+        } as any;
+
+        const teams = [{ playerIds: ["user1"] }] as any;
+
+        const players = {
+          user1: aGuildMemberWith({ user: { id: "user1", username: "User1", global_name: "GlobalUser1" } }),
+        } as any;
+
+        const discoveredMatches = {
+          "match-id-1": {
+            playerXuidToGametag: { "xuid-1": "Gamertag1" },
+          },
+        } as any;
+
+        vi.spyOn((neatQueueService as any).liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: true,
+          state: {
+            rawMatches,
+            discoveredMatches,
+            teams,
+            players,
+          },
+        });
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        expect(validateSpy).toHaveBeenCalled();
+        const callArgs = validateSpy.mock.calls[0];
+
+        // Check mapped players
+        expect(callArgs[0]).toHaveLength(1);
+        expect(callArgs[0][0][0]).toEqual(
+          expect.objectContaining({
+            id: "user1",
+            username: "User1",
+            globalName: "GlobalUser1",
+          }),
+        );
+
+        const passedMap = callArgs[2] as Map<string, string>;
+        expect(passedMap).toBeInstanceOf(Map);
+        expect(passedMap.get("xuid-1")).toBe("Gamertag1");
+      });
     });
 
     it("returns OK response for unknown action", () => {

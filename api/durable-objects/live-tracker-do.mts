@@ -612,11 +612,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return new Response("Player not found in teams", { status: 400 });
       }
 
-      const [newPlayerMember] = await this.discordService.getUsers(trackerState.guildId, [playerInId]);
-      if (!newPlayerMember) {
-        return new Response("New player not found", { status: 400 });
-      }
-
+      const newPlayerMember = await this.discordService.getGuildMember(trackerState.guildId, playerInId);
       const targetTeam = trackerState.teams[teamIndex];
       if (!targetTeam) {
         return new Response("Team not found", { status: 400 });

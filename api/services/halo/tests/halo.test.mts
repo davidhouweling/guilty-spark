@@ -3723,4 +3723,175 @@ describe("Halo service", () => {
       expect(result).toBe("https://example.com/images/hero_image.png");
     });
   });
+
+  describe("validateDiscordAssociationsFromMatches()", () => {
+    it("validates discord associations from matches and updates cache", async () => {
+      const playerXuid = "1234567890123456";
+      const gamertag = "Spartan117";
+      const discordId = "discord123";
+
+      const players: MatchPlayer[][] = [
+        [
+          {
+            id: discordId,
+            username: "discordUser",
+            globalName: null,
+            guildNickname: null,
+          },
+        ],
+      ];
+
+      const matches: MatchStats[] = [
+        {
+          MatchId: "match1",
+          Players: [
+            {
+              PlayerId: `xuid(${playerXuid})`,
+              PlayerType: 1,
+              ParticipationInfo: { PresentAtBeginning: true },
+            },
+          ] as unknown as MatchStats["Players"],
+        } as unknown as MatchStats,
+      ];
+
+      const playerXuidToGametag = new Map([[playerXuid, gamertag]]);
+
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: discordId,
+          XboxId: playerXuid,
+          GamesRetrievable: GamesRetrievable.UNKNOWN,
+        }),
+      ]);
+
+      const getPlayerMatchesSpy = vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+        {
+          MatchId: "match1",
+          MatchInfo: {
+            StartTime: new Date().toISOString(),
+          },
+        } as unknown as PlayerMatchHistory,
+      ]);
+
+      // Mock fuzzy match to avoid side effects
+      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+
+      await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+
+      const cachedUser = (haloService as any).userCache.get(discordId);
+      expect(cachedUser).toBeDefined();
+      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.YES);
+      expect(getPlayerMatchesSpy).toHaveBeenCalledWith(playerXuid, expect.anything());
+    });
+
+    it("invalidates discord associations when player is not found in matches", async () => {
+      const playerXuid = "1234567890123456";
+      const discordId = "discord123";
+
+      const players: MatchPlayer[][] = [
+        [
+          {
+            id: discordId,
+            username: "discordUser",
+            globalName: null,
+            guildNickname: null,
+          },
+        ],
+      ];
+
+      const matches: MatchStats[] = [
+        {
+          MatchId: "match1",
+          Players: [
+            {
+              PlayerId: `xuid(${playerXuid})`,
+              PlayerType: 1,
+              ParticipationInfo: { PresentAtBeginning: true },
+            },
+          ] as unknown as MatchStats["Players"],
+        } as unknown as MatchStats,
+      ];
+
+      const playerXuidToGametag = new Map();
+
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: discordId,
+          XboxId: playerXuid,
+          GamesRetrievable: GamesRetrievable.YES,
+        }),
+      ]);
+
+      vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+        {
+          MatchId: "match2", // Different match ID
+          MatchInfo: {
+            StartTime: new Date().toISOString(),
+          },
+        } as unknown as PlayerMatchHistory,
+      ]);
+
+      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+
+      await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+
+      const cachedUser = (haloService as any).userCache.get(discordId);
+      expect(cachedUser).toBeDefined();
+      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.NO);
+    });
+
+    it("attempts to discover new associations via display name search", async () => {
+      const playerXuid = "1234567890123456";
+      const gamertag = "UniqueName";
+      const discordId = "discord123";
+
+      const players: MatchPlayer[][] = [
+        [
+          {
+            id: discordId,
+            username: "UniqueName", // Matches gamertag
+            globalName: null,
+            guildNickname: null,
+          },
+        ],
+      ];
+
+      const matches: MatchStats[] = [
+        {
+          MatchId: "match1",
+          Players: [
+            {
+              PlayerId: `xuid(${playerXuid})`,
+              PlayerType: 1,
+              ParticipationInfo: { PresentAtBeginning: true },
+            },
+          ] as unknown as MatchStats["Players"],
+        } as unknown as MatchStats,
+      ];
+
+      const playerXuidToGametag = new Map([[playerXuid, gamertag]]);
+
+      // No existing associations
+      vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+
+      vi.spyOn(haloService as any, "getPlayerMatches").mockResolvedValue([
+        {
+          MatchId: "match1",
+          MatchInfo: {
+            StartTime: new Date().toISOString(),
+          },
+        } as unknown as PlayerMatchHistory,
+      ]);
+
+      vi.spyOn(haloService as any, "fuzzyMatchUnassociatedUsers").mockResolvedValue(undefined);
+
+      await haloService.validateDiscordAssociationsFromMatches(players, matches, playerXuidToGametag);
+
+      const cachedUser = (haloService as any).userCache.get(discordId);
+      expect(cachedUser).toBeDefined();
+      expect(cachedUser.XboxId).toBe(playerXuid);
+      expect(cachedUser.AssociationReason).toBe(AssociationReason.USERNAME_SEARCH);
+      expect(cachedUser.GamesRetrievable).toBe(GamesRetrievable.YES);
+    });
+  });
 });
