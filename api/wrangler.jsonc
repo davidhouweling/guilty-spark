@@ -60,10 +60,11 @@
       "name": "guilty-spark-staging",
       "upload_source_maps": true,
       "routes": [
-        {
-          "pattern": "api-staging.guilty-spark.app",
-          "custom_domain": true,
-        },
+        "api-staging.guilty-spark.app/",
+        "api-staging.guilty-spark.app/interactions",
+        "api-staging.guilty-spark.app/neatqueue",
+        "api-staging.guilty-spark.app/proxy/halo-infinite",
+        "api-staging.guilty-spark.app/ws/tracker/*",
       ],
       "kv_namespaces": [
         {
