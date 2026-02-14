@@ -2072,7 +2072,7 @@ describe("LiveTrackerDO", () => {
         await liveTrackerDO.alarm();
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "Failed to update channel name",
+          "LiveTracker: Failed to update channel name",
           new Map([
             ["channelId", "test-channel-id"],
             ["error", "Error: Discord API error"],

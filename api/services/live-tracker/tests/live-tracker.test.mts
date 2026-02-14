@@ -208,7 +208,7 @@ describe("LiveTrackerService", () => {
           queueStartTime: "2024-01-01T00:00:00.000Z",
         }),
       });
-      expect(infoSpy).toHaveBeenCalledWith("Starting live tracker", expect.any(Map));
+      expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Starting live tracker", expect.any(Map));
     });
 
     it("includes interactionToken when provided", async () => {
@@ -285,7 +285,7 @@ describe("LiveTrackerService", () => {
       expect(fetch).toHaveBeenCalledWith("http://do/pause", {
         method: "POST",
       });
-      expect(infoSpy).toHaveBeenCalledWith("Pausing live tracker", expect.any(Map));
+      expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Pausing live tracker", expect.any(Map));
     });
 
     it("throws error when DO returns non-ok response", async () => {
@@ -614,7 +614,7 @@ describe("LiveTrackerService", () => {
       });
 
       expect(result).toBeNull();
-      expect(errorSpy).toHaveBeenCalledWith("Failed to discover active tracker", expect.any(Map));
+      expect(errorSpy).toHaveBeenCalledWith("LiveTrackerService: Failed to discover active tracker", expect.any(Map));
     });
   });
 
@@ -690,7 +690,7 @@ describe("LiveTrackerService", () => {
       });
 
       expect(result).toBe(false);
-      expect(warnSpy).toHaveBeenCalledWith("Failed to safely stop tracker", expect.any(Map));
+      expect(warnSpy).toHaveBeenCalledWith("LiveTrackerService: Failed to safely stop tracker", expect.any(Map));
     });
   });
 
@@ -746,7 +746,7 @@ describe("LiveTrackerService", () => {
       });
 
       expect(result).toBe(false);
-      expect(debugSpy).toHaveBeenCalledWith("No tracker found for substitution", expect.any(Map));
+      expect(debugSpy).toHaveBeenCalledWith("LiveTrackerService: No tracker found for substitution", expect.any(Map));
     });
 
     it("handles errors gracefully", async () => {
@@ -761,7 +761,7 @@ describe("LiveTrackerService", () => {
       });
 
       expect(result).toBe(false);
-      expect(warnSpy).toHaveBeenCalledWith("Failed to safely record substitution", expect.any(Map));
+      expect(warnSpy).toHaveBeenCalledWith("LiveTrackerService: Failed to safely record substitution", expect.any(Map));
     });
   });
 
@@ -913,8 +913,8 @@ describe("LiveTrackerService", () => {
         ["queueNumber", liveTrackerContext.queueNumber.toString()],
         ["userId", liveTrackerContext.userId],
       ]);
-      expect(infoSpy).toHaveBeenCalledWith("Pausing live tracker", logData);
-      expect(infoSpy).toHaveBeenCalledWith("Live tracker paused successfully", logData);
+      expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Pausing live tracker", logData);
+      expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Live tracker paused successfully", logData);
     });
   });
 });

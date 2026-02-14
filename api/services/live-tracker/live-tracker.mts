@@ -118,7 +118,7 @@ export class LiveTrackerService {
       queueNumber,
     };
 
-    this.logService.info("Starting live tracker", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Starting live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
     const startData: LiveTrackerStartRequest = {
@@ -148,7 +148,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerStartResponse>();
-    this.logService.info("Live tracker started successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker started successfully", this.createLogParams(context));
     return result;
   }
 
@@ -156,7 +156,7 @@ export class LiveTrackerService {
    * Pauses an active live tracker
    */
   async pauseTracker(context: LiveTrackerContext): Promise<LiveTrackerPauseResponse> {
-    this.logService.info("Pausing live tracker", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Pausing live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
     const response = await doStub.fetch("http://do/pause", {
@@ -170,7 +170,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerPauseResponse>();
-    this.logService.info("Live tracker paused successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker paused successfully", this.createLogParams(context));
     return result;
   }
 
@@ -178,7 +178,7 @@ export class LiveTrackerService {
    * Resumes a paused live tracker
    */
   async resumeTracker(context: LiveTrackerContext): Promise<LiveTrackerResumeResponse> {
-    this.logService.info("Resuming live tracker", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Resuming live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
     const response = await doStub.fetch("http://do/resume", {
@@ -192,7 +192,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerResumeResponse>();
-    this.logService.info("Live tracker resumed successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker resumed successfully", this.createLogParams(context));
     return result;
   }
 
@@ -200,7 +200,7 @@ export class LiveTrackerService {
    * Stops an active live tracker
    */
   async stopTracker(context: LiveTrackerContext): Promise<LiveTrackerStopResponse> {
-    this.logService.info("Stopping live tracker", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Stopping live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
     const response = await doStub.fetch("http://do/stop", {
@@ -214,7 +214,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerStopResponse>();
-    this.logService.info("Live tracker stopped successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker stopped successfully", this.createLogParams(context));
     return result;
   }
 
@@ -222,7 +222,7 @@ export class LiveTrackerService {
    * Refreshes a live tracker manually
    */
   async refreshTracker(context: LiveTrackerContext, matchCompleted?: boolean): Promise<LiveTrackerRefreshResponse> {
-    this.logService.info("Refreshing live tracker", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Refreshing live tracker", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
     const request: LiveTrackerRefreshRequest = {
@@ -247,7 +247,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    this.logService.info("Live tracker refreshed successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker refreshed successfully", this.createLogParams(context));
     return result;
   }
 
@@ -260,7 +260,7 @@ export class LiveTrackerService {
     playerInId,
   }: RecordSubstitutionOpts): Promise<LiveTrackerSubstitutionResponse> {
     this.logService.info(
-      "Recording substitution",
+      "LiveTrackerService: Recording substitution",
       this.createLogParams(
         context,
         new Map([
@@ -289,7 +289,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerSubstitutionResponse>();
-    this.logService.info("Substitution recorded successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Substitution recorded successfully", this.createLogParams(context));
     return result;
   }
 
@@ -314,7 +314,7 @@ export class LiveTrackerService {
    */
   async repostTracker({ context, newMessageId }: RepostTrackerOpts): Promise<LiveTrackerRepostResponse> {
     this.logService.info(
-      "Reposting live tracker",
+      "LiveTrackerService: Reposting live tracker",
       this.createLogParams(context, new Map([["newMessageId", newMessageId]])),
     );
 
@@ -336,7 +336,7 @@ export class LiveTrackerService {
     }
 
     const result = await response.json<LiveTrackerRepostResponse>();
-    this.logService.info("Live tracker reposted successfully", this.createLogParams(context));
+    this.logService.info("LiveTrackerService: Live tracker reposted successfully", this.createLogParams(context));
     return result;
   }
 
@@ -361,7 +361,10 @@ export class LiveTrackerService {
       const statusResponse = await this.getTrackerStatus(context);
       return statusResponse?.state ?? null;
     } catch (error) {
-      this.logService.error("Failed to discover active tracker", new Map([["error", String(error)]]));
+      this.logService.error(
+        "LiveTrackerService: Failed to discover active tracker",
+        new Map([["error", String(error)]]),
+      );
       return null;
     }
   }
@@ -394,11 +397,11 @@ export class LiveTrackerService {
       }
 
       await this.stopTracker(context);
-      this.logService.info("Tracker stopped successfully", this.createLogParams(context));
+      this.logService.info("LiveTrackerService: Tracker stopped successfully", this.createLogParams(context));
       return true;
     } catch (error) {
       this.logService.warn(
-        "Failed to safely stop tracker",
+        "LiveTrackerService: Failed to safely stop tracker",
         this.createLogParams(context, new Map([["error", String(error)]])),
       );
       return false;
@@ -425,7 +428,7 @@ export class LiveTrackerService {
     try {
       const statusResponse = await this.getTrackerStatus(context);
       if (!statusResponse) {
-        this.logService.debug("No tracker found for substitution", this.createLogParams(context));
+        this.logService.debug("LiveTrackerService: No tracker found for substitution", this.createLogParams(context));
         return false;
       }
 
@@ -433,7 +436,7 @@ export class LiveTrackerService {
       return true;
     } catch (error) {
       this.logService.warn(
-        "Failed to safely record substitution",
+        "LiveTrackerService: Failed to safely record substitution",
         this.createLogParams(context, new Map([["error", String(error)]])),
       );
       return false;

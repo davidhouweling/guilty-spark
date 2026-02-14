@@ -328,7 +328,7 @@ export class TrackCommand extends BaseCommand {
             liveTrackerEmbed.toMessageData(),
           );
 
-          this.services.logService.info("Live tracker paused via button", this.createLogParams(context));
+          this.services.logService.debug("Live tracker paused via button", this.createLogParams(context));
         } catch (error) {
           this.services.logService.error("Failed to pause live tracker", new Map([["error", String(error)]]));
 
@@ -373,7 +373,7 @@ export class TrackCommand extends BaseCommand {
             liveTrackerEmbed.toMessageData(),
           );
 
-          this.services.logService.info("Live tracker resumed via button", this.createLogParams(context));
+          this.services.logService.debug("Live tracker resumed via button", this.createLogParams(context));
         } catch (error) {
           this.services.logService.error("Failed to resume live tracker", new Map([["error", String(error)]]));
 
@@ -411,7 +411,7 @@ export class TrackCommand extends BaseCommand {
             throw new Error("Failed to refresh live tracker");
           }
 
-          this.services.logService.info("Live tracker manually refreshed via button", this.createLogParams(context));
+          this.services.logService.debug("Live tracker manually refreshed via button", this.createLogParams(context));
         } catch (error) {
           await this.handleButtonError(interaction, context, error);
         }
