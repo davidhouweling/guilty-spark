@@ -136,7 +136,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       try {
         if (this.checkAndHandleStaleLock(trackerState)) {
-          this.logService.info("Refresh in progress, skipping alarm execution");
+          this.logService.debug("Refresh in progress, skipping alarm execution");
           const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
           await this.state.storage.setAlarm(addMilliseconds(new Date(), nextAlarmInterval).getTime());
           return;
@@ -155,7 +155,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         });
 
         this.logService.info(
-          `LiveTracker alarm fired for queue ${trackerState.queueNumber.toString()}`,
+          `LiveTracker: alarm fired for queue ${trackerState.queueNumber.toString()}`,
           new Map([
             ["guildId", trackerState.guildId],
             ["channelId", trackerState.channelId],
@@ -172,7 +172,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           const fetchDurationMs = Date.now() - fetchStartTime;
 
           this.logService.info(
-            `Alarm update completed for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
+            `LiveTracker: alarm completed for queue ${trackerState.queueNumber.toString()} (took ${fetchDurationMs.toString()}ms)`,
             new Map([
               ["fetchDurationMs", fetchDurationMs.toString()],
               ["searchStartTime", new Date(trackerState.searchStartTime).toISOString()],
@@ -183,7 +183,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           // 10003 = Unknown channel
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
             this.logService.warn(
-              "Live tracker channel not found, likely finished",
+              "LiveTracker channel not found, likely finished",
               new Map([
                 ["channelId", trackerState.channelId],
                 ["messageId", trackerState.liveMessageId],
@@ -199,7 +199,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           }
 
           this.logService.error(
-            "Failed to update live tracker message",
+            "Failed to update LiveTracker message",
             new Map([
               ["error", String(error)],
               ["messageId", trackerState.liveMessageId],
@@ -298,14 +298,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
 
       this.logService.info(
-        `Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        `LiveTracker: Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
         new Map([["messageId", loadingMessage.id]]),
       );
     } catch (error) {
       // 10003 = Unknown channel
       if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
         this.logService.warn(
-          "Live tracker channel not found during start",
+          "LiveTracker: channel not found during start",
           new Map([
             ["channelId", trackerState.channelId],
             ["messageId", trackerState.liveMessageId],
@@ -315,7 +315,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return this.createStartFailureResponse(trackerState);
       }
 
-      this.logService.error("Failed to create initial live tracker message", new Map([["error", String(error)]]));
+      this.logService.error(
+        "LiveTracker: Failed to create initial live tracker message",
+        new Map([["error", String(error)]]),
+      );
     }
 
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
@@ -371,7 +374,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return this.createPauseResponse(trackerState, embedData);
       } catch (error) {
         this.logService.warn(
-          "Failed to enrich pause response, returning basic state",
+          "LiveTracker: Failed to enrich pause response, returning basic state",
           new Map([["error", String(error)]]),
         );
       }
@@ -420,7 +423,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return this.createResumeResponse(trackerState, embedData);
       } catch (error) {
         this.logService.warn(
-          "Failed to enrich resume response, returning basic state",
+          "LiveTracker: Failed to enrich resume response, returning basic state",
           new Map([["error", String(error)]]),
         );
       }
@@ -459,7 +462,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         };
       } catch (error) {
         this.logService.warn(
-          "Failed to enrich stop response, returning basic state",
+          "LiveTracker: Failed to enrich stop response, returning basic state",
           new Map([["error", String(error)]]),
         );
       }
@@ -479,7 +482,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     if (this.checkAndHandleStaleLock(trackerState)) {
-      this.logService.info("Refresh already in progress, ignoring concurrent request");
+      this.logService.debug("Refresh already in progress, ignoring concurrent request");
       return new Response(
         JSON.stringify({
           success: false,
@@ -508,7 +511,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       } catch (error) {
         // If parsing fails, use default values
         this.logService.warn(
-          "Failed to parse refresh request body, using defaults",
+          "LiveTracker: Failed to parse refresh request body, using defaults",
           new Map([["error", String(error)]]),
         );
       }
@@ -548,7 +551,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         // 10003 = Unknown channel
         if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
           this.logService.warn(
-            "Live tracker channel not found during refresh",
+            "LiveTracker: channel not found during refresh",
             new Map([
               ["channelId", trackerState.channelId],
               ["messageId", trackerState.liveMessageId],
@@ -558,7 +561,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           return this.createRefreshFailureResponse(trackerState);
         }
 
-        this.logService.error("Failed to refresh live tracker", new Map([["error", String(error)]]));
+        this.logService.error("LiveTracker: Failed to refresh live tracker", new Map([["error", String(error)]]));
         this.handleError(trackerState, `Refresh failed: ${String(error)}`);
         return new Response("Internal Server Error", { status: 500 });
       }
@@ -602,7 +605,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       if (teamIndex === -1 || playerIndex === -1) {
         this.logService.warn(
-          `Substitution player not found in teams`,
+          `LiveTracker: Substitution player not found in teams`,
           new Map([
             ["playerOutId", playerOutId],
             ["playerInId", playerInId],
@@ -633,7 +636,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       await this.setState(trackerState);
 
       this.logService.info(
-        `Processed substitution for queue ${trackerState.queueNumber.toString()}`,
+        `LiveTracker: Processed substitution for queue ${trackerState.queueNumber.toString()}`,
         new Map([
           ["playerOutId", playerOutId],
           ["playerInId", playerInId],
@@ -681,7 +684,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await this.setState(trackerState);
 
     this.logService.info(
-      `Updated live message ID for queue ${trackerState.queueNumber.toString()}`,
+      `LiveTracker: Updated live message ID for queue ${trackerState.queueNumber.toString()}`,
       new Map([
         ["oldMessageId", oldMessageId ?? "none"],
         ["newMessageId", newMessageId],
@@ -1088,7 +1091,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       trackerState.liveMessageId = newMessage.id;
 
       this.logService.info(
-        `Created new live tracker message for queue ${trackerState.queueNumber.toString()} (new matches/substitutions detected)`,
+        `LiveTracker: Created new live tracker message for queue ${trackerState.queueNumber.toString()} (new matches/substitutions detected)`,
         new Map([
           ["newMessageId", newMessage.id],
           ["matchCount", Object.keys(trackerState.discoveredMatches).length.toString()],
@@ -1103,7 +1106,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
 
       this.logService.info(
-        `Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
+        `LiveTracker: Updated live tracker message for queue ${trackerState.queueNumber.toString()}`,
         new Map([["messageId", trackerState.liveMessageId]]),
       );
     }
@@ -1131,7 +1134,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       if (!permissions.hasAll) {
         this.logService.info(
-          "Bot lacks ManageChannels permission, disabling channel name updates",
+          "LiveTracker: Bot lacks ManageChannels permission, disabling channel name updates",
           new Map([
             ["channelId", trackerState.channelId],
             ["guildId", trackerState.guildId],
@@ -1146,7 +1149,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return trackerState.channelManagePermissionCache;
     } catch (error) {
       this.logService.warn(
-        "Failed to check permissions for channel name updates",
+        "LiveTracker: Failed to check permissions for channel name updates",
         new Map([
           ["error", String(error)],
           ["channelId", trackerState.channelId],
@@ -1189,7 +1192,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         });
 
         this.logService.info(
-          `Updated channel name for queue ${trackerState.queueNumber.toString()}`,
+          `LiveTracker: Updated channel name for queue ${trackerState.queueNumber.toString()}`,
           new Map([
             ["oldName", name],
             ["newName", newChannelName],
@@ -1200,7 +1203,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     } catch (error) {
       if (error instanceof DiscordError && error.restError.code === 50001) {
         this.logService.info(
-          "Failed to update channel name due to insufficient permissions",
+          "LiveTracker: Failed to update channel name due to insufficient permissions",
           new Map([
             ["channelId", trackerState.channelId],
             ["error", error.message],
@@ -1215,7 +1218,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       this.logService.error(
-        "Failed to update channel name",
+        "LiveTracker: Failed to update channel name",
         new Map([
           ["channelId", trackerState.channelId],
           ["error", String(error)],
@@ -1245,7 +1248,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         });
 
         this.logService.info(
-          `Reset channel name for queue ${trackerState.queueNumber.toString()}`,
+          `LiveTracker: Reset channel name for queue ${trackerState.queueNumber.toString()}`,
           new Map([
             ["oldName", name],
             ["newName", baseChannelName],
@@ -1254,7 +1257,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     } catch (error) {
       this.logService.warn(
-        "Failed to reset channel name",
+        "LiveTracker: Failed to reset channel name",
         new Map([
           ["channelId", trackerState.channelId],
           ["error", String(error)],
@@ -1266,14 +1269,17 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   // WebSocket Hibernation API handlers
   async webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     // Currently read-only - clients receive updates but cannot send commands
-    this.logService.info("WebSocket message received (ignored)", new Map([["messageType", typeof message]]));
+    this.logService.debug(
+      "LiveTracker: WebSocket message received (ignored)",
+      new Map([["messageType", typeof message]]),
+    );
     return Promise.resolve();
   }
 
   async webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
-    this.logService.info(
-      "WebSocket client disconnected",
+    this.logService.debug(
+      "LiveTracker: WebSocket client disconnected",
       new Map([
         ["code", code.toString()],
         ["reason", reason],
@@ -1286,7 +1292,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
-    this.logService.warn("WebSocket error", new Map([["error", String(error)]]));
+    this.logService.warn("LiveTracker: WebSocket error", new Map([["error", String(error)]]));
 
     return Promise.resolve();
   }
@@ -1315,7 +1321,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     const allWebSockets = this.state.getWebSockets();
     this.logService.info(
-      "WebSocket client connected",
+      "LiveTracker: WebSocket client connected",
       new Map([
         ["totalClients", allWebSockets.length.toString()],
         ["guildId", trackerState.guildId],
@@ -1357,7 +1363,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         client.send(message);
       } catch (error) {
-        this.logService.warn("Failed to send to WebSocket client", new Map([["error", String(error)]]));
+        this.logService.warn("LiveTracker: Failed to send to WebSocket client", new Map([["error", String(error)]]));
         // WebSocket will be cleaned up automatically by hibernation API
       }
     }
@@ -1432,7 +1438,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async dispose(trackerState: LiveTrackerState | null, reason: string): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
     this.logService.info(
-      "Disposing tracker",
+      "LiveTracker: Disposing tracker",
       new Map([
         ["reason", reason],
         ["hasState", trackerState != null ? "true" : "false"],
@@ -1448,19 +1454,25 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.resetChannelName(trackerState);
       } catch (error) {
-        this.logService.info("Failed to reset channel name during disposal", new Map([["error", String(error)]]));
+        this.logService.info(
+          "LiveTracker: Failed to reset channel name during disposal",
+          new Map([["error", String(error)]]),
+        );
       }
     } else if (allWebSockets.length > 0) {
       // Close any orphaned connections without state
       this.logService.info(
-        "Closing orphaned WebSocket connections during disposal",
+        "LiveTracker: Closing orphaned WebSocket connections during disposal",
         new Map([["clientCount", allWebSockets.length.toString()]]),
       );
       for (const client of allWebSockets) {
         try {
           client.close(1011, "Tracker disposed");
         } catch (error) {
-          this.logService.info("Failed to close orphaned WebSocket client", new Map([["error", String(error)]]));
+          this.logService.info(
+            "LiveTracker: Failed to close orphaned WebSocket client",
+            new Map([["error", String(error)]]),
+          );
         }
       }
     }
@@ -1492,17 +1504,23 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           client.send(message);
           client.close(1000, "Tracker stopped");
         } catch (error) {
-          this.logService.warn("Failed to notify WebSocket client of stop", new Map([["error", String(error)]]));
+          this.logService.warn(
+            "LiveTracker: Failed to notify WebSocket client of stop",
+            new Map([["error", String(error)]]),
+          );
         }
       }
     } catch (error) {
-      this.logService.warn("Failed to build stop message state", new Map([["error", String(error)]]));
+      this.logService.warn("LiveTracker: Failed to build stop message state", new Map([["error", String(error)]]));
       // Close websockets without sending final state if we can't build it
       for (const client of allWebSockets) {
         try {
           client.close(1000, "Tracker stopped");
         } catch (closeError) {
-          this.logService.warn("Failed to close WebSocket client", new Map([["error", String(closeError)]]));
+          this.logService.warn(
+            "LiveTracker: Failed to close WebSocket client",
+            new Map([["error", String(closeError)]]),
+          );
         }
       }
     }

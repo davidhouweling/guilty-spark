@@ -329,7 +329,7 @@ export class HaloService {
 
     if (fetchedUsers.length < missingXuids.length && staleCandidates.length > 0) {
       this.logService.info(
-        `Using ${staleCandidates.length.toString()} stale KV cached users as partial fallback`,
+        `HaloService: Using ${staleCandidates.length.toString()} stale KV cached users as partial fallback`,
         new Map([["xuids", staleCandidates.map((u) => u.xuid).join(", ")]]),
       );
     }
@@ -592,7 +592,7 @@ export class HaloService {
 
   async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {
     if (xuids.length === 0) {
-      this.logService.info("No xuids provided for ranked arena CSRs");
+      this.logService.info("HaloService: No xuids provided for ranked arena CSRs");
       return new Map();
     }
 
@@ -612,7 +612,7 @@ export class HaloService {
       if (csr != null) {
         rankedArenaCsrs.set(xuid, csr);
       } else {
-        this.logService.warn(`No CSR found for xuid ${xuid}`);
+        this.logService.warn(`HaloService: No CSR found for xuid ${xuid}`);
       }
     }
 
@@ -790,8 +790,8 @@ export class HaloService {
     matches: MatchStats[],
     playerXuidToGametag: Map<string, string>,
   ): Promise<void> {
-    this.logService.info(
-      "Validating discord associations from matches",
+    this.logService.debug(
+      "HaloService: Validating discord associations from matches",
       new Map([
         ["player", JSON.stringify(players)],
         ["matches", JSON.stringify(matches.map((match) => match.MatchId))],
@@ -810,8 +810,8 @@ export class HaloService {
     );
 
     for (const association of discordAssociations) {
-      this.logService.info(
-        `Validating association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId}`,
+      this.logService.debug(
+        `HaloService: Validating association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId}`,
       );
       if (xuidsFromMatches.has(association.XboxId)) {
         const playerHistory = await this.getPlayerMatches(association.XboxId, MatchType.All);
@@ -823,8 +823,8 @@ export class HaloService {
       } else {
         association.GamesRetrievable = GamesRetrievable.NO;
       }
-      this.logService.info(
-        `Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
+      this.logService.debug(
+        `HaloService: Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
           association.GamesRetrievable === GamesRetrievable.YES ? "valid" : "invalid"
         }`,
       );
@@ -836,8 +836,8 @@ export class HaloService {
       const association = this.userCache.get(player.id);
       return association == null || association.GamesRetrievable === GamesRetrievable.UNKNOWN;
     });
-    this.logService.info(
-      `Found ${unassociatedPlayers.length.toString()} unassociated players after validating existing associations: ${unassociatedPlayers
+    this.logService.debug(
+      `HaloService: Found ${unassociatedPlayers.length.toString()} unassociated players after validating existing associations: ${unassociatedPlayers
         .map((player) => player.username)
         .join(", ")}`,
     );
@@ -851,8 +851,8 @@ export class HaloService {
         const hasMatchInSeries = playerHistory.some((match) =>
           matches.some((seriesMatch) => seriesMatch.MatchId === match.MatchId),
         );
-        this.logService.info(
-          `Searched for matches for unassociated player ${player.username} (associationReason: ${associationReason}) with Xbox ID ${xuid}. Found ${playerHistory.length.toString()} matches, ${hasMatchInSeries ? "at least one match in series" : "no matches in series"}`,
+        this.logService.debug(
+          `HaloService: Searched for matches for unassociated player ${player.username} (associationReason: ${associationReason}) with Xbox ID ${xuid}. Found ${playerHistory.length.toString()} matches, ${hasMatchInSeries ? "at least one match in series" : "no matches in series"}`,
         );
 
         const association: DiscordAssociationsRow = {
@@ -864,8 +864,8 @@ export class HaloService {
           DiscordDisplayNameSearched: player.username,
         };
         this.userCache.set(player.id, association);
-        this.logService.info(
-          `Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
+        this.logService.debug(
+          `HaloService: Association for Discord ID ${association.DiscordId} with Xbox ID ${association.XboxId} is ${
             association.GamesRetrievable === GamesRetrievable.YES ? "valid" : "invalid"
           }`,
         );
@@ -891,7 +891,7 @@ export class HaloService {
 
   async updateDiscordAssociations(): Promise<void> {
     this.logService.debug(
-      "Updating discord associations",
+      "HaloService: Updating discord associations",
       new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
     await this.databaseService.upsertDiscordAssociations(Array.from(this.userCache.values()));
@@ -934,10 +934,10 @@ export class HaloService {
       this.userCache.set(association.DiscordId, association);
     }
     this.logService.debug(
-      `Found ${discordAssociations.length.toString()} associations in the database for ${users.length.toString()} users`,
+      `HaloService: Found ${discordAssociations.length.toString()} associations in the database for ${users.length.toString()} users`,
     );
     this.logService.debug(
-      "userCache",
+      "HaloService: userCache",
       new Map(Array.from(this.userCache.entries()).map(([key, value]) => [key, { ...value }])),
     );
 
@@ -960,7 +960,7 @@ export class HaloService {
       ),
     );
     this.logService.debug(
-      `Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,
+      `HaloService: Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,
     );
 
     const unresolvedUsersByDiscordUsername = users.filter((user) => !this.userCache.has(user.id));
@@ -974,7 +974,7 @@ export class HaloService {
       ),
     );
     this.logService.debug(
-      `Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache: ${unresolvedUsersByDiscordUsername.map((user) => user.id).join(", ")}`,
+      `HaloService: Searched for ${xboxUsersByDiscordUsernameResult.length.toString()} discord usernames to put into user cache: ${unresolvedUsersByDiscordUsername.map((user) => user.id).join(", ")}`,
     );
 
     const unresolvedUsersByDiscordGlobalName = users.filter((user) => {
@@ -1003,7 +1003,7 @@ export class HaloService {
     );
 
     this.logService.debug(
-      `Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
+      `HaloService: Searched for ${unresolvedUsersByDiscordGlobalNameResult.length.toString()} discord global names to put into user cache: ${unresolvedUsersByDiscordGlobalName.map((user) => user.id).join(", ")}`,
     );
   }
 
@@ -1058,7 +1058,7 @@ export class HaloService {
       if (staleCache != null) {
         const cacheArray = Array.isArray(staleCache) ? staleCache : [staleCache];
         this.logService.info(
-          `Using ${cacheArray.length.toString()} stale KV cached user(s) for ${identifier}`,
+          `HaloService: Using ${cacheArray.length.toString()} stale KV cached user(s) for ${identifier}`,
           new Map([["identifier", identifier]]),
         );
         return staleCache as unknown as T;
@@ -1294,8 +1294,8 @@ export class HaloService {
   }
 
   private async fuzzyMatchTeam(discordTeam: MatchPlayer[], xboxXuids: string[]): Promise<void> {
-    this.logService.info(
-      `Fuzzy matching for team with Discord users ${discordTeam.map((user) => user.username).join(", ")} and Xbox xuids ${xboxXuids.join(", ")}`,
+    this.logService.debug(
+      `HaloService: Fuzzy matching for team with Discord users ${discordTeam.map((user) => user.username).join(", ")} and Xbox xuids ${xboxXuids.join(", ")}`,
     );
     // Get unassociated Discord users (those with NO or UNKNOWN games retrievable)
     const unassociatedUsers = discordTeam.filter((player) => {
@@ -1308,14 +1308,14 @@ export class HaloService {
     });
 
     if (unassociatedUsers.length === 0) {
-      this.logService.info("No unassociated Discord users found for this team, skipping fuzzy matching");
+      this.logService.debug("HaloService: No unassociated Discord users found for this team, skipping fuzzy matching");
       return;
     }
 
     const { xboxGamertags, xboxGamertagMap } = await this.getXboxGamertagMap(xboxXuids);
 
     if (xboxGamertags.length === 0) {
-      this.logService.warn("No Xbox gamertags found for fuzzy matching, skipping");
+      this.logService.debug("HaloService: No Xbox gamertags found for fuzzy matching, skipping");
       return;
     }
 
@@ -1331,8 +1331,8 @@ export class HaloService {
       );
 
       this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
-      this.logService.info(
-        `Direct assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${xboxGamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")}`,
+      this.logService.debug(
+        `HaloService: Direct assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${xboxGamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")}`,
       );
       return;
     }
@@ -1347,8 +1347,8 @@ export class HaloService {
       this.updateUserCacheWithFuzzyMatch(discordUserId, xuid, bestMatchingDiscordName);
       const gamertag = xboxGamertagMap.get(xuid);
 
-      this.logService.info(
-        `Fuzzy match: Discord user ${discordUser?.username ?? discordUserId} (${discordUser?.globalName ?? "N/A"} | ${discordUser?.guildNickname ?? "N/A"}) → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)} | Name scores: ${discordNameScores}`,
+      this.logService.debug(
+        `HaloService: Fuzzy match - Discord user ${discordUser?.username ?? discordUserId} (${discordUser?.globalName ?? "N/A"} | ${discordUser?.guildNickname ?? "N/A"}) → Xbox ${gamertag ?? "Unknown"} (${xuid}) with score ${score.toFixed(2)} | Name scores: ${discordNameScores}`,
       );
     }
 
@@ -1464,8 +1464,8 @@ export class HaloService {
       );
 
       this.updateUserCacheWithFuzzyMatch(discordUser.id, xuid, bestMatchingDiscordName);
-      this.logService.info(
-        `Low confidence assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${gamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")} | Reason: Only remaining player`,
+      this.logService.debug(
+        `HaloService: Fuzzy match - Low confidence assignment: Discord user ${discordUser.username} (${discordUser.globalName ?? "N/A"} | ${discordUser.guildNickname ?? "N/A"}) → Xbox ${gamertag} (${xuid}) with score ${bestScore.toFixed(2)} | Name scores: ${nameScores.join(", ")} | Reason: Only remaining player`,
       );
     }
   }

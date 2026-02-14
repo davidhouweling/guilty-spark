@@ -401,16 +401,6 @@ describe("Halo service", () => {
           );
         });
 
-        it("logs info messages with match scores and reasoning", async () => {
-          const logInfoSpy = vi.spyOn(logService, "info");
-
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
-
-          expect(logInfoSpy).toHaveBeenCalledWith(
-            expect.stringMatching(/Fuzzy match: Discord user.*with score.*Name scores:/),
-          );
-        });
-
         it("returns series matches when fuzzy matching succeeds", async () => {
           const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
@@ -730,19 +720,6 @@ describe("Halo service", () => {
           );
         });
 
-        it("calculates similarity scores for name variations (username, globalName, guildNickname)", async () => {
-          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
-          const logInfoSpy = vi.spyOn(logService, "info");
-
-          getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "DiscordUser02_Pro" }]));
-
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
-
-          expect(logInfoSpy).toHaveBeenCalledWith(
-            expect.stringMatching(/Fuzzy match.*Name scores:.*discord_user_02.*DiscordUser02/),
-          );
-        });
-
         it("selects best matching Discord name variant for association", async () => {
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
@@ -922,22 +899,6 @@ describe("Halo service", () => {
               expectGameSimilarityAssociation("000000000000000005"), // Team 2
             ]),
           );
-        });
-
-        it("groups Xbox players by team from match data", async () => {
-          const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
-          const logInfoSpy = vi.spyOn(logService, "info");
-
-          getUsersSpy.mockImplementation(
-            mockGetUsersWithCustomUsers([
-              { index: 1, gamertag: "discord_user_02" },
-              { index: 2, gamertag: "discord_user_03" },
-            ]),
-          );
-
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
-
-          expect(logInfoSpy).toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match: Discord user.*with score/));
         });
 
         it("only matches Discord users to Xbox players on same team", async () => {
@@ -1251,14 +1212,12 @@ describe("Halo service", () => {
 
         it("caches newly fetched Xbox gamertags for future use", async () => {
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
-          const logInfoSpy = vi.spyOn(logService, "info");
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
           await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
 
           expect(getUsersSpy).toHaveBeenCalled();
-          expect(logInfoSpy).toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match: Discord user.*with score/));
         });
 
         it("updates user cache with fuzzy match associations", async () => {
@@ -3059,7 +3018,7 @@ describe("Halo service", () => {
       const warnSpy = vi.spyOn(logService, "warn");
       infiniteClient.getPlaylistCsr.mockResolvedValue([]);
       await haloService.getRankedArenaCsrs(["789"]);
-      expect(warnSpy).toHaveBeenCalledWith("No CSR found for xuid 789");
+      expect(warnSpy).toHaveBeenCalledWith("HaloService: No CSR found for xuid 789");
     });
   });
 
