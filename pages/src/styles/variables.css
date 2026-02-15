@@ -4,17 +4,60 @@
 @custom-media --ultrawide-viewport (min-width: 1200px);
 
 :root {
-  /* Typography - Halo-inspired fonts */
+  /* Typography */
   --font-heading: "Saira Condensed", -apple-system, blinkmacsystemfont, "Segoe UI", system-ui, sans-serif;
   --font-body: "Oxanium", -apple-system, blinkmacsystemfont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "Orbitron", "Courier New", monospace;
 
-  /* Gutters */
+  /* Font Size Scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* Border Radius Scale */
+  --radius-sm: 2px;
+  --radius-base: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* Transition Timing */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-smooth: 0.3s ease;
+
+  /* Z-Index Scale */
+  --z-background: 0;
+  --z-base: 1;
+  --z-overlay: 10;
+  --z-dropdown: 50;
+  --z-modal: 100;
+
+  /* Layout */
   --gutter-mobile: 24px;
   --gutter-desktop: 32px;
   --content-width: 1200px;
 
-  /* Halo Campaign Evolved Color Palette */
+  /* Color Palette */
   --halo-bg-primary: #0a1419;
   --halo-bg-secondary: #0d1f26;
   --halo-bg-card: #0f2830;

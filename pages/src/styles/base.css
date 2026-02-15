@@ -11,6 +11,21 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   line-height: 1.6;
   min-height: 100vh;
@@ -26,7 +41,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   position: fixed;
-  z-index: 0;
+  z-index: var(--z-background);
 }
 
 body::after {
@@ -36,12 +51,12 @@ body::after {
   opacity: 0.3;
   pointer-events: none;
   position: fixed;
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 code {
   background: rgb(0 212 255 / 10%);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.9em;
   padding: 0.2em 0.4em;
@@ -50,11 +65,23 @@ code {
 a {
   color: var(--halo-cyan);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color var(--transition-base);
 }
 
 a:hover {
   color: var(--halo-accent);
+}
+
+/* Global Focus Styles for Accessibility */
+:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--halo-teal-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* Scrollbar Styling */
@@ -76,7 +103,7 @@ a:hover {
 *::-webkit-scrollbar-thumb {
   background: rgb(93 212 216 / 40%);
   border: 2px solid var(--halo-bg-secondary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 *::-webkit-scrollbar-thumb:hover {
