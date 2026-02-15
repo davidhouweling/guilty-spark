@@ -79,7 +79,7 @@ describe("LiveTracker", () => {
     render(<LiveTrackerFactory services={services} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Status")).toBeInTheDocument();
+      expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();
     });
 
     if (!isSteppableLiveTrackerConnection(connection)) {
@@ -87,6 +87,10 @@ describe("LiveTracker", () => {
     }
 
     connection.step();
+
+    await waitFor(() => {
+      expect(screen.getByText("Status")).toBeInTheDocument();
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/Series overview/i)).toBeInTheDocument();

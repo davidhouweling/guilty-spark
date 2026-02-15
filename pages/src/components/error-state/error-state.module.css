@@ -1,0 +1,118 @@
+.container {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  justify-content: center;
+  min-height: 400px;
+  padding: var(--space-8);
+}
+
+.iconContainer {
+  height: 80px;
+  position: relative;
+  width: 80px;
+}
+
+.errorIcon {
+  animation: iconPulse 2s ease-in-out infinite;
+  color: var(--color-error);
+  filter: drop-shadow(0 0 8px rgb(244 67 54 / 50%));
+  height: 100%;
+  width: 100%;
+}
+
+.iconGlow {
+  animation: glowPulse 2s ease-in-out infinite;
+  background: radial-gradient(circle, rgb(244 67 54 / 20%) 0%, transparent 70%);
+  border-radius: 50%;
+  height: 120px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+}
+
+.content {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 500px;
+  text-align: center;
+}
+
+.errorTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.errorMessage {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.retryButton {
+  background: transparent;
+  border: 2px solid var(--halo-teal-primary);
+  color: var(--halo-teal-primary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  text-transform: uppercase;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.retryButton:hover {
+  background: rgb(93 212 216 / 10%);
+  box-shadow: 0 0 20px rgb(93 212 216 / 30%);
+}
+
+.retryButton:active {
+  transform: scale(0.98);
+}
+
+.retryButton:focus-visible {
+  outline: 2px solid var(--halo-teal-primary);
+  outline-offset: 2px;
+}
+
+@keyframes iconPulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}

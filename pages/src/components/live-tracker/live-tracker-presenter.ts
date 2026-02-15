@@ -84,6 +84,7 @@ export class LiveTrackerPresenter {
         statusText: LiveTrackerPresenter.usageText,
         lastStateMessage: null,
         hasConnection: false,
+        hasReceivedInitialData: false,
       });
       return;
     }
@@ -123,6 +124,7 @@ export class LiveTrackerPresenter {
       ...current,
       hasConnection: false,
       lastStateMessage: null,
+      hasReceivedInitialData: false,
     });
   }
 
@@ -205,6 +207,7 @@ export class LiveTrackerPresenter {
       this.config.store.setSnapshot({
         ...snapshot,
         lastStateMessage: message,
+        hasReceivedInitialData: true,
       });
     });
   }
