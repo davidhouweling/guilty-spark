@@ -24,7 +24,7 @@
     "@sentry/cloudflare": "^10.38.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.1.0",
-    "discord-api-types": "^0.38.38",
+    "discord-api-types": "^0.38.39",
     "discord-interactions": "^4.4.0",
     "halo-infinite-api": "^14.2.2",
     "itty-router": "^5.0.22",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "dotenv": "^17.2.4",
-    "wrangler": "^4.64.0"
+    "dotenv": "^17.3.1",
+    "wrangler": "^4.65.0"
   }
 }
