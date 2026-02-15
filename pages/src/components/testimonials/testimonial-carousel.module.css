@@ -126,7 +126,7 @@
 .testimonialCard {
   background: rgb(8 28 30 / 90%);
   border: 1px solid rgb(93 212 216 / 20%);
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -279,7 +279,7 @@
 }
 
 .testimonialServerLink:focus-visible {
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   outline: 2px solid var(--halo-teal-primary);
   outline-offset: 2px;
 }
@@ -293,7 +293,7 @@
 .carouselDot {
   background: transparent;
   border: 1px solid rgb(93 212 216 / 60%);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   cursor: pointer;
   height: 12px;
   padding: 0;

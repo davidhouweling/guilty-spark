@@ -60,7 +60,7 @@
 .demoMedia :global(video) {
   background: rgb(0 0 0 / 50%);
   border: 2px solid var(--halo-teal-dark);
-  border-radius: 4px;
+  border-radius: var(--radius-base);
   box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
   display: block;
   height: auto;

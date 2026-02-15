@@ -74,7 +74,7 @@
 .teamStats {
   background: var(--halo-bg-secondary, #0a0e14);
   border: 1px solid rgb(93 212 216 / 25%);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1rem;
 }
 
@@ -177,7 +177,7 @@
 
 .statCell.bestInMatch {
   text-decoration: underline;
-  text-decoration-color: #10b981;
+  text-decoration-color: var(--color-winner);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }

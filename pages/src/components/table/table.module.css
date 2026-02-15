@@ -118,7 +118,7 @@
 
 .statCell.bestInMatch {
   text-decoration: underline;
-  text-decoration-color: #10b981;
+  text-decoration-color: var(--color-winner);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }

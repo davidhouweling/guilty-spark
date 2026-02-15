@@ -68,4 +68,11 @@
   --halo-white: #e8f4f8;
   --halo-gray: #8fa3b0;
   --halo-accent: #0fa;
+
+  /* Semantic Status Colors */
+  --color-info: var(--halo-teal-primary);
+  --color-success: var(--halo-accent);
+  --color-warning: #ffc107;
+  --color-error: #f44336;
+  --color-winner: #10b981;
 }

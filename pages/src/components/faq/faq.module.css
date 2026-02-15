@@ -59,7 +59,7 @@
 .faqAnswer code {
   background: rgb(13 77 82 / 50%);
   border: 1px solid var(--halo-teal-dark);
-  border-radius: 3px;
+  border-radius: var(--radius-base);
   color: var(--halo-teal-primary);
   font-family: var(--font-mono);
   font-size: 0.95em;
