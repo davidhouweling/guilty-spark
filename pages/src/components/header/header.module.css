@@ -36,7 +36,7 @@
   right: 0;
   top: 70px;
   transform: translateY(-100%);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .navLinks:global(.active) {
@@ -51,7 +51,7 @@
   color: var(--halo-teal-primary);
   display: flex;
   font-family: var(--font-heading);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 600;
   letter-spacing: 0.1em;
   min-height: 44px;
@@ -59,7 +59,7 @@
   position: relative;
   text-decoration: none;
   text-transform: uppercase;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .navLinks a:last-child {
@@ -90,7 +90,7 @@
 .hamburgerLine {
   background: var(--halo-teal-primary);
   height: 2px;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
   width: 25px;
 }
 
@@ -141,7 +141,7 @@
     height: 2px;
     left: 0;
     position: absolute;
-    transition: width 0.3s ease;
+    transition: width var(--transition-base) ease;
     width: 0;
   }
 

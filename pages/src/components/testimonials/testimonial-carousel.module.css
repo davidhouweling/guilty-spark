@@ -133,7 +133,7 @@
   margin-bottom: 1px;
   padding: 1.5rem;
   position: relative;
-  transition: border-color 200ms ease;
+  transition: border-color var(--transition-fast) ease;
 }
 
 .testimonialCard:global(.is-active) {
@@ -216,7 +216,7 @@
 .testimonialText {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1.8;
 }
 
@@ -244,7 +244,7 @@
 
 .testimonialServer {
   color: var(--halo-teal-primary);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -254,7 +254,7 @@
   display: inline-flex;
   gap: 0.35rem;
   text-decoration: none;
-  transition: opacity 200ms ease;
+  transition: opacity var(--transition-fast) ease;
 }
 
 .testimonialServerLink::after {
@@ -265,7 +265,7 @@
   content: "";
   display: inline-block;
   height: 0.75em;
-  transition: transform 200ms ease;
+  transition: transform var(--transition-fast) ease;
   width: 0.75em;
 }
 
@@ -342,7 +342,7 @@
   }
 
   .testimonialText {
-    font-size: 1.05rem;
+    font-size: var(--text-base);
   }
 }
 
@@ -353,7 +353,7 @@
   }
 
   .testimonialText {
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
   }
 
   .carouselDot {

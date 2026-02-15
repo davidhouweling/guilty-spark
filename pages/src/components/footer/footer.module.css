@@ -22,14 +22,14 @@
 .footerDesc {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 
 .footerHeading {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.1em;
   margin-bottom: 0.75rem;
@@ -41,10 +41,10 @@
   color: var(--halo-gray);
   display: block;
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   margin-bottom: 0.5rem;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .footerLink:hover {
@@ -69,7 +69,7 @@
 .footerVersion {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .footerVersion {
@@ -95,16 +95,16 @@
   }
 
   .footerDesc {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
   }
 
   .footerHeading {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     margin-bottom: 1rem;
   }
 
   .footerLink {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     margin-bottom: 0.75rem;
   }
 
@@ -116,6 +116,6 @@
 
   .footerLegal,
   .footerVersion {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
   }
 }

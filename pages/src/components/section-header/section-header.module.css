@@ -21,7 +21,7 @@
 .sectionSubtitle {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;

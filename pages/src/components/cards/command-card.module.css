@@ -18,14 +18,14 @@
 .commandName {
   color: var(--halo-teal-primary);
   font-family: var(--font-mono);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
 .commandText {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.6;
   margin: 0;
@@ -37,10 +37,10 @@
   }
 
   .commandName {
-    font-size: 1.3rem;
+    font-size: var(--text-xl);
   }
 
   .commandText {
-    font-size: 1rem;
+    font-size: var(--text-base);
   }
 }

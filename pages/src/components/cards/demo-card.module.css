@@ -36,7 +36,7 @@
 .demoTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: 0.08em;
   margin: 0;
@@ -46,7 +46,7 @@
 .demoDescription {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.7;
   margin: 0;
@@ -67,7 +67,7 @@
   image-rendering: crisp-edges;
   margin: 0 auto;
   max-width: 100%;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .demoCard:hover :global(img),
@@ -78,10 +78,10 @@
 
 @media (--tablet-viewport) {
   .demoTitle {
-    font-size: 1.5rem;
+    font-size: var(--text-2xl);
   }
 
   .demoDescription {
-    font-size: 1.05rem;
+    font-size: var(--text-base);
   }
 }
