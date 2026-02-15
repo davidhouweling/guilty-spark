@@ -17,7 +17,7 @@
   letter-spacing: 0.1em;
   min-height: 48px;
   overflow: hidden;
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-3) var(--space-6);
   position: relative;
   text-decoration: none;
   text-transform: uppercase;
@@ -26,7 +26,7 @@
 
 .large {
   font-size: var(--text-base);
-  padding: 0.875rem 2rem;
+  padding: var(--space-4) var(--space-8);
 }
 
 .haloBtn::before {
@@ -93,7 +93,7 @@
 .btnContent {
   align-items: center;
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   position: relative;
   z-index: var(--z-base);
 }
@@ -128,11 +128,11 @@
   .haloBtn {
     font-size: var(--text-base);
     letter-spacing: 0.15em;
-    padding: 1rem 2.5rem;
+    padding: var(--space-4) var(--space-10);
   }
 
   .large {
     font-size: var(--text-lg);
-    padding: 1.25rem 3rem;
+    padding: var(--space-5) var(--space-12);
   }
 }

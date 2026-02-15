@@ -1,13 +1,13 @@
 .demoCardInner {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .demoHeader {
   align-items: center;
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .demoIcon {

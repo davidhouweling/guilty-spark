@@ -16,15 +16,15 @@
 }
 
 .padSm {
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .padMd {
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 .padLg {
-  padding: 2rem;
+  padding: var(--space-8);
 }
 
 .surface {

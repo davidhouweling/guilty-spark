@@ -24,7 +24,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.05em;
-  padding: 1rem;
+  padding: var(--space-4);
   text-align: left;
   text-transform: uppercase;
   vertical-align: bottom;
@@ -96,7 +96,7 @@
 .table td {
   color: var(--halo-white, #fff);
   font-size: var(--text-sm);
-  padding: 0.5rem 1rem;
+  padding: var(--space-2) var(--space-4);
   white-space: nowrap;
 }
 

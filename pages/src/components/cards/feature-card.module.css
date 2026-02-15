@@ -20,8 +20,8 @@
 .cardBody {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.25rem;
+  gap: var(--space-6);
+  padding: var(--space-5);
 }
 
 .featureIcon {
@@ -52,8 +52,8 @@
 
 @media (--tablet-viewport) {
   .cardBody {
-    gap: 2rem;
-    padding: 2rem;
+    gap: var(--space-8);
+    padding: var(--space-8);
   }
 
   .cardTitle {

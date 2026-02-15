@@ -7,14 +7,14 @@
 .headerBar {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin: 0 0 1.5rem;
 }
 
 .headerLeft {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .headerTitle {
@@ -33,13 +33,13 @@
 .headerRight {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .headerMetaRow {
   align-items: baseline;
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: space-between;
 }
 
@@ -71,27 +71,27 @@
 .dataContainer {
   background: var(--halo-bg-card);
   border: 1px solid rgb(93 212 216 / 25%);
-  padding: 1.5rem 0;
+  padding: var(--space-6) 0;
 }
 
 .sectionTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  margin: 1.25rem 0 0.75rem;
+  margin: var(--space-5) 0 var(--space-3);
 }
 
 .notice {
   background: var(--halo-bg-secondary);
   border: 1px solid rgb(93 212 216 / 25%);
   color: var(--halo-accent);
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .seriesOverview {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .seriesScores {
@@ -176,7 +176,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 1rem;
+  padding: var(--space-4);
   text-align: center;
 }
 
@@ -214,7 +214,7 @@
 .matchesTable th,
 .matchesTable td {
   border-bottom: 1px solid rgb(93 212 216 / 25%);
-  padding: 0.75rem;
+  padding: var(--space-3);
   text-align: left;
 }
 
@@ -232,7 +232,7 @@
   cursor: pointer;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  padding: 0.5rem 1rem;
+  padding: var(--space-2) var(--space-4);
   transition: all var(--transition-fast) ease;
 }
 
@@ -281,7 +281,7 @@
   .seriesScoresList {
     display: flex;
     flex-direction: row;
-    gap: 1rem;
+    gap: var(--space-4);
   }
 
   .seriesScore {

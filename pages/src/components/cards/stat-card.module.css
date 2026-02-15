@@ -1,5 +1,5 @@
 .cardBody {
-  padding: 1.25rem;
+  padding: var(--space-5);
   text-align: center;
 }
 
@@ -23,6 +23,6 @@
 
 @media (--tablet-viewport) {
   .cardBody {
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
 }

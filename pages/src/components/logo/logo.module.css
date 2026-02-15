@@ -5,7 +5,7 @@
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
   font-weight: 700;
-  gap: 0.75rem;
+  gap: var(--space-3);
   letter-spacing: 0.15em;
   text-decoration: none;
   text-transform: uppercase;

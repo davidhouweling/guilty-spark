@@ -109,14 +109,14 @@
   box-shadow: 0 32px 80px rgb(0 0 0 / 35%);
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 2rem;
+  gap: var(--space-8);
+  padding: var(--space-8);
   position: relative;
 }
 
 .carouselTrack {
   display: grid;
-  gap: 1.5rem;
+  gap: var(--space-6);
 }
 
 .carouselWindow {
@@ -129,9 +129,9 @@
   border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-6);
   margin-bottom: 1px;
-  padding: 1.5rem;
+  padding: var(--space-6);
   position: relative;
   transition: border-color var(--transition-fast) ease;
 }
@@ -232,7 +232,7 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-body);
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .testimonialWho {
@@ -252,7 +252,7 @@
 .testimonialServerLink {
   align-items: center;
   display: inline-flex;
-  gap: 0.35rem;
+  gap: var(--space-2);
   text-decoration: none;
   transition: opacity var(--transition-fast) ease;
 }
@@ -286,7 +286,7 @@
 
 .carouselControls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   justify-content: center;
 }
 
@@ -330,7 +330,7 @@
 /* Media Queries - Tablet and Above */
 @media (--tablet-viewport) {
   .testimonialCarousel {
-    padding: 2.5rem;
+    padding: var(--space-10);
   }
 
   .carouselTrack {
@@ -338,7 +338,7 @@
   }
 
   .testimonialCard {
-    padding: 2rem;
+    padding: var(--space-8);
   }
 
   .testimonialText {
@@ -349,7 +349,7 @@
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
   .testimonialCarousel {
-    padding: 3rem;
+    padding: var(--space-12);
   }
 
   .testimonialText {

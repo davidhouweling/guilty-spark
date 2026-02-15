@@ -11,8 +11,8 @@
 .cardBody {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
+  gap: var(--space-3);
+  padding: var(--space-5);
 }
 
 .commandName {
@@ -33,7 +33,7 @@
 
 @media (--tablet-viewport) {
   .cardBody {
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
 
   .commandName {
