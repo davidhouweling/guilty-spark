@@ -4,6 +4,8 @@ import en from "javascript-time-ago/locale/en";
 import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
+import { ErrorState } from "../error-state/error-state";
+import { LoadingState } from "../loading-state/loading-state";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -78,14 +80,7 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     };
   }, [apiHost]);
 
-  const loaded = services ? <LiveTrackerFactory services={services} /> : <div>Error</div>;
+  const loaded = services ? <LiveTrackerFactory services={services} /> : <ErrorState />;
 
-  return (
-    <ComponentLoader
-      status={loadingServices}
-      loading={<div>Loading...</div>}
-      error={<div>Error</div>}
-      loaded={loaded}
-    />
-  );
+  return <ComponentLoader status={loadingServices} loading={<LoadingState />} error={<ErrorState />} loaded={loaded} />;
 }
