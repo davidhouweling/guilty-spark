@@ -58,7 +58,6 @@
     // Staging environment
     "staging": {
       "name": "guilty-spark-staging",
-      "upload_source_maps": true,
       "routes": [
         "api-staging.guilty-spark.app/",
         "api-staging.guilty-spark.app/interactions",
@@ -96,12 +95,12 @@
     // Production environment
     "production": {
       "name": "guilty-spark",
-      "upload_source_maps": true,
       "routes": [
-        {
-          "pattern": "api.guilty-spark.app",
-          "custom_domain": true,
-        },
+        "api.guilty-spark.app/",
+        "api.guilty-spark.app/interactions",
+        "api.guilty-spark.app/neatqueue",
+        "api.guilty-spark.app/proxy/halo-infinite",
+        "api.guilty-spark.app/ws/tracker/*",
       ],
       "kv_namespaces": [
         {
