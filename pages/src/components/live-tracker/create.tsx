@@ -44,6 +44,12 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
+
+  // Show loading state until we receive initial data
+  if (!snapshot.hasReceivedInitialData) {
+    return <LoadingState />;
+  }
+
   const model = LiveTrackerPresenter.present(snapshot);
 
   return <LiveTrackerView model={model} />;
