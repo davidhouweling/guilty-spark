@@ -13,12 +13,12 @@
 }
 
 .nav {
-  text-shadow: 0 0 10px rgb(93 212 216 / 50%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
 }
 
 .nav:hover {
   color: var(--halo-white);
-  text-shadow: 0 0 15px rgb(93 212 216 / 80%);
+  text-shadow: 0 0 15px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .footer {
@@ -27,11 +27,11 @@
 }
 
 .logo img {
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 60%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent));
   height: 40px;
   width: 40px;
 }
 
 .footer img {
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
 }

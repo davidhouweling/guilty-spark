@@ -5,7 +5,7 @@
 .commandCard:hover {
   background: rgb(13 77 82 / 50%);
   border-left-width: 5px;
-  box-shadow: 0 0 20px rgb(93 212 216 / 20%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
 }
 
 .cardBody {

@@ -86,7 +86,7 @@ a:hover {
 
 /* Scrollbar Styling */
 * {
-  scrollbar-color: rgb(93 212 216 / 40%) var(--halo-bg-secondary);
+  scrollbar-color: color-mix(in srgb, var(--halo-teal-primary) 40%, transparent) var(--halo-bg-secondary);
   scrollbar-width: thin;
 }
 
@@ -97,17 +97,17 @@ a:hover {
 
 *::-webkit-scrollbar-track {
   background: var(--halo-bg-secondary);
-  border-left: 1px solid rgb(93 212 216 / 15%);
+  border-left: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgb(93 212 216 / 40%);
+  background: color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
   border: 2px solid var(--halo-bg-secondary);
   border-radius: var(--radius-md);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgb(93 212 216 / 60%);
+  background: color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
 }
 
 *::-webkit-scrollbar-corner {

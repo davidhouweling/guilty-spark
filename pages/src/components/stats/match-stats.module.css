@@ -1,7 +1,7 @@
 /* Match Stats Container */
 .matchStatsContainer {
   background: var(--halo-bg-secondary, #0a0e14);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   border-left: none;
   border-right: none;
   display: flex;
@@ -73,7 +73,7 @@
 /* Team Stats */
 .teamStats {
   background: var(--halo-bg-secondary, #0a0e14);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
 }
@@ -97,7 +97,7 @@
 
 /* Team Totals */
 .teamTotals {
-  border-bottom: 1px solid rgb(93 212 216 / 25%);
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
 }
@@ -117,7 +117,7 @@
 
 .statsTable {
   background: var(--halo-bg-primary, #000);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   border-collapse: collapse;
   font-family: var(--font-body, "Inter", sans-serif);
   width: 100%;
@@ -128,7 +128,7 @@
 }
 
 .statsTable th {
-  border-bottom: 1px solid rgb(93 212 216 / 25%);
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   color: var(--halo-gray, #9ca3af);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -141,12 +141,12 @@
 }
 
 .statsTable tbody tr {
-  border-bottom: 1px solid rgb(93 212 216 / 15%);
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   transition: background-color var(--transition-fast) ease;
 }
 
 .statsTable tbody tr:hover {
-  background: rgb(93 212 216 / 5%);
+  background: color-mix(in srgb, var(--halo-teal-primary) 5%, transparent);
 }
 
 .statsTable tbody tr:last-child {
@@ -185,7 +185,7 @@
 .medalsContainer {
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .medalItem {
@@ -217,8 +217,8 @@
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
   .matchStatsContainer {
-    border-left: 1px solid rgb(93 212 216 / 25%);
-    border-right: 1px solid rgb(93 212 216 / 25%);
+    border-left: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   }
 
   .subsectionHeader {

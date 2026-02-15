@@ -70,7 +70,7 @@
 
 .dataContainer {
   background: var(--halo-bg-card);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   padding: var(--space-6) 0;
 }
 
@@ -83,7 +83,7 @@
 
 .notice {
   background: var(--halo-bg-secondary);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   color: var(--halo-accent);
   padding: var(--space-4);
 }
@@ -136,7 +136,7 @@
 
 .seriesScoreLink {
   align-items: center;
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   color: inherit;
   display: flex;
   flex-direction: column;
@@ -144,7 +144,7 @@
   font-weight: 700;
   height: 100%;
   justify-content: center;
-  padding: 16px;
+  padding: var(--space-4);
   position: relative;
   text-align: center;
   text-decoration: none;
@@ -172,7 +172,7 @@
 .teamCard {
   align-items: center;
   background: var(--halo-bg-secondary);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -205,7 +205,7 @@
 
 .matchesTable {
   background: var(--halo-bg-secondary);
-  border: 1px solid rgb(93 212 216 / 25%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   border-collapse: collapse;
   color: var(--halo-white);
   width: 100%;
@@ -213,7 +213,7 @@
 
 .matchesTable th,
 .matchesTable td {
-  border-bottom: 1px solid rgb(93 212 216 / 25%);
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   padding: var(--space-3);
   text-align: left;
 }
@@ -226,7 +226,7 @@
 
 .detailsButton {
   background: var(--halo-bg-secondary);
-  border: 1px solid rgb(93 212 216 / 50%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
   border-radius: var(--radius-base);
   color: var(--halo-accent);
   cursor: pointer;

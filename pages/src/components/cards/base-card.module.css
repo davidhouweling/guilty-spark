@@ -42,5 +42,5 @@
 .cardHover:hover {
   background: rgb(15 40 48 / 60%);
   border-color: var(--halo-teal-primary);
-  box-shadow: 0 0 30px rgb(93 212 216 / 20%);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
 }

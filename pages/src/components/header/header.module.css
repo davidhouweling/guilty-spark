@@ -9,7 +9,7 @@
   background: rgb(13 31 38 / 95%);
   border-bottom: 1px solid var(--halo-teal-dark);
   height: 70px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -69,7 +69,7 @@
 .navLinks a:hover {
   color: var(--halo-white);
   padding-left: 0.5rem;
-  text-shadow: 0 0 10px rgb(93 212 216 / 80%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .mobileMenuBtn {
@@ -79,11 +79,11 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  padding: 8px;
+  padding: var(--space-2);
   z-index: 101;
 }
 

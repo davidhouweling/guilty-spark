@@ -104,7 +104,7 @@
 
 .testimonialCarousel {
   background: linear-gradient(180deg, rgb(18 53 55 / 80%) 0%, rgb(9 22 23 / 95%) 100%);
-  border: 1px solid rgb(93 212 216 / 20%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-radius: 1.5rem;
   box-shadow: 0 32px 80px rgb(0 0 0 / 35%);
   display: flex;
@@ -125,7 +125,7 @@
 
 .testimonialCard {
   background: rgb(8 28 30 / 90%);
-  border: 1px solid rgb(93 212 216 / 20%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
@@ -137,7 +137,7 @@
 }
 
 .testimonialCard:global(.is-active) {
-  border-color: rgb(93 212 216 / 35%);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
 }
 
 .testimonialCarousel[data-carousel-ready] .carouselWindow {
@@ -169,7 +169,11 @@
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard::before {
-  background: repeating-linear-gradient(0deg, transparent 0 10px, rgb(93 212 216 / 18%) 10px 12px);
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 10px,
+    color-mix(in srgb, var(--halo-teal-primary) 18%, transparent) 10px 12px
+  );
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard::after {
@@ -177,7 +181,7 @@
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-active) {
-  border-color: rgb(93 212 216 / 35%);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
   opacity: 1;
   pointer-events: auto;
   z-index: 2;
@@ -186,7 +190,7 @@
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in),
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out) {
   text-shadow:
-    -2px 0 rgb(93 212 216 / 40%),
+    -2px 0 color-mix(in srgb, var(--halo-teal-primary) 40%, transparent),
     2px 0 rgb(252 81 133 / 35%);
 }
 
@@ -292,7 +296,7 @@
 
 .carouselDot {
   background: transparent;
-  border: 1px solid rgb(93 212 216 / 60%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
   border-radius: var(--radius-full);
   cursor: pointer;
   height: 12px;
@@ -305,8 +309,8 @@
 }
 
 .carouselDot:global(.is-active) {
-  background: rgb(93 212 216 / 45%);
-  border-color: rgb(93 212 216 / 90%);
+  background: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 90%, transparent);
   width: 36px;
 }
 

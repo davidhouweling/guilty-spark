@@ -15,7 +15,7 @@
 
 .titleBracket {
   color: var(--halo-teal-primary);
-  text-shadow: 0 0 10px rgb(93 212 216 / 50%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
 }
 
 .sectionSubtitle {

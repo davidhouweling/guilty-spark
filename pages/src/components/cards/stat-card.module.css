@@ -8,7 +8,7 @@
   font-family: var(--font-mono);
   font-size: clamp(2rem, 5vw, 2.5rem);
   font-weight: 700;
-  text-shadow: 0 0 15px rgb(93 212 216 / 50%);
+  text-shadow: 0 0 15px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
 }
 
 .statLabel {

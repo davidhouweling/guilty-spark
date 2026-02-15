@@ -12,7 +12,7 @@
 
 .demoIcon {
   color: var(--halo-teal-primary);
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
   flex-shrink: 0;
   height: 48px;
   width: 48px;
@@ -22,7 +22,7 @@
   align-items: center;
   display: flex;
   justify-content: center;
-  padding: 4px;
+  padding: var(--space-1);
 }
 
 .demoIconImage :global(img),
@@ -73,7 +73,7 @@
 .demoCard:hover :global(img),
 .demoCard:hover :global(video) {
   border-color: var(--halo-teal-primary);
-  box-shadow: 0 4px 30px rgb(93 212 216 / 30%);
+  box-shadow: 0 4px 30px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
 }
 
 @media (--tablet-viewport) {

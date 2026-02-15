@@ -29,7 +29,7 @@
 .faqItem:hover {
   background: rgb(15 40 48 / 60%);
   border-left-width: 5px;
-  box-shadow: 0 0 30px rgb(93 212 216 / 15%);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
 }
 
 .faqQuestion {
@@ -76,7 +76,7 @@
 .faqAnswer a:hover {
   border-bottom-color: var(--halo-teal-primary);
   color: var(--halo-white);
-  text-shadow: 0 0 8px rgb(93 212 216 / 60%);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
 }
 
 /* ============================================ */

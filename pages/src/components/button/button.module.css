@@ -30,7 +30,7 @@
 }
 
 .haloBtn::before {
-  background: linear-gradient(135deg, rgb(93 212 216 / 10%), transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--halo-teal-primary) 10%, transparent), transparent);
   content: "";
   inset: 0;
   opacity: 0;
@@ -44,9 +44,9 @@
 
 .haloBtn:hover {
   border-color: var(--halo-white);
-  box-shadow: 0 0 20px rgb(93 212 216 / 50%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
   color: var(--halo-white);
-  text-shadow: 0 0 10px rgb(93 212 216 / 80%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .btnCorner {
@@ -87,7 +87,7 @@
 
 .haloBtn:hover .btnCorner {
   border-color: var(--halo-white);
-  box-shadow: 0 0 8px rgb(93 212 216 / 80%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .btnContent {
@@ -99,7 +99,7 @@
 }
 
 .btnIcon {
-  filter: drop-shadow(0 0 4px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
   height: 1.25rem;
   object-fit: contain;
   width: 1.25rem;
