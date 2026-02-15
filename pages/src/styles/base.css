@@ -30,6 +30,12 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
 }
 
 body::before {
