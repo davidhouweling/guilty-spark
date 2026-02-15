@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin: 0 0 1.5rem;
+  margin: 0 0 var(--space-6);
 }
 
 .headerLeft {
@@ -126,7 +126,7 @@
     100% 100%,
     10px 10px,
     cover;
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 
   /* Image comes from JSX via CSS var so we can layer theme overlays for contrast */
   --series-score-bg: none;
@@ -189,7 +189,7 @@
 .teamName {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-3);
 }
 
 .playerList {

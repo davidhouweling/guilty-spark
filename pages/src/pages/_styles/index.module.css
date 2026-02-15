@@ -20,7 +20,7 @@
       transparent 52%
     );
   min-height: 80vh;
-  padding-bottom: 2rem;
+  padding-bottom: var(--space-8);
   padding-top: 80px;
 }
 
@@ -45,7 +45,7 @@
   gap: var(--space-1);
   justify-content: center;
   letter-spacing: 0.15em;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
   padding: var(--space-2) var(--space-3);
   text-transform: uppercase;
 }
@@ -65,7 +65,7 @@
   gap: 0;
   letter-spacing: 0.05em;
   line-height: 0.9;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
   text-shadow:
     0 0 20px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent),
     0 0 40px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
@@ -85,7 +85,7 @@
   font-size: clamp(0.9rem, 2vw, 1.3rem);
   font-weight: 600;
   letter-spacing: 0.15em;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
   text-transform: uppercase;
 }
 
@@ -95,7 +95,7 @@
   font-size: clamp(0.95rem, 2vw, 1.3rem);
   font-weight: 400;
   line-height: 1.8;
-  margin: 0 auto 2rem;
+  margin: 0 auto var(--space-8);
   max-width: 800px;
 }
 
@@ -105,7 +105,7 @@
   flex-direction: column;
   gap: var(--space-4);
   justify-content: center;
-  margin-bottom: 3rem;
+  margin-bottom: var(--space-12);
 }
 
 /* Stats Grid */
@@ -192,7 +192,7 @@
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
   letter-spacing: 0.1em;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
   text-shadow: 0 0 20px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
   text-transform: uppercase;
 }
@@ -202,7 +202,7 @@
   font-family: var(--font-body);
   font-size: clamp(1.1rem, 3vw, 1.3rem);
   font-weight: 400;
-  margin-bottom: 3rem;
+  margin-bottom: var(--space-12);
 }
 
 /* ============================================ */
@@ -214,7 +214,7 @@
 @media (--tablet-viewport) {
   /* Hero Section */
   .heroSection {
-    padding-bottom: 4rem;
+    padding-bottom: var(--space-16);
     padding-top: 100px;
   }
 
@@ -229,14 +229,14 @@
   }
 
   .heroDescription {
-    margin-bottom: 3rem;
+    margin-bottom: var(--space-12);
   }
 
   .heroButtons {
     align-items: center;
     flex-flow: row wrap;
     gap: var(--space-6);
-    margin-bottom: 4rem;
+    margin-bottom: var(--space-16);
   }
 
   /* Stats Grid */

@@ -68,7 +68,7 @@
 
 .navLinks a:hover {
   color: var(--halo-white);
-  padding-left: 0.5rem;
+  padding-left: var(--space-2);
   text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 

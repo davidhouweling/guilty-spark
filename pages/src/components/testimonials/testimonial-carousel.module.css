@@ -225,7 +225,7 @@
 }
 
 .testimonialText p {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 
 .testimonialText p:last-child {

@@ -15,7 +15,7 @@
   display: grid;
   gap: var(--space-8);
   grid-template-columns: 1fr;
-  margin: 0 auto 3rem;
+  margin: 0 auto var(--space-12);
   max-width: 1200px;
 }
 
@@ -32,7 +32,7 @@
   font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.1em;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
   margin-top: 0;
   text-transform: uppercase;
 }
@@ -42,14 +42,14 @@
   display: block;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
   text-decoration: none;
   transition: all var(--transition-base) ease;
 }
 
 .footerLink:hover {
   color: var(--halo-teal-primary);
-  padding-left: 0.5rem;
+  padding-left: var(--space-2);
 }
 
 .footerBottom {
@@ -61,7 +61,7 @@
   justify-content: center;
   margin: 0 auto;
   max-width: 1200px;
-  padding-top: 2rem;
+  padding-top: var(--space-8);
   text-align: center;
 }
 
@@ -100,12 +100,12 @@
 
   .footerHeading {
     font-size: var(--text-lg);
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-4);
   }
 
   .footerLink {
     font-size: var(--text-base);
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-3);
   }
 
   .footerBottom {

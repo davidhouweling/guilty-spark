@@ -1,5 +1,5 @@
 .sectionHeader {
-  margin-bottom: 4rem;
+  margin-bottom: var(--space-16);
   text-align: center;
 }
 
@@ -9,7 +9,7 @@
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
   letter-spacing: 0.1em;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
   text-transform: uppercase;
 }
 

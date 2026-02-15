@@ -23,7 +23,7 @@
 
 .footer {
   letter-spacing: 0.1em;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .logo img {
