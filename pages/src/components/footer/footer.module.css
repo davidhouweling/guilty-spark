@@ -4,7 +4,7 @@
 
 /* ============================================ */
 
-.halo Footer {
+.halo footer {
   background: var(--halo-bg-primary);
   border-top: 1px solid var(--halo-teal-dark);
   margin-top: var(--space-4);

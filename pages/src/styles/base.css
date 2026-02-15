@@ -1,5 +1,5 @@
 /* Modern CSS Reset */
-@import "modern-normalize/modern-normalize.css";
+@import url("modern-normalize/modern-normalize.css");
 
 /* Design Tokens */
 @import url("./variables.css");
@@ -79,9 +79,9 @@ a:hover {
 }
 
 :focus-visible {
+  border-radius: var(--radius-sm);
   outline: 2px solid var(--halo-teal-primary);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
 /* Scrollbar Styling */

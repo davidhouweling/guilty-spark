@@ -91,7 +91,8 @@
   }
 
   .faqItem {
-    padding: var(--space-8);\n  }
+    padding: var(--space-8);
+  }
 
   .faqQuestion {
     font-size: var(--text-2xl);
