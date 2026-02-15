@@ -1,5 +1,5 @@
 .cardBody {
-  padding: 1.25rem;
+  padding: var(--space-5);
   text-align: center;
 }
 
@@ -8,21 +8,21 @@
   font-family: var(--font-mono);
   font-size: clamp(2rem, 5vw, 2.5rem);
   font-weight: 700;
-  text-shadow: 0 0 15px rgb(93 212 216 / 50%);
+  text-shadow: 0 0 15px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
 }
 
 .statLabel {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.1em;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   text-transform: uppercase;
 }
 
 @media (--tablet-viewport) {
   .cardBody {
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
 }

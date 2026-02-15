@@ -9,7 +9,7 @@
   background: rgb(13 31 38 / 95%);
   border-bottom: 1px solid var(--halo-teal-dark);
   height: 70px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -30,13 +30,13 @@
   gap: 0;
   left: 0;
   opacity: 0;
-  padding: 2rem 1.5rem;
+  padding: var(--space-8) var(--space-6);
   pointer-events: none;
   position: fixed;
   right: 0;
   top: 70px;
   transform: translateY(-100%);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .navLinks:global(.active) {
@@ -51,15 +51,15 @@
   color: var(--halo-teal-primary);
   display: flex;
   font-family: var(--font-heading);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 600;
   letter-spacing: 0.1em;
   min-height: 44px;
-  padding: 1rem 0;
+  padding: var(--space-4) 0;
   position: relative;
   text-decoration: none;
   text-transform: uppercase;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .navLinks a:last-child {
@@ -68,8 +68,8 @@
 
 .navLinks a:hover {
   color: var(--halo-white);
-  padding-left: 0.5rem;
-  text-shadow: 0 0 10px rgb(93 212 216 / 80%);
+  padding-left: var(--space-2);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .mobileMenuBtn {
@@ -79,18 +79,18 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  padding: 8px;
+  padding: var(--space-2);
   z-index: 101;
 }
 
 .hamburgerLine {
   background: var(--halo-teal-primary);
   height: 2px;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
   width: 25px;
 }
 
@@ -121,7 +121,7 @@
     background: transparent;
     border-bottom: none;
     flex-direction: row;
-    gap: 2rem;
+    gap: var(--space-8);
     opacity: 1;
     padding: 0;
     pointer-events: auto;
@@ -141,7 +141,7 @@
     height: 2px;
     left: 0;
     position: absolute;
-    transition: width 0.3s ease;
+    transition: width var(--transition-base) ease;
     width: 0;
   }
 

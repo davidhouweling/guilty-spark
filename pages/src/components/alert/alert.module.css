@@ -7,25 +7,25 @@
 .alert {
   align-items: flex-start;
   border: 1px solid;
-  border-radius: 4px;
+  border-radius: var(--radius-base);
   display: flex;
   font-family: var(--font-body);
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: space-between;
   line-height: 1.5;
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .alertContent {
   align-items: flex-start;
   display: flex;
   flex: 1;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .alertIcon {
   flex-shrink: 0;
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
   line-height: 1;
 }
 
@@ -41,13 +41,13 @@
   cursor: pointer;
   display: flex;
   flex-shrink: 0;
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   height: 1.5rem;
   justify-content: center;
   line-height: 1;
   opacity: 0.7;
   padding: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--transition-fast) ease;
   width: 1.5rem;
 }
 
@@ -56,7 +56,7 @@
 }
 
 .alertDismiss:focus-visible {
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   opacity: 1;
   outline: 2px solid currentcolor;
   outline-offset: 2px;
@@ -64,25 +64,25 @@
 
 /* Variant Styles */
 .alertInfo {
-  background: var(--halo-bg-secondary);
-  border-color: rgb(93 212 216 / 25%);
-  color: var(--halo-teal-primary);
+  background: color-mix(in srgb, var(--color-info) 5%, transparent);
+  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
+  color: var(--color-info);
 }
 
 .alertSuccess {
-  background: rgb(0 255 170 / 5%);
-  border-color: rgb(0 255 170 / 25%);
-  color: var(--halo-accent);
+  background: color-mix(in srgb, var(--color-success) 5%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+  color: var(--color-success);
 }
 
 .alertWarning {
-  background: rgb(255 193 7 / 5%);
-  border-color: rgb(255 193 7 / 25%);
-  color: #ffc107;
+  background: color-mix(in srgb, var(--color-warning) 5%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
+  color: var(--color-warning);
 }
 
 .alertError {
-  background: rgb(244 67 54 / 5%);
-  border-color: rgb(244 67 54 / 25%);
-  color: #f44336;
+  background: color-mix(in srgb, var(--color-error) 5%, transparent);
+  border-color: color-mix(in srgb, var(--color-error) 25%, transparent);
+  color: var(--color-error);
 }

@@ -5,27 +5,27 @@
 .commandCard:hover {
   background: rgb(13 77 82 / 50%);
   border-left-width: 5px;
-  box-shadow: 0 0 20px rgb(93 212 216 / 20%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
 }
 
 .cardBody {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
+  gap: var(--space-3);
+  padding: var(--space-5);
 }
 
 .commandName {
   color: var(--halo-teal-primary);
   font-family: var(--font-mono);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
 .commandText {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.6;
   margin: 0;
@@ -33,14 +33,14 @@
 
 @media (--tablet-viewport) {
   .cardBody {
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
 
   .commandName {
-    font-size: 1.3rem;
+    font-size: var(--text-xl);
   }
 
   .commandText {
-    font-size: 1rem;
+    font-size: var(--text-base);
   }
 }

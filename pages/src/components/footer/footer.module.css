@@ -4,35 +4,35 @@
 
 /* ============================================ */
 
-.haloFooter {
+.halo footer {
   background: var(--halo-bg-primary);
   border-top: 1px solid var(--halo-teal-dark);
-  margin-top: 16px;
-  padding: 3rem 0 1.5rem;
+  margin-top: var(--space-4);
+  padding: var(--space-12) 0 var(--space-6);
 }
 
 .footerContent {
   display: grid;
-  gap: 2rem;
+  gap: var(--space-8);
   grid-template-columns: 1fr;
-  margin: 0 auto 3rem;
+  margin: 0 auto var(--space-12);
   max-width: 1200px;
 }
 
 .footerDesc {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 
 .footerHeading {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.1em;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
   margin-top: 0;
   text-transform: uppercase;
 }
@@ -41,15 +41,15 @@
   color: var(--halo-gray);
   display: block;
   font-family: var(--font-body);
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .footerLink:hover {
   color: var(--halo-teal-primary);
-  padding-left: 0.5rem;
+  padding-left: var(--space-2);
 }
 
 .footerBottom {
@@ -57,11 +57,11 @@
   border-top: 1px solid var(--halo-teal-darker);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: center;
   margin: 0 auto;
   max-width: 1200px;
-  padding-top: 2rem;
+  padding-top: var(--space-8);
   text-align: center;
 }
 
@@ -69,7 +69,7 @@
 .footerVersion {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .footerVersion {
@@ -86,26 +86,26 @@
 
 @media (--tablet-viewport) {
   .haloFooter {
-    padding: 4rem 0 2rem;
+    padding: var(--space-16) 0 var(--space-8);
   }
 
   .footerContent {
-    gap: 3rem;
+    gap: var(--space-12);
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 
   .footerDesc {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
   }
 
   .footerHeading {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-4);
   }
 
   .footerLink {
-    font-size: 0.95rem;
-    margin-bottom: 0.75rem;
+    font-size: var(--text-base);
+    margin-bottom: var(--space-3);
   }
 
   .footerBottom {
@@ -116,6 +116,6 @@
 
   .footerLegal,
   .footerVersion {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
   }
 }

@@ -1,7 +1,7 @@
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: var(--space-8);
   margin: 0 auto;
   max-width: 700px;
 }
@@ -13,19 +13,19 @@
 .gridCaption {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.05em;
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
   text-align: center;
 }
 
 @media (--tablet-viewport) {
   .grid {
-    gap: 2.5rem;
+    gap: var(--space-10);
   }
 
   .gridCaption {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
   }
 }

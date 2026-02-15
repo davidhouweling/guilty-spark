@@ -104,19 +104,19 @@
 
 .testimonialCarousel {
   background: linear-gradient(180deg, rgb(18 53 55 / 80%) 0%, rgb(9 22 23 / 95%) 100%);
-  border: 1px solid rgb(93 212 216 / 20%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-radius: 1.5rem;
   box-shadow: 0 32px 80px rgb(0 0 0 / 35%);
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 2rem;
+  gap: var(--space-8);
+  padding: var(--space-8);
   position: relative;
 }
 
 .carouselTrack {
   display: grid;
-  gap: 1.5rem;
+  gap: var(--space-6);
 }
 
 .carouselWindow {
@@ -125,20 +125,19 @@
 
 .testimonialCard {
   background: rgb(8 28 30 / 90%);
-  border: 1px solid rgb(93 212 216 / 20%);
-  border-radius: 1rem;
-  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-6);
   margin-bottom: 1px;
-  padding: 1.5rem;
+  padding: var(--space-6);
   position: relative;
-  transition: border-color 200ms ease;
+  transition: border-color var(--transition-fast) ease;
 }
 
 .testimonialCard:global(.is-active) {
-  border-color: rgb(93 212 216 / 35%);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
 }
 
 .testimonialCarousel[data-carousel-ready] .carouselWindow {
@@ -170,7 +169,11 @@
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard::before {
-  background: repeating-linear-gradient(0deg, transparent 0 10px, rgb(93 212 216 / 18%) 10px 12px);
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 10px,
+    color-mix(in srgb, var(--halo-teal-primary) 18%, transparent) 10px 12px
+  );
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard::after {
@@ -178,7 +181,7 @@
 }
 
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-active) {
-  border-color: rgb(93 212 216 / 35%);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
   opacity: 1;
   pointer-events: auto;
   z-index: 2;
@@ -187,7 +190,7 @@
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-in),
 .testimonialCarousel[data-carousel-ready] .testimonialCard:global(.is-glitching-out) {
   text-shadow:
-    -2px 0 rgb(93 212 216 / 40%),
+    -2px 0 color-mix(in srgb, var(--halo-teal-primary) 40%, transparent),
     2px 0 rgb(252 81 133 / 35%);
 }
 
@@ -217,12 +220,12 @@
 .testimonialText {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1.8;
 }
 
 .testimonialText p {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 
 .testimonialText p:last-child {
@@ -233,7 +236,7 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-body);
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .testimonialWho {
@@ -245,7 +248,7 @@
 
 .testimonialServer {
   color: var(--halo-teal-primary);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -253,9 +256,9 @@
 .testimonialServerLink {
   align-items: center;
   display: inline-flex;
-  gap: 0.35rem;
+  gap: var(--space-2);
   text-decoration: none;
-  transition: opacity 200ms ease;
+  transition: opacity var(--transition-fast) ease;
 }
 
 .testimonialServerLink::after {
@@ -266,7 +269,7 @@
   content: "";
   display: inline-block;
   height: 0.75em;
-  transition: transform 200ms ease;
+  transition: transform var(--transition-fast) ease;
   width: 0.75em;
 }
 
@@ -280,21 +283,21 @@
 }
 
 .testimonialServerLink:focus-visible {
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   outline: 2px solid var(--halo-teal-primary);
   outline-offset: 2px;
 }
 
 .carouselControls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   justify-content: center;
 }
 
 .carouselDot {
   background: transparent;
-  border: 1px solid rgb(93 212 216 / 60%);
-  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
+  border-radius: var(--radius-full);
   cursor: pointer;
   height: 12px;
   padding: 0;
@@ -306,8 +309,8 @@
 }
 
 .carouselDot:global(.is-active) {
-  background: rgb(93 212 216 / 45%);
-  border-color: rgb(93 212 216 / 90%);
+  background: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 90%, transparent);
   width: 36px;
 }
 
@@ -331,7 +334,7 @@
 /* Media Queries - Tablet and Above */
 @media (--tablet-viewport) {
   .testimonialCarousel {
-    padding: 2.5rem;
+    padding: var(--space-10);
   }
 
   .carouselTrack {
@@ -339,22 +342,22 @@
   }
 
   .testimonialCard {
-    padding: 2rem;
+    padding: var(--space-8);
   }
 
   .testimonialText {
-    font-size: 1.05rem;
+    font-size: var(--text-base);
   }
 }
 
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
   .testimonialCarousel {
-    padding: 3rem;
+    padding: var(--space-12);
   }
 
   .testimonialText {
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
   }
 
   .carouselDot {

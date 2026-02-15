@@ -3,35 +3,35 @@
   color: var(--halo-teal-primary);
   display: flex;
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   font-weight: 700;
-  gap: 0.75rem;
+  gap: var(--space-3);
   letter-spacing: 0.15em;
   text-decoration: none;
   text-transform: uppercase;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .nav {
-  text-shadow: 0 0 10px rgb(93 212 216 / 50%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
 }
 
 .nav:hover {
   color: var(--halo-white);
-  text-shadow: 0 0 15px rgb(93 212 216 / 80%);
+  text-shadow: 0 0 15px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
 }
 
 .footer {
   letter-spacing: 0.1em;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .logo img {
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 60%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent));
   height: 40px;
   width: 40px;
 }
 
 .footer img {
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
 }

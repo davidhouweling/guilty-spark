@@ -9,7 +9,7 @@
   left: 0;
   position: absolute;
   top: 0;
-  transition: height 0.3s ease;
+  transition: height var(--transition-base) ease;
   width: 4px;
 }
 
@@ -20,13 +20,13 @@
 .cardBody {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.25rem;
+  gap: var(--space-6);
+  padding: var(--space-5);
 }
 
 .featureIcon {
   color: var(--halo-teal-primary);
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
   height: 60px;
   width: 60px;
 }
@@ -34,7 +34,7 @@
 .cardTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: 0.1em;
   margin: 0;
@@ -44,7 +44,7 @@
 .cardText {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.7;
   margin: 0;
@@ -52,15 +52,15 @@
 
 @media (--tablet-viewport) {
   .cardBody {
-    gap: 2rem;
-    padding: 2rem;
+    gap: var(--space-8);
+    padding: var(--space-8);
   }
 
   .cardTitle {
-    font-size: 1.5rem;
+    font-size: var(--text-2xl);
   }
 
   .cardText {
-    font-size: 1.05rem;
+    font-size: var(--text-base);
   }
 }

@@ -1,7 +1,6 @@
 import autoprefixer from "autoprefixer";
 import postcssClamp from "postcss-clamp";
 import postcssCustomMedia from "postcss-custom-media";
-import postcssNormalize from "postcss-normalize";
 import postcssPresetEnv from "postcss-preset-env";
 import postcssNesting from "postcss-nesting";
 import postcssGlobalData from "@csstools/postcss-global-data";
@@ -9,7 +8,6 @@ import postcssGlobalData from "@csstools/postcss-global-data";
 export default {
   plugins: [
     postcssPresetEnv,
-    postcssNormalize,
     autoprefixer,
     postcssGlobalData({
       files: ["./src/styles/variables.css"],

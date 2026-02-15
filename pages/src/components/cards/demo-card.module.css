@@ -1,18 +1,18 @@
 .demoCardInner {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .demoHeader {
   align-items: center;
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .demoIcon {
   color: var(--halo-teal-primary);
-  filter: drop-shadow(0 0 8px rgb(93 212 216 / 50%));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--halo-teal-primary) 50%, transparent));
   flex-shrink: 0;
   height: 48px;
   width: 48px;
@@ -22,7 +22,7 @@
   align-items: center;
   display: flex;
   justify-content: center;
-  padding: 4px;
+  padding: var(--space-1);
 }
 
 .demoIconImage :global(img),
@@ -36,7 +36,7 @@
 .demoTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: 0.08em;
   margin: 0;
@@ -46,7 +46,7 @@
 .demoDescription {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 400;
   line-height: 1.7;
   margin: 0;
@@ -60,28 +60,28 @@
 .demoMedia :global(video) {
   background: rgb(0 0 0 / 50%);
   border: 2px solid var(--halo-teal-dark);
-  border-radius: 4px;
+  border-radius: var(--radius-base);
   box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
   display: block;
   height: auto;
   image-rendering: crisp-edges;
   margin: 0 auto;
   max-width: 100%;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
 }
 
 .demoCard:hover :global(img),
 .demoCard:hover :global(video) {
   border-color: var(--halo-teal-primary);
-  box-shadow: 0 4px 30px rgb(93 212 216 / 30%);
+  box-shadow: 0 4px 30px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
 }
 
 @media (--tablet-viewport) {
   .demoTitle {
-    font-size: 1.5rem;
+    font-size: var(--text-2xl);
   }
 
   .demoDescription {
-    font-size: 1.05rem;
+    font-size: var(--text-base);
   }
 }
