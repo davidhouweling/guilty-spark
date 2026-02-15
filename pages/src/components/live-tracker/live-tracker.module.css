@@ -137,7 +137,6 @@
 .seriesScoreLink {
   align-items: center;
   border: 1px solid rgb(93 212 216 / 25%);
-  box-sizing: border-box;
   color: inherit;
   display: flex;
   flex-direction: column;
