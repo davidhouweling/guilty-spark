@@ -43,6 +43,8 @@ export interface SortableTableProps<TData> {
   ariaLabel?: string;
   /** Optional initial sort state */
   initialSort?: { columnId: string; desc?: boolean };
+  /** Optional function to provide custom row styles */
+  getRowStyle?: (row: TData) => React.CSSProperties | undefined;
 }
 
 function getSortIndicator(sortDirection: SortDirection | false): string | null {
@@ -67,6 +69,7 @@ export function SortableTable<TData>({
   getRowKey = (_, index): string => index.toString(),
   ariaLabel,
   initialSort,
+  getRowStyle,
 }: SortableTableProps<TData>): React.ReactElement {
   // Convert our simplified column format to TanStack format
   const tableColumns = React.useMemo<ColumnDef<TData>[]>(
@@ -168,22 +171,25 @@ export function SortableTable<TData>({
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row, index) => (
-            <tr key={getRowKey(row.original, index)}>
-              {row.getVisibleCells().map((cell) => {
-                const meta = cell.column.columnDef.meta as
-                  | { headerClassName?: string; cellClassName?: string | ((row: TData) => string) }
-                  | undefined;
-                const cellClassName =
-                  typeof meta?.cellClassName === "function" ? meta.cellClassName(row.original) : meta?.cellClassName;
-                return (
-                  <td key={cell.id} className={cellClassName}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+          {table.getRowModel().rows.map((row, index) => {
+            const rowStyle = getRowStyle?.(row.original);
+            return (
+              <tr key={getRowKey(row.original, index)} style={rowStyle}>
+                {row.getVisibleCells().map((cell) => {
+                  const meta = cell.column.columnDef.meta as
+                    | { headerClassName?: string; cellClassName?: string | ((row: TData) => string) }
+                    | undefined;
+                  const cellClassName =
+                    typeof meta?.cellClassName === "function" ? meta.cellClassName(row.original) : meta?.cellClassName;
+                  return (
+                    <td key={cell.id} className={cellClassName}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

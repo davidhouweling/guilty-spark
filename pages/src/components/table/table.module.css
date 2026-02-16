@@ -81,12 +81,17 @@
 
 /* Table Body */
 .table tbody tr {
+  background-color: color-mix(in srgb, var(--team-color, transparent) 20%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   transition: background-color var(--transition-fast) ease;
 }
 
 .table tbody tr:hover {
-  background: color-mix(in srgb, var(--halo-teal-primary) 5%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--halo-teal-primary) 5%,
+    color-mix(in srgb, var(--team-color, transparent) 20%, transparent)
+  );
 }
 
 .table tbody tr:last-child {
@@ -98,6 +103,10 @@
   font-size: var(--text-sm);
   padding: var(--space-2) var(--space-4);
   white-space: nowrap;
+}
+
+.table td img {
+  vertical-align: middle;
 }
 
 /* Cell Variants */
