@@ -41,7 +41,7 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
             "options": [
               {
                 "default": true,
-                "description": "The current maps and modes of HCS (as of 26 August 2025)",
+                "description": "The current maps and modes of HCS (as of 16 February 2026)",
                 "label": "HCS - Current",
                 "value": "C",
               },

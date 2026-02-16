@@ -17,6 +17,8 @@ import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-present
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
+import { useTeamColors } from "../team-colors/use-team-colors";
+import { TeamColorPicker } from "../team-colors/team-color-picker";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 
@@ -50,6 +52,10 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
 }
 
 export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
+  const guildId = model.state?.guildName ?? "";
+  const queueNumber = model.state?.queueNumber ?? 0;
+  const teamColors = useTeamColors(guildId, queueNumber);
+
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
   // Sort substitutions by timestamp for rendering between matches
@@ -178,32 +184,47 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                         {model.state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
                       </h3>
                       <ul className={styles.seriesScoresList}>
-                        {model.state.matches.map((match) => (
-                          <li
-                            key={match.matchId}
-                            className={styles.seriesScore}
-                            style={((): React.CSSProperties & { readonly "--series-score-bg": string } => {
-                              return {
-                                "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                              };
-                            })()}
-                          >
-                            <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
-                              <img
-                                src={gameModeIconUrl(match.gameType).src}
-                                alt={match.gameType}
-                                className={styles.gameTypeIcon}
-                              />
-                              {match.gameScore}
-                              {match.gameSubScore != null ? (
-                                <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                              ) : (
-                                ""
-                              )}
-                              <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                            </a>
-                          </li>
-                        ))}
+                        {model.state.matches.map((match) => {
+                          // Determine winning team for overlay color
+                          let winningTeamIndex: number | null = null;
+                          if (match.rawMatchStats) {
+                            const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
+                            if (winningTeam) {
+                              winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
+                            }
+                          }
+
+                          const teamColor =
+                            winningTeamIndex !== null ? teamColors.getTeamColorForTeam(winningTeamIndex) : null;
+
+                          return (
+                            <li
+                              key={match.matchId}
+                              className={styles.seriesScore}
+                              style={
+                                {
+                                  "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
+                                  "--team-color": teamColor?.hex ?? "transparent",
+                                } as React.CSSProperties
+                              }
+                            >
+                              <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
+                                <img
+                                  src={gameModeIconUrl(match.gameType).src}
+                                  alt={match.gameType}
+                                  className={styles.gameTypeIcon}
+                                />
+                                {match.gameScore}
+                                {match.gameSubScore != null ? (
+                                  <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                                ) : (
+                                  ""
+                                )}
+                                <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                              </a>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </>
                   ) : (
@@ -214,9 +235,22 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                     </div>
                   )}
                 </section>
-                {model.state.teams.map((team) => {
+                {model.state.teams.map((team, teamIndex) => {
+                  const teamColor = teamColors.getTeamColorForTeam(teamIndex);
+
                   return (
-                    <section key={team.name} className={styles.teamCard}>
+                    <section
+                      key={team.name}
+                      className={styles.teamCard}
+                      style={{ "--team-color": teamColor.hex } as React.CSSProperties}
+                    >
+                      <TeamColorPicker
+                        currentColor={teamColor}
+                        onColorSelect={(colorId): void => {
+                          teamColors.setTeamColor(teamIndex, colorId);
+                        }}
+                        teamName={team.name}
+                      />
                       <h3 className={styles.teamName}>{team.name}</h3>
                       <ul className={styles.playerList}>
                         {team.players.map((player) => {
@@ -235,6 +269,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   playerData={seriesStats.playerData}
                   title="Series Totals"
                   metadata={seriesStats.metadata}
+                  teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
                 />
               </Container>
             )}
@@ -284,6 +319,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                             score={match.gameScore}
                             startTime={match.startTime}
                             endTime={match.endTime}
+                            teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
                           />
                         </Container>
                       ) : (

@@ -5,6 +5,7 @@ import { SortableTable, type SortableTableColumn } from "../table/sortable-table
 import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
+import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import styles from "./match-stats.module.css";
 
@@ -20,6 +21,7 @@ interface MatchStatsProps {
   readonly score: string;
   readonly startTime: string;
   readonly endTime: string;
+  readonly teamColors?: readonly TeamColor[];
 }
 
 export function MatchStats({
@@ -34,6 +36,7 @@ export function MatchStats({
   score,
   startTime,
   endTime,
+  teamColors,
 }: MatchStatsProps): React.ReactElement {
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
@@ -213,6 +216,14 @@ export function MatchStats({
             columns={teamColumns}
             getRowKey={(row) => row.teamId.toString()}
             ariaLabel="Team statistics"
+            getRowStyle={
+              teamColors
+                ? (row): React.CSSProperties =>
+                    ({
+                      "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                    }) as React.CSSProperties
+                : undefined
+            }
           />
         </div>
       )}
@@ -224,6 +235,14 @@ export function MatchStats({
           columns={playerColumns}
           getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
           ariaLabel="Player statistics"
+          getRowStyle={
+            teamColors
+              ? (row): React.CSSProperties =>
+                  ({
+                    "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                  }) as React.CSSProperties
+              : undefined
+          }
         />
       </div>
     </div>

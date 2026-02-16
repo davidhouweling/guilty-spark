@@ -4,6 +4,7 @@ import { SortableTable, type SortableTableColumn } from "../table/sortable-table
 import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
+import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import type { SeriesMetadata } from "./series-metadata";
 import styles from "./match-stats.module.css";
@@ -13,9 +14,16 @@ interface SeriesStatsProps {
   readonly playerData: MatchStatsData[];
   readonly title: string;
   readonly metadata: SeriesMetadata | null;
+  readonly teamColors?: readonly TeamColor[];
 }
 
-export function SeriesStats({ teamData, playerData, title, metadata }: SeriesStatsProps): React.ReactElement {
+export function SeriesStats({
+  teamData,
+  playerData,
+  title,
+  metadata,
+  teamColors,
+}: SeriesStatsProps): React.ReactElement {
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
 
@@ -202,6 +210,14 @@ export function SeriesStats({ teamData, playerData, title, metadata }: SeriesSta
             columns={teamColumns}
             getRowKey={(row) => row.teamId.toString()}
             ariaLabel="Accumulated team statistics"
+            getRowStyle={
+              teamColors
+                ? (row): React.CSSProperties =>
+                    ({
+                      "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                    }) as React.CSSProperties
+                : undefined
+            }
           />
         </div>
       )}
@@ -214,6 +230,14 @@ export function SeriesStats({ teamData, playerData, title, metadata }: SeriesSta
             columns={playerColumns}
             getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
             ariaLabel="Accumulated player statistics"
+            getRowStyle={
+              teamColors
+                ? (row): React.CSSProperties =>
+                    ({
+                      "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                    }) as React.CSSProperties
+                : undefined
+            }
           />
         </div>
       )}
