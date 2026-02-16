@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { generateRoundRobinMaps } from "../round-robin.mjs";
-import { CURRENT_HCS_MAPS, ALL_MODES } from "../hcs.mjs";
-import type { MapMode } from "../hcs.mjs";
+import { CURRENT_HCS_MAPS, ALL_MODES } from "../../../services/halo/hcs.mjs";
+import type { MapMode } from "../../../services/halo/hcs.mjs";
 
 // Helper to create a realistic HCS pool
 const createHcsPool = (): { mode: MapMode; map: string }[] => {

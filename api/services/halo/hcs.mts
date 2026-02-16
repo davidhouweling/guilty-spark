@@ -1,17 +1,17 @@
 // HCS map/mode pool
 
-export const HCS_LAST_UPDATED = "26 August 2025";
+export const HCS_LAST_UPDATED = "16 February 2026";
 
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type Format = "random" | "objective" | "slayer";
 
 export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
-  Slayer: ["Aquarius", "Live Fire", "Origin", "Recharge", "Solitude", "Streets"],
-  "Capture the Flag": ["Aquarius", "Forbidden", "Fortress", "Origin"],
-  Strongholds: ["Live Fire", "Lattice", "Recharge"],
-  Oddball: ["Live Fire", "Recharge", "Lattice"],
-  "King of the Hill": ["Live Fire", "Recharge", "Lattice"],
-  "Neutral Bomb": ["Aquarius"],
+  Slayer: ["Live Fire", "Origin", "Recharge", "Solitude", "Streets", "Vacancy"],
+  "Capture the Flag": ["Aquarius", "Empyrean", "Origin"],
+  Strongholds: ["Live Fire", "Recharge"],
+  Oddball: ["Lattice", "Live Fire", "Recharge"],
+  "King of the Hill": ["Lattice", "Live Fire", "Vacancy"],
+  "Neutral Bomb": [],
 };
 
 export const OBJECTIVE_MODES: Omit<MapMode, "Slayer">[] = [
@@ -30,11 +30,11 @@ export const HCS_SET_FORMAT: Record<number, Format[]> = {
 };
 
 export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {
-  Slayer: ["Aquarius", "Live Fire", "Recharge", "Streets", "Solitude", "Empyrean", "Origin"],
+  Slayer: ["Aquarius", "Live Fire", "Recharge", "Streets", "Solitude", "Empyrean", "Origin", "Vacancy"],
   "Capture the Flag": ["Aquarius", "Bazaar", "Empyrean", "Forbidden", "Fortress", "Origin"],
   Strongholds: ["Live Fire", "Recharge", "Streets", "Empyrean", "Solitude", "Lattice"],
   Oddball: ["Live Fire", "Recharge", "Streets", "Lattice"],
-  "King of the Hill": ["Live Fire", "Recharge", "Streets", "Solitude", "Lattice"],
+  "King of the Hill": ["Live Fire", "Recharge", "Streets", "Solitude", "Lattice", "Vacancy"],
   "Neutral Bomb": ["Aquarius", "Fortress"],
 };
 

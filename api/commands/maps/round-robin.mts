@@ -1,5 +1,5 @@
 import { Preconditions } from "../../base/preconditions.mjs";
-import type { MapMode } from "./hcs.mjs";
+import type { MapMode } from "../../services/halo/hcs.mjs";
 
 export interface RoundRobinArgs {
   count: number;
