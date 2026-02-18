@@ -26,8 +26,6 @@ export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" 
   cellClassName?: string | ((row: TData) => string);
   /** Enable sorting for this column (default: true) */
   enableSorting?: boolean;
-  /** Sort function type: 'auto' | 'alphanumeric' | 'basic' (default: 'auto') */
-  sortingFn?: "auto" | "alphanumeric" | "basic";
 }
 
 export interface SortableTableProps<TData> {
