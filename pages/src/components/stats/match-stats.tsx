@@ -7,6 +7,7 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
+import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "./medals-sorting";
 import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {
@@ -23,6 +24,8 @@ interface MatchStatsProps {
   readonly endTime: string;
   readonly teamColors?: readonly TeamColor[];
 }
+
+type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
 
 export function MatchStats({
   data,
@@ -80,12 +83,7 @@ export function MatchStats({
       {
         id: "medals",
         header: "Medals",
-        accessorFn: (row: MatchStatsData): number => {
-          return row.players.reduce(
-            (teamTotal, player) => teamTotal + player.medals.reduce((sum, medal) => sum + medal.count, 0),
-            0,
-          );
-        },
+        accessorFn: getTeamMedalsMap,
         cell: (_value: unknown, row: MatchStatsData): React.ReactNode => (
           <div className={styles.medalsContainer}>
             {row.teamMedals.map((medal, idx) => (
@@ -98,19 +96,19 @@ export function MatchStats({
         ),
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic" as const,
+        sortingFn: sortByMedals,
       },
     ];
   }, [data, hasTeamStats]);
 
   // Define player stats columns
-  const playerColumns = React.useMemo<SortableTableColumn<MatchStatsData & { player: MatchStatsPlayerData }>[]>(() => {
+  const playerColumns = React.useMemo<SortableTableColumn<MatchStatsRow>[]>(() => {
     const statColumns = data[0]?.players[0]?.values ?? [];
     return [
       {
         id: "team",
         header: "Team",
-        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => row.teamId,
+        accessorFn: (row: MatchStatsRow): number => row.teamId,
         cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
@@ -119,7 +117,7 @@ export function MatchStats({
       {
         id: "gamertag",
         header: "Gamertag",
-        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): string => row.player.name,
+        accessorFn: (row: MatchStatsRow): string => row.player.name,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
         sortingFn: "alphanumeric",
@@ -127,16 +125,16 @@ export function MatchStats({
       ...statColumns.map((stat) => ({
         id: stat.name,
         header: stat.name,
-        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => {
+        accessorFn: (row: MatchStatsRow): number => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
           return playerStat?.value ?? 0;
         },
-        cell: (value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => {
+        cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
           return playerStat?.display ?? String(value);
         },
         headerClassName: undefined,
-        cellClassName: (row: MatchStatsData & { player: MatchStatsPlayerData }): string => {
+        cellClassName: (row: MatchStatsRow): string => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
           return classNames(tableStyles.statCell, {
             [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
@@ -148,10 +146,8 @@ export function MatchStats({
       {
         id: "medals",
         header: "Medals",
-        accessorFn: (row: MatchStatsData & { player: MatchStatsPlayerData }): number => {
-          return row.player.medals.reduce((sum, medal) => sum + medal.count, 0);
-        },
-        cell: (_value: unknown, row: MatchStatsData & { player: MatchStatsPlayerData }): React.ReactNode => (
+        accessorFn: getPlayerMedalsMap,
+        cell: (_value: unknown, row: MatchStatsRow): React.ReactNode => (
           <div className={styles.medalsContainer}>
             {row.player.medals.map((medal, idx) => (
               <span key={idx} className={styles.medalItem}>
@@ -163,7 +159,7 @@ export function MatchStats({
         ),
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic" as const,
+        sortingFn: sortByMedals,
       },
     ];
   }, [data]);

@@ -20,13 +20,13 @@ export interface MatchStatsData {
   teamId: number;
   teamStats: MatchStatsValues[];
   players: MatchStatsPlayerData[];
-  teamMedals: { name: string; count: number; sortingWeight: number }[];
+  teamMedals: MatchStatsMedal[];
 }
 
 export interface MatchStatsPlayerData {
   name: string;
   values: MatchStatsValues[];
-  medals: { name: string; count: number; sortingWeight: number }[];
+  medals: MatchStatsMedal[];
 }
 
 export interface MatchStatsValues {
@@ -35,4 +35,10 @@ export interface MatchStatsValues {
   bestInTeam: boolean;
   bestInMatch: boolean;
   display: string;
+}
+
+export interface MatchStatsMedal {
+  name: string;
+  count: number;
+  sortingWeight: number;
 }
