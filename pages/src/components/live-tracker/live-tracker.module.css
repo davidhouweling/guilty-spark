@@ -74,6 +74,15 @@
   padding: var(--space-6) 0;
 }
 
+.contentContainer {
+  position: relative;
+  transition: max-width var(--transition-smooth);
+}
+
+.contentContainer.wide {
+  max-width: 100%;
+}
+
 .sectionTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);

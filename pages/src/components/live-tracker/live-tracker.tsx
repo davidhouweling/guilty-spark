@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
@@ -19,6 +19,7 @@ import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { useTeamColors } from "../team-colors/use-team-colors";
 import { TeamColorPicker } from "../team-colors/team-color-picker";
+import { ViewModeSelector, type ViewMode } from "../view-mode/view-mode-selector";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 
@@ -55,6 +56,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
   const guildId = model.state?.guildName ?? "";
   const queueNumber = model.state?.queueNumber ?? 0;
   const teamColors = useTeamColors(guildId, queueNumber);
+  const [viewMode, setViewMode] = useState<ViewMode>("standard");
 
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
@@ -165,16 +167,17 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         </div>
       </Container>
 
-      <Container mobileDown="0" className={styles.dataContainer}>
+      <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, styles[viewMode])}>
+        <ViewModeSelector currentMode={viewMode} onModeSelect={setViewMode} />
         {model.state?.status === "stopped" ? (
-          <Container>
+          <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">The series has completed. Tracker stopped.</Alert>
           </Container>
         ) : null}
 
         {model.state ? (
           <>
-            <Container>
+            <Container className={classNames(styles.contentContainer, styles[viewMode])}>
               <h2 className={styles.sectionTitle}>Series overview</h2>
               <div className={styles.seriesOverview}>
                 <section className={styles.seriesScores}>
@@ -263,7 +266,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
               </div>
             </Container>
             {seriesStats && (
-              <Container mobileDown="0">
+              <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
                 <SeriesStats
                   teamData={seriesStats.teamData}
                   playerData={seriesStats.playerData}
@@ -275,7 +278,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             )}
             {hasMatches && (
               <>
-                <Container>
+                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                   <h2 className={styles.sectionTitle}>Matches</h2>
                 </Container>
                 {((): React.ReactElement[] => {
@@ -291,7 +294,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       }
 
                       elements.push(
-                        <Container key={`sub-${substitution.timestamp}`}>
+                        <Container
+                          key={`sub-${substitution.timestamp}`}
+                          className={classNames(styles.contentContainer, styles[viewMode])}
+                        >
                           <Alert variant="info" icon="↔️">
                             <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
                             <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
@@ -306,7 +312,11 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
 
                     elements.push(
                       matchStats?.data ? (
-                        <Container key={match.matchId} mobileDown="0">
+                        <Container
+                          key={match.matchId}
+                          mobileDown="0"
+                          className={classNames(styles.contentContainer, styles[viewMode])}
+                        >
                           <MatchStatsView
                             data={matchStats.data}
                             id={match.matchId}
@@ -323,7 +333,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                           />
                         </Container>
                       ) : (
-                        <Container key={match.matchId}>
+                        <Container
+                          key={match.matchId}
+                          className={classNames(styles.contentContainer, styles[viewMode])}
+                        >
                           <Alert variant="warning">Match stats unavailable</Alert>
                         </Container>
                       ),
@@ -334,7 +347,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   while (substitutionIndex < sortedSubstitutions.length) {
                     const substitution = sortedSubstitutions[substitutionIndex];
                     elements.push(
-                      <Container key={`sub-${substitution.timestamp}`}>
+                      <Container
+                        key={`sub-${substitution.timestamp}`}
+                        className={classNames(styles.contentContainer, styles[viewMode])}
+                      >
                         <Alert variant="info" icon="↔️">
                           <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
                           <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
@@ -349,7 +365,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
               </>
             )}
             {!hasMatches && sortedSubstitutions.length > 0 && (
-              <Container>
+              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 {sortedSubstitutions.map((substitution) => (
                   <Alert key={substitution.timestamp} variant="info" icon="↔️">
                     <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
@@ -360,7 +376,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             )}
           </>
         ) : (
-          <Container>
+          <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">{model.statusText}</Alert>
           </Container>
         )}
