@@ -1,0 +1,81 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+.container {
+  position: relative;
+}
+
+.triggerButton {
+  background: transparent;
+  border: none;
+  color: var(--halo-white);
+  cursor: pointer;
+  font-size: var(--text-xl);
+  opacity: 0.6;
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.triggerButton:hover {
+  opacity: 1;
+}
+
+.triggerButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}
+
+.dropdown {
+  background: var(--halo-bg-secondary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-base);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 50%);
+  margin-top: var(--space-2);
+  max-height: 500px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  position: absolute;
+  z-index: var(--z-dropdown);
+}
+
+/* Enter animations - Top Left */
+.dropdownEnterTopLeft {
+  opacity: 0;
+  transform: scale(0.9) translateY(-8px);
+  transform-origin: top left;
+}
+
+.dropdownEnterActiveTopLeft {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transform-origin: top left;
+  transition: all 0.25s ease-out;
+}
+
+/* Enter animations - Top Right */
+.dropdownEnterTopRight {
+  opacity: 0;
+  transform: scale(0.9) translateY(-8px);
+  transform-origin: top right;
+}
+
+.dropdownEnterActiveTopRight {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transform-origin: top right;
+  transition: all 0.25s ease-out;
+}
+
+/* Exit animations */
+.dropdownExit {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.dropdownExitActive {
+  opacity: 0;
+  transform: scale(0.9) translateY(-8px);
+  transition: all 0.25s ease-in;
+}

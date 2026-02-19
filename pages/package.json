@@ -26,6 +26,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-time-ago": "^7.4.1",
+    "react-transition-group": "^4.4.5",
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "@types/postcss-normalize": "^9.0.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/react-transition-group": "^4.4.12",
     "autoprefixer": "^10.4.24",
     "halo-infinite-api": "^14.2.2",
     "postcss": "^8.5.6",

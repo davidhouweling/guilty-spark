@@ -121,6 +121,7 @@ npm run format:fix
 - **Progressive Enhancement**: Only override properties that change at larger breakpoints
 - **Avoid Desktop-First**: Never use `max-width` media queries unless absolutely necessary
 - **Consistent Blocks**: Keep the “Base / Tablet / Desktop” comment structure and place new declarations in the appropriate section to preserve readability.
+- **Design tokens**: Make use of `variables.css` which has defined tokens for font size, spacing, colors, etc. Prefer these over creating your own where appropriate.
 
 ## Type Safety Principles
 
