@@ -1,7 +1,14 @@
+/* ============================================ */
+
+/* Base Styles - Mobile First                  */
+
+/* ============================================ */
+
 .wrapper {
   position: absolute;
   right: var(--space-2);
   top: var(--space-2);
+  z-index: var(--z-overlay);
 }
 
 .dropdownHeader {
@@ -13,66 +20,62 @@
   text-transform: uppercase;
 }
 
-.colorGrid {
+.modeList {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
-.colorOption {
-  align-items: center;
+.modeOption {
+  align-items: flex-start;
   background: transparent;
   border: 2px solid transparent;
   border-radius: var(--radius-base);
   color: var(--halo-white);
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   font-family: var(--font-body);
-  font-size: var(--text-sm);
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: var(--space-2);
+  position: relative;
   text-align: left;
   transition: all var(--transition-fast);
   width: 100%;
 }
 
-.colorOption:hover {
+.modeOption:hover {
   background: color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   border-color: var(--halo-teal-primary);
 }
 
-.colorOption:focus-visible {
+.modeOption:focus-visible {
   border-color: var(--halo-accent);
   outline: 2px solid var(--halo-accent);
   outline-offset: 2px;
 }
 
-.colorOption[data-selected="true"] {
+.modeOption[data-selected="true"] {
   background: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-color: var(--halo-accent);
 }
 
-.colorSwatch {
-  align-items: center;
-  border: 2px solid color-mix(in srgb, var(--halo-white) 30%, transparent);
-  border-radius: var(--radius-base);
-  display: flex;
-  flex-shrink: 0;
-  height: var(--space-8);
-  justify-content: center;
-  position: relative;
-  width: var(--space-8);
+.modeLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
-.colorLabel {
-  flex: 1;
+.modeDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
 }
 
 .checkmark {
-  color: var(--halo-white);
+  color: var(--halo-accent);
   font-size: var(--text-base);
   font-weight: 700;
-  text-shadow:
-    0 0 4px rgb(0 0 0 / 80%),
-    0 0 8px rgb(0 0 0 / 60%);
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
 }
