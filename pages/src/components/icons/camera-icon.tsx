@@ -3,18 +3,26 @@ import React from "react";
 export function CameraIcon(): React.ReactElement {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="1em" height="1em">
-      {/* Video camera body */}
-      <rect x="2" y="8" width="13" height="8" rx="1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Lens */}
-      <circle cx="7" cy="12" r="2.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Lens inner detail */}
-      <circle cx="7" cy="12" r="1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Viewfinder screen on top */}
-      <path d="M11 8V6a1 1 0 011-1h3a1 1 0 011 1v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Recording triangles (right side) */}
-      <path d="M15 10l5 2-5 2V10z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Recording indicator dot */}
-      <circle cx="12" cy="10" r="0.5" fill="currentColor" />
+      {/* Monitor body shell - top */}
+      <path vectorEffect="non-scaling-stroke" strokeWidth="1.5" d="M7 6.5C7 3 17 3 17 6.5" />
+
+      {/* Monitor body shell - bottom */}
+      <path vectorEffect="non-scaling-stroke" strokeWidth="1.5" d="M7 17.5C7 21 17 21 17 17.5" />
+
+      {/* Main spherical body */}
+      <circle cx="12" cy="12" r="6.5" strokeWidth="1.5" />
+
+      {/* Central Eye (The "Camera") */}
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" fillOpacity="0.2" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+
+      {/* Side details (wings/fins) */}
+      <path strokeWidth="1" d="M5.5 12L4 12" opacity="0.6" />
+      <path strokeWidth="1" d="M20 12L18.5 12" opacity="0.6" />
+
+      {/* Scan Beam Effect (conical scan from eye) */}
+      <path d="M15 12L22 8M15 12L22 16" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+      <path d="M22 8Q23 12 22 16" strokeWidth="1" opacity="0.3" />
     </svg>
   );
 }
