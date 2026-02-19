@@ -45,14 +45,30 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     () => store.getSnapshot(),
   );
 
-  // Show loading state until we receive initial data
-  if (!snapshot.hasReceivedInitialData) {
-    return <LoadingState />;
-  }
+  const loaderStatus =
+    snapshot.connectionState === "error"
+      ? ComponentLoaderStatus.ERROR
+      : snapshot.hasReceivedInitialData
+        ? ComponentLoaderStatus.LOADED
+        : ComponentLoaderStatus.LOADING;
 
   const model = LiveTrackerPresenter.present(snapshot);
 
-  return <LiveTrackerView model={model} />;
+  return (
+    <ComponentLoader
+      status={loaderStatus}
+      loading={<LoadingState />}
+      error={
+        <ErrorState
+          message={snapshot.statusText}
+          onRetry={() => {
+            presenter.start();
+          }}
+        />
+      }
+      loaded={<LiveTrackerView model={model} />}
+    />
+  );
 }
 
 export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
