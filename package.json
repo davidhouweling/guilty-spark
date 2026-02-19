@@ -46,7 +46,7 @@
     "deploy:pages": "npm run deploy --workspace=pages"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^10.0.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "^8.55.0",
