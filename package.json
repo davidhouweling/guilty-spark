@@ -51,7 +51,7 @@
     "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "^8.55.0",
     "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.1",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-astro": "^1.6.0",
     "eslint-plugin-import": "^2.32.0",
