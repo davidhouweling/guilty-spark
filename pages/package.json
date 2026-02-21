@@ -19,7 +19,7 @@
     "@astrojs/react": "^4.3.1",
     "@guilty-spark/contracts": "file:../contracts",
     "@tanstack/react-table": "^8.21.3",
-    "astro": "^5.17.2",
+    "astro": "^5.17.3",
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
     "modern-normalize": "^3.0.1",
