@@ -216,7 +216,7 @@ export function MatchStats({
               teamColors
                 ? (row): React.CSSProperties =>
                     ({
-                      "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                      "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
                     }) as React.CSSProperties
                 : undefined
             }
@@ -235,7 +235,7 @@ export function MatchStats({
             teamColors
               ? (row): React.CSSProperties =>
                   ({
-                    "--team-color": teamColors[row.teamId]?.hex ?? "transparent",
+                    "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
                   }) as React.CSSProperties
               : undefined
           }

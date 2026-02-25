@@ -1,0 +1,529 @@
+/* ============================================ */
+
+/* Streamer Overlay - OBS Mode Layout          */
+
+/* ============================================ */
+
+.overlay {
+  background: #0f0; /* Chroma key green */
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  inset: 0;
+  overflow: hidden;
+  position: fixed;
+  z-index: var(--z-overlay);
+}
+
+/* View Mode Selector positioned in top-right */
+.viewModeContainer {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  z-index: 100;
+}
+
+/* Preview backgrounds for development */
+.preview-player {
+  background-image: url("/in-game-player.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.preview-observer {
+  background-image: url("/in-game-observer.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* ============================================ */
+
+/* Top Section: Teams and Score                 */
+
+/* ============================================ */
+
+.topSection {
+  align-items: start;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+}
+
+.queueInfo {
+  background: rgb(15 40 48 / 90%);
+  border: 2px solid var(--halo-teal-primary);
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+  border-top: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  gap: 0;
+  grid-column: 2;
+  grid-row: 1;
+  line-height: 1;
+  padding: var(--space-1) var(--space-3);
+  text-align: center;
+}
+
+.serverName {
+  color: var(--halo-gray);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+  text-transform: uppercase;
+}
+
+.scoreDisplay {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.scoreText {
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  text-shadow:
+    0 2px 4px rgb(0 0 0 / 80%),
+    0 0 20px var(--halo-teal-primary);
+  white-space: nowrap;
+}
+
+.queueNumber {
+  color: var(--halo-gray);
+  font-weight: 600;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+/* ============================================ */
+
+/* Team Displays (Inline at Top)               */
+
+/* ============================================ */
+
+.teamLeft,
+.teamRight {
+  align-items: center;
+  background-color: color-mix(in srgb, var(--team-color, transparent) 40%, transparent);
+  border: 2px solid var(--team-color, var(--halo-teal-primary));
+  border-top: 0;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--team-color, var(--halo-teal-primary)) 40%, transparent);
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+}
+
+.teamLeft {
+  border-bottom-left-radius: var(--radius-lg);
+  border-right: 0;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.teamRight {
+  border-bottom-right-radius: var(--radius-lg);
+  border-left: 0;
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.teamName {
+  color: var(--team-color, var(--halo-accent));
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px var(--team-color, var(--halo-teal-primary));
+}
+
+.teamPlayers {
+  color: var(--halo-white);
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+/* ============================================ */
+
+/* Bottom Tab Bar                               */
+
+/* ============================================ */
+
+.bottomSection {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  z-index: 10;
+}
+
+.tabBar {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.tab {
+  align-items: center;
+  background: rgb(15 40 48 / 90%);
+  background-color: color-mix(in srgb, var(--tab-team-color, transparent) 20%, rgb(15 40 48 / 90%));
+  background-image:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent),
+      color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent)
+    ),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px),
+    var(--tab-bg);
+  background-position:
+    center,
+    0 0,
+    center;
+  background-repeat: no-repeat, repeat, no-repeat;
+  background-size:
+    100% 100%,
+    10px 10px,
+    cover;
+  border: 2px solid var(--tab-team-color, var(--halo-teal-primary));
+  border-bottom: 0;
+  border-top-left-radius: var(--radius-base);
+  border-top-right-radius: var(--radius-base);
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-body);
+  justify-content: center;
+  min-width: 80px;
+  padding: var(--space-1) var(--space-2);
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+  transition: all var(--transition-fast);
+}
+
+.tabSeries {
+  font-size: var(--text-base);
+  font-weight: 700;
+  min-width: 100px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.tabContent {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-1);
+}
+
+.tab:hover {
+  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 30%, rgb(15 40 48 / 90%));
+  border-color: var(--halo-accent);
+  transform: translateY(-2px);
+}
+
+.tabActive {
+  animation: tabGlow 5s ease-in-out infinite;
+  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 40%, rgb(15 40 48 / 90%));
+  border-color: var(--halo-accent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
+}
+
+@keyframes tabGlow {
+  0%,
+  100% {
+    border-color: var(--halo-accent);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
+  }
+
+  50% {
+    border-color: var(--halo-white);
+    box-shadow:
+      0 0 40px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent),
+      0 0 20px color-mix(in srgb, var(--halo-accent) 80%, transparent);
+  }
+}
+
+.tabSelected {
+  border-color: var(--halo-accent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-accent) 50%, transparent);
+}
+
+.tabIcon {
+  height: 20px;
+  width: 20px;
+}
+
+.tabLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: center;
+}
+
+.tabScore {
+  color: var(--halo-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ============================================ */
+
+/* Information Ticker                           */
+
+/* ============================================ */
+
+.ticker {
+  background: rgb(15 40 48 / 95%);
+  border-top: 2px solid var(--halo-teal-primary);
+  line-height: 1;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+.tickerScroll {
+  animation: tickerScrolling 60s linear infinite;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  white-space: nowrap;
+}
+
+@keyframes tickerScrolling {
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.tickerLabel {
+  align-items: center;
+  border-right: 2px solid var(--halo-accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.tickerLabelText {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+  text-transform: uppercase;
+}
+
+.tickerRow {
+  align-items: center;
+  background-color: color-mix(in srgb, var(--row-color, transparent) 20%, transparent);
+  border-right: 1px solid var(--halo-teal-primary);
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.tickerTeamRow {
+  background-color: color-mix(in srgb, var(--row-color, transparent) 30%, transparent);
+}
+
+.tickerPlayerRow {
+  background-color: color-mix(in srgb, var(--row-color, transparent) 15%, transparent);
+}
+
+.tickerRowContent {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tickerName {
+  align-items: center;
+  color: var(--halo-white);
+  display: flex;
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  gap: var(--space-2);
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+.tickerStats {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tickerStat {
+  align-items: center;
+  color: var(--halo-white);
+  display: inline-flex;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.tickerStatName {
+  color: var(--halo-gray);
+  font-weight: 600;
+}
+
+.tickerStatValue {
+  color: var(--halo-white);
+  font-weight: 400;
+}
+
+.tickerStatValue.bestInTeam {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgb(16 185 129 / 60%);
+}
+
+.tickerStatValue.bestInMatch {
+  text-decoration: underline;
+  text-decoration-color: var(--color-winner);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.tickerMedals {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tickerMedal {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tickerMedalCount {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+/* ============================================ */
+
+/* Sliding Stats Panel                          */
+
+/* ============================================ */
+
+.statsPanel {
+  align-items: flex-end;
+  background: rgb(0 0 0 / 70%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--space-8) var(--space-8) 0;
+  position: fixed;
+  z-index: 100;
+}
+
+/* Transition classes for enter/exit animations */
+.panelEnter {
+  opacity: 0;
+}
+
+.panelEnter .statsPanelContent {
+  transform: translateY(100%);
+}
+
+.panelEnterActive {
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}
+
+.panelEnterActive .statsPanelContent {
+  transform: translateY(0);
+  transition: transform 300ms ease-out;
+}
+
+.panelExit {
+  opacity: 1;
+}
+
+.panelExit .statsPanelContent {
+  transform: translateY(0);
+}
+
+.panelExitActive {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+
+.panelExitActive .statsPanelContent {
+  transform: translateY(100%);
+  transition: transform 300ms ease-in;
+}
+
+.statsPanelContent {
+  background: rgb(15 40 48 / 98%);
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -4px 40px rgb(0 0 0 / 60%);
+  max-height: 80vh;
+  max-width: 1400px;
+  overflow-y: auto;
+  padding: var(--space-6);
+  position: relative;
+  width: 100%;
+}
+
+.closeButton {
+  background: transparent;
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: var(--radius-base);
+  color: var(--halo-white);
+  cursor: pointer;
+  font-size: var(--text-xl);
+  line-height: 1;
+  padding: var(--space-2);
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  transition: all var(--transition-fast);
+}
+
+.closeButton:hover {
+  background: var(--halo-teal-primary);
+  border-color: var(--halo-accent);
+  color: var(--halo-bg-primary);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}

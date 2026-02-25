@@ -81,7 +81,7 @@
 
 /* Table Body */
 .table tbody tr {
-  background-color: color-mix(in srgb, var(--team-color, transparent) 20%, transparent);
+  background-color: color-mix(in srgb, var(--row-color, transparent) 20%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   transition: background-color var(--transition-fast) ease;
 }
@@ -90,7 +90,7 @@
   background: color-mix(
     in srgb,
     var(--halo-teal-primary) 5%,
-    color-mix(in srgb, var(--team-color, transparent) 20%, transparent)
+    color-mix(in srgb, var(--row-color, transparent) 20%, transparent)
   );
 }
 

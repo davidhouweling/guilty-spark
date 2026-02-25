@@ -240,9 +240,9 @@ describe("LiveTrackerEmbed", () => {
             },
             {
               type: ComponentType.Button,
-              label: "View in browser (BETA)",
+              label: "View live stats",
               style: ButtonStyle.Link,
-              emoji: { name: "🌐" },
+              emoji: { name: "📈" },
               url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
             },
           ],
@@ -273,9 +273,9 @@ describe("LiveTrackerEmbed", () => {
             },
             {
               type: ComponentType.Button,
-              label: "View in browser (BETA)",
+              label: "View live stats",
               style: ButtonStyle.Link,
-              emoji: { name: "🌐" },
+              emoji: { name: "📈" },
               url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
             },
           ],

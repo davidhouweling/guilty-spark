@@ -6,9 +6,29 @@
 
 .wrapper {
   position: absolute;
-  right: var(--space-2);
-  top: var(--space-2);
+  right: var(--space-1);
+  top: var(--space-1);
   z-index: var(--z-overlay);
+}
+
+.triggerButton {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+}
+
+.triggerIcon {
+  display: block;
+  height: 24px;
+  width: 24px;
+}
+
+.triggerChevron {
+  color: var(--halo-white);
+  display: block;
+  height: 12px;
+  width: 12px;
 }
 
 .dropdownHeader {
@@ -18,6 +38,12 @@
   letter-spacing: 0.05em;
   margin-bottom: var(--space-3);
   text-transform: uppercase;
+}
+
+.dropdownDivider {
+  background: color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  height: 1px;
+  margin: var(--space-4) 0;
 }
 
 .modeList {
@@ -78,4 +104,85 @@
   right: var(--space-2);
   top: 50%;
   transform: translateY(-50%);
+}
+
+/* Toggle Options */
+.toggleList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.toggleOption {
+  align-items: center;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: var(--radius-base);
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-body);
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-2);
+  text-align: left;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.toggleOption:hover {
+  background: color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+  border-color: var(--halo-teal-primary);
+}
+
+.toggleOption:focus-visible {
+  border-color: var(--halo-accent);
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}
+
+.toggleTextContainer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.toggleLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.toggleDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+}
+
+.toggleSwitch {
+  background: var(--halo-gray);
+  border-radius: 12px;
+  flex-shrink: 0;
+  height: 24px;
+  position: relative;
+  transition: background var(--transition-fast);
+  width: 44px;
+}
+
+.toggleOption[data-enabled="true"] .toggleSwitch {
+  background: var(--halo-accent);
+}
+
+.toggleSlider {
+  background: var(--halo-white);
+  border-radius: 50%;
+  height: 18px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: transform var(--transition-fast);
+  width: 18px;
+}
+
+.toggleOption[data-enabled="true"] .toggleSlider {
+  transform: translateX(20px);
 }
