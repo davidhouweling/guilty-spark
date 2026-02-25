@@ -205,7 +205,7 @@ export function StreamerOverlay({
   };
 
   const currentMatchGroup = tickerMatchGroups[currentMatchIndex];
-  const activeTabIndex = currentMatchGroup.matchIndex;
+  const activeTabIndex = currentMatchGroup?.matchIndex;
 
   // Build tabs array
   const tabs: (TabData & { label: string; score?: string; icon?: string; bgImage?: string; teamColor?: string })[] = [
@@ -327,7 +327,7 @@ export function StreamerOverlay({
             </div>
           )}
           {/* Information Ticker */}
-          {streamerOptions.showTicker && (
+          {streamerOptions.showTicker && currentMatchGroup && (
             <div className={styles.ticker} ref={tickerRef}>
               <div className={styles.tickerScroll} key={currentMatchIndex}>
                 {/* Ticker Label */}

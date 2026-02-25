@@ -6,9 +6,29 @@
 
 .wrapper {
   position: absolute;
-  right: var(--space-2);
-  top: var(--space-2);
+  right: var(--space-1);
+  top: var(--space-1);
   z-index: var(--z-overlay);
+}
+
+.triggerButton {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+}
+
+.triggerIcon {
+  display: block;
+  height: 24px;
+  width: 24px;
+}
+
+.triggerChevron {
+  color: var(--halo-white);
+  display: block;
+  height: 12px;
+  width: 12px;
 }
 
 .dropdownHeader {

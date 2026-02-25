@@ -1,5 +1,5 @@
 import React from "react";
-import { CameraIcon } from "../icons/camera-icon";
+import guiltySpark from "../../assets/guilty-spark-icon.png";
 import { Dropdown } from "../dropdown/dropdown";
 import styles from "./view-mode-selector.module.css";
 
@@ -60,15 +60,28 @@ export function ViewModeSelector({
 
   const dropdownHeight =
     currentMode === "streamer" && onPreviewModeSelect && streamerOptions
-      ? 750
+      ? 800
       : currentMode === "streamer" && onPreviewModeSelect
         ? 420
-        : 220;
+        : 230;
 
   return (
     <div className={styles.wrapper}>
       <Dropdown
-        trigger={<CameraIcon />}
+        trigger={
+          <div className={styles.triggerButton}>
+            <img src={guiltySpark.src} alt="" className={styles.triggerIcon} />
+            <svg
+              className={styles.triggerChevron}
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M2 4 L6 8 L10 4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        }
         ariaLabel="Change view mode"
         dropdownWidth={250}
         dropdownHeight={dropdownHeight}
