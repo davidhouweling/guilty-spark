@@ -119,3 +119,27 @@ a:hover {
 *::-webkit-scrollbar-corner {
   background: var(--halo-bg-secondary);
 }
+
+/* ============================================ */
+/* Streamer Mode - OBS Overlay Support          */
+/* ============================================ */
+
+/* Hide header, footer, and background effects in streamer mode */
+body[data-view-mode="streamer"] {
+  background: #00ff00; /* Chroma key green */
+}
+
+body[data-view-mode="streamer"]::before,
+body[data-view-mode="streamer"]::after {
+  display: none;
+}
+
+body[data-view-mode="streamer"] nav,
+body[data-view-mode="streamer"] header,
+body[data-view-mode="streamer"] footer {
+  display: none;
+}
+
+body[data-view-mode="streamer"] main {
+  padding: 0;
+}

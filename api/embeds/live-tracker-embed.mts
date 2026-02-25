@@ -198,10 +198,10 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
           this.createButton(InteractionComponent.Repost, "Move to bottom of chat", ButtonStyle.Secondary, "⏬"),
           {
             type: ComponentType.Button,
-            label: "View in browser (BETA)",
+            label: "View live stats",
             style: ButtonStyle.Link,
             emoji: {
-              name: "🌐",
+              name: "📈",
             },
             url: `https://guilty-spark.app/tracker?server=${guildId}&queue=${queueNumber.toString()}`,
           },

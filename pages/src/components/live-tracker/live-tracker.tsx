@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
+import type { ImageMetadata } from "astro";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -19,7 +20,13 @@ import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { useTeamColors } from "../team-colors/use-team-colors";
 import { TeamColorPicker } from "../team-colors/team-color-picker";
-import { ViewModeSelector, type ViewMode } from "../view-mode/view-mode-selector";
+import {
+  ViewModeSelector,
+  type ViewMode,
+  type PreviewMode,
+  type StreamerOptions,
+} from "../view-mode/view-mode-selector";
+import { StreamerOverlay } from "./streamer-overlay";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 
@@ -52,11 +59,80 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
   }
 }
 
+function gameModeIconSrc(gameMode: string): string {
+  return gameModeIconUrl(gameMode).src;
+}
+
 export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
   const guildId = model.state?.guildName ?? "";
   const queueNumber = model.state?.queueNumber ?? 0;
   const teamColors = useTeamColors(guildId, queueNumber);
-  const [viewMode, setViewMode] = useState<ViewMode>("standard");
+
+  // Initialize view mode from URL parameter
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get("view");
+      if (viewParam === "standard" || viewParam === "wide" || viewParam === "streamer") {
+        return viewParam;
+      }
+    }
+    return "standard";
+  });
+
+  // Initialize preview mode from URL parameter
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const previewParam = params.get("preview");
+      if (previewParam === "none" || previewParam === "player" || previewParam === "observer") {
+        return previewParam;
+      }
+    }
+    return "none";
+  });
+
+  // Initialize streamer options from URL parameter
+  const [streamerOptions, setStreamerOptions] = useState<StreamerOptions>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        showTeams: params.get("showTeams") === "false" ? false : true,
+        showTicker: params.get("showTicker") === "false" ? false : true,
+        showTabs: params.get("showTabs") === "false" ? false : true,
+        showServerName: params.get("showServerName") === "false" ? false : true,
+      };
+    }
+    return {
+      showTeams: true,
+      showTicker: true,
+      showTabs: true,
+      showServerName: true,
+    };
+  });
+
+  // Update URL when view mode changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("view", viewMode);
+      if (viewMode === "streamer") {
+        params.set("preview", previewMode);
+        params.set("showTeams", String(streamerOptions.showTeams));
+        params.set("showTicker", String(streamerOptions.showTicker));
+        params.set("showTabs", String(streamerOptions.showTabs));
+        params.set("showServerName", String(streamerOptions.showServerName));
+      } else {
+        params.delete("preview");
+        params.delete("showTeams");
+        params.delete("showTicker");
+        params.delete("showTabs");
+        params.delete("showServerName");
+      }
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [viewMode, previewMode, streamerOptions]);
 
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
@@ -131,12 +207,47 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }, [model.state]);
 
+  // Set body data attribute for streamer mode styling
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.setAttribute("data-view-mode", viewMode);
+    }
+
+    return (): void => {
+      if (typeof document !== "undefined") {
+        document.body.removeAttribute("data-view-mode");
+      }
+    };
+  }, [viewMode]);
+
   const title: string[] = [model.guildNameText];
   if (model.state) {
     title.push(`#${model.state.queueNumber.toString()}`);
     title.push(`(${model.state.seriesScore})`);
   }
   title.push("| Live Tracker - Guilty Spark");
+
+  // Render streamer overlay if in streamer mode
+  if (viewMode === "streamer" && model.state) {
+    return (
+      <>
+        <title>{title.join(" ")}</title>
+        <StreamerOverlay
+          model={model}
+          teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+          allMatchStats={allMatchStats}
+          seriesStats={seriesStats}
+          gameModeIconUrl={gameModeIconSrc}
+          viewMode={viewMode}
+          onViewModeSelect={setViewMode}
+          previewMode={previewMode}
+          onPreviewModeSelect={setPreviewMode}
+          streamerOptions={streamerOptions}
+          onStreamerOptionsChange={setStreamerOptions}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -168,7 +279,14 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       </Container>
 
       <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, styles[viewMode])}>
-        <ViewModeSelector currentMode={viewMode} onModeSelect={setViewMode} />
+        <ViewModeSelector
+          currentMode={viewMode}
+          onModeSelect={setViewMode}
+          previewMode={previewMode}
+          onPreviewModeSelect={setPreviewMode}
+          streamerOptions={streamerOptions}
+          onStreamerOptionsChange={setStreamerOptions}
+        />
         {model.state?.status === "stopped" ? (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">The series has completed. Tracker stopped.</Alert>
