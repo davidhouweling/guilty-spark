@@ -121,12 +121,14 @@ a:hover {
 }
 
 /* ============================================ */
+
 /* Streamer Mode - OBS Overlay Support          */
+
 /* ============================================ */
 
 /* Hide header, footer, and background effects in streamer mode */
 body[data-view-mode="streamer"] {
-  background: #00ff00; /* Chroma key green */
+  background: #0f0; /* Chroma key green */
 }
 
 body[data-view-mode="streamer"]::before,

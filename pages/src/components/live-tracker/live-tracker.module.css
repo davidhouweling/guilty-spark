@@ -87,8 +87,8 @@
   color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  margin-top: 0;
   margin-bottom: var(--space-3);
+  margin-top: 0;
 }
 
 .notice {

@@ -1,17 +1,16 @@
 /* ============================================ */
+
 /* Streamer Overlay - OBS Mode Layout          */
+
 /* ============================================ */
 
 .overlay {
-  background: #00ff00; /* Chroma key green */
-  bottom: 0;
+  background: #0f0; /* Chroma key green */
   color: var(--halo-white);
   font-family: var(--font-body);
-  left: 0;
+  inset: 0;
   overflow: hidden;
   position: fixed;
-  right: 0;
-  top: 0;
   z-index: var(--z-overlay);
 }
 
@@ -39,7 +38,9 @@
 }
 
 /* ============================================ */
+
 /* Top Section: Teams and Score                 */
+
 /* ============================================ */
 
 .topSection {
@@ -58,9 +59,9 @@
 .queueInfo {
   background: rgb(15 40 48 / 90%);
   border: 2px solid var(--halo-teal-primary);
-  border-top: 0;
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
+  border-top: 0;
   display: flex;
   flex-direction: column;
   font-family: var(--font-mono);
@@ -68,21 +69,9 @@
   gap: 0;
   grid-column: 2;
   grid-row: 1;
+  line-height: 1;
   padding: var(--space-1) var(--space-3);
   text-align: center;
-  line-height: 1;
-}
-
-.teamLeft {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: end;
-}
-
-.teamRight {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: start;
 }
 
 .serverName {
@@ -98,20 +87,20 @@
 .scoreDisplay {
   align-items: center;
   display: flex;
-  justify-content: center;
   gap: var(--space-2);
+  justify-content: center;
 }
 
 .scoreText {
   font-family: var(--font-heading);
   font-size: var(--text-3xl);
   font-weight: 700;
+  line-height: 1;
   padding: 0;
   text-shadow:
     0 2px 4px rgb(0 0 0 / 80%),
     0 0 20px var(--halo-teal-primary);
   white-space: nowrap;
-  line-height: 1;
 }
 
 .queueNumber {
@@ -123,7 +112,9 @@
 }
 
 /* ============================================ */
+
 /* Team Displays (Inline at Top)               */
+
 /* ============================================ */
 
 .teamLeft,
@@ -142,11 +133,17 @@
 .teamLeft {
   border-bottom-left-radius: var(--radius-lg);
   border-right: 0;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .teamRight {
   border-bottom-right-radius: var(--radius-lg);
   border-left: 0;
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
 }
 
 .teamName {
@@ -170,7 +167,9 @@
 }
 
 /* ============================================ */
+
 /* Bottom Tab Bar                               */
+
 /* ============================================ */
 
 .bottomSection {
@@ -255,15 +254,15 @@
 @keyframes tabGlow {
   0%,
   100% {
-    box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
     border-color: var(--halo-accent);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
   }
 
   50% {
+    border-color: var(--halo-white);
     box-shadow:
       0 0 40px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent),
       0 0 20px color-mix(in srgb, var(--halo-accent) 80%, transparent);
-    border-color: var(--halo-white);
   }
 }
 
@@ -291,16 +290,18 @@
 }
 
 /* ============================================ */
+
 /* Information Ticker                           */
+
 /* ============================================ */
 
 .ticker {
   background: rgb(15 40 48 / 95%);
   border-top: 2px solid var(--halo-teal-primary);
+  line-height: 1;
   overflow: hidden;
   padding: 0;
   position: relative;
-  line-height: 1;
 }
 
 .tickerScroll {
@@ -435,20 +436,19 @@
 }
 
 /* ============================================ */
+
 /* Sliding Stats Panel                          */
+
 /* ============================================ */
 
 .statsPanel {
   align-items: flex-end;
   background: rgb(0 0 0 / 70%);
-  bottom: 0;
   display: flex;
+  inset: 0;
   justify-content: center;
-  left: 0;
   padding: var(--space-8) var(--space-8) 0;
   position: fixed;
-  right: 0;
-  top: 0;
   z-index: 100;
 }
 
