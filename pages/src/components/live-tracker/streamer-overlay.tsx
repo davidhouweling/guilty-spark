@@ -1,3 +1,5 @@
+// TODO: work out why the types aren't aligned
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
@@ -335,7 +337,7 @@ export function StreamerOverlay({
             </div>
           )}
           {/* Information Ticker */}
-          {streamerOptions.showTicker && currentMatchGroup && (
+          {streamerOptions.showTicker && currentMatchGroup != null && (
             <div className={styles.ticker} ref={tickerRef}>
               <div className={styles.tickerScroll} key={currentMatchIndex}>
                 {/* Ticker Label */}

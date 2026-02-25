@@ -19,9 +19,9 @@ import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-me
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { useTeamColors } from "../team-colors/use-team-colors";
-import { useStreamerPreferences } from "./use-streamer-preferences";
 import { TeamColorPicker } from "../team-colors/team-color-picker";
 import { ViewModeSelector, type ViewMode } from "../view-mode/view-mode-selector";
+import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
