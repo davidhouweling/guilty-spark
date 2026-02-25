@@ -1,6 +1,7 @@
 import React from "react";
 import guiltySpark from "../../assets/guilty-spark-icon.png";
 import { Dropdown } from "../dropdown/dropdown";
+import { OBS_OVERLAY_PREVIEW } from "../../constants";
 import styles from "./view-mode-selector.module.css";
 
 export type ViewMode = "standard" | "wide" | "streamer";
@@ -33,14 +34,16 @@ export function ViewModeSelector({
   const viewModes: { id: ViewMode; label: string; description: string }[] = [
     { id: "standard", label: "Standard View", description: "Default container width" },
     { id: "wide", label: "Wide View", description: "Full width container" },
-    { id: "streamer", label: "Streamer View", description: "OBS overlay mode" },
+    { id: "streamer", label: "Streamer View (BETA)", description: "OBS overlay mode" },
   ];
 
-  const previewModes: { id: PreviewMode; label: string; description: string }[] = [
-    { id: "none", label: "No Preview", description: "Chroma green background" },
-    { id: "player", label: "Player View", description: "In-game player perspective" },
-    { id: "observer", label: "Observer View", description: "In-game observer perspective" },
-  ];
+  const previewModes: { id: PreviewMode; label: string; description: string }[] = OBS_OVERLAY_PREVIEW
+    ? [
+        { id: "none", label: "No Preview", description: "Chroma green background" },
+        { id: "player", label: "Player View", description: "In-game player perspective" },
+        { id: "observer", label: "Observer View", description: "In-game observer perspective" },
+      ]
+    : [];
 
   const toggleOptions: { key: keyof StreamerOptions; label: string; description: string }[] = [
     { key: "showServerName", label: "Server Name", description: "Show server name at top" },
@@ -109,7 +112,7 @@ export function ViewModeSelector({
             </button>
           ))}
         </div>
-        {currentMode === "streamer" && onPreviewModeSelect && previewMode ? (
+        {currentMode === "streamer" && onPreviewModeSelect && previewModes.length > 0 && previewMode ? (
           <>
             <div className={styles.dropdownDivider} />
             <div className={styles.dropdownHeader}>Preview Background</div>

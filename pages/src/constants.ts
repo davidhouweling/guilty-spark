@@ -18,3 +18,5 @@ export const GITHUB_REPO_NAME = "guilty-spark";
 // In development: localhost:8787
 // In production: api.guilty-spark.app
 export const API_HOST = import.meta.env.PUBLIC_API_HOST ?? "api.guilty-spark.app";
+
+export const OBS_OVERLAY_PREVIEW = import.meta.env.OBS_OVERLAY_PREVIEW === "true";
