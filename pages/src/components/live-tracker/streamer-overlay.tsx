@@ -158,8 +158,12 @@ export function StreamerOverlay({
     return groups;
   }, [state, seriesStats, allMatchStats]);
 
-  // Switch to next match when animation completes
+  // Switch to next match when animation completes (only if ticker is enabled)
   useEffect(() => {
+    if (!streamerOptions.showTicker) {
+      return;
+    }
+
     const tickerElement = tickerRef.current?.querySelector(`.${styles.tickerScroll}`) as HTMLElement | null;
     if (!tickerElement || tickerMatchGroups.length === 0) {
       return;
@@ -174,10 +178,14 @@ export function StreamerOverlay({
     return (): void => {
       tickerElement.removeEventListener("animationend", handleAnimationEnd);
     };
-  }, [tickerMatchGroups.length, currentMatchIndex]);
+  }, [tickerMatchGroups.length, currentMatchIndex, streamerOptions.showTicker]);
 
-  // When a new match is added, jump to it
+  // When a new match is added, jump to it (only if ticker is enabled)
   useEffect(() => {
+    if (!streamerOptions.showTicker) {
+      return;
+    }
+
     const currentMatchCount = allMatchStats.length;
 
     // Only jump to new match if count increased (not on first load)
@@ -189,7 +197,7 @@ export function StreamerOverlay({
     }
 
     setPreviousMatchCount(currentMatchCount);
-  }, [allMatchStats.length, tickerMatchGroups, previousMatchCount]);
+  }, [allMatchStats.length, tickerMatchGroups, previousMatchCount, streamerOptions.showTicker]);
 
   const handleTabClick = (tabIndex: number): void => {
     if (selectedTab === tabIndex) {
@@ -205,7 +213,7 @@ export function StreamerOverlay({
   };
 
   const currentMatchGroup = tickerMatchGroups[currentMatchIndex];
-  const activeTabIndex = currentMatchGroup?.matchIndex;
+  const activeTabIndex = streamerOptions.showTicker ? currentMatchGroup?.matchIndex : undefined;
 
   // Build tabs array
   const tabs: (TabData & { label: string; score?: string; icon?: string; bgImage?: string; teamColor?: string })[] = [
