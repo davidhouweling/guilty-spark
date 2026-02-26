@@ -25,34 +25,48 @@ export class LiveTrackerPresenter {
   private messageSubscription: LiveTrackerSubscription | null = null;
   private statusSubscription: LiveTrackerSubscription | null = null;
 
+  private reconnectionTimer: NodeJS.Timeout | null = null;
+  private firstReconnectionTimestamp: number | null = null;
+  private reconnectionAttempt = 0;
+  private readonly maxReconnectionDuration = 3 * 60 * 1000;
+  private readonly baseReconnectionDelay = 2000;
+
   public constructor(config: Config) {
     this.config = config;
   }
 
   public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
-    const queueNumberText = snapshot.params.queue.length > 0 ? snapshot.params.queue : "Not set";
+    const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
+    const queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
 
     const guildNameText =
-      snapshot.lastStateMessage?.type === "state"
-        ? snapshot.lastStateMessage.data.guildName
-        : snapshot.params.server.length > 0
-          ? `Guild ${snapshot.params.server}`
+      lastStateMessage?.type === "state"
+        ? lastStateMessage.data.guildName
+        : params.server.length > 0
+          ? `Guild ${params.server}`
           : "Not set";
 
     let statusClassName = "";
-    if (snapshot.connectionState === "connected") {
+    if (connectionState === "connected") {
       statusClassName = "connected";
-    } else if (snapshot.connectionState === "error" || snapshot.connectionState === "stopped") {
+    } else if (connectionState === "error" || connectionState === "stopped" || connectionState === "connecting") {
       statusClassName = "error";
+    }
+
+    let statusText: string;
+
+    if (connectionState === "connected" && lastStateMessage?.type === "state") {
+      statusText = lastStateMessage.data.status;
+    } else {
+      statusText = initialStatusText;
     }
 
     return {
       guildNameText,
       queueNumberText,
-      statusText: snapshot.statusText,
+      statusText,
       statusClassName,
-      state:
-        snapshot.lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(snapshot.lastStateMessage) : null,
+      state: lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage) : null,
     };
   }
 
@@ -109,15 +123,8 @@ export class LiveTrackerPresenter {
   }
 
   private disconnect(): void {
-    this.messageSubscription?.unsubscribe();
-    this.statusSubscription?.unsubscribe();
-    this.messageSubscription = null;
-    this.statusSubscription = null;
-
-    if (this.connection) {
-      this.connection.disconnect();
-      this.connection = null;
-    }
+    this.stopReconnection();
+    this.cleanupConnection();
 
     const current = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
@@ -128,10 +135,33 @@ export class LiveTrackerPresenter {
     });
   }
 
+  private stopReconnection(): void {
+    if (this.reconnectionTimer) {
+      clearTimeout(this.reconnectionTimer);
+      this.reconnectionTimer = null;
+    }
+    this.firstReconnectionTimestamp = null;
+    this.reconnectionAttempt = 0;
+  }
+
+  private cleanupConnection(): void {
+    this.messageSubscription?.unsubscribe();
+    this.statusSubscription?.unsubscribe();
+    this.messageSubscription = null;
+    this.statusSubscription = null;
+
+    if (this.connection) {
+      this.connection.disconnect();
+      this.connection = null;
+    }
+  }
+
   private connectInternal(identity: LiveTrackerIdentity): void {
     if (this.isDisposed) {
       return;
     }
+
+    this.cleanupConnection();
 
     const nextConnection = this.config.services.liveTrackerService.connect(identity);
     this.connection = nextConnection;
@@ -151,6 +181,7 @@ export class LiveTrackerPresenter {
         const snapshot = this.config.store.getSnapshot();
 
         if (status === "connected") {
+          this.stopReconnection();
           this.config.store.setSnapshot({
             ...snapshot,
             connectionState: status,
@@ -169,6 +200,7 @@ export class LiveTrackerPresenter {
         }
 
         if (status === "stopped") {
+          this.stopReconnection();
           this.config.store.setSnapshot({
             ...snapshot,
             connectionState: status,
@@ -177,23 +209,7 @@ export class LiveTrackerPresenter {
           return;
         }
 
-        if (status === "disconnected") {
-          this.config.store.setSnapshot({
-            ...snapshot,
-            connectionState: status,
-            statusText: "Disconnected (Normal)",
-          });
-          return;
-        }
-
-        const errorText =
-          detail !== undefined && detail.length > 0 ? `Connection error: ${detail}` : "Connection error";
-
-        this.config.store.setSnapshot({
-          ...snapshot,
-          connectionState: "error",
-          statusText: errorText,
-        });
+        this.handleConnectionLost(identity, detail);
       },
     );
 
@@ -210,5 +226,44 @@ export class LiveTrackerPresenter {
         hasReceivedInitialData: true,
       });
     });
+  }
+
+  private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {
+    const now = Date.now();
+    this.firstReconnectionTimestamp ??= now;
+
+    const elapsed = now - this.firstReconnectionTimestamp;
+    if (elapsed > this.maxReconnectionDuration) {
+      const snapshot = this.config.store.getSnapshot();
+      const hasDetail = (detail?.length ?? 0) > 0;
+      const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
+      this.config.store.setSnapshot({
+        ...snapshot,
+        connectionState: "error",
+        statusText: `${errorText} (Gave up after 3m)`,
+      });
+      this.stopReconnection();
+      return;
+    }
+
+    // Exponential backoff with jitter
+    // Base delay * 2^attempt
+    const backoffFactor = Math.pow(1.5, this.reconnectionAttempt);
+    const delay = Math.min(this.baseReconnectionDelay * backoffFactor, 30000); // Cap at 30s
+    // Add some jitter
+    const jitter = Math.random() * 1000;
+    const totalDelay = delay + jitter;
+
+    const snapshot = this.config.store.getSnapshot();
+    this.config.store.setSnapshot({
+      ...snapshot,
+      connectionState: "connecting",
+      statusText: `Lost connection, reconnecting... (Attempt ${(this.reconnectionAttempt + 1).toString()})`,
+    });
+
+    this.reconnectionTimer = setTimeout(() => {
+      this.connectInternal(identity);
+      this.reconnectionAttempt++;
+    }, totalDelay);
   }
 }

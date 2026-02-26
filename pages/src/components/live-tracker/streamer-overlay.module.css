@@ -196,8 +196,7 @@
       color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent),
       color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent)
     ),
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px),
-    var(--tab-bg);
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px);
   background-position:
     center,
     0 0,
@@ -215,6 +214,8 @@
   cursor: pointer;
   display: flex;
   font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 700;
   justify-content: center;
   min-width: 80px;
   padding: var(--space-1) var(--space-2);
@@ -225,10 +226,8 @@
 }
 
 .tabSeries {
-  font-size: var(--text-base);
-  font-weight: 700;
+  font-family: var(--font-heading);
   min-width: 100px;
-  padding: var(--space-2) var(--space-3);
 }
 
 .tabContent {
@@ -277,16 +276,11 @@
 }
 
 .tabLabel {
-  font-size: var(--text-xs);
   font-weight: 600;
-  text-align: center;
 }
 
 .tabScore {
-  color: var(--halo-accent);
-  font-size: var(--text-xs);
   font-weight: 700;
-  text-align: center;
 }
 
 /* ============================================ */
