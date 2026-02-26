@@ -3,11 +3,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
-import type { MatchStatsData, MatchStatsValues } from "../stats/types";
+import type { MatchStatsData } from "../stats/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { TeamColor } from "../team-colors/team-colors";
-import { TeamIcon } from "../icons/team-icon";
-import { MedalIcon } from "../icons/medal-icon";
 import {
   ViewModeSelector,
   type ViewMode,
@@ -17,6 +15,7 @@ import {
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import type { LiveTrackerViewModel } from "./types";
+import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
 import styles from "./streamer-overlay.module.css";
 
 interface StreamerOverlayProps {
@@ -35,20 +34,6 @@ interface StreamerOverlayProps {
   readonly onPreviewModeSelect: (mode: PreviewMode) => void;
   readonly streamerOptions: StreamerOptions;
   readonly onStreamerOptionsChange: (options: StreamerOptions) => void;
-}
-
-interface TickerStatRow {
-  readonly type: "team" | "player";
-  readonly teamId: number;
-  readonly name: string;
-  readonly stats: MatchStatsValues[];
-  readonly medals: { name: string; count: number }[];
-}
-
-interface TickerMatchGroup {
-  readonly matchIndex: number; // -1 for series
-  readonly label: string;
-  readonly rows: TickerStatRow[];
 }
 
 type TabType = "series" | "match";
@@ -171,7 +156,11 @@ export function StreamerOverlay({
       return;
     }
 
-    const handleAnimationEnd = (): void => {
+    const handleAnimationEnd = (event: AnimationEvent): void => {
+      // Only handle the main scroll animation, not child element animations
+      if (event.target !== tickerElement) {
+        return;
+      }
       setCurrentMatchIndex((prev) => (prev + 1) % tickerMatchGroups.length);
     };
 
@@ -339,63 +328,12 @@ export function StreamerOverlay({
           )}
           {/* Information Ticker */}
           {streamerOptions.showTicker && currentMatchGroup != null && (
-            <div className={styles.ticker} ref={tickerRef}>
-              <div className={styles.tickerScroll} key={currentMatchIndex}>
-                {/* Ticker Label */}
-                <div className={styles.tickerLabel}>
-                  <span className={styles.tickerLabelText}>{currentMatchGroup.label}</span>
-                </div>
-                {currentMatchGroup.rows.map((row, rowIdx) => {
-                  const teamColor = teamColors[row.teamId];
-                  return (
-                    <div
-                      key={rowIdx}
-                      className={classNames(styles.tickerRow, {
-                        [styles.tickerTeamRow]: row.type === "team",
-                        [styles.tickerPlayerRow]: row.type === "player",
-                      })}
-                      style={
-                        {
-                          "--row-color": teamColor.hex,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <div className={styles.tickerRowContent}>
-                        <div className={styles.tickerName}>
-                          <TeamIcon teamId={row.teamId} size="small" />
-                          <span>{row.name}</span>
-                        </div>
-                        <div className={styles.tickerStats}>
-                          {row.stats.map((stat, statIdx) => (
-                            <span key={statIdx} className={styles.tickerStat}>
-                              <span className={styles.tickerStatName}>{stat.name}:</span>
-                              <span
-                                className={classNames(styles.tickerStatValue, {
-                                  [styles.bestInTeam]: stat.bestInTeam,
-                                  [styles.bestInMatch]: stat.bestInMatch,
-                                })}
-                              >
-                                {stat.display}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                        {row.medals.length > 0 && (
-                          <div className={styles.tickerMedals}>
-                            {row.medals.map((medal, medalIdx) => (
-                              <span key={medalIdx} className={styles.tickerMedal}>
-                                {medal.count > 1 && <span className={styles.tickerMedalCount}>{medal.count}×</span>}
-                                <MedalIcon medalName={medal.name} size="small" />
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <InformationTicker
+              currentMatchGroup={currentMatchGroup}
+              teamColors={teamColors}
+              tickerRef={tickerRef}
+              currentMatchIndex={currentMatchIndex}
+            />
           )}
         </div>
       )}

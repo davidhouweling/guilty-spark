@@ -1,0 +1,145 @@
+/* ============================================ */
+
+/* Information Ticker                           */
+
+/* ============================================ */
+
+.ticker {
+  background: rgb(15 40 48 / 95%);
+  border-top: 2px solid var(--halo-teal-primary);
+  line-height: 1;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+.tickerScroll {
+  animation: tickerScrolling var(--ticker-duration, 180s) linear;
+  display: inline-flex;
+  flex-direction: row;
+  gap: 0;
+  white-space: nowrap;
+}
+
+@keyframes tickerScrolling {
+  0% {
+    transform: translateX(100vw);
+  }
+
+  100% {
+    transform: translateX(calc(-100% - 100vw));
+  }
+}
+
+.tickerLabel {
+  align-items: center;
+  border-right: 2px solid var(--halo-accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.tickerLabelText {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+  text-transform: uppercase;
+}
+
+.tickerRow {
+  align-items: center;
+  background-color: color-mix(in srgb, var(--row-color, transparent) 20%, transparent);
+  border-right: 1px solid var(--halo-teal-primary);
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.tickerTeamRow {
+  background-color: color-mix(in srgb, var(--row-color, transparent) 30%, transparent);
+}
+
+.tickerPlayerRow {
+  background-color: color-mix(in srgb, var(--row-color, transparent) 15%, transparent);
+}
+
+.tickerRowContent {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tickerName {
+  align-items: center;
+  color: var(--halo-white);
+  display: flex;
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  gap: var(--space-2);
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+.tickerStats {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tickerStat {
+  align-items: center;
+  color: var(--halo-white);
+  display: inline-flex;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.tickerStatName {
+  color: var(--halo-gray);
+  font-weight: 600;
+}
+
+.tickerStatValue {
+  color: var(--halo-white);
+  font-weight: 400;
+}
+
+.tickerStatValue.bestInTeam {
+  font-weight: 700;
+  text-shadow: 0 0 8px rgb(16 185 129 / 60%);
+}
+
+.tickerStatValue.bestInMatch {
+  text-decoration: underline;
+  text-decoration-color: var(--color-winner);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.tickerMedals {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tickerMedal {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tickerMedalCount {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
