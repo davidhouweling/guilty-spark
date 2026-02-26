@@ -39,7 +39,7 @@ export function ViewModeSelector({
 
   const previewModes: { id: PreviewMode; label: string; description: string }[] = OBS_OVERLAY_PREVIEW
     ? [
-        { id: "none", label: "No Preview", description: "Chroma green background" },
+        { id: "none", label: "No Preview", description: "Transparent background" },
         { id: "player", label: "Player View", description: "In-game player perspective" },
         { id: "observer", label: "Observer View", description: "In-game observer perspective" },
       ]

@@ -128,7 +128,7 @@ a:hover {
 
 /* Hide header, footer, and background effects in streamer mode */
 body[data-view-mode="streamer"] {
-  background: #0f0; /* Chroma key green */
+  background: transparent;
 }
 
 body[data-view-mode="streamer"]::before,

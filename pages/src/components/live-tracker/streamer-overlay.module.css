@@ -5,7 +5,7 @@
 /* ============================================ */
 
 .overlay {
-  background: #0f0; /* Chroma key green */
+  background: transparent;
   color: var(--halo-white);
   font-family: var(--font-body);
   inset: 0;
