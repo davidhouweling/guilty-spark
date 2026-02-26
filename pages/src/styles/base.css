@@ -5,7 +5,6 @@
 @import url("./variables.css");
 
 html {
-  background: var(--halo-bg-primary);
   color: var(--halo-white);
   font-family: var(--font-body);
   scroll-behavior: smooth;
@@ -27,6 +26,7 @@ html {
 }
 
 body {
+  background: var(--halo-bg-primary);
   display: flex;
   flex-direction: column;
   line-height: 1.6;
