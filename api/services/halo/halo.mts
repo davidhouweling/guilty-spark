@@ -1234,7 +1234,7 @@ export class HaloService {
       const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
         cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
       });
-      this.mapNameCache.set(cacheKey, mapData.PublicName);
+      this.mapNameCache.set(cacheKey, this.sanitizeMapName(mapData.PublicName));
     }
 
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
@@ -1786,7 +1786,7 @@ export class HaloService {
           accumulator[mapMode] = [];
         }
 
-        accumulator[mapMode].push(entry.MapLink.PublicName.replace("- Ranked", "").trim());
+        accumulator[mapMode].push(this.sanitizeMapName(entry.MapLink.PublicName));
         return accumulator;
       },
       {
@@ -1804,6 +1804,10 @@ export class HaloService {
     });
 
     return playlistMapModes;
+  }
+
+  private sanitizeMapName(mapName: string): string {
+    return mapName.replace("- Ranked", "").trim();
   }
 
   private async getPlaylistGameVariantKeys(playlistId: FetchablePlaylist): Promise<string[]> {

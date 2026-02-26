@@ -1780,7 +1780,7 @@ describe("Halo service", () => {
     it.each([
       {
         matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
-        gameTypeAndMap: "Capture the Flag: Empyrean - Ranked",
+        gameTypeAndMap: "Capture the Flag: Empyrean",
       },
     ])("returns the game type and map for match $matchId", async ({ matchId, gameTypeAndMap }) => {
       const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)).MatchInfo);

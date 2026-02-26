@@ -13,8 +13,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -436,7 +436,7 @@ Carriers killed: __**1**__
 ",
             },
           ],
-          "title": "Capture the Flag: Empyrean - Ranked",
+          "title": "Capture the Flag: Empyrean",
           "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
         },
       ],
@@ -632,7 +632,7 @@ Defensive kills: __**4**__
 ",
             },
           ],
-          "title": "King of the Hill: Recharge - Ranked",
+          "title": "King of the Hill: Recharge",
           "url": "https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth",
         },
       ],
@@ -654,8 +654,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -979,9 +979,9 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Oddball: Recharge - Ranked](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
+              "value": "[Oddball: Recharge](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
 *<@discord_user_03> subbed in for <@discord_user_01> (Team 1)*
-[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
               "inline": true,
@@ -1297,8 +1297,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -1720,7 +1720,7 @@ Carriers killed: __**1**__
 ",
             },
           ],
-          "title": "Capture the Flag: Empyrean - Ranked",
+          "title": "Capture the Flag: Empyrean",
           "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
         },
       ],
@@ -1916,7 +1916,7 @@ Defensive kills: __**4**__
 ",
             },
           ],
-          "title": "King of the Hill: Recharge - Ranked",
+          "title": "King of the Hill: Recharge",
           "url": "https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth",
         },
       ],
@@ -1938,8 +1938,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -2263,9 +2263,9 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Oddball: Recharge - Ranked](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
+              "value": "[Oddball: Recharge](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
 *<@discord_user_03> subbed in for <@discord_user_01> (Team 1)*
-[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
               "inline": true,
@@ -2581,8 +2581,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -3004,7 +3004,7 @@ Carriers killed: __**1**__
 ",
             },
           ],
-          "title": "Capture the Flag: Empyrean - Ranked",
+          "title": "Capture the Flag: Empyrean",
           "url": "https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf",
         },
       ],
@@ -3200,7 +3200,7 @@ Defensive kills: __**4**__
 ",
             },
           ],
-          "title": "King of the Hill: Recharge - Ranked",
+          "title": "King of the Hill: Recharge",
           "url": "https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth",
         },
       ],
@@ -3222,8 +3222,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+              "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
             },
             {
               "inline": true,
@@ -3483,8 +3483,8 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
           {
             "inline": true,
             "name": "Game",
-            "value": "[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
-[King of the Hill: Recharge - Ranked](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
+            "value": "[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)
+[King of the Hill: Recharge](https://halodatahive.com/Infinite/Match/e20900f9-4c6c-4003-a175-00000000koth)",
           },
           {
             "inline": true,
@@ -3559,9 +3559,9 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
             {
               "inline": true,
               "name": "Game",
-              "value": "[Oddball: Recharge - Ranked](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
+              "value": "[Oddball: Recharge](https://halodatahive.com/Infinite/Match/cf0fb794-2df1-4ba1-9415-00000oddball)
 *<@discord_user_03> subbed in for <@discord_user_01> (Team 1)*
-[Capture the Flag: Empyrean - Ranked](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+[Capture the Flag: Empyrean](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
             },
             {
               "inline": true,
