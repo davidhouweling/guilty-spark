@@ -140,6 +140,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     currentViewMode: ViewMode,
     currentPreviewMode: PreviewMode,
     currentOptions: StreamerOptions,
+    teamColorOverride?: { teamIndex: number; colorId: string },
   ): void {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -151,7 +152,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       params.set("showServerName", String(currentOptions.showServerName));
       // Team colors
       for (let i = 0; i < 2; i++) {
-        const color = teamColors.getTeamColorForTeam(i).id;
+        const color =
+          teamColorOverride?.teamIndex === i
+            ? teamColorOverride.colorId
+            : teamColors.getTeamColorForTeam(i).id;
         params.set(`teamColor${i.toString()}`, color);
       }
       const newUrl = `${window.location.pathname}?${params.toString()}`;
@@ -178,7 +182,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
 
   const handleSetTeamColor = (teamIndex: number, colorId: string): void => {
     teamColors.setTeamColor(teamIndex, colorId);
-    updateUrl(viewMode, previewMode, streamerOptions);
+    updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
   };
 
   const hasMatches = model.state != null && model.state.matches.length > 0;

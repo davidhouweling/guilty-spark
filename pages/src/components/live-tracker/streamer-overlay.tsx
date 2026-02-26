@@ -14,8 +14,8 @@ import {
 } from "../view-mode/view-mode-selector";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import type { LiveTrackerViewModel } from "./types";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
+import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
 
 interface StreamerOverlayProps {
