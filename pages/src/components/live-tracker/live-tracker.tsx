@@ -153,9 +153,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       // Team colors
       for (let i = 0; i < 2; i++) {
         const color =
-          teamColorOverride?.teamIndex === i
-            ? teamColorOverride.colorId
-            : teamColors.getTeamColorForTeam(i).id;
+          teamColorOverride?.teamIndex === i ? teamColorOverride.colorId : teamColors.getTeamColorForTeam(i).id;
         params.set(`teamColor${i.toString()}`, color);
       }
       const newUrl = `${window.location.pathname}?${params.toString()}`;
