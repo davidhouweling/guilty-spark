@@ -16,9 +16,14 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   private readonly listeners = new Set<LiveTrackerListener>();
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
   private ws: WebSocket | null;
+  private readonly onOffline: () => void;
 
   public constructor(ws: WebSocket) {
     this.ws = ws;
+    this.onOffline = (): void => {
+      this.ws?.close();
+    };
+    window.addEventListener("offline", this.onOffline);
   }
 
   public subscribe(listener: LiveTrackerListener): LiveTrackerSubscription {
@@ -40,6 +45,8 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   }
 
   public disconnect(): void {
+    window.removeEventListener("offline", this.onOffline);
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;

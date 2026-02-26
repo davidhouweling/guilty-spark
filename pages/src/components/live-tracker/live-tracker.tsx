@@ -320,7 +320,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             <div className={styles.headerMetaRow}>
               <span className={styles.headerMetaLabel}>Status</span>
               <span id="status-text" className={classNames(styles.headerMetaValue, model.statusClassName)}>
-                {model.state ? model.state.status : model.statusText}
+                {model.statusText}
               </span>
             </div>
           </div>
