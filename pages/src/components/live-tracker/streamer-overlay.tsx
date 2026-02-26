@@ -180,7 +180,7 @@ export function StreamerOverlay({
     return (): void => {
       tickerElement.removeEventListener("animationend", handleAnimationEnd);
     };
-  }, [tickerMatchGroups.length, currentMatchIndex, streamerOptions.showTicker]);
+  }, [tickerMatchGroups.length, streamerOptions.showTicker]);
 
   // When a new match is added, jump to it (only if ticker is enabled)
   useEffect(() => {
@@ -199,7 +199,8 @@ export function StreamerOverlay({
     }
 
     setPreviousMatchCount(currentMatchCount);
-  }, [allMatchStats.length, tickerMatchGroups, previousMatchCount, streamerOptions.showTicker]);
+    // Note: tickerMatchGroups and previousMatchCount intentionally excluded from deps to prevent infinite loop
+  }, [allMatchStats.length, streamerOptions.showTicker]);
 
   const handleTabClick = (tabIndex: number): void => {
     if (selectedTab === tabIndex) {
