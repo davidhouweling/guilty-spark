@@ -208,10 +208,11 @@ export function StreamerOverlay({
   const activeTabIndex = streamerOptions.showTicker ? currentMatchGroup?.matchIndex : undefined;
 
   // Build tabs array
-  const tabs: (TabData & { label: string; score?: string; icon?: string; bgImage?: string; teamColor?: string })[] = [
+  const tabs: (TabData & { label: string; score?: string; icon?: string; teamColor?: string })[] = [
     {
       type: "series",
-      label: state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim(),
+      label: `${state.guildName} #${state.queueNumber.toString()}`,
+      score: state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim(),
     },
     ...state.matches.map((match, idx) => {
       // Determine winning team for overlay color
@@ -232,7 +233,6 @@ export function StreamerOverlay({
         label: match.gameMap,
         score: match.gameScore,
         icon: gameModeIconUrl(match.gameType),
-        bgImage: match.gameMapThumbnailUrl,
         teamColor,
       };
     }),
@@ -308,9 +308,8 @@ export function StreamerOverlay({
                       handleTabClick(tabIndex);
                     }}
                     style={
-                      tab.bgImage != null && tab.teamColor != null
+                      tab.teamColor != null
                         ? ({
-                            "--tab-bg": `url(${tab.bgImage})`,
                             "--tab-team-color": tab.teamColor,
                           } as React.CSSProperties)
                         : undefined
@@ -319,7 +318,12 @@ export function StreamerOverlay({
                     <div className={styles.tabContent}>
                       {tab.icon != null && <img src={tab.icon} alt="" className={styles.tabIcon} />}
                       <span className={styles.tabLabel}>{tab.label}</span>
-                      {tab.score != null && <span className={styles.tabScore}>{tab.score}</span>}
+                      {tab.score != null && (
+                        <>
+                          {" "}
+                          • <span className={styles.tabScore}>{tab.score}</span>
+                        </>
+                      )}
                     </div>
                   </button>
                 );
