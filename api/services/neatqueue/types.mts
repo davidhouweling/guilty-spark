@@ -1,3 +1,4 @@
+import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 
 export interface NeatQueuePlayer {
@@ -131,4 +132,24 @@ export interface PlayerAssociationData {
   allTimePeakRankTier: string | null;
   allTimePeakRankSubTier: number | null;
   esra: number | null;
+}
+
+export interface FetchedPlayersData {
+  associationData: Record<string, PlayerAssociationData>;
+  embedData: PlayersEmbedData;
+}
+
+export interface PlayersEmbedData {
+  discordAssociations: DiscordAssociationsRow[];
+  haloPlayersMap: Map<string, { gamertag: string; xuid: string }>;
+  rankedArenaCsrs: Map<string, { Current: RankCsr; AllTimeMax: RankCsr }>;
+  esras: Map<string, number>;
+}
+
+interface RankCsr {
+  Value: number;
+  Tier: string;
+  SubTier: number;
+  MeasurementMatchesRemaining: number;
+  InitialMeasurementMatches: number;
 }

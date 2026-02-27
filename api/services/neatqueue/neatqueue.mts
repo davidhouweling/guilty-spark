@@ -50,6 +50,9 @@ import type {
   NeatQueuePlayer,
   NeatQueueMatchStartedRequest,
   NeatQueueState,
+  PlayerAssociationData,
+  FetchedPlayersData,
+  PlayersEmbedData,
 } from "./types.mjs";
 
 export interface NeatQueueServiceOpts {
@@ -471,10 +474,14 @@ export class NeatQueueService {
       }
 
       if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
-        const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players);
+        const { associationData, embedData } = await this.fetchPlayersAssociationData(request.players);
+
+        const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players, embedData);
         if (playersPostMessage) {
           const message = await discordService.createMessage(request.channel, playersPostMessage);
           await this.storePlayersMessageId(request, neatQueueConfig, message.id);
+
+          await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
         }
       }
 
@@ -1094,6 +1101,22 @@ export class NeatQueueService {
     await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
+  private async storePlayersAssociationData(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    playersAssociationData: Record<string, PlayerAssociationData>,
+  ): Promise<void> {
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot store players association data");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersAssociationData = playersAssociationData;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+  }
+
   private async getCurrentPlayersFromTimeline(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
@@ -1134,6 +1157,7 @@ export class NeatQueueService {
   private async getPlayersPostMessage(
     config: GuildConfigRow,
     players: NeatQueuePlayer[],
+    fetchedData?: PlayersEmbedData,
   ): Promise<RESTPostAPIChannelMessageJSONBody | null> {
     const { databaseService, discordService, haloService } = this;
 
@@ -1141,6 +1165,62 @@ export class NeatQueueService {
     const playerIds = sortedPlayers.map((player) => player.id);
     if (playerIds.length === 0) {
       return null;
+    }
+
+    let discordAssociations, haloPlayersMap, rankedArenaCsrs, esras;
+
+    if (fetchedData) {
+      ({ discordAssociations, haloPlayersMap, rankedArenaCsrs, esras } = fetchedData);
+    } else {
+      discordAssociations = await databaseService.getDiscordAssociations(playerIds);
+      this.logService.debug("Discord associations", new Map([["associations", JSON.stringify(discordAssociations)]]));
+      const xboxIds = discordAssociations
+        .filter(
+          (association) =>
+            association.GamesRetrievable === GamesRetrievable.YES ||
+            association.AssociationReason === AssociationReason.GAME_SIMILARITY,
+        )
+        .map((assoc) => assoc.XboxId);
+      this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
+      const haloPlayers = await haloService.getUsersByXuids(xboxIds);
+      this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
+      haloPlayersMap = new Map(haloPlayers.map((player) => [player.xuid, player]));
+      rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
+      this.logService.debug(
+        "Ranked Arena CSRs",
+        new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
+      );
+      esras = await haloService.getPlayersEsras(xboxIds);
+    }
+
+    const playersEmbed = new NeatQueuePlayersEmbed(
+      { discordService, haloService },
+      {
+        players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
+        discordAssociations,
+        haloPlayersMap,
+        rankedArenaCsrs,
+        esras,
+        mapsPostType: config.NeatQueueInformerMapsPost,
+      },
+    );
+
+    return {
+      embeds: [playersEmbed.embed],
+      components: playersEmbed.actions,
+    };
+  }
+
+  private async fetchPlayersAssociationData(players: NeatQueuePlayer[]): Promise<FetchedPlayersData> {
+    const { databaseService, haloService } = this;
+
+    const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
+    const playerIds = sortedPlayers.map((player) => player.id);
+    if (playerIds.length === 0) {
+      return {
+        associationData: {},
+        embedData: { discordAssociations: [], haloPlayersMap: new Map(), rankedArenaCsrs: new Map(), esras: new Map() },
+      };
     }
 
     const discordAssociations = await databaseService.getDiscordAssociations(playerIds);
@@ -1163,21 +1243,35 @@ export class NeatQueueService {
     );
     const esras = await haloService.getPlayersEsras(xboxIds);
 
-    const playersEmbed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
-      {
-        players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
-        discordAssociations,
-        haloPlayersMap,
-        rankedArenaCsrs,
-        esras,
-        mapsPostType: config.NeatQueueInformerMapsPost,
-      },
-    );
+    // Build the player association data record
+    const associationData: Record<string, PlayerAssociationData> = {};
+
+    for (const player of sortedPlayers) {
+      const association = discordAssociations.find((assoc) => assoc.DiscordId === player.id);
+      const xboxId = association?.XboxId ?? null;
+      const haloPlayer = xboxId != null ? haloPlayersMap.get(xboxId) : null;
+      const gamertag = haloPlayer?.gamertag ?? null;
+      const rankData = xboxId != null ? rankedArenaCsrs.get(xboxId) : null;
+      const esra = xboxId != null ? (esras.get(xboxId) ?? null) : null;
+
+      associationData[player.id] = {
+        discordId: player.id,
+        discordName: player.name,
+        xboxId,
+        gamertag,
+        currentRank: rankData?.Current.Value ?? null,
+        currentRankTier: rankData?.Current.Tier ?? null,
+        currentRankSubTier: rankData?.Current.SubTier ?? null,
+        allTimePeakRank: rankData?.AllTimeMax.Value ?? null,
+        allTimePeakRankTier: rankData?.AllTimeMax.Tier ?? null,
+        allTimePeakRankSubTier: rankData?.AllTimeMax.SubTier ?? null,
+        esra,
+      };
+    }
 
     return {
-      embeds: [playersEmbed.embed],
-      components: playersEmbed.actions,
+      associationData,
+      embedData: { discordAssociations, haloPlayersMap, rankedArenaCsrs, esras },
     };
   }
 

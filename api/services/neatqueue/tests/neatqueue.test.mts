@@ -385,6 +385,54 @@ describe("NeatQueueService", () => {
         expect(warnSpy).not.toHaveBeenCalled();
       });
 
+      it("stores player association data when creating players message", async () => {
+        const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+
+        await jobToComplete();
+
+        // Verify APP_DATA.put was called (for both timeline and player association data)
+        expect(appDataPutSpy).toHaveBeenCalled();
+
+        // Find the call that stored player association data
+        const putCalls = appDataPutSpy.mock.calls;
+        const associationDataCall = putCalls.find((call) => {
+          const stateJson = call[1] as string;
+          try {
+            const state = JSON.parse(stateJson) as NeatQueueState;
+            return state.playersAssociationData != null;
+          } catch {
+            return false;
+          }
+        });
+
+        expect(associationDataCall).toBeDefined();
+
+        // Verify the structure of the stored data
+        const stateJson = associationDataCall?.[1] as string;
+        const state = JSON.parse(stateJson) as NeatQueueState;
+
+        // Should have association data for both players
+        expect(Object.keys(state.playersAssociationData ?? {})).toEqual(
+          expect.arrayContaining(["discord_user_01", "discord_user_02"]),
+        );
+
+        // Verify structure of one player's data
+        const playerData = state.playersAssociationData?.["discord_user_01"];
+        expect(playerData).toBeDefined();
+        expect(playerData?.discordId).toBe("discord_user_01");
+        expect(typeof playerData?.discordName).toBe("string");
+        expect(typeof playerData?.xboxId).toBe("string");
+        expect(typeof playerData?.gamertag).toBe("string");
+        // Verify all rank and ESRA fields exist
+        expect(playerData).toHaveProperty("currentRank");
+        expect(playerData).toHaveProperty("currentRankTier");
+        expect(playerData).toHaveProperty("currentRankSubTier");
+        expect(playerData).toHaveProperty("allTimePeakRank");
+        expect(playerData).toHaveProperty("allTimePeakRankTier");
+        expect(playerData).toHaveProperty("allTimePeakRankSubTier");
+        expect(playerData).toHaveProperty("esra");
+      });
+
       it("updates config and logs warning when Discord getChannel fails with missing access", async () => {
         getChannelSpy.mockReset().mockRejectedValue(
           new DiscordError(403, {
