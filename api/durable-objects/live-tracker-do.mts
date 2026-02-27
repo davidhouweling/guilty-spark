@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/cloudflare";
 import type { APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import { addMilliseconds, addMinutes, differenceInMilliseconds } from "date-fns";
+import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
@@ -36,6 +36,9 @@ import type {
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
 const EXECUTION_BUFFER_MS = 8 * 1000; // 8 seconds earlier execution for processing time
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS; // Execute 8 seconds early
+
+// Inactivity threshold for considering a tracker stale (e.g. if Halo API isn't returning new data, players have stopped playing the queue, or if the tracker is between matches and not being refreshed)
+const STALE_TRACKER_THRESHOLD_MINUTES = 180;
 
 // Error handling constants for exponential backoff
 const NORMAL_INTERVAL_MINUTES = 3;
@@ -130,6 +133,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       Sentry.setTag("method", "alarm");
 
       const trackerState = await this.getState();
+      if (trackerState?.status === "stopped") {
+        await this.dispose(trackerState, "Tracker stopped, disposing on alarm");
+        return;
+      }
+
       if (trackerState?.status !== "active" || trackerState.isPaused) {
         return;
       }
@@ -139,6 +147,16 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           this.logService.debug("Refresh in progress, skipping alarm execution");
           const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
           await this.state.storage.setAlarm(addMilliseconds(new Date(), nextAlarmInterval).getTime());
+          return;
+        }
+
+        const rawMatches = Object.values(trackerState.rawMatches);
+        const lastGameActivityTime =
+          rawMatches.length > 0
+            ? max(rawMatches.map((m) => m.MatchInfo.EndTime))
+            : new Date(trackerState.searchStartTime);
+        if (differenceInMinutes(new Date(), lastGameActivityTime) > STALE_TRACKER_THRESHOLD_MINUTES) {
+          await this.dispose(trackerState, "Tracker stale, disposing on alarm");
           return;
         }
 
