@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/contracts/live-tracker/fakes/data";
 import type {
   NeatQueueJoinQueueRequest,
   NeatQueueLeaveQueueRequest,
@@ -9,8 +10,16 @@ import type {
   NeatQueueMatchStartedRequest,
   NeatQueueSubstitutionRequest,
   NeatQueueTeamsCreatedRequest,
+  NeatQueueState,
+  NeatQueueTimelineEvent,
+  PlayerAssociationData,
 } from "../types.mjs";
 import { UnreachableError } from "../../../base/unreachable-error.mjs";
+
+/**
+ * Re-export PlayerAssociationData fake factory from contracts
+ */
+export { aFakePlayerAssociationDataWith };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -66,4 +75,39 @@ export function getFakeNeatQueueData<E extends NeatQueueEvent>(event: E): NeatQu
     default:
       throw new UnreachableError(event);
   }
+}
+
+/**
+ * Create a fake NeatQueueState object for testing
+ */
+export function aFakeNeatQueueStateWith(overrides: Partial<NeatQueueState> = {}): NeatQueueState {
+  return {
+    timeline: [],
+    playersMessageId: null,
+    playersAssociationData: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Helper to create NeatQueueState from timeline events (for backward compatibility with tests)
+ */
+export function neatQueueStateFromTimeline(timeline: NeatQueueTimelineEvent[]): NeatQueueState {
+  return aFakeNeatQueueStateWith({ timeline });
+}
+
+/**
+ * Helper to create sample player association data for a Discord user
+ */
+export function createSamplePlayerAssociationData(
+  discordId: string,
+  discordName: string,
+  gamertag: string,
+): PlayerAssociationData {
+  return aFakePlayerAssociationDataWith({
+    discordId,
+    discordName,
+    gamertag,
+    xboxId: `xuid_${discordId}`,
+  });
 }

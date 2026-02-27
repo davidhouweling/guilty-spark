@@ -24,6 +24,20 @@ export interface LiveTrackerPlayer {
   readonly discordUsername: string;
 }
 
+export interface PlayerAssociationData {
+  readonly discordId: string;
+  readonly discordName: string;
+  readonly xboxId: string | null;
+  readonly gamertag: string | null;
+  readonly currentRank: number | null;
+  readonly currentRankTier: string | null;
+  readonly currentRankSubTier: number | null;
+  readonly allTimePeakRank: number | null;
+  readonly allTimePeakRankTier: string | null;
+  readonly allTimePeakRankSubTier: number | null;
+  readonly esra: number | null;
+}
+
 export interface LiveTrackerTeam {
   readonly name: string;
   readonly playerIds: readonly string[];
@@ -48,6 +62,7 @@ export interface LiveTrackerStateData {
   readonly seriesScore: string;
   readonly lastUpdateTime: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
+  readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 export interface LiveTrackerStateMessage {

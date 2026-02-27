@@ -49,6 +49,10 @@ import type {
   NeatQueueSubstitutionRequest,
   NeatQueuePlayer,
   NeatQueueMatchStartedRequest,
+  NeatQueueState,
+  PlayerAssociationData,
+  FetchedPlayersData,
+  PlayersEmbedData,
 } from "./types.mjs";
 
 export interface NeatQueueServiceOpts {
@@ -470,10 +474,14 @@ export class NeatQueueService {
       }
 
       if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
-        const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players);
+        const { associationData, embedData } = await this.fetchPlayersAssociationData(request.players);
+
+        const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players, embedData);
         if (playersPostMessage) {
           const message = await discordService.createMessage(request.channel, playersPostMessage);
           await this.storePlayersMessageId(request, neatQueueConfig, message.id);
+
+          await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
         }
       }
 
@@ -592,6 +600,9 @@ export class NeatQueueService {
         return acc;
       }, {});
 
+      // Fetch player association data from queue state
+      const queueState = await this.getQueueState(request.guild, request.match_number);
+
       const result = await this.liveTrackerService.startTracker({
         userId: context.userId,
         guildId: context.guildId,
@@ -600,6 +611,7 @@ export class NeatQueueService {
         players: playersRecord,
         teams,
         queueStartTime: new Date().toISOString(),
+        playersAssociationData: queueState.playersAssociationData,
       });
 
       if (isSuccessResponse(result)) {
@@ -981,41 +993,71 @@ export class NeatQueueService {
     }
   }
 
-  private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}`;
+  private getQueueStateKey(guildId: string, queueNumber: number): string {
+    return `neatqueue:state:${guildId}:${queueNumber.toString()}`;
   }
 
-  private getPlayersMessageIdKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}:players_message_id`;
+  private getMatchNumber(request: NeatQueueTimelineRequest): number | undefined {
+    if ("match_number" in request) {
+      return request.match_number;
+    }
+    if ("match_num" in request) {
+      return request.match_num;
+    }
+    return undefined;
+  }
+
+  private async getQueueState(guildId: string, queueNumber: number): Promise<NeatQueueState> {
+    try {
+      const data = await this.env.APP_DATA.get<NeatQueueState>(this.getQueueStateKey(guildId, queueNumber), {
+        type: "json",
+      });
+
+      if (data != null && typeof data === "object" && "timeline" in data) {
+        return data;
+      }
+
+      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+    } catch (error) {
+      this.logService.warn(error as Error);
+      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+    }
+  }
+
+  private async setQueueState(guildId: string, queueNumber: number, state: NeatQueueState): Promise<void> {
+    await this.env.APP_DATA.put(this.getQueueStateKey(guildId, queueNumber), JSON.stringify(state), {
+      expirationTtl: 60 * 60 * 24, // 1 day
+    });
+  }
+
+  private async deleteQueueState(guildId: string, queueNumber: number): Promise<void> {
+    await this.env.APP_DATA.delete(this.getQueueStateKey(guildId, queueNumber));
   }
 
   private async getTimeline(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<NeatQueueTimelineEvent[]> {
-    try {
-      const data = await this.env.APP_DATA.get<NeatQueueTimelineEvent[]>(
-        this.getTimelineKey(request, neatQueueConfig),
-        {
-          type: "json",
-        },
-      );
-
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      this.logService.warn(error as Error);
-
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, returning empty timeline");
       return [];
     }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    return state.timeline;
   }
 
   private async extendTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
-    const timeline = await this.getTimeline(request, neatQueueConfig);
-    timeline.push({ timestamp: new Date().toISOString(), event: request });
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot extend timeline");
+      return;
+    }
 
-    await this.env.APP_DATA.put(this.getTimelineKey(request, neatQueueConfig), JSON.stringify(timeline), {
-      expirationTtl: 60 * 60 * 24, // 1 day
-    });
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.timeline.push({ timestamp: new Date().toISOString(), event: request });
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async storePlayersMessageId(
@@ -1023,23 +1065,60 @@ export class NeatQueueService {
     neatQueueConfig: NeatQueueConfigRow,
     messageId: string,
   ): Promise<void> {
-    await this.env.APP_DATA.put(this.getPlayersMessageIdKey(request, neatQueueConfig), messageId, {
-      expirationTtl: 60 * 60 * 24, // 1 day
-    });
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot store players message ID");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersMessageId = messageId;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getPlayersMessageId(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<string | null> {
-    return await this.env.APP_DATA.get(this.getPlayersMessageIdKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot get players message ID");
+      return null;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    return state.playersMessageId;
   }
 
   private async deletePlayersMessageId(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    await this.env.APP_DATA.delete(this.getPlayersMessageIdKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot delete players message ID");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersMessageId = null;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+  }
+
+  private async storePlayersAssociationData(
+    request: NeatQueueTimelineRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    playersAssociationData: Record<string, PlayerAssociationData>,
+  ): Promise<void> {
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot store players association data");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersAssociationData = playersAssociationData;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getCurrentPlayersFromTimeline(
@@ -1082,6 +1161,7 @@ export class NeatQueueService {
   private async getPlayersPostMessage(
     config: GuildConfigRow,
     players: NeatQueuePlayer[],
+    fetchedData?: PlayersEmbedData,
   ): Promise<RESTPostAPIChannelMessageJSONBody | null> {
     const { databaseService, discordService, haloService } = this;
 
@@ -1089,6 +1169,62 @@ export class NeatQueueService {
     const playerIds = sortedPlayers.map((player) => player.id);
     if (playerIds.length === 0) {
       return null;
+    }
+
+    let discordAssociations, haloPlayersMap, rankedArenaCsrs, esras;
+
+    if (fetchedData) {
+      ({ discordAssociations, haloPlayersMap, rankedArenaCsrs, esras } = fetchedData);
+    } else {
+      discordAssociations = await databaseService.getDiscordAssociations(playerIds);
+      this.logService.debug("Discord associations", new Map([["associations", JSON.stringify(discordAssociations)]]));
+      const xboxIds = discordAssociations
+        .filter(
+          (association) =>
+            association.GamesRetrievable === GamesRetrievable.YES ||
+            association.AssociationReason === AssociationReason.GAME_SIMILARITY,
+        )
+        .map((assoc) => assoc.XboxId);
+      this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
+      const haloPlayers = await haloService.getUsersByXuids(xboxIds);
+      this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
+      haloPlayersMap = new Map(haloPlayers.map((player) => [player.xuid, player]));
+      rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
+      this.logService.debug(
+        "Ranked Arena CSRs",
+        new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
+      );
+      esras = await haloService.getPlayersEsras(xboxIds);
+    }
+
+    const playersEmbed = new NeatQueuePlayersEmbed(
+      { discordService, haloService },
+      {
+        players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
+        discordAssociations,
+        haloPlayersMap,
+        rankedArenaCsrs,
+        esras,
+        mapsPostType: config.NeatQueueInformerMapsPost,
+      },
+    );
+
+    return {
+      embeds: [playersEmbed.embed],
+      components: playersEmbed.actions,
+    };
+  }
+
+  private async fetchPlayersAssociationData(players: NeatQueuePlayer[]): Promise<FetchedPlayersData> {
+    const { databaseService, haloService } = this;
+
+    const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
+    const playerIds = sortedPlayers.map((player) => player.id);
+    if (playerIds.length === 0) {
+      return {
+        associationData: {},
+        embedData: { discordAssociations: [], haloPlayersMap: new Map(), rankedArenaCsrs: new Map(), esras: new Map() },
+      };
     }
 
     const discordAssociations = await databaseService.getDiscordAssociations(playerIds);
@@ -1111,21 +1247,35 @@ export class NeatQueueService {
     );
     const esras = await haloService.getPlayersEsras(xboxIds);
 
-    const playersEmbed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
-      {
-        players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
-        discordAssociations,
-        haloPlayersMap,
-        rankedArenaCsrs,
-        esras,
-        mapsPostType: config.NeatQueueInformerMapsPost,
-      },
-    );
+    // Build the player association data record
+    const associationData: Record<string, PlayerAssociationData> = {};
+
+    for (const player of sortedPlayers) {
+      const association = discordAssociations.find((assoc) => assoc.DiscordId === player.id);
+      const xboxId = association?.XboxId ?? null;
+      const haloPlayer = xboxId != null ? haloPlayersMap.get(xboxId) : null;
+      const gamertag = haloPlayer?.gamertag ?? null;
+      const rankData = xboxId != null ? rankedArenaCsrs.get(xboxId) : null;
+      const esra = xboxId != null ? (esras.get(xboxId) ?? null) : null;
+
+      associationData[player.id] = {
+        discordId: player.id,
+        discordName: player.name,
+        xboxId,
+        gamertag,
+        currentRank: rankData?.Current.Value ?? null,
+        currentRankTier: rankData?.Current.Tier ?? null,
+        currentRankSubTier: rankData?.Current.SubTier ?? null,
+        allTimePeakRank: rankData?.AllTimeMax.Value ?? null,
+        allTimePeakRankTier: rankData?.AllTimeMax.Tier ?? null,
+        allTimePeakRankSubTier: rankData?.AllTimeMax.SubTier ?? null,
+        esra,
+      };
+    }
 
     return {
-      embeds: [playersEmbed.embed],
-      components: playersEmbed.actions,
+      associationData,
+      embedData: { discordAssociations, haloPlayersMap, rankedArenaCsrs, esras },
     };
   }
 
@@ -1599,7 +1749,13 @@ export class NeatQueueService {
   }
 
   private async clearTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
-    await this.env.APP_DATA.delete(this.getTimelineKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot clear timeline");
+      return;
+    }
+
+    await this.deleteQueueState(neatQueueConfig.GuildId, matchNumber);
   }
 
   private getMatchEmbed(

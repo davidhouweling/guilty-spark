@@ -260,6 +260,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         matchCount: 0,
         substitutionCount: 0,
       },
+      playersAssociationData: body.playersAssociationData,
     };
 
     await this.setState(trackerState);
@@ -1395,6 +1396,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
+      playersAssociationData: state.playersAssociationData,
     };
   }
 

@@ -1,4 +1,8 @@
+import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
+
+export type { PlayerAssociationData };
 
 export interface NeatQueuePlayer {
   name: string;
@@ -112,3 +116,29 @@ export type NeatQueueTimelineRequest =
   | NeatQueueTeamsCreatedRequest
   | NeatQueueSubstitutionRequest
   | NeatQueueMatchCompletedRequest;
+
+export interface NeatQueueState {
+  timeline: NeatQueueTimelineEvent[];
+  playersMessageId: string | null;
+  playersAssociationData: Record<string, PlayerAssociationData> | null;
+}
+
+export interface FetchedPlayersData {
+  associationData: Record<string, PlayerAssociationData>;
+  embedData: PlayersEmbedData;
+}
+
+export interface PlayersEmbedData {
+  discordAssociations: DiscordAssociationsRow[];
+  haloPlayersMap: Map<string, { gamertag: string; xuid: string }>;
+  rankedArenaCsrs: Map<string, { Current: RankCsr; AllTimeMax: RankCsr }>;
+  esras: Map<string, number>;
+}
+
+interface RankCsr {
+  Value: number;
+  Tier: string;
+  SubTier: number;
+  MeasurementMatchesRemaining: number;
+  InitialMeasurementMatches: number;
+}

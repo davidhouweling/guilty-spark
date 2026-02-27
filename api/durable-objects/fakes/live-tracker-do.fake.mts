@@ -61,6 +61,7 @@ export function aFakeLiveTrackerStateWith(opts: Partial<LiveTrackerState> = {}):
       matchCount: 0,
       substitutionCount: 0,
     },
+    playersAssociationData: null,
     ...opts,
   };
 }

@@ -135,6 +135,7 @@ const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken">
       playerIds: ["player2"],
     },
   ],
+  playersAssociationData: null,
 });
 
 const createMockStartData = (): LiveTrackerStartRequest => ({
@@ -163,6 +164,7 @@ const createMockTrackerState = (): LiveTrackerState => ({
     matchCount: 0,
     substitutionCount: 0,
   },
+  playersAssociationData: null,
 });
 
 const aMatchSummaryWith = (
@@ -217,6 +219,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     matchCount: 0,
     substitutionCount: 0,
   },
+  playersAssociationData: null,
   ...overrides,
 });
 
@@ -255,6 +258,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     matchCount: 0,
     substitutionCount: 0,
   },
+  playersAssociationData: null,
   ...overrides,
 });
 
@@ -337,6 +341,46 @@ describe("LiveTrackerDO", () => {
       const response = await liveTrackerDO.fetch(request);
 
       expect(response.status).toBe(200);
+    });
+
+    it("stores player association data from request in state", async () => {
+      storageGetSpy.mockResolvedValue(null);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("🦅 0:0 🐍");
+
+      const playerData = {
+        player1: {
+          discordId: "player1",
+          discordName: "Player1",
+          xboxId: "xuid_player1",
+          gamertag: "TestGamer1",
+          currentRank: 1500,
+          currentRankTier: "Platinum",
+          currentRankSubTier: 3,
+          allTimePeakRank: 1600,
+          allTimePeakRankTier: "Diamond",
+          allTimePeakRankSubTier: 1,
+          esra: 1234,
+        },
+      };
+
+      const startData = {
+        ...createMockStartData(),
+        playersAssociationData: playerData,
+      };
+
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(startData),
+      });
+
+      await liveTrackerDO.fetch(request);
+
+      // Verify state was stored with player association data
+      const storedState = storagePutSpy.mock.calls[0]?.[1];
+      expect(storedState).toBeDefined();
+      expect(storedState?.playersAssociationData).toEqual(playerData);
     });
 
     it("routes to handlePause for /pause endpoint", async () => {
@@ -1188,6 +1232,7 @@ describe("LiveTrackerDO", () => {
           matchCount: 0,
           substitutionCount: 0,
         },
+        playersAssociationData: null,
       };
       storageGetSpy.mockResolvedValue(trackerState);
 

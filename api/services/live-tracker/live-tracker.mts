@@ -1,4 +1,5 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
+import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do.mjs";
 import type {
   LiveTrackerStartRequest,
@@ -43,6 +44,7 @@ interface StartTrackerOpts {
   players: Record<string, APIGuildMember>;
   teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
+  playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 interface RecordSubstitutionOpts {
@@ -110,6 +112,7 @@ export class LiveTrackerService {
     queueStartTime,
     teams,
     interactionToken,
+    playersAssociationData,
   }: StartTrackerOpts): Promise<LiveTrackerStartResponse> {
     const context: LiveTrackerContext = {
       userId,
@@ -129,6 +132,7 @@ export class LiveTrackerService {
       players,
       teams,
       queueStartTime,
+      playersAssociationData,
     };
 
     if (interactionToken != null && interactionToken !== "") {

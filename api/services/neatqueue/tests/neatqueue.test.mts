@@ -31,8 +31,8 @@ import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-t
 import type { LiveTrackerService } from "../../live-tracker/live-tracker.mjs";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
-import { getFakeNeatQueueData } from "../fakes/data.mjs";
-import type { NeatQueueMatchCompletedRequest, NeatQueueRequest } from "../types.mjs";
+import { getFakeNeatQueueData, aFakeNeatQueueStateWith, neatQueueStateFromTimeline } from "../fakes/data.mjs";
+import type { NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types.mjs";
 import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import {
@@ -195,7 +195,7 @@ describe("NeatQueueService", () => {
       it("returns OK response and jobToComplete that extends timeline", async () => {
         const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
         const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-        appDataGetSpy.mockResolvedValueOnce([]);
+        appDataGetSpy.mockResolvedValueOnce(aFakeNeatQueueStateWith());
 
         const { response, jobToComplete } = neatQueueService.handleRequest(request, neatQueueConfig);
 
@@ -383,6 +383,54 @@ describe("NeatQueueService", () => {
 
         expect(createMessageSpy).not.toHaveBeenCalled();
         expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it("stores player association data when creating players message", async () => {
+        const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+
+        await jobToComplete();
+
+        // Verify APP_DATA.put was called (for both timeline and player association data)
+        expect(appDataPutSpy).toHaveBeenCalled();
+
+        // Find the call that stored player association data
+        const putCalls = appDataPutSpy.mock.calls;
+        const associationDataCall = putCalls.find((call) => {
+          const stateJson = call[1] as string;
+          try {
+            const state = JSON.parse(stateJson) as NeatQueueState;
+            return state.playersAssociationData != null;
+          } catch {
+            return false;
+          }
+        });
+
+        expect(associationDataCall).toBeDefined();
+
+        // Verify the structure of the stored data
+        const stateJson = associationDataCall?.[1] as string;
+        const state = JSON.parse(stateJson) as NeatQueueState;
+
+        // Should have association data for both players
+        expect(Object.keys(state.playersAssociationData ?? {})).toEqual(
+          expect.arrayContaining(["discord_user_01", "discord_user_02"]),
+        );
+
+        // Verify structure of one player's data
+        const rawPlayerData = state.playersAssociationData?.["discord_user_01"];
+        const playerData = Preconditions.checkExists(rawPlayerData, "Player data should exist for discord_user_01");
+        expect(playerData.discordId).toBe("discord_user_01");
+        expect(typeof playerData.discordName).toBe("string");
+        expect(typeof playerData.xboxId).toBe("string");
+        expect(typeof playerData.gamertag).toBe("string");
+        // Verify all rank and ESRA fields exist
+        expect(playerData).toHaveProperty("currentRank");
+        expect(playerData).toHaveProperty("currentRankTier");
+        expect(playerData).toHaveProperty("currentRankSubTier");
+        expect(playerData).toHaveProperty("allTimePeakRank");
+        expect(playerData).toHaveProperty("allTimePeakRankTier");
+        expect(playerData).toHaveProperty("allTimePeakRankSubTier");
+        expect(playerData).toHaveProperty("esra");
       });
 
       it("updates config and logs warning when Discord getChannel fails with missing access", async () => {
@@ -589,12 +637,16 @@ describe("NeatQueueService", () => {
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
-        appDataGetSpy.mockResolvedValue([
-          {
-            timestamp: sub(new Date(), { minutes: 15 }).toISOString(),
-            event: getFakeNeatQueueData("teamsCreated"),
-          },
-        ]);
+        appDataGetSpy.mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            timeline: [
+              {
+                timestamp: sub(new Date(), { minutes: 15 }).toISOString(),
+                event: getFakeNeatQueueData("teamsCreated"),
+              },
+            ],
+          }),
+        );
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
 
         const [match1, match2] = Array.from(matchStats.values());
@@ -664,7 +716,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete?.();
 
-        expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+        expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
       });
 
       it("discard neatqueue events that are not of concern", async () => {
@@ -687,7 +739,7 @@ describe("NeatQueueService", () => {
             event: getFakeNeatQueueData("teamsCreated"),
           },
         ];
-        appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
+        appDataGetSpy.mockReset().mockResolvedValue(neatQueueStateFromTimeline(eventTimeline));
 
         const { response, jobToComplete } = neatQueueService.handleRequest(
           getFakeNeatQueueData("matchCompleted"),
@@ -723,7 +775,7 @@ describe("NeatQueueService", () => {
             event: getFakeNeatQueueData("teamsCreated"),
           },
         ];
-        appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
+        appDataGetSpy.mockReset().mockResolvedValue(neatQueueStateFromTimeline(eventTimeline));
         const { response, jobToComplete } = neatQueueService.handleRequest(
           getFakeNeatQueueData("matchCompleted"),
           neatQueueConfig,
@@ -836,7 +888,7 @@ describe("NeatQueueService", () => {
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
-          expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
@@ -861,7 +913,7 @@ describe("NeatQueueService", () => {
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(6);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
-          expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+          expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
         });
 
         it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
@@ -911,7 +963,7 @@ describe("NeatQueueService", () => {
             expect(discordServiceStartThreadFromMessageSpy).not.toHaveBeenCalled();
             expect(discordServiceCreateMessageSpy).toHaveBeenCalledOnce();
             expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
-            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:guild-1:channel-1:1299532381308325949");
+            expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
           }
         });
 
@@ -968,7 +1020,7 @@ describe("NeatQueueService", () => {
               event: getFakeNeatQueueData("substitution"),
             },
           ];
-          appDataGetSpy.mockReset().mockResolvedValue(eventTimeline);
+          appDataGetSpy.mockReset().mockResolvedValue(neatQueueStateFromTimeline(eventTimeline));
 
           haloServiceGetSeriesFromDiscordQueueSpy.mockReset();
           haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
@@ -1604,12 +1656,12 @@ describe("NeatQueueService", () => {
         { timestamp: new Date().toISOString(), event: substitutionRequest },
       ];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
       appDataPutSpy.mockResolvedValue(undefined);
       createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
 
@@ -1627,11 +1679,15 @@ describe("NeatQueueService", () => {
         oldMessageId,
         "Updating players list after substitution",
       );
-      expect(appDataPutSpy).toHaveBeenCalledWith(
-        expect.stringContaining("players_message_id"),
-        newMessageId,
-        expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
-      );
+      expect(appDataPutSpy).toHaveBeenCalled();
+      // Verify the put includes the new message ID in the state
+      // Use the last call since extendTimeline also calls put
+      const putCalls = appDataPutSpy.mock.calls;
+      const lastPutCall = putCalls[putCalls.length - 1];
+      expect(lastPutCall?.[0]).toContain("neatqueue:state:guild-1:3");
+      const stateJson = lastPutCall?.[1] as string;
+      const savedState = JSON.parse(stateJson) as NeatQueueState;
+      expect(savedState.playersMessageId).toBe(newMessageId);
     });
 
     it("skips update when player connections are disabled", async () => {
@@ -1659,7 +1715,7 @@ describe("NeatQueueService", () => {
         }),
       );
 
-      appDataGetSpy.mockResolvedValue(null);
+      appDataGetSpy.mockResolvedValue(aFakeNeatQueueStateWith());
 
       const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
       await jobToComplete?.();
@@ -1681,12 +1737,12 @@ describe("NeatQueueService", () => {
       const oldMessageId = "old-message-123";
       const timeline = [{ timestamp: new Date().toISOString(), event: substitutionRequest }];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
 
       const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
       await jobToComplete?.();
@@ -1714,12 +1770,12 @@ describe("NeatQueueService", () => {
         { timestamp: new Date().toISOString(), event: substitutionRequest },
       ];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
       appDataPutSpy.mockResolvedValue(undefined);
       createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
       deleteMessageSpy.mockRejectedValue(new Error("Message not found"));
@@ -1760,12 +1816,12 @@ describe("NeatQueueService", () => {
         { timestamp: new Date(Date.now() + 2000).toISOString(), event: substitution2 },
       ];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
       appDataPutSpy.mockResolvedValue(undefined);
       createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
 
@@ -1798,12 +1854,12 @@ describe("NeatQueueService", () => {
         { timestamp: new Date().toISOString(), event: substitutionRequest },
       ];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
 
       const discordError = new DiscordError(403, {
         code: 50001,
@@ -1836,23 +1892,27 @@ describe("NeatQueueService", () => {
         { timestamp: new Date().toISOString(), event: substitutionRequest },
       ];
 
-      appDataGetSpy.mockImplementation(async (key: string) => {
-        if (key.includes("players_message_id")) {
-          return Promise.resolve(oldMessageId);
-        }
-        return Promise.resolve(timeline);
-      });
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline,
+          playersMessageId: oldMessageId,
+        }),
+      );
       appDataPutSpy.mockResolvedValue(undefined);
       createMessageSpy.mockResolvedValue({ ...apiMessage, id: newMessageId });
 
       const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
       await jobToComplete?.();
 
-      expect(appDataPutSpy).toHaveBeenCalledWith(
-        expect.stringContaining("players_message_id"),
-        newMessageId,
-        expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
-      );
+      expect(appDataPutSpy).toHaveBeenCalled();
+      // Verify the state was saved with the new message ID
+      // Use the last call since extendTimeline also calls put
+      const putCalls = appDataPutSpy.mock.calls;
+      const lastPutCall = putCalls[putCalls.length - 1];
+      expect(lastPutCall?.[0]).toContain("neatqueue:state:guild-1:3");
+      const stateJson = lastPutCall?.[1] as string;
+      const savedState = JSON.parse(stateJson) as NeatQueueState;
+      expect(savedState.playersMessageId).toBe(newMessageId);
     });
   });
 });

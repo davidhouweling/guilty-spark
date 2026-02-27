@@ -176,6 +176,7 @@ export class TrackCommand extends BaseCommand {
             }, {}),
             teams,
             queueStartTime: activeQueueData.timestamp.toISOString(),
+            playersAssociationData: null,
           });
         } catch (error) {
           if (error instanceof EndUserError) {
