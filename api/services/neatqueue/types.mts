@@ -112,3 +112,23 @@ export type NeatQueueTimelineRequest =
   | NeatQueueTeamsCreatedRequest
   | NeatQueueSubstitutionRequest
   | NeatQueueMatchCompletedRequest;
+
+export interface NeatQueueState {
+  timeline: NeatQueueTimelineEvent[];
+  playersMessageId: string | null;
+  playersAssociationData: Record<string, PlayerAssociationData> | null;
+}
+
+export interface PlayerAssociationData {
+  discordId: string;
+  discordName: string;
+  xboxId: string | null;
+  gamertag: string | null;
+  currentRank: number | null;
+  currentRankTier: string | null;
+  currentRankSubTier: number | null;
+  allTimePeakRank: number | null;
+  allTimePeakRankTier: string | null;
+  allTimePeakRankSubTier: number | null;
+  esra: number | null;
+}

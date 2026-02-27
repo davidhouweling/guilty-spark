@@ -49,6 +49,7 @@ import type {
   NeatQueueSubstitutionRequest,
   NeatQueuePlayer,
   NeatQueueMatchStartedRequest,
+  NeatQueueState,
 } from "./types.mjs";
 
 export interface NeatQueueServiceOpts {
@@ -981,41 +982,71 @@ export class NeatQueueService {
     }
   }
 
-  private getTimelineKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}`;
+  private getQueueStateKey(guildId: string, queueNumber: number): string {
+    return `neatqueue:state:${guildId}:${queueNumber.toString()}`;
   }
 
-  private getPlayersMessageIdKey(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): string {
-    return `neatqueue:${neatQueueConfig.GuildId}:${neatQueueConfig.ChannelId}:${request.channel}:players_message_id`;
+  private getMatchNumber(request: NeatQueueTimelineRequest): number | undefined {
+    if ("match_number" in request) {
+      return request.match_number;
+    }
+    if ("match_num" in request) {
+      return request.match_num;
+    }
+    return undefined;
+  }
+
+  private async getQueueState(guildId: string, queueNumber: number): Promise<NeatQueueState> {
+    try {
+      const data = await this.env.APP_DATA.get<NeatQueueState>(this.getQueueStateKey(guildId, queueNumber), {
+        type: "json",
+      });
+
+      if (data != null && typeof data === "object" && "timeline" in data) {
+        return data;
+      }
+
+      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+    } catch (error) {
+      this.logService.warn(error as Error);
+      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+    }
+  }
+
+  private async setQueueState(guildId: string, queueNumber: number, state: NeatQueueState): Promise<void> {
+    await this.env.APP_DATA.put(this.getQueueStateKey(guildId, queueNumber), JSON.stringify(state), {
+      expirationTtl: 60 * 60 * 24, // 1 day
+    });
+  }
+
+  private async deleteQueueState(guildId: string, queueNumber: number): Promise<void> {
+    await this.env.APP_DATA.delete(this.getQueueStateKey(guildId, queueNumber));
   }
 
   private async getTimeline(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<NeatQueueTimelineEvent[]> {
-    try {
-      const data = await this.env.APP_DATA.get<NeatQueueTimelineEvent[]>(
-        this.getTimelineKey(request, neatQueueConfig),
-        {
-          type: "json",
-        },
-      );
-
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      this.logService.warn(error as Error);
-
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, returning empty timeline");
       return [];
     }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    return state.timeline;
   }
 
   private async extendTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
-    const timeline = await this.getTimeline(request, neatQueueConfig);
-    timeline.push({ timestamp: new Date().toISOString(), event: request });
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot extend timeline");
+      return;
+    }
 
-    await this.env.APP_DATA.put(this.getTimelineKey(request, neatQueueConfig), JSON.stringify(timeline), {
-      expirationTtl: 60 * 60 * 24, // 1 day
-    });
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.timeline.push({ timestamp: new Date().toISOString(), event: request });
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async storePlayersMessageId(
@@ -1023,23 +1054,44 @@ export class NeatQueueService {
     neatQueueConfig: NeatQueueConfigRow,
     messageId: string,
   ): Promise<void> {
-    await this.env.APP_DATA.put(this.getPlayersMessageIdKey(request, neatQueueConfig), messageId, {
-      expirationTtl: 60 * 60 * 24, // 1 day
-    });
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot store players message ID");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersMessageId = messageId;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getPlayersMessageId(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<string | null> {
-    return await this.env.APP_DATA.get(this.getPlayersMessageIdKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot get players message ID");
+      return null;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    return state.playersMessageId;
   }
 
   private async deletePlayersMessageId(
     request: NeatQueueTimelineRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    await this.env.APP_DATA.delete(this.getPlayersMessageIdKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot delete players message ID");
+      return;
+    }
+
+    const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+    state.playersMessageId = null;
+    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getCurrentPlayersFromTimeline(
@@ -1599,7 +1651,13 @@ export class NeatQueueService {
   }
 
   private async clearTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
-    await this.env.APP_DATA.delete(this.getTimelineKey(request, neatQueueConfig));
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber === undefined) {
+      this.logService.warn("No match number in request, cannot clear timeline");
+      return;
+    }
+
+    await this.deleteQueueState(neatQueueConfig.GuildId, matchNumber);
   }
 
   private getMatchEmbed(

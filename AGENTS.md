@@ -33,6 +33,9 @@ npm run typecheck
 # Linting and formatting
 npm run lint:fix
 npm run format:fix
+
+# Run this at the end of any code you write and resolve any outstanding issues
+npm run done
 ```
 
 ## Project Architecture

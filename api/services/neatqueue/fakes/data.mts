@@ -9,6 +9,8 @@ import type {
   NeatQueueMatchStartedRequest,
   NeatQueueSubstitutionRequest,
   NeatQueueTeamsCreatedRequest,
+  NeatQueueState,
+  NeatQueueTimelineEvent,
 } from "../types.mjs";
 import { UnreachableError } from "../../../base/unreachable-error.mjs";
 
@@ -66,4 +68,23 @@ export function getFakeNeatQueueData<E extends NeatQueueEvent>(event: E): NeatQu
     default:
       throw new UnreachableError(event);
   }
+}
+
+/**
+ * Create a fake NeatQueueState object for testing
+ */
+export function aFakeNeatQueueStateWith(overrides: Partial<NeatQueueState> = {}): NeatQueueState {
+  return {
+    timeline: [],
+    playersMessageId: null,
+    playersAssociationData: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Helper to create NeatQueueState from timeline events (for backward compatibility with tests)
+ */
+export function neatQueueStateFromTimeline(timeline: NeatQueueTimelineEvent[]): NeatQueueState {
+  return aFakeNeatQueueStateWith({ timeline });
 }
