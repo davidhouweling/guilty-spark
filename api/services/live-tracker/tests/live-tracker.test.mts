@@ -92,6 +92,7 @@ describe("LiveTrackerService", () => {
       matchCount: 0,
       substitutionCount: 0,
     },
+    playersAssociationData: null,
   };
 
   const aFakeResponseWith = (response: Partial<Response> = {}): Response => {
@@ -192,6 +193,7 @@ describe("LiveTrackerService", () => {
         players: players,
         teams: teams,
         queueStartTime: "2024-01-01T00:00:00.000Z",
+        playersAssociationData: null,
       });
 
       expect(result).toEqual(mockResponse);
@@ -206,6 +208,7 @@ describe("LiveTrackerService", () => {
           players: players,
           teams: teams,
           queueStartTime: "2024-01-01T00:00:00.000Z",
+          playersAssociationData: null,
         }),
       });
       expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Starting live tracker", expect.any(Map));
@@ -232,6 +235,7 @@ describe("LiveTrackerService", () => {
         teams: teams,
         queueStartTime: "2024-01-01T00:00:00.000Z",
         interactionToken: "test-token",
+        playersAssociationData: null,
       });
 
       expect(fetch).toHaveBeenCalledWith(
@@ -259,6 +263,7 @@ describe("LiveTrackerService", () => {
           players: players,
           teams: teams,
           queueStartTime: "2024-01-01T00:00:00.000Z",
+          playersAssociationData: null,
         }),
       ).rejects.toThrow("Failed to start live tracker: 500");
 

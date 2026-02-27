@@ -29,6 +29,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},
+        playersAssociationData: null,
       },
     };
 

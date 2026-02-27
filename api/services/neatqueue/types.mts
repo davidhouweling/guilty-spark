@@ -1,5 +1,8 @@
+import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
+
+export type { PlayerAssociationData };
 
 export interface NeatQueuePlayer {
   name: string;
@@ -118,20 +121,6 @@ export interface NeatQueueState {
   timeline: NeatQueueTimelineEvent[];
   playersMessageId: string | null;
   playersAssociationData: Record<string, PlayerAssociationData> | null;
-}
-
-export interface PlayerAssociationData {
-  discordId: string;
-  discordName: string;
-  xboxId: string | null;
-  gamertag: string | null;
-  currentRank: number | null;
-  currentRankTier: string | null;
-  currentRankSubTier: number | null;
-  allTimePeakRank: number | null;
-  allTimePeakRankTier: string | null;
-  allTimePeakRankSubTier: number | null;
-  esra: number | null;
 }
 
 export interface FetchedPlayersData {

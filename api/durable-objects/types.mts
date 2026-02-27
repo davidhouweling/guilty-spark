@@ -1,6 +1,10 @@
 import type { APIGuildMember } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import type { LiveTrackerMatchSummary, LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerStatus,
+  PlayerAssociationData,
+} from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 
 // Input types for requests to the LiveTracker DO
@@ -14,6 +18,7 @@ export interface LiveTrackerStartRequest {
   players: Record<string, APIGuildMember>;
   teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
+  playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 export interface LiveTrackerSubstitutionRequest {
@@ -71,6 +76,7 @@ export interface LiveTrackerState {
   lastRefreshAttempt?: string;
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;
+  playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 // Success response types

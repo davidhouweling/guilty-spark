@@ -417,12 +417,12 @@ describe("NeatQueueService", () => {
         );
 
         // Verify structure of one player's data
-        const playerData = state.playersAssociationData?.["discord_user_01"];
-        expect(playerData).toBeDefined();
-        expect(playerData?.discordId).toBe("discord_user_01");
-        expect(typeof playerData?.discordName).toBe("string");
-        expect(typeof playerData?.xboxId).toBe("string");
-        expect(typeof playerData?.gamertag).toBe("string");
+        const rawPlayerData = state.playersAssociationData?.["discord_user_01"];
+        const playerData = Preconditions.checkExists(rawPlayerData, "Player data should exist for discord_user_01");
+        expect(playerData.discordId).toBe("discord_user_01");
+        expect(typeof playerData.discordName).toBe("string");
+        expect(typeof playerData.xboxId).toBe("string");
+        expect(typeof playerData.gamertag).toBe("string");
         // Verify all rank and ESRA fields exist
         expect(playerData).toHaveProperty("currentRank");
         expect(playerData).toHaveProperty("currentRankTier");

@@ -16,6 +16,7 @@ import type {
   LiveTrackerStateData,
   LiveTrackerStateMessage,
   LiveTrackerTeam,
+  PlayerAssociationData,
 } from "./types.mts";
 
 function parseStatus(value: JsonValue): LiveTrackerStatus | null {
@@ -161,6 +162,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
   const rawMatches = readRecord<string, MatchStats>(data["rawMatches"] ?? null);
   const seriesScore = readString(data["seriesScore"] ?? null);
   const medalMetadata = readRecord<string, { name: string; sortingWeight: number }>(data["medalMetadata"] ?? null);
+  const playersAssociationDataValue = data["playersAssociationData"] ?? null;
 
   if (
     guildId === null ||
@@ -178,6 +180,15 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     medalMetadata === null
   ) {
     return null;
+  }
+
+  // Parse playersAssociationData - it's optional so can be null
+  let playersAssociationData: Record<string, PlayerAssociationData> | null = null;
+  if (playersAssociationDataValue !== null) {
+    const playersAssociationDataObj = readJsonObject(playersAssociationDataValue);
+    if (playersAssociationDataObj !== null) {
+      playersAssociationData = playersAssociationDataObj as unknown as Record<string, PlayerAssociationData>;
+    }
   }
 
   const players: LiveTrackerPlayer[] = [];
@@ -230,6 +241,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     seriesScore,
     lastUpdateTime,
     medalMetadata,
+    playersAssociationData,
   };
 }
 

@@ -4,6 +4,7 @@ import type {
   LiveTrackerPlayer,
   LiveTrackerStateMessage,
   LiveTrackerTeam,
+  PlayerAssociationData,
 } from "../types.mts";
 import match1 from "./85022d98-5829-4da2-85ae-32b8cb48bbdd.json" with { type: "json" };
 import match2 from "./4ddc5187-d08d-48fc-96a3-8a490e577795.json" with { type: "json" };
@@ -130,6 +131,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     rawMatches: sampleRawMatches,
     seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
+    playersAssociationData: null,
     medalMetadata: {
       269174970: { name: "Boxer", sortingWeight: 50 },
       548533137: { name: "Back Smack", sortingWeight: 50 },
@@ -163,3 +165,23 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
   },
   timestamp: "2025-12-24T03:52:10.687Z",
 };
+
+/**
+ * Create a fake PlayerAssociationData object for testing
+ */
+export function aFakePlayerAssociationDataWith(overrides: Partial<PlayerAssociationData> = {}): PlayerAssociationData {
+  return {
+    discordId: "1189356946680188960",
+    discordName: "isydneyzz",
+    xboxId: "2535433357884073",
+    gamertag: "iSydneyzz",
+    currentRank: 1500,
+    currentRankTier: "Platinum",
+    currentRankSubTier: 3,
+    allTimePeakRank: 1630,
+    allTimePeakRankTier: "Diamond",
+    allTimePeakRankSubTier: 1,
+    esra: 1234,
+    ...overrides,
+  };
+}

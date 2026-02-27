@@ -7,7 +7,7 @@ import {
   aFakeGuildConfigRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake.mjs";
-import { getFakeNeatQueueData } from "../fakes/data.mjs";
+import { getFakeNeatQueueData, aFakeNeatQueueStateWith, createSamplePlayerAssociationData } from "../fakes/data.mjs";
 
 import type { DatabaseService } from "../../database/database.mjs";
 import type { LogService } from "../../log/types.mjs";
@@ -134,6 +134,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -161,7 +162,45 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
         ],
         queueStartTime: "2024-11-26T10:48:00.000Z",
+        playersAssociationData: null,
       });
+    });
+
+    it("fetches player association data from KV and passes it to startTracker", async () => {
+      const playerData = {
+        discord_user_01: createSamplePlayerAssociationData("discord_user_01", "TestPlayer1", "Gamertag1"),
+      };
+
+      const queueState = aFakeNeatQueueStateWith({
+        playersAssociationData: playerData,
+      });
+
+      // Mock KV to return queue state with player data (as parsed JSON)
+      const kvGetSpy = vi.spyOn(env.APP_DATA, "get").mockImplementation(() => queueState as never);
+
+      const mockStartResponse: LiveTrackerStartResponse = {
+        success: true,
+        state: aFakeLiveTrackerStateWith({
+          playersAssociationData: playerData,
+        }),
+      };
+
+      startTrackerSpy.mockResolvedValue(mockStartResponse);
+
+      await callTeamsCreatedJob(mockRequest);
+
+      // Verify KV was read to fetch player data
+      expect(kvGetSpy).toHaveBeenCalledWith(
+        `neatqueue:state:${mockRequest.guild}:${mockRequest.match_number.toString()}`,
+        { type: "json" },
+      );
+
+      // Verify player data was passed to startTracker
+      expect(startTrackerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playersAssociationData: playerData,
+        }),
+      );
     });
 
     it("does not start live tracking when disabled in guild config", async () => {
@@ -314,6 +353,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -398,6 +438,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -441,6 +482,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -480,6 +522,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -545,6 +588,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -607,6 +651,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 
@@ -638,6 +683,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
+          playersAssociationData: null,
         },
       };
 

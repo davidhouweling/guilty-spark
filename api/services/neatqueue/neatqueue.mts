@@ -600,6 +600,9 @@ export class NeatQueueService {
         return acc;
       }, {});
 
+      // Fetch player association data from queue state
+      const queueState = await this.getQueueState(request.guild, request.match_number);
+
       const result = await this.liveTrackerService.startTracker({
         userId: context.userId,
         guildId: context.guildId,
@@ -608,6 +611,7 @@ export class NeatQueueService {
         players: playersRecord,
         teams,
         queueStartTime: new Date().toISOString(),
+        playersAssociationData: queueState.playersAssociationData,
       });
 
       if (isSuccessResponse(result)) {
