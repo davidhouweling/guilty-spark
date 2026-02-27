@@ -1266,9 +1266,13 @@ export class NeatQueueService {
         currentRank: rankData?.Current.Value ?? null,
         currentRankTier: rankData?.Current.Tier ?? null,
         currentRankSubTier: rankData?.Current.SubTier ?? null,
+        currentRankMeasurementMatchesRemaining: rankData?.Current.MeasurementMatchesRemaining ?? null,
+        currentRankInitialMeasurementMatches: rankData?.Current.InitialMeasurementMatches ?? null,
         allTimePeakRank: rankData?.AllTimeMax.Value ?? null,
         allTimePeakRankTier: rankData?.AllTimeMax.Tier ?? null,
         allTimePeakRankSubTier: rankData?.AllTimeMax.SubTier ?? null,
+        allTimePeakRankMeasurementMatchesRemaining: rankData?.AllTimeMax.MeasurementMatchesRemaining ?? null,
+        allTimePeakRankInitialMeasurementMatches: rankData?.AllTimeMax.InitialMeasurementMatches ?? null,
         esra: esraData?.esra ?? null,
         lastRankedGamePlayed: esraData?.lastRankedGamePlayed ?? null,
       };
