@@ -1,4 +1,4 @@
-import { describe, beforeEach, it, expect, vi } from "vitest";
+import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
@@ -306,6 +306,10 @@ describe("LiveTrackerDO", () => {
   let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
 
   beforeEach(() => {
+    vi.useFakeTimers({
+      now: new Date("2024-11-26T12:00:00.000Z"),
+    });
+
     const mockSetup = createMockDurableObjectState();
     mockState = mockSetup.durableObjectState;
     mockStorage = mockSetup.mocks.storage;
@@ -319,6 +323,10 @@ describe("LiveTrackerDO", () => {
     storageDeleteAlarmSpy = vi.spyOn(mockStorage, "deleteAlarm");
 
     liveTrackerDO = new LiveTrackerDO(mockState, env, () => services);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("constructor", () => {
