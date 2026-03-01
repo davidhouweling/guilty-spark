@@ -285,12 +285,9 @@ export function StreamerOverlay({
   }, [allMatchStats.length, streamerOptions.showTicker]);
 
   const handleTabClick = (tabIndex: number): void => {
-    if (selectedTab === tabIndex) {
-      setIsPanelOpen(!isPanelOpen);
-    } else {
+    const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
       setSelectedTab(tabIndex);
-      setIsPanelOpen(true);
-    }
+    setIsPanelOpen(openPanel);
   };
 
   const handleClosePanel = (): void => {
@@ -386,7 +383,7 @@ export function StreamerOverlay({
               {tabs.map((tab) => {
                 const tabIndex = tab.type === "series" ? -1 : (tab.matchIndex ?? 0);
                 const isActive = activeTabIndex === tabIndex;
-                const isSelected = selectedTab === tabIndex;
+                const isSelected = selectedTab === tabIndex && isPanelOpen;
 
                 return (
                   <button

@@ -206,7 +206,7 @@
     100% 100%,
     10px 10px,
     cover;
-  border: 2px solid var(--tab-team-color, var(--halo-teal-primary));
+  border: 2px solid var(--tab-team-color, var(--halo-bg-primary));
   border-bottom: 0;
   border-top-left-radius: var(--radius-base);
   border-top-right-radius: var(--radius-base);
