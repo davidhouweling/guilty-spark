@@ -26,9 +26,9 @@ import {
   type PreviewMode,
   type StreamerOptions,
 } from "../view-mode/view-mode-selector";
+import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
-import { PlayerPreSeriesInfo } from "./player-pre-series-info";
 import styles from "./live-tracker.module.css";
 import type { LiveTrackerViewModel } from "./types";
 

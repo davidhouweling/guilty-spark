@@ -50,20 +50,114 @@ function RankDisplay({
   initialMeasurementMatches: number | null;
 }): React.ReactElement {
   const hasRank = rank !== null && rank >= 0;
-  const rankValue = hasRank ? rank.toString() : "-";
+  const rankValue = hasRank ? rank.toLocaleString() : "-";
 
   return (
-    <span className={styles.rankDisplay}>
+    <>
       <RankIcon
         rankTier={tier}
         subTier={subTier}
         measurementMatchesRemaining={measurementMatchesRemaining}
         initialMeasurementMatches={initialMeasurementMatches}
         size="small"
-      />
+      />{" "}
       <span className={styles.rankValue}>{rankValue}</span>
-    </span>
+    </>
   );
+}
+
+function getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
+  if (csr >= 1500) {
+    return { rankTier: "Onyx", subTier: 0 };
+  }
+  if (csr >= 1450) {
+    return { rankTier: "Diamond", subTier: 5 };
+  }
+  if (csr >= 1400) {
+    return { rankTier: "Diamond", subTier: 4 };
+  }
+  if (csr >= 1350) {
+    return { rankTier: "Diamond", subTier: 3 };
+  }
+  if (csr >= 1300) {
+    return { rankTier: "Diamond", subTier: 2 };
+  }
+  if (csr >= 1250) {
+    return { rankTier: "Diamond", subTier: 1 };
+  }
+  if (csr >= 1200) {
+    return { rankTier: "Diamond", subTier: 0 };
+  }
+  if (csr >= 1150) {
+    return { rankTier: "Platinum", subTier: 5 };
+  }
+  if (csr >= 1100) {
+    return { rankTier: "Platinum", subTier: 4 };
+  }
+  if (csr >= 1050) {
+    return { rankTier: "Platinum", subTier: 3 };
+  }
+  if (csr >= 1000) {
+    return { rankTier: "Platinum", subTier: 2 };
+  }
+  if (csr >= 950) {
+    return { rankTier: "Platinum", subTier: 1 };
+  }
+  if (csr >= 900) {
+    return { rankTier: "Platinum", subTier: 0 };
+  }
+  if (csr >= 850) {
+    return { rankTier: "Gold", subTier: 5 };
+  }
+  if (csr >= 800) {
+    return { rankTier: "Gold", subTier: 4 };
+  }
+  if (csr >= 750) {
+    return { rankTier: "Gold", subTier: 3 };
+  }
+  if (csr >= 700) {
+    return { rankTier: "Gold", subTier: 2 };
+  }
+  if (csr >= 650) {
+    return { rankTier: "Gold", subTier: 1 };
+  }
+  if (csr >= 600) {
+    return { rankTier: "Gold", subTier: 0 };
+  }
+  if (csr >= 550) {
+    return { rankTier: "Silver", subTier: 5 };
+  }
+  if (csr >= 500) {
+    return { rankTier: "Silver", subTier: 4 };
+  }
+  if (csr >= 450) {
+    return { rankTier: "Silver", subTier: 3 };
+  }
+  if (csr >= 400) {
+    return { rankTier: "Silver", subTier: 2 };
+  }
+  if (csr >= 350) {
+    return { rankTier: "Silver", subTier: 1 };
+  }
+  if (csr >= 300) {
+    return { rankTier: "Silver", subTier: 0 };
+  }
+  if (csr >= 250) {
+    return { rankTier: "Bronze", subTier: 5 };
+  }
+  if (csr >= 200) {
+    return { rankTier: "Bronze", subTier: 4 };
+  }
+  if (csr >= 150) {
+    return { rankTier: "Bronze", subTier: 3 };
+  }
+  if (csr >= 100) {
+    return { rankTier: "Bronze", subTier: 2 };
+  }
+  if (csr >= 50) {
+    return { rankTier: "Bronze", subTier: 1 };
+  }
+  return { rankTier: "Bronze", subTier: 0 };
 }
 
 export function PlayerPreSeriesInfo({
@@ -175,9 +269,21 @@ export function PlayerPreSeriesInfo({
         id: "esra",
         header: "ESRA",
         accessorFn: (row: PlayerRow): number => row.esra ?? -1,
-        cell: (value: unknown): React.ReactNode => {
-          const esra = value as number;
-          return esra >= 0 ? esra.toLocaleString() : "-";
+        cell: (_value: unknown, row: PlayerRow): React.ReactNode => {
+          if (row.esra === null || row.esra < 0) {
+            return "-";
+          }
+          const roundedEsra = Math.round(row.esra);
+          const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
+          return (
+            <RankDisplay
+              rank={roundedEsra}
+              tier={rankTier}
+              subTier={subTier}
+              measurementMatchesRemaining={null}
+              initialMeasurementMatches={null}
+            />
+          );
         },
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,

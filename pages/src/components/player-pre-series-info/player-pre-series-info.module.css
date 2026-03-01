@@ -10,12 +10,6 @@
   margin-top: 0;
 }
 
-.rankDisplay {
-  align-items: center;
-  display: inline-flex;
-  gap: var(--space-1);
-}
-
 .rankValue {
   line-height: 1;
 }
