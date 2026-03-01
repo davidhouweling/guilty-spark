@@ -43,21 +43,32 @@ export function InformationTicker({
       return;
     }
 
-    // Wait for next frame to ensure layout is complete
-    requestAnimationFrame(() => {
-      const { scrollWidth } = scrollElement;
-      const viewportWidth = window.innerWidth;
+    const calculateDuration = (): void => {
+      // Use double requestAnimationFrame to ensure layout is complete after content change
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const { scrollWidth } = scrollElement;
+          const viewportWidth = window.innerWidth;
 
-      // Total distance: viewport width (enter) + content width + viewport width (exit)
-      const totalDistance = viewportWidth + scrollWidth + viewportWidth;
+          // Total distance: viewport width (enter) + content width + viewport width (exit)
+          const totalDistance = viewportWidth + scrollWidth + viewportWidth;
 
-      // Pixels per second for smooth, readable scrolling
-      const pixelsPerSecond = 50;
-      const duration = totalDistance / pixelsPerSecond;
+          // Pixels per second for smooth, readable scrolling
+          const pixelsPerSecond = 50;
+          const duration = totalDistance / pixelsPerSecond;
 
-      setTickerDuration(duration);
-    });
-  }, [currentMatchIndex]);
+          setTickerDuration(duration);
+        });
+      });
+    };
+
+    calculateDuration();
+
+    window.addEventListener("resize", calculateDuration);
+    return (): void => {
+      window.removeEventListener("resize", calculateDuration);
+    };
+  }, [currentMatchIndex, currentMatchGroup]);
 
   return (
     <div className={styles.ticker} ref={tickerRef}>
