@@ -15,6 +15,7 @@ import {
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
+import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
 
@@ -73,6 +74,98 @@ export function StreamerOverlay({
   // Generate ticker match groups with structured data for styling
   const tickerMatchGroups = useMemo((): TickerMatchGroup[] => {
     const groups: TickerMatchGroup[] = [];
+
+    // Pre-series player info (when no matches yet but have player association data)
+    if (state.matches.length === 0 && state.playersAssociationData) {
+      const rows: TickerStatRow[] = [];
+
+      // Build ticker rows for each player with their rank/ESRA data
+      for (const [teamIndex, team] of state.teams.entries()) {
+        for (const player of team.players) {
+          const playerData = state.playersAssociationData[player.id];
+          if (playerData == null) {
+            continue;
+          }
+
+          const stats: { name: string; value: number; bestInTeam: boolean; bestInMatch: boolean; display: string }[] =
+            [];
+
+          // Current Rank
+          if (playerData.currentRank !== null && playerData.currentRank >= 0) {
+            stats.push({
+              name: "Rank",
+              value: playerData.currentRank,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: playerData.currentRank.toLocaleString(),
+            });
+          }
+
+          // Peak Rank
+          if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
+            stats.push({
+              name: "Peak",
+              value: playerData.allTimePeakRank,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: playerData.allTimePeakRank.toLocaleString(),
+            });
+          }
+
+          // ESRA
+          if (playerData.esra !== null && playerData.esra >= 0) {
+            stats.push({
+              name: "ESRA",
+              value: playerData.esra,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: Math.round(playerData.esra).toLocaleString(),
+            });
+          }
+
+          // Last Match (as time ago)
+          if (playerData.lastRankedGamePlayed !== null) {
+            const lastMatchDate = new Date(playerData.lastRankedGamePlayed);
+            const now = new Date();
+            const diffMs = now.getTime() - lastMatchDate.getTime();
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+            let timeAgoDisplay: string;
+            if (diffDays > 0) {
+              timeAgoDisplay = `${diffDays.toString()}d ago`;
+            } else if (diffHours > 0) {
+              timeAgoDisplay = `${diffHours.toString()}h ago`;
+            } else if (diffMinutes > 0) {
+              timeAgoDisplay = `${diffMinutes.toString()}m ago`;
+            } else {
+              timeAgoDisplay = "just now";
+            }
+
+            stats.push({
+              name: "Last Match",
+              value: diffMs,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: timeAgoDisplay,
+            });
+          }
+
+          rows.push({
+            type: "player",
+            teamId: teamIndex,
+            name: playerData.gamertag ?? playerData.discordName,
+            stats,
+            medals: [],
+          });
+        }
+      }
+
+      if (rows.length > 0) {
+        groups.push({ matchIndex: -1, label: "Player Info", rows });
+      }
+    }
 
     // Series stats first
     if (seriesStats && seriesStats.teamData.length > 0) {
@@ -365,7 +458,14 @@ export function StreamerOverlay({
             <button type="button" className={styles.closeButton} onClick={handleClosePanel}>
               ✕
             </button>
-            {selectedTab === -1 && seriesStats ? (
+            {selectedTab === -1 && state.matches.length === 0 && state.playersAssociationData ? (
+              <PlayerPreSeriesInfo
+                teams={state.teams}
+                playersAssociationData={state.playersAssociationData}
+                teamColors={teamColors}
+              />
+            ) : null}
+            {selectedTab === -1 && seriesStats && state.matches.length > 0 ? (
               <SeriesStats
                 teamData={seriesStats.teamData}
                 playerData={seriesStats.playerData}
