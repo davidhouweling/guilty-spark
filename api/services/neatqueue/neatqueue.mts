@@ -1256,7 +1256,7 @@ export class NeatQueueService {
       const haloPlayer = xboxId != null ? haloPlayersMap.get(xboxId) : null;
       const gamertag = haloPlayer?.gamertag ?? null;
       const rankData = xboxId != null ? rankedArenaCsrs.get(xboxId) : null;
-      const esra = xboxId != null ? (esras.get(xboxId) ?? null) : null;
+      const esraData = xboxId != null ? esras.get(xboxId) : null;
 
       associationData[player.id] = {
         discordId: player.id,
@@ -1269,7 +1269,8 @@ export class NeatQueueService {
         allTimePeakRank: rankData?.AllTimeMax.Value ?? null,
         allTimePeakRankTier: rankData?.AllTimeMax.Tier ?? null,
         allTimePeakRankSubTier: rankData?.AllTimeMax.SubTier ?? null,
-        esra,
+        esra: esraData?.esra ?? null,
+        lastRankedGamePlayed: esraData?.lastRankedGamePlayed ?? null,
       };
     }
 

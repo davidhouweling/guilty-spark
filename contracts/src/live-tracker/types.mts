@@ -36,6 +36,7 @@ export interface PlayerAssociationData {
   readonly allTimePeakRankTier: string | null;
   readonly allTimePeakRankSubTier: number | null;
   readonly esra: number | null;
+  readonly lastRankedGamePlayed: string | null;
 }
 
 export interface LiveTrackerTeam {

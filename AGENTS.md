@@ -80,6 +80,7 @@ npm run done
 - **Formatting**: Run `npm run lint:fix` and `npm run format:fix`
 - **Accessibility**: Preserve established ARIA attributes, focus handling, and keyboard support patterns when extending interactive components.
 - **Rendering Patterns**: Prefer data-driven rendering—extend typed configuration arrays and map to components instead of duplicating inline markup.
+- **Date operations**: use `date-fns` functions where suitable when manipulating, comparing, or computing dates. For frontend rendering, seek guidance if relative rendering should be used or absolute. For relative rendering use `react-time-ago`, for absolute, use `Date.toLocaleString()`.
 
 ## Conventions (Contracts, API, Pages)
 

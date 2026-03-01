@@ -182,6 +182,7 @@ export function aFakePlayerAssociationDataWith(overrides: Partial<PlayerAssociat
     allTimePeakRankTier: "Diamond",
     allTimePeakRankSubTier: 1,
     esra: 1234,
+    lastRankedGamePlayed: "2026-02-15T18:30:45.000Z",
     ...overrides,
   };
 }

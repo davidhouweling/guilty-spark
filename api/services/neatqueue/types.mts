@@ -132,7 +132,7 @@ export interface PlayersEmbedData {
   discordAssociations: DiscordAssociationsRow[];
   haloPlayersMap: Map<string, { gamertag: string; xuid: string }>;
   rankedArenaCsrs: Map<string, { Current: RankCsr; AllTimeMax: RankCsr }>;
-  esras: Map<string, number>;
+  esras: Map<string, { esra: number; lastRankedGamePlayed: string | null }>;
 }
 
 interface RankCsr {

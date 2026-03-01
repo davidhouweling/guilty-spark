@@ -72,6 +72,11 @@ export interface EsraCacheValue {
   matchData: Record<string, EsraMatchData>; // keyed by gameMode (${AssetId}:${VersionId})
 }
 
+export interface PlayerEsraData {
+  esra: number;
+  lastRankedGamePlayed: string | null;
+}
+
 export interface CircuitBreakerState {
   activatedAt: number;
   expiresAt: number;
