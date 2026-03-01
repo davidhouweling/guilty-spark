@@ -3282,7 +3282,8 @@ describe("Halo service", () => {
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
-      expect(esra).toBe(cachedEsra);
+      expect(esra.esra).toBe(cachedEsra);
+      expect(esra.lastRankedGamePlayed).toBeTruthy();
       expect(kvPutSpy).not.toHaveBeenCalled();
     });
 
@@ -3300,7 +3301,8 @@ describe("Halo service", () => {
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
-      expect(esra).toBe(0);
+      expect(esra.esra).toBe(0);
+      expect(esra.lastRankedGamePlayed).toBeNull();
       expect(kvPutSpy).toHaveBeenCalled();
     });
 
@@ -3429,7 +3431,8 @@ describe("Halo service", () => {
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
       expect(esra).toBeDefined();
-      expect(typeof esra).toBe("number");
+      expect(typeof esra.esra).toBe("number");
+      expect(esra.lastRankedGamePlayed).toBeTruthy();
       expect(kvPutSpy).toHaveBeenCalled();
       expect(getMatchSkillSpy).toHaveBeenCalledTimes(2);
     });
@@ -3469,7 +3472,8 @@ describe("Halo service", () => {
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
 
-      expect(esra).toBe(0);
+      expect(esra.esra).toBe(0);
+      expect(esra.lastRankedGamePlayed).toBeNull();
       expect(kvPutSpy).toHaveBeenCalled();
     });
   });
@@ -3480,16 +3484,16 @@ describe("Halo service", () => {
       const playlistId = FetchablePlaylist.RANKED_ARENA;
 
       const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
-      getPlayerEsraSpy.mockResolvedValueOnce(1400);
-      getPlayerEsraSpy.mockResolvedValueOnce(1500);
-      getPlayerEsraSpy.mockResolvedValueOnce(1600);
+      getPlayerEsraSpy.mockResolvedValueOnce({ esra: 1400, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      getPlayerEsraSpy.mockResolvedValueOnce({ esra: 1500, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      getPlayerEsraSpy.mockResolvedValueOnce({ esra: 1600, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
 
       const esraMap = await haloService.getPlayersEsras(xuids, playlistId);
 
       expect(esraMap.size).toBe(3);
-      expect(esraMap.get("xuid_1")).toBe(1400);
-      expect(esraMap.get("xuid_2")).toBe(1500);
-      expect(esraMap.get("xuid_3")).toBe(1600);
+      expect(esraMap.get("xuid_1")).toEqual({ esra: 1400, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      expect(esraMap.get("xuid_2")).toEqual({ esra: 1500, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      expect(esraMap.get("xuid_3")).toEqual({ esra: 1600, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
       expect(getPlayerEsraSpy).toHaveBeenCalledTimes(3);
       expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_1", playlistId);
       expect(getPlayerEsraSpy).toHaveBeenCalledWith("xuid_2", playlistId);
@@ -3506,21 +3510,21 @@ describe("Halo service", () => {
       const xuids = ["xuid_1", "xuid_2"];
 
       const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
-      getPlayerEsraSpy.mockResolvedValueOnce(1400);
-      getPlayerEsraSpy.mockResolvedValueOnce(0);
+      getPlayerEsraSpy.mockResolvedValueOnce({ esra: 1400, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      getPlayerEsraSpy.mockResolvedValueOnce({ esra: 0, lastRankedGamePlayed: null });
 
       const esraMap = await haloService.getPlayersEsras(xuids);
 
       expect(esraMap.size).toBe(2);
-      expect(esraMap.get("xuid_1")).toBe(1400);
-      expect(esraMap.get("xuid_2")).toBe(0);
+      expect(esraMap.get("xuid_1")).toEqual({ esra: 1400, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
+      expect(esraMap.get("xuid_2")).toEqual({ esra: 0, lastRankedGamePlayed: null });
     });
 
     it("uses default RANKED_ARENA playlist when not specified", async () => {
       const xuids = ["xuid_1"];
 
       const getPlayerEsraSpy = vi.spyOn(haloService, "getPlayerEsra");
-      getPlayerEsraSpy.mockResolvedValue(1400);
+      getPlayerEsraSpy.mockResolvedValue({ esra: 1400, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
 
       await haloService.getPlayersEsras(xuids);
 

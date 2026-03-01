@@ -240,7 +240,9 @@ describe("NeatQueueService", () => {
         getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
         getPlayersEsrasSpy = vi
           .spyOn(haloService, "getPlayersEsras")
-          .mockResolvedValue(new Map([["0000000000001", 1350]]));
+          .mockResolvedValue(
+            new Map([["0000000000001", { esra: 1350, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }]]),
+          );
         getGuildConfigSpy = vi
           .spyOn(databaseService, "getGuildConfig")
           .mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "Y" }));
@@ -1462,7 +1464,9 @@ describe("NeatQueueService", () => {
       getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
       getPlayersEsrasSpy = vi
         .spyOn(haloService, "getPlayersEsras")
-        .mockResolvedValue(new Map([["0000000000001", 1350]]));
+        .mockResolvedValue(
+          new Map([["0000000000001", { esra: 1350, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }]]),
+        );
     });
 
     it("updates the players embed when timeline and match started event exist", async () => {

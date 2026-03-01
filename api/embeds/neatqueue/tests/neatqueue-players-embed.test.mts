@@ -94,8 +94,8 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
-      ["1000", 1450],
-      ["2000", 1350],
+      ["1000", { esra: 1450, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }],
+      ["2000", { esra: 1350, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }],
     ]);
 
     const embed = new NeatQueuePlayersEmbed(
@@ -437,8 +437,8 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
-      ["1000", 1450.7], // Should round to 1451
-      ["2000", 1349.3], // Should round to 1349
+      ["1000", { esra: 1450.7, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }], // Should round to 1451
+      ["2000", { esra: 1349.3, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" }], // Should round to 1349
     ]);
 
     const embed = new NeatQueuePlayersEmbed(
@@ -543,8 +543,8 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map([
-      ["1000", 0], // Zero ESRA
-      ["2000", -5], // Negative ESRA (edge case)
+      ["1000", { esra: 0, lastRankedGamePlayed: null }], // Zero ESRA
+      ["2000", { esra: -5, lastRankedGamePlayed: null }], // Negative ESRA (edge case)
     ]);
 
     const embed = new NeatQueuePlayersEmbed(

@@ -32,6 +32,7 @@ import type {
   SeriesData,
   EsraMatchData,
   EsraCacheValue,
+  PlayerEsraData,
   Medal,
   MatchPlayer,
   UserInfo,
@@ -40,7 +41,7 @@ import type {
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types.mjs";
 
 export { FetchablePlaylist } from "./types.mjs";
-export type { MatchPlayer } from "./types.mjs";
+export type { MatchPlayer, PlayerEsraData } from "./types.mjs";
 
 export interface HaloServiceOpts {
   env: Env;
@@ -364,23 +365,35 @@ export class HaloService {
   async getPlayersEsras(
     xuids: string[],
     playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA,
-  ): Promise<Map<string, number>> {
-    const esraMap = new Map<string, number>();
+  ): Promise<Map<string, PlayerEsraData>> {
+    const esraMap = new Map<string, PlayerEsraData>();
 
     for (const xuid of xuids) {
-      const esra = await this.getPlayerEsra(xuid, playlistId);
-      esraMap.set(xuid, esra);
+      const esraData = await this.getPlayerEsra(xuid, playlistId);
+      esraMap.set(xuid, esraData);
     }
 
     return esraMap;
   }
 
-  async getPlayerEsra(xuid: string, playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA): Promise<number> {
+  async getPlayerEsra(
+    xuid: string,
+    playlistId: FetchablePlaylist = FetchablePlaylist.RANKED_ARENA,
+  ): Promise<PlayerEsraData> {
     try {
       const cacheKey = this.getEsraKVCacheKey(xuid, playlistId);
       const cachedEsra = await this.getEsraFromKVCache(cacheKey);
       if (cachedEsra && differenceInMinutes(new Date(), new Date(cachedEsra.computedAt)) < 5) {
-        return cachedEsra.esra;
+        // Extract the most recent match end time from cached data
+        const esraValues = Object.values(cachedEsra.matchData);
+        const lastRankedGamePlayed =
+          esraValues.length === 0
+            ? null
+            : esraValues.reduce(
+                (latest, data) => (isAfter(data.matchEndTime, latest) ? data.matchEndTime : latest),
+                esraValues[0]?.matchEndTime ?? "",
+              );
+        return { esra: cachedEsra.esra, lastRankedGamePlayed };
       }
 
       const playlistGameVariantKeys = await this.getPlaylistGameVariantKeys(playlistId);
@@ -477,6 +490,15 @@ export class HaloService {
       const averageEsra =
         esraValues.length === 0 ? 0 : esraValues.reduce((sum, data) => sum + data.esra, 0) / esraValues.length;
 
+      // Find the most recent match end time across all variants
+      const lastRankedGamePlayed =
+        esraValues.length === 0
+          ? null
+          : esraValues.reduce(
+              (latest, data) => (isAfter(data.matchEndTime, latest) ? data.matchEndTime : latest),
+              esraValues[0]?.matchEndTime ?? "",
+            );
+
       const cacheValue: EsraCacheValue = {
         xuid,
         playlistId,
@@ -488,7 +510,7 @@ export class HaloService {
 
       await this.updateEsraKVCache(cacheKey, cacheValue);
 
-      return averageEsra;
+      return { esra: averageEsra, lastRankedGamePlayed };
     } catch (error) {
       this.logService.error(error as Error, new Map([["context", `Failed to fetch ESRA for xuid ${xuid}`]]));
       throw error;

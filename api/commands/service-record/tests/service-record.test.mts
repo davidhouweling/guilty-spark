@@ -161,7 +161,7 @@ describe("ServiceRecordCommand", () => {
 
       getUsersByXuidsSpy.mockResolvedValue([{ xuid: "xbox-123", gamertag: "TestGamer" }]);
       getServiceRecordSpy.mockResolvedValue(mockServiceRecord);
-      getPlayerEsraSpy.mockResolvedValue(1350);
+      getPlayerEsraSpy.mockResolvedValue({ esra: 1350, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
 
       const result = serviceRecordCommand.execute(userContextMenuInteraction);
 
@@ -239,7 +239,7 @@ describe("ServiceRecordCommand", () => {
 
       getUsersByXuidsSpy.mockResolvedValue([{ xuid: "xbox-456", gamertag: "AnotherGamer" }]);
       getServiceRecordSpy.mockResolvedValue(mockServiceRecord);
-      getPlayerEsraSpy.mockResolvedValue(1500);
+      getPlayerEsraSpy.mockResolvedValue({ esra: 1500, lastRankedGamePlayed: "2026-02-15T18:30:45.000Z" });
 
       const result = serviceRecordCommand.execute(slashCommandInteraction);
 

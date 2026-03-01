@@ -145,7 +145,7 @@ export class ServiceRecordCommand extends BaseCommand {
     const { DiscordId, AssociationReason, XboxId } = association;
 
     try {
-      const [serviceRecord, matchCount, esra] = await Promise.allSettled([
+      const [serviceRecord, matchCount, esraData] = await Promise.allSettled([
         haloService.getServiceRecord(XboxId),
         haloService.getMatchCount(XboxId),
         haloService.getPlayerEsra(XboxId),
@@ -164,7 +164,7 @@ export class ServiceRecordCommand extends BaseCommand {
           serviceRecord: serviceRecord.value,
           matchCount: matchCount.status === "fulfilled" ? matchCount.value : undefined,
           csr,
-          esra: esra.status === "fulfilled" ? esra.value : 0,
+          esra: esraData.status === "fulfilled" ? esraData.value.esra : 0,
         },
       );
       return embed.embed;

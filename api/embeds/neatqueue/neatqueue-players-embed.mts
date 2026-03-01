@@ -12,7 +12,7 @@ import type { DiscordAssociationsRow } from "../../services/database/types/disco
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
 import { MapsPostType } from "../../services/database/types/guild_config.mjs";
-import type { HaloService } from "../../services/halo/halo.mjs";
+import type { HaloService, PlayerEsraData } from "../../services/halo/halo.mjs";
 
 interface NeatQueuePlayersEmbedServices {
   discordService: DiscordService;
@@ -29,7 +29,7 @@ export interface NeatQueuePlayersEmbedData {
   discordAssociations: DiscordAssociationsRow[];
   haloPlayersMap: Map<string, { gamertag: string; xuid: string }>;
   rankedArenaCsrs: Map<string, { Current: RankData; AllTimeMax: RankData }>;
-  esras: Map<string, number>;
+  esras: Map<string, PlayerEsraData>;
   mapsPostType: MapsPostType;
 }
 
@@ -108,7 +108,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
       tableData.push([
         `<@${player.id}>`,
         gamertagUrl,
-        `${currentRankEmoji}${currentRank} (${this.formatEsra(this.data.esras.get(association.XboxId) ?? 0)}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
+        `${currentRankEmoji}${currentRank} (${this.formatEsra(this.data.esras.get(association.XboxId)?.esra ?? 0)}, ${allTimePeakRankEmoji}${allTimePeakRank})`,
       ]);
     }
 
