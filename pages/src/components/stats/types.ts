@@ -35,6 +35,7 @@ export interface MatchStatsValues {
   bestInTeam: boolean;
   bestInMatch: boolean;
   display: string;
+  icon?: React.ReactNode;
 }
 
 export interface MatchStatsMedal {

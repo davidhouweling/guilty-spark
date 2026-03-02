@@ -63,7 +63,21 @@ export function ScrollingContent({
 
   // JavaScript-based animation loop
   useEffect(() => {
-    if (!needsScroll || scrollRef.current == null) {
+    if (scrollRef.current == null) {
+      return;
+    }
+
+    // If content doesn't need scrolling, set a 10-second timeout
+    if (!needsScroll) {
+      if (!loop && onScrollComplete != null) {
+        const timeoutId = setTimeout(() => {
+          onScrollComplete();
+        }, 10000);
+
+        return (): void => {
+          clearTimeout(timeoutId);
+        };
+      }
       return;
     }
 

@@ -171,6 +171,7 @@ npm run format:fix
 
 - Do not use reassuring or emotive language, instead prefer factual statements.
 - Explore code first, look for patterns in neighboring code, when in doubt, ask questions, do not assume.
+- Where code appears different than what you expect, please confirm with prompter if this was intended before reverting.
 - Steps to take in tackling any prompt
   1. come up with a plan/proposal
   2. gain alignment with prompter

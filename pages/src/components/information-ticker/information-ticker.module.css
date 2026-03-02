@@ -59,13 +59,14 @@
   border-right: 1px solid var(--halo-teal-primary);
   display: inline-flex;
   flex-shrink: 0;
+  line-height: 2;
   padding: var(--space-1) var(--space-2);
 }
 
 .tickerScrollingRow {
-  border-left: none;
-  border-right: none;
+  border: none;
   gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
   white-space: nowrap;
 }
 
@@ -102,7 +103,7 @@
   display: inline-flex;
   font-family: var(--font-body);
   font-size: var(--text-xs);
-  gap: var(--space-1);
+  gap: 4px;
   white-space: nowrap;
 }
 
