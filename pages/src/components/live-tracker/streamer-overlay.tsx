@@ -16,6 +16,9 @@ import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
+import { ScrollingContent } from "../scrolling-content/scrolling-content";
+import discordLogo from "../../assets/discord-logo.png";
+import XboxLogo from "../../assets/xbox-logo.png";
 import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
 
@@ -155,6 +158,8 @@ export function StreamerOverlay({
             type: "player",
             teamId: teamIndex,
             name: playerData.gamertag ?? playerData.discordName,
+            discordName: playerData.discordName,
+            gamertag: playerData.gamertag,
             stats,
             medals: [],
           });
@@ -340,13 +345,73 @@ export function StreamerOverlay({
             <div className={styles.teamLeft} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
               <span className={styles.teamName}>{state.teams[0]?.name ?? "Team 1"}:</span>
               <span className={styles.teamPlayers}>
-                {state.teams[0]?.players.map((p) => p.displayName).join(", ") ?? ""}
+                <ScrollingContent maxWidth={400}>
+                  {state.teams[0]?.players.map((p, idx) => {
+                    const playerData = state.playersAssociationData?.[p.id];
+                    const discordName = playerData?.discordName ?? p.displayName;
+                    const gamertag = playerData?.gamertag ?? null;
+                    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
+
+                    return (
+                      <React.Fragment key={p.id}>
+                        {idx > 0 && ", "}
+                        {namesAreSame ? (
+                          <>
+                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+                            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} />
+                            {gamertag}
+                          </>
+                        ) : (
+                          <>
+                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+                            {discordName}
+                            {gamertag != null && (
+                              <>
+                                , <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} />
+                                {gamertag}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </ScrollingContent>
               </span>
             </div>
             <div className={styles.teamRight} style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}>
               <span className={styles.teamName}>{state.teams[1]?.name ?? "Team 2"}:</span>
               <span className={styles.teamPlayers}>
-                {state.teams[1]?.players.map((p) => p.displayName).join(", ") ?? ""}
+                <ScrollingContent maxWidth={400}>
+                  {state.teams[1]?.players.map((p, idx) => {
+                    const playerData = state.playersAssociationData?.[p.id];
+                    const discordName = playerData?.discordName ?? p.displayName;
+                    const gamertag = playerData?.gamertag ?? null;
+                    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
+
+                    return (
+                      <React.Fragment key={p.id}>
+                        {idx > 0 && ", "}
+                        {namesAreSame ? (
+                          <>
+                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+                            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+                          </>
+                        ) : (
+                          <>
+                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
+                            {gamertag != null && (
+                              <>
+                                {" "}
+                                <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </ScrollingContent>
               </span>
             </div>
           </>

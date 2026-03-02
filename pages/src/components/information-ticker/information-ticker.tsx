@@ -4,12 +4,15 @@ import type { MatchStatsValues } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
+import { PlayerName } from "../player-name/player-name";
 import styles from "./information-ticker.module.css";
 
 interface TickerStatRow {
   readonly type: "team" | "player";
   readonly teamId: number;
   readonly name: string;
+  readonly discordName?: string | null;
+  readonly gamertag?: string | null;
   readonly stats: MatchStatsValues[];
   readonly medals: { name: string; count: number }[];
 }
@@ -121,7 +124,15 @@ export function InformationTicker({
               <div className={styles.tickerRowContent}>
                 <div className={styles.tickerName}>
                   <TeamIcon teamId={row.teamId} size="small" />
-                  <span>{row.name}</span>
+                  {row.type === "player" && (row.discordName != null || row.gamertag != null) ? (
+                    <PlayerName
+                      discordName={row.discordName ?? null}
+                      gamertag={row.gamertag ?? null}
+                      showIcons={false}
+                    />
+                  ) : (
+                    <span>{row.name}</span>
+                  )}
                 </div>
                 <div className={styles.tickerStats}>
                   {row.stats.map((stat, statIdx) => (

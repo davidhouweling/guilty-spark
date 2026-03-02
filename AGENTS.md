@@ -33,9 +33,6 @@ npm run typecheck
 # Linting and formatting
 npm run lint:fix
 npm run format:fix
-
-# Run this at the end of any code you write and resolve any outstanding issues
-npm run done
 ```
 
 ## Project Architecture
@@ -169,3 +166,18 @@ npm run done
 - **Node ESM + .mjs**: Required for Cloudflare Workers Node.js compatibility
 - **D1 + KV Storage**: D1 for relational integrity, KV for fast temporary state
 - **TypeScript Strict**: Comprehensive type safety without unsafe casts
+
+## Agent behavior
+
+- Do not use reassuring or emotive language, instead prefer factual statements.
+- Explore code first, look for patterns in neighboring code, when in doubt, ask questions, do not assume.
+- Steps to take in tackling any prompt
+  1. come up with a plan/proposal
+  2. gain alignment with prompter
+  3. execute on implementation and fix any outstanding issues, i.e.
+     a. for typescript, use `npm run typecheck` and `npm run lint:ts:fix`
+     b. for CSS, use `npm run stylelint:pages:fix`
+  4. ask for confirmation that things are as expected
+  5. revise if necessary
+  6. once implementation is agreed, look to add tests where relevant. If no tests presently exist, ask for direction. Prefer using `npm test` to ensure all tests are passing.
+  7. Once all is complete above, do `npm run format:fix` to format code.

@@ -1,0 +1,18 @@
+.scrollingContent {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.scrollingContent.animate {
+  animation: scrolling var(--scroll-duration, 20s) linear infinite;
+}
+
+@keyframes scrolling {
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
