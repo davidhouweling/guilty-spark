@@ -95,7 +95,7 @@ export function StreamerOverlay({
           // Current Rank
           if (playerData.currentRank !== null && playerData.currentRank >= 0) {
             stats.push({
-              name: "Rank",
+              name: "Current rank",
               value: playerData.currentRank,
               bestInTeam: false,
               bestInMatch: false,
@@ -106,7 +106,7 @@ export function StreamerOverlay({
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
             stats.push({
-              name: "Peak",
+              name: "Peak rank",
               value: playerData.allTimePeakRank,
               bestInTeam: false,
               bestInMatch: false,
@@ -146,7 +146,7 @@ export function StreamerOverlay({
             }
 
             stats.push({
-              name: "Last Match",
+              name: "Last ranked match",
               value: diffMs,
               bestInTeam: false,
               bestInMatch: false,

@@ -13,34 +13,28 @@
   position: relative;
 }
 
-.tickerScroll {
-  animation: tickerScrolling var(--ticker-duration, 180s) linear;
-  animation-play-state: var(--animation-play-state, running);
-  display: inline-flex;
+.tickerContent {
+  display: flex;
   flex-direction: row;
-  gap: 0;
-  white-space: nowrap;
 }
 
-@keyframes tickerScrolling {
-  0% {
-    transform: translateX(100vw);
-  }
-
-  100% {
-    transform: translateX(calc(-100% - 100vw));
-  }
-}
-
-.tickerLabel {
+.tickerPinned {
   align-items: center;
-  border-right: 2px solid var(--halo-accent);
-  display: inline-flex;
+  background-color: color-mix(in srgb, var(--row-color, transparent) 20%, transparent);
+  display: flex;
+  flex-direction: row;
   flex-shrink: 0;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
 }
 
-.tickerLabelText {
+.tickerScrolling {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tickerLabel {
   color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: var(--text-sm);
@@ -49,7 +43,14 @@
   text-shadow:
     0 1px 2px rgb(0 0 0 / 80%),
     0 0 10px rgb(0 0 0 / 60%);
-  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tickerSeparator {
+  color: var(--halo-teal-primary);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
 }
 
 .tickerRow {
@@ -61,18 +62,19 @@
   padding: var(--space-1) var(--space-2);
 }
 
+.tickerScrollingRow {
+  border-left: none;
+  border-right: none;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
 .tickerTeamRow {
   background-color: color-mix(in srgb, var(--row-color, transparent) 30%, transparent);
 }
 
 .tickerPlayerRow {
   background-color: color-mix(in srgb, var(--row-color, transparent) 15%, transparent);
-}
-
-.tickerRowContent {
-  align-items: center;
-  display: flex;
-  gap: var(--space-3);
 }
 
 .tickerName {
