@@ -17,6 +17,101 @@ import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { ScrollingContent } from "../scrolling-content/scrolling-content";
+import { RankIcon } from "../icons/rank-icon";
+
+function getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
+  if (csr >= 1500) {
+    return { rankTier: "Onyx", subTier: 0 };
+  }
+  if (csr >= 1450) {
+    return { rankTier: "Diamond", subTier: 5 };
+  }
+  if (csr >= 1400) {
+    return { rankTier: "Diamond", subTier: 4 };
+  }
+  if (csr >= 1350) {
+    return { rankTier: "Diamond", subTier: 3 };
+  }
+  if (csr >= 1300) {
+    return { rankTier: "Diamond", subTier: 2 };
+  }
+  if (csr >= 1250) {
+    return { rankTier: "Diamond", subTier: 1 };
+  }
+  if (csr >= 1200) {
+    return { rankTier: "Diamond", subTier: 0 };
+  }
+  if (csr >= 1150) {
+    return { rankTier: "Platinum", subTier: 5 };
+  }
+  if (csr >= 1100) {
+    return { rankTier: "Platinum", subTier: 4 };
+  }
+  if (csr >= 1050) {
+    return { rankTier: "Platinum", subTier: 3 };
+  }
+  if (csr >= 1000) {
+    return { rankTier: "Platinum", subTier: 2 };
+  }
+  if (csr >= 950) {
+    return { rankTier: "Platinum", subTier: 1 };
+  }
+  if (csr >= 900) {
+    return { rankTier: "Platinum", subTier: 0 };
+  }
+  if (csr >= 850) {
+    return { rankTier: "Gold", subTier: 5 };
+  }
+  if (csr >= 800) {
+    return { rankTier: "Gold", subTier: 4 };
+  }
+  if (csr >= 750) {
+    return { rankTier: "Gold", subTier: 3 };
+  }
+  if (csr >= 700) {
+    return { rankTier: "Gold", subTier: 2 };
+  }
+  if (csr >= 650) {
+    return { rankTier: "Gold", subTier: 1 };
+  }
+  if (csr >= 600) {
+    return { rankTier: "Gold", subTier: 0 };
+  }
+  if (csr >= 550) {
+    return { rankTier: "Silver", subTier: 5 };
+  }
+  if (csr >= 500) {
+    return { rankTier: "Silver", subTier: 4 };
+  }
+  if (csr >= 450) {
+    return { rankTier: "Silver", subTier: 3 };
+  }
+  if (csr >= 400) {
+    return { rankTier: "Silver", subTier: 2 };
+  }
+  if (csr >= 350) {
+    return { rankTier: "Silver", subTier: 1 };
+  }
+  if (csr >= 300) {
+    return { rankTier: "Silver", subTier: 0 };
+  }
+  if (csr >= 250) {
+    return { rankTier: "Bronze", subTier: 5 };
+  }
+  if (csr >= 200) {
+    return { rankTier: "Bronze", subTier: 4 };
+  }
+  if (csr >= 150) {
+    return { rankTier: "Bronze", subTier: 3 };
+  }
+  if (csr >= 100) {
+    return { rankTier: "Bronze", subTier: 2 };
+  }
+  if (csr >= 50) {
+    return { rankTier: "Bronze", subTier: 1 };
+  }
+  return { rankTier: "Bronze", subTier: 0 };
+}
 import discordLogo from "../../assets/discord-logo.png";
 import XboxLogo from "../../assets/xbox-logo.png";
 import type { LiveTrackerViewModel } from "./types";
@@ -81,47 +176,84 @@ export function StreamerOverlay({
     if (state.matches.length === 0 && state.playersAssociationData) {
       const rows: TickerStatRow[] = [];
 
-      // Build ticker rows for each player with their rank/ESRA data
+      // Build ticker rows per team with all players' stats combined
       for (const [teamIndex, team] of state.teams.entries()) {
+        const teamStats: {
+          name: string;
+          value: number;
+          bestInTeam: boolean;
+          bestInMatch: boolean;
+          display: string;
+          icon?: React.ReactNode;
+        }[] = [];
+
         for (const player of team.players) {
           const playerData = state.playersAssociationData[player.id];
           if (playerData == null) {
             continue;
           }
 
-          const stats: { name: string; value: number; bestInTeam: boolean; bestInMatch: boolean; display: string }[] =
-            [];
+          const playerName = playerData.gamertag ?? playerData.discordName;
 
           // Current Rank
           if (playerData.currentRank !== null && playerData.currentRank >= 0) {
-            stats.push({
-              name: "Current rank",
+            teamStats.push({
+              name: `${playerName} - Current rank`,
               value: playerData.currentRank,
               bestInTeam: false,
               bestInMatch: false,
               display: playerData.currentRank.toLocaleString(),
+              icon: (
+                <RankIcon
+                  rankTier={playerData.currentRankTier}
+                  subTier={playerData.currentRankSubTier}
+                  measurementMatchesRemaining={playerData.currentRankMeasurementMatchesRemaining}
+                  initialMeasurementMatches={playerData.currentRankInitialMeasurementMatches}
+                  size="x-small"
+                />
+              ),
             });
           }
 
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
-            stats.push({
-              name: "Peak rank",
+            teamStats.push({
+              name: `Peak rank`,
               value: playerData.allTimePeakRank,
               bestInTeam: false,
               bestInMatch: false,
               display: playerData.allTimePeakRank.toLocaleString(),
+              icon: (
+                <RankIcon
+                  rankTier={playerData.allTimePeakRankTier}
+                  subTier={playerData.allTimePeakRankSubTier}
+                  measurementMatchesRemaining={playerData.allTimePeakRankMeasurementMatchesRemaining}
+                  initialMeasurementMatches={playerData.allTimePeakRankInitialMeasurementMatches}
+                  size="x-small"
+                />
+              ),
             });
           }
 
           // ESRA
           if (playerData.esra !== null && playerData.esra >= 0) {
-            stats.push({
-              name: "ESRA",
+            // Calculate rank tier from ESRA
+            const esraRankTier = getRankTierFromCsr(playerData.esra);
+            teamStats.push({
+              name: `ESRA`,
               value: playerData.esra,
               bestInTeam: false,
               bestInMatch: false,
               display: Math.round(playerData.esra).toLocaleString(),
+              icon: (
+                <RankIcon
+                  rankTier={esraRankTier.rankTier}
+                  subTier={esraRankTier.subTier}
+                  measurementMatchesRemaining={null}
+                  initialMeasurementMatches={null}
+                  size="x-small"
+                />
+              ),
             });
           }
 
@@ -145,22 +277,22 @@ export function StreamerOverlay({
               timeAgoDisplay = "just now";
             }
 
-            stats.push({
-              name: "Last ranked match",
+            teamStats.push({
+              name: `Last ranked game played`,
               value: diffMs,
               bestInTeam: false,
               bestInMatch: false,
               display: timeAgoDisplay,
             });
           }
+        }
 
+        if (teamStats.length > 0) {
           rows.push({
-            type: "player",
+            type: "team",
             teamId: teamIndex,
-            name: playerData.gamertag ?? playerData.discordName,
-            discordName: playerData.discordName,
-            gamertag: playerData.gamertag,
-            stats,
+            name: `Team ${team.name}`,
+            stats: teamStats,
             medals: [],
           });
         }

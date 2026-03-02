@@ -110,6 +110,7 @@ export function InformationTicker({
                 {currentRow.stats.map((stat, statIdx) => (
                   <span key={statIdx} className={styles.tickerStat}>
                     <span className={styles.tickerStatName}>{stat.name}:</span>
+                    {stat.icon}
                     <span
                       className={classNames(styles.tickerStatValue, {
                         [styles.bestInTeam]: stat.bestInTeam,
