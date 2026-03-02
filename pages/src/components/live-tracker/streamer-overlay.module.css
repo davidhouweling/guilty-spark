@@ -159,6 +159,7 @@
 .teamPlayers {
   color: var(--halo-white);
   font-size: var(--text-sm);
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow:
