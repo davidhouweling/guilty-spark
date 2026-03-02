@@ -280,6 +280,35 @@ export function StreamerOverlay({
   const currentMatchGroup = tickerMatchGroups[currentMatchIndex];
   const activeTabIndex = streamerOptions.showTicker ? currentMatchGroup?.matchIndex : undefined;
 
+  // Helper to render player name content for streamer overlay
+  const renderPlayerNameContent = (playerId: string, displayName: string): React.ReactElement => {
+    const playerData = state.playersAssociationData?.[playerId];
+    const discordName = playerData?.discordName ?? displayName;
+    const gamertag = playerData?.gamertag ?? null;
+    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
+
+    if (namesAreSame) {
+      return (
+        <>
+          <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+          <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
+        {gamertag != null && (
+          <>
+            {" "}
+            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+          </>
+        )}
+      </>
+    );
+  };
+
   // Build tabs array
   const tabs: (TabData & { label: string; score?: string; icon?: string; teamColor?: string })[] = [
     {
@@ -346,36 +375,12 @@ export function StreamerOverlay({
               <span className={styles.teamName}>{state.teams[0]?.name ?? "Team 1"}:</span>
               <span className={styles.teamPlayers}>
                 <ScrollingContent maxWidth={400}>
-                  {state.teams[0]?.players.map((p, idx) => {
-                    const playerData = state.playersAssociationData?.[p.id];
-                    const discordName = playerData?.discordName ?? p.displayName;
-                    const gamertag = playerData?.gamertag ?? null;
-                    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
-
-                    return (
-                      <React.Fragment key={p.id}>
-                        {idx > 0 && ", "}
-                        {namesAreSame ? (
-                          <>
-                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
-                            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} />
-                            {gamertag}
-                          </>
-                        ) : (
-                          <>
-                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
-                            {discordName}
-                            {gamertag != null && (
-                              <>
-                                , <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} />
-                                {gamertag}
-                              </>
-                            )}
-                          </>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
+                  {state.teams[0]?.players.map((p, idx) => (
+                    <React.Fragment key={p.id}>
+                      {idx > 0 && ", "}
+                      {renderPlayerNameContent(p.id, p.displayName)}
+                    </React.Fragment>
+                  ))}
                 </ScrollingContent>
               </span>
             </div>
@@ -383,34 +388,12 @@ export function StreamerOverlay({
               <span className={styles.teamName}>{state.teams[1]?.name ?? "Team 2"}:</span>
               <span className={styles.teamPlayers}>
                 <ScrollingContent maxWidth={400}>
-                  {state.teams[1]?.players.map((p, idx) => {
-                    const playerData = state.playersAssociationData?.[p.id];
-                    const discordName = playerData?.discordName ?? p.displayName;
-                    const gamertag = playerData?.gamertag ?? null;
-                    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
-
-                    return (
-                      <React.Fragment key={p.id}>
-                        {idx > 0 && ", "}
-                        {namesAreSame ? (
-                          <>
-                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
-                            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
-                          </>
-                        ) : (
-                          <>
-                            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
-                            {gamertag != null && (
-                              <>
-                                {" "}
-                                <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
-                              </>
-                            )}
-                          </>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
+                  {state.teams[1]?.players.map((p, idx) => (
+                    <React.Fragment key={p.id}>
+                      {idx > 0 && ", "}
+                      {renderPlayerNameContent(p.id, p.displayName)}
+                    </React.Fragment>
+                  ))}
                 </ScrollingContent>
               </span>
             </div>
