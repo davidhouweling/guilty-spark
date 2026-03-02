@@ -160,11 +160,20 @@
   color: var(--halo-white);
   font-size: var(--text-sm);
   font-weight: 700;
+  max-width: 400px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  position: relative;
   text-shadow:
     0 1px 2px rgb(0 0 0 / 80%),
     0 0 10px rgb(0 0 0 / 60%);
+}
+
+.playerIcon {
+  display: inline-block;
+  height: 16px;
+  margin-inline: 2px;
+  vertical-align: middle;
+  width: 16px;
 }
 
 /* ============================================ */

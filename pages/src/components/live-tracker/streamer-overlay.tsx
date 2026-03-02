@@ -16,6 +16,9 @@ import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
+import { ScrollingContent } from "../scrolling-content/scrolling-content";
+import discordLogo from "../../assets/discord-logo.png";
+import XboxLogo from "../../assets/xbox-logo.png";
 import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
 
@@ -92,7 +95,7 @@ export function StreamerOverlay({
           // Current Rank
           if (playerData.currentRank !== null && playerData.currentRank >= 0) {
             stats.push({
-              name: "Rank",
+              name: "Current rank",
               value: playerData.currentRank,
               bestInTeam: false,
               bestInMatch: false,
@@ -103,7 +106,7 @@ export function StreamerOverlay({
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
             stats.push({
-              name: "Peak",
+              name: "Peak rank",
               value: playerData.allTimePeakRank,
               bestInTeam: false,
               bestInMatch: false,
@@ -143,7 +146,7 @@ export function StreamerOverlay({
             }
 
             stats.push({
-              name: "Last Match",
+              name: "Last ranked match",
               value: diffMs,
               bestInTeam: false,
               bestInMatch: false,
@@ -155,6 +158,8 @@ export function StreamerOverlay({
             type: "player",
             teamId: teamIndex,
             name: playerData.gamertag ?? playerData.discordName,
+            discordName: playerData.discordName,
+            gamertag: playerData.gamertag,
             stats,
             medals: [],
           });
@@ -275,6 +280,35 @@ export function StreamerOverlay({
   const currentMatchGroup = tickerMatchGroups[currentMatchIndex];
   const activeTabIndex = streamerOptions.showTicker ? currentMatchGroup?.matchIndex : undefined;
 
+  // Helper to render player name content for streamer overlay
+  const renderPlayerNameContent = (playerId: string, displayName: string): React.ReactElement => {
+    const playerData = state.playersAssociationData?.[playerId];
+    const discordName = playerData?.discordName ?? displayName;
+    const gamertag = playerData?.gamertag ?? null;
+    const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
+
+    if (namesAreSame) {
+      return (
+        <>
+          <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+          <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
+        {gamertag != null && (
+          <>
+            {" "}
+            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+          </>
+        )}
+      </>
+    );
+  };
+
   // Build tabs array
   const tabs: (TabData & { label: string; score?: string; icon?: string; teamColor?: string })[] = [
     {
@@ -340,13 +374,27 @@ export function StreamerOverlay({
             <div className={styles.teamLeft} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
               <span className={styles.teamName}>{state.teams[0]?.name ?? "Team 1"}:</span>
               <span className={styles.teamPlayers}>
-                {state.teams[0]?.players.map((p) => p.displayName).join(", ") ?? ""}
+                <ScrollingContent maxWidth={400}>
+                  {state.teams[0]?.players.map((p, idx) => (
+                    <React.Fragment key={p.id}>
+                      {idx > 0 && ", "}
+                      {renderPlayerNameContent(p.id, p.displayName)}
+                    </React.Fragment>
+                  ))}
+                </ScrollingContent>
               </span>
             </div>
             <div className={styles.teamRight} style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}>
               <span className={styles.teamName}>{state.teams[1]?.name ?? "Team 2"}:</span>
               <span className={styles.teamPlayers}>
-                {state.teams[1]?.players.map((p) => p.displayName).join(", ") ?? ""}
+                <ScrollingContent maxWidth={400}>
+                  {state.teams[1]?.players.map((p, idx) => (
+                    <React.Fragment key={p.id}>
+                      {idx > 0 && ", "}
+                      {renderPlayerNameContent(p.id, p.displayName)}
+                    </React.Fragment>
+                  ))}
+                </ScrollingContent>
               </span>
             </div>
           </>

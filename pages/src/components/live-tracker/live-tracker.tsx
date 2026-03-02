@@ -27,6 +27,7 @@ import {
   type StreamerOptions,
 } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
+import { PlayerName } from "../player-name/player-name";
 import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
 import styles from "./live-tracker.module.css";
@@ -425,7 +426,16 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       <h3 className={styles.teamName}>{team.name}</h3>
                       <ul className={styles.playerList}>
                         {team.players.map((player) => {
-                          return <li key={player.id}>{player.displayName}</li>;
+                          const playerData = model.state?.playersAssociationData?.[player.id];
+                          return (
+                            <li key={player.id}>
+                              <PlayerName
+                                discordName={playerData?.discordName ?? player.displayName}
+                                gamertag={playerData?.gamertag ?? null}
+                                showIcons={true}
+                              />
+                            </li>
+                          );
                         })}
                       </ul>
                     </section>

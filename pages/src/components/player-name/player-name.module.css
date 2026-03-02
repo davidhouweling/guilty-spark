@@ -1,0 +1,47 @@
+.playerName {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.icon {
+  display: inline-block;
+  height: 16px;
+  width: 16px;
+}
+
+.fadeContainer {
+  display: inline-grid;
+  justify-items: center;
+  position: relative;
+  text-align: center;
+}
+
+.nameWithIcon {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+  grid-area: 1 / 1; /* Both names occupy the same grid cell */
+  justify-content: center;
+  text-align: center;
+  transition: opacity 1s ease-in-out;
+}
+
+/* Discord name shown, Xbox hidden */
+.showDiscord .discord {
+  opacity: 1;
+}
+
+.showDiscord .xbox {
+  opacity: 0;
+}
+
+/* Xbox name shown, Discord hidden */
+.showXbox .discord {
+  opacity: 0;
+}
+
+.showXbox .xbox {
+  opacity: 1;
+}

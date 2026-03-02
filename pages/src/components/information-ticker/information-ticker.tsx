@@ -1,15 +1,19 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import classNames from "classnames";
 import type { MatchStatsValues } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
+import { PlayerName } from "../player-name/player-name";
+import { ScrollingContent } from "../scrolling-content/scrolling-content";
 import styles from "./information-ticker.module.css";
 
 interface TickerStatRow {
   readonly type: "team" | "player";
   readonly teamId: number;
   readonly name: string;
+  readonly discordName?: string | null;
+  readonly gamertag?: string | null;
   readonly stats: MatchStatsValues[];
   readonly medals: { name: string; count: number }[];
 }
@@ -31,86 +35,70 @@ export function InformationTicker({
   teamColors,
   onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [tickerDuration, setTickerDuration] = React.useState<number>(60);
-  const [isAnimationReady, setIsAnimationReady] = React.useState<boolean>(false);
+  const [currentRowIndex, setCurrentRowIndex] = React.useState<number>(0);
 
-  // Calculate animation duration based on content width
+  // Reset to first row when match group changes
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (scrollElement == null) {
-      return;
-    }
-
-    // Pause animation while calculating new duration
-    setIsAnimationReady(false);
-
-    const calculateDuration = (): void => {
-      // Use double requestAnimationFrame to ensure layout is complete after content change
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const { scrollWidth } = scrollElement;
-          const { innerWidth: viewportWidth } = window;
-
-          // Total distance: viewport width (enter) + content width + viewport width (exit)
-          const totalDistance = viewportWidth + scrollWidth + viewportWidth;
-
-          // Pixels per second for smooth, readable scrolling
-          const pixelsPerSecond = 50;
-          const duration = totalDistance / pixelsPerSecond;
-
-          setTickerDuration(duration);
-          setIsAnimationReady(true);
-        });
-      });
-    };
-
-    calculateDuration();
-
-    window.addEventListener("resize", calculateDuration);
-    return (): void => {
-      window.removeEventListener("resize", calculateDuration);
-    };
+    setCurrentRowIndex(0);
   }, [currentMatchGroup]);
 
-  const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>): void => {
-    // Only handle the scroll animation, not child animations
-    if (event.target !== scrollRef.current) {
-      return;
+  const handleRowScrollComplete = (): void => {
+    // Move to next row or complete the cycle
+    if (currentRowIndex < currentMatchGroup.rows.length - 1) {
+      setCurrentRowIndex(currentRowIndex + 1);
+    } else {
+      // All rows complete, notify parent
+      setCurrentRowIndex(0);
+      onScrollComplete();
     }
-    onScrollComplete();
   };
 
-  // Create a unique key based on content to force remount and restart animation
-  // when tab changes or data updates
-  const contentKey = `${currentMatchGroup.matchIndex.toString()}-${currentMatchGroup.label}-${currentMatchGroup.rows.length.toString()}`;
+  const currentRow = currentMatchGroup.rows[currentRowIndex];
+  const teamColor = teamColors[currentRow.teamId];
 
   return (
     <div className={styles.ticker}>
-      <div
-        ref={scrollRef}
-        key={contentKey}
-        className={styles.tickerScroll}
-        onAnimationEnd={handleAnimationEnd}
-        style={
-          {
-            "--ticker-duration": `${tickerDuration.toString()}s`,
-            "--animation-play-state": isAnimationReady ? "running" : "paused",
-          } as React.CSSProperties
-        }
-      >
-        {/* Ticker Label */}
-        <div className={styles.tickerLabel}>
-          <span className={styles.tickerLabelText}>{currentMatchGroup.label}</span>
+      <div className={styles.tickerContent}>
+        {/* Pinned Section: "label | team icon + name" */}
+        <div
+          className={classNames(styles.tickerPinned, {
+            [styles.tickerTeamRow]: currentRow.type === "team",
+            [styles.tickerPlayerRow]: currentRow.type === "player",
+          })}
+          style={
+            {
+              "--row-color": teamColor.hex,
+            } as React.CSSProperties
+          }
+        >
+          {/* Label */}
+          <span className={styles.tickerLabel}>{currentMatchGroup.label}</span>
+
+          {/* Separator */}
+          <span className={styles.tickerSeparator}>|</span>
+
+          {/* Team Icon + Name */}
+          <div className={styles.tickerName}>
+            <TeamIcon teamId={currentRow.teamId} size="small" />
+            {currentRow.type === "player" && (currentRow.discordName != null || currentRow.gamertag != null) ? (
+              <PlayerName
+                discordName={currentRow.discordName ?? null}
+                gamertag={currentRow.gamertag ?? null}
+                showIcons={false}
+              />
+            ) : (
+              <span>{currentRow.name}</span>
+            )}
+          </div>
         </div>
-        {currentMatchGroup.rows.map((row, rowIdx) => {
-          const teamColor = teamColors[row.teamId];
-          return (
+
+        {/* Scrolling Section: Stats + Medals */}
+        <div className={styles.tickerScrolling}>
+          <ScrollingContent maxWidth={600} loop={false} onScrollComplete={handleRowScrollComplete}>
             <div
-              key={rowIdx}
-              className={classNames(styles.tickerRow, {
-                [styles.tickerTeamRow]: row.type === "team",
-                [styles.tickerPlayerRow]: row.type === "player",
+              className={classNames(styles.tickerRow, styles.tickerScrollingRow, {
+                [styles.tickerTeamRow]: currentRow.type === "team",
+                [styles.tickerPlayerRow]: currentRow.type === "player",
               })}
               style={
                 {
@@ -118,40 +106,34 @@ export function InformationTicker({
                 } as React.CSSProperties
               }
             >
-              <div className={styles.tickerRowContent}>
-                <div className={styles.tickerName}>
-                  <TeamIcon teamId={row.teamId} size="small" />
-                  <span>{row.name}</span>
-                </div>
-                <div className={styles.tickerStats}>
-                  {row.stats.map((stat, statIdx) => (
-                    <span key={statIdx} className={styles.tickerStat}>
-                      <span className={styles.tickerStatName}>{stat.name}:</span>
-                      <span
-                        className={classNames(styles.tickerStatValue, {
-                          [styles.bestInTeam]: stat.bestInTeam,
-                          [styles.bestInMatch]: stat.bestInMatch,
-                        })}
-                      >
-                        {stat.display}
-                      </span>
+              <div className={styles.tickerStats}>
+                {currentRow.stats.map((stat, statIdx) => (
+                  <span key={statIdx} className={styles.tickerStat}>
+                    <span className={styles.tickerStatName}>{stat.name}:</span>
+                    <span
+                      className={classNames(styles.tickerStatValue, {
+                        [styles.bestInTeam]: stat.bestInTeam,
+                        [styles.bestInMatch]: stat.bestInMatch,
+                      })}
+                    >
+                      {stat.display}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              {currentRow.medals.length > 0 && (
+                <div className={styles.tickerMedals}>
+                  {currentRow.medals.map((medal, medalIdx) => (
+                    <span key={medalIdx} className={styles.tickerMedal}>
+                      {medal.count > 1 && <span className={styles.tickerMedalCount}>{medal.count}×</span>}
+                      <MedalIcon medalName={medal.name} size="small" />
                     </span>
                   ))}
                 </div>
-                {row.medals.length > 0 && (
-                  <div className={styles.tickerMedals}>
-                    {row.medals.map((medal, medalIdx) => (
-                      <span key={medalIdx} className={styles.tickerMedal}>
-                        {medal.count > 1 && <span className={styles.tickerMedalCount}>{medal.count}×</span>}
-                        <MedalIcon medalName={medal.name} size="small" />
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-          );
-        })}
+          </ScrollingContent>
+        </div>
       </div>
     </div>
   );
