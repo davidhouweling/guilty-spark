@@ -63,7 +63,6 @@ export function StreamerOverlay({
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0); // Index of which match to show in ticker
   const [previousMatchCount, setPreviousMatchCount] = useState<number>(0);
   const nodeRef = useRef<HTMLDivElement>(null);
-  const tickerRef = useRef<HTMLDivElement>(null);
 
   if (!model.state) {
     return <div className={styles.overlay}>No data available</div>;
@@ -238,31 +237,10 @@ export function StreamerOverlay({
     return groups;
   }, [state, seriesStats, allMatchStats]);
 
-  // Switch to next match when animation completes (only if ticker is enabled)
-  useEffect(() => {
-    if (!streamerOptions.showTicker) {
-      return;
-    }
-
-    const tickerElement = tickerRef.current?.querySelector(`.${styles.tickerScroll}`) as HTMLElement | null;
-    if (!tickerElement || tickerMatchGroups.length === 0) {
-      return;
-    }
-
-    const handleAnimationEnd = (event: AnimationEvent): void => {
-      // Only handle the main scroll animation, not child element animations
-      if (event.target !== tickerElement) {
-        return;
-      }
-      setCurrentMatchIndex((prev) => (prev + 1) % tickerMatchGroups.length);
-    };
-
-    tickerElement.addEventListener("animationend", handleAnimationEnd);
-
-    return (): void => {
-      tickerElement.removeEventListener("animationend", handleAnimationEnd);
-    };
-  }, [tickerMatchGroups.length, streamerOptions.showTicker]);
+  // Handler for when ticker scroll animation completes
+  const handleScrollComplete = (): void => {
+    setCurrentMatchIndex((prevIndex) => (prevIndex + 1) % tickerMatchGroups.length);
+  };
 
   // When a new match is added, jump to it (only if ticker is enabled)
   useEffect(() => {
@@ -286,7 +264,7 @@ export function StreamerOverlay({
 
   const handleTabClick = (tabIndex: number): void => {
     const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
-      setSelectedTab(tabIndex);
+    setSelectedTab(tabIndex);
     setIsPanelOpen(openPanel);
   };
 
@@ -425,8 +403,7 @@ export function StreamerOverlay({
             <InformationTicker
               currentMatchGroup={currentMatchGroup}
               teamColors={teamColors}
-              tickerRef={tickerRef}
-              currentMatchIndex={currentMatchIndex}
+              onScrollComplete={handleScrollComplete}
             />
           )}
         </div>

@@ -15,6 +15,7 @@
 
 .tickerScroll {
   animation: tickerScrolling var(--ticker-duration, 180s) linear;
+  animation-play-state: var(--animation-play-state, running);
   display: inline-flex;
   flex-direction: row;
   gap: 0;

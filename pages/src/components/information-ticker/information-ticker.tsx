@@ -23,18 +23,17 @@ interface TickerMatchGroup {
 interface InformationTickerProps {
   readonly currentMatchGroup: TickerMatchGroup;
   readonly teamColors: TeamColor[];
-  readonly tickerRef: React.RefObject<HTMLDivElement | null>;
-  readonly currentMatchIndex: number;
+  readonly onScrollComplete: () => void;
 }
 
 export function InformationTicker({
   currentMatchGroup,
   teamColors,
-  tickerRef,
-  currentMatchIndex,
+  onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tickerDuration, setTickerDuration] = React.useState<number>(60);
+  const [isAnimationReady, setIsAnimationReady] = React.useState<boolean>(false);
 
   // Calculate animation duration based on content width
   useEffect(() => {
@@ -43,12 +42,15 @@ export function InformationTicker({
       return;
     }
 
+    // Pause animation while calculating new duration
+    setIsAnimationReady(false);
+
     const calculateDuration = (): void => {
       // Use double requestAnimationFrame to ensure layout is complete after content change
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const { scrollWidth } = scrollElement;
-          const viewportWidth = window.innerWidth;
+          const { innerWidth: viewportWidth } = window;
 
           // Total distance: viewport width (enter) + content width + viewport width (exit)
           const totalDistance = viewportWidth + scrollWidth + viewportWidth;
@@ -58,6 +60,7 @@ export function InformationTicker({
           const duration = totalDistance / pixelsPerSecond;
 
           setTickerDuration(duration);
+          setIsAnimationReady(true);
         });
       });
     };
@@ -68,15 +71,33 @@ export function InformationTicker({
     return (): void => {
       window.removeEventListener("resize", calculateDuration);
     };
-  }, [currentMatchIndex, currentMatchGroup]);
+  }, [currentMatchGroup]);
+
+  const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>): void => {
+    // Only handle the scroll animation, not child animations
+    if (event.target !== scrollRef.current) {
+      return;
+    }
+    onScrollComplete();
+  };
+
+  // Create a unique key based on content to force remount and restart animation
+  // when tab changes or data updates
+  const contentKey = `${currentMatchGroup.matchIndex.toString()}-${currentMatchGroup.label}-${currentMatchGroup.rows.length.toString()}`;
 
   return (
-    <div className={styles.ticker} ref={tickerRef}>
+    <div className={styles.ticker}>
       <div
         ref={scrollRef}
+        key={contentKey}
         className={styles.tickerScroll}
-        key={currentMatchIndex}
-        style={{ "--ticker-duration": `${tickerDuration.toString()}s` } as React.CSSProperties}
+        onAnimationEnd={handleAnimationEnd}
+        style={
+          {
+            "--ticker-duration": `${tickerDuration.toString()}s`,
+            "--animation-play-state": isAnimationReady ? "running" : "paused",
+          } as React.CSSProperties
+        }
       >
         {/* Ticker Label */}
         <div className={styles.tickerLabel}>
