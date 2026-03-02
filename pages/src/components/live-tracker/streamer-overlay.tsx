@@ -15,6 +15,7 @@ import {
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
+import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
 
@@ -62,7 +63,6 @@ export function StreamerOverlay({
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0); // Index of which match to show in ticker
   const [previousMatchCount, setPreviousMatchCount] = useState<number>(0);
   const nodeRef = useRef<HTMLDivElement>(null);
-  const tickerRef = useRef<HTMLDivElement>(null);
 
   if (!model.state) {
     return <div className={styles.overlay}>No data available</div>;
@@ -73,6 +73,98 @@ export function StreamerOverlay({
   // Generate ticker match groups with structured data for styling
   const tickerMatchGroups = useMemo((): TickerMatchGroup[] => {
     const groups: TickerMatchGroup[] = [];
+
+    // Pre-series player info (when no matches yet but have player association data)
+    if (state.matches.length === 0 && state.playersAssociationData) {
+      const rows: TickerStatRow[] = [];
+
+      // Build ticker rows for each player with their rank/ESRA data
+      for (const [teamIndex, team] of state.teams.entries()) {
+        for (const player of team.players) {
+          const playerData = state.playersAssociationData[player.id];
+          if (playerData == null) {
+            continue;
+          }
+
+          const stats: { name: string; value: number; bestInTeam: boolean; bestInMatch: boolean; display: string }[] =
+            [];
+
+          // Current Rank
+          if (playerData.currentRank !== null && playerData.currentRank >= 0) {
+            stats.push({
+              name: "Rank",
+              value: playerData.currentRank,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: playerData.currentRank.toLocaleString(),
+            });
+          }
+
+          // Peak Rank
+          if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
+            stats.push({
+              name: "Peak",
+              value: playerData.allTimePeakRank,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: playerData.allTimePeakRank.toLocaleString(),
+            });
+          }
+
+          // ESRA
+          if (playerData.esra !== null && playerData.esra >= 0) {
+            stats.push({
+              name: "ESRA",
+              value: playerData.esra,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: Math.round(playerData.esra).toLocaleString(),
+            });
+          }
+
+          // Last Match (as time ago)
+          if (playerData.lastRankedGamePlayed !== null) {
+            const lastMatchDate = new Date(playerData.lastRankedGamePlayed);
+            const now = new Date();
+            const diffMs = now.getTime() - lastMatchDate.getTime();
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+            let timeAgoDisplay: string;
+            if (diffDays > 0) {
+              timeAgoDisplay = `${diffDays.toString()}d ago`;
+            } else if (diffHours > 0) {
+              timeAgoDisplay = `${diffHours.toString()}h ago`;
+            } else if (diffMinutes > 0) {
+              timeAgoDisplay = `${diffMinutes.toString()}m ago`;
+            } else {
+              timeAgoDisplay = "just now";
+            }
+
+            stats.push({
+              name: "Last Match",
+              value: diffMs,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: timeAgoDisplay,
+            });
+          }
+
+          rows.push({
+            type: "player",
+            teamId: teamIndex,
+            name: playerData.gamertag ?? playerData.discordName,
+            stats,
+            medals: [],
+          });
+        }
+      }
+
+      if (rows.length > 0) {
+        groups.push({ matchIndex: -1, label: "Player Info", rows });
+      }
+    }
 
     // Series stats first
     if (seriesStats && seriesStats.teamData.length > 0) {
@@ -145,31 +237,10 @@ export function StreamerOverlay({
     return groups;
   }, [state, seriesStats, allMatchStats]);
 
-  // Switch to next match when animation completes (only if ticker is enabled)
-  useEffect(() => {
-    if (!streamerOptions.showTicker) {
-      return;
-    }
-
-    const tickerElement = tickerRef.current?.querySelector(`.${styles.tickerScroll}`) as HTMLElement | null;
-    if (!tickerElement || tickerMatchGroups.length === 0) {
-      return;
-    }
-
-    const handleAnimationEnd = (event: AnimationEvent): void => {
-      // Only handle the main scroll animation, not child element animations
-      if (event.target !== tickerElement) {
-        return;
-      }
-      setCurrentMatchIndex((prev) => (prev + 1) % tickerMatchGroups.length);
-    };
-
-    tickerElement.addEventListener("animationend", handleAnimationEnd);
-
-    return (): void => {
-      tickerElement.removeEventListener("animationend", handleAnimationEnd);
-    };
-  }, [tickerMatchGroups.length, streamerOptions.showTicker]);
+  // Handler for when ticker scroll animation completes
+  const handleScrollComplete = (): void => {
+    setCurrentMatchIndex((prevIndex) => (prevIndex + 1) % tickerMatchGroups.length);
+  };
 
   // When a new match is added, jump to it (only if ticker is enabled)
   useEffect(() => {
@@ -192,12 +263,9 @@ export function StreamerOverlay({
   }, [allMatchStats.length, streamerOptions.showTicker]);
 
   const handleTabClick = (tabIndex: number): void => {
-    if (selectedTab === tabIndex) {
-      setIsPanelOpen(!isPanelOpen);
-    } else {
-      setSelectedTab(tabIndex);
-      setIsPanelOpen(true);
-    }
+    const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
+    setSelectedTab(tabIndex);
+    setIsPanelOpen(openPanel);
   };
 
   const handleClosePanel = (): void => {
@@ -293,7 +361,7 @@ export function StreamerOverlay({
               {tabs.map((tab) => {
                 const tabIndex = tab.type === "series" ? -1 : (tab.matchIndex ?? 0);
                 const isActive = activeTabIndex === tabIndex;
-                const isSelected = selectedTab === tabIndex;
+                const isSelected = selectedTab === tabIndex && isPanelOpen;
 
                 return (
                   <button
@@ -335,8 +403,7 @@ export function StreamerOverlay({
             <InformationTicker
               currentMatchGroup={currentMatchGroup}
               teamColors={teamColors}
-              tickerRef={tickerRef}
-              currentMatchIndex={currentMatchIndex}
+              onScrollComplete={handleScrollComplete}
             />
           )}
         </div>
@@ -365,7 +432,14 @@ export function StreamerOverlay({
             <button type="button" className={styles.closeButton} onClick={handleClosePanel}>
               ✕
             </button>
-            {selectedTab === -1 && seriesStats ? (
+            {selectedTab === -1 && state.matches.length === 0 && state.playersAssociationData ? (
+              <PlayerPreSeriesInfo
+                teams={state.teams}
+                playersAssociationData={state.playersAssociationData}
+                teamColors={teamColors}
+              />
+            ) : null}
+            {selectedTab === -1 && seriesStats && state.matches.length > 0 ? (
               <SeriesStats
                 teamData={seriesStats.teamData}
                 playerData={seriesStats.playerData}

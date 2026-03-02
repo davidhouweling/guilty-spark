@@ -26,6 +26,7 @@ import {
   type PreviewMode,
   type StreamerOptions,
 } from "../view-mode/view-mode-selector";
+import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
 import styles from "./live-tracker.module.css";
@@ -531,6 +532,14 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 })()}
               </>
             )}
+            {!hasMatches && model.state.playersAssociationData ? (
+              <PlayerPreSeriesInfo
+                className={classNames(styles.contentContainer, styles[viewMode])}
+                teams={model.state.teams}
+                playersAssociationData={model.state.playersAssociationData}
+                teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+              />
+            ) : null}
             {!hasMatches && sortedSubstitutions.length > 0 && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 {sortedSubstitutions.map((substitution) => (

@@ -1,4 +1,4 @@
-import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 
 export interface LiveTrackerPlayerRenderModel {
@@ -45,6 +45,7 @@ export interface LiveTrackerStateRenderModel {
   readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly seriesScore: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
+  readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 export interface LiveTrackerViewModel {

@@ -159,6 +159,7 @@
 .teamPlayers {
   color: var(--halo-white);
   font-size: var(--text-sm);
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow:
@@ -206,7 +207,7 @@
     100% 100%,
     10px 10px,
     cover;
-  border: 2px solid var(--tab-team-color, var(--halo-teal-primary));
+  border: 2px solid var(--tab-team-color, var(--halo-bg-primary));
   border-bottom: 0;
   border-top-left-radius: var(--radius-base);
   border-top-right-radius: var(--radius-base);
@@ -244,25 +245,32 @@
 }
 
 .tabActive {
-  animation: tabGlow 5s ease-in-out infinite;
-  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 40%, rgb(15 40 48 / 90%));
-  border-color: var(--halo-accent);
-  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
+  outline: 2px solid var(--tab-team-color, var(--halo-teal-primary));
+  position: relative;
 }
 
-@keyframes tabGlow {
-  0%,
-  100% {
-    border-color: var(--halo-accent);
-    box-shadow: 0 0 30px color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
-  }
+.tabActive::after {
+  border-color: var(--tab-team-color, var(--halo-teal-primary)) transparent transparent;
+  border-style: solid;
+  border-width: 12px 9px 0;
+  bottom: -12px;
+  content: "";
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+}
 
-  50% {
-    border-color: var(--halo-white);
-    box-shadow:
-      0 0 40px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent),
-      0 0 20px color-mix(in srgb, var(--halo-accent) 80%, transparent);
-  }
+.tabActive::before {
+  border-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 40%, rgb(15 40 48 / 90%)) transparent
+    transparent;
+  border-style: solid;
+  border-width: 9px 6px 0;
+  bottom: -9px;
+  content: "";
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 1;
 }
 
 .tabSelected {

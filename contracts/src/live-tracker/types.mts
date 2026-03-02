@@ -32,9 +32,13 @@ export interface PlayerAssociationData {
   readonly currentRank: number | null;
   readonly currentRankTier: string | null;
   readonly currentRankSubTier: number | null;
+  readonly currentRankMeasurementMatchesRemaining: number | null;
+  readonly currentRankInitialMeasurementMatches: number | null;
   readonly allTimePeakRank: number | null;
   readonly allTimePeakRankTier: string | null;
   readonly allTimePeakRankSubTier: number | null;
+  readonly allTimePeakRankMeasurementMatchesRemaining: number | null;
+  readonly allTimePeakRankInitialMeasurementMatches: number | null;
   readonly esra: number | null;
   readonly lastRankedGamePlayed: string | null;
 }

@@ -23,18 +23,17 @@ interface TickerMatchGroup {
 interface InformationTickerProps {
   readonly currentMatchGroup: TickerMatchGroup;
   readonly teamColors: TeamColor[];
-  readonly tickerRef: React.RefObject<HTMLDivElement | null>;
-  readonly currentMatchIndex: number;
+  readonly onScrollComplete: () => void;
 }
 
 export function InformationTicker({
   currentMatchGroup,
   teamColors,
-  tickerRef,
-  currentMatchIndex,
+  onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tickerDuration, setTickerDuration] = React.useState<number>(60);
+  const [isAnimationReady, setIsAnimationReady] = React.useState<boolean>(false);
 
   // Calculate animation duration based on content width
   useEffect(() => {
@@ -43,29 +42,62 @@ export function InformationTicker({
       return;
     }
 
-    // Wait for next frame to ensure layout is complete
-    requestAnimationFrame(() => {
-      const { scrollWidth } = scrollElement;
-      const viewportWidth = window.innerWidth;
+    // Pause animation while calculating new duration
+    setIsAnimationReady(false);
 
-      // Total distance: viewport width (enter) + content width + viewport width (exit)
-      const totalDistance = viewportWidth + scrollWidth + viewportWidth;
+    const calculateDuration = (): void => {
+      // Use double requestAnimationFrame to ensure layout is complete after content change
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const { scrollWidth } = scrollElement;
+          const { innerWidth: viewportWidth } = window;
 
-      // Pixels per second for smooth, readable scrolling
-      const pixelsPerSecond = 50;
-      const duration = totalDistance / pixelsPerSecond;
+          // Total distance: viewport width (enter) + content width + viewport width (exit)
+          const totalDistance = viewportWidth + scrollWidth + viewportWidth;
 
-      setTickerDuration(duration);
-    });
-  }, [currentMatchIndex]);
+          // Pixels per second for smooth, readable scrolling
+          const pixelsPerSecond = 50;
+          const duration = totalDistance / pixelsPerSecond;
+
+          setTickerDuration(duration);
+          setIsAnimationReady(true);
+        });
+      });
+    };
+
+    calculateDuration();
+
+    window.addEventListener("resize", calculateDuration);
+    return (): void => {
+      window.removeEventListener("resize", calculateDuration);
+    };
+  }, [currentMatchGroup]);
+
+  const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>): void => {
+    // Only handle the scroll animation, not child animations
+    if (event.target !== scrollRef.current) {
+      return;
+    }
+    onScrollComplete();
+  };
+
+  // Create a unique key based on content to force remount and restart animation
+  // when tab changes or data updates
+  const contentKey = `${currentMatchGroup.matchIndex.toString()}-${currentMatchGroup.label}-${currentMatchGroup.rows.length.toString()}`;
 
   return (
-    <div className={styles.ticker} ref={tickerRef}>
+    <div className={styles.ticker}>
       <div
         ref={scrollRef}
+        key={contentKey}
         className={styles.tickerScroll}
-        key={currentMatchIndex}
-        style={{ "--ticker-duration": `${tickerDuration.toString()}s` } as React.CSSProperties}
+        onAnimationEnd={handleAnimationEnd}
+        style={
+          {
+            "--ticker-duration": `${tickerDuration.toString()}s`,
+            "--animation-play-state": isAnimationReady ? "running" : "paused",
+          } as React.CSSProperties
+        }
       >
         {/* Ticker Label */}
         <div className={styles.tickerLabel}>
