@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import type { JSX } from "react";
 import classNames from "classnames";
 import styles from "./scrolling-content.module.css";
@@ -12,7 +12,7 @@ interface ScrollingContentProps {
   readonly onScrollComplete?: () => void; // callback when single scroll completes
 }
 
-export function ScrollingContent({
+const ScrollingContentComponent = function ScrollingContent({
   children,
   maxWidth,
   speed = 50,
@@ -145,4 +145,6 @@ export function ScrollingContent({
       {children}
     </div>
   );
-}
+};
+
+export const ScrollingContent = memo(ScrollingContentComponent);

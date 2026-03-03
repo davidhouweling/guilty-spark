@@ -1,6 +1,6 @@
 // TODO: work out why the types aren't aligned
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, memo } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
 import type { MatchStatsData } from "../stats/types";
@@ -143,7 +143,7 @@ interface TabData {
   readonly matchId?: string;
 }
 
-export function StreamerOverlay({
+const StreamerOverlayComponent = function StreamerOverlay({
   model,
   teamColors,
   allMatchStats,
@@ -267,19 +267,24 @@ export function StreamerOverlay({
             const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
             let timeAgoDisplay: string;
+            let stableValue: number;
             if (diffDays > 0) {
               timeAgoDisplay = `${diffDays.toString()}d ago`;
+              stableValue = diffDays * 1000000; // Stable by day
             } else if (diffHours > 0) {
               timeAgoDisplay = `${diffHours.toString()}h ago`;
+              stableValue = diffHours * 10000; // Stable by hour
             } else if (diffMinutes > 0) {
               timeAgoDisplay = `${diffMinutes.toString()}m ago`;
+              stableValue = diffMinutes * 100; // Stable by minute
             } else {
               timeAgoDisplay = "just now";
+              stableValue = 0;
             }
 
             teamStats.push({
               name: `Last ranked game played`,
-              value: diffMs,
+              value: stableValue, // Use stable value instead of actual diffMs
               bestInTeam: false,
               bestInMatch: false,
               display: timeAgoDisplay,
@@ -649,4 +654,52 @@ export function StreamerOverlay({
       </CSSTransition>
     </div>
   );
+};
+
+// Custom comparison to prevent re-renders when data hasn't actually changed
+function arePropsEqual(prevProps: StreamerOverlayProps, nextProps: StreamerOverlayProps): boolean {
+  // Reference equality checks for stable props
+  if (
+    prevProps.model === nextProps.model &&
+    prevProps.teamColors === nextProps.teamColors &&
+    prevProps.allMatchStats === nextProps.allMatchStats &&
+    prevProps.seriesStats === nextProps.seriesStats &&
+    prevProps.gameModeIconUrl === nextProps.gameModeIconUrl &&
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.onViewModeSelect === nextProps.onViewModeSelect &&
+    prevProps.previewMode === nextProps.previewMode &&
+    prevProps.onPreviewModeSelect === nextProps.onPreviewModeSelect &&
+    prevProps.streamerOptions === nextProps.streamerOptions &&
+    prevProps.onStreamerOptionsChange === nextProps.onStreamerOptionsChange
+  ) {
+    return true;
+  }
+
+  // If model reference changed but state is the same, consider them equal
+  if (prevProps.model.state === nextProps.model.state) {
+    // Check other model fields
+    if (
+      prevProps.model.guildNameText === nextProps.model.guildNameText &&
+      prevProps.model.queueNumberText === nextProps.model.queueNumberText &&
+      prevProps.model.statusText === nextProps.model.statusText &&
+      prevProps.model.statusClassName === nextProps.model.statusClassName &&
+      // Other props equal
+      prevProps.teamColors === nextProps.teamColors &&
+      prevProps.allMatchStats === nextProps.allMatchStats &&
+      prevProps.seriesStats === nextProps.seriesStats &&
+      prevProps.viewMode === nextProps.viewMode &&
+      prevProps.previewMode === nextProps.previewMode &&
+      // Check streamerOptions deeply
+      prevProps.streamerOptions.showTeams === nextProps.streamerOptions.showTeams &&
+      prevProps.streamerOptions.showTicker === nextProps.streamerOptions.showTicker &&
+      prevProps.streamerOptions.showTabs === nextProps.streamerOptions.showTabs &&
+      prevProps.streamerOptions.showServerName === nextProps.streamerOptions.showServerName
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
+
+export const StreamerOverlay = memo(StreamerOverlayComponent, arePropsEqual);

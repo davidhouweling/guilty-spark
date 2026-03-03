@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
@@ -163,27 +163,39 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }
 
-  const handleSetViewMode = (mode: ViewMode): void => {
-    setViewMode(mode);
-    updateUrl(mode, previewMode, streamerOptions);
-  };
+  const handleSetViewMode = useCallback(
+    (mode: ViewMode): void => {
+      setViewMode(mode);
+      updateUrl(mode, previewMode, streamerOptions);
+    },
+    [previewMode, streamerOptions, teamColors],
+  );
 
-  const handleSetPreviewMode = (mode: PreviewMode): void => {
-    setPreviewMode(mode);
-    streamerPreferences.setPreviewMode(mode);
-    updateUrl(viewMode, mode, streamerOptions);
-  };
+  const handleSetPreviewMode = useCallback(
+    (mode: PreviewMode): void => {
+      setPreviewMode(mode);
+      streamerPreferences.setPreviewMode(mode);
+      updateUrl(viewMode, mode, streamerOptions);
+    },
+    [viewMode, streamerOptions, streamerPreferences, teamColors],
+  );
 
-  const handleSetStreamerOptions = (options: StreamerOptions): void => {
-    setStreamerOptions(options);
-    streamerPreferences.setStreamerOptions(options);
-    updateUrl(viewMode, previewMode, options);
-  };
+  const handleSetStreamerOptions = useCallback(
+    (options: StreamerOptions): void => {
+      setStreamerOptions(options);
+      streamerPreferences.setStreamerOptions(options);
+      updateUrl(viewMode, previewMode, options);
+    },
+    [viewMode, previewMode, streamerPreferences, teamColors],
+  );
 
-  const handleSetTeamColor = (teamIndex: number, colorId: string): void => {
-    teamColors.setTeamColor(teamIndex, colorId);
-    updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
-  };
+  const handleSetTeamColor = useCallback(
+    (teamIndex: number, colorId: string): void => {
+      teamColors.setTeamColor(teamIndex, colorId);
+      updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
+    },
+    [viewMode, previewMode, streamerOptions, teamColors],
+  );
 
   const hasMatches = model.state != null && model.state.matches.length > 0;
 
@@ -258,6 +270,14 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }, [model.state]);
 
+  // Memoize team colors array to prevent unnecessary re-renders
+  const teamColorsArray = useMemo(() => {
+    if (!model.state) {
+      return [];
+    }
+    return model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx));
+  }, [model.state, teamColors]);
+
   // Set body data attribute for streamer mode styling
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -285,7 +305,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
         <title>{title.join(" ")}</title>
         <StreamerOverlay
           model={model}
-          teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+          teamColors={teamColorsArray}
           allMatchStats={allMatchStats}
           seriesStats={seriesStats}
           gameModeIconUrl={gameModeIconSrc}
