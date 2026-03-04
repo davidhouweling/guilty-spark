@@ -16,7 +16,7 @@ export function PlayerName({ discordName, gamertag, showIcons = false, className
   const [showDiscord, setShowDiscord] = useState<boolean>(true);
 
   const displayDiscordName = discordName ?? "Unknown";
-  const displayGamertag = gamertag ?? discordName ?? "Unknown";
+  const displayGamertag = gamertag ?? "-";
 
   // Always fade between Discord and Xbox every 10 seconds
   useEffect((): (() => void) => {

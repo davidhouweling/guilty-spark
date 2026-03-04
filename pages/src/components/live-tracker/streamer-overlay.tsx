@@ -1,10 +1,8 @@
 // TODO: work out why the types aren't aligned
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, memo } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
-import type { MatchStatsData } from "../stats/types";
-import type { SeriesMetadata } from "../stats/series-metadata";
 import type { TeamColor } from "../team-colors/team-colors";
 import {
   ViewModeSelector,
@@ -114,18 +112,11 @@ function getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } 
 }
 import discordLogo from "../../assets/discord-logo.png";
 import XboxLogo from "../../assets/xbox-logo.png";
-import type { LiveTrackerViewModel } from "./types";
 import styles from "./streamer-overlay.module.css";
+import { useTrackerInfo, useTrackerState, useAllMatchStats, useSeriesStats } from "./live-tracker-context";
 
 interface StreamerOverlayProps {
-  readonly model: LiveTrackerViewModel;
   readonly teamColors: TeamColor[];
-  readonly allMatchStats: { matchId: string; data: MatchStatsData[] | null }[];
-  readonly seriesStats: {
-    teamData: MatchStatsData[];
-    playerData: MatchStatsData[];
-    metadata: SeriesMetadata | null;
-  } | null;
   readonly gameModeIconUrl: (gameMode: string) => string;
   readonly viewMode: ViewMode;
   readonly onViewModeSelect: (mode: ViewMode) => void;
@@ -143,11 +134,8 @@ interface TabData {
   readonly matchId?: string;
 }
 
-export function StreamerOverlay({
-  model,
+const StreamerOverlayComponent = function StreamerOverlay({
   teamColors,
-  allMatchStats,
-  seriesStats,
   gameModeIconUrl,
   viewMode,
   onViewModeSelect,
@@ -156,6 +144,11 @@ export function StreamerOverlay({
   streamerOptions,
   onStreamerOptionsChange,
 }: StreamerOverlayProps): React.ReactElement {
+  // Use context to get data
+  const model = { state: useTrackerState(), ...useTrackerInfo() };
+  const allMatchStats = useAllMatchStats();
+  const seriesStats = useSeriesStats();
+
   const [selectedTab, setSelectedTab] = useState<number>(-1); // -1 = series, 0+ = match index
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0); // Index of which match to show in ticker
@@ -217,7 +210,7 @@ export function StreamerOverlay({
 
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
-const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
+            const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
             teamStats.push({
               name: `Peak rank`,
               value: playerData.allTimePeakRank,
@@ -268,19 +261,24 @@ const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
             const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
             let timeAgoDisplay: string;
+            let stableValue: number;
             if (diffDays > 0) {
               timeAgoDisplay = `${diffDays.toString()}d ago`;
+              stableValue = diffDays * 1000000; // Stable by day
             } else if (diffHours > 0) {
               timeAgoDisplay = `${diffHours.toString()}h ago`;
+              stableValue = diffHours * 10000; // Stable by hour
             } else if (diffMinutes > 0) {
               timeAgoDisplay = `${diffMinutes.toString()}m ago`;
+              stableValue = diffMinutes * 100; // Stable by minute
             } else {
               timeAgoDisplay = "just now";
+              stableValue = 0;
             }
 
             teamStats.push({
               name: `Last ranked game played`,
-              value: diffMs,
+              value: stableValue, // Use stable value instead of actual diffMs
               bestInTeam: false,
               bestInMatch: false,
               display: timeAgoDisplay,
@@ -650,4 +648,25 @@ const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
       </CSSTransition>
     </div>
   );
+};
+
+// Custom comparison to prevent re-renders when props haven't changed
+// Note: model/stats data comes from context hooks, React handles those re-renders automatically
+function arePropsEqual(prevProps: StreamerOverlayProps, nextProps: StreamerOverlayProps): boolean {
+  return (
+    prevProps.teamColors === nextProps.teamColors &&
+    prevProps.gameModeIconUrl === nextProps.gameModeIconUrl &&
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.onViewModeSelect === nextProps.onViewModeSelect &&
+    prevProps.previewMode === nextProps.previewMode &&
+    prevProps.onPreviewModeSelect === nextProps.onPreviewModeSelect &&
+    prevProps.onStreamerOptionsChange === nextProps.onStreamerOptionsChange &&
+    // Check streamerOptions deeply
+    prevProps.streamerOptions.showTeams === nextProps.streamerOptions.showTeams &&
+    prevProps.streamerOptions.showTicker === nextProps.streamerOptions.showTicker &&
+    prevProps.streamerOptions.showTabs === nextProps.streamerOptions.showTabs &&
+    prevProps.streamerOptions.showServerName === nextProps.streamerOptions.showServerName
+  );
 }
+
+export const StreamerOverlay = memo(StreamerOverlayComponent, arePropsEqual);

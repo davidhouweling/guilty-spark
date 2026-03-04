@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, memo } from "react";
 import classNames from "classnames";
 import type { MatchStatsValues } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
@@ -30,7 +30,7 @@ interface InformationTickerProps {
   readonly onScrollComplete: () => void;
 }
 
-export function InformationTicker({
+const InformationTickerComponent = function InformationTicker({
   currentMatchGroup,
   teamColors,
   onScrollComplete,
@@ -94,7 +94,7 @@ export function InformationTicker({
 
         {/* Scrolling Section: Stats + Medals */}
         <div className={styles.tickerScrolling}>
-          <ScrollingContent maxWidth={600} loop={false} onScrollComplete={handleRowScrollComplete}>
+          <ScrollingContent maxWidth={600} loop={false} mode="ticker" onScrollComplete={handleRowScrollComplete}>
             <div
               className={classNames(styles.tickerRow, styles.tickerScrollingRow, {
                 [styles.tickerTeamRow]: currentRow.type === "team",
@@ -138,6 +138,74 @@ export function InformationTicker({
       </div>
     </div>
   );
+};
+
+// Custom comparison function to prevent re-renders when content hasn't actually changed
+function arePropsEqual(prevProps: InformationTickerProps, nextProps: InformationTickerProps): boolean {
+  // If match group reference is the same, no need to re-render
+  if (prevProps.currentMatchGroup === nextProps.currentMatchGroup) {
+    return true;
+  }
+
+  const prev = prevProps.currentMatchGroup;
+  const next = nextProps.currentMatchGroup;
+
+  // Check if match group structure has changed
+  if (prev.matchIndex !== next.matchIndex || prev.label !== next.label || prev.rows.length !== next.rows.length) {
+    return false;
+  }
+
+  // Shallow check rows - compare key properties
+  for (let i = 0; i < prev.rows.length; i++) {
+    const prevRow = prev.rows[i];
+    const nextRow = next.rows[i];
+
+    if (
+      prevRow.type !== nextRow.type ||
+      prevRow.teamId !== nextRow.teamId ||
+      prevRow.name !== nextRow.name ||
+      prevRow.stats.length !== nextRow.stats.length ||
+      prevRow.medals.length !== nextRow.medals.length
+    ) {
+      return false;
+    }
+
+    // Check stats values
+    for (let j = 0; j < prevRow.stats.length; j++) {
+      const prevStat = prevRow.stats[j];
+      const nextStat = nextRow.stats[j];
+
+      if (
+        prevStat.name !== nextStat.name ||
+        prevStat.value !== nextStat.value ||
+        prevStat.display !== nextStat.display ||
+        prevStat.bestInTeam !== nextStat.bestInTeam ||
+        prevStat.bestInMatch !== nextStat.bestInMatch
+      ) {
+        return false;
+      }
+    }
+
+    // Check medals
+    for (let j = 0; j < prevRow.medals.length; j++) {
+      const prevMedal = prevRow.medals[j];
+      const nextMedal = nextRow.medals[j];
+
+      if (prevMedal.name !== nextMedal.name || prevMedal.count !== nextMedal.count) {
+        return false;
+      }
+    }
+  }
+
+  // Check team colors array length
+  if (prevProps.teamColors.length !== nextProps.teamColors.length) {
+    return false;
+  }
+
+  // All checks passed - props are equal
+  return true;
 }
+
+export const InformationTicker = memo(InformationTickerComponent, arePropsEqual);
 
 export type { TickerStatRow, TickerMatchGroup };
