@@ -6,7 +6,7 @@ import type {
 } from "@guilty-spark/contracts/live-tracker/types";
 
 // Input types for individual tracker requests
-export interface LiveTrackerStartRequestIndividual {
+export interface LiveTrackerIndividualStartRequest {
   userId: string;
   guildId: string;
   channelId: string;
@@ -33,7 +33,7 @@ export interface LiveTrackerRepostRequest {
 }
 
 // Core state interface for individual tracking
-export interface LiveTrackerStateIndividual {
+export interface LiveTrackerIndividualState {
   userId: string;
   xuid: string;
   gamertag: string;
@@ -77,74 +77,76 @@ export interface LiveTrackerStateIndividual {
 }
 
 // Success response types
-export interface LiveTrackerStartSuccessResponse {
+export interface LiveTrackerIndividualStartSuccessResponse {
   success: true;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerStartFailureResponse {
+export interface LiveTrackerIndividualStartFailureResponse {
   success: false;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerPauseSuccessResponse {
+export interface LiveTrackerIndividualPauseSuccessResponse {
   success: true;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerResumeSuccessResponse {
+export interface LiveTrackerIndividualResumeSuccessResponse {
   success: true;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerStopSuccessResponse {
+export interface LiveTrackerIndividualStopSuccessResponse {
   success: true;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerRefreshSuccessResponse {
+export interface LiveTrackerIndividualRefreshSuccessResponse {
   success: true;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerRefreshCooldownErrorResponse {
+export interface LiveTrackerIndividualRefreshCooldownErrorResponse {
   success: false;
   error: "cooldown";
   message: string;
 }
 
-export interface LiveTrackerRefreshFailureResponse {
+export interface LiveTrackerIndividualRefreshFailureResponse {
   success: false;
-  state: LiveTrackerStateIndividual;
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerStatusSuccessResponse {
-  state: LiveTrackerStateIndividual;
+export interface LiveTrackerIndividualStatusSuccessResponse {
+  state: LiveTrackerIndividualState;
 }
 
-export interface LiveTrackerRepostSuccessResponse {
+export interface LiveTrackerIndividualRepostSuccessResponse {
   success: true;
   oldMessageId: string;
   newMessageId: string;
 }
 
 // Union types for each handler's possible responses
-export type LiveTrackerStartResponse = LiveTrackerStartSuccessResponse | LiveTrackerStartFailureResponse;
+export type LiveTrackerIndividualStartResponse =
+  | LiveTrackerIndividualStartSuccessResponse
+  | LiveTrackerIndividualStartFailureResponse;
 
-export type LiveTrackerPauseResponse = LiveTrackerPauseSuccessResponse;
+export type LiveTrackerIndividualPauseResponse = LiveTrackerIndividualPauseSuccessResponse;
 
-export type LiveTrackerResumeResponse = LiveTrackerResumeSuccessResponse;
+export type LiveTrackerIndividualResumeResponse = LiveTrackerIndividualResumeSuccessResponse;
 
-export type LiveTrackerStopResponse = LiveTrackerStopSuccessResponse;
+export type LiveTrackerIndividualStopResponse = LiveTrackerIndividualStopSuccessResponse;
 
-export type LiveTrackerRefreshResponse =
-  | LiveTrackerRefreshSuccessResponse
-  | LiveTrackerRefreshCooldownErrorResponse
-  | LiveTrackerRefreshFailureResponse;
+export type LiveTrackerIndividualRefreshResponse =
+  | LiveTrackerIndividualRefreshSuccessResponse
+  | LiveTrackerIndividualRefreshCooldownErrorResponse
+  | LiveTrackerIndividualRefreshFailureResponse;
 
-export type LiveTrackerStatusResponse = LiveTrackerStatusSuccessResponse;
+export type LiveTrackerIndividualStatusResponse = LiveTrackerIndividualStatusSuccessResponse;
 
-export type LiveTrackerRepostResponse = LiveTrackerRepostSuccessResponse;
+export type LiveTrackerIndividualRepostResponse = LiveTrackerIndividualRepostSuccessResponse;
 
 // Type guards for response discrimination
 export function isSuccessResponse<T extends { success: boolean }>(response: T): response is T & { success: true } {
@@ -156,7 +158,7 @@ export function isErrorResponse<T extends { success: boolean }>(response: T): re
 }
 
 export function isCooldownError(
-  response: LiveTrackerRefreshResponse,
-): response is LiveTrackerRefreshCooldownErrorResponse {
+  response: LiveTrackerIndividualRefreshResponse,
+): response is LiveTrackerIndividualRefreshCooldownErrorResponse {
   return !isSuccessResponse(response) && "error" in response;
 }

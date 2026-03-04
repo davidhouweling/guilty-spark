@@ -52,6 +52,7 @@ const createMockDurableObjectState = (): {
   const mockDurableObjectState: DurableObjectState = {
     storage: mockStorage,
     props: {},
+    exports: {} as Cloudflare.Exports,
     abort: () => void 0,
     acceptWebSocket: () => void 0,
     blockConcurrencyWhile: async (cb) => cb(),

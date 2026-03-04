@@ -1,6 +1,7 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
 import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerStartResponse,
@@ -17,6 +18,10 @@ import type {
   LiveTrackerRefreshCooldownErrorResponse,
   LiveTrackerRefreshRequest,
 } from "../../durable-objects/types.mjs";
+import type {
+  LiveTrackerIndividualStartRequest,
+  LiveTrackerIndividualStartResponse,
+} from "../../durable-objects/individual/types.mjs";
 import type { LogService } from "../log/types.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
@@ -444,6 +449,57 @@ export class LiveTrackerService {
         this.createLogParams(context, new Map([["error", String(error)]])),
       );
       return false;
+    }
+  }
+
+  /**
+   * Starts a new live tracker for an individual player
+   */
+  async startTrackerIndividual(startRequest: LiveTrackerIndividualStartRequest): Promise<void> {
+    this.logService.info(
+      "LiveTrackerService: Starting individual tracker",
+      new Map([
+        ["xuid", startRequest.xuid],
+        ["gamertag", startRequest.gamertag],
+        ["userId", startRequest.userId],
+      ]),
+    );
+
+    const env = Preconditions.checkExists(
+      this.env.LIVE_TRACKER_INDIVIDUAL_DO,
+      "LIVE_TRACKER_INDIVIDUAL_DO binding not configured",
+    );
+
+    const doId = env.idFromName(`individual:${startRequest.xuid}`);
+    const doStub = env.get(doId);
+
+    const response = await doStub.fetch("http://do/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(startRequest),
+    });
+
+    if (!response.ok) {
+      const error = `Failed to start individual tracker: ${response.status.toString()}`;
+      this.logService.error(
+        error,
+        new Map([
+          ["xuid", startRequest.xuid],
+          ["gamertag", startRequest.gamertag],
+        ]),
+      );
+      throw new Error(error);
+    }
+
+    const result = await response.json<LiveTrackerIndividualStartResponse>();
+    if (!result.success) {
+      this.logService.warn(
+        "Individual tracker start request not fully successful",
+        new Map([
+          ["xuid", startRequest.xuid],
+          ["gamertag", startRequest.gamertag],
+        ]),
+      );
     }
   }
 

@@ -23,17 +23,17 @@ import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type {
-  LiveTrackerStartRequestIndividual,
-  LiveTrackerStateIndividual,
-  LiveTrackerStartResponse,
+  LiveTrackerIndividualStartRequest,
+  LiveTrackerIndividualState,
+  LiveTrackerIndividualStartResponse,
   LiveTrackerRefreshRequest,
   LiveTrackerRepostRequest,
-  LiveTrackerPauseResponse,
-  LiveTrackerResumeResponse,
-  LiveTrackerStopResponse,
-  LiveTrackerRefreshResponse,
-  LiveTrackerStatusResponse,
-  LiveTrackerRepostResponse,
+  LiveTrackerIndividualPauseResponse,
+  LiveTrackerIndividualResumeResponse,
+  LiveTrackerIndividualStopResponse,
+  LiveTrackerIndividualRefreshResponse,
+  LiveTrackerIndividualStatusResponse,
+  LiveTrackerIndividualRepostResponse,
 } from "./types.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
@@ -186,7 +186,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           await this.executeTrackerUpdate(trackerState);
           const fetchDurationMs = Date.now() - fetchStartTime;
           this.logService.info(
-            `LiveTracker Individual: alarm completed for ${trackerState.gamertag} (${fetchDurationMs}ms)`,
+            `LiveTracker Individual: alarm completed for ${trackerState.gamertag} (${fetchDurationMs.toString()}ms)`,
           );
         } catch (error) {
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
@@ -224,9 +224,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<LiveTrackerStartRequestIndividual>();
+    const body = await request.json<LiveTrackerIndividualStartRequest>();
 
-    const trackerState: LiveTrackerStateIndividual = {
+    const trackerState: LiveTrackerIndividualState = {
       userId: body.userId,
       xuid: body.xuid,
       gamertag: body.gamertag,
@@ -319,7 +319,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
   }
 
-  private async createInitialMessage(startData: LiveTrackerStartRequestIndividual): Promise<{ id: string }> {
+  private async createInitialMessage(startData: LiveTrackerIndividualStartRequest): Promise<{ id: string }> {
     const loadingEmbed = new LiveTrackerLoadingEmbed();
 
     return await this.discordService.createMessage(startData.channelId, { embeds: [loadingEmbed.embed] });
@@ -407,7 +407,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       if (timeSinceLastAttempt < REFRESH_COOLDOWN_MS) {
         const remainingMs = REFRESH_COOLDOWN_MS - timeSinceLastAttempt;
         const remainingSecs = Math.ceil(remainingMs / 1000);
-        return this.createRefreshCooldownResponse(`Please wait ${remainingSecs} seconds before refreshing again.`);
+        return this.createRefreshCooldownResponse(
+          `Please wait ${remainingSecs.toLocaleString()} seconds before refreshing again.`,
+        );
       }
     }
 
@@ -466,49 +468,49 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     return this.createRepostResponse(oldMessageId ?? "none", newMessageId);
   }
 
-  private async getState(): Promise<LiveTrackerStateIndividual | null> {
-    const state = await this.state.storage.get<LiveTrackerStateIndividual>("trackerState");
+  private async getState(): Promise<LiveTrackerIndividualState | null> {
+    const state = await this.state.storage.get<LiveTrackerIndividualState>("trackerState");
     return state ?? null;
   }
 
-  private async setState(state: LiveTrackerStateIndividual): Promise<void> {
+  private async setState(state: LiveTrackerIndividualState): Promise<void> {
     await this.state.storage.put("trackerState", state);
     await this.broadcastStateUpdate(state);
   }
 
   // Response helpers
-  private createStartSuccessResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerStartResponse = { success: true, state };
+  private createStartSuccessResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualStartResponse = { success: true, state };
     return Response.json(response);
   }
 
-  private createStartFailureResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerStartResponse = { success: false, state };
+  private createStartFailureResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualStartResponse = { success: false, state };
     return Response.json(response);
   }
 
-  private createPauseResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerPauseResponse = { success: true, state };
+  private createPauseResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualPauseResponse = { success: true, state };
     return Response.json(response);
   }
 
-  private createResumeResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerResumeResponse = { success: true, state };
+  private createResumeResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualResumeResponse = { success: true, state };
     return Response.json(response);
   }
 
-  private createStopResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerStopResponse = { success: true, state };
+  private createStopResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualStopResponse = { success: true, state };
     return Response.json(response);
   }
 
-  private createRefreshSuccessResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerRefreshResponse = { success: true, state };
+  private createRefreshSuccessResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualRefreshResponse = { success: true, state };
     return Response.json(response);
   }
 
   private createRefreshCooldownResponse(message: string): Response {
-    const response: LiveTrackerRefreshResponse = {
+    const response: LiveTrackerIndividualRefreshResponse = {
       success: false,
       error: "cooldown",
       message,
@@ -519,18 +521,18 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     });
   }
 
-  private createRefreshFailureResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerRefreshResponse = { success: false, state };
+  private createRefreshFailureResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualRefreshResponse = { success: false, state };
     return Response.json(response);
   }
 
-  private createStatusResponse(state: LiveTrackerStateIndividual): Response {
-    const response: LiveTrackerStatusResponse = { state };
+  private createStatusResponse(state: LiveTrackerIndividualState): Response {
+    const response: LiveTrackerIndividualStatusResponse = { state };
     return Response.json(response);
   }
 
   private createRepostResponse(oldMessageId: string, newMessageId: string): Response {
-    const response: LiveTrackerRepostResponse = {
+    const response: LiveTrackerIndividualRepostResponse = {
       success: true,
       oldMessageId,
       newMessageId,
@@ -538,7 +540,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     return Response.json(response);
   }
 
-  private handleError(trackerState: LiveTrackerStateIndividual, errorMessage: string): void {
+  private handleError(trackerState: LiveTrackerIndividualState, errorMessage: string): void {
     trackerState.errorState.consecutiveErrors += 1;
     trackerState.errorState.lastErrorMessage = errorMessage;
 
@@ -561,14 +563,14 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     );
   }
 
-  private handleSuccess(trackerState: LiveTrackerStateIndividual): void {
+  private handleSuccess(trackerState: LiveTrackerIndividualState): void {
     trackerState.errorState.consecutiveErrors = 0;
     trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
     trackerState.errorState.lastSuccessTime = new Date().toISOString();
     trackerState.errorState.lastErrorMessage = undefined;
   }
 
-  private shouldStopDueToErrors(trackerState: LiveTrackerStateIndividual): boolean {
+  private shouldStopDueToErrors(trackerState: LiveTrackerIndividualState): boolean {
     if (trackerState.errorState.consecutiveErrors === 0) {
       return false;
     }
@@ -577,7 +579,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     return errorDurationMinutes >= ERROR_THRESHOLD_MINUTES;
   }
 
-  private getNextAlarmInterval(trackerState: LiveTrackerStateIndividual): number {
+  private getNextAlarmInterval(trackerState: LiveTrackerIndividualState): number {
     if (trackerState.errorState.consecutiveErrors === 0) {
       return ALARM_INTERVAL_MS;
     }
@@ -586,7 +588,8 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private async executeTrackerUpdate(
-    trackerState: LiveTrackerStateIndividual,
+    trackerState: LiveTrackerIndividualState,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _options: { skipMessageUpdate?: boolean } = {},
   ): Promise<void> {
     let enrichedMatches: LiveTrackerMatchSummary[] = [];
@@ -643,7 +646,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
   }
 
-  private checkAndHandleStaleLock(trackerState: LiveTrackerStateIndividual): boolean {
+  private checkAndHandleStaleLock(trackerState: LiveTrackerIndividualState): boolean {
     if (trackerState.refreshInProgress === true && trackerState.refreshStartedAt != null) {
       const refreshStartTime = new Date(trackerState.refreshStartedAt);
       const currentTime = new Date();
@@ -663,7 +666,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private async fetchAndMergeIndividualMatches(
-    trackerState: LiveTrackerStateIndividual,
+    trackerState: LiveTrackerIndividualState,
   ): Promise<LiveTrackerMatchSummary[]> {
     try {
       const playerMatchHistory = await this.haloService.getRecentMatchHistory(trackerState.gamertag, MatchType.All, 50);
@@ -690,7 +693,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private async enrichAndMergeIndividualMatches(
-    trackerState: LiveTrackerStateIndividual,
+    trackerState: LiveTrackerIndividualState,
     matches: MatchStats[],
   ): Promise<void> {
     for (const match of matches) {
@@ -761,7 +764,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     this.updateMatchGroupings(trackerState);
   }
 
-  private updateMatchGroupings(trackerState: LiveTrackerStateIndividual): void {
+  private updateMatchGroupings(trackerState: LiveTrackerIndividualState): void {
     // Group consecutive custom/local games with same participants
     const groupings: Record<
       string,
@@ -794,8 +797,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
       // Check if same participants as current group
       if (
-        currentParticipants &&
-        currentParticipants.size === participants.size &&
+        currentParticipants?.size === participants.size &&
         Array.from(currentParticipants).every((p) => participants.has(p))
       ) {
         // Add to current group
@@ -805,7 +807,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         }
       } else {
         // Start new group
-        currentGroupId = `group_${new Date(match.MatchInfo.StartTime).getTime()}`;
+        currentGroupId = `group_${new Date(match.MatchInfo.StartTime).getTime().toString()}`;
         currentParticipants = participants;
         groupings[currentGroupId] = {
           groupId: currentGroupId,
@@ -818,13 +820,13 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     trackerState.matchGroupings = groupings;
   }
 
-  private hasNewMatches(trackerState: LiveTrackerStateIndividual): boolean {
+  private hasNewMatches(trackerState: LiveTrackerIndividualState): boolean {
     const currentMatchCount = Object.keys(trackerState.discoveredMatches).length;
     return currentMatchCount > trackerState.lastMessageState.matchCount;
   }
 
   private async updateLiveTrackerMessage(
-    trackerState: LiveTrackerStateIndividual,
+    trackerState: LiveTrackerIndividualState,
     liveTrackerEmbed: LiveTrackerEmbed,
   ): Promise<void> {
     if (this.hasNewMatches(trackerState) || trackerState.liveMessageId == null || trackerState.liveMessageId === "") {
@@ -864,10 +866,12 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   // WebSocket handlers
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer): Promise<void> {
     return Promise.resolve();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async webSocketClose(_ws: WebSocket, code: number, reason: string, _wasClean: boolean): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
     this.logService.debug(
@@ -930,7 +934,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     });
   }
 
-  private async broadcastStateUpdate(state: LiveTrackerStateIndividual): Promise<void> {
+  private async broadcastStateUpdate(state: LiveTrackerIndividualState): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
     if (allWebSockets.length === 0) {
       return;
@@ -955,7 +959,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
   }
 
-  private async stateToContractData(state: LiveTrackerStateIndividual): Promise<LiveTrackerStateData> {
+  private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
     const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
@@ -1010,7 +1014,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     return medalMetadata;
   }
 
-  private async dispose(trackerState: LiveTrackerStateIndividual | null, reason: string): Promise<void> {
+  private async dispose(trackerState: LiveTrackerIndividualState | null, reason: string): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
     this.logService.info(
       "LiveTracker Individual: Disposing tracker",
@@ -1040,7 +1044,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     await this.state.storage.deleteAll();
   }
 
-  private async broadcastStopMessage(state: LiveTrackerStateIndividual): Promise<void> {
+  private async broadcastStopMessage(state: LiveTrackerIndividualState): Promise<void> {
     const allWebSockets = this.state.getWebSockets();
 
     this.logService.info(
