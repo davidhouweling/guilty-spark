@@ -17,6 +17,8 @@ export enum InteractionComponent {
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Repost = "btn_track_repost",
+  IndividualMatchSelect = "select_track_individual_matches",
+  IndividualStartWithoutGames = "btn_track_start_without_games",
 }
 
 interface LiveTrackerEmbedServices {

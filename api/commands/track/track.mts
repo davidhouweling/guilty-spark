@@ -1,6 +1,7 @@
 import type {
   APIApplicationCommandInteraction,
   APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIGuildMember,
 } from "discord-api-types/v10";
@@ -27,6 +28,7 @@ import { InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
 import type { LiveTrackerState } from "../../durable-objects/types.mjs";
 import { isCooldownError } from "../../durable-objects/types.mjs";
 import type { LiveTrackerIndividualStartRequest } from "../../durable-objects/individual/types.mjs";
+import { LiveTrackerIndividualMatchSelectEmbed } from "../../embeds/live-tracker-individual-match-select-embed.mjs";
 
 interface UserContext {
   userId: string;
@@ -129,6 +131,13 @@ export class TrackCommand extends BaseCommand {
     [InteractionComponent.Refresh]: this.buttonHandler((interaction) => this.handleRefresh(interaction)),
 
     [InteractionComponent.Repost]: this.buttonHandler((interaction) => this.handleRepost(interaction)),
+
+    [InteractionComponent.IndividualMatchSelect]: this.stringSelectHandler((interaction) =>
+      this.deferUpdate(async () => this.handleIndividualMatchSelect(interaction)),
+    ),
+    [InteractionComponent.IndividualStartWithoutGames]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleIndividualStartWithoutGames(interaction)),
+    ),
   });
 
   protected handleInteraction(interaction: BaseInteraction): ExecuteResponse {
@@ -306,11 +315,11 @@ export class TrackCommand extends BaseCommand {
 
         const guildId = interaction.guild_id ?? ""; // Can be empty for DM
         const channelId = interaction.channel.id;
+        const locale = interaction.guild_locale ?? interaction.locale;
 
         try {
           // Resolve player based on subcommand
           let gamertag: string;
-          let xuid: string;
 
           switch (groupName) {
             case "xbox": {
@@ -323,10 +332,8 @@ export class TrackCommand extends BaseCommand {
                   handled: true,
                 });
               }
-
-              // Lookup XUID from gamertag
-              const userInfo = await this.services.haloService.getUserByGamertag(gamertag);
-              ({ xuid } = userInfo);
+              const { gamertag: resolvedGamertag } = await this.services.haloService.getUserByGamertag(gamertag);
+              gamertag = resolvedGamertag;
               break;
             }
             case "discord": {
@@ -354,7 +361,7 @@ export class TrackCommand extends BaseCommand {
                 );
               }
 
-              xuid = association.XboxId;
+              const xuid = association.XboxId;
 
               // Fetch user info to get gamertag
               const userInfoData = await this.services.haloService.getUsersByXuids([xuid]);
@@ -389,7 +396,7 @@ export class TrackCommand extends BaseCommand {
                 );
               }
 
-              xuid = association.XboxId;
+              const xuid = association.XboxId;
 
               // Fetch user info to get gamertag
               const userInfoData = await this.services.haloService.getUsersByXuids([xuid]);
@@ -415,7 +422,7 @@ export class TrackCommand extends BaseCommand {
           }
 
           // Fetch recent matches for the player
-          const recentMatches = await this.services.haloService.getRecentMatchHistory(gamertag, undefined, 10);
+          const recentMatches = await this.services.haloService.getRecentMatchHistory(gamertag, undefined, 25);
 
           if (recentMatches.length === 0) {
             throw new EndUserError(`No recent matches found for ${gamertag}.`, {
@@ -424,32 +431,18 @@ export class TrackCommand extends BaseCommand {
             });
           }
 
-          // For MVP, start tracker with all recent matches
-          const selectedGameIds = recentMatches.map((m) => m.MatchId);
+          const matchSelectEmbed = new LiveTrackerIndividualMatchSelectEmbed(
+            { haloService: this.services.haloService },
+            {
+              gamertag,
+              locale,
+              matches: recentMatches,
+            },
+          );
 
-          // Prepare tracker start request
-          const startRequest: LiveTrackerIndividualStartRequest = {
-            userId,
-            guildId,
-            channelId,
-            xuid,
-            gamertag,
-            searchStartTime: new Date().toISOString(),
-            selectedGameIds,
-            playersAssociationData: null,
-          };
-
-          // Start the individual tracker
-          await this.services.liveTrackerService.startTrackerIndividual(startRequest);
-
-          this.services.logService.info(
-            `Started individual tracker for ${gamertag}`,
-            new Map([
-              ["xuid", xuid],
-              ["gamertag", gamertag],
-              ["userId", userId],
-              ["matchCount", selectedGameIds.length.toString()],
-            ]),
+          await this.services.discordService.updateDeferredReply(
+            interaction.token,
+            await matchSelectEmbed.toMessageData(),
           );
         } catch (error) {
           if (error instanceof EndUserError) {
@@ -480,12 +473,91 @@ export class TrackCommand extends BaseCommand {
     };
   }
 
-  private extractUserContext(interaction: APIMessageComponentButtonInteraction): UserContext {
+  private extractUserContext(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): UserContext {
     const userId = Preconditions.checkExists(interaction.member?.user.id ?? interaction.user?.id, "expected user id");
     const guildId = interaction.guild_id ?? "";
     const channelId = interaction.channel.id;
 
     return { userId, guildId, channelId };
+  }
+
+  private getGamertagFromMatchSelectEmbed(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): string {
+    const [embed] = interaction.message.embeds;
+    const title = Preconditions.checkExists(embed?.title, "Match selection embed missing title");
+    const prefix = LiveTrackerIndividualMatchSelectEmbed.getTitlePrefix();
+
+    if (!title.startsWith(prefix)) {
+      throw new Error("Match selection embed title is invalid");
+    }
+
+    const gamertag = title.slice(prefix.length).trim();
+    if (gamertag === "") {
+      throw new Error("Match selection embed gamertag is missing");
+    }
+
+    return gamertag;
+  }
+
+  private async handleIndividualMatchSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    await this.startIndividualTrackerFromInteraction(interaction, interaction.data.values);
+  }
+
+  private async handleIndividualStartWithoutGames(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    await this.startIndividualTrackerFromInteraction(interaction, []);
+  }
+
+  private async startIndividualTrackerFromInteraction(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    selectedGameIds: string[],
+  ): Promise<void> {
+    const { userId, guildId, channelId } = this.extractUserContext(interaction);
+
+    try {
+      const gamertag = this.getGamertagFromMatchSelectEmbed(interaction);
+      const userInfo = await this.services.haloService.getUserByGamertag(gamertag);
+
+      const startRequest: LiveTrackerIndividualStartRequest = {
+        userId,
+        guildId,
+        channelId,
+        xuid: userInfo.xuid,
+        gamertag,
+        interactionToken: interaction.token,
+        searchStartTime: new Date().toISOString(),
+        selectedGameIds,
+        playersAssociationData: null,
+      };
+
+      await this.services.liveTrackerService.startTrackerIndividual(startRequest);
+
+      this.services.logService.info(
+        `Started individual tracker for ${gamertag}`,
+        new Map([
+          ["xuid", userInfo.xuid],
+          ["gamertag", gamertag],
+          ["userId", userId],
+          ["matchCount", selectedGameIds.length.toString()],
+        ]),
+      );
+    } catch (error) {
+      this.services.logService.error("Failed to start individual tracker", new Map([["error", String(error)]]));
+
+      const errorEmbed = this.services.liveTrackerService.createErrorFallbackEmbed(
+        {
+          userId,
+          guildId,
+          channelId,
+          queueNumber: 0,
+        },
+        "stopped",
+      );
+
+      await this.services.discordService.updateDeferredReply(interaction.token, errorEmbed.toMessageData());
+    }
   }
 
   private async getTrackerContextFromInteraction(

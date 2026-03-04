@@ -5,6 +5,7 @@ export interface LiveTrackerEmbedData {
   guildId: string;
   channelId: string;
   queueNumber: number;
+  trackerLabel?: string;
   status: LiveTrackerStatus;
   isPaused: boolean;
   lastUpdated: Date | string | undefined;

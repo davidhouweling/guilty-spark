@@ -7,7 +7,7 @@ describe("LiveTrackerLoadingEmbed", () => {
 
     expect(embed.embed).toMatchObject({
       title: "🔄 Starting Live Tracker",
-      description: "Setting up live tracking for your NeatQueue series...",
+      description: "Setting up live tracking...",
     });
   });
 

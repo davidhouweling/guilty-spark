@@ -12,7 +12,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
-import { addMilliseconds, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
+import { addMilliseconds, differenceInMilliseconds, differenceInMinutes, isAfter, isEqual, max } from "date-fns";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
@@ -282,6 +282,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           guildId: body.guildId,
           channelId: body.channelId,
           queueNumber: 0,
+          trackerLabel: body.gamertag,
           status: "active",
           isPaused: false,
           lastUpdated: currentTime,
@@ -321,8 +322,15 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
   private async createInitialMessage(startData: LiveTrackerIndividualStartRequest): Promise<{ id: string }> {
     const loadingEmbed = new LiveTrackerLoadingEmbed();
+    const loadingEmbedData = {
+      embeds: [loadingEmbed.embed],
+    };
 
-    return await this.discordService.createMessage(startData.channelId, { embeds: [loadingEmbed.embed] });
+    if (startData.interactionToken != null && startData.interactionToken !== "") {
+      return await this.discordService.updateDeferredReply(startData.interactionToken, loadingEmbedData);
+    } else {
+      return await this.discordService.createMessage(startData.channelId, loadingEmbedData);
+    }
   }
 
   private async handlePause(): Promise<Response> {
@@ -632,6 +640,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         guildId: trackerState.guildId,
         channelId: trackerState.channelId,
         queueNumber: 0,
+        trackerLabel: trackerState.gamertag,
         status: trackerState.status,
         isPaused: trackerState.isPaused,
         lastUpdated: currentTime,
@@ -671,10 +680,24 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     try {
       const playerMatchHistory = await this.haloService.getRecentMatchHistory(trackerState.gamertag, MatchType.All, 50);
 
-      // Extract match IDs and filter to selected games
+      const searchStartTime = new Date(trackerState.searchStartTime);
+      const hasSelectedGames = trackerState.selectedGameIds.length > 0;
+
+      // Extract match IDs and filter to selected games, or all matches since start time
       const selectedMatchIds = playerMatchHistory
-        .filter((pmh) => trackerState.selectedGameIds.includes(pmh.MatchId))
+        .filter((pmh) => {
+          if (hasSelectedGames) {
+            return trackerState.selectedGameIds.includes(pmh.MatchId);
+          }
+
+          const matchEndTime = new Date(pmh.MatchInfo.EndTime);
+          return isAfter(matchEndTime, searchStartTime) || isEqual(matchEndTime, searchStartTime);
+        })
         .map((pmh) => pmh.MatchId);
+
+      if (selectedMatchIds.length === 0) {
+        return Object.values(trackerState.discoveredMatches);
+      }
 
       // Get full match details
       const matches = await this.haloService.getMatchDetails(selectedMatchIds);
