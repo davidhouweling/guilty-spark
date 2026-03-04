@@ -28,10 +28,6 @@ interface PlayerRow {
   readonly currentRankMeasurementMatchesRemaining: number | null;
   readonly currentRankInitialMeasurementMatches: number | null;
   readonly allTimePeakRank: number | null;
-  readonly allTimePeakRankTier: string | null;
-  readonly allTimePeakRankSubTier: number | null;
-  readonly allTimePeakRankMeasurementMatchesRemaining: number | null;
-  readonly allTimePeakRankInitialMeasurementMatches: number | null;
   readonly esra: number | null;
   readonly lastRankedGamePlayed: string | null;
 }
@@ -187,10 +183,6 @@ export function PlayerPreSeriesInfo({
           currentRankMeasurementMatchesRemaining: playerData.currentRankMeasurementMatchesRemaining,
           currentRankInitialMeasurementMatches: playerData.currentRankInitialMeasurementMatches,
           allTimePeakRank: playerData.allTimePeakRank,
-          allTimePeakRankTier: playerData.allTimePeakRankTier,
-          allTimePeakRankSubTier: playerData.allTimePeakRankSubTier,
-          allTimePeakRankMeasurementMatchesRemaining: playerData.allTimePeakRankMeasurementMatchesRemaining,
-          allTimePeakRankInitialMeasurementMatches: playerData.allTimePeakRankInitialMeasurementMatches,
           esra: playerData.esra,
           lastRankedGamePlayed: playerData.lastRankedGamePlayed,
         });
@@ -252,15 +244,21 @@ export function PlayerPreSeriesInfo({
         id: "peakRank",
         header: "Peak Rank",
         accessorFn: (row: PlayerRow): number => row.allTimePeakRank ?? -1,
-        cell: (_value: unknown, row: PlayerRow): React.ReactNode => (
-          <RankDisplay
-            rank={row.allTimePeakRank}
-            tier={row.allTimePeakRankTier}
-            subTier={row.allTimePeakRankSubTier}
-            measurementMatchesRemaining={row.allTimePeakRankMeasurementMatchesRemaining}
-            initialMeasurementMatches={row.allTimePeakRankInitialMeasurementMatches}
-          />
-        ),
+        cell: (_value: unknown, row: PlayerRow): React.ReactNode => {
+          if (row.allTimePeakRank === null || row.allTimePeakRank <= 0) {
+            return "-";
+          }
+          const { rankTier, subTier } = getRankTierFromCsr(row.allTimePeakRank);
+          return (
+            <RankDisplay
+              rank={row.allTimePeakRank}
+              tier={rankTier}
+              subTier={subTier}
+              measurementMatchesRemaining={null}
+              initialMeasurementMatches={null}
+            />
+          );
+        },
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
         sortingFn: "basic",
@@ -270,7 +268,7 @@ export function PlayerPreSeriesInfo({
         header: "ESRA",
         accessorFn: (row: PlayerRow): number => row.esra ?? -1,
         cell: (_value: unknown, row: PlayerRow): React.ReactNode => {
-          if (row.esra === null || row.esra < 0) {
+          if (row.esra === null || row.esra <= 0) {
             return "-";
           }
           const roundedEsra = Math.round(row.esra);

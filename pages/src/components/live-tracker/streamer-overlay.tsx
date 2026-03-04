@@ -217,6 +217,7 @@ export function StreamerOverlay({
 
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
+const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
             teamStats.push({
               name: `Peak rank`,
               value: playerData.allTimePeakRank,
@@ -225,10 +226,10 @@ export function StreamerOverlay({
               display: playerData.allTimePeakRank.toLocaleString(),
               icon: (
                 <RankIcon
-                  rankTier={playerData.allTimePeakRankTier}
-                  subTier={playerData.allTimePeakRankSubTier}
-                  measurementMatchesRemaining={playerData.allTimePeakRankMeasurementMatchesRemaining}
-                  initialMeasurementMatches={playerData.allTimePeakRankInitialMeasurementMatches}
+                  rankTier={rankTier}
+                  subTier={subTier}
+                  measurementMatchesRemaining={null}
+                  initialMeasurementMatches={null}
                   size="x-small"
                 />
               ),
@@ -238,7 +239,7 @@ export function StreamerOverlay({
           // ESRA
           if (playerData.esra !== null && playerData.esra >= 0) {
             // Calculate rank tier from ESRA
-            const esraRankTier = getRankTierFromCsr(playerData.esra);
+            const { rankTier, subTier } = getRankTierFromCsr(playerData.esra);
             teamStats.push({
               name: `ESRA`,
               value: playerData.esra,
@@ -247,8 +248,8 @@ export function StreamerOverlay({
               display: Math.round(playerData.esra).toLocaleString(),
               icon: (
                 <RankIcon
-                  rankTier={esraRankTier.rankTier}
-                  subTier={esraRankTier.subTier}
+                  rankTier={rankTier}
+                  subTier={subTier}
                   measurementMatchesRemaining={null}
                   initialMeasurementMatches={null}
                   size="x-small"
