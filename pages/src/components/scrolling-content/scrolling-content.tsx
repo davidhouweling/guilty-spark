@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import type { JSX } from "react";
 import classNames from "classnames";
 import styles from "./scrolling-content.module.css";
@@ -6,19 +6,21 @@ import styles from "./scrolling-content.module.css";
 interface ScrollingContentProps {
   readonly children: React.ReactNode;
   readonly maxWidth: number;
-  readonly speed?: number; // pixels per second, defaults to 50
+  readonly speed?: number; // pixels per second, defaults to 60
   readonly className?: string;
   readonly loop?: boolean; // if false, scrolls once and calls onScrollComplete
   readonly onScrollComplete?: () => void; // callback when single scroll completes
+  readonly mode?: "continuous" | "ticker"; // "continuous" for traditional scrolling, "ticker" for pause-scroll-pause
 }
 
-export function ScrollingContent({
+const ScrollingContentComponent = function ScrollingContent({
   children,
   maxWidth,
-  speed = 50,
+  speed = 60,
   className,
   loop = true,
   onScrollComplete,
+  mode = "continuous",
 }: ScrollingContentProps): JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [needsScroll, setNeedsScroll] = useState<boolean>(false);
@@ -84,6 +86,63 @@ export function ScrollingContent({
     const scrollElement = scrollRef.current;
     const { scrollWidth } = scrollElement;
 
+    // Ticker mode: pause-scroll-pause behavior
+    if (mode === "ticker" && !loop && onScrollComplete != null) {
+      // Phase 1: Wait at start (7 seconds)
+      const initialPauseTimeout = setTimeout(() => {
+        scrollElement.style.transform = "translateX(0px)";
+
+        // Phase 2: Scroll from 0 to final position (right edge in view)
+        const finalPosition = containerWidth - scrollWidth; // Right edge aligned with right side of container
+        const scrollDistance = Math.abs(finalPosition); // Distance to scroll
+        const scrollDuration = (scrollDistance / speed) * 1000; // Convert to milliseconds
+
+        const scrollStartTime = performance.now();
+
+        const animateScroll = (timestamp: number): void => {
+          const elapsed = timestamp - scrollStartTime;
+
+          if (elapsed >= scrollDuration) {
+            // Scrolling complete, move to final position
+            scrollElement.style.transform = `translateX(${finalPosition.toString()}px)`;
+
+            // Phase 3: Wait at end (7 seconds)
+            const finalPauseTimeout = setTimeout(() => {
+              onScrollComplete();
+            }, 7000);
+
+            // Store timeout for cleanup
+            scrollElement.dataset.finalPauseTimeout = finalPauseTimeout.toString();
+            return;
+          }
+
+          const progress = elapsed / scrollDuration; // 0 to 1
+          const currentPosition = -progress * scrollDistance; // Scroll from 0 to negative
+
+          scrollElement.style.transform = `translateX(${currentPosition.toString()}px)`;
+
+          animationFrameRef.current = requestAnimationFrame(animateScroll);
+        };
+
+        animationFrameRef.current = requestAnimationFrame(animateScroll);
+      }, 7000);
+
+      return (): void => {
+        clearTimeout(initialPauseTimeout);
+        if (animationFrameRef.current != null) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+        const finalTimeout = scrollElement.dataset.finalPauseTimeout;
+        if (finalTimeout != null) {
+          clearTimeout(Number(finalTimeout));
+          delete scrollElement.dataset.finalPauseTimeout;
+        }
+        startTimeRef.current = null;
+        scrollElement.style.transform = "";
+      };
+    }
+
+    // Continuous mode: traditional scrolling behavior
     // Total distance in pixels:
     // - Start: left edge at containerWidth (off-screen right)
     // - End: right edge at 0 (off-screen left), meaning left edge at -scrollWidth
@@ -138,11 +197,13 @@ export function ScrollingContent({
       startTimeRef.current = null;
       scrollElement.style.transform = "";
     };
-  }, [needsScroll, containerWidth, speed, children, loop, onScrollComplete]);
+  }, [needsScroll, containerWidth, speed, children, loop, onScrollComplete, mode]);
 
   return (
     <div ref={scrollRef} className={classNames(styles.scrollingContent, className)}>
       {children}
     </div>
   );
-}
+};
+
+export const ScrollingContent = memo(ScrollingContentComponent);

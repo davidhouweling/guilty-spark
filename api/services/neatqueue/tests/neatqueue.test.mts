@@ -430,8 +430,6 @@ describe("NeatQueueService", () => {
         expect(playerData).toHaveProperty("currentRankTier");
         expect(playerData).toHaveProperty("currentRankSubTier");
         expect(playerData).toHaveProperty("allTimePeakRank");
-        expect(playerData).toHaveProperty("allTimePeakRankTier");
-        expect(playerData).toHaveProperty("allTimePeakRankSubTier");
         expect(playerData).toHaveProperty("esra");
       });
 

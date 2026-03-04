@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
@@ -9,13 +9,8 @@ import strongholdsPng from "../../assets/game-modes/strongholds.png";
 import oddballPng from "../../assets/game-modes/oddball.png";
 import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
-import { createMatchStatsPresenter } from "../stats/create";
-import type { MatchStatsData } from "../stats/types";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
-import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { useTeamColors } from "../team-colors/use-team-colors";
@@ -30,12 +25,16 @@ import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series
 import { PlayerName } from "../player-name/player-name";
 import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
+import {
+  useTrackerInfo,
+  useTrackerState,
+  useTrackerIdentity,
+  useAllMatchStats,
+  useSeriesStats,
+  useHasMatches,
+  useSubstitutions,
+} from "./live-tracker-context";
 import styles from "./live-tracker.module.css";
-import type { LiveTrackerViewModel } from "./types";
-
-interface LiveTrackerProps {
-  readonly model: LiveTrackerViewModel;
-}
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
   // todo: resolve the rest of the game modes
@@ -66,9 +65,18 @@ function gameModeIconSrc(gameMode: string): string {
   return gameModeIconUrl(gameMode).src;
 }
 
-export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement {
-  const guildId = model.state?.guildName ?? "";
-  const queueNumber = model.state?.queueNumber ?? 0;
+export function LiveTrackerView(): React.ReactElement {
+  // Use selector hooks to get data from context
+  const trackerInfo = useTrackerInfo();
+  const state = useTrackerState();
+  const identity = useTrackerIdentity();
+  const hasMatches = useHasMatches();
+  const sortedSubstitutions = useSubstitutions();
+  const allMatchStats = useAllMatchStats();
+  const seriesStats = useSeriesStats();
+
+  const guildId = identity?.guildId ?? "";
+  const queueNumber = identity?.queueNumber ?? 0;
   const teamColors = useTeamColors(guildId, queueNumber);
   const streamerPreferences = useStreamerPreferences();
 
@@ -163,100 +171,55 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     }
   }
 
-  const handleSetViewMode = (mode: ViewMode): void => {
-    setViewMode(mode);
-    updateUrl(mode, previewMode, streamerOptions);
-  };
+  const handleSetViewMode = useCallback(
+    (mode: ViewMode): void => {
+      setViewMode(mode);
+      updateUrl(mode, previewMode, streamerOptions);
+    },
+    [previewMode, streamerOptions, teamColors],
+  );
 
-  const handleSetPreviewMode = (mode: PreviewMode): void => {
-    setPreviewMode(mode);
-    streamerPreferences.setPreviewMode(mode);
-    updateUrl(viewMode, mode, streamerOptions);
-  };
+  const handleSetPreviewMode = useCallback(
+    (mode: PreviewMode): void => {
+      setPreviewMode(mode);
+      streamerPreferences.setPreviewMode(mode);
+      updateUrl(viewMode, mode, streamerOptions);
+    },
+    [viewMode, streamerOptions, streamerPreferences, teamColors],
+  );
 
-  const handleSetStreamerOptions = (options: StreamerOptions): void => {
-    setStreamerOptions(options);
-    streamerPreferences.setStreamerOptions(options);
-    updateUrl(viewMode, previewMode, options);
-  };
+  const handleSetStreamerOptions = useCallback(
+    (options: StreamerOptions): void => {
+      setStreamerOptions(options);
+      streamerPreferences.setStreamerOptions(options);
+      updateUrl(viewMode, previewMode, options);
+    },
+    [viewMode, previewMode, streamerPreferences, teamColors],
+  );
 
-  const handleSetTeamColor = (teamIndex: number, colorId: string): void => {
-    teamColors.setTeamColor(teamIndex, colorId);
-    updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
-  };
+  const handleSetTeamColor = useCallback(
+    (teamIndex: number, colorId: string): void => {
+      teamColors.setTeamColor(teamIndex, colorId);
+      updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
+    },
+    [viewMode, previewMode, streamerOptions, teamColors],
+  );
 
-  const hasMatches = model.state != null && model.state.matches.length > 0;
-
-  // Sort substitutions by timestamp for rendering between matches
-  const sortedSubstitutions = useMemo(() => {
-    if (!model.state) {
+  // Sort substitutions by timestamp for rendering between matches (memoized)
+  const sortedSubstitutionsList = useMemo(() => {
+    if (!sortedSubstitutions) {
       return [];
     }
-    return [...model.state.substitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
-  }, [model.state]);
+    return [...sortedSubstitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
+  }, [sortedSubstitutions]);
 
-  const allMatchStats = useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
-    if (!model.state) {
+  // Memoize team colors array to prevent unnecessary re-renders
+  const teamColorsArray = useMemo(() => {
+    if (!state) {
       return [];
     }
-
-    return model.state.matches.map((match) => {
-      if (match.rawMatchStats == null) {
-        return { matchId: match.matchId, data: null };
-      }
-
-      try {
-        const matchStats = match.rawMatchStats;
-        const presenter = createMatchStatsPresenter(matchStats.MatchInfo.GameVariantCategory);
-        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return { matchId: match.matchId, data: presenter.getData(matchStats, playerMap, model.state?.medalMetadata) };
-      } catch (error) {
-        console.error("Error processing match stats:", error);
-        return { matchId: match.matchId, data: null };
-      }
-    });
-  }, [model.state]);
-
-  const seriesStats = useMemo((): {
-    teamData: MatchStatsData[];
-    playerData: MatchStatsData[];
-    metadata: SeriesMetadata | null;
-  } | null => {
-    if (!model.state || model.state.matches.length === 0) {
-      return null;
-    }
-
-    const rawMatchStats = model.state.matches
-      .map((match) => match.rawMatchStats)
-      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
-
-    if (rawMatchStats.length === 0) {
-      return null;
-    }
-
-    try {
-      const teamPresenter = new SeriesTeamStatsPresenter();
-      const playerPresenter = new SeriesPlayerStatsPresenter();
-
-      const allPlayerXuidToGametag = new Map<string, string>();
-      for (const match of model.state.matches) {
-        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-          allPlayerXuidToGametag.set(xuid, gamertag);
-        }
-      }
-
-      const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
-
-      return {
-        teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
-        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
-        metadata,
-      };
-    } catch (error) {
-      console.error("Error processing series stats:", error);
-      return null;
-    }
-  }, [model.state]);
+    return state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx));
+  }, [state, teamColors]);
 
   // Set body data attribute for streamer mode styling
   useEffect(() => {
@@ -271,23 +234,20 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
     };
   }, [viewMode]);
 
-  const title: string[] = [model.guildNameText];
-  if (model.state) {
-    title.push(`#${model.state.queueNumber.toString()}`);
-    title.push(`(${model.state.seriesScore})`);
+  const title: string[] = [trackerInfo.guildNameText];
+  if (state) {
+    title.push(`#${state.queueNumber.toString()}`);
+    title.push(`(${state.seriesScore})`);
   }
   title.push("| Live Tracker - Guilty Spark");
 
   // Render streamer overlay if in streamer mode
-  if (viewMode === "streamer" && model.state) {
+  if (viewMode === "streamer" && state) {
     return (
       <>
         <title>{title.join(" ")}</title>
         <StreamerOverlay
-          model={model}
-          teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
-          allMatchStats={allMatchStats}
-          seriesStats={seriesStats}
+          teamColors={teamColorsArray}
           gameModeIconUrl={gameModeIconSrc}
           viewMode={viewMode}
           onViewModeSelect={handleSetViewMode}
@@ -306,9 +266,9 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{model.guildNameText}</h1>
+            <h1 className={styles.headerTitle}>{trackerInfo.guildNameText}</h1>
             <div className={styles.headerSubtitle}>
-              Queue #{model.state ? model.state.queueNumber.toString() : model.queueNumberText}
+              Queue #{state ? state.queueNumber.toString() : trackerInfo.queueNumberText}
             </div>
           </div>
 
@@ -316,13 +276,13 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
             <div className={styles.headerMetaRow}>
               <span className={styles.headerMetaLabel}>Last updated</span>
               <span className={styles.headerMetaValue}>
-                {model.state ? <ReactTimeAgo date={new Date(model.state.lastUpdateTime)} locale="en" /> : "-"}
+                {state ? <ReactTimeAgo date={new Date(state.lastUpdateTime)} locale="en" /> : "-"}
               </span>
             </div>
             <div className={styles.headerMetaRow}>
               <span className={styles.headerMetaLabel}>Status</span>
-              <span id="status-text" className={classNames(styles.headerMetaValue, model.statusClassName)}>
-                {model.statusText}
+              <span id="status-text" className={classNames(styles.headerMetaValue, trackerInfo.statusClassName)}>
+                {trackerInfo.statusText}
               </span>
             </div>
           </div>
@@ -338,13 +298,13 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
           streamerOptions={streamerOptions}
           onStreamerOptionsChange={handleSetStreamerOptions}
         />
-        {model.state?.status === "stopped" ? (
+        {state?.status === "stopped" ? (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">The series has completed. Tracker stopped.</Alert>
           </Container>
         ) : null}
 
-        {model.state ? (
+        {state ? (
           <>
             <Container className={classNames(styles.contentContainer, styles[viewMode])}>
               <h2 className={styles.sectionTitle}>Series overview</h2>
@@ -353,10 +313,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   {hasMatches ? (
                     <>
                       <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                        {model.state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
+                        {state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
                       </h3>
                       <ul className={styles.seriesScoresList}>
-                        {model.state.matches.map((match) => {
+                        {state.matches.map((match) => {
                           // Determine winning team for overlay color
                           let winningTeamIndex: number | null = null;
                           if (match.rawMatchStats) {
@@ -407,7 +367,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                     </div>
                   )}
                 </section>
-                {model.state.teams.map((team, teamIndex) => {
+                {state.teams.map((team, teamIndex) => {
                   const teamColor = teamColors.getTeamColorForTeam(teamIndex);
 
                   return (
@@ -426,7 +386,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                       <h3 className={styles.teamName}>{team.name}</h3>
                       <ul className={styles.playerList}>
                         {team.players.map((player) => {
-                          const playerData = model.state?.playersAssociationData?.[player.id];
+                          const playerData = state.playersAssociationData?.[player.id];
                           return (
                             <li key={player.id}>
                               <PlayerName
@@ -450,7 +410,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   playerData={seriesStats.playerData}
                   title="Series Totals"
                   metadata={seriesStats.metadata}
-                  teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+                  teamColors={teamColorsArray}
                 />
               </Container>
             )}
@@ -463,10 +423,10 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   const elements: React.ReactElement[] = [];
                   let substitutionIndex = 0;
 
-                  for (const [matchIndex, match] of model.state.matches.entries()) {
+                  for (const [matchIndex, match] of state.matches.entries()) {
                     // Add any substitutions that occurred before this match
-                    while (substitutionIndex < sortedSubstitutions.length) {
-                      const substitution = sortedSubstitutions[substitutionIndex];
+                    while (substitutionIndex < sortedSubstitutionsList.length) {
+                      const substitution = sortedSubstitutionsList[substitutionIndex];
                       if (new Date(match.endTime) < new Date(substitution.timestamp)) {
                         break;
                       }
@@ -507,7 +467,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                             score={match.gameScore}
                             startTime={match.startTime}
                             endTime={match.endTime}
-                            teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+                            teamColors={teamColorsArray}
                           />
                         </Container>
                       ) : (
@@ -522,8 +482,8 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                   }
 
                   // Add any remaining substitutions that occurred after the last match
-                  while (substitutionIndex < sortedSubstitutions.length) {
-                    const substitution = sortedSubstitutions[substitutionIndex];
+                  while (substitutionIndex < sortedSubstitutionsList.length) {
+                    const substitution = sortedSubstitutionsList[substitutionIndex];
                     elements.push(
                       <Container
                         key={`sub-${substitution.timestamp}`}
@@ -542,17 +502,17 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
                 })()}
               </>
             )}
-            {!hasMatches && model.state.playersAssociationData ? (
+            {!hasMatches && state.playersAssociationData ? (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
-                teams={model.state.teams}
-                playersAssociationData={model.state.playersAssociationData}
-                teamColors={model.state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx))}
+                teams={state.teams}
+                playersAssociationData={state.playersAssociationData}
+                teamColors={teamColorsArray}
               />
             ) : null}
-            {!hasMatches && sortedSubstitutions.length > 0 && (
+            {!hasMatches && sortedSubstitutionsList.length > 0 && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                {sortedSubstitutions.map((substitution) => (
+                {sortedSubstitutionsList.map((substitution) => (
                   <Alert key={substitution.timestamp} variant="info" icon="↔️">
                     <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
                     <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
@@ -563,7 +523,7 @@ export function LiveTrackerView({ model }: LiveTrackerProps): React.ReactElement
           </>
         ) : (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-            <Alert variant="info">{model.statusText}</Alert>
+            <Alert variant="info">{trackerInfo.statusText}</Alert>
           </Container>
         )}
       </Container>
