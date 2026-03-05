@@ -1,7 +1,13 @@
-export interface LiveTrackerIdentity {
-  readonly guildId: string;
-  readonly queueNumber: string;
-}
+export type LiveTrackerIdentity =
+  | {
+      readonly type: "team";
+      readonly guildId: string;
+      readonly queueNumber: string;
+    }
+  | {
+      readonly type: "individual";
+      readonly gamertag: string;
+    };
 
 export type LiveTrackerStatus = "active" | "paused" | "stopped";
 

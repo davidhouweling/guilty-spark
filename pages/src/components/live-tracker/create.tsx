@@ -13,7 +13,7 @@ import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
-import { LiveTrackerStore } from "./live-tracker-store";
+import { LiveTrackerStore, type LiveTrackerParams } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
@@ -27,6 +27,23 @@ interface LiveTrackerFactoryProps {
 }
 
 TimeAgo.addDefaultLocale(en);
+
+// Helper function to compare params
+function areParamsEqual(prev: LiveTrackerParams, curr: LiveTrackerParams): boolean {
+  if (prev.type !== curr.type) {
+    return false;
+  }
+
+  if (prev.type === "team" && curr.type === "team") {
+    return prev.server === curr.server && prev.queue === curr.queue;
+  }
+
+  if (prev.type === "individual" && curr.type === "individual") {
+    return prev.gamertag === curr.gamertag;
+  }
+
+  return false;
+}
 
 // Helper function to deeply compare state messages, ignoring timestamps
 function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerMessage | null): boolean {
@@ -221,8 +238,7 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     const hasChanged =
       prev.connectionState !== curr.connectionState ||
       prev.statusText !== curr.statusText ||
-      prev.params.server !== curr.params.server ||
-      prev.params.queue !== curr.params.queue ||
+      !areParamsEqual(prev.params, curr.params) ||
       prev.hasConnection !== curr.hasConnection ||
       prev.hasReceivedInitialData !== curr.hasReceivedInitialData ||
       // Deep check the state message data

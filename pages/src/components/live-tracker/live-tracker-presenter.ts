@@ -16,7 +16,7 @@ interface Config {
 }
 
 export class LiveTrackerPresenter {
-  public static readonly usageText = "Usage: /tracker?server=123&queue=1";
+  public static readonly usageText = "Usage: /tracker?server=123&queue=1 or /tracker?gamertag=YourGamertag";
 
   private readonly config: Config;
 
@@ -37,14 +37,22 @@ export class LiveTrackerPresenter {
 
   public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
-    const queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
 
-    const guildNameText =
-      lastStateMessage?.type === "state"
-        ? lastStateMessage.data.guildName
-        : params.server.length > 0
-          ? `Guild ${params.server}`
-          : "Not set";
+    let queueNumberText: string;
+    let guildNameText: string;
+
+    if (params.type === "team") {
+      queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
+      guildNameText =
+        lastStateMessage?.type === "state"
+          ? lastStateMessage.data.guildName
+          : params.server.length > 0
+            ? `Guild ${params.server}`
+            : "Not set";
+    } else {
+      queueNumberText = "Individual";
+      guildNameText = params.gamertag.length > 0 ? params.gamertag : "Not set";
+    }
 
     let statusClassName = "";
     if (connectionState === "connected") {
@@ -71,20 +79,39 @@ export class LiveTrackerPresenter {
   }
 
   private static parseParamsFromUrl(url: URL): LiveTrackerParams {
+    const gamertag = url.searchParams.get("gamertag");
+    if (gamertag !== null && gamertag.length > 0) {
+      return {
+        type: "individual",
+        gamertag,
+      };
+    }
+
     return {
+      type: "team",
       server: url.searchParams.get("server") ?? "",
       queue: url.searchParams.get("queue") ?? "",
     };
   }
 
   private static canConnect(params: LiveTrackerParams): boolean {
-    return params.server.length > 0 && params.queue.length > 0;
+    if (params.type === "team") {
+      return params.server.length > 0 && params.queue.length > 0;
+    }
+    return params.gamertag.length > 0;
   }
 
   private static toIdentity(params: LiveTrackerParams): LiveTrackerIdentity {
+    if (params.type === "team") {
+      return {
+        type: "team",
+        guildId: params.server,
+        queueNumber: params.queue,
+      };
+    }
     return {
-      guildId: params.server,
-      queueNumber: params.queue,
+      type: "individual",
+      gamertag: params.gamertag,
     };
   }
 

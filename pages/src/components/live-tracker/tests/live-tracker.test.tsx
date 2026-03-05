@@ -63,6 +63,7 @@ describe("LiveTracker", () => {
     const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
 
     const identity = {
+      type: "team" as const,
       guildId: "1",
       queueNumber: "3",
     };
