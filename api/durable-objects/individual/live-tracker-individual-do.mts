@@ -22,6 +22,7 @@ import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
 import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
+import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
 import type {
   LiveTrackerIndividualStartRequest,
   LiveTrackerIndividualState,
@@ -57,12 +58,14 @@ const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
 export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
+  private readonly env: Env;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
 
   constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
+    this.env = env;
 
     const services = installServices({ env });
     this.logService = services.logService;
@@ -702,7 +705,10 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       // Get full match details
       const matches = await this.haloService.getMatchDetails(selectedMatchIds);
 
-      await this.enrichAndMergeIndividualMatches(trackerState, matches);
+      // Check if player is in an active NeatQueue series
+      const activeSeriesId = await this.findPlayerActiveSeriesId(trackerState.xuid);
+
+      await this.enrichAndMergeIndividualMatches(trackerState, matches, activeSeriesId ?? undefined);
 
       return Object.values(trackerState.discoveredMatches);
     } catch (error) {
@@ -715,9 +721,78 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
   }
 
+  private async findPlayerActiveSeriesId(xuid: string): Promise<{ guildId: string; queueNumber: number } | null> {
+    try {
+      // Query KV storage for active NeatQueue instances
+      // Queue state is stored at: neatqueue:state:{guildId}:{queueNumber}
+      const kvList = await this.env.APP_DATA.list<null>({
+        prefix: "neatqueue:state:",
+      });
+
+      for (const kv of kvList.keys) {
+        try {
+          // Extract guild ID and queue number from key: neatqueue:state:{guildId}:{queueNumber}
+          const parts = kv.name.split(":");
+          if (parts.length !== 4) {
+            continue;
+          }
+
+          const [, , guildId = "", queueNumberStr = ""] = parts;
+          if (guildId === "" || queueNumberStr === "") {
+            continue;
+          }
+
+          const queueNumber = parseInt(queueNumberStr, 10);
+          if (Number.isNaN(queueNumber)) {
+            continue;
+          }
+
+          // Fetch the NeatQueueState which contains the timeline
+          const queueState = await this.env.APP_DATA.get<NeatQueueState>(kv.name, {
+            type: "json",
+          });
+
+          if (queueState?.playersAssociationData == null) {
+            continue;
+          }
+
+          for (const playerAssociationData of Object.values(queueState.playersAssociationData)) {
+            if (playerAssociationData.xboxId === xuid) {
+              this.logService.debug(
+                "Player association found in NeatQueue state",
+                new Map([
+                  ["xuid", xuid],
+                  ["guildId", guildId],
+                  ["queueNumber", queueNumber.toString()],
+                ]),
+              );
+
+              return { guildId, queueNumber };
+            }
+          }
+        } catch {
+          // Skip this KV entry and continue checking others
+          continue;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      this.logService.warn(
+        "Error querying active NeatQueue series",
+        new Map([
+          ["error", String(error)],
+          ["xuid", xuid],
+        ]),
+      );
+      return null;
+    }
+  }
+
   private async enrichAndMergeIndividualMatches(
     trackerState: LiveTrackerIndividualState,
     matches: MatchStats[],
+    seriesId?: { guildId: string; queueNumber: number },
   ): Promise<void> {
     for (const match of matches) {
       if (trackerState.discoveredMatches[match.MatchId] != null) {
@@ -784,10 +859,13 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
     }
 
-    this.updateMatchGroupings(trackerState);
+    this.updateMatchGroupings(trackerState, seriesId);
   }
 
-  private updateMatchGroupings(trackerState: LiveTrackerIndividualState): void {
+  private updateMatchGroupings(
+    trackerState: LiveTrackerIndividualState,
+    seriesId?: { guildId: string; queueNumber: number },
+  ): void {
     // Group consecutive custom/local games with same participants
     const groupings: Record<
       string,
@@ -795,6 +873,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         groupId: string;
         matchIds: string[];
         participants: string[];
+        seriesId?: { guildId: string; queueNumber: number };
       }
     > = {};
 
@@ -836,6 +915,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           groupId: currentGroupId,
           matchIds: [match.MatchId],
           participants: Array.from(participants),
+          ...(seriesId && { seriesId }),
         };
       }
     }
@@ -986,6 +1066,37 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const guild = await this.discordService.getGuild(state.guildId);
     const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
+    const matchGroupings = Object.entries(state.matchGroupings).reduce<
+      Record<
+        string,
+        {
+          groupId: string;
+          matchIds: string[];
+          seriesId?: {
+            guildId: string;
+            queueNumber: number;
+          };
+        }
+      >
+    >((acc, [groupId, grouping]) => {
+      const groupData: {
+        groupId: string;
+        matchIds: string[];
+        seriesId?: {
+          guildId: string;
+          queueNumber: number;
+        };
+      } = {
+        groupId: grouping.groupId,
+        matchIds: grouping.matchIds,
+      };
+      if (grouping.seriesId !== undefined) {
+        groupData.seriesId = grouping.seriesId;
+      }
+      acc[groupId] = groupData;
+      return acc;
+    }, {});
+
     return {
       guildId: state.guildId,
       guildName: guild.name,
@@ -1001,6 +1112,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
+      matchGroupings,
     };
   }
 

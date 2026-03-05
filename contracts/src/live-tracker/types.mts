@@ -64,6 +64,17 @@ export interface LiveTrackerStateData {
   readonly lastUpdateTime: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly matchGroupings?: Record<
+    string,
+    {
+      groupId: string;
+      matchIds: readonly string[];
+      seriesId?: {
+        guildId: string;
+        queueNumber: number;
+      };
+    }
+  >;
 }
 
 export interface LiveTrackerStateMessage {

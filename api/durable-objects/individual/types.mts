@@ -67,6 +67,10 @@ export interface LiveTrackerIndividualState {
       groupId: string;
       matchIds: string[];
       participants: string[]; // Player XUIDs in this group
+      seriesId?: {
+        guildId: string;
+        queueNumber: number;
+      };
     }
   >;
   channelManagePermissionCache?: boolean;
