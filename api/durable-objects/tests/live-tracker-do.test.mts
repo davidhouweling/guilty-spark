@@ -136,7 +136,7 @@ const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken">
       playerIds: ["player2"],
     },
   ],
-  playersAssociationData: null,
+  playersAssociationData: {},
 });
 
 const createMockStartData = (): LiveTrackerStartRequest => ({
@@ -165,7 +165,7 @@ const createMockTrackerState = (): LiveTrackerState => ({
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
 });
 
 const aMatchSummaryWith = (
@@ -220,7 +220,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
   ...overrides,
 });
 
@@ -259,7 +259,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
   ...overrides,
 });
 
@@ -1241,7 +1241,7 @@ describe("LiveTrackerDO", () => {
           matchCount: 0,
           substitutionCount: 0,
         },
-        playersAssociationData: null,
+        playersAssociationData: {},
       };
       storageGetSpy.mockResolvedValue(trackerState);
 

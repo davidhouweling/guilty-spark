@@ -401,7 +401,7 @@ describe("NeatQueueService", () => {
           const stateJson = call[1] as string;
           try {
             const state = JSON.parse(stateJson) as NeatQueueState;
-            return state.playersAssociationData != null;
+            return Object.entries(state.playersAssociationData).length > 0;
           } catch {
             return false;
           }
@@ -414,12 +414,12 @@ describe("NeatQueueService", () => {
         const state = JSON.parse(stateJson) as NeatQueueState;
 
         // Should have association data for both players
-        expect(Object.keys(state.playersAssociationData ?? {})).toEqual(
+        expect(Object.keys(state.playersAssociationData)).toEqual(
           expect.arrayContaining(["discord_user_01", "discord_user_02"]),
         );
 
         // Verify structure of one player's data
-        const rawPlayerData = state.playersAssociationData?.["discord_user_01"];
+        const rawPlayerData = state.playersAssociationData["discord_user_01"];
         const playerData = Preconditions.checkExists(rawPlayerData, "Player data should exist for discord_user_01");
         expect(playerData.discordId).toBe("discord_user_01");
         expect(typeof playerData.discordName).toBe("string");

@@ -473,15 +473,14 @@ export class NeatQueueService {
         throw insufficientPermissionsError;
       }
 
-      if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
         const { associationData, embedData } = await this.fetchPlayersAssociationData(request.players);
+      await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
 
+      if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
         const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players, embedData);
         if (playersPostMessage) {
           const message = await discordService.createMessage(request.channel, playersPostMessage);
           await this.storePlayersMessageId(request, neatQueueConfig, message.id);
-
-          await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
         }
       }
 

@@ -120,7 +120,7 @@ export type NeatQueueTimelineRequest =
 export interface NeatQueueState {
   timeline: NeatQueueTimelineEvent[];
   playersMessageId: string | null;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
+  playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 export interface FetchedPlayersData {

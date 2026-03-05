@@ -49,13 +49,14 @@ interface StartTrackerOpts {
   players: Record<string, APIGuildMember>;
   teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
+  playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 interface RecordSubstitutionOpts {
   context: LiveTrackerContext;
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 interface RepostTrackerOpts {
@@ -80,6 +81,7 @@ interface SafeRecordSubstitutionOpts {
   queueNumber: number;
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 interface HandleRefreshCooldownOpts {
@@ -267,6 +269,7 @@ export class LiveTrackerService {
     context,
     playerOutId,
     playerInId,
+    playerAssociationData,
   }: RecordSubstitutionOpts): Promise<LiveTrackerSubstitutionResponse> {
     this.logService.info(
       "LiveTrackerService: Recording substitution",
@@ -283,6 +286,7 @@ export class LiveTrackerService {
     const substitutionData: LiveTrackerSubstitutionRequest = {
       playerOutId,
       playerInId,
+      playerAssociationData,
     };
 
     const response = await doStub.fetch("http://do/substitution", {
@@ -426,6 +430,7 @@ export class LiveTrackerService {
     queueNumber,
     playerOutId,
     playerInId,
+    playerAssociationData,
   }: SafeRecordSubstitutionOpts): Promise<boolean> {
     const context: LiveTrackerContext = {
       userId: "",
@@ -441,7 +446,7 @@ export class LiveTrackerService {
         return false;
       }
 
-      await this.recordSubstitution({ context, playerOutId, playerInId });
+      await this.recordSubstitution({ context, playerOutId, playerInId, playerAssociationData });
       return true;
     } catch (error) {
       this.logService.warn(

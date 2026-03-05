@@ -2,6 +2,7 @@ import type { MockInstance, MockedFunction } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { APIGuildMember, APIMessageComponentButtonInteraction } from "discord-api-types/v10";
 import { GuildMemberFlags } from "discord-api-types/v10";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/contracts/live-tracker/fakes/data";
 import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker.mjs";
 import type { LogService } from "../../log/types.mjs";
 import type { DiscordService } from "../../discord/discord.mjs";
@@ -92,7 +93,7 @@ describe("LiveTrackerService", () => {
       matchCount: 0,
       substitutionCount: 0,
     },
-    playersAssociationData: null,
+    playersAssociationData: {},
   };
 
   const aFakeResponseWith = (response: Partial<Response> = {}): Response => {
@@ -193,7 +194,7 @@ describe("LiveTrackerService", () => {
         players: players,
         teams: teams,
         queueStartTime: "2024-01-01T00:00:00.000Z",
-        playersAssociationData: null,
+        playersAssociationData: {},
       });
 
       expect(result).toEqual(mockResponse);
@@ -208,7 +209,7 @@ describe("LiveTrackerService", () => {
           players: players,
           teams: teams,
           queueStartTime: "2024-01-01T00:00:00.000Z",
-          playersAssociationData: null,
+          playersAssociationData: {},
         }),
       });
       expect(infoSpy).toHaveBeenCalledWith("LiveTrackerService: Starting live tracker", expect.any(Map));
@@ -235,7 +236,7 @@ describe("LiveTrackerService", () => {
         teams: teams,
         queueStartTime: "2024-01-01T00:00:00.000Z",
         interactionToken: "test-token",
-        playersAssociationData: null,
+        playersAssociationData: {},
       });
 
       expect(fetch).toHaveBeenCalledWith(
@@ -263,7 +264,7 @@ describe("LiveTrackerService", () => {
           players: players,
           teams: teams,
           queueStartTime: "2024-01-01T00:00:00.000Z",
-          playersAssociationData: null,
+          playersAssociationData: {},
         }),
       ).rejects.toThrow("Failed to start live tracker: 500");
 
@@ -449,6 +450,7 @@ describe("LiveTrackerService", () => {
         context: liveTrackerContext,
         playerOutId: "player-out",
         playerInId: "player-in",
+        playerAssociationData: aFakePlayerAssociationDataWith(),
       });
 
       expect(result).toEqual(mockResponse);
@@ -458,6 +460,20 @@ describe("LiveTrackerService", () => {
         body: JSON.stringify({
           playerOutId: "player-out",
           playerInId: "player-in",
+          playerAssociationData: {
+            discordId: "1189356946680188960",
+            discordName: "isydneyzz",
+            xboxId: "2535433357884073",
+            gamertag: "iSydneyzz",
+            currentRank: 1500,
+            currentRankTier: "Platinum",
+            currentRankSubTier: 3,
+            currentRankMeasurementMatchesRemaining: 0,
+            currentRankInitialMeasurementMatches: 10,
+            allTimePeakRank: 1630,
+            esra: 1234,
+            lastRankedGamePlayed: "2026-02-15T18:30:45.000Z",
+          },
         }),
       });
     });
@@ -475,6 +491,7 @@ describe("LiveTrackerService", () => {
           context: liveTrackerContext,
           playerOutId: "player-out",
           playerInId: "player-in",
+          playerAssociationData: aFakePlayerAssociationDataWith(),
         }),
       ).rejects.toThrow("Failed to record substitution: 400");
     });
@@ -728,6 +745,7 @@ describe("LiveTrackerService", () => {
         queueNumber: 42,
         playerOutId: "player-out",
         playerInId: "player-in",
+        playerAssociationData: aFakePlayerAssociationDataWith(),
       });
 
       expect(result).toBe(true);
@@ -748,6 +766,7 @@ describe("LiveTrackerService", () => {
         queueNumber: 42,
         playerOutId: "player-out",
         playerInId: "player-in",
+        playerAssociationData: aFakePlayerAssociationDataWith(),
       });
 
       expect(result).toBe(false);
@@ -763,6 +782,7 @@ describe("LiveTrackerService", () => {
         queueNumber: 42,
         playerOutId: "player-out",
         playerInId: "player-in",
+        playerAssociationData: aFakePlayerAssociationDataWith(),
       });
 
       expect(result).toBe(false);

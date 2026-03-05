@@ -266,7 +266,7 @@ export class TrackCommand extends BaseCommand {
             }, {}),
             teams,
             queueStartTime: activeQueueData.timestamp.toISOString(),
-            playersAssociationData: null,
+            playersAssociationData: {},
           });
         } catch (error) {
           if (error instanceof EndUserError) {
@@ -529,7 +529,7 @@ export class TrackCommand extends BaseCommand {
         interactionToken: interaction.token,
         searchStartTime: new Date().toISOString(),
         selectedGameIds,
-        playersAssociationData: null,
+        playersAssociationData: {},
       };
 
       await this.services.liveTrackerService.startTrackerIndividual(startRequest);

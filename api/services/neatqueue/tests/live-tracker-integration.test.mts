@@ -134,7 +134,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -162,7 +162,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
         ],
         queueStartTime: "2024-11-26T10:48:00.000Z",
-        playersAssociationData: null,
+        playersAssociationData: {},
       });
     });
 
@@ -353,7 +353,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -386,6 +386,20 @@ describe("NeatQueueService Live Tracker Integration", () => {
         },
         playerOutId: mockRequest.player_subbed_out.id,
         playerInId: mockRequest.player_subbed_in.id,
+        playerAssociationData: {
+          allTimePeakRank: null,
+          currentRank: null,
+          currentRankInitialMeasurementMatches: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankSubTier: null,
+          currentRankTier: null,
+          discordId: "discord_user_03",
+          discordName: "discord_user_03",
+          esra: null,
+          gamertag: null,
+          lastRankedGamePlayed: null,
+          xboxId: null,
+        },
       });
     });
 
@@ -438,7 +452,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -482,7 +496,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -522,7 +536,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -555,6 +569,20 @@ describe("NeatQueueService Live Tracker Integration", () => {
         },
         playerOutId: mockRequest.player_subbed_out.id,
         playerInId: mockRequest.player_subbed_in.id,
+        playerAssociationData: {
+          allTimePeakRank: null,
+          currentRank: null,
+          currentRankInitialMeasurementMatches: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankSubTier: null,
+          currentRankTier: null,
+          discordId: "discord_user_03",
+          discordName: "discord_user_03",
+          esra: null,
+          gamertag: null,
+          lastRankedGamePlayed: null,
+          xboxId: null,
+        },
       });
     });
 
@@ -588,7 +616,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -651,7 +679,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -683,7 +711,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 

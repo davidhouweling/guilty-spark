@@ -131,7 +131,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     rawMatches: sampleRawMatches,
     seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
-    playersAssociationData: null,
+    playersAssociationData: {},
     medalMetadata: {
       269174970: { name: "Boxer", sortingWeight: 50 },
       548533137: { name: "Back Smack", sortingWeight: 50 },

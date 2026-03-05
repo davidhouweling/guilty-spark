@@ -18,12 +18,13 @@ export interface LiveTrackerStartRequest {
   players: Record<string, APIGuildMember>;
   teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
+  playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 export interface LiveTrackerSubstitutionRequest {
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 export interface LiveTrackerRefreshRequest {
@@ -48,6 +49,7 @@ export interface LiveTrackerState {
   searchStartTime: string;
   checkCount: number;
   players: Record<string, APIGuildMember>;
+  playersAssociationData: Record<string, PlayerAssociationData>;
   teams: {
     name: string;
     playerIds: string[];
@@ -76,7 +78,6 @@ export interface LiveTrackerState {
   lastRefreshAttempt?: string;
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 // Success response types

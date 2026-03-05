@@ -145,7 +145,7 @@ describe("TrackCommand", () => {
               matchCount: 0,
               substitutionCount: 0,
             },
-            playersAssociationData: null,
+            playersAssociationData: {},
           },
         });
 
@@ -198,7 +198,7 @@ describe("TrackCommand", () => {
             },
           ],
           queueStartTime: "2024-11-26T11:30:00.000Z",
-          playersAssociationData: null,
+          playersAssociationData: {},
         });
       });
 

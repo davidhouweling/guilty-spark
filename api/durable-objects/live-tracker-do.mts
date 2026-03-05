@@ -596,7 +596,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId } = await request.json<LiveTrackerSubstitutionRequest>();
+    const { playerOutId, playerInId, playerAssociationData } = await request.json<LiveTrackerSubstitutionRequest>();
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -641,6 +641,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
       targetTeam.playerIds[playerIndex] = playerInId;
       trackerState.players[playerInId] = newPlayerMember;
+      trackerState.playersAssociationData = {
+        ...trackerState.playersAssociationData,
+        [playerInId]: playerAssociationData,
+      };
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
 
