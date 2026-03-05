@@ -64,6 +64,60 @@ export class Server {
       }
     });
 
+    this.router.get("/ws/tracker/individual/:gamertag", async (request, env: Env) => {
+      try {
+        // Extract gamertag parameter from itty-router
+        const { gamertag } = request.params as {
+          gamertag: string;
+        };
+
+        if (gamertag === "") {
+          return new Response("Missing required parameter: gamertag", { status: 400 });
+        }
+
+        // Check if Individual DO binding exists
+        if (!env.LIVE_TRACKER_INDIVIDUAL_DO) {
+          console.error("LIVE_TRACKER_INDIVIDUAL_DO binding not configured");
+          return new Response("Individual tracker not available", { status: 503 });
+        }
+
+        // Resolve gamertag to XUID via Xbox service
+        const services = this.installServices({ env });
+        const { xboxService } = services;
+
+        let xboxUserInfo;
+        try {
+          xboxUserInfo = await xboxService.getUserByGamertag(gamertag);
+        } catch (error) {
+          services.logService.warn(
+            "Failed to resolve gamertag to XUID",
+            new Map([
+              ["gamertag", gamertag],
+              ["error", String(error)],
+            ]),
+          );
+          return new Response(`User with gamertag ${gamertag} not found`, { status: 404 });
+        }
+
+        // Get the Individual DO stub using XUID as the ID name
+        const doId = env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(xboxUserInfo.xuid);
+        const stub = env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
+
+        // Forward the WebSocket upgrade request to the DO
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/websocket";
+
+        return await stub.fetch(
+          new Request(doUrl.toString(), {
+            headers: request.headers,
+          }),
+        );
+      } catch (error) {
+        console.error("Individual tracker WebSocket route error:", error);
+        return new Response("Internal Server Error", { status: 500 });
+      }
+    });
+
     this.router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
       try {
         const services = this.installServices({ env });
