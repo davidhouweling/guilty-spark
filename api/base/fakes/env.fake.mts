@@ -1,5 +1,5 @@
 import { aFakeDurableObjectId, aFakeLiveTrackerDOWith } from "../../durable-objects/fakes/live-tracker-do.fake.mjs";
-import type { LiveTrackerDO } from "../../worker.mjs";
+import type { LiveTrackerDO, LiveTrackerIndividualDO } from "../../worker.mjs";
 
 const fakeNamespace = (): KVNamespace =>
   ({
@@ -62,6 +62,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
 
   const defaultOpts: Env = {
     HOST_URL: "https://dev-api.guilty-spark.app",
+    PAGES_URL: "https://dev.guilty-spark.app",
     MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",
@@ -81,6 +82,14 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
       get: () => liveTrackerGet,
       jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
     } as DurableObjectNamespace<LiveTrackerDO>,
+    LIVE_TRACKER_INDIVIDUAL_DO: {
+      idFromName: () => liveTrackerDOId,
+      idFromString: () => liveTrackerDOId,
+      newUniqueId: () => liveTrackerDOId,
+      getByName: () => liveTrackerGet,
+      get: () => liveTrackerGet,
+      jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerIndividualDO>,
+    } as DurableObjectNamespace<LiveTrackerIndividualDO>,
   };
 
   return {

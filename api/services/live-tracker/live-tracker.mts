@@ -518,7 +518,7 @@ export class LiveTrackerService {
    */
   createErrorFallbackEmbed(context: LiveTrackerContext, status: "active" | "paused" | "stopped"): LiveTrackerEmbed {
     return new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: context.userId,
         guildId: context.guildId,
@@ -566,12 +566,12 @@ export class LiveTrackerService {
     additionalTime,
   }: CreateLiveTrackerEmbedFromResultOpts): LiveTrackerEmbed {
     if (embedData != null) {
-      return new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
+      return new LiveTrackerEmbed({ discordService: this.discordService, pagesUrl: this.env.PAGES_URL }, embedData);
     }
 
     const currentTime = new Date();
     return new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: context.userId,
         guildId: context.guildId,
@@ -599,10 +599,6 @@ export class LiveTrackerService {
    * Resolves gamertag to XUID and returns the DO stub
    */
   async getIndividualTrackerDOStub(gamertag: string): Promise<DurableObjectStub<LiveTrackerIndividualDO>> {
-    if (!this.env.LIVE_TRACKER_INDIVIDUAL_DO) {
-      throw new Error("LIVE_TRACKER_INDIVIDUAL_DO binding not configured");
-    }
-
     const userInfo = await this.haloService.getUserByGamertag(gamertag);
     const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(userInfo.xuid);
     return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);

@@ -23,6 +23,7 @@ export enum InteractionComponent {
 
 interface LiveTrackerEmbedServices {
   discordService: DiscordService;
+  pagesUrl: string;
 }
 
 export class LiveTrackerEmbed extends BaseTableEmbed {
@@ -251,7 +252,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get actions(): APIMessageTopLevelComponent[] {
-    const { status, guildId, queueNumber, isPaused } = this.data;
+    const { status, guildId, queueNumber, trackerLabel, isPaused } = this.data;
     const components: APIButtonComponentWithCustomId[] = [];
 
     if (status !== "stopped") {
@@ -277,6 +278,12 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         : [];
 
     if (actions.length > 0) {
+      // Determine URL format based on tracker type
+      const isIndividualTracker = trackerLabel != null && trackerLabel !== "";
+      const webUrl = isIndividualTracker
+        ? `${this.services.pagesUrl}/tracker?gamertag=${encodeURIComponent(trackerLabel)}`
+        : `${this.services.pagesUrl}/tracker?server=${guildId}&queue=${queueNumber.toString()}`;
+
       actions.push({
         type: ComponentType.ActionRow,
         components: [
@@ -288,7 +295,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
             emoji: {
               name: "📈",
             },
-            url: `https://guilty-spark.app/tracker?server=${guildId}&queue=${queueNumber.toString()}`,
+            url: webUrl,
           },
         ],
       });

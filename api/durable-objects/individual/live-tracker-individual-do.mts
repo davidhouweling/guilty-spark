@@ -279,7 +279,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       trackerState.seriesScore = seriesScore;
 
       const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService: this.discordService },
+        { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
         {
           userId: body.userId,
           guildId: body.guildId,
@@ -637,7 +637,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     trackerState.seriesScore = seriesScore;
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: trackerState.userId,
         guildId: trackerState.guildId,

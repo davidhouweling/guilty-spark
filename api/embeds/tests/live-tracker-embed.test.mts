@@ -55,7 +55,10 @@ describe("LiveTrackerEmbed", () => {
   };
 
   const createLiveTrackerEmbed = (overrides: Partial<LiveTrackerEmbedData> = {}): LiveTrackerEmbed => {
-    return new LiveTrackerEmbed({ discordService }, { ...baseEmbedData, ...overrides });
+    return new LiveTrackerEmbed(
+      { discordService, pagesUrl: "https://test.example.com" },
+      { ...baseEmbedData, ...overrides },
+    );
   };
 
   beforeEach(() => {
@@ -249,7 +252,7 @@ describe("LiveTrackerEmbed", () => {
               label: "View live stats",
               style: ButtonStyle.Link,
               emoji: { name: "📈" },
-              url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
+              url: `https://test.example.com/tracker?server=guild123&queue=42`,
             },
           ],
         });
@@ -282,7 +285,7 @@ describe("LiveTrackerEmbed", () => {
               label: "View live stats",
               style: ButtonStyle.Link,
               emoji: { name: "📈" },
-              url: `https://guilty-spark.app/tracker?server=guild123&queue=42`,
+              url: `https://test.example.com/tracker?server=guild123&queue=42`,
             },
           ],
         });

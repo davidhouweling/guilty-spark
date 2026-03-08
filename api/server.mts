@@ -36,11 +36,6 @@ export class Server {
           return new Response("Missing required parameter: gamertag", { status: 400 });
         }
 
-        if (!env.LIVE_TRACKER_INDIVIDUAL_DO) {
-          console.error("LIVE_TRACKER_INDIVIDUAL_DO binding not configured");
-          return new Response("Individual tracker not available", { status: 503 });
-        }
-
         const services = this.installServices({ env });
         const { liveTrackerService, logService } = services;
 

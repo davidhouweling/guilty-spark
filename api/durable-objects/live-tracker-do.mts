@@ -296,7 +296,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
       trackerState.seriesScore = seriesScore;
       const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService: this.discordService },
+        { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
         {
           userId: body.userId,
           guildId: body.guildId,
@@ -912,7 +912,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     trackerState.seriesScore = seriesScore;
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: trackerState.userId,
         guildId: trackerState.guildId,

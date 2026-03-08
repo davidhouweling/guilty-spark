@@ -226,3 +226,7 @@ When mocking or spying, always use strongly-typed approaches:
   5. revise if necessary
   6. once implementation is agreed, look to add tests where relevant. If no tests presently exist, ask for direction. Prefer using `npm test` to ensure all tests are passing.
   7. Once all is complete above, do `npm run format:fix` to format code.
+
+## Workarounds
+
+- Whenever regenerating cloudflare wrangler types, after completion, manually go through and update all dynamic `import()`s and re-introduce the file extension `.mjs`. This is required due to the typescript setup of the project.

@@ -52,6 +52,7 @@
   // Development environment variables
   "vars": {
     "HOST_URL": "https://dev-api.guilty-spark.app",
+    "PAGES_URL": "https://dev.guilty-spark.app",
     "MODE": "development",
   },
 
@@ -100,6 +101,7 @@
       },
       "vars": {
         "HOST_URL": "https://staging-api.guilty-spark.app",
+        "PAGES_URL": "https://staging.guilty-spark.app",
         "MODE": "production",
       },
     },
@@ -141,6 +143,7 @@
       },
       "vars": {
         "HOST_URL": "https://api.guilty-spark.app",
+        "PAGES_URL": "https://guilty-spark.app",
         "MODE": "production",
       },
     },
