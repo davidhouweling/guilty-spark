@@ -17,7 +17,8 @@
     "chmod": false,
     "chown": false,
     "/^Remove-Item\\b/i": false,
-    "npx prettier": true
+    "npx prettier": true,
+    "npx eslint": true
   },
   "files.associations": {
     "wrangler.json": "jsonc"

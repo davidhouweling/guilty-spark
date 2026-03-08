@@ -111,7 +111,8 @@ export class RealLiveTrackerService implements LiveTrackerService {
       }
     };
 
-    ws.onerror = (): void => {
+    ws.onerror = (ev): void => {
+      console.error("WebSocket error", ev);
       connection.handleStatus("error");
     };
 

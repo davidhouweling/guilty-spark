@@ -24,8 +24,10 @@ import type {
 } from "../../durable-objects/individual/types.mjs";
 import type { LogService } from "../log/types.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
+import type { HaloService } from "../halo/halo.mjs";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
 import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
+import type { LiveTrackerIndividualDO } from "../../durable-objects/individual/live-tracker-individual-do.mjs";
 
 export interface LiveTrackerContext {
   userId: string;
@@ -38,6 +40,7 @@ export interface LiveTrackerServiceOpts {
   env: Env;
   logService: LogService;
   discordService: DiscordService;
+  haloService: HaloService;
 }
 
 interface StartTrackerOpts {
@@ -100,11 +103,13 @@ export class LiveTrackerService {
   private readonly env: Env;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
+  private readonly haloService: HaloService;
 
-  constructor({ env, logService, discordService }: LiveTrackerServiceOpts) {
+  constructor({ env, logService, discordService, haloService }: LiveTrackerServiceOpts) {
     this.env = env;
     this.logService = logService;
     this.discordService = discordService;
+    this.haloService = haloService;
   }
 
   /**
@@ -587,6 +592,20 @@ export class LiveTrackerService {
     const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
 
     return this.env.LIVE_TRACKER_DO.get(doId);
+  }
+
+  /**
+   * Get Individual Tracker Durable Object stub by gamertag
+   * Resolves gamertag to XUID and returns the DO stub
+   */
+  async getIndividualTrackerDOStub(gamertag: string): Promise<DurableObjectStub<LiveTrackerIndividualDO>> {
+    if (!this.env.LIVE_TRACKER_INDIVIDUAL_DO) {
+      throw new Error("LIVE_TRACKER_INDIVIDUAL_DO binding not configured");
+    }
+
+    const userInfo = await this.haloService.getUserByGamertag(gamertag);
+    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(userInfo.xuid);
+    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
   }
 
   private createLogParams(

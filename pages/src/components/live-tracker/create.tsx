@@ -205,12 +205,14 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     () => store.getSnapshot(),
   );
 
-  const loaderStatus =
-    snapshot.connectionState === "error"
+  const loaderStatus = snapshot.hasReceivedInitialData
+    ? ComponentLoaderStatus.LOADED
+    : snapshot.connectionState === "idle" ||
+        snapshot.connectionState === "error" ||
+        snapshot.connectionState === "not_found" ||
+        snapshot.connectionState === "stopped"
       ? ComponentLoaderStatus.ERROR
-      : snapshot.hasReceivedInitialData
-        ? ComponentLoaderStatus.LOADED
-        : ComponentLoaderStatus.LOADING;
+      : ComponentLoaderStatus.LOADING;
 
   // Memoize model creation to prevent unnecessary re-renders when WebSocket
   // sends identical data (e.g., heartbeat messages every 3 minutes)
@@ -331,13 +333,29 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
       error={
         <ErrorState
           message={snapshot.statusText}
-          onRetry={() => {
-            presenter.start();
-          }}
+          onRetry={
+            snapshot.connectionState === "error" || snapshot.connectionState === "disconnected"
+              ? (): void => {
+                  presenter.start();
+                }
+              : undefined
+          }
+          onNavigateToSearch={
+            snapshot.connectionState === "idle" || snapshot.connectionState === "not_found"
+              ? (): void => {
+                  window.location.href = "/tracker";
+                }
+              : undefined
+          }
         />
       }
       loaded={
-        <LiveTrackerProvider model={model} allMatchStats={allMatchStats} seriesStats={seriesStats}>
+        <LiveTrackerProvider
+          model={model}
+          params={snapshot.params}
+          allMatchStats={allMatchStats}
+          seriesStats={seriesStats}
+        >
           <LiveTrackerView />
         </LiveTrackerProvider>
       }

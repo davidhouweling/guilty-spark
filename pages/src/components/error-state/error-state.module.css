@@ -61,7 +61,17 @@
   margin: 0;
 }
 
-.retryButton {
+.buttonGroup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.retryButton,
+.searchButton {
   background: transparent;
   border: 2px solid var(--halo-teal-primary);
   color: var(--halo-teal-primary);
@@ -70,7 +80,6 @@
   font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.05em;
-  margin-top: var(--space-4);
   padding: var(--space-3) var(--space-6);
   text-transform: uppercase;
   transition:
@@ -79,16 +88,19 @@
     transform 0.1s ease;
 }
 
-.retryButton:hover {
+.retryButton:hover,
+.searchButton:hover {
   background: rgb(93 212 216 / 10%);
   box-shadow: 0 0 20px rgb(93 212 216 / 30%);
 }
 
-.retryButton:active {
+.retryButton:active,
+.searchButton:active {
   transform: scale(0.98);
 }
 
-.retryButton:focus-visible {
+.retryButton:focus-visible,
+.searchButton:focus-visible {
   outline: 2px solid var(--halo-teal-primary);
   outline-offset: 2px;
 }

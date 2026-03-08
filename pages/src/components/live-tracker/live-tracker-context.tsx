@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { MatchStatsData } from "../stats/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
+import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
   LiveTrackerViewModel,
   LiveTrackerMatchRenderModel,
@@ -11,6 +12,7 @@ import type {
 
 interface LiveTrackerContextValue {
   readonly model: LiveTrackerViewModel;
+  readonly params: LiveTrackerParams;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
   readonly seriesStats: {
     teamData: MatchStatsData[];
@@ -23,6 +25,7 @@ const LiveTrackerContext = createContext<LiveTrackerContextValue | null>(null);
 
 interface LiveTrackerProviderProps {
   readonly model: LiveTrackerViewModel;
+  readonly params: LiveTrackerParams;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
   readonly seriesStats: {
     teamData: MatchStatsData[];
@@ -34,6 +37,7 @@ interface LiveTrackerProviderProps {
 
 export function LiveTrackerProvider({
   model,
+  params,
   allMatchStats,
   seriesStats,
   children,
@@ -42,10 +46,11 @@ export function LiveTrackerProvider({
   const value = useMemo(
     () => ({
       model,
+      params,
       allMatchStats,
       seriesStats,
     }),
-    [model, allMatchStats, seriesStats],
+    [model, params, allMatchStats, seriesStats],
   );
 
   return <LiveTrackerContext.Provider value={value}>{children}</LiveTrackerContext.Provider>;
@@ -193,4 +198,12 @@ export function useTrackerIdentity(): { guildId: string; queueNumber: number } |
       queueNumber: model.state.queueNumber,
     };
   }, [model.state?.guildName, model.state?.queueNumber]);
+}
+
+/**
+ * Select tracker params (identity information)
+ */
+export function useTrackerParams(): LiveTrackerParams {
+  const { params } = useLiveTrackerContext();
+  return params;
 }

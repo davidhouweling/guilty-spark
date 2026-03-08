@@ -57,7 +57,12 @@ export class LiveTrackerPresenter {
     let statusClassName = "";
     if (connectionState === "connected") {
       statusClassName = "connected";
-    } else if (connectionState === "error" || connectionState === "stopped" || connectionState === "connecting") {
+    } else if (
+      connectionState === "error" ||
+      connectionState === "stopped" ||
+      connectionState === "connecting" ||
+      connectionState === "not_found"
+    ) {
       statusClassName = "error";
     }
 
@@ -236,6 +241,20 @@ export class LiveTrackerPresenter {
           return;
         }
 
+        if (status === "not_found") {
+          this.stopReconnection();
+          const message =
+            snapshot.params.type === "individual"
+              ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
+              : "No active tracker found for this queue. Start a tracker first.";
+          this.config.store.setSnapshot({
+            ...snapshot,
+            connectionState: status,
+            statusText: message,
+          });
+          return;
+        }
+
         this.handleConnectionLost(identity, detail);
       },
     );
@@ -256,12 +275,29 @@ export class LiveTrackerPresenter {
   }
 
   private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {
+    const snapshot = this.config.store.getSnapshot();
+
+    // If we've never received initial data, this is likely a "tracker not found" scenario
+    // Don't retry in this case
+    if (!snapshot.hasReceivedInitialData && this.reconnectionAttempt === 0) {
+      const message =
+        snapshot.params.type === "individual"
+          ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
+          : "No active tracker found for this queue. Start a tracker first.";
+      this.config.store.setSnapshot({
+        ...snapshot,
+        connectionState: "not_found",
+        statusText: message,
+      });
+      this.stopReconnection();
+      return;
+    }
+
     const now = Date.now();
     this.firstReconnectionTimestamp ??= now;
 
     const elapsed = now - this.firstReconnectionTimestamp;
     if (elapsed > this.maxReconnectionDuration) {
-      const snapshot = this.config.store.getSnapshot();
       const hasDetail = (detail?.length ?? 0) > 0;
       const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
       this.config.store.setSnapshot({
@@ -281,7 +317,6 @@ export class LiveTrackerPresenter {
     const jitter = Math.random() * 1000;
     const totalDelay = delay + jitter;
 
-    const snapshot = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
       ...snapshot,
       connectionState: "connecting",

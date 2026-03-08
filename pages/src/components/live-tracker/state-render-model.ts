@@ -88,5 +88,6 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     seriesScore: message.data.seriesScore,
     medalMetadata: message.data.medalMetadata,
     playersAssociationData: message.data.playersAssociationData,
+    matchGroupings: message.data.matchGroupings ?? {},
   };
 }

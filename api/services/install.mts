@@ -69,7 +69,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
-  const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
+  const liveTrackerService = new LiveTrackerService({ env, logService, discordService, haloService });
   const neatQueueService = new NeatQueueService({
     env,
     logService,

@@ -92,6 +92,10 @@
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
           },
+          {
+            "name": "LIVE_TRACKER_INDIVIDUAL_DO",
+            "class_name": "LiveTrackerIndividualDO",
+          },
         ],
       },
       "vars": {
@@ -128,6 +132,10 @@
           {
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
+          },
+          {
+            "name": "LIVE_TRACKER_INDIVIDUAL_DO",
+            "class_name": "LiveTrackerIndividualDO",
           },
         ],
       },

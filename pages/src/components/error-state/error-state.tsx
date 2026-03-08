@@ -4,9 +4,10 @@ import styles from "./error-state.module.css";
 interface ErrorStateProps {
   readonly message?: string;
   readonly onRetry?: () => void;
+  readonly onNavigateToSearch?: () => void;
 }
 
-export function ErrorState({ message, onRetry }: ErrorStateProps): React.ReactElement {
+export function ErrorState({ message, onRetry, onNavigateToSearch }: ErrorStateProps): React.ReactElement {
   return (
     <div className={styles.container}>
       <div className={styles.iconContainer}>
@@ -20,11 +21,18 @@ export function ErrorState({ message, onRetry }: ErrorStateProps): React.ReactEl
       <div className={styles.content}>
         <h3 className={styles.errorTitle}>Connection Failed</h3>
         <p className={styles.errorMessage}>{message ?? "Unable to establish connection to the server."}</p>
-        {onRetry && (
-          <button className={styles.retryButton} onClick={onRetry} type="button">
-            Retry Connection
-          </button>
-        )}
+        <div className={styles.buttonGroup}>
+          {onRetry && (
+            <button className={styles.retryButton} onClick={onRetry} type="button">
+              Retry Connection
+            </button>
+          )}
+          {onNavigateToSearch && (
+            <button className={styles.searchButton} onClick={onNavigateToSearch} type="button">
+              Tracker home
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
