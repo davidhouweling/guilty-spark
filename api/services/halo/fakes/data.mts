@@ -14,7 +14,7 @@ import type {
 } from "halo-infinite-api";
 import type { HaloService } from "../halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import type { SeriesData } from "../types.mjs";
+import type { SeriesData, MatchHistoryEntry } from "../types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -287,6 +287,22 @@ export function aFakePlayerMatchHistoryWith(overrides?: Partial<PlayerMatchHisto
   const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
   return {
     ...baseMatch,
+    ...overrides,
+  };
+}
+
+export function aFakeMatchHistoryEntryWith(overrides?: Partial<MatchHistoryEntry>): MatchHistoryEntry {
+  const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
+  return {
+    matchId: baseMatch.MatchId,
+    startTime: baseMatch.MatchInfo.StartTime,
+    endTime: baseMatch.MatchInfo.EndTime,
+    duration: baseMatch.MatchInfo.Duration,
+    mapName: "Live Fire",
+    modeName: "Slayer",
+    outcome: "Win",
+    resultString: "Win - 50:49",
+    isMatchmaking: baseMatch.MatchInfo.Playlist != null,
     ...overrides,
   };
 }

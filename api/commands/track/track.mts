@@ -421,29 +421,23 @@ export class TrackCommand extends BaseCommand {
             }
           }
 
-          // Fetch recent matches for the player
-          const recentMatches = await this.services.haloService.getRecentMatchHistory(gamertag, undefined, 25);
+          // Fetch recent enriched matches for the player
+          const matchHistory = await this.services.haloService.getEnrichedMatchHistory(gamertag, locale);
 
-          if (recentMatches.length === 0) {
+          if (matchHistory.matches.length === 0) {
             throw new EndUserError(`No recent matches found for ${gamertag}.`, {
               errorType: EndUserErrorType.WARNING,
               handled: true,
             });
           }
 
-          const matchSelectEmbed = new LiveTrackerIndividualMatchSelectEmbed(
-            { haloService: this.services.haloService },
-            {
-              gamertag,
-              locale,
-              matches: recentMatches,
-            },
-          );
+          const matchSelectEmbed = new LiveTrackerIndividualMatchSelectEmbed({
+            gamertag,
+            locale,
+            matches: matchHistory.matches,
+          });
 
-          await this.services.discordService.updateDeferredReply(
-            interaction.token,
-            await matchSelectEmbed.toMessageData(),
-          );
+          await this.services.discordService.updateDeferredReply(interaction.token, matchSelectEmbed.toMessageData());
         } catch (error) {
           if (error instanceof EndUserError) {
             // Send user-friendly error

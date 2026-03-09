@@ -28,6 +28,67 @@ export class Server {
       );
     });
 
+    this.router.get("/api/tracker/individual/:gamertag/matches", async (request, env: Env) => {
+      try {
+        const { gamertag } = request.params as { gamertag: string };
+
+        if (!gamertag || gamertag === "") {
+          return new Response(
+            JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        const services = this.installServices({ env });
+        const { haloService, logService } = services;
+
+        try {
+          const matchHistory = await haloService.getEnrichedMatchHistory(gamertag, "en-US");
+
+          return new Response(JSON.stringify(matchHistory), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("not found")) {
+            logService.info("Gamertag not found for match history", new Map([["gamertag", gamertag]]));
+            return new Response(
+              JSON.stringify({ error: "not_found", message: `User with gamertag ${gamertag} not found` }),
+              {
+                status: 404,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+
+          logService.error(
+            "Failed to fetch match history",
+            new Map([
+              ["gamertag", gamertag],
+              ["error", String(error)],
+            ]),
+          );
+
+          return new Response(
+            JSON.stringify({ error: "internal_error", message: "Failed to retrieve match history" }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+      } catch (error) {
+        console.error("Match history route error:", error);
+        return new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.get("/ws/tracker/individual/:gamertag", async (request, env: Env) => {
       try {
         const { gamertag } = request.params as { gamertag: string };

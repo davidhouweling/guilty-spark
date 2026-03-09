@@ -37,6 +37,7 @@ import type {
   MatchPlayer,
   UserInfo,
   CachedUserInfo,
+  MatchHistoryEntry,
 } from "./types.mjs";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types.mjs";
 
@@ -610,6 +611,64 @@ export class HaloService {
 
       throw new EndUserError("Unable to retrieve match history");
     }
+  }
+
+  async getEnrichedMatchHistory(
+    gamertag: string,
+    locale: string,
+    matchType: MatchType = MatchType.All,
+    count = 25,
+  ): Promise<{
+    gamertag: string;
+    xuid: string;
+    matches: MatchHistoryEntry[];
+  }> {
+    const user = await this.getUserByGamertag(gamertag);
+    const matches = await this.getRecentMatchHistory(gamertag, matchType, count);
+
+    // Fetch full match details for scoring
+    const matchIds = matches.map((match) => match.MatchId);
+    const matchDetails = await this.getMatchDetails(matchIds);
+    const matchDetailsById = new Map(matchDetails.map((match) => [match.MatchId, match]));
+
+    const matchesWithNames: MatchHistoryEntry[] = [];
+    for (const match of matches) {
+      const matchDetail = matchDetailsById.get(match.MatchId);
+
+      const [mapNameResult, modeNameResult] = await Promise.allSettled([
+        this.getMapName(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+        this.getGameType(match.MatchInfo.UgcGameVariant.AssetId, match.MatchInfo.UgcGameVariant.VersionId),
+      ]);
+
+      const mapName = mapNameResult.status === "fulfilled" ? mapNameResult.value : "Unknown Map";
+      const modeName = modeNameResult.status === "fulfilled" ? modeNameResult.value : "Unknown Mode";
+      const outcome = this.getMatchOutcome(match.Outcome);
+
+      // Build result string (e.g., "Win - 50:49" or "Loss - 25:50 (120:98)")
+      let resultString: string = outcome;
+      if (matchDetail) {
+        const { gameScore, gameSubScore } = this.getMatchScore(matchDetail, locale);
+        resultString = `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
+      }
+
+      matchesWithNames.push({
+        matchId: match.MatchId,
+        startTime: match.MatchInfo.StartTime,
+        endTime: match.MatchInfo.EndTime,
+        duration: match.MatchInfo.Duration,
+        mapName,
+        modeName,
+        outcome,
+        resultString,
+        isMatchmaking: match.MatchInfo.Playlist != null,
+      });
+    }
+
+    return {
+      gamertag: user.gamertag,
+      xuid: user.xuid,
+      matches: matchesWithNames,
+    };
   }
 
   async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {

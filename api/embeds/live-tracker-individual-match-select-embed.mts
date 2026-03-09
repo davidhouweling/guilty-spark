@@ -5,23 +5,17 @@ import type {
   APISelectMenuOption,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import type { PlayerMatchHistory, MatchStats } from "halo-infinite-api";
-import type { HaloService } from "../services/halo/halo.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
+import type { MatchHistoryEntry } from "../services/halo/types.mjs";
 import { EmbedColors } from "./colors.mjs";
 import { InteractionComponent } from "./live-tracker-embed.mjs";
 
 const titlePrefix = "Select matches for ";
 const maxOptionLabelLength = 100;
 
-interface LiveTrackerIndividualMatchSelectEmbedServices {
-  haloService: HaloService;
-}
-
 interface LiveTrackerIndividualMatchSelectEmbedData {
   gamertag: string;
   locale: string;
-  matches: PlayerMatchHistory[];
+  matches: MatchHistoryEntry[];
 }
 
 interface MatchSelectionRow {
@@ -32,19 +26,14 @@ interface MatchSelectionRow {
 }
 
 export class LiveTrackerIndividualMatchSelectEmbed {
-  private readonly services: LiveTrackerIndividualMatchSelectEmbedServices;
   private readonly data: LiveTrackerIndividualMatchSelectEmbedData;
 
-  constructor(
-    services: LiveTrackerIndividualMatchSelectEmbedServices,
-    data: LiveTrackerIndividualMatchSelectEmbedData,
-  ) {
-    this.services = services;
+  constructor(data: LiveTrackerIndividualMatchSelectEmbedData) {
     this.data = data;
   }
 
-  async toMessageData(): Promise<APIInteractionResponseCallbackData> {
-    const rows = await this.getMatchRows();
+  toMessageData(): APIInteractionResponseCallbackData {
+    const rows = this.getMatchRows();
 
     return {
       embeds: [this.buildEmbed(rows)],
@@ -130,35 +119,23 @@ export class LiveTrackerIndividualMatchSelectEmbed {
     return `${label.slice(0, maxOptionLabelLength - 3)}...`;
   }
 
-  private getMatchTypeLabel(playlist: object | null | undefined): string {
-    return playlist != null ? "Matchmaking" : "Custom/Local";
+  private getMatchTypeLabel(isMatchmaking: boolean): string {
+    return isMatchmaking ? "Matchmaking" : "Custom/Local";
   }
 
-  private async getMatchRows(): Promise<MatchSelectionRow[]> {
-    const { haloService } = this.services;
-    const { matches, locale } = this.data;
-    const matchIds = matches.map((match) => match.MatchId);
-    const matchDetails = await haloService.getMatchDetails(matchIds);
-    const matchDetailsById = new Map<string, MatchStats>(matchDetails.map((match) => [match.MatchId, match]));
+  private getMatchRows(): MatchSelectionRow[] {
+    const { matches } = this.data;
 
-    return Promise.all(
-      matches.map(async (match) => {
-        const matchDetail = Preconditions.checkExists(
-          matchDetailsById.get(match.MatchId),
-          `Cannot find match with match id ${match.MatchId}`,
-        );
-        const gameTypeAndMap = await haloService.getGameTypeAndMap(match.MatchInfo);
-        const outcome = haloService.getMatchOutcome(match.Outcome);
-        const { gameScore, gameSubScore } = haloService.getMatchScore(matchDetail, locale);
-        const result = `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
+    return matches.map((match) => {
+      const matchTypePrefix = match.isMatchmaking ? "[Matchmaking]" : "[Custom]";
+      const gameTypeAndMap = `${matchTypePrefix} ${match.modeName}: ${match.mapName}`;
 
-        return {
-          matchId: match.MatchId,
-          matchType: this.getMatchTypeLabel(match.MatchInfo.Playlist),
-          gameTypeAndMap,
-          result,
-        };
-      }),
-    );
+      return {
+        matchId: match.matchId,
+        matchType: this.getMatchTypeLabel(match.isMatchmaking),
+        gameTypeAndMap,
+        result: match.resultString,
+      };
+    });
   }
 }
