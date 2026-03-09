@@ -18,12 +18,12 @@ import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import {
-  matchStats,
-  playerMatches,
-  neatQueueSeriesData,
+  getMatchStats,
+  getPlayerMatches,
+  getNeatQueueSeriesData,
   aFakeServiceRecordWith,
   aFakePlayerMatchHistoryWith,
-  matchSkillData,
+  getMatchSkillData,
   aFakeMapAssetWith,
 } from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
@@ -73,7 +73,7 @@ describe("Halo service", () => {
 
   describe("getSeriesFromDiscordQueue()", () => {
     it("returns the series from the discord queue", async () => {
-      const series = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+      const series = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
       expect(series.map((s) => s.MatchId)).toEqual([
         "d81554d7-ddfe-44da-a6cb-000000000ctf",
@@ -85,7 +85,7 @@ describe("Halo service", () => {
     it("fetches possible users from database service", async () => {
       const getDiscordAssociationsSpy = vi.spyOn(databaseService, "getDiscordAssociations");
 
-      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+      await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
       expect(getDiscordAssociationsSpy).toHaveBeenCalledOnce();
       expect(getDiscordAssociationsSpy).toHaveBeenCalledWith([
@@ -123,7 +123,7 @@ describe("Halo service", () => {
         );
       });
 
-      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+      await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
       expect(infiniteClient.getUser).toHaveBeenCalledWith("gamertag0000000000004", {
         cf: {
@@ -150,16 +150,16 @@ describe("Halo service", () => {
       });
       infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
         if (xboxUserId === "0000000000001" && start === 0) {
-          return Promise.resolve(playerMatches);
+          return Promise.resolve(getPlayerMatches());
         }
         if (xboxUserId === "0000000000003" && start === 0) {
-          return Promise.resolve(playerMatches.slice(0, 3));
+          return Promise.resolve(getPlayerMatches().slice(0, 3));
         }
 
         return Promise.resolve([]);
       });
 
-      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+      await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
       expect(infiniteClient.getPlayerMatches).toHaveBeenCalledTimes(5);
       expect(infiniteClient.getPlayerMatches.mock.calls).toMatchInlineSnapshot(`
@@ -264,7 +264,7 @@ describe("Halo service", () => {
         ),
       );
 
-      return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
@@ -273,7 +273,7 @@ describe("Halo service", () => {
       infiniteClient.getUser.mockClear();
       infiniteClient.getUser.mockRejectedValue(new Error("User not found"));
 
-      return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
@@ -282,7 +282,7 @@ describe("Halo service", () => {
       infiniteClient.getPlayerMatches.mockClear();
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
 
-      return expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+      return expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow(
         "Unable to match any of the Discord users to their Xbox accounts.\n**How to fix**: Players from the series, click the connect button below to connect your Discord account to your Xbox account.",
       );
     });
@@ -388,7 +388,7 @@ describe("Halo service", () => {
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(getUsersSpy).toHaveBeenCalled();
@@ -401,7 +401,7 @@ describe("Halo service", () => {
         it("creates associations with GAME_SIMILARITY reason when matches are found", async () => {
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -410,7 +410,7 @@ describe("Halo service", () => {
         });
 
         it("returns series matches when fuzzy matching succeeds", async () => {
-          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          const result = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(result).toHaveLength(3);
         });
@@ -451,7 +451,7 @@ describe("Halo service", () => {
         it("only attempts fuzzy matching for unassociated Discord users", async () => {
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -480,7 +480,7 @@ describe("Halo service", () => {
         it("preserves some existing associations while creating new fuzzy matches for others", async () => {
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -500,7 +500,7 @@ describe("Halo service", () => {
         it("successfully finds series matches using both existing associations and fuzzy-matched users", async () => {
           const getPlayerMatchesSpy = vi.spyOn(infiniteClient, "getPlayerMatches");
 
-          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          const result = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(result).toHaveLength(3);
           expect(result.map((match) => match.MatchId)).toEqual([
@@ -627,7 +627,7 @@ describe("Halo service", () => {
         it("creates perfect score associations when Discord username exactly matches Xbox gamertag", async () => {
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -643,7 +643,7 @@ describe("Halo service", () => {
             mockGetUsersWithPatternedUsers((index) => `DISCORD_USER_0${String(index + 2)}`),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -662,7 +662,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -706,7 +706,7 @@ describe("Halo service", () => {
             mockGetUsersWithCustomUsers([{ index: 1, gamertag: "Pro_discord_user_02_Gaming" }]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -720,7 +720,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -734,7 +734,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "DiscordUser02_Gaming" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -789,7 +789,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -812,7 +812,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           const allAssociations = upsertDiscordAssociationsSpy.mock.calls.flat().flat();
@@ -832,7 +832,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -848,7 +848,7 @@ describe("Halo service", () => {
             mockGetUsersWithPatternedUsers((index) => `CompletelyUnrelated${String(index + 1).padStart(3, "0")}`),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           const allAssociations = upsertDiscordAssociationsSpy.mock.calls.flat().flat();
@@ -898,7 +898,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -920,7 +920,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -943,7 +943,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -973,7 +973,7 @@ describe("Halo service", () => {
             );
           });
 
-          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          const result = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(getUsersSpy).toHaveBeenCalled();
           expect(result).toHaveLength(3);
@@ -1007,7 +1007,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockRejectedValue(new Error("Xbox API failed"));
 
-          const result = await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          const result = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           // getUsersByXuids now returns empty array on failure instead of throwing
           expect(result).toHaveLength(3);
@@ -1042,7 +1042,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockRejectedValue(new Error("Network timeout"));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           // Should not call fuzzy match logging since gamertags are empty
           expect(logInfoSpy).not.toHaveBeenCalledWith(expect.stringMatching(/Fuzzy match:/));
@@ -1067,7 +1067,7 @@ describe("Halo service", () => {
 
           infiniteClient.getPlayerMatches.mockResolvedValue([]);
 
-          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+          await expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow(
             "Unable to match any of the Discord users to their Xbox accounts",
           );
         });
@@ -1092,7 +1092,7 @@ describe("Halo service", () => {
           getUsersSpy.mockImplementation(mockGetUsersWithPatternedUsers((index) => `TestUser${String(index)}`));
 
           const malformedSeriesData = {
-            ...neatQueueSeriesData,
+            ...getNeatQueueSeriesData(),
             teams: [
               [
                 {
@@ -1151,7 +1151,7 @@ describe("Halo service", () => {
             );
           });
 
-          await expect(haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow(
+          await expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow(
             "Unable to match any of the Discord users to their Xbox accounts",
           );
         });
@@ -1189,9 +1189,9 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(getUsersSpy).toHaveBeenCalledTimes(2);
         });
@@ -1202,7 +1202,7 @@ describe("Halo service", () => {
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
           // First call populates cache for one user
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           // Clear cache but manually add just one xuid back
           haloService.clearUserCache();
@@ -1212,7 +1212,7 @@ describe("Halo service", () => {
           getUsersSpy.mockClear();
 
           // Second call should skip fetching since at least one gamertag is cached
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           // Should not call getUsers since cache has partial data (relies on existing cached xuids)
           expect(getUsersSpy).not.toHaveBeenCalled();
@@ -1223,7 +1223,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(getUsersSpy).toHaveBeenCalled();
         });
@@ -1234,7 +1234,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -1247,11 +1247,11 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 2, gamertag: "discord_user_03" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(getUsersSpy).toHaveBeenCalledTimes(2);
         });
@@ -1290,7 +1290,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
@@ -1307,7 +1307,7 @@ describe("Halo service", () => {
             ]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -1357,7 +1357,7 @@ describe("Halo service", () => {
             mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02_updated" }]),
           );
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -1377,7 +1377,7 @@ describe("Halo service", () => {
 
           getUsersSpy.mockImplementation(mockGetUsersWithCustomUsers([{ index: 1, gamertag: "discord_user_02" }]));
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
@@ -1446,7 +1446,7 @@ describe("Halo service", () => {
             );
           });
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(logDebugSpy).toHaveBeenCalledWith(
             expect.stringMatching(/Historical match boost applied: Discord user 000000000000000002.*0200000000000000/),
@@ -1496,7 +1496,7 @@ describe("Halo service", () => {
             );
           });
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(logDebugSpy).not.toHaveBeenCalledWith(expect.stringMatching(/Historical match boost applied/));
         });
@@ -1553,7 +1553,7 @@ describe("Halo service", () => {
             );
           });
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(logDebugSpy).not.toHaveBeenCalledWith(
             expect.stringMatching(/Historical match boost applied.*9999999999999999/),
@@ -1641,7 +1641,7 @@ describe("Halo service", () => {
             );
           });
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
           await haloService.updateDiscordAssociations();
 
           // With historical boost, each user should match back to their previous xuid
@@ -1740,7 +1740,7 @@ describe("Halo service", () => {
             );
           });
 
-          await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
           expect(logDebugSpy).toHaveBeenCalledWith(
             expect.stringMatching(/Historical match boost applied: Discord user 000000000000000002/),
@@ -1765,7 +1765,7 @@ describe("Halo service", () => {
       const matchDetails = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"], filterMock);
 
       expect(filterMock).toHaveBeenCalledOnce();
-      expect(filterMock).toHaveBeenCalledWith(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"), 0);
+      expect(filterMock).toHaveBeenCalledWith(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"), 0);
       expect(matchDetails.map((s) => s.MatchId)).toEqual(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
     });
 
@@ -1791,13 +1791,13 @@ describe("Halo service", () => {
         gameTypeAndMap: "Capture the Flag: Empyrean",
       },
     ])("returns the game type and map for match $matchId", async ({ matchId, gameTypeAndMap }) => {
-      const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(matchStats.get(matchId)).MatchInfo);
+      const result = await haloService.getGameTypeAndMap(Preconditions.checkExists(getMatchStats(matchId)).MatchInfo);
 
       expect(result).toBe(gameTypeAndMap);
     });
 
     it("caches the asset data for the map and game type", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       await haloService.getGameTypeAndMap(match.MatchInfo);
       await haloService.getGameTypeAndMap(match.MatchInfo);
 
@@ -1830,7 +1830,7 @@ describe("Halo service", () => {
       { matchId: "cf0fb794-2df1-4ba1-9415-00000oddball", matchScore: { gameScore: "1:2", gameSubScore: "198:256" } },
       { matchId: "099deb74-3f60-48cf-8784-0strongholds", matchScore: { gameScore: "175:250", gameSubScore: null } },
     ])("returns the score for match $matchId", ({ matchId, matchScore: score }) => {
-      const result = haloService.getMatchScore(Preconditions.checkExists(matchStats.get(matchId)), "en-US");
+      const result = haloService.getMatchScore(Preconditions.checkExists(getMatchStats(matchId)), "en-US");
 
       expect(result).toEqual(score);
     });
@@ -1844,7 +1844,7 @@ describe("Halo service", () => {
     });
 
     it("calculates series score from single match", () => {
-      const matches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+      const matches = [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
       const result = haloService.getSeriesScore(matches, "en-US");
 
       expect(result).toBe("🦅 1:0 🐍");
@@ -1852,9 +1852,9 @@ describe("Halo service", () => {
 
     it("calculates series score from multiple matches", () => {
       const matches = [
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
-        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")), // Team 1 wins
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")), // Team 1 wins
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
@@ -1862,7 +1862,7 @@ describe("Halo service", () => {
     });
 
     it("skips duplicate matches of same map and game type", () => {
-      const ctfMatch = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const ctfMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const duplicateCtfMatch = {
         ...ctfMatch,
         MatchId: "duplicate-ctf-match",
@@ -1878,8 +1878,8 @@ describe("Halo service", () => {
 
     it("counts separate matches of different maps or game types", () => {
       const matches = [
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (CTF)
-        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (KOTH)
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (CTF)
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (KOTH)
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
@@ -1888,8 +1888,8 @@ describe("Halo service", () => {
 
     it("formats score with locale", () => {
       const matches = [
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
-        Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
       ];
       const result = haloService.getSeriesScore(matches, "de-DE");
 
@@ -1899,18 +1899,18 @@ describe("Halo service", () => {
     it("handles more than 2 teams", () => {
       // Create a mock match with 3 teams where team 1 wins
       const multiTeamMatch = {
-        ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
         Teams: [
           {
-            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
             Outcome: MatchOutcome.Loss,
           },
           {
-            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[1]),
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[1]),
             Outcome: MatchOutcome.Win,
           },
           {
-            ...Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
             Outcome: MatchOutcome.Loss,
           },
         ],
@@ -1942,7 +1942,7 @@ describe("Halo service", () => {
 
   describe("getPlayerXuid()", () => {
     it("returns the xuid for the specified player", () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const player = Preconditions.checkExists(match.Players[0]);
 
       const result = haloService.getPlayerXuid(player);
@@ -1952,7 +1952,7 @@ describe("Halo service", () => {
 
   describe("getPlayerXuidsToGametags()", () => {
     it("returns the xuids to gamertags map for the specified players", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
 
       const result = await haloService.getPlayerXuidsToGametags(match);
       expect(result).toEqual(
@@ -1970,7 +1970,7 @@ describe("Halo service", () => {
     });
 
     it("caches xuids and does not call infiniteClient.getUsers if all users are cache hits", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
 
       await haloService.getPlayerXuidsToGametags(match);
       await haloService.getPlayerXuidsToGametags(match);
@@ -1979,8 +1979,8 @@ describe("Halo service", () => {
     });
 
     it("only calls infiniteClient.getUsers for cache misses", async () => {
-      const match1 = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const match2 = Preconditions.checkExists(matchStats.get("cf0fb794-2df1-4ba1-9415-00000oddball"));
+      const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match2 = Preconditions.checkExists(getMatchStats("cf0fb794-2df1-4ba1-9415-00000oddball"));
 
       await haloService.getPlayerXuidsToGametags(match1);
       await haloService.getPlayerXuidsToGametags(match2);
@@ -2016,7 +2016,7 @@ describe("Halo service", () => {
     });
 
     it('filters out "Bot" players', async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       Preconditions.checkExists(match.Players[0]).PlayerType = 2;
 
       const result = await haloService.getPlayerXuidsToGametags(match);
@@ -2034,7 +2034,7 @@ describe("Halo service", () => {
     });
 
     it("filters out players not present at beginning", async () => {
-      const match = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       Preconditions.checkExists(match.Players[0]).ParticipationInfo.PresentAtBeginning = false;
 
       const result = await haloService.getPlayerXuidsToGametags(match);
@@ -2846,7 +2846,7 @@ describe("Halo service", () => {
   describe("updateDiscordAssociations()", () => {
     it("updates the discord associations with the user cache", async () => {
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
-      await haloService.getSeriesFromDiscordQueue(neatQueueSeriesData);
+      await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
       await haloService.updateDiscordAssociations();
 
       expect(upsertDiscordAssociationsSpy).toHaveBeenCalledOnce();
@@ -2930,7 +2930,7 @@ describe("Halo service", () => {
       );
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-      await expect(async () => haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow();
+      await expect(async () => haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow();
 
       expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
     });
@@ -2940,7 +2940,7 @@ describe("Halo service", () => {
       infiniteClient.getPlayerMatches.mockResolvedValue([]);
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
 
-      await expect(async () => haloService.getSeriesFromDiscordQueue(neatQueueSeriesData)).rejects.toThrow();
+      await expect(async () => haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow();
 
       expect(upsertDiscordAssociationsSpy).toHaveBeenCalled();
     });
@@ -2955,8 +2955,8 @@ describe("Halo service", () => {
 
       await expect(async () =>
         haloService.getSeriesFromDiscordQueue({
-          ...neatQueueSeriesData,
-          startDateTime: sub(neatQueueSeriesData.endDateTime, { minutes: 5 }),
+          ...getNeatQueueSeriesData(),
+          startDateTime: sub(getNeatQueueSeriesData().endDateTime, { minutes: 5 }),
         }),
       ).rejects.toThrow();
 
@@ -2970,8 +2970,8 @@ describe("Halo service", () => {
 
       await expect(async () =>
         haloService.getSeriesFromDiscordQueue({
-          ...neatQueueSeriesData,
-          startDateTime: sub(neatQueueSeriesData.endDateTime, { minutes: 5 }),
+          ...getNeatQueueSeriesData(),
+          startDateTime: sub(getNeatQueueSeriesData().endDateTime, { minutes: 5 }),
         }),
       ).rejects.toThrow();
 
@@ -3383,7 +3383,7 @@ describe("Halo service", () => {
       ];
       getPlayerMatchesSpy.mockResolvedValue(matches);
 
-      const realSkillData = Preconditions.checkExists(matchSkillData[0]);
+      const realSkillData = Preconditions.checkExists(getMatchSkillData()[0]);
       getMatchSkillSpy.mockResolvedValue([realSkillData]);
 
       const esra = await haloService.getPlayerEsra(xuid, playlistId);
@@ -3430,8 +3430,8 @@ describe("Halo service", () => {
       getPlayerMatchesSpy.mockResolvedValue(matches);
 
       // Use real match skill data for each variant
-      const skillData1 = Preconditions.checkExists(matchSkillData[0]);
-      const skillData2 = Preconditions.checkExists(matchSkillData[1]);
+      const skillData1 = Preconditions.checkExists(getMatchSkillData()[0]);
+      const skillData2 = Preconditions.checkExists(getMatchSkillData()[1]);
 
       getMatchSkillSpy.mockResolvedValueOnce([skillData1]);
       getMatchSkillSpy.mockResolvedValueOnce([skillData2]);
@@ -3712,21 +3712,16 @@ describe("Halo service", () => {
         ],
       ];
 
-      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
       const matches: MatchStats[] = [
         {
-          ...fakeMatch,
+          ...baseMatch,
           MatchId: "match1",
           Players: [
             {
-              ...Preconditions.checkExists(fakeMatch.Players[0]),
+              ...basePlayer,
               PlayerId: `xuid(${playerXuid})`,
-              PlayerType: 1,
-              BotAttributes: {},
-              ParticipationInfo: {
-                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
-                PresentAtBeginning: true,
-              },
             },
           ],
         },
@@ -3795,21 +3790,16 @@ describe("Halo service", () => {
         ],
       ];
 
-      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
       const matches: MatchStats[] = [
         {
-          ...fakeMatch,
+          ...baseMatch,
           MatchId: "match1",
           Players: [
             {
-              ...Preconditions.checkExists(fakeMatch.Players[0]),
+              ...basePlayer,
               PlayerId: `xuid(${playerXuid})`,
-              PlayerType: 1,
-              BotAttributes: {},
-              ParticipationInfo: {
-                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
-                PresentAtBeginning: true,
-              },
             },
           ],
         },
@@ -3870,20 +3860,16 @@ describe("Halo service", () => {
         ],
       ];
 
-      const fakeMatch = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
       const matches: MatchStats[] = [
         {
-          ...fakeMatch,
+          ...baseMatch,
           MatchId: "match1",
           Players: [
             {
-              ...Preconditions.checkExists(fakeMatch.Players[0]),
+              ...basePlayer,
               PlayerId: `xuid(${playerXuid})`,
-              PlayerType: 1,
-              ParticipationInfo: {
-                ...Preconditions.checkExists(fakeMatch.Players[0]?.ParticipationInfo),
-                PresentAtBeginning: true,
-              },
             },
           ],
         },
@@ -3934,56 +3920,32 @@ describe("Halo service", () => {
   });
 
   describe("getEnrichedMatchHistory - auto-grouping", () => {
-    // Helper to create minimal match data for auto-grouping tests
+    // Helper to customize existing match data for auto-grouping tests
     const createMatchStats = (
       matchId: string,
       players: { xuid: string; teamId: number }[],
       isMatchmaking: boolean,
     ): MatchStats => {
+      // Clone an existing match and customize it
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
+
       return {
+        ...baseMatch,
         MatchId: matchId,
         MatchInfo: {
-          StartTime: "2024-11-26T10:00:00.000Z",
-          EndTime: "2024-11-26T10:15:00.000Z",
-          Duration: "PT15M",
-          LifecycleMode: 1,
-          GameVariantCategory: 6,
-          LevelId: "test-level-id",
-          ClearanceId: "test-clearance-id",
-          GameplayInteraction: 1,
-          MapVariant: { AssetKind: 2, AssetId: "test-map", VersionId: "test-map-version" },
-          UgcGameVariant: { AssetKind: 6, AssetId: "test-mode", VersionId: "test-mode-version" },
+          ...baseMatch.MatchInfo,
           Playlist: isMatchmaking
             ? { AssetKind: 3, AssetId: "test-playlist", VersionId: "test-playlist-version" }
             : null,
-          PlaylistExperience: null,
-          PlaylistMapModePair: null,
-          SeasonId: "test-season",
-          PlayableDuration: "PT15M",
-          TeamsEnabled: true,
-          TeamScoringEnabled: true,
         },
         Teams: [],
         Players: players.map((p) => ({
+          ...basePlayer,
           PlayerId: `xuid(${p.xuid})`,
-          PlayerType: 1,
-          BotAttributes: {},
           LastTeamId: p.teamId,
-          Outcome: 2,
-          Rank: 1,
-          ParticipationInfo: {
-            FirstJoinedTime: "2024-11-26T10:00:00.000Z",
-            LastLeaveTime: null,
-            PresentAtBeginning: true,
-            JoinedInProgress: false,
-            LeftInProgress: false,
-            PresentAtCompletion: true,
-            TimePlayed: "PT15M",
-            ConfirmedParticipation: null,
-          },
-          PlayerTeamStats: [],
         })),
-      } as MatchStats;
+      };
     };
 
     beforeEach(() => {

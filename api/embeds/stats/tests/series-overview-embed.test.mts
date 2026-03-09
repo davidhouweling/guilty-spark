@@ -6,7 +6,7 @@ import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
-import { matchStats } from "../../../services/halo/fakes/data.mjs";
+import { getMatchStats } from "../../../services/halo/fakes/data.mjs";
 
 describe("SeriesOverviewEmbed", () => {
   let discordService: DiscordService;
@@ -20,9 +20,8 @@ describe("SeriesOverviewEmbed", () => {
     seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
 
     // Get a sample match from the fake data
-    const matchStatsArray = Array.from(matchStats.values());
-    const [firstMatch] = matchStatsArray;
-    if (firstMatch == null) {
+    const firstMatch = getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf");
+    if (!firstMatch) {
       throw new Error("No match stats available for testing");
     }
     sampleMatchStats = firstMatch;

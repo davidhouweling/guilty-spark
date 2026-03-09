@@ -6,7 +6,7 @@ import {
   skillRank,
   skillRankCombined,
 } from "../skill-helpers.mjs";
-import { matchSkillData } from "../fakes/data.mjs";
+import { getMatchSkillData } from "../fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("skill-helpers", () => {
@@ -284,7 +284,7 @@ describe("skill-helpers", () => {
     });
 
     it("calculates skill rank from StatPerformances.Expected when available", () => {
-      const player = Preconditions.checkExists(matchSkillData.find((p) => p.Id === "xuid(2535451623062020)"));
+      const player = Preconditions.checkExists(getMatchSkillData().find((p) => p.Id === "xuid(2535451623062020)"));
       const skill = player.Result;
 
       const result = skillRank(skill, "Kills", "Expected");
@@ -318,7 +318,7 @@ describe("skill-helpers", () => {
     });
 
     it("calculates skill rank for deaths", () => {
-      const player = Preconditions.checkExists(matchSkillData.find((p) => p.Id === "xuid(2535451623062020)"));
+      const player = Preconditions.checkExists(getMatchSkillData().find((p) => p.Id === "xuid(2535451623062020)"));
       const skill = player.Result;
 
       const result = skillRank(skill, "Deaths", "Expected");
@@ -361,7 +361,7 @@ describe("skill-helpers", () => {
     });
 
     it("averages kills and deaths skill ranks", () => {
-      const player = Preconditions.checkExists(matchSkillData.find((p) => p.Id === "xuid(2535451623062020)"));
+      const player = Preconditions.checkExists(getMatchSkillData().find((p) => p.Id === "xuid(2535451623062020)"));
       const skill = player.Result;
 
       const killsSkill = skillRank(skill, "Kills", "Expected");
@@ -423,7 +423,7 @@ describe("skill-helpers", () => {
     });
 
     it("calculates ESRA for all players in match skill data", () => {
-      const results = matchSkillData
+      const results = getMatchSkillData()
         .filter((p) => p.ResultCode === 0)
         .map((player) => ({
           xuid: player.Id,
@@ -442,7 +442,7 @@ describe("skill-helpers", () => {
 
     it("handles players in placement matches (measurement matches remaining)", () => {
       // Player with MeasurementMatchesRemaining in the data
-      const player = matchSkillData.find((p) => p.Result.RankRecap.PreMatchCsr.MeasurementMatchesRemaining > 0);
+      const player = getMatchSkillData().find((p) => p.Result.RankRecap.PreMatchCsr.MeasurementMatchesRemaining > 0);
 
       if (player) {
         const result = skillRankCombined(player.Result, "Expected");
@@ -454,8 +454,8 @@ describe("skill-helpers", () => {
     });
 
     it("calculates different ESRA values for players with different performance", () => {
-      const player1 = Preconditions.checkExists(matchSkillData.find((p) => p.Id === "xuid(2535461840898551)"));
-      const player2 = Preconditions.checkExists(matchSkillData.find((p) => p.Id === "xuid(2535418351231694)"));
+      const player1 = Preconditions.checkExists(getMatchSkillData().find((p) => p.Id === "xuid(2535461840898551)"));
+      const player2 = Preconditions.checkExists(getMatchSkillData().find((p) => p.Id === "xuid(2535418351231694)"));
 
       const esra1 = skillRankCombined(player1.Result, "Expected");
       const esra2 = skillRankCombined(player2.Result, "Expected");

@@ -1,5 +1,5 @@
 import { describe, beforeEach, expect, it } from "vitest";
-import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
+import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { SeriesPlayersEmbed } from "../series-players-embed.mjs";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -9,9 +9,9 @@ import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../../services/database/types/guild_config.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
 
-const ctfMatch = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-const kothMatch = Preconditions.checkExists(matchStats.get("e20900f9-4c6c-4003-a175-00000000koth"));
-const slayerMatch = Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"));
+const ctfMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+const kothMatch = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+const slayerMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 const matches = [ctfMatch, kothMatch, slayerMatch];
 
 describe("SeriesPlayersEmbed", () => {
@@ -30,7 +30,7 @@ describe("SeriesPlayersEmbed", () => {
 
   describe("getEmbed", () => {
     it("returns promise reject", async () => {
-      await expect(seriesPlayersEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrow(
+      await expect(seriesPlayersEmbed.getEmbed(slayerMatch, getPlayerXuidsToGametags())).rejects.toThrow(
         new Error("Series embed does not implement getEmbed, use getSeriesEmbed instead"),
       );
     });
@@ -38,7 +38,7 @@ describe("SeriesPlayersEmbed", () => {
 
   describe("getSeriesEmbed", () => {
     it("returns the expected embed", async () => {
-      const result = await seriesPlayersEmbed.getSeriesEmbed(matches, playerXuidsToGametags, locale);
+      const result = await seriesPlayersEmbed.getSeriesEmbed(matches, getPlayerXuidsToGametags(), locale);
       expect(result).toMatchSnapshot();
     });
 
@@ -53,7 +53,7 @@ describe("SeriesPlayersEmbed", () => {
       Preconditions.checkExists(modifiedSlayerMatch.Players[0]).ParticipationInfo.PresentAtBeginning = false;
 
       const modifiedMatches = [modifiedCtfMatch, modifiedKothMatch, modifiedSlayerMatch];
-      const result = await seriesPlayersEmbed.getSeriesEmbed(modifiedMatches, playerXuidsToGametags, locale);
+      const result = await seriesPlayersEmbed.getSeriesEmbed(modifiedMatches, getPlayerXuidsToGametags(), locale);
 
       // Player should not appear in results
       const allFieldNames = result.flatMap((embed) => embed.fields?.map((field) => field.name) ?? []);

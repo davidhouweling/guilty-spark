@@ -26,7 +26,7 @@ describe("ConnectHistoryEmbed", () => {
     });
     const getEnrichedMatchHistorySpy = vi
       .spyOn(haloService, "getEnrichedMatchHistory")
-      .mockResolvedValue({ gamertag: "TestPlayer", xuid: "xuid-123", matches: [match] });
+      .mockResolvedValue({ gamertag: "TestPlayer", xuid: "xuid-123", matches: [match], suggestedGroupings: [] });
     vi.spyOn(discordService, "getTimestamp").mockReturnValue("<t:1732615200:R>");
 
     const embed = new ConnectHistoryEmbed({ discordService, haloService }, { gamertag: "TestPlayer", locale: "en-US" });
@@ -50,6 +50,7 @@ describe("ConnectHistoryEmbed", () => {
       gamertag: "TestPlayer",
       xuid: "xuid-123",
       matches: [],
+      suggestedGroupings: [],
     });
 
     const embed = new ConnectHistoryEmbed(
@@ -73,6 +74,7 @@ describe("ConnectHistoryEmbed", () => {
       gamertag: "TestPlayer",
       xuid: "xuid-123",
       matches: [],
+      suggestedGroupings: [],
     });
 
     const embed = new ConnectHistoryEmbed({ discordService, haloService }, { gamertag: "TestPlayer", locale: "en-US" });
@@ -109,6 +111,7 @@ describe("ConnectHistoryEmbed", () => {
       gamertag: "TestPlayer",
       xuid: "xuid-123",
       matches: [match1, match2],
+      suggestedGroupings: [],
     });
     vi.spyOn(discordService, "getTimestamp")
       .mockReturnValueOnce("<t:1732615200:R>")

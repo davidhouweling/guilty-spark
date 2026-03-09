@@ -32,7 +32,7 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data.mjs";
-import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
+import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -170,7 +170,11 @@ describe("StatsCommand", () => {
           .mockResolvedValue(discordNeatQueueData);
         getSeriesFromDiscordQueueSpy = vi
           .spyOn(services.haloService, "getSeriesFromDiscordQueue")
-          .mockResolvedValue(Array.from(matchStats.values()).slice(0, 3));
+          .mockResolvedValue([
+            Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+            Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")),
+            Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+          ]);
         getMessageFromInteractionTokenSpy = vi
           .spyOn(services.discordService, "getMessageFromInteractionToken")
           .mockResolvedValue(apiMessage);
@@ -297,7 +301,7 @@ describe("StatsCommand", () => {
           expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
             "1299532381308325949",
             "1314562775950954626",
-            "Queue #777 series stats (🦅 3:0 🐍)",
+            "Queue #777 series stats (🦅 2:1 🐍)",
           );
         });
 
@@ -480,7 +484,11 @@ describe("StatsCommand", () => {
           bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
           getSeriesFromDiscordQueueSpy = vi
             .spyOn(services.haloService, "getSeriesFromDiscordQueue")
-            .mockResolvedValue(Array.from(matchStats.values()).slice(0, 3));
+            .mockResolvedValue([
+              Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+              Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")),
+              Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+            ]);
           createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
           updateDiscordAssociationsSpy = vi
             .spyOn(services.haloService, "updateDiscordAssociations")
@@ -721,7 +729,7 @@ describe("StatsCommand", () => {
     });
 
     describe("jobToComplete", () => {
-      const ctfMatch = Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const ctfMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       let jobToComplete: (() => Promise<void>) | undefined;
       let getMatchDetailsSpy: MockInstance;
       let getPlayerXuidsToGamertagsSpy: MockInstance;
@@ -730,7 +738,7 @@ describe("StatsCommand", () => {
         getMatchDetailsSpy = vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([ctfMatch]);
         getPlayerXuidsToGamertagsSpy = vi
           .spyOn(services.haloService, "getPlayerXuidsToGametags")
-          .mockResolvedValue(playerXuidsToGametags);
+          .mockResolvedValue(getPlayerXuidsToGametags());
 
         const { jobToComplete: jtc } = statsCommand.execute(applicationCommandInteractionStatsMatch);
         jobToComplete = jtc;
