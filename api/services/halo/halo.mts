@@ -622,11 +622,12 @@ export class HaloService {
     gamertag: string;
     xuid: string;
     matches: MatchHistoryEntry[];
+    suggestedGroupings: string[][];
   }> {
     const user = await this.getUserByGamertag(gamertag);
     const matches = await this.getRecentMatchHistory(gamertag, matchType, count);
 
-    // Fetch full match details for scoring
+    // Fetch full match details for scoring and grouping analysis
     const matchIds = matches.map((match) => match.MatchId);
     const matchDetails = await this.getMatchDetails(matchIds);
     const matchDetailsById = new Map(matchDetails.map((match) => [match.MatchId, match]));
@@ -664,11 +665,136 @@ export class HaloService {
       });
     }
 
+    // Analyze match groupings for custom games only
+    const suggestedGroupings = this.analyzeMatchGroupings(matchesWithNames, matchDetailsById);
+
     return {
       gamertag: user.gamertag,
       xuid: user.xuid,
       matches: matchesWithNames,
+      suggestedGroupings,
     };
+  }
+
+  private analyzeMatchGroupings(matches: MatchHistoryEntry[], matchDetailsById: Map<string, MatchStats>): string[][] {
+    const groupings: string[][] = [];
+    let currentGroup: string[] = [];
+
+    for (let i = 0; i < matches.length; i++) {
+      const currentMatch = matches[i];
+      if (!currentMatch) {
+        continue;
+      }
+
+      // Matchmaking games break groupings
+      if (currentMatch.isMatchmaking) {
+        if (currentGroup.length > 1) {
+          groupings.push([...currentGroup]);
+        }
+        currentGroup = [];
+        continue;
+      }
+
+      const currentMatchDetail = matchDetailsById.get(currentMatch.matchId);
+
+      if (!currentMatchDetail) {
+        // Can't analyze without match details, flush current group if any
+        if (currentGroup.length > 0) {
+          groupings.push([...currentGroup]);
+          currentGroup = [];
+        }
+        continue;
+      }
+
+      // Add current match to group
+      currentGroup.push(currentMatch.matchId);
+
+      // Check if next match should be in the same group
+      if (i < matches.length - 1) {
+        const nextMatch = matches[i + 1];
+        if (!nextMatch) {
+          continue;
+        }
+
+        // Stop grouping if next is matchmaking or different rosters
+        if (nextMatch.isMatchmaking) {
+          if (currentGroup.length > 1) {
+            groupings.push([...currentGroup]);
+          }
+          currentGroup = [];
+          continue;
+        }
+
+        const nextMatchDetail = matchDetailsById.get(nextMatch.matchId);
+
+        if (!nextMatchDetail || !this.haveSameTeamRosters(currentMatchDetail, nextMatchDetail)) {
+          // Different rosters or missing details, flush current group
+          if (currentGroup.length > 1) {
+            groupings.push([...currentGroup]);
+          }
+          currentGroup = [];
+        }
+      }
+    }
+
+    // Flush remaining group if it has multiple matches
+    if (currentGroup.length > 1) {
+      groupings.push([...currentGroup]);
+    }
+
+    return groupings;
+  }
+
+  private haveSameTeamRosters(match1: MatchStats, match2: MatchStats): boolean {
+    // Get human players who were present at beginning for each match
+    const getTeamRosters = (match: MatchStats): Map<number, Set<string>> => {
+      const rosters = new Map<number, Set<string>>();
+
+      for (const player of match.Players) {
+        if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
+          const xuid = this.getPlayerXuid(player);
+          const teamId = player.LastTeamId;
+
+          if (!rosters.has(teamId)) {
+            rosters.set(teamId, new Set<string>());
+          }
+          rosters.get(teamId)?.add(xuid);
+        }
+      }
+
+      return rosters;
+    };
+
+    const rosters1 = getTeamRosters(match1);
+    const rosters2 = getTeamRosters(match2);
+
+    // Must have same number of teams
+    if (rosters1.size !== rosters2.size) {
+      return false;
+    }
+
+    // Check if all teams have identical rosters
+    for (const [teamId, team1Players] of rosters1.entries()) {
+      const team2Players = rosters2.get(teamId);
+
+      if (!team2Players) {
+        return false;
+      }
+
+      // Teams must have same size
+      if (team1Players.size !== team2Players.size) {
+        return false;
+      }
+
+      // All players must match
+      for (const xuid of team1Players) {
+        if (!team2Players.has(xuid)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {

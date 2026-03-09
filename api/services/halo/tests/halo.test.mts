@@ -2,7 +2,15 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import type { MockedFunction, MockInstance } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { AssetKind, MatchOutcome, RequestError, MatchType } from "halo-infinite-api";
-import type { PlaylistCsr, HaloInfiniteClient, UserInfo, MatchSkill, Asset, MatchStats } from "halo-infinite-api";
+import type {
+  PlaylistCsr,
+  HaloInfiniteClient,
+  UserInfo,
+  MatchSkill,
+  Asset,
+  MatchStats,
+  UgcGameVariantAsset,
+} from "halo-infinite-api";
 import { sub } from "date-fns";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo, MatchPlayer } from "../types.mjs";
@@ -3922,6 +3930,568 @@ describe("Halo service", () => {
           }),
         ]),
       );
+    });
+  });
+
+  describe("getEnrichedMatchHistory - auto-grouping", () => {
+    // Helper to create minimal match data for auto-grouping tests
+    const createMatchStats = (
+      matchId: string,
+      players: { xuid: string; teamId: number }[],
+      isMatchmaking: boolean,
+    ): MatchStats => {
+      return {
+        MatchId: matchId,
+        MatchInfo: {
+          StartTime: "2024-11-26T10:00:00.000Z",
+          EndTime: "2024-11-26T10:15:00.000Z",
+          Duration: "PT15M",
+          LifecycleMode: 1,
+          GameVariantCategory: 6,
+          LevelId: "test-level-id",
+          ClearanceId: "test-clearance-id",
+          GameplayInteraction: 1,
+          MapVariant: { AssetKind: 2, AssetId: "test-map", VersionId: "test-map-version" },
+          UgcGameVariant: { AssetKind: 6, AssetId: "test-mode", VersionId: "test-mode-version" },
+          Playlist: isMatchmaking
+            ? { AssetKind: 3, AssetId: "test-playlist", VersionId: "test-playlist-version" }
+            : null,
+          PlaylistExperience: null,
+          PlaylistMapModePair: null,
+          SeasonId: "test-season",
+          PlayableDuration: "PT15M",
+          TeamsEnabled: true,
+          TeamScoringEnabled: true,
+        },
+        Teams: [],
+        Players: players.map((p) => ({
+          PlayerId: `xuid(${p.xuid})`,
+          PlayerType: 1,
+          BotAttributes: {},
+          LastTeamId: p.teamId,
+          Outcome: 2,
+          Rank: 1,
+          ParticipationInfo: {
+            FirstJoinedTime: "2024-11-26T10:00:00.000Z",
+            LastLeaveTime: null,
+            PresentAtBeginning: true,
+            JoinedInProgress: false,
+            LeftInProgress: false,
+            PresentAtCompletion: true,
+            TimePlayed: "PT15M",
+            ConfirmedParticipation: null,
+          },
+          PlayerTeamStats: [],
+        })),
+      } as MatchStats;
+    };
+
+    beforeEach(() => {
+      // Clear mock state from previous tests
+      infiniteClient.getUser.mockClear();
+      infiniteClient.getPlayerMatches.mockClear();
+      infiniteClient.getMatchStats.mockClear();
+      infiniteClient.getSpecificAssetVersion.mockClear();
+
+      infiniteClient.getUser.mockResolvedValue({
+        xuid: "test-xuid",
+        gamertag: "TestPlayer",
+        gamerpic: { small: "s.png", medium: "m.png", large: "l.png", xlarge: "xl.png" },
+      });
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        // Return a default match stats, will be overridden in individual tests
+        return Promise.reject(new Error(`Match not found: ${matchId}`));
+      });
+      // eslint-disable-next-line @typescript-eslint/require-await
+      infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, versionId) => {
+        // Return fake assets for maps and modes
+        if (assetKind === AssetKind.Map) {
+          return aFakeMapAssetWith({ PublicName: "Test Map", AssetId: assetId, VersionId: versionId });
+        }
+        // For other asset kinds, return a minimal asset structure
+        return {
+          AssetId: assetId,
+          VersionId: versionId,
+          PublicName: "Test Asset",
+        } as UgcGameVariantAsset;
+      });
+    });
+
+    it("groups consecutive custom games with identical team rosters", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match3 = aFakePlayerMatchHistoryWith({
+        MatchId: "match3",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2, match3]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+      const matchStats3 = createMatchStats(
+        "match3",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+          match3: matchStats3,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([["match1", "match2", "match3"]]);
+    });
+
+    it("does not group custom games with different team rosters", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1003", teamId: 0 }, // Different player
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("creates multiple separate groupings", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match3 = aFakePlayerMatchHistoryWith({
+        MatchId: "match3",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match4 = aFakePlayerMatchHistoryWith({
+        MatchId: "match4",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2, match3, match4]);
+
+      const matchStats1 = createMatchStats("match1", [{ xuid: "1001", teamId: 0 }], false);
+      const matchStats2 = createMatchStats("match2", [{ xuid: "1001", teamId: 0 }], false);
+      const matchStats3 = createMatchStats("match3", [{ xuid: "2001", teamId: 0 }], false);
+      const matchStats4 = createMatchStats("match4", [{ xuid: "2001", teamId: 0 }], false);
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+          match3: matchStats3,
+          match4: matchStats4,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([
+        ["match1", "match2"],
+        ["match3", "match4"],
+      ]);
+    });
+
+    it("excludes single-match groups", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match3 = aFakePlayerMatchHistoryWith({
+        MatchId: "match3",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2, match3]);
+
+      const matchStats1 = createMatchStats("match1", [{ xuid: "1001", teamId: 0 }], false);
+      const matchStats2 = createMatchStats("match2", [{ xuid: "2001", teamId: 0 }], false);
+      const matchStats3 = createMatchStats("match3", [{ xuid: "3001", teamId: 0 }], false);
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+          match3: matchStats3,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("skips matchmaking games in grouping analysis", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: {
+          ...baseMatch.MatchInfo,
+          Playlist: {
+            AssetKind: 3,
+            AssetId: "ranked-playlist",
+            VersionId: "v1",
+          },
+        },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: {
+          ...baseMatch.MatchInfo,
+          Playlist: {
+            AssetKind: 3,
+            AssetId: "ranked-playlist",
+            VersionId: "v1",
+          },
+        },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+        ],
+        true,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+        ],
+        true,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("handles mix of matchmaking and custom games", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: {
+          ...baseMatch.MatchInfo,
+          Playlist: {
+            AssetKind: 3,
+            AssetId: "ranked-playlist",
+            VersionId: "v1",
+          },
+        },
+      });
+      const match3 = aFakePlayerMatchHistoryWith({
+        MatchId: "match3",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2, match3]);
+
+      const matchStats1 = createMatchStats("match1", [{ xuid: "1001", teamId: 0 }], false);
+      const matchStats2 = createMatchStats("match2", [{ xuid: "1001", teamId: 0 }], true);
+      const matchStats3 = createMatchStats("match3", [{ xuid: "1001", teamId: 0 }], false);
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+          match3: matchStats3,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      // match1 and match3 are not consecutive (match2 is matchmaking), so no grouping
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("handles missing match details gracefully", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match3 = aFakePlayerMatchHistoryWith({
+        MatchId: "match3",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2, match3]);
+
+      const matchStats1 = createMatchStats("match1", [{ xuid: "1001", teamId: 0 }], false);
+      const matchStats2 = createMatchStats("match2", [{ xuid: "2001", teamId: 0 }], false);
+      const matchStats3 = createMatchStats("match3", [{ xuid: "1001", teamId: 0 }], false);
+
+      // match2 has different rosters, should break the grouping
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+          match3: matchStats3,
+        };
+        return matchStatsMap[matchId]
+          ? Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]))
+          : Promise.reject(new Error("Match not found"));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      // match1 and match3 are not consecutive due to different rosters in match2, so no grouping
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("handles empty matches array", async () => {
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.matches).toEqual([]);
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("groups matches with different team IDs but same rosters", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      // Same players, but team 3 and 5 instead of 0 and 1
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 3 },
+          { xuid: "1002", teamId: 3 },
+          { xuid: "2001", teamId: 5 },
+          { xuid: "2002", teamId: 5 },
+        ],
+        false,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 3 },
+          { xuid: "1002", teamId: 3 },
+          { xuid: "2001", teamId: 5 },
+          { xuid: "2002", teamId: 5 },
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([["match1", "match2"]]);
+    });
+
+    it("does not group when team sizes differ", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "1003", teamId: 0 }, // Extra player on team 0
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([]);
+    });
+
+    it("does not group when number of teams differ", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+        ],
+        false,
+      );
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "3001", teamId: 2 }, // Third team
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([]);
     });
   });
 });
