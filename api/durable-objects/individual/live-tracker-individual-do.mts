@@ -25,6 +25,9 @@ import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
 import type {
   LiveTrackerIndividualStartRequest,
+  LiveTrackerIndividualWebStartRequest,
+  LiveTrackerIndividualWebStartSuccessResponse,
+  LiveTrackerIndividualWebStartFailureResponse,
   LiveTrackerIndividualState,
   LiveTrackerIndividualStartResponse,
   LiveTrackerRefreshRequest,
@@ -89,6 +92,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         switch (action) {
           case "start": {
             return await this.handleStart(request);
+          }
+          case "web-start": {
+            return await this.handleWebStart(request);
           }
           case "pause": {
             return await this.handlePause();
@@ -333,6 +339,159 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       return await this.discordService.updateDeferredReply(startData.interactionToken, loadingEmbedData);
     } else {
       return await this.discordService.createMessage(startData.channelId, loadingEmbedData);
+    }
+  }
+
+  private async handleWebStart(request: Request): Promise<Response> {
+    const body = await request.json<LiveTrackerIndividualWebStartRequest>();
+
+    try {
+      // Initialize tracker state without Discord fields
+      const trackerState: LiveTrackerIndividualState = {
+        userId: "", // No Discord user for web-only tracking
+        xuid: body.xuid,
+        gamertag: body.gamertag,
+        guildId: "", // No guild for web-only tracking
+        channelId: "", // No channel for web-only tracking
+        isPaused: false,
+        status: "active",
+        liveMessageId: undefined,
+        startTime: new Date().toISOString(),
+        lastUpdateTime: new Date().toISOString(),
+        searchStartTime: body.searchStartTime,
+        checkCount: 0,
+        selectedGameIds: body.selectedMatchIds,
+        substitutions: [],
+        discoveredMatches: {},
+        rawMatches: {},
+        seriesScore: "0:0",
+        errorState: {
+          consecutiveErrors: 0,
+          backoffMinutes: NORMAL_INTERVAL_MINUTES,
+          lastSuccessTime: new Date().toISOString(),
+          lastErrorMessage: undefined,
+        },
+        lastMessageState: {
+          matchCount: 0,
+          substitutionCount: 0,
+        },
+        playersAssociationData: null,
+        matchGroupings: {},
+      };
+
+      await this.setState(trackerState);
+
+      // Fetch initial matches
+      const matches = await this.haloService.getMatchDetails(body.selectedMatchIds);
+
+      // Check if player is in an active NeatQueue series
+      const activeSeriesId = await this.findPlayerActiveSeriesId(body.xuid);
+
+      // Enrich and merge matches into state
+      await this.enrichAndMergeIndividualMatches(trackerState, matches, activeSeriesId ?? undefined);
+
+      // Apply user-provided groupings
+      this.applyUserGroupings(trackerState, body.groupings, activeSeriesId ?? undefined);
+
+      // Calculate series score
+      const rawMatchesArray = Object.values(trackerState.rawMatches);
+      const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      trackerState.seriesScore = seriesScore;
+
+      await this.setState(trackerState);
+
+      // Schedule alarm
+      const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+      const alarmTime = addMilliseconds(new Date(), nextAlarmInterval);
+      await this.state.storage.setAlarm(alarmTime.getTime());
+
+      this.logService.info(
+        `LiveTracker Individual (Web): Started for ${trackerState.gamertag}`,
+        new Map([
+          ["gamertag", trackerState.gamertag],
+          ["matchCount", Object.keys(trackerState.rawMatches).length.toString()],
+          ["groupingCount", Object.keys(trackerState.matchGroupings).length.toString()],
+        ]),
+      );
+
+      // Return WebSocket URL
+      const websocketUrl = `/ws/tracker/individual/${body.gamertag}`;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          websocketUrl,
+          gamertag: body.gamertag,
+        } satisfies LiveTrackerIndividualWebStartSuccessResponse),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    } catch (error) {
+      this.logService.error(
+        "Failed to start web-based individual tracker",
+        new Map([
+          ["error", String(error)],
+          ["gamertag", body.gamertag],
+        ]),
+      );
+      Sentry.captureException(error);
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        } satisfies LiveTrackerIndividualWebStartFailureResponse),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+  }
+
+  private applyUserGroupings(
+    trackerState: LiveTrackerIndividualState,
+    userGroupings: string[][],
+    seriesId?: { guildId: string; queueNumber: number },
+  ): void {
+    // Clear any auto-detected groupings
+    trackerState.matchGroupings = {};
+
+    // Apply user-provided groupings
+    for (let i = 0; i < userGroupings.length; i++) {
+      const matchIds = userGroupings[i];
+      if (matchIds != null && matchIds.length > 0) {
+        // Get the first match's start time to use as group ID
+        const firstMatch = trackerState.rawMatches[matchIds[0] ?? ""];
+        if (firstMatch == null) {
+          continue;
+        }
+
+        const groupId = `group_${new Date(firstMatch.MatchInfo.StartTime).getTime().toString()}`;
+
+        // Extract participants from all matches in the group
+        const participantsSet = new Set<string>();
+        for (const matchId of matchIds) {
+          const match = trackerState.rawMatches[matchId];
+          if (match != null) {
+            const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) =>
+              this.haloService.getPlayerXuid(p),
+            );
+            for (const participant of matchParticipants) {
+              participantsSet.add(participant);
+            }
+          }
+        }
+
+        trackerState.matchGroupings[groupId] = {
+          groupId,
+          matchIds,
+          participants: Array.from(participantsSet),
+          ...(seriesId && { seriesId }),
+        };
+      }
     }
   }
 

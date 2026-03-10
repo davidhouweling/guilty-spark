@@ -604,6 +604,15 @@ export class LiveTrackerService {
     return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
   }
 
+  /**
+   * Get Individual Tracker Durable Object stub by XUID
+   * Directly creates DO stub without gamertag resolution
+   */
+  getIndividualTrackerDOStubByXuid(xuid: string): DurableObjectStub<LiveTrackerIndividualDO> {
+    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(xuid);
+    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
+  }
+
   private createLogParams(
     context: LiveTrackerContext,
     additionalParams = new Map<string, string>(),

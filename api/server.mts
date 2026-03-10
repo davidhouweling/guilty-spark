@@ -1,6 +1,7 @@
 import type { AutoRouterType } from "itty-router";
 import type { installServices } from "./services/install.mjs";
 import type { getCommands } from "./commands/commands.mjs";
+import type { LiveTrackerIndividualWebStartRequest } from "./durable-objects/individual/types.mjs";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -26,6 +27,110 @@ export class Server {
       return new Response(
         `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands 🚀`,
       );
+    });
+
+    this.router.post("/api/tracker/individual/start", async (request, env: Env) => {
+      try {
+        const body = await request.json<{
+          gamertag: string;
+          selectedMatchIds: string[];
+          groupings: string[][];
+        }>();
+
+        if (!body.gamertag || body.gamertag === "") {
+          return new Response(
+            JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        if (!Array.isArray(body.selectedMatchIds) || body.selectedMatchIds.length === 0) {
+          return new Response(
+            JSON.stringify({
+              error: "missing_matches",
+              message: "Missing required parameter: selectedMatchIds (must be non-empty array)",
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        if (!Array.isArray(body.groupings)) {
+          return new Response(
+            JSON.stringify({
+              error: "invalid_groupings",
+              message: "Invalid groupings parameter (must be array)",
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        const services = this.installServices({ env });
+        const { liveTrackerService, xboxService, logService } = services;
+
+        // Resolve gamertag to XUID
+        let xuid: string;
+        try {
+          const user = await xboxService.getUserByGamertag(body.gamertag);
+          ({ xuid } = user);
+        } catch (error) {
+          logService.warn(
+            "Failed to resolve gamertag for tracker start",
+            new Map([
+              ["gamertag", body.gamertag],
+              ["error", String(error)],
+            ]),
+          );
+          return new Response(
+            JSON.stringify({ error: "not_found", message: `User with gamertag ${body.gamertag} not found` }),
+            {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        // Get Individual DO stub (keyed by XUID)
+        const stub = liveTrackerService.getIndividualTrackerDOStubByXuid(xuid);
+
+        // Build DO request
+        const doRequest: LiveTrackerIndividualWebStartRequest = {
+          xuid,
+          gamertag: body.gamertag,
+          searchStartTime: new Date().toISOString(),
+          selectedMatchIds: body.selectedMatchIds,
+          groupings: body.groupings,
+        };
+
+        // Call DO's web-start endpoint
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/web-start";
+
+        const doResponse = await stub.fetch(
+          new Request(doUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(doRequest),
+          }),
+        );
+
+        // Forward DO response to client
+        return doResponse;
+      } catch (error) {
+        console.error("Tracker start route error:", error);
+        return new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     });
 
     this.router.get("/api/tracker/individual/:gamertag/matches", async (request, env: Env) => {

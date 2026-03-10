@@ -19,6 +19,15 @@ export interface LiveTrackerIndividualStartRequest {
   playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
+// Web-based start request (no Discord integration)
+export interface LiveTrackerIndividualWebStartRequest {
+  xuid: string;
+  gamertag: string;
+  searchStartTime: string;
+  selectedMatchIds: string[]; // User-selected match IDs from the web UI
+  groupings: string[][]; // Array of arrays - each inner array is match IDs to group together
+}
+
 export interface LiveTrackerSubstitutionRequest {
   playerOutId: string;
   playerInId: string;
@@ -91,6 +100,17 @@ export interface LiveTrackerIndividualStartFailureResponse {
   state: LiveTrackerIndividualState;
 }
 
+export interface LiveTrackerIndividualWebStartSuccessResponse {
+  success: true;
+  websocketUrl: string;
+  gamertag: string;
+}
+
+export interface LiveTrackerIndividualWebStartFailureResponse {
+  success: false;
+  error: string;
+}
+
 export interface LiveTrackerIndividualPauseSuccessResponse {
   success: true;
   state: LiveTrackerIndividualState;
@@ -136,6 +156,10 @@ export interface LiveTrackerIndividualRepostSuccessResponse {
 export type LiveTrackerIndividualStartResponse =
   | LiveTrackerIndividualStartSuccessResponse
   | LiveTrackerIndividualStartFailureResponse;
+
+export type LiveTrackerIndividualWebStartResponse =
+  | LiveTrackerIndividualWebStartSuccessResponse
+  | LiveTrackerIndividualWebStartFailureResponse;
 
 export type LiveTrackerIndividualPauseResponse = LiveTrackerIndividualPauseSuccessResponse;
 
