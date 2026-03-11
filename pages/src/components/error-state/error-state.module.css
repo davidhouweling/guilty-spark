@@ -58,20 +58,10 @@
   font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: 1.6;
-  margin: 0;
+  margin: 0 0 var(--space-4) 0;
 }
 
-.buttonGroup {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  justify-content: center;
-  margin-top: var(--space-4);
-}
-
-.retryButton,
-.searchButton {
+.retryButton {
   background: transparent;
   border: 2px solid var(--halo-teal-primary);
   color: var(--halo-teal-primary);
@@ -89,14 +79,9 @@
 }
 
 .retryButton:hover,
-.searchButton:hover {
+.retryButton:active {
   background: rgb(93 212 216 / 10%);
   box-shadow: 0 0 20px rgb(93 212 216 / 30%);
-}
-
-.retryButton:active,
-.searchButton:active {
-  transform: scale(0.98);
 }
 
 .retryButton:focus-visible,

@@ -12,6 +12,7 @@ import type { MatchStatsData } from "../stats/types";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
+import { TrackerInitiationFactory } from "../tracker-initiation/create";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore, type LiveTrackerParams } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -24,6 +25,7 @@ interface LiveTrackerAppProps {
 
 interface LiveTrackerFactoryProps {
   readonly services: Services;
+  readonly apiHost: string;
 }
 
 TimeAgo.addDefaultLocale(en);
@@ -180,7 +182,7 @@ function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerM
   return true;
 }
 
-export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
+export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
@@ -207,10 +209,7 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
 
   const loaderStatus = snapshot.hasReceivedInitialData
     ? ComponentLoaderStatus.LOADED
-    : snapshot.connectionState === "idle" ||
-        snapshot.connectionState === "error" ||
-        snapshot.connectionState === "not_found" ||
-        snapshot.connectionState === "stopped"
+    : snapshot.connectionState === "error" || snapshot.connectionState === "stopped"
       ? ComponentLoaderStatus.ERROR
       : ComponentLoaderStatus.LOADING;
 
@@ -326,6 +325,12 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     }
   }, [model.state]);
 
+  // Show TrackerInitiation for idle or not_found states
+  if (snapshot.connectionState === "idle" || snapshot.connectionState === "not_found") {
+    const initialGamertag = snapshot.params.type === "individual" ? snapshot.params.gamertag : "";
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag={initialGamertag} />;
+  }
+
   return (
     <ComponentLoader
       status={loaderStatus}
@@ -337,13 +342,6 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
             snapshot.connectionState === "error" || snapshot.connectionState === "disconnected"
               ? (): void => {
                   presenter.start();
-                }
-              : undefined
-          }
-          onNavigateToSearch={
-            snapshot.connectionState === "idle" || snapshot.connectionState === "not_found"
-              ? (): void => {
-                  window.location.href = "/tracker";
                 }
               : undefined
           }
@@ -394,7 +392,7 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     };
   }, [apiHost]);
 
-  const loaded = services ? <LiveTrackerFactory services={services} /> : <ErrorState />;
+  const loaded = services ? <LiveTrackerFactory services={services} apiHost={apiHost} /> : <ErrorState />;
 
   return <ComponentLoader status={loadingServices} loading={<LoadingState />} error={<ErrorState />} loaded={loaded} />;
 }

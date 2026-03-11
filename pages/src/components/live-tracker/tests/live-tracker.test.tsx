@@ -78,7 +78,7 @@ describe("LiveTracker", () => {
       liveTrackerService,
     };
 
-    render(<LiveTrackerFactory services={services} />);
+    render(<LiveTrackerFactory services={services} apiHost="http://localhost:8787" />);
 
     await waitFor(() => {
       expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();

@@ -460,9 +460,8 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     trackerState.matchGroupings = {};
 
     // Apply user-provided groupings
-    for (let i = 0; i < userGroupings.length; i++) {
-      const matchIds = userGroupings[i];
-      if (matchIds != null && matchIds.length > 0) {
+    for (const matchIds of userGroupings) {
+      if (matchIds.length > 0) {
         // Get the first match's start time to use as group ID
         const firstMatch = trackerState.rawMatches[matchIds[0] ?? ""];
         if (firstMatch == null) {
