@@ -365,6 +365,34 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
   const [loadingServices, setLoadingServices] = React.useState<ComponentLoaderStatus>(ComponentLoaderStatus.PENDING);
   const [services, setServices] = React.useState<Services | null>(null);
 
+  // Check URL params to determine if we need to connect to a tracker
+  const shouldConnectToTracker = React.useMemo(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    const url = new URL(window.location.href);
+    const gamertag = url.searchParams.get("gamertag");
+    const server = url.searchParams.get("server");
+    const queue = url.searchParams.get("queue");
+
+    // Individual mode: needs gamertag
+    if (gamertag !== null && gamertag.length > 0) {
+      return true;
+    }
+
+    // Team mode: needs both server and queue
+    if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  // If we don't have params to connect, show TrackerInitiation immediately
+  if (!shouldConnectToTracker) {
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
+  }
+
   useEffect(() => {
     let isCancelled = false;
 

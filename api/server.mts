@@ -2,6 +2,7 @@ import type { AutoRouterType } from "itty-router";
 import type { installServices } from "./services/install.mjs";
 import type { getCommands } from "./commands/commands.mjs";
 import type { LiveTrackerIndividualWebStartRequest } from "./durable-objects/individual/types.mjs";
+import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors.mjs";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -23,6 +24,11 @@ export class Server {
   }
 
   private addRoutes(): void {
+    // Handle CORS preflight requests for API routes
+    this.router.options("/api/*", (request) => {
+      return handleCorsPreflightRequest(request);
+    });
+
     this.router.get("/", (_request, env: Env) => {
       return new Response(
         `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands 🚀`,
@@ -38,38 +44,47 @@ export class Server {
         }>();
 
         if (!body.gamertag || body.gamertag === "") {
-          return new Response(
-            JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+            request,
           );
         }
 
         if (!Array.isArray(body.selectedMatchIds) || body.selectedMatchIds.length === 0) {
-          return new Response(
-            JSON.stringify({
-              error: "missing_matches",
-              message: "Missing required parameter: selectedMatchIds (must be non-empty array)",
-            }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({
+                error: "missing_matches",
+                message: "Missing required parameter: selectedMatchIds (must be non-empty array)",
+              }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+            request,
           );
         }
 
         if (!Array.isArray(body.groupings)) {
-          return new Response(
-            JSON.stringify({
-              error: "invalid_groupings",
-              message: "Invalid groupings parameter (must be array)",
-            }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({
+                error: "invalid_groupings",
+                message: "Invalid groupings parameter (must be array)",
+              }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+            request,
           );
         }
 
@@ -89,12 +104,15 @@ export class Server {
               ["error", String(error)],
             ]),
           );
-          return new Response(
-            JSON.stringify({ error: "not_found", message: `User with gamertag ${body.gamertag} not found` }),
-            {
-              status: 404,
-              headers: { "Content-Type": "application/json" },
-            },
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({ error: "not_found", message: `User with gamertag ${body.gamertag} not found` }),
+              {
+                status: 404,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+            request,
           );
         }
 
@@ -122,14 +140,17 @@ export class Server {
           }),
         );
 
-        // Forward DO response to client
-        return doResponse;
+        // Forward DO response to client with CORS headers
+        return addCorsHeaders(doResponse, request);
       } catch (error) {
         console.error("Tracker start route error:", error);
-        return new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+        );
       }
     });
 
@@ -138,12 +159,15 @@ export class Server {
         const { gamertag } = request.params as { gamertag: string };
 
         if (!gamertag || gamertag === "") {
-          return new Response(
-            JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
+          return addCorsHeaders(
+            new Response(
+              JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
+              {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+            request,
           );
         }
 
@@ -153,19 +177,25 @@ export class Server {
         try {
           const matchHistory = await haloService.getEnrichedMatchHistory(gamertag, "en-US");
 
-          return new Response(JSON.stringify(matchHistory), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return addCorsHeaders(
+            new Response(JSON.stringify(matchHistory), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+            request,
+          );
         } catch (error) {
           if (error instanceof Error && error.message.includes("not found")) {
             logService.info("Gamertag not found for match history", new Map([["gamertag", gamertag]]));
-            return new Response(
-              JSON.stringify({ error: "not_found", message: `User with gamertag ${gamertag} not found` }),
-              {
-                status: 404,
-                headers: { "Content-Type": "application/json" },
-              },
+            return addCorsHeaders(
+              new Response(
+                JSON.stringify({ error: "not_found", message: `User with gamertag ${gamertag} not found` }),
+                {
+                  status: 404,
+                  headers: { "Content-Type": "application/json" },
+                },
+              ),
+              request,
             );
           }
 
@@ -177,20 +207,23 @@ export class Server {
             ]),
           );
 
-          return new Response(
-            JSON.stringify({ error: "internal_error", message: "Failed to retrieve match history" }),
-            {
+          return addCorsHeaders(
+            new Response(JSON.stringify({ error: "internal_error", message: "Failed to retrieve match history" }), {
               status: 500,
               headers: { "Content-Type": "application/json" },
-            },
+            }),
+            request,
           );
         }
       } catch (error) {
         console.error("Match history route error:", error);
-        return new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+        );
       }
     });
 

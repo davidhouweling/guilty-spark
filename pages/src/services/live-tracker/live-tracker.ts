@@ -85,11 +85,13 @@ export class RealLiveTrackerService implements LiveTrackerService {
   }
 
   public connect(identity: LiveTrackerIdentity): LiveTrackerConnection {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    // Parse the host from the HTTP(S) URL for WebSocket connection
+    const apiUrl = new URL(this.config.apiHost);
+    const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl =
       identity.type === "team"
-        ? `${protocol}//${this.config.apiHost}/ws/tracker/${identity.guildId}/${identity.queueNumber}`
-        : `${protocol}//${this.config.apiHost}/ws/tracker/individual/${identity.gamertag}`;
+        ? `${protocol}//${apiUrl.host}/ws/tracker/${identity.guildId}/${identity.queueNumber}`
+        : `${protocol}//${apiUrl.host}/ws/tracker/individual/${identity.gamertag}`;
 
     const ws = new WebSocket(wsUrl);
     const connection = new RealLiveTrackerConnection(ws);

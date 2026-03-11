@@ -37,16 +37,6 @@ export function TrackerInitiationFactory({
 
   const isSearching = snapshot.state.type === "loading";
 
-  // Determine loader status for results area
-  const loaderStatus =
-    snapshot.state.type === "idle"
-      ? ComponentLoaderStatus.PENDING
-      : snapshot.state.type === "loading"
-        ? ComponentLoaderStatus.LOADING
-        : snapshot.state.type === "error"
-          ? ComponentLoaderStatus.ERROR
-          : ComponentLoaderStatus.LOADED;
-
   return (
     <TrackerInitiation
       gamertag={model.gamertag}
@@ -58,41 +48,49 @@ export function TrackerInitiationFactory({
         void presenter.search();
       }}
     >
-      <ComponentLoader
-        status={loaderStatus}
-        loading={<LoadingState />}
-        error={
-          <ErrorState
-            message={snapshot.state.type === "error" ? snapshot.state.message : "An error occurred"}
-            onRetry={(): void => {
-              void presenter.search();
-            }}
-          />
-        }
-        loaded={
-          snapshot.state.type === "loaded" ? (
-            <MatchSelectionList
-              matches={snapshot.state.data.matches}
-              selectedMatchIds={model.selectedMatchIds}
-              groupings={model.groupings}
-              onMatchToggle={(matchId): void => {
-                presenter.toggleMatch(matchId);
-              }}
-              onSelectAll={(): void => {
-                presenter.selectAll();
-              }}
-              onDeselectAll={(): void => {
-                presenter.deselectAll();
-              }}
-              onStartTracker={(): void => {
-                void presenter.startTracker();
+      {snapshot.state.type === "idle" ? null : (
+        <ComponentLoader
+          status={
+            snapshot.state.type === "loading"
+              ? ComponentLoaderStatus.LOADING
+              : snapshot.state.type === "error"
+                ? ComponentLoaderStatus.ERROR
+                : ComponentLoaderStatus.LOADED
+          }
+          loading={<LoadingState />}
+          error={
+            <ErrorState
+              message={snapshot.state.type === "error" ? snapshot.state.message : "An error occurred"}
+              onRetry={(): void => {
+                void presenter.search();
               }}
             />
-          ) : (
-            <div />
-          )
-        }
-      />
+          }
+          loaded={
+            snapshot.state.type === "loaded" ? (
+              <MatchSelectionList
+                matches={snapshot.state.data.matches}
+                selectedMatchIds={model.selectedMatchIds}
+                groupings={model.groupings}
+                onMatchToggle={(matchId): void => {
+                  presenter.toggleMatch(matchId);
+                }}
+                onSelectAll={(): void => {
+                  presenter.selectAll();
+                }}
+                onDeselectAll={(): void => {
+                  presenter.deselectAll();
+                }}
+                onStartTracker={(): void => {
+                  void presenter.startTracker();
+                }}
+              />
+            ) : (
+              <div />
+            )
+          }
+        />
+      )}
     </TrackerInitiation>
   );
 }
