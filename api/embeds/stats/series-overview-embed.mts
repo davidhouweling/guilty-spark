@@ -51,7 +51,7 @@ export class SeriesOverviewEmbed {
     finalTeams: SeriesOverviewEmbedFinalTeams[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
-  }): Promise<APIEmbed> {
+  }): Promise<APIEmbed[]> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     const subs = [...substitutions].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -95,29 +95,71 @@ export class SeriesOverviewEmbed {
     const endTime = this.discordService.getTimestamp(
       Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime),
     );
-    const embed: APIEmbed = {
-      title: `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale)})`,
-      description: `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`,
-      url: `https://discord.com/channels/${guildId}/${channelId}/${messageId}`,
-      color: EmbedColors.INFO,
-    };
 
-    this.addEmbedFields(embed, titles, tableData);
+    const embeds: APIEmbed[] = [];
+    const dataRows = tableData.slice(1); // All rows except titles
 
-    return embed;
-  }
+    let currentRowIndex = 0;
+    while (currentRowIndex < dataRows.length) {
+      const isFirstEmbed = embeds.length === 0;
 
-  private addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {
-    for (let column = 0; column < titles.length; column++) {
-      embed.fields ??= [];
-      embed.fields.push({
-        name: Preconditions.checkExists(titles[column]),
-        value: data
-          .slice(1)
-          .map((row) => row[column])
-          .join("\n"),
-        inline: true,
-      });
+      // Initialize field values for each column
+      const fieldValues: string[] = Array.from({ length: titles.length }).fill("") as string[];
+
+      // Determine how many rows can fit in this embed
+      while (currentRowIndex < dataRows.length) {
+        const row = Preconditions.checkExists(dataRows[currentRowIndex]);
+
+        // Check if adding this row would exceed the 1024 character limit for any column
+        let canAddRow = true;
+        for (let col = 0; col < titles.length; col++) {
+          const currentValue = Preconditions.checkExists(fieldValues[col]);
+          const rowValue = Preconditions.checkExists(row[col]);
+          const newValue = currentValue + (currentValue.length > 0 ? "\n" : "") + rowValue;
+          if (newValue.length > 1024) {
+            canAddRow = false;
+            break;
+          }
+        }
+
+        if (!canAddRow) {
+          break;
+        }
+
+        // Add the row to all columns
+        for (let col = 0; col < titles.length; col++) {
+          const rowValue = Preconditions.checkExists(row[col]);
+          const currentFieldValue = Preconditions.checkExists(fieldValues[col]);
+          fieldValues[col] = currentFieldValue + (currentFieldValue.length > 0 ? "\n" : "") + rowValue;
+        }
+        currentRowIndex++;
+      }
+
+      // Create the embed
+      const embed: APIEmbed = {
+        color: EmbedColors.INFO,
+      };
+
+      if (isFirstEmbed) {
+        embed.title = `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale)})`;
+        embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`;
+        embed.url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+      }
+
+      // Add fields
+      embed.fields = [];
+      for (let col = 0; col < titles.length; col++) {
+        const fieldValue = Preconditions.checkExists(fieldValues[col]);
+        embed.fields.push({
+          name: Preconditions.checkExists(titles[col]),
+          value: fieldValue.length > 0 ? fieldValue : "-",
+          inline: true,
+        });
+      }
+
+      embeds.push(embed);
     }
+
+    return embeds;
   }
 }

@@ -238,7 +238,7 @@ export class StatsCommand extends BaseCommand {
       });
 
       await discordService.updateDeferredReply(interaction.token, {
-        embeds: [seriesEmbed],
+        embeds: seriesEmbed,
       });
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
@@ -353,7 +353,7 @@ export class StatsCommand extends BaseCommand {
         });
 
         await discordService.updateDeferredReply(interaction.token, {
-          embeds: [seriesEmbed],
+          embeds: seriesEmbed,
         });
 
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
@@ -606,7 +606,7 @@ export class StatsCommand extends BaseCommand {
     locale: string;
     queueData: QueueData;
     series: MatchStats[];
-  }): Promise<APIEmbed> {
+  }): Promise<APIEmbed[]> {
     const { discordService, haloService } = this.services;
     const seriesOverview = new SeriesOverviewEmbed({ discordService, haloService });
     const seriesEmbed = await seriesOverview.getEmbed({
