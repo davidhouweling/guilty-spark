@@ -22,7 +22,7 @@ describe("SeriesOverviewEmbed", () => {
     // Get a sample match from the fake data
     const matchStatsArray = Array.from(matchStats.values());
     const [firstMatch] = matchStatsArray;
-    if (!firstMatch) {
+    if (firstMatch == null) {
       throw new Error("No match stats available for testing");
     }
     sampleMatchStats = firstMatch;
@@ -46,7 +46,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embed = await seriesOverviewEmbed.getEmbed({
+      const embeds = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -58,11 +58,13 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embed).toBeDefined();
-      expect(embed.title).toContain("Series stats for queue #1");
-      expect(embed.fields).toBeDefined();
-      expect(embed.description).toContain("Team Alpha");
-      expect(embed.description).toContain("Team Beta");
+      expect(embeds).toBeDefined();
+      expect(embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.title).toContain("Series stats for queue #1");
+      expect(firstEmbed?.fields).toBeDefined();
+      expect(firstEmbed?.description).toContain("Team Alpha");
+      expect(firstEmbed?.description).toContain("Team Beta");
     });
 
     it("creates an embed with substitutions", async () => {
@@ -86,7 +88,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embed = await seriesOverviewEmbed.getEmbed({
+      const embeds = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -98,8 +100,10 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embed).toBeDefined();
-      expect(embed.title).toContain("Series stats for queue #1");
+      expect(embeds).toBeDefined();
+      expect(embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.title).toContain("Series stats for queue #1");
       // The substitution should appear in the embed since it happened before the match
     });
 
@@ -115,7 +119,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embed = await seriesOverviewEmbed.getEmbed({
+      const embeds = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -127,10 +131,12 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: true,
       });
 
-      expect(embed).toBeDefined();
-      expect(embed.description).not.toContain("Team Alpha");
-      expect(embed.description).not.toContain("Team Beta");
-      expect(embed.description).toContain("Start time:");
+      expect(embeds).toBeDefined();
+      expect(embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.description).not.toContain("Team Alpha");
+      expect(firstEmbed?.description).not.toContain("Team Beta");
+      expect(firstEmbed?.description).toContain("Start time:");
     });
 
     it("handles empty substitutions array", async () => {
@@ -145,7 +151,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embed = await seriesOverviewEmbed.getEmbed({
+      const embeds = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -157,9 +163,11 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embed).toBeDefined();
-      expect(embed.fields).toBeDefined();
-      expect(embed.fields?.length).toBeGreaterThan(0);
+      expect(embeds).toBeDefined();
+      expect(embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.fields).toBeDefined();
+      expect(firstEmbed?.fields?.length).toBeGreaterThan(0);
     });
 
     it("includes correct game information in fields", async () => {
@@ -178,7 +186,7 @@ describe("SeriesOverviewEmbed", () => {
       const getReadableDurationSpy = vi.spyOn(haloService, "getReadableDuration");
       const getMatchScoreSpy = vi.spyOn(haloService, "getMatchScore");
 
-      const embed = await seriesOverviewEmbed.getEmbed({
+      const embeds = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -194,10 +202,77 @@ describe("SeriesOverviewEmbed", () => {
       expect(getReadableDurationSpy).toHaveBeenCalledWith(sampleMatchStats.MatchInfo.Duration, "en-US");
       expect(getMatchScoreSpy).toHaveBeenCalledWith(sampleMatchStats, "en-US");
 
-      expect(embed.fields).toBeDefined();
-      expect(embed.fields?.some((field) => field.name === "Game")).toBe(true);
-      expect(embed.fields?.some((field) => field.name === "Duration")).toBe(true);
-      expect(embed.fields?.some((field) => field.name === "Score (🦅:🐍)")).toBe(true);
+      expect(embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.fields).toBeDefined();
+      expect(firstEmbed?.fields?.some((field) => field.name === "Game")).toBe(true);
+      expect(firstEmbed?.fields?.some((field) => field.name === "Duration")).toBe(true);
+      expect(firstEmbed?.fields?.some((field) => field.name === "Score (🦅:🐍)")).toBe(true);
+    });
+
+    it("splits into multiple embeds when data exceeds field character limits", async () => {
+      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+        {
+          name: "Team Alpha",
+          playerIds: ["user1", "user2"],
+        },
+        {
+          name: "Team Beta",
+          playerIds: ["user3", "user4"],
+        },
+      ];
+
+      // Create a very long game type/map string that will force splitting
+      const longGameType = "A".repeat(100);
+      vi.spyOn(haloService, "getGameTypeAndMap").mockResolvedValue(longGameType);
+      vi.spyOn(haloService, "getReadableDuration").mockReturnValue("10m 30s");
+      vi.spyOn(haloService, "getMatchScore").mockReturnValue({ gameScore: "3-1", gameSubScore: null });
+
+      // Create enough matches to exceed the 1024 character limit for a single field
+      // With 100 characters per game + markdown link, we need about 12 matches to exceed the limit
+      const manyMatches = Array.from({ length: 15 }).fill(sampleMatchStats) as MatchStats[];
+
+      const embeds = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        messageId: "message123",
+        locale: "en-US",
+        queue: 1,
+        series: manyMatches,
+        finalTeams,
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      // Should have multiple embeds due to character limit
+      expect(embeds.length).toBeGreaterThan(1);
+
+      // First embed should have title, description, and URL
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.title).toBeDefined();
+      expect(firstEmbed?.description).toBeDefined();
+      expect(firstEmbed?.url).toBeDefined();
+      expect(firstEmbed?.color).toBeDefined();
+
+      // Subsequent embeds should only have color, not title/description/URL
+      const [, secondEmbed] = embeds;
+      expect(secondEmbed?.title).toBeUndefined();
+      expect(secondEmbed?.description).toBeUndefined();
+      expect(secondEmbed?.url).toBeUndefined();
+      expect(secondEmbed?.color).toBeDefined();
+
+      // All embeds should have fields
+      for (const embed of embeds) {
+        expect(embed.fields).toBeDefined();
+        expect(embed.fields?.length).toBe(3); // Game, Duration, Score
+      }
+
+      // Verify no field value exceeds 1024 characters
+      for (const embed of embeds) {
+        for (const field of embed.fields ?? []) {
+          expect(field.value.length).toBeLessThanOrEqual(1024);
+        }
+      }
     });
   });
 });
