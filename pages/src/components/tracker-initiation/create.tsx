@@ -57,7 +57,7 @@ export function TrackerInitiationFactory({
                 ? ComponentLoaderStatus.ERROR
                 : ComponentLoaderStatus.LOADED
           }
-          loading={<LoadingState />}
+          loading={<LoadingState text="Gathering data..." />}
           error={
             <ErrorState
               message={snapshot.state.type === "error" ? snapshot.state.message : "An error occurred"}
@@ -83,6 +83,15 @@ export function TrackerInitiationFactory({
                 }}
                 onStartTracker={(): void => {
                   void presenter.startTracker();
+                }}
+                onAddToAboveGroup={(matchId): void => {
+                  presenter.addToAboveGroup(matchId);
+                }}
+                onAddToBelowGroup={(matchId): void => {
+                  presenter.addToBelowGroup(matchId);
+                }}
+                onBreakFromGroup={(matchId): void => {
+                  presenter.breakFromGroup(matchId);
                 }}
               />
             ) : (

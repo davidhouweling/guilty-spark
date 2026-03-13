@@ -78,20 +78,12 @@ export class TrackerInitiationPresenter {
 
       const data = await response.json<MatchHistoryResponse>();
 
-      // Auto-select all matches that are in suggested groupings
-      const matchesInGroupings = new Set<string>();
-      for (const group of data.suggestedGroupings) {
-        for (const matchId of group) {
-          matchesInGroupings.add(matchId);
-        }
-      }
-
       const updated = this.config.store.getSnapshot();
       this.config.store.setSnapshot({
         ...updated,
         state: { type: "loaded", data },
         groupings: data.suggestedGroupings,
-        selectedMatchIds: matchesInGroupings,
+        selectedMatchIds: new Set(),
       });
     } catch {
       const updated = this.config.store.getSnapshot();
@@ -189,5 +181,119 @@ export class TrackerInitiationPresenter {
         state: { type: "error", message: "Network error. Please try again." },
       });
     }
+  }
+
+  public addToAboveGroup(matchId: string): void {
+    const current = this.config.store.getSnapshot();
+    const matches = current.state.type === "loaded" ? current.state.data.matches : [];
+    const matchIndex = matches.findIndex((m) => m.matchId === matchId);
+
+    if (matchIndex <= 0) {
+      return; // Can't add to above if it's the first match
+    }
+
+    const aboveMatchId = matches[matchIndex - 1].matchId;
+    const updatedGroupings = [...current.groupings];
+
+    // Find if above match is in a group
+    let aboveGroupIndex = -1;
+    for (let i = 0; i < updatedGroupings.length; i++) {
+      if (updatedGroupings[i].includes(aboveMatchId)) {
+        aboveGroupIndex = i;
+        break;
+      }
+    }
+
+    // Find if current match is in a group
+    let currentGroupIndex = -1;
+    for (let i = 0; i < updatedGroupings.length; i++) {
+      if (updatedGroupings[i].includes(matchId)) {
+        currentGroupIndex = i;
+        break;
+      }
+    }
+
+    // Remove current match from its group if it's in one
+    if (currentGroupIndex !== -1) {
+      updatedGroupings[currentGroupIndex] = updatedGroupings[currentGroupIndex].filter((id) => id !== matchId);
+      if (updatedGroupings[currentGroupIndex].length === 0) {
+        updatedGroupings.splice(currentGroupIndex, 1);
+      }
+    }
+
+    // Add to above group or create new group
+    if (aboveGroupIndex !== -1) {
+      updatedGroupings[aboveGroupIndex] = [...updatedGroupings[aboveGroupIndex], matchId];
+    } else {
+      updatedGroupings.push([aboveMatchId, matchId]);
+    }
+
+    this.config.store.setSnapshot({
+      ...current,
+      groupings: updatedGroupings.filter((g) => g.length > 0),
+    });
+  }
+
+  public addToBelowGroup(matchId: string): void {
+    const current = this.config.store.getSnapshot();
+    const matches = current.state.type === "loaded" ? current.state.data.matches : [];
+    const matchIndex = matches.findIndex((m) => m.matchId === matchId);
+
+    if (matchIndex < 0 || matchIndex >= matches.length - 1) {
+      return; // Can't add to below if it's the last match
+    }
+
+    const belowMatchId = matches[matchIndex + 1].matchId;
+    const updatedGroupings = [...current.groupings];
+
+    // Find if below match is in a group
+    let belowGroupIndex = -1;
+    for (let i = 0; i < updatedGroupings.length; i++) {
+      if (updatedGroupings[i].includes(belowMatchId)) {
+        belowGroupIndex = i;
+        break;
+      }
+    }
+
+    // Find if current match is in a group
+    let currentGroupIndex = -1;
+    for (let i = 0; i < updatedGroupings.length; i++) {
+      if (updatedGroupings[i].includes(matchId)) {
+        currentGroupIndex = i;
+        break;
+      }
+    }
+
+    // Remove current match from its group if it's in one
+    if (currentGroupIndex !== -1) {
+      updatedGroupings[currentGroupIndex] = updatedGroupings[currentGroupIndex].filter((id) => id !== matchId);
+      if (updatedGroupings[currentGroupIndex].length === 0) {
+        updatedGroupings.splice(currentGroupIndex, 1);
+      }
+    }
+
+    // Add to below group or create new group
+    if (belowGroupIndex !== -1) {
+      updatedGroupings[belowGroupIndex] = [matchId, ...updatedGroupings[belowGroupIndex]];
+    } else {
+      updatedGroupings.push([matchId, belowMatchId]);
+    }
+
+    this.config.store.setSnapshot({
+      ...current,
+      groupings: updatedGroupings.filter((g) => g.length > 0),
+    });
+  }
+
+  public breakFromGroup(matchId: string): void {
+    const current = this.config.store.getSnapshot();
+    const updatedGroupings = current.groupings
+      .map((group) => group.filter((id) => id !== matchId))
+      .filter((group) => group.length > 0);
+
+    this.config.store.setSnapshot({
+      ...current,
+      groupings: updatedGroupings,
+    });
   }
 }

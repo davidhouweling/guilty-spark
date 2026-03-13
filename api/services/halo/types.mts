@@ -34,6 +34,8 @@ export interface MatchHistoryEntry {
   outcome: "Win" | "Loss" | "Tie" | "DNF";
   resultString: string;
   isMatchmaking: boolean;
+  teams: string[][];
+  mapThumbnailUrl: string;
 }
 
 export enum FetchablePlaylist {

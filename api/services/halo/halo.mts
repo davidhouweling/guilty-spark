@@ -632,17 +632,23 @@ export class HaloService {
     const matchDetails = await this.getMatchDetails(matchIds);
     const matchDetailsById = new Map(matchDetails.map((match) => [match.MatchId, match]));
 
+    // Resolve all player XUIDs to gamertags
+    const xuidToGamertagMap = await this.getPlayerXuidsToGametags(matchDetails);
+
     const matchesWithNames: MatchHistoryEntry[] = [];
     for (const match of matches) {
       const matchDetail = matchDetailsById.get(match.MatchId);
 
-      const [mapNameResult, modeNameResult] = await Promise.allSettled([
+      const [mapNameResult, modeNameResult, mapThumbnailResult] = await Promise.allSettled([
         this.getMapName(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
         this.getGameType(match.MatchInfo.UgcGameVariant.AssetId, match.MatchInfo.UgcGameVariant.VersionId),
+        this.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
       ]);
 
       const mapName = mapNameResult.status === "fulfilled" ? mapNameResult.value : "Unknown Map";
       const modeName = modeNameResult.status === "fulfilled" ? modeNameResult.value : "Unknown Mode";
+      const mapThumbnailUrl =
+        mapThumbnailResult.status === "fulfilled" ? (mapThumbnailResult.value ?? "data:,") : "data:,";
       const outcome = this.getMatchOutcome(match.Outcome);
 
       // Build result string (e.g., "Win - 50:49" or "Loss - 25:50 (120:98)")
@@ -652,16 +658,60 @@ export class HaloService {
         resultString = `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
       }
 
+      // Extract team rosters
+      const teams: string[][] = [];
+      if (matchDetail) {
+        // Group players by team ID
+        const playersByTeam = new Map<number, string[]>();
+        for (const player of matchDetail.Players) {
+          if (player.PlayerType === 1) {
+            // Human players only
+            const xuid = this.getPlayerXuid(player);
+            const playerGamertag = xuidToGamertagMap.get(xuid) ?? "*Unknown*";
+            const teamId = player.LastTeamId;
+
+            if (!playersByTeam.has(teamId)) {
+              playersByTeam.set(teamId, []);
+            }
+            playersByTeam.get(teamId)?.push(playerGamertag);
+          }
+        }
+
+        // Convert to sorted array of arrays
+        const sortedTeamIds = Array.from(playersByTeam.keys()).sort((a, b) => a - b);
+        for (const teamId of sortedTeamIds) {
+          const teamPlayers = playersByTeam.get(teamId);
+          if (teamPlayers) {
+            teams.push(teamPlayers);
+          }
+        }
+      }
+
+      // Format dates using the provided locale
+      const startDate = new Date(match.MatchInfo.StartTime);
+      const endDate = new Date(match.MatchInfo.EndTime);
+      const dateTimeFormat = new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
+      });
+
       matchesWithNames.push({
         matchId: match.MatchId,
-        startTime: match.MatchInfo.StartTime,
-        endTime: match.MatchInfo.EndTime,
-        duration: match.MatchInfo.Duration,
+        startTime: dateTimeFormat.format(startDate),
+        endTime: dateTimeFormat.format(endDate),
+        duration: this.getReadableDuration(match.MatchInfo.Duration, locale),
         mapName,
         modeName,
         outcome,
         resultString,
         isMatchmaking: match.MatchInfo.Playlist != null,
+        teams,
+        mapThumbnailUrl,
       });
     }
 

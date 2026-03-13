@@ -372,6 +372,11 @@ export function aFakeMatchHistoryEntryWith(overrides?: Partial<MatchHistoryEntry
     outcome: "Win",
     resultString: "Win - 50:49",
     isMatchmaking: baseMatch.MatchInfo.Playlist != null,
+    teams: [
+      ["Player1", "Player2", "Player3", "Player4"],
+      ["Player5", "Player6", "Player7", "Player8"],
+    ],
+    mapThumbnailUrl: "data:,",
     ...overrides,
   };
 }

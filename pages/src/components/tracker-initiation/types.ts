@@ -8,6 +8,8 @@ export interface MatchHistoryEntry {
   readonly outcome: string;
   readonly resultString: string;
   readonly isMatchmaking: boolean;
+  readonly teams: readonly (readonly string[])[];
+  readonly mapThumbnailUrl: string;
 }
 
 export interface MatchHistoryResponse {

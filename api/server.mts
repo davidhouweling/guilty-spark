@@ -56,12 +56,12 @@ export class Server {
           );
         }
 
-        if (!Array.isArray(body.selectedMatchIds) || body.selectedMatchIds.length === 0) {
+        if (!Array.isArray(body.selectedMatchIds)) {
           return addCorsHeaders(
             new Response(
               JSON.stringify({
-                error: "missing_matches",
-                message: "Missing required parameter: selectedMatchIds (must be non-empty array)",
+                error: "invalid_matches",
+                message: "Invalid selectedMatchIds parameter (must be array)",
               }),
               {
                 status: 400,
@@ -89,12 +89,12 @@ export class Server {
         }
 
         const services = this.installServices({ env });
-        const { liveTrackerService, xboxService, logService } = services;
+        const { liveTrackerService, haloService, logService } = services;
 
         // Resolve gamertag to XUID
         let xuid: string;
         try {
-          const user = await xboxService.getUserByGamertag(body.gamertag);
+          const user = await haloService.getUserByGamertag(body.gamertag);
           ({ xuid } = user);
         } catch (error) {
           logService.warn(
