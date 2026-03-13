@@ -13,6 +13,7 @@ import {
   ApplicationCommandType,
   ChannelType,
   ComponentType,
+  EmbedType,
   InteractionResponseType,
   InteractionType,
   Locale,
@@ -918,6 +919,311 @@ describe("StatsCommand", () => {
 
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", retryError);
+    });
+  });
+
+  describe("execute(): message component load games button", () => {
+    let loadGamesButtonInteraction: APIMessageComponentButtonInteraction;
+    let getMessageSpy: MockInstance<typeof services.discordService.getMessage>;
+    let getMessagesSpy: MockInstance<typeof services.discordService.getMessages>;
+    let getMatchDetailsSpy: MockInstance<typeof services.haloService.getMatchDetails>;
+    let createMessageSpy: MockInstance<typeof services.discordService.createMessage>;
+    let deleteMessageSpy: MockInstance<typeof services.discordService.deleteMessage>;
+    let mockParentMessage: APIMessage;
+
+    beforeEach(() => {
+      mockParentMessage = {
+        id: "parent-message-id",
+        channel_id: "parent-channel-id",
+        author: {
+          id: env.DISCORD_APP_ID,
+          username: "GuiltySparkBot",
+          discriminator: "0",
+          avatar: null,
+          global_name: null,
+          bot: true,
+        },
+        content: "",
+        timestamp: "2024-01-01T00:00:00.000Z",
+        edited_timestamp: null,
+        tts: false,
+        mention_everyone: false,
+        mentions: [],
+        mention_roles: [],
+        attachments: [],
+        embeds: [
+          {
+            title: "Series stats for queue #5 (3-1)",
+            description:
+              "**Team 1:** <@user1> <@user2>\n**Team 2:** <@user3> <@user4>\n\n-# Start time: <t:1700000000:f> | End time: <t:1700003600:f>",
+            url: "https://discord.com/channels/fake-guild-id/parent-channel-id/parent-message-id",
+            color: 0x3498db,
+            fields: [
+              {
+                name: "Game",
+                value:
+                  "[CTF on Bazaar](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)\n[Slayer on Recharge](https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer)",
+                inline: true,
+              },
+              {
+                name: "Duration",
+                value: "10m 30s\n8m 15s",
+                inline: true,
+              },
+              {
+                name: "Score (🦅:🐍)",
+                value: "3-1\n50-45",
+                inline: true,
+              },
+            ],
+          },
+        ],
+        pinned: false,
+        type: MessageType.Default,
+      };
+
+      const loadGamesThreadChannel: APIThreadChannel = {
+        id: "thread-channel-id",
+        type: ChannelType.PublicThread,
+        name: "Queue #5 series stats",
+        parent_id: "parent-channel-id",
+        owner_id: env.DISCORD_APP_ID,
+        message_count: 5,
+        member_count: 2,
+        thread_metadata: {
+          archived: false,
+          auto_archive_duration: 60,
+          archive_timestamp: "2024-01-01T00:00:00.000Z",
+          locked: false,
+        },
+      };
+
+      loadGamesButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        channel: loadGamesThreadChannel,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_load_games",
+        },
+      };
+
+      getMessageSpy = vi.spyOn(services.discordService, "getMessage").mockResolvedValue(mockParentMessage);
+      getMessagesSpy = vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      getMatchDetailsSpy = vi
+        .spyOn(services.haloService, "getMatchDetails")
+        .mockResolvedValue([
+          Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+          Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        ]);
+      createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(playerXuidsToGametags);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(aFakeGuildConfigRow());
+    });
+
+    it("returns DeferredMessageUpdate response for load games button", () => {
+      const { response, jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredMessageUpdate,
+      });
+      expect(jobToComplete).toBeInstanceOf(Function);
+    });
+
+    it("extracts match IDs from a single embed and loads game stats", async () => {
+      const { jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+      await jobToComplete?.();
+
+      expect(getMessageSpy).toHaveBeenCalledWith("parent-channel-id", "thread-channel-id");
+      expect(getMatchDetailsSpy).toHaveBeenCalledWith([
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+      expect(createMessageSpy).toHaveBeenCalledTimes(2);
+      expect(deleteMessageSpy).toHaveBeenCalledWith(
+        "thread-channel-id",
+        "fake-message-id",
+        "Removing load games buttons",
+      );
+    });
+
+    it("extracts match IDs from multiple embeds in a single message", async () => {
+      const messageWithMultipleEmbeds: APIMessage = {
+        ...mockParentMessage,
+        embeds: [
+          {
+            title: "Series stats for queue #5 (3-1)",
+            color: 0x3498db,
+            fields: [
+              {
+                name: "Game",
+                value: "[CTF on Bazaar](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+                inline: true,
+              },
+              { name: "Duration", value: "10m 30s", inline: true },
+              { name: "Score (🦅:🐍)", value: "3-1", inline: true },
+            ],
+          },
+          {
+            color: 0x3498db,
+            fields: [
+              {
+                name: "Game",
+                value:
+                  "[Slayer on Recharge](https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer)",
+                inline: true,
+              },
+              { name: "Duration", value: "8m 15s", inline: true },
+              { name: "Score (🦅:🐍)", value: "50-45", inline: true },
+            ],
+          },
+        ],
+      };
+
+      getMessageSpy.mockResolvedValue(messageWithMultipleEmbeds);
+
+      const { jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+      await jobToComplete?.();
+
+      expect(getMatchDetailsSpy).toHaveBeenCalledWith([
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+      expect(createMessageSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("handles NeatQueue bot scenario by collecting embeds from thread messages", async () => {
+      const neatQueueParentMessage: APIMessage = {
+        ...mockParentMessage,
+        author: {
+          id: "857633321064595466", // NEAT_QUEUE_BOT_USER_ID
+          username: "NeatQueue",
+          discriminator: "0",
+          avatar: null,
+          global_name: null,
+          bot: true,
+        },
+      };
+
+      const threadMessagesWithMultipleEmbeds: APIMessage[] = [
+        {
+          ...apiMessage,
+          id: "thread-message-1",
+          author: {
+            id: env.DISCORD_APP_ID,
+            username: "GuiltySparkBot",
+            discriminator: "0",
+            avatar: null,
+            global_name: null,
+            bot: true,
+          },
+          embeds: [
+            {
+              type: EmbedType.Rich,
+              title: "Series stats for queue #5 (3-1)",
+              color: 0x3498db,
+              fields: [
+                {
+                  name: "Game",
+                  value:
+                    "[CTF on Bazaar](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)",
+                  inline: true,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          ...apiMessage,
+          id: "thread-message-2",
+          author: {
+            id: env.DISCORD_APP_ID,
+            username: "GuiltySparkBot",
+            discriminator: "0",
+            avatar: null,
+            global_name: null,
+            bot: true,
+          },
+          embeds: [
+            {
+              type: EmbedType.Rich,
+              color: 0x3498db,
+              fields: [
+                {
+                  name: "Game",
+                  value:
+                    "[Slayer on Recharge](https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer)",
+                  inline: true,
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      getMessageSpy.mockResolvedValue(neatQueueParentMessage);
+      getMessagesSpy.mockResolvedValue(threadMessagesWithMultipleEmbeds);
+
+      const { jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+      await jobToComplete?.();
+
+      expect(getMessagesSpy).toHaveBeenCalledWith("thread-channel-id");
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getMatchDetailsSpy).toHaveBeenCalledWith([
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+        "9535b946-f30c-4a43-b852-000000slayer",
+      ]);
+    });
+
+    it("handles error when no embeds are found", async () => {
+      const messageWithoutEmbeds: APIMessage = {
+        ...mockParentMessage,
+        embeds: [],
+      };
+
+      getMessageSpy.mockResolvedValue(messageWithoutEmbeds);
+
+      const { jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No series stats embeds found",
+        }),
+      );
+    });
+
+    it("handles error when no game data fields are found", async () => {
+      const messageWithoutGameData: APIMessage = {
+        ...mockParentMessage,
+        embeds: [
+          {
+            title: "Series stats for queue #5",
+            color: 0x3498db,
+            fields: [
+              { name: "Duration", value: "10m 30s", inline: true },
+              { name: "Score", value: "3-1", inline: true },
+            ],
+          },
+        ],
+      };
+
+      getMessageSpy.mockResolvedValue(messageWithoutGameData);
+
+      const { jobToComplete } = statsCommand.execute(loadGamesButtonInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "Missing games data",
+        }),
+      );
+      expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+      expect(createMessageSpy).not.toHaveBeenCalled();
     });
   });
 });
