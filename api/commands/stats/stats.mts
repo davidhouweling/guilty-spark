@@ -466,35 +466,51 @@ export class StatsCommand extends BaseCommand {
         }),
       ]);
 
-      let statsOverviewEmbed: APIEmbed | undefined;
+      let statsOverviewEmbeds: APIEmbed[] = [];
 
       if (parentMessage.author.id === this.env.DISCORD_APP_ID) {
-        // this is our series stats queue message
-        statsOverviewEmbed = Preconditions.checkExists(parentMessage.embeds[0], '"Missing series stats embed');
+        // this is our series stats queue message - collect all embeds
+        statsOverviewEmbeds = parentMessage.embeds;
       } else if (parentMessage.author.id === NEAT_QUEUE_BOT_USER_ID) {
         // stats overview embed has been posted as a thread created from neat queue bot
         const threadMessages = await this.services.discordService.getMessages(channel.id);
-        statsOverviewEmbed = Preconditions.checkExists(
-          threadMessages.find((message) => {
-            return (
-              message.author.id === this.env.DISCORD_APP_ID &&
-              message.embeds[0]?.type === EmbedType.Rich &&
-              message.embeds[0].title?.match(/Series stats for queue #/) != null
-            );
-          })?.embeds[0],
-          '"Missing series stats overview embed',
-        );
+        const guiltySparkMessages = threadMessages.filter((message) => {
+          const [firstEmbed] = message.embeds;
+          if (message.author.id !== this.env.DISCORD_APP_ID || firstEmbed?.type !== EmbedType.Rich) {
+            return false;
+          }
+          return (
+            firstEmbed.title?.match(/Series stats for queue #/) != null ||
+            firstEmbed.fields?.some((field) => field.name === "Game") === true
+          );
+        });
+
+        // Collect all embeds from all Guilty Spark series stats messages
+        statsOverviewEmbeds = guiltySparkMessages.flatMap((message) => message.embeds);
       } else {
         throw new Error("Unexpected parent message author");
       }
 
-      const gamesData = Preconditions.checkExists(
-        statsOverviewEmbed.fields?.find((field) => field.name === "Game")?.value,
-        '"Missing games data',
-      );
+      if (statsOverviewEmbeds.length === 0) {
+        throw new Error("No series stats embeds found");
+      }
+
+      // Collect all game data from all embeds
+      const gamesDataParts: string[] = [];
+      for (const embed of statsOverviewEmbeds) {
+        const gameFieldValue = embed.fields?.find((field) => field.name === "Game")?.value;
+        if (gameFieldValue != null) {
+          gamesDataParts.push(gameFieldValue);
+        }
+      }
+
+      const gamesData = gamesDataParts.join("\n");
+      if (gamesData.length === 0) {
+        throw new Error("Missing games data");
+      }
 
       const matchIds = Array.from(
-        gamesData.matchAll(/https:\/\/halodatahive\.com\/Infinite\/Match\/([a-f0-9-]+)/g),
+        gamesData.matchAll(/https:\/\/halodatahive\.com\/Infinite\/Match\/([a-zA-Z0-9-]+)/g),
         (match) => Preconditions.checkExists(match[1]),
       );
 
