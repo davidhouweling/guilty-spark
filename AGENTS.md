@@ -143,7 +143,51 @@ npm run format:fix
 - **Dependencies**: Only mock constructor dependencies, never internal methods
 - **Data**: Use fake factories (`aFake...With()`) for test data
 - Tests must pass before committing
-- Do not override a property using `X.y = vi.fn()`, use `vi.SpyOn()` to preserve the original implementation
+
+### Mock and Spy Type Safety
+
+**Prefer `vi.spyOn()` over `vi.mock()` when possible**
+
+When mocking or spying, always use strongly-typed approaches:
+
+1. **For `vi.spyOn()` on methods:**
+
+   ```typescript
+   import type { MockInstance } from "vitest";
+
+   let spy: MockInstance<typeof console.info>;
+   spy = vi.spyOn(console, "info").mockImplementation(() => {});
+   ```
+
+2. **For mocked objects implementing an interface:**
+
+   ```typescript
+   import type { Mocked } from "vitest";
+
+   let mockClient: Mocked<LogService>;
+   mockClient = {
+     debug: vi.fn<LogService["debug"]>(),
+     info: vi.fn<LogService["info"]>(),
+   };
+   ```
+
+3. **For hoisted module mocks (with `vi.mock()`):**
+
+   ```typescript
+   import type { captureException } from "@sentry/cloudflare";
+
+   const { captureExceptionMock } = vi.hoisted(() => ({
+     captureExceptionMock: vi.fn<typeof captureException>(),
+   }));
+
+   vi.mock("@sentry/cloudflare", () => ({
+     captureException: captureExceptionMock,
+   }));
+   ```
+
+- Do not use `vi.fn()` without type parameters
+- Do not use `ReturnType<typeof vi.spyOn>` - use `MockInstance<typeof target.method>` instead
+- Do not override properties using `X.y = vi.fn()`, use `vi.spyOn()` to preserve the original implementation
 
 ## Development Environment
 
