@@ -4,6 +4,8 @@ import { DatabaseService } from "../database.mjs";
 import { aFakeDiscordAssociationsRow } from "../fakes/database.fake.mjs";
 import type { GuildConfigRow } from "../types/guild_config.mjs";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config.mjs";
+import type { NeatQueueConfigRow } from "../types/neat_queue_config.mjs";
+import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config.mjs";
 
 describe("Database Service", () => {
   let env: Env;
@@ -30,6 +32,28 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM DiscordAssociations WHERE DiscordId IN (?,?)");
       expect(bindSpy).toHaveBeenCalledWith("discordId", "discordId2");
+      expect(allSpy).toHaveBeenCalled();
+
+      expect(discordAssociations).toEqual([association1, association2]);
+    });
+  });
+
+  describe("getDiscordAssociationsByXboxId()", () => {
+    it("gets Discord associations from the database by Xbox IDs", async () => {
+      const association1 = aFakeDiscordAssociationsRow({ DiscordId: "discordId1", XboxId: "xboxId1" });
+      const association2 = aFakeDiscordAssociationsRow({ DiscordId: "discordId2", XboxId: "xboxId2" });
+
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const allSpy = vi
+        .spyOn(fakePreparedStatement, "all")
+        .mockResolvedValue({ ...fakeD1Response, results: [association1, association2] });
+
+      const discordAssociations = await databaseService.getDiscordAssociationsByXboxId(["xboxId1", "xboxId2"]);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM DiscordAssociations WHERE XboxId IN (?,?)");
+      expect(bindSpy).toHaveBeenCalledWith("xboxId1", "xboxId2");
       expect(allSpy).toHaveBeenCalled();
 
       expect(discordAssociations).toEqual([association1, association2]);
@@ -76,6 +100,15 @@ describe("Database Service", () => {
         association2.DiscordDisplayNameSearched,
       );
       expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("does nothing when empty array is provided", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+
+      await databaseService.upsertDiscordAssociations([]);
+
+      expect(prepareSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -285,6 +318,113 @@ describe("Database Service", () => {
         NeatQueueInformerLiveTracking: "N",
         NeatQueueInformerLiveTrackingChannelName: "N",
       });
+    });
+  });
+
+  describe("getNeatQueueConfig()", () => {
+    it("returns NeatQueueConfig when found", async () => {
+      const config = {
+        GuildId: "guild-123",
+        ChannelId: "channel-456",
+        WebhookSecret: "secret-hash",
+        ResultsChannelId: "results-789",
+        PostSeriesMode: "THREAD",
+        PostSeriesChannelId: null,
+      };
+
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(config);
+
+      const result = await databaseService.getNeatQueueConfig("guild-123", "channel-456");
+
+      expect(result).toEqual(config);
+    });
+
+    it("throws error when NeatQueueConfig not found", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+      await expect(databaseService.getNeatQueueConfig("guild-123", "channel-456")).rejects.toThrow(
+        "No NeatQueueConfig found for GuildId: guild-123 and ChannelId: channel-456",
+      );
+    });
+  });
+
+  describe("findNeatQueueConfig()", () => {
+    it("finds NeatQueueConfig by partial match", async () => {
+      const config1 = {
+        GuildId: "guild-123",
+        ChannelId: "channel-456",
+        WebhookSecret: "secret-hash",
+        ResultsChannelId: "results-789",
+        PostSeriesMode: "THREAD",
+        PostSeriesChannelId: null,
+      };
+
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [config1] });
+
+      const results = await databaseService.findNeatQueueConfig({ GuildId: "guild-123" });
+
+      expect(results).toEqual([config1]);
+    });
+
+    it("returns empty array when no conditions provided", async () => {
+      const results = await databaseService.findNeatQueueConfig({});
+
+      expect(results).toEqual([]);
+    });
+  });
+
+  describe("upsertNeatQueueConfig()", () => {
+    it("upserts NeatQueueConfig", async () => {
+      const config: NeatQueueConfigRow = {
+        GuildId: "guild-123",
+        ChannelId: "channel-456",
+        WebhookSecret: "secret-hash",
+        ResultsChannelId: "results-789",
+        PostSeriesMode: NeatQueuePostSeriesDisplayMode.THREAD,
+        PostSeriesChannelId: null,
+      };
+
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertNeatQueueConfig(config);
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(
+        config.GuildId,
+        config.ChannelId,
+        config.WebhookSecret,
+        config.ResultsChannelId,
+        config.PostSeriesMode,
+        config.PostSeriesChannelId,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteNeatQueueConfig()", () => {
+    it("deletes NeatQueueConfig", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteNeatQueueConfig("guild-123", "channel-456");
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", "channel-456");
+      expect(runSpy).toHaveBeenCalled();
     });
   });
 });

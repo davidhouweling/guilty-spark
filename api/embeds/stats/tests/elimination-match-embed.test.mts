@@ -1,5 +1,6 @@
 import { describe, beforeEach, expect, it } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { EliminationMatchEmbed } from "../elimination-match-embed.mjs";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
@@ -7,7 +8,6 @@ import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord
 import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../../services/database/types/guild_config.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
-import type { MatchStats } from "halo-infinite-api";
 
 const eliminationMatch: MatchStats<GameVariantCategory.MultiplayerElimination> = {
   MatchId: "test-elimination-match",
