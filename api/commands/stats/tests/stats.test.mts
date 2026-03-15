@@ -1020,12 +1020,12 @@ describe("StatsCommand", () => {
       getMatchDetailsSpy = vi
         .spyOn(services.haloService, "getMatchDetails")
         .mockResolvedValue([
-          Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
-          Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+          Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+          Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
         ]);
       createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
-      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(playerXuidsToGametags);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(aFakeGuildConfigRow());
     });
 

@@ -1,5 +1,5 @@
 import { describe, beforeEach, expect, it } from "vitest";
-import { matchStats, playerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
+import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
 import { FiestaMatchEmbed } from "../fiesta-match-embed.mjs";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
@@ -9,7 +9,7 @@ import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../../services/database/types/guild_config.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
 
-const match = Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"));
+const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
 describe("FiestaMatchEmbed", () => {
   const locale = "en-US";
@@ -27,7 +27,7 @@ describe("FiestaMatchEmbed", () => {
 
   describe("getEmbed", () => {
     it("returns the expected embed", async () => {
-      const result = await matchEmbed.getEmbed(match, playerXuidsToGametags);
+      const result = await matchEmbed.getEmbed(match, getPlayerXuidsToGametags());
       expect(result).toMatchSnapshot();
     });
   });
