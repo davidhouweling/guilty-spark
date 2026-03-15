@@ -95,6 +95,7 @@
 }
 
 .matchCard {
+  align-items: flex-start;
   background-color: var(--halo-bg-secondary);
   background-image:
     linear-gradient(to bottom, var(--match-card-overlay), var(--match-card-overlay)),
@@ -115,13 +116,12 @@
   display: flex;
   gap: var(--space-3);
   padding: var(--space-4);
+  position: relative;
   transition:
     border-color var(--transition-base),
     background-color var(--transition-base),
     margin var(--transition-base),
     border-radius var(--transition-base);
-  align-items: flex-start;
-  position: relative;
 
   /* Map image comes from JSX via CSS var so we can layer theme overlays for contrast */
   --map-bg: none;
@@ -131,27 +131,27 @@
 
 /* Grouped matches have a significantly stronger border */
 .matchCard.grouped {
-  border-left-width: 8px;
   border-left-color: var(--group-color, var(--halo-teal-primary));
+  border-left-width: 8px;
 }
 
 /* Visual "snapping" - eliminate gap between grouped matches */
 .matchCard.groupFirst {
-  margin-bottom: calc(var(--space-3) * -1);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  margin-bottom: calc(var(--space-3) * -1);
 }
 
 .matchCard.groupMiddle {
-  margin-top: calc(var(--space-3) * -1);
-  margin-bottom: calc(var(--space-3) * -1);
   border-radius: 0;
+  margin-bottom: calc(var(--space-3) * -1);
+  margin-top: calc(var(--space-3) * -1);
 }
 
 .matchCard.groupLast {
-  margin-top: calc(var(--space-3) * -1);
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+  margin-top: calc(var(--space-3) * -1);
 }
 
 .matchCard:hover {
@@ -173,9 +173,9 @@
 }
 
 .checkboxLabel {
+  align-items: flex-start;
   cursor: pointer;
   display: flex;
-  align-items: flex-start;
 }
 
 .checkbox {
@@ -276,9 +276,9 @@
 }
 
 .team {
+  align-items: center;
   display: flex;
   gap: var(--space-2);
-  align-items: center;
 }
 
 .teamPlayers {
@@ -291,19 +291,20 @@
 .groupControls {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   flex-shrink: 0;
+  gap: var(--space-1);
   margin-left: auto;
 }
 
 .groupButton {
+  align-items: center;
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 40%, transparent);
   border-radius: var(--radius-base);
   color: var(--halo-teal-primary);
   cursor: pointer;
   display: flex;
-  align-items: center;
+  height: 28px;
   justify-content: center;
   padding: var(--space-1);
   transition:
@@ -311,12 +312,11 @@
     border-color var(--transition-fast),
     transform var(--transition-fast);
   width: 28px;
-  height: 28px;
 }
 
 .groupButton svg {
-  width: 16px;
   height: 16px;
+  width: 16px;
 }
 
 .groupButton:hover {

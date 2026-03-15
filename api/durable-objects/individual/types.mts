@@ -41,16 +41,49 @@ export interface LiveTrackerRepostRequest {
   newMessageId: string;
 }
 
-// Core state interface for individual tracking
-export interface LiveTrackerIndividualState {
+// Update target types for multi-platform broadcast system
+export interface DiscordTarget {
   userId: string;
-  xuid: string;
-  gamertag: string;
   guildId: string;
   channelId: string;
+  messageId?: string;
+  lastMatchCount: number; // Track match count to determine when to create new messages
+}
+
+export interface WebSocketTarget {
+  sessionId: string;
+}
+
+export interface UpdateTarget {
+  id: string; // Unique identifier for this target
+  type: "discord" | "websocket";
+  createdAt: string;
+  lastUpdatedAt?: string;
+
+  // Failure tracking
+  lastFailureAt?: string;
+  failureReason?: string;
+  markedForRemoval?: boolean; // Internal flag for cleanup
+
+  // Platform-specific fields (discriminated by type)
+  discord?: DiscordTarget;
+  websocket?: WebSocketTarget;
+}
+
+// Core state interface for individual tracking
+export interface LiveTrackerIndividualState {
+  // Player identification
+  xuid: string;
+  gamertag: string;
+
+  // Core tracking state
   isPaused: boolean;
   status: LiveTrackerStatus;
-  liveMessageId?: string | undefined;
+
+  // Multi-platform update targets
+  updateTargets: UpdateTarget[];
+
+  // Core tracking fields
   startTime: string;
   lastUpdateTime: string;
   searchStartTime: string;

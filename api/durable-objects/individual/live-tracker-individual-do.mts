@@ -12,7 +12,15 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
-import { addMilliseconds, differenceInMilliseconds, differenceInMinutes, isAfter, isEqual, max } from "date-fns";
+import {
+  addMilliseconds,
+  differenceInMilliseconds,
+  differenceInMinutes,
+  isAfter,
+  isEqual,
+  max,
+  subMinutes,
+} from "date-fns";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
@@ -23,6 +31,7 @@ import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
+import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type {
   LiveTrackerIndividualStartRequest,
   LiveTrackerIndividualWebStartRequest,
@@ -38,6 +47,7 @@ import type {
   LiveTrackerIndividualRefreshResponse,
   LiveTrackerIndividualStatusResponse,
   LiveTrackerIndividualRepostResponse,
+  UpdateTarget,
 } from "./types.mjs";
 
 // Production: 3 minutes for live tracking (user-facing display)
@@ -176,16 +186,16 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         Sentry.setContext("trackerState", {
           xuid: trackerState.xuid,
           gamertag: trackerState.gamertag,
-          channelId: trackerState.channelId,
           checkCount: trackerState.checkCount,
           errorCount: trackerState.errorState.consecutiveErrors,
+          targetCount: trackerState.updateTargets.length,
         });
 
         this.logService.info(
           `LiveTracker Individual: alarm fired for player ${trackerState.gamertag}`,
           new Map([
             ["gamertag", trackerState.gamertag],
-            ["channelId", trackerState.channelId],
+            ["targetCount", trackerState.updateTargets.length.toString()],
             ["checkCount", trackerState.checkCount.toString()],
           ]),
         );
@@ -200,10 +210,10 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         } catch (error) {
           if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
             this.logService.warn(
-              "LiveTracker Individual: channel not found",
-              new Map([["channelId", trackerState.channelId]]),
+              "LiveTracker Individual: Discord error (target will be removed by broadcast system)",
+              new Map([["errorCode", error.restError.code.toString()]]),
             );
-            await this.dispose(trackerState, "Discord channel not found");
+            // Don't dispose entire tracker - let broadcast system handle target removal
             return;
           }
 
@@ -236,14 +246,11 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const body = await request.json<LiveTrackerIndividualStartRequest>();
 
     const trackerState: LiveTrackerIndividualState = {
-      userId: body.userId,
       xuid: body.xuid,
       gamertag: body.gamertag,
-      guildId: body.guildId,
-      channelId: body.channelId,
       isPaused: false,
       status: "active",
-      liveMessageId: body.liveMessageId,
+      updateTargets: [],
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
       searchStartTime: body.searchStartTime,
@@ -271,7 +278,21 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
     try {
       const loadingMessage = await this.createInitialMessage(body);
-      trackerState.liveMessageId = loadingMessage.id;
+
+      const discordTargetId = `discord-${body.userId}-${body.channelId}-${Date.now().toString()}`;
+      trackerState.updateTargets.push({
+        id: discordTargetId,
+        type: "discord",
+        createdAt: new Date().toISOString(),
+        discord: {
+          userId: body.userId,
+          guildId: body.guildId,
+          channelId: body.channelId,
+          messageId: loadingMessage.id,
+          lastMatchCount: 0,
+        },
+      });
+
       await this.setState(trackerState);
 
       const currentTime = new Date();
@@ -346,16 +367,13 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const body = await request.json<LiveTrackerIndividualWebStartRequest>();
 
     try {
-      // Initialize tracker state without Discord fields
+      // Initialize tracker state for web-only tracking (no Discord)
       const trackerState: LiveTrackerIndividualState = {
-        userId: "", // No Discord user for web-only tracking
         xuid: body.xuid,
         gamertag: body.gamertag,
-        guildId: "", // No guild for web-only tracking
-        channelId: "", // No channel for web-only tracking
         isPaused: false,
         status: "active",
-        liveMessageId: undefined,
+        updateTargets: [],
         startTime: new Date().toISOString(),
         lastUpdateTime: new Date().toISOString(),
         searchStartTime: body.searchStartTime,
@@ -587,6 +605,10 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
     try {
       await this.executeTrackerUpdate(trackerState);
+
+      // Persist and broadcast the updated state
+      await this.setState(trackerState);
+
       this.logService.info(`LiveTracker Individual: Manual refresh for ${trackerState.gamertag}`);
       return this.createRefreshSuccessResponse(trackerState);
     } catch (error) {
@@ -620,8 +642,21 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       return new Response("New message ID is required", { status: 400 });
     }
 
-    const oldMessageId = trackerState.liveMessageId;
-    trackerState.liveMessageId = newMessageId;
+    const discordTargets = trackerState.updateTargets.filter((t) => t.type === "discord");
+
+    if (discordTargets.length === 0) {
+      return new Response("No Discord targets found", { status: 404 });
+    }
+
+    // Update the first/oldest Discord target (preserves original repost behavior)
+    const [targetToUpdate] = discordTargets;
+    if (!targetToUpdate?.discord) {
+      return new Response("Invalid Discord target", { status: 500 });
+    }
+
+    const oldMessageId = targetToUpdate.discord.messageId;
+    targetToUpdate.discord.messageId = newMessageId;
+
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
@@ -629,6 +664,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     this.logService.info(
       `LiveTracker Individual: Updated message ID for ${trackerState.gamertag}`,
       new Map([
+        ["targetId", targetToUpdate.id],
         ["oldMessageId", oldMessageId ?? "none"],
         ["newMessageId", newMessageId],
       ]),
@@ -761,10 +797,8 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _options: { skipMessageUpdate?: boolean } = {},
   ): Promise<void> {
-    let enrichedMatches: LiveTrackerMatchSummary[] = [];
-
     try {
-      enrichedMatches = await this.fetchAndMergeIndividualMatches(trackerState);
+      await this.fetchAndMergeIndividualMatches(trackerState);
       this.handleSuccess(trackerState);
     } catch (error) {
       this.logService.warn("Failed to fetch matches", new Map([["error", String(error)]]));
@@ -784,36 +818,14 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
 
     trackerState.checkCount += 1;
-    const currentTime = new Date();
-    trackerState.lastUpdateTime = currentTime.toISOString();
-
-    const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-    const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+    trackerState.lastUpdateTime = new Date().toISOString();
 
     const rawMatchesArray = Object.values(trackerState.rawMatches);
     const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
     trackerState.seriesScore = seriesScore;
 
-    const liveTrackerEmbed = new LiveTrackerEmbed(
-      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
-      {
-        userId: trackerState.userId,
-        guildId: trackerState.guildId,
-        channelId: trackerState.channelId,
-        queueNumber: 0,
-        trackerLabel: trackerState.gamertag,
-        status: trackerState.status,
-        isPaused: trackerState.isPaused,
-        lastUpdated: currentTime,
-        nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
-        enrichedMatches,
-        seriesScore,
-        substitutions: [],
-        errorState: trackerState.errorState,
-      },
-    );
-
-    await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
+    // Note: Caller must call setState() after this method to persist and broadcast updates
+    // Alarm handler does this in finally block, handleRefresh() does this after execution
   }
 
   private checkAndHandleStaleLock(trackerState: LiveTrackerIndividualState): boolean {
@@ -1081,51 +1093,6 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     trackerState.matchGroupings = groupings;
   }
 
-  private hasNewMatches(trackerState: LiveTrackerIndividualState): boolean {
-    const currentMatchCount = Object.keys(trackerState.discoveredMatches).length;
-    return currentMatchCount > trackerState.lastMessageState.matchCount;
-  }
-
-  private async updateLiveTrackerMessage(
-    trackerState: LiveTrackerIndividualState,
-    liveTrackerEmbed: LiveTrackerEmbed,
-  ): Promise<void> {
-    if (this.hasNewMatches(trackerState) || trackerState.liveMessageId == null || trackerState.liveMessageId === "") {
-      const newMessage = await this.discordService.createMessage(
-        trackerState.channelId,
-        liveTrackerEmbed.toMessageData(),
-      );
-
-      if (trackerState.liveMessageId != null && trackerState.liveMessageId !== "") {
-        try {
-          await this.discordService.deleteMessage(
-            trackerState.channelId,
-            trackerState.liveMessageId,
-            "Replaced with updated tracker message",
-          );
-        } catch (deleteError) {
-          this.logService.warn("Failed to delete old message", new Map([["error", String(deleteError)]]));
-        }
-      }
-
-      trackerState.liveMessageId = newMessage.id;
-      this.logService.info(
-        `LiveTracker Individual: Created new message for ${trackerState.gamertag}`,
-        new Map([["newMessageId", newMessage.id]]),
-      );
-    } else {
-      await this.discordService.editMessage(
-        trackerState.channelId,
-        trackerState.liveMessageId,
-        liveTrackerEmbed.toMessageData(),
-      );
-
-      this.logService.info(`LiveTracker Individual: Updated message for ${trackerState.gamertag}`);
-    }
-
-    trackerState.lastMessageState.matchCount = Object.keys(trackerState.discoveredMatches).length;
-  }
-
   // WebSocket handlers
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer): Promise<void> {
@@ -1133,7 +1100,32 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async webSocketClose(_ws: WebSocket, code: number, reason: string, _wasClean: boolean): Promise<void> {
+  async webSocketClose(ws: WebSocket, code: number, reason: string, _wasClean: boolean): Promise<void> {
+    const trackerState = await this.getState();
+    if (trackerState !== null) {
+      // Get tags attached to this WebSocket
+      const tags = this.state.getTags(ws);
+      const [targetId] = tags;
+
+      if (targetId != null) {
+        const beforeCount = trackerState.updateTargets.length;
+        trackerState.updateTargets = trackerState.updateTargets.filter((t) => t.id !== targetId);
+        const afterCount = trackerState.updateTargets.length;
+
+        if (beforeCount > afterCount) {
+          await this.setState(trackerState);
+
+          this.logService.info(
+            "LiveTracker Individual: Removed WebSocket target",
+            new Map([
+              ["targetId", targetId],
+              ["remainingTargets", afterCount.toString()],
+            ]),
+          );
+        }
+      }
+    }
+
     const allWebSockets = this.state.getWebSockets();
     this.logService.debug(
       "LiveTracker Individual: WebSocket client disconnected",
@@ -1168,12 +1160,24 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const client = webSocketPair[0];
     const server = webSocketPair[1];
 
-    this.state.acceptWebSocket(server);
+    const targetId = `websocket-${Date.now().toString()}-${Math.random().toString(36).substring(7)}`;
+    trackerState.updateTargets.push({
+      id: targetId,
+      type: "websocket",
+      createdAt: new Date().toISOString(),
+      websocket: {
+        sessionId: targetId,
+      },
+    });
+
+    this.state.acceptWebSocket(server, [targetId]);
+    await this.setState(trackerState);
 
     const allWebSockets = this.state.getWebSockets();
     this.logService.info(
       "LiveTracker Individual: WebSocket client connected",
       new Map([
+        ["targetId", targetId],
         ["totalClients", allWebSockets.length.toString()],
         ["gamertag", trackerState.gamertag],
       ]),
@@ -1195,10 +1199,121 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     });
   }
 
-  private async broadcastStateUpdate(state: LiveTrackerIndividualState): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-    if (allWebSockets.length === 0) {
+  private shouldRemoveTarget(target: UpdateTarget, error: unknown): boolean {
+    if (target.type === "websocket") {
+      // WebSocket: always remove on send failure (expect reconnect)
+      return true;
+    }
+
+    if (error instanceof DiscordError) {
+      // Discord permanent errors (unknown resources, missing permissions)
+      const permanentErrorCodes = [
+        10003, // Unknown Channel
+        10004, // Unknown Guild
+        10008, // Unknown Message
+        10062, // Unknown Interaction
+        50001, // Missing Access
+      ];
+
+      if (permanentErrorCodes.includes(error.restError.code)) {
+        return true;
+      }
+
+      // 404 without specific code also indicates unknown resource
+      if (error.httpStatus === 404) {
+        return true;
+      }
+    }
+
+    // All other errors are transient (rate limits, 5xx, network issues)
+    return false;
+  }
+
+  private async updateDiscordTarget(state: LiveTrackerIndividualState, target: UpdateTarget): Promise<void> {
+    if (!target.discord) {
+      throw new Error("Discord target missing discord fields");
+    }
+
+    const { channelId, messageId } = target.discord;
+
+    if (messageId == null) {
+      // No message ID yet - skip update (message will be created during Discord start flow)
       return;
+    }
+
+    // Build data object for embed
+    const currentTime = new Date();
+    const nextAlarmInterval = this.getNextAlarmInterval(state);
+    const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+
+    const liveTrackerEmbed = new LiveTrackerEmbed(
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
+      {
+        userId: target.discord.userId,
+        guildId: target.discord.guildId,
+        channelId: target.discord.channelId,
+        queueNumber: 0,
+        trackerLabel: state.gamertag,
+        status: state.status,
+        isPaused: state.isPaused,
+        lastUpdated: currentTime,
+        nextCheck: state.status === "active" && !state.isPaused ? nextCheckTime : undefined,
+        enrichedMatches: Object.values(state.discoveredMatches),
+        seriesScore: state.seriesScore,
+        substitutions: [],
+        errorState: state.errorState,
+      },
+    );
+
+    const currentMatchCount = Object.keys(state.discoveredMatches).length;
+    const hasNewMatches = currentMatchCount > target.discord.lastMatchCount;
+
+    if (hasNewMatches) {
+      const newMessage = await this.discordService.createMessage(channelId, liveTrackerEmbed.toMessageData());
+
+      try {
+        await this.discordService.deleteMessage(channelId, messageId, "Replaced with updated tracker message");
+      } catch (deleteError) {
+        this.logService.warn("Failed to delete old Discord message", new Map([["error", String(deleteError)]]));
+      }
+
+      target.discord.messageId = newMessage.id;
+      target.discord.lastMatchCount = currentMatchCount;
+
+      this.logService.info(
+        `LiveTracker Individual: Created new Discord message for ${state.gamertag}`,
+        new Map([
+          ["targetId", target.id],
+          ["newMessageId", newMessage.id],
+          ["matchCount", currentMatchCount.toString()],
+        ]),
+      );
+    } else {
+      await this.discordService.editMessage(channelId, messageId, liveTrackerEmbed.toMessageData());
+      target.discord.lastMatchCount = currentMatchCount;
+    }
+  }
+
+  private async updateWebSocketTarget(state: LiveTrackerIndividualState, target: UpdateTarget): Promise<void> {
+    if (!target.websocket) {
+      throw new Error("WebSocket target missing websocket fields");
+    }
+
+    // Find the specific WebSocket for this target using tags
+    const allWebSockets = this.state.getWebSockets();
+    let targetWebSocket: WebSocket | null = null;
+
+    for (const ws of allWebSockets) {
+      const tags = this.state.getTags(ws);
+      if (tags.includes(target.id)) {
+        targetWebSocket = ws;
+        break;
+      }
+    }
+
+    if (targetWebSocket === null) {
+      // WebSocket no longer exists (already closed) - mark for removal
+      throw new Error("WebSocket connection not found");
     }
 
     const data = await this.stateToContractData(state);
@@ -1208,20 +1323,115 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       timestamp: new Date().toISOString(),
     });
 
-    for (const client of allWebSockets) {
+    try {
+      targetWebSocket.send(message);
+    } catch (sendError) {
+      // Close the failed WebSocket (will trigger webSocketClose handler)
       try {
-        client.send(message);
-      } catch (error) {
-        this.logService.warn(
-          "LiveTracker Individual: Failed to send to WebSocket",
-          new Map([["error", String(error)]]),
-        );
+        targetWebSocket.close(1011, "Send failed");
+      } catch {
+        // Ignore close errors
       }
+
+      this.logService.info(
+        "LiveTracker Individual: Failed to send to WebSocket, closing connection",
+        new Map([
+          ["targetId", target.id],
+          ["error", String(sendError)],
+        ]),
+      );
+
+      // Throw to mark target for removal in broadcastStateUpdate
+      throw sendError;
+    }
+  }
+
+  /**
+   * Broadcast state update to all registered targets with resilient error handling
+   */
+  private async broadcastStateUpdate(state: LiveTrackerIndividualState): Promise<void> {
+    if (state.updateTargets.length === 0) {
+      return;
+    }
+
+    const tenMinutesAgo = subMinutes(new Date(), 10).toISOString();
+    const beforeCleanup = state.updateTargets.length;
+    state.updateTargets = state.updateTargets.filter((t) => t.lastFailureAt == null || t.lastFailureAt > tenMinutesAgo);
+
+    const removedCount = beforeCleanup - state.updateTargets.length;
+    if (removedCount > 0) {
+      this.logService.info(
+        "Cleaned up stale targets",
+        new Map([
+          ["removedCount", removedCount.toString()],
+          ["remainingTargets", state.updateTargets.length.toString()],
+        ]),
+      );
+    }
+
+    const updatePromises = state.updateTargets.map(async (target) => {
+      try {
+        switch (target.type) {
+          case "discord": {
+            await this.updateDiscordTarget(state, target);
+            break;
+          }
+          case "websocket": {
+            await this.updateWebSocketTarget(state, target);
+            break;
+          }
+          default: {
+            throw new UnreachableError(target.type);
+          }
+        }
+
+        target.lastUpdatedAt = new Date().toISOString();
+        delete target.lastFailureAt;
+        delete target.failureReason;
+      } catch (error) {
+        const shouldRemove = this.shouldRemoveTarget(target, error);
+
+        if (shouldRemove) {
+          this.logService.info(
+            "Removing target due to permanent failure",
+            new Map([
+              ["targetType", target.type],
+              ["targetId", target.id],
+              ["error", String(error)],
+            ]),
+          );
+
+          target.markedForRemoval = true;
+        } else {
+          target.lastFailureAt = new Date().toISOString();
+          target.failureReason = String(error);
+
+          this.logService.warn(
+            "Transient failure updating target (will retry)",
+            new Map([
+              ["targetType", target.type],
+              ["targetId", target.id],
+              ["error", String(error)],
+            ]),
+          );
+        }
+      }
+    });
+
+    await Promise.allSettled(updatePromises);
+    state.updateTargets = state.updateTargets.filter((t) => !(t.markedForRemoval ?? false));
+
+    if (removedCount > 0 || state.updateTargets.length !== beforeCleanup) {
+      await this.state.storage.put("trackerState", state);
     }
   }
 
   private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerStateData> {
-    const guild = await this.discordService.getGuild(state.guildId);
+    const firstDiscordTarget = state.updateTargets.find((t) => t.type === "discord");
+    const guildId = firstDiscordTarget?.discord?.guildId ?? "0";
+    const channelId = firstDiscordTarget?.discord?.channelId ?? "0";
+
+    const guild = guildId !== "0" ? await this.discordService.getGuild(guildId) : { name: "Web Tracker" };
     const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
     const matchGroupings = Object.entries(state.matchGroupings).reduce<
@@ -1256,9 +1466,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }, {});
 
     return {
-      guildId: state.guildId,
+      guildId: guildId,
       guildName: guild.name,
-      channelId: state.channelId,
+      channelId: channelId,
       queueNumber: 0,
       status: state.status,
       players: [],

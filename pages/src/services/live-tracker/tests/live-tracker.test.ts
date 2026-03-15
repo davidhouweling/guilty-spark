@@ -55,7 +55,7 @@ describe("RealLiveTrackerService", () => {
     });
 
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     service.connect(identity);
 
@@ -70,7 +70,7 @@ describe("RealLiveTrackerService", () => {
     });
 
     const service = new RealLiveTrackerService({ apiHost: "localhost:8787" });
-    const identity: LiveTrackerIdentity = { guildId: "456", queueNumber: "3" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "456", queueNumber: "3" };
 
     service.connect(identity);
 
@@ -80,7 +80,7 @@ describe("RealLiveTrackerService", () => {
 
   it("creates connection and allows status subscription", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -91,7 +91,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits connected status when WebSocket opens", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -109,7 +109,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits error status when WebSocket errors", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -127,7 +127,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits stopped status when WebSocket closes with stopped reason", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -145,7 +145,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits disconnected status when WebSocket closes normally", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -163,7 +163,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits error status with reason when WebSocket closes abnormally", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -181,7 +181,7 @@ describe("RealLiveTrackerService", () => {
 
   it("parses and emits valid LiveTracker messages", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const messageListener = vi.fn<LiveTrackerListener>();
@@ -199,7 +199,7 @@ describe("RealLiveTrackerService", () => {
 
   it("ignores non-string WebSocket messages", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const messageListener = vi.fn();
@@ -215,7 +215,7 @@ describe("RealLiveTrackerService", () => {
 
   it("ignores invalid JSON messages", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const messageListener = vi.fn();
@@ -231,7 +231,7 @@ describe("RealLiveTrackerService", () => {
 
   it("emits stopped status and disconnects when message status is stopped", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -258,7 +258,7 @@ describe("RealLiveTrackerService", () => {
 
   it("allows subscribing and unsubscribing message listeners", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const messageListener = vi.fn<LiveTrackerListener>();
@@ -283,7 +283,7 @@ describe("RealLiveTrackerService", () => {
 
   it("allows subscribing and unsubscribing status listeners", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const statusListener = vi.fn();
@@ -309,7 +309,7 @@ describe("RealLiveTrackerService", () => {
 
   it("closes WebSocket and clears listeners on disconnect", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
     const messageListener = vi.fn();
@@ -336,7 +336,7 @@ describe("RealLiveTrackerService", () => {
 
   it("closes WebSocket when window goes offline", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
 
@@ -352,7 +352,7 @@ describe("RealLiveTrackerService", () => {
 
   it("removes offline listener on disconnect", () => {
     const service = new RealLiveTrackerService({ apiHost: "api.example.com" });
-    const identity: LiveTrackerIdentity = { guildId: "123", queueNumber: "5" };
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = service.connect(identity);
 
