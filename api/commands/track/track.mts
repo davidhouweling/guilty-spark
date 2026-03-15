@@ -27,8 +27,9 @@ import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { InteractionComponent } from "../../embeds/live-tracker-embed.mjs";
 import type { LiveTrackerState } from "../../durable-objects/types.mjs";
 import { isCooldownError } from "../../durable-objects/types.mjs";
-import type { LiveTrackerIndividualStartRequest } from "../../durable-objects/individual/types.mjs";
+import type { LiveTrackerIndividualStartRequest, UpdateTarget } from "../../durable-objects/individual/types.mjs";
 import { LiveTrackerIndividualMatchSelectEmbed } from "../../embeds/live-tracker-individual-match-select-embed.mjs";
+import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed.mjs";
 
 interface UserContext {
   userId: string;
@@ -514,16 +515,36 @@ export class TrackCommand extends BaseCommand {
       const gamertag = this.getGamertagFromMatchSelectEmbed(interaction);
       const userInfo = await this.services.haloService.getUserByGamertag(gamertag);
 
+      // Create initial loading message
+      const loadingEmbed = new LiveTrackerLoadingEmbed();
+      const loadingEmbedData = { embeds: [loadingEmbed.embed] };
+      const loadingMessage = await this.services.discordService.updateDeferredReply(
+        interaction.token,
+        loadingEmbedData,
+      );
+
+      // Create Discord target with loading message
+      const discordTargetId = `discord-${userId}-${channelId}-${Date.now().toString()}`;
+      const discordTarget: UpdateTarget = {
+        id: discordTargetId,
+        type: "discord",
+        createdAt: new Date().toISOString(),
+        discord: {
+          userId,
+          guildId,
+          channelId,
+          messageId: loadingMessage.id,
+          lastMatchCount: 0,
+        },
+      };
+
       const startRequest: LiveTrackerIndividualStartRequest = {
-        userId,
-        guildId,
-        channelId,
         xuid: userInfo.xuid,
         gamertag,
-        interactionToken: interaction.token,
         searchStartTime: new Date().toISOString(),
         selectedGameIds,
         playersAssociationData: {},
+        initialTarget: discordTarget,
       };
 
       await this.services.liveTrackerService.startTrackerIndividual(startRequest);

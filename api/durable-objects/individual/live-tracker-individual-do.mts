@@ -27,7 +27,6 @@ import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { installServices as installServicesImpl } from "../../services/install.mjs";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
-import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
@@ -250,7 +249,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       gamertag: body.gamertag,
       isPaused: false,
       status: "active",
-      updateTargets: [],
+      updateTargets: body.initialTarget != null ? [body.initialTarget] : [],
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
       searchStartTime: body.searchStartTime,
@@ -274,92 +273,33 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       matchGroupings: {},
     };
 
-    await this.setState(trackerState);
-
     try {
-      const loadingMessage = await this.createInitialMessage(body);
-
-      const discordTargetId = `discord-${body.userId}-${body.channelId}-${Date.now().toString()}`;
-      trackerState.updateTargets.push({
-        id: discordTargetId,
-        type: "discord",
-        createdAt: new Date().toISOString(),
-        discord: {
-          userId: body.userId,
-          guildId: body.guildId,
-          channelId: body.channelId,
-          messageId: loadingMessage.id,
-          lastMatchCount: 0,
-        },
-      });
-
-      await this.setState(trackerState);
-
-      const currentTime = new Date();
-      const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
-      const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
-
       // Fetch initial matches
-      const enrichedMatches = await this.fetchAndMergeIndividualMatches(trackerState);
+      await this.fetchAndMergeIndividualMatches(trackerState);
       const rawMatchesArray = Object.values(trackerState.rawMatches);
       const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
       trackerState.seriesScore = seriesScore;
 
-      const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
-        {
-          userId: body.userId,
-          guildId: body.guildId,
-          channelId: body.channelId,
-          queueNumber: 0,
-          trackerLabel: body.gamertag,
-          status: "active",
-          isPaused: false,
-          lastUpdated: currentTime,
-          nextCheck: nextCheckTime,
-          enrichedMatches: enrichedMatches,
-          seriesScore,
-          substitutions: [],
-          errorState: trackerState.errorState,
-        },
-      );
-
-      await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+      // Persist and broadcast initial state
+      await this.setState(trackerState);
 
       this.logService.info(
         `LiveTracker Individual: Started for ${trackerState.gamertag}`,
-        new Map([["messageId", loadingMessage.id]]),
+        new Map([["targetCount", trackerState.updateTargets.length.toString()]]),
       );
 
       // Schedule alarm
+      const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
       const alarmTime = addMilliseconds(new Date(), nextAlarmInterval);
       await this.state.storage.setAlarm(alarmTime.getTime());
 
       return this.createStartSuccessResponse(trackerState);
     } catch (error) {
-      if (error instanceof DiscordError && (error.httpStatus === 404 || error.restError.code === 10003)) {
-        this.logService.warn("LiveTracker Individual: channel not found");
-        await this.dispose(trackerState, "Channel not found");
-        return this.createStartFailureResponse(trackerState);
-      }
-
       this.logService.error("Failed to start individual live tracker", new Map([["error", String(error)]]));
       Sentry.captureException(error);
 
+      await this.dispose(trackerState, "Failed to start");
       return this.createStartFailureResponse(trackerState);
-    }
-  }
-
-  private async createInitialMessage(startData: LiveTrackerIndividualStartRequest): Promise<{ id: string }> {
-    const loadingEmbed = new LiveTrackerLoadingEmbed();
-    const loadingEmbedData = {
-      embeds: [loadingEmbed.embed],
-    };
-
-    if (startData.interactionToken != null && startData.interactionToken !== "") {
-      return await this.discordService.updateDeferredReply(startData.interactionToken, loadingEmbedData);
-    } else {
-      return await this.discordService.createMessage(startData.channelId, loadingEmbedData);
     }
   }
 

@@ -471,7 +471,6 @@ export class LiveTrackerService {
       new Map([
         ["xuid", startRequest.xuid],
         ["gamertag", startRequest.gamertag],
-        ["userId", startRequest.userId],
       ]),
     );
 

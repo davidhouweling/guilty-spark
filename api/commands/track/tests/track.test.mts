@@ -795,17 +795,39 @@ describe("TrackCommand", () => {
           expect.objectContaining({
             selectedGameIds: ["match-1"],
             gamertag: "TestPlayer",
-            interactionToken: "fake-token",
+            xuid: "fake-xuid",
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+            initialTarget: expect.objectContaining({
+              type: "discord",
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+              discord: expect.objectContaining({
+                userId: "discord_user_01",
+                guildId: "fake-guild-id",
+                channelId: "fake-channel-id",
+              }),
+            }),
           }),
         );
       });
 
-      it("updates deferred reply after starting tracker", async () => {
+      it("creates initial loading message via deferred reply", async () => {
         const { jobToComplete } = trackCommand.execute(selectMenuInteraction);
 
         await jobToComplete?.();
 
-        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+          "fake-token",
+
+          expect.objectContaining({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+            embeds: expect.arrayContaining([
+              expect.objectContaining({
+                title: "🔄 Starting Live Tracker",
+              }),
+            ]),
+          }),
+        );
       });
     });
 
@@ -819,7 +841,11 @@ describe("TrackCommand", () => {
           expect.objectContaining({
             selectedGameIds: [],
             gamertag: "TestPlayer",
-            interactionToken: "fake-token",
+            xuid: "fake-xuid",
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+            initialTarget: expect.objectContaining({
+              type: "discord",
+            }),
           }),
         );
       });

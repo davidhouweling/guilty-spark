@@ -7,16 +7,12 @@ import type {
 
 // Input types for individual tracker requests
 export interface LiveTrackerIndividualStartRequest {
-  userId: string;
-  guildId: string;
-  channelId: string;
   xuid: string;
   gamertag: string;
-  interactionToken?: string;
-  liveMessageId?: string | undefined;
   searchStartTime: string;
   selectedGameIds: string[]; // Filter to only these matches
   playersAssociationData: Record<string, PlayerAssociationData> | null;
+  initialTarget?: UpdateTarget; // Optional: pre-created target (e.g., Discord) to add on start
 }
 
 // Web-based start request (no Discord integration)
@@ -115,7 +111,6 @@ export interface LiveTrackerIndividualState {
       };
     }
   >;
-  channelManagePermissionCache?: boolean;
   lastRefreshAttempt?: string;
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;
