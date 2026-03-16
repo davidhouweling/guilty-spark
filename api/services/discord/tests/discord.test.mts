@@ -486,8 +486,8 @@ describe("DiscordService", () => {
     });
 
     it("throws EndUserError if no queue is found", async () => {
-      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrowError(
-        "No queue found within the last 100 messages",
+      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrow(
+        new Error("No queue found within the last 100 messages"),
       );
     });
 
@@ -589,8 +589,8 @@ describe("DiscordService", () => {
         } as APIMessage["author"],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrowError(
-        "not from NeatQueue",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrow(
+        new Error("not from NeatQueue"),
       );
     });
 
@@ -600,8 +600,8 @@ describe("DiscordService", () => {
         embeds: [],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrowError(
-        "doesn't contain team information",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrow(
+        new Error("doesn't contain team information"),
       );
     });
 
@@ -616,8 +616,8 @@ describe("DiscordService", () => {
         ],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrowError(
-        "doesn't contain series results",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrow(
+        new Error("doesn't contain series results"),
       );
     });
   });
@@ -660,8 +660,8 @@ describe("DiscordService", () => {
     it("throws error if message count is > 100", async () => {
       const manyMessages = Array.from({ length: 101 }, (_, i) => `msg${i.toString()}`);
 
-      await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrowError(
-        "between 2 and 100",
+      await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrow(
+        new Error("between 2 and 100"),
       );
     });
   });
@@ -934,7 +934,7 @@ describe("DiscordService", () => {
     it("throws an error if the thread name is too long", async () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
-      ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+      ).rejects.toThrow(new Error("Thread name must be 100 characters or fewer"));
     });
   });
 
@@ -1190,7 +1190,7 @@ describe("DiscordService", () => {
           discordService.createMessage("fake-channel", { content: "fake-content" }),
           vi.advanceTimersByTimeAsync(100),
         ]),
-      ).rejects.toThrowError(new Error("Failed to fetch data from Discord API (HTTP 429): Too many requests"));
+      ).rejects.toThrow(new Error("Failed to fetch data from Discord API (HTTP 429): Too many requests"));
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });

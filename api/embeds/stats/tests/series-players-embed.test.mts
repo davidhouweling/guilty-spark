@@ -30,8 +30,8 @@ describe("SeriesPlayersEmbed", () => {
 
   describe("getEmbed", () => {
     it("returns promise reject", async () => {
-      await expect(seriesPlayersEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrowError(
-        "Series embed does not implement getEmbed, use getSeriesEmbed instead",
+      await expect(seriesPlayersEmbed.getEmbed(slayerMatch, playerXuidsToGametags)).rejects.toThrow(
+        new Error("Series embed does not implement getEmbed, use getSeriesEmbed instead"),
       );
     });
   });
