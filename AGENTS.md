@@ -139,6 +139,7 @@ npm run format:fix
 
 - **Test Runner**: Use vitest only (`npm test`)
 - **Structure**: Use `describe` and `it`, separate tests with blank lines
+- **Test Descriptions**: Use factual present tense ("returns X", "throws error") rather than indicative ("should return X")
 - **Black Box**: Test inputs/outputs only, no internal mocking
 - **Dependencies**: Only mock constructor dependencies, never internal methods
 - **Data**: Use fake factories (`aFake...With()`) for test data
