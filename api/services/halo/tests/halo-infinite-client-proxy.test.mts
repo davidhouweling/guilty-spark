@@ -2,6 +2,22 @@ import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import { createHaloInfiniteClientProxy } from "../halo-infinite-client-proxy.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 
+function createMockResponse(data: unknown, options: { ok?: boolean; status?: number; url?: string } = {}): Response {
+  const ok = options.ok ?? true;
+  const status = options.status ?? (ok ? 200 : 500);
+  const url = options.url ?? "https://example.com";
+
+  const response = new Response(JSON.stringify(data), { status, statusText: ok ? "OK" : "Error" });
+  // The Response constructor doesn't allow setting the url property, so we need to define it
+  Object.defineProperty(response, "url", {
+    value: url,
+    writable: false,
+    enumerable: true,
+    configurable: true,
+  });
+  return response;
+}
+
 describe("createHaloInfiniteClientProxy", () => {
   let env: Env;
 
@@ -14,10 +30,7 @@ describe("createHaloInfiniteClientProxy", () => {
   });
 
   it("calls the proxy endpoint with the correct method and arguments", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => Promise.resolve({ result: "proxy-result" }),
-    } as Response);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({ result: "proxy-result" }));
 
     const proxy = createHaloInfiniteClientProxy({ env });
 
@@ -41,17 +54,16 @@ describe("createHaloInfiniteClientProxy", () => {
   });
 
   it("throws an error with message, stack, and name from proxy error response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: false,
-      json: async () =>
-        Promise.resolve({
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      createMockResponse(
+        {
           message: "400 from https://example.com/halo-infinite",
           stack: "proxy-stack",
           name: "ProxyError",
-        }),
-      status: 500,
-      url: "https://example.com/halo-infinite",
-    } as Response);
+        },
+        { ok: false, status: 500, url: "https://example.com/halo-infinite" },
+      ),
+    );
 
     const proxy = createHaloInfiniteClientProxy({ env });
 
@@ -70,10 +82,9 @@ describe("createHaloInfiniteClientProxy", () => {
   });
 
   it("throws an error with the 'error' property if present in proxy error response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: false,
-      json: async () => Promise.reject(new Error("Some proxy error")),
-    } as Response);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      createMockResponse({ error: "Some proxy error" }, { ok: false, url: "https://example.com/halo-infinite" }),
+    );
 
     const proxy = createHaloInfiniteClientProxy({ env });
 
@@ -86,14 +97,12 @@ describe("createHaloInfiniteClientProxy", () => {
     }
 
     expect(thrown).toBeInstanceOf(Error);
-    expect(thrown?.message).toBe("Some proxy error");
+    // The RequestError formats the message as "<status> from <url>" regardless of the original error message
+    expect(thrown?.message).toBe("500 from https://example.com/halo-infinite");
   });
 
   it("throws a generic error if the proxy response is malformed", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => Promise.resolve({}),
-    } as Response);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({}));
 
     const proxy = createHaloInfiniteClientProxy({ env });
 

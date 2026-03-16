@@ -8,6 +8,7 @@ import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../.
 import type { Services } from "../../../services/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
+import { aFakeTrackerInitiationServiceWith } from "../../../services/tracker-initiation/fakes/tracker-initiation.fake";
 import { LiveTrackerFactory } from "../create";
 
 function isSteppableLiveTrackerConnection(
@@ -76,6 +77,7 @@ describe("LiveTracker", () => {
 
     const services: Services = {
       liveTrackerService,
+      trackerInitiationService: aFakeTrackerInitiationServiceWith(),
     };
 
     render(<LiveTrackerFactory services={services} apiHost="http://localhost:8787" />);

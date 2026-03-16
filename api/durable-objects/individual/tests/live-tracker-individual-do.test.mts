@@ -19,6 +19,8 @@ import type {
   LiveTrackerIndividualUnsubscribeSuccessResponse,
   LiveTrackerIndividualUnsubscribeFailureResponse,
   LiveTrackerIndividualTargetsResponse,
+  LiveTrackerIndividualWebStartSuccessResponse,
+  LiveTrackerIndividualWebStartFailureResponse,
 } from "../types.mjs";
 
 const createMockWebSocket = (overrides: Partial<WebSocket> = {}): WebSocket => {
@@ -128,7 +130,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Multi-platform simultaneous access", () => {
-    it("should support Discord and WebSocket targets simultaneously", async () => {
+    it("supports Discord and WebSocket targets simultaneously", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({ id: "discord-1" }),
@@ -173,7 +175,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(storagePutSpy).toHaveBeenCalled();
     });
 
-    it("should handle failures in one target without affecting others", async () => {
+    it("handles failures in one target without affecting others", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({ id: "discord-1" }),
@@ -255,7 +257,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.state.updateTargets.some((t) => t.id === "new-target")).toBe(true);
     });
 
-    it("should immediately remove target on 404 HTTP status", async () => {
+    it("immediately removes target on 404 HTTP status", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "failing-target" })],
       });
@@ -285,7 +287,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Discord transient error handling", () => {
-    it("should keep target with 10-minute grace on rate limit error", async () => {
+    it("keeps target with 10-minute grace on rate limit error", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
       });
@@ -313,7 +315,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.state.updateTargets).toHaveLength(2);
     });
 
-    it("should remove target after 10 minutes of transient failures", async () => {
+    it("removes target after 10 minutes of transient failures", async () => {
       const elevenMinutesAgo = new Date(Date.now() - 11 * 60 * 1000).toISOString();
 
       const state = aFakeLiveTrackerIndividualStateWith({
@@ -346,7 +348,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.state.updateTargets.some((t) => t.id === "new-target")).toBe(true);
     });
 
-    it("should keep target with failures less than 10 minutes old", async () => {
+    it("keeps target with failures less than 10 minutes old", async () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
       const state = aFakeLiveTrackerIndividualStateWith({
@@ -390,7 +392,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("WebSocket error handling", () => {
-    it("should immediately remove WebSocket target on send failure", async () => {
+    it("immediately removes WebSocket target on send failure", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeWebSocketTargetWith({ id: "failing-websocket" })],
       });
@@ -458,7 +460,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       );
     });
 
-    it("should remove WebSocket target on disconnect", async () => {
+    it("removes WebSocket target on disconnect", async () => {
       const targetId = "websocket-disconnect-test";
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeWebSocketTargetWith({ id: targetId })],
@@ -483,7 +485,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("New Discord message creation", () => {
-    it("should create new message when match count increases", async () => {
+    it("creates new message when match count increases", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
@@ -540,7 +542,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(updatedTarget?.discord?.lastMatchCount).toBe(1);
     });
 
-    it("should edit existing message when match count unchanged", async () => {
+    it("edits existing message when match count unchanged", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
@@ -592,7 +594,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Target cleanup", () => {
-    it("should filter out marked targets after broadcast", async () => {
+    it("filters out marked targets after broadcast", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({ id: "target-1" }),
@@ -622,7 +624,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.state.updateTargets.some((t) => t.id === "target-4")).toBe(true);
     });
 
-    it("should log when targets are cleaned up", async () => {
+    it("logs when targets are cleaned up", async () => {
       const elevenMinutesAgo = new Date(Date.now() - 11 * 60 * 1000).toISOString();
 
       const state = aFakeLiveTrackerIndividualStateWith({
@@ -656,7 +658,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Subscribe API", () => {
-    it("should add a new target to the tracker", async () => {
+    it("adds a new target to the tracker", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
       });
@@ -686,7 +688,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(state.updateTargets.map((t) => t.id)).toContain("new-discord-target");
     });
 
-    it("should reject duplicate target IDs", async () => {
+    it("rejects duplicate target IDs", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
       });
@@ -711,7 +713,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(state.updateTargets).toHaveLength(1);
     });
 
-    it("should reject invalid target data", async () => {
+    it("rejects invalid target data", async () => {
       const state = aFakeLiveTrackerIndividualStateWith();
       mockStorageGet(state);
 
@@ -729,7 +731,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.error).toBe("Invalid target data");
     });
 
-    it("should return 404 when tracker not found", async () => {
+    it("returns 404 when tracker not found", async () => {
       mockStorageGet(null);
 
       const request = new Request("https://example.com/subscribe", {
@@ -748,7 +750,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Unsubscribe API", () => {
-    it("should remove a target from the tracker", async () => {
+    it("removes a target from the tracker", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "target-1" }), aFakeDiscordTargetWith({ id: "target-2" })],
       });
@@ -776,7 +778,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(state.updateTargets[0]?.id).toBe("target-2");
     });
 
-    it("should stop tracker when last target is removed", async () => {
+    it("stops tracker when last target is removed", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "last-target" })],
       });
@@ -801,7 +803,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.state.status).toBe("stopped");
     });
 
-    it("should return 404 when target not found", async () => {
+    it("returns 404 when target not found", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
       });
@@ -824,7 +826,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.error).toBe("Target not found");
     });
 
-    it("should return 400 when targetId is missing", async () => {
+    it("returns 400 when targetId is missing", async () => {
       const state = aFakeLiveTrackerIndividualStateWith();
       mockStorageGet(state);
 
@@ -844,7 +846,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("Get Targets API", () => {
-    it("should return list of all active targets", async () => {
+    it("returns list of all active targets", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [aFakeDiscordTargetWith({ id: "discord-1" }), aFakeWebSocketTargetWith({ id: "websocket-1" })],
       });
@@ -861,7 +863,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.targets).toHaveLength(2);
     });
 
-    it("should return empty array when no targets exist", async () => {
+    it("returns empty array when no targets exist", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [],
       });
@@ -878,7 +880,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.targets).toHaveLength(0);
     });
 
-    it("should return 404 when tracker not found", async () => {
+    it("returns 404 when tracker not found", async () => {
       mockStorageGet(null);
 
       const request = new Request("https://example.com/targets", {
@@ -888,6 +890,137 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const response = await durableObject.fetch(request);
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe("Web Start API", () => {
+    it("initializes tracker with no targets and return websocket URL", async () => {
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          selectedMatchIds: ["match1", "match2"],
+          groupings: [["match1", "match2"]],
+          searchStartTime: new Date().toISOString(),
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      expect(response.status).toBe(200);
+      const body = await response.json<LiveTrackerIndividualWebStartSuccessResponse>();
+      expect(body.success).toBe(true);
+      expect(body.websocketUrl).toBe("/ws/tracker/individual/TestPlayer");
+      expect(body.gamertag).toBe("TestPlayer");
+
+      // Verify storage was called to persist state
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- Testing storage mock
+      expect(stateMock.mocks.storage.put).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          gamertag: "TestPlayer",
+          xuid: "xuid(1234567890)",
+          updateTargets: [],
+          status: "active",
+        }),
+      );
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- Testing storage mock
+      expect(stateMock.mocks.storage.setAlarm).toHaveBeenCalled();
+    });
+
+    it("fetches and merge selected matches", async () => {
+      const getMatchDetailsSpy = vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          selectedMatchIds: ["match1", "match2"],
+          groupings: [],
+          searchStartTime: new Date().toISOString(),
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      await durableObject.fetch(request);
+
+      expect(getMatchDetailsSpy).toHaveBeenCalledWith(["match1", "match2"]);
+    });
+
+    it("applies user-provided groupings", async () => {
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          selectedMatchIds: ["match1", "match2", "match3"],
+          groupings: [["match1", "match2"], ["match3"]],
+          searchStartTime: new Date().toISOString(),
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      expect(response.status).toBe(200);
+    });
+
+    it("handles empty selected matches (start from now)", async () => {
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          selectedMatchIds: [],
+          groupings: [],
+          searchStartTime: new Date().toISOString(),
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      expect(response.status).toBe(200);
+      const body = await response.json<LiveTrackerIndividualWebStartSuccessResponse>();
+      expect(body.success).toBe(true);
+    });
+
+    it("returns error when halo service fails", async () => {
+      vi.spyOn(env.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+      vi.spyOn(services.haloService, "getMatchDetails").mockRejectedValue(new Error("API failure"));
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          selectedMatchIds: ["match1"],
+          groupings: [],
+          searchStartTime: new Date().toISOString(),
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      expect(response.status).toBe(500);
+      const body = await response.json<LiveTrackerIndividualWebStartFailureResponse>();
+      expect(body.success).toBe(false);
+      expect(body.error).toContain("API failure");
     });
   });
 });

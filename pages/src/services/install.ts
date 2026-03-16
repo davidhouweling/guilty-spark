@@ -1,4 +1,5 @@
 import { RealLiveTrackerService } from "./live-tracker/live-tracker";
+import { RealTrackerInitiationService } from "./tracker-initiation/tracker-initiation";
 import type { Services } from "./types";
 
 export type PagesMode = "REAL" | "FAKE";
@@ -18,5 +19,6 @@ export async function installServices(apiHost: string): Promise<Services> {
 
   return {
     liveTrackerService: new RealLiveTrackerService({ apiHost }),
+    trackerInitiationService: new RealTrackerInitiationService({ apiHost }),
   };
 }
