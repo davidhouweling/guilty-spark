@@ -33,25 +33,24 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     this.data = data;
   }
 
-  get embed(): APIEmbed {
+  get embeds(): APIEmbed[] {
     const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore } = this.data;
     const { discordService } = this.services;
 
     const hasMatches = enrichedMatches != null && enrichedMatches.length > 0;
     const userDisplay = `<@${userId}>`;
     const statusText = this.getStatusText(status, isPaused);
+    const embedColor = this.getEmbedColor(status, isPaused);
 
-    const embed: APIEmbed = {
-      title: `Live Tracker - Queue #${queueNumber.toString()}`,
-      color: this.getEmbedColor(status, isPaused),
-      description: `**${statusText}**`,
-    };
+    const titles = hasMatches
+      ? ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`]
+      : ["Status"];
+
+    // Build all table data rows
+    const tableData: string[][] = [titles];
 
     if (hasMatches) {
-      const titles = ["Game", "Duration", `Score${seriesScore?.includes("🦅") === true ? " (🦅:🐍)" : ""}`];
-      const tableData = [titles];
       const sortedSubstitutions = this.processSortedSubstitutions();
-
       let substitutionIndex = 0;
 
       for (const { matchId, gameTypeAndMap, duration: gameDuration, gameScore, endTime } of enrichedMatches) {
@@ -79,12 +78,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         }
         substitutionIndex++;
       }
-
-      this.addEmbedFields(embed, titles, tableData);
     } else {
-      const titles = ["Status"];
-      const tableData = [titles];
-
       if (this.data.substitutions && this.data.substitutions.length > 0) {
         for (const substitution of this.data.substitutions) {
           tableData.push(this.createSubstitutionRow(substitution, 1));
@@ -93,12 +87,9 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       } else {
         tableData.push(["⏳ *Waiting for first match to complete...*"]);
       }
-
-      this.addEmbedFields(embed, titles, tableData);
     }
 
-    this.addSeparatorField(embed);
-
+    // Build post-table fields content (these stay together on the last embed)
     const currentTime = new Date();
     const lastUpdateText =
       lastUpdated != null
@@ -118,51 +109,143 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       return discordService.getTimestamp(this.toISOString(nextAlarmTime), "R");
     })();
 
-    embed.fields = embed.fields ?? [];
-    embed.fields.push({
-      name: "Series score",
-      value: seriesScore ?? "🦅 0:0 🐍",
-      inline: true,
-    });
-    embed.fields.push({
-      name: "Last game completed",
-      value: hasMatches
+    const postTableFieldsContent = [
+      seriesScore ?? "🦅 0:0 🐍",
+      hasMatches
         ? discordService.getTimestamp(
             this.toISOString(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime),
             "R",
           )
         : "-",
-      inline: true,
-    });
-
-    this.addSeparatorField(embed);
-
-    embed.fields.push({
-      name: "Last updated",
-      value: lastUpdateText,
-      inline: true,
-    });
-    embed.fields.push({
-      name: "Next check",
-      value: nextCheckText,
-      inline: true,
-    });
+      lastUpdateText,
+      nextCheckText,
+    ];
 
     if (this.data.errorState && this.data.errorState.consecutiveErrors > 0) {
-      const errorMessage = this.getErrorMessage(this.data.errorState);
-      embed.fields.push({
-        name: "⚠️ Status Alert",
-        value: errorMessage,
-        inline: false,
-      });
+      postTableFieldsContent.push(this.getErrorMessage(this.data.errorState));
     }
 
-    embed.fields.push({
-      name: "",
-      value: `-# Live tracking started by ${userDisplay}`,
-    });
+    postTableFieldsContent.push(`-# Live tracking started by ${userDisplay}`);
 
-    return embed;
+    // Calculate total length of post-table fields
+    const postTableFieldsLength = postTableFieldsContent.reduce((sum, content) => sum + content.length, 0);
+
+    const embeds: APIEmbed[] = [];
+    const dataRows = tableData.slice(1); // All rows except titles
+    let currentRowIndex = 0;
+
+    while (currentRowIndex < dataRows.length) {
+      const isFirstEmbed = embeds.length === 0;
+      const fieldValues: string[] = Array.from({ length: titles.length }).fill("") as string[];
+
+      // Try to fit as many rows as possible, considering post-table fields on the last pass
+      while (currentRowIndex < dataRows.length) {
+        const row = Preconditions.checkExists(dataRows[currentRowIndex]);
+        const isLastRow = currentRowIndex === dataRows.length - 1;
+
+        // Check if adding this row would exceed the limit
+        let canAddRow = true;
+        for (let col = 0; col < titles.length; col++) {
+          const currentValue = Preconditions.checkExists(fieldValues[col]);
+          const rowValue = Preconditions.checkExists(row[col]);
+          const newValue = currentValue + (currentValue.length > 0 ? "\n" : "") + rowValue;
+
+          // If this is the last row, also account for post-table fields
+          if (isLastRow && newValue.length + postTableFieldsLength > 1024) {
+            canAddRow = false;
+            break;
+          } else if (newValue.length > 1024) {
+            canAddRow = false;
+            break;
+          }
+        }
+
+        if (!canAddRow) {
+          break;
+        }
+
+        // Add the row to all columns
+        for (let col = 0; col < titles.length; col++) {
+          const rowValue = Preconditions.checkExists(row[col]);
+          const currentFieldValue = Preconditions.checkExists(fieldValues[col]);
+          fieldValues[col] = currentFieldValue + (currentFieldValue.length > 0 ? "\n" : "") + rowValue;
+        }
+        currentRowIndex++;
+      }
+
+      // Create the embed
+      const embed: APIEmbed = {
+        color: embedColor,
+      };
+
+      if (isFirstEmbed) {
+        embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
+        embed.description = `**${statusText}**`;
+      }
+
+      // Add table fields
+      embed.fields = [];
+      for (let col = 0; col < titles.length; col++) {
+        const fieldValue = Preconditions.checkExists(fieldValues[col]);
+        embed.fields.push({
+          name: Preconditions.checkExists(titles[col]),
+          value: fieldValue.length > 0 ? fieldValue : "-",
+          inline: true,
+        });
+      }
+
+      // If this is the last embed (all rows processed), add post-table fields
+      if (currentRowIndex >= dataRows.length) {
+        this.addSeparatorField(embed);
+
+        embed.fields.push({
+          name: "Series score",
+          value: seriesScore ?? "🦅 0:0 🐍",
+          inline: true,
+        });
+        embed.fields.push({
+          name: "Last game completed",
+          value: hasMatches
+            ? discordService.getTimestamp(
+                this.toISOString(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime),
+                "R",
+              )
+            : "-",
+          inline: true,
+        });
+
+        this.addSeparatorField(embed);
+
+        embed.fields.push({
+          name: "Last updated",
+          value: lastUpdateText,
+          inline: true,
+        });
+        embed.fields.push({
+          name: "Next check",
+          value: nextCheckText,
+          inline: true,
+        });
+
+        if (this.data.errorState && this.data.errorState.consecutiveErrors > 0) {
+          const errorMessage = this.getErrorMessage(this.data.errorState);
+          embed.fields.push({
+            name: "⚠️ Status Alert",
+            value: errorMessage,
+            inline: false,
+          });
+        }
+
+        embed.fields.push({
+          name: "",
+          value: `-# Live tracking started by ${userDisplay}`,
+        });
+      }
+
+      embeds.push(embed);
+    }
+
+    return embeds;
   }
 
   get actions(): APIMessageTopLevelComponent[] {
@@ -214,7 +297,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
   toMessageData(): APIInteractionResponseCallbackData {
     return {
-      embeds: [this.embed],
+      embeds: this.embeds,
       components: this.actions,
     };
   }

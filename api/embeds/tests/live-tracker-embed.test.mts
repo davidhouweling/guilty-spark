@@ -7,7 +7,6 @@ import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-
 describe("LiveTrackerEmbed", () => {
   let discordService: DiscordService;
   let getTimestampSpy: MockInstance<DiscordService["getTimestamp"]>;
@@ -77,14 +76,17 @@ describe("LiveTrackerEmbed", () => {
         enrichedMatches: [],
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.title).toContain("Live Tracker - Queue #42");
       expect(embed.description).toBe("**Live Tracking Active**");
       expect(embed.color).toBe(0x28a745); // Green for active
       expect(embed.fields).toBeDefined();
 
-      const statusField = embed.fields?.find((field) => field.value.includes("⏳ *Waiting for first match"));
+      const statusField = embed.fields?.find((field: { value: string }) =>
+        field.value.includes("⏳ *Waiting for first match"),
+      );
       expect(statusField).toBeDefined();
 
       expect(getTimestampSpy).toHaveBeenCalled();
@@ -101,7 +103,8 @@ describe("LiveTrackerEmbed", () => {
         enrichedMatches: testEnrichedMatches,
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.title).toContain("Live Tracker - Queue #777");
       expect(embed.description).toBe("**Live Tracking Active**");
@@ -110,7 +113,7 @@ describe("LiveTrackerEmbed", () => {
       expect(embed.fields).toBeDefined();
       expect(embed.fields?.length).toBeGreaterThan(0);
 
-      const gameField = embed.fields?.find((field) => field.name === "Game");
+      const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
       expect(gameField).toBeDefined();
       expect(gameField?.value).toContain("Slayer on Aquarius");
     });
@@ -126,7 +129,8 @@ describe("LiveTrackerEmbed", () => {
         nextCheck: undefined,
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.title).toContain("Live Tracker - Queue #42");
       expect(embed.description).toBe("**Live Tracking Paused**");
@@ -143,7 +147,8 @@ describe("LiveTrackerEmbed", () => {
         nextCheck: undefined,
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.title).toContain("Live Tracker - Queue #42");
       expect(embed.description).toBe("**Live Tracking Stopped**");
@@ -165,7 +170,8 @@ describe("LiveTrackerEmbed", () => {
         },
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.title).toContain("Live Tracker - Queue #42");
       expect(embed.description).toBeDefined();
@@ -306,9 +312,10 @@ describe("LiveTrackerEmbed", () => {
         enrichedMatches: testEnrichedMatches,
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
-      const scoreField = embed.fields?.find((field) => field.name.includes("Score"));
+      const scoreField = embed.fields?.find((field: { name: string }) => field.name.includes("Score"));
       expect(scoreField).toBeDefined();
       expect(scoreField?.name).toContain("🦅:🐍");
     });
@@ -321,9 +328,10 @@ describe("LiveTrackerEmbed", () => {
         enrichedMatches: testEnrichedMatches.slice(0, 1),
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
-      const scoreField = embed.fields?.find((field) => field.name.includes("Score"));
+      const scoreField = embed.fields?.find((field: { name: string }) => field.name.includes("Score"));
       expect(scoreField).toBeDefined();
       expect(scoreField?.name).not.toContain("🦅:🐍");
     });
@@ -340,7 +348,8 @@ describe("LiveTrackerEmbed", () => {
         nextCheck: undefined,
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
       expect(embed.description).toBeDefined();
       expect(embed.description).toBe("**Live Tracking Active**");
@@ -365,9 +374,10 @@ describe("LiveTrackerEmbed", () => {
         ],
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
-      const gameField = embed.fields?.find((field) => field.name === "Game");
+      const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
       expect(gameField).toBeDefined();
       expect(gameField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
       expect(gameField?.value).toContain("[Slayer on Aquarius]");
@@ -391,9 +401,10 @@ describe("LiveTrackerEmbed", () => {
         ],
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
-      const statusField = embed.fields?.find((field) => field.name === "Status");
+      const statusField = embed.fields?.find((field: { name: string }) => field.name === "Status");
       expect(statusField).toBeDefined();
       expect(statusField?.value).toContain("*<@player-in-1> subbed in for <@player-out-1> (Team Alpha)*");
       expect(statusField?.value).toContain("⏳ *Waiting for first match to complete...*");
@@ -472,9 +483,10 @@ describe("LiveTrackerEmbed", () => {
         ],
       });
 
-      const { embed } = liveTrackerEmbed;
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
 
-      const gameField = embed.fields?.find((field) => field.name === "Game");
+      const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
       expect(gameField).toBeDefined();
 
       const fieldValue = gameField?.value;
@@ -503,6 +515,232 @@ describe("LiveTrackerEmbed", () => {
       expect(sub2Index).toBeLessThan(match2Index);
       expect(match2Index).toBeLessThan(match3Index);
       expect(match3Index).toBeLessThan(sub3Index);
+    });
+  });
+
+  describe("multi-embed splitting", () => {
+    it("returns single embed when data is small", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 1 - 0 Team Beta",
+        enrichedMatches: testEnrichedMatches.slice(0, 1),
+      });
+
+      const { embeds } = liveTrackerEmbed;
+
+      expect(embeds).toHaveLength(1);
+      expect(embeds[0]?.title).toBeDefined();
+      expect(embeds[0]?.description).toBeDefined();
+    });
+
+    it("splits into multiple embeds when many matches exceed character limit", () => {
+      // Create many matches to force splitting
+      const manyMatches: LiveTrackerMatchSummary[] = Array.from({ length: 20 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()} with a very long name that adds characters`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: "50:49",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 10 - 10 Team Beta",
+        enrichedMatches: manyMatches,
+      });
+
+      const { embeds } = liveTrackerEmbed;
+
+      expect(embeds.length).toBeGreaterThan(1);
+    });
+
+    it("first embed has title and description, continuation embeds have only color", () => {
+      const manyMatches: LiveTrackerMatchSummary[] = Array.from({ length: 20 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()} with a very long name that adds characters`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: "50:49",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 10 - 10 Team Beta",
+        enrichedMatches: manyMatches,
+      });
+
+      const [firstEmbed, secondEmbed] = liveTrackerEmbed.embeds;
+      const firstEmbedChecked = Preconditions.checkExists(firstEmbed);
+      const secondEmbedChecked = Preconditions.checkExists(secondEmbed);
+
+      // First embed should have title, description
+      expect(firstEmbedChecked.title).toBeDefined();
+      expect(firstEmbedChecked.title).toContain("Live Tracker - Queue #42");
+      expect(firstEmbedChecked.description).toBeDefined();
+      expect(firstEmbedChecked.color).toBe(0x28a745);
+
+      // Continuation embed should only have color, no title/description
+      expect(secondEmbedChecked.title).toBeUndefined();
+      expect(secondEmbedChecked.description).toBeUndefined();
+      expect(secondEmbedChecked.color).toBe(0x28a745);
+    });
+
+    it("post-table metadata fields stay together on last embed", () => {
+      const manyMatches: LiveTrackerMatchSummary[] = Array.from({ length: 20 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()} with a very long name that adds characters`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: "50:49",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 10 - 10 Team Beta (🦅:🐍)",
+        enrichedMatches: manyMatches,
+      });
+
+      const { embeds } = liveTrackerEmbed;
+      const lastEmbed = Preconditions.checkExists(embeds[embeds.length - 1]);
+
+      // Verify post-table metadata fields are on last embed
+      const hasSeriesScore = lastEmbed.fields?.some((field: { name: string }) => field.name.includes("score"));
+      const hasLastUpdated = lastEmbed.fields?.some((field: { name: string }) => field.name.includes("Last updated"));
+      const hasNextCheck = lastEmbed.fields?.some((field: { name: string }) => field.name.includes("Next check"));
+
+      expect(hasSeriesScore).toBe(true);
+      expect(hasLastUpdated).toBe(true);
+      expect(hasNextCheck).toBe(true);
+    });
+
+    it("each embed field stays under 1024 character limit", () => {
+      const manyMatches: LiveTrackerMatchSummary[] = Array.from({ length: 30 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()} with a very long name that adds characters`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: "50:49",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 15 - 15 Team Beta",
+        enrichedMatches: manyMatches,
+      });
+
+      const { embeds } = liveTrackerEmbed;
+
+      for (const embed of embeds) {
+        const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
+        if (gameField?.value != null) {
+          expect(gameField.value.length).toBeLessThanOrEqual(1024);
+        }
+      }
+    });
+
+    it("handles mix of matches and substitutions across multiple embeds", () => {
+      const manyMatches: LiveTrackerMatchSummary[] = Array.from({ length: 15 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()} with a very long name that adds characters`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: "50:49",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const substitutions = Array.from({ length: 10 }, (_, i) => ({
+        playerOutId: `player-out-${(i + 1).toString()}`,
+        playerInId: `player-in-${(i + 1).toString()}`,
+        teamIndex: i % 2,
+        teamName: i % 2 === 0 ? "Team Alpha" : "Team Beta",
+        timestamp: new Date(2024, 0, 1, 10 + i, 5, 0).toISOString(),
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 8 - 7 Team Beta",
+        enrichedMatches: manyMatches,
+        substitutions,
+      });
+
+      const { embeds } = liveTrackerEmbed;
+
+      // Should create multiple embeds
+      expect(embeds.length).toBeGreaterThan(1);
+
+      // Find all Game fields across embeds
+      let totalMatches = 0;
+      let totalSubstitutions = 0;
+
+      for (const embed of embeds) {
+        const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
+        if (gameField?.value != null) {
+          // Count matches (links)
+          const matchCount = (gameField.value.match(/\[Slayer on Map/g) ?? []).length;
+          totalMatches += matchCount;
+
+          // Count substitutions
+          const subCount = (gameField.value.match(/subbed in for/g) ?? []).length;
+          totalSubstitutions += subCount;
+        }
+      }
+
+      expect(totalMatches).toBe(15);
+      expect(totalSubstitutions).toBe(10);
+    });
+
+    it("does not split when error state with no matches", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 0 - 0 Team Beta",
+        enrichedMatches: [],
+        errorState: {
+          consecutiveErrors: 3,
+          backoffMinutes: 10,
+          lastSuccessTime: "2024-12-06T11:50:00Z",
+          lastErrorMessage: "API temporarily unavailable - long error message here",
+        },
+      });
+
+      const { embeds } = liveTrackerEmbed;
+
+      expect(embeds).toHaveLength(1);
     });
   });
 });
