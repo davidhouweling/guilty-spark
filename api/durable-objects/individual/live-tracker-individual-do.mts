@@ -36,6 +36,12 @@ import type {
   LiveTrackerIndividualWebStartRequest,
   LiveTrackerIndividualWebStartSuccessResponse,
   LiveTrackerIndividualWebStartFailureResponse,
+  LiveTrackerIndividualSubscribeSuccessResponse,
+  LiveTrackerIndividualSubscribeFailureResponse,
+  LiveTrackerIndividualUnsubscribeRequest,
+  LiveTrackerIndividualUnsubscribeSuccessResponse,
+  LiveTrackerIndividualUnsubscribeFailureResponse,
+  LiveTrackerIndividualTargetsResponse,
   LiveTrackerIndividualState,
   LiveTrackerIndividualStartResponse,
   LiveTrackerRefreshRequest,
@@ -122,6 +128,15 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           }
           case "repost": {
             return await this.handleRepost(request);
+          }
+          case "subscribe": {
+            return await this.handleSubscribe(request);
+          }
+          case "unsubscribe": {
+            return await this.handleUnsubscribe(request);
+          }
+          case "targets": {
+            return await this.handleGetTargets();
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -611,6 +626,197 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     );
 
     return this.createRepostResponse(oldMessageId ?? "none", newMessageId);
+  }
+
+  private async handleSubscribe(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState === null) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Tracker not found",
+        } satisfies LiveTrackerIndividualSubscribeFailureResponse),
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    try {
+      const body = await request.json<{ target: unknown }>();
+
+      // Validate target structure at runtime (can't trust JSON input)
+      if (
+        typeof body.target !== "object" ||
+        body.target === null ||
+        !("id" in body.target) ||
+        !("type" in body.target) ||
+        typeof body.target.id !== "string" ||
+        body.target.id === "" ||
+        typeof body.target.type !== "string"
+      ) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid target data",
+          } satisfies LiveTrackerIndividualSubscribeFailureResponse),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      const target = body.target as UpdateTarget;
+
+      // Check if target ID already exists
+      const existingTarget = trackerState.updateTargets.find((t) => t.id === target.id);
+      if (existingTarget != null) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Target ID already exists",
+          } satisfies LiveTrackerIndividualSubscribeFailureResponse),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Add the new target
+      trackerState.updateTargets.push(target);
+
+      // Persist and broadcast
+      await this.setState(trackerState);
+
+      this.logService.info(
+        `LiveTracker Individual: Added subscription for ${trackerState.gamertag}`,
+        new Map([
+          ["targetId", target.id],
+          ["targetType", target.type],
+          ["totalTargets", trackerState.updateTargets.length.toString()],
+        ]),
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          targetId: target.id,
+          state: trackerState,
+        } satisfies LiveTrackerIndividualSubscribeSuccessResponse),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    } catch (error) {
+      this.logService.error("Failed to add subscription", new Map([["error", String(error)]]));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        } satisfies LiveTrackerIndividualSubscribeFailureResponse),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
+  private async handleUnsubscribe(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState === null) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Tracker not found",
+        } satisfies LiveTrackerIndividualUnsubscribeFailureResponse),
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    try {
+      const body = await request.json<LiveTrackerIndividualUnsubscribeRequest>();
+
+      if (!body.targetId || body.targetId.trim() === "") {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Target ID is required",
+          } satisfies LiveTrackerIndividualUnsubscribeFailureResponse),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Find target to remove
+      const targetIndex = trackerState.updateTargets.findIndex((t) => t.id === body.targetId);
+      if (targetIndex === -1) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Target not found",
+          } satisfies LiveTrackerIndividualUnsubscribeFailureResponse),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Remove the target
+      trackerState.updateTargets.splice(targetIndex, 1);
+
+      // If no targets remain, stop the tracker
+      if (trackerState.updateTargets.length === 0) {
+        this.logService.info(
+          `LiveTracker Individual: Last target removed, stopping tracker for ${trackerState.gamertag}`,
+        );
+
+        // Update status and persist before disposing
+        trackerState.status = "stopped";
+        trackerState.lastUpdateTime = new Date().toISOString();
+        await this.setState(trackerState);
+        await this.dispose(trackerState, "All targets removed");
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            targetId: body.targetId,
+            state: trackerState,
+          } satisfies LiveTrackerIndividualUnsubscribeSuccessResponse),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Persist and broadcast (target removed but tracker continues)
+      await this.setState(trackerState);
+
+      this.logService.info(
+        `LiveTracker Individual: Removed subscription for ${trackerState.gamertag}`,
+        new Map([
+          ["targetId", body.targetId],
+          ["remainingTargets", trackerState.updateTargets.length.toString()],
+        ]),
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          targetId: body.targetId,
+          state: trackerState,
+        } satisfies LiveTrackerIndividualUnsubscribeSuccessResponse),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    } catch (error) {
+      this.logService.error("Failed to remove subscription", new Map([["error", String(error)]]));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        } satisfies LiveTrackerIndividualUnsubscribeFailureResponse),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
+  private async handleGetTargets(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState === null) {
+      return new Response("Tracker not found", { status: 404 });
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        targets: trackerState.updateTargets,
+      } satisfies LiveTrackerIndividualTargetsResponse),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   private async getState(): Promise<LiveTrackerIndividualState | null> {

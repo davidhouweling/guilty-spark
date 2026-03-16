@@ -37,6 +37,14 @@ export interface LiveTrackerRepostRequest {
   newMessageId: string;
 }
 
+export interface LiveTrackerIndividualSubscribeRequest {
+  target: UpdateTarget;
+}
+
+export interface LiveTrackerIndividualUnsubscribeRequest {
+  targetId: string;
+}
+
 // Update target types for multi-platform broadcast system
 export interface DiscordTarget {
   userId: string;
@@ -157,6 +165,33 @@ export interface LiveTrackerIndividualStopSuccessResponse {
 export interface LiveTrackerIndividualRefreshSuccessResponse {
   success: true;
   state: LiveTrackerIndividualState;
+}
+
+export interface LiveTrackerIndividualSubscribeSuccessResponse {
+  success: true;
+  targetId: string;
+  state: LiveTrackerIndividualState;
+}
+
+export interface LiveTrackerIndividualSubscribeFailureResponse {
+  success: false;
+  error: string;
+}
+
+export interface LiveTrackerIndividualUnsubscribeSuccessResponse {
+  success: true;
+  targetId: string;
+  state: LiveTrackerIndividualState;
+}
+
+export interface LiveTrackerIndividualUnsubscribeFailureResponse {
+  success: false;
+  error: string;
+}
+
+export interface LiveTrackerIndividualTargetsResponse {
+  success: true;
+  targets: UpdateTarget[];
 }
 
 export interface LiveTrackerIndividualRefreshCooldownErrorResponse {

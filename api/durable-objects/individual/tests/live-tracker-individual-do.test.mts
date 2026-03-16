@@ -11,10 +11,16 @@ import {
   aFakeDiscordTargetWith,
   aFakeWebSocketTargetWith,
 } from "../fakes/data.mjs";
-import type { LiveTrackerIndividualState } from "../types.mjs";
+import type {
+  LiveTrackerIndividualState,
+  UpdateTarget,
+  LiveTrackerIndividualSubscribeSuccessResponse,
+  LiveTrackerIndividualSubscribeFailureResponse,
+  LiveTrackerIndividualUnsubscribeSuccessResponse,
+  LiveTrackerIndividualUnsubscribeFailureResponse,
+  LiveTrackerIndividualTargetsResponse,
+} from "../types.mjs";
 
-// Helper to create mock WebSocket
-// Note: Type assertion needed to create partial mock of complex WebSocket interface
 const createMockWebSocket = (overrides: Partial<WebSocket> = {}): WebSocket => {
   return {
     send: vi.fn(),
@@ -23,8 +29,6 @@ const createMockWebSocket = (overrides: Partial<WebSocket> = {}): WebSocket => {
   } satisfies Partial<WebSocket> as WebSocket;
 };
 
-// Create a mock SQL storage that satisfies the interface
-// Note: Type assertion needed for SqlStorage which has complex method signatures
 const createMockSqlStorage = (): SqlStorage => {
   return {
     exec: vi.fn(),
@@ -34,7 +38,6 @@ const createMockSqlStorage = (): SqlStorage => {
   } as SqlStorage;
 };
 
-// Helper to create mock Durable Object state
 const createMockDurableObjectState = (): {
   durableObjectState: DurableObjectState;
   mocks: { storage: DurableObjectStorage };
@@ -55,7 +58,6 @@ const createMockDurableObjectState = (): {
     sync: vi.fn(),
     transaction: vi.fn(),
     transactionSync: vi.fn(),
-    // Note: Type assertion needed for KV storage - tests don't use KV methods
     kv: {} satisfies Partial<DurableObjectStorage["kv"]> as DurableObjectStorage["kv"],
   };
 
@@ -96,34 +98,27 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
     env = aFakeEnvWith({});
     services = installFakeServicesWith();
 
-    // Mock getGuild (called by stateToContractData)
     vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
 
     durableObject = new LiveTrackerIndividualDO(stateMock.durableObjectState, env, () => services);
   });
 
-  // Helper to mock storage.get for tracker state
   beforeEach(() => {
     stateMock = createMockDurableObjectState();
     env = aFakeEnvWith({});
     services = installFakeServicesWith();
 
-    // Mock getGuild (called by stateToContractData)
     vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
 
     durableObject = new LiveTrackerIndividualDO(stateMock.durableObjectState, env, () => services);
   });
 
-  // Helper to mock storage.get for tracker state
-  // Note: Type assertion needed because mockImplementation can't satisfy both overload signatures
-  // of DurableObjectStorage.get (single key vs array of keys) at compile time
   const mockStorageGet = (state: LiveTrackerIndividualState | null): void => {
     // eslint-disable-next-line @typescript-eslint/promise-function-async -- Mock must match DurableObjectStorage.get signature
     vi.spyOn(stateMock.mocks.storage, "get").mockImplementation(((keyOrKeys: string | string[]) => {
       if (typeof keyOrKeys === "string") {
         return Promise.resolve(keyOrKeys === "trackerState" ? state : undefined);
       }
-      // Array case - return empty Map
       return Promise.resolve(new Map<string, unknown>());
     }) as DurableObjectStorage["get"]);
   };
@@ -144,10 +139,9 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       mockStorageGet(state);
 
-      // Mock Discord service
       const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const storagePutSpy = vi.spyOn(stateMock.mocks.storage, "put");
 
-      // Mock WebSocket broadcast
       const mockWebSocket1 = createMockWebSocket();
       const mockWebSocket2 = createMockWebSocket();
       const sendSpy1 = vi.spyOn(mockWebSocket1, "send");
@@ -164,23 +158,19 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         return [];
       });
 
-      // Trigger broadcast via setState
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "discord-2" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Verify Discord message was updated
-      expect(editMessageSpy).toHaveBeenCalledWith(
-        "channel-789",
-        "message-001",
-        expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
-          embeds: expect.arrayContaining([]),
-        }),
-      );
-
-      // Verify both WebSockets received broadcast
+      const response = await durableObject.fetch(request);
+      expect(response.status).toBe(200);
+      expect(editMessageSpy).toHaveBeenCalled();
       expect(sendSpy1).toHaveBeenCalled();
       expect(sendSpy2).toHaveBeenCalled();
+      expect(storagePutSpy).toHaveBeenCalled();
     });
 
     it("should handle failures in one target without affecting others", async () => {
@@ -202,20 +192,27 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       mockStorageGet(state);
 
-      // First Discord succeeds, second fails with transient error
       const editMessageSpy = vi
         .spyOn(services.discordService, "editMessage")
         .mockResolvedValueOnce(apiMessage)
         .mockRejectedValueOnce(new DiscordError(429, { message: "Rate Limited", code: 0 }));
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "discord-3" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Both targets should be attempted
-      expect(editMessageSpy).toHaveBeenCalledTimes(2);
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
 
-      // Second target should have failure tracking
-      const [, failedTarget] = state.updateTargets;
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+
+      expect(editMessageSpy).toHaveBeenCalled();
+
+      const failedTarget = body.state.updateTargets.find((t) => t.id === "discord-2");
       expect(failedTarget?.lastFailureAt).toBeDefined();
       expect(failedTarget?.failureReason).toContain("Rate Limited");
       expect(failedTarget?.markedForRemoval).toBeUndefined();
@@ -231,7 +228,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       { code: 50001, name: "Missing Access" },
     ])("should immediately remove target on $name error (code $code)", async ({ code }) => {
       const state = aFakeLiveTrackerIndividualStateWith({
-        updateTargets: [aFakeDiscordTargetWith()],
+        updateTargets: [aFakeDiscordTargetWith({ id: "failing-target" })],
       });
 
       mockStorageGet(state);
@@ -239,18 +236,28 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const discordError = new DiscordError(403, { message: "Error", code });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
 
-      const [target] = state.updateTargets; // Capture before filtering
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({
+        id: "new-target",
+        discord: { userId: "user-new", guildId: "guild-new", channelId: "channel-new", lastMatchCount: 0 },
+      });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Target should be marked for removal
-      expect(target?.markedForRemoval).toBe(true);
-      expect(state.updateTargets).toHaveLength(0); // Filtered out after broadcast
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets.some((t) => t.id === "failing-target")).toBe(false);
+      expect(body.state.updateTargets.some((t) => t.id === "new-target")).toBe(true);
     });
 
     it("should immediately remove target on 404 HTTP status", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
-        updateTargets: [aFakeDiscordTargetWith()],
+        updateTargets: [aFakeDiscordTargetWith({ id: "failing-target" })],
       });
 
       mockStorageGet(state);
@@ -258,18 +265,29 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const discordError = new DiscordError(404, { message: "Not Found", code: 0 });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({
+        id: "new-target",
+        discord: { userId: "user-new", guildId: "guild-new", channelId: "channel-new", lastMatchCount: 0 },
+      });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Target should be removed
-      expect(state.updateTargets).toHaveLength(0);
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets.some((t) => t.id === "failing-target")).toBe(false);
     });
   });
 
   describe("Discord transient error handling", () => {
     it("should keep target with 10-minute grace on rate limit error", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
-        updateTargets: [aFakeDiscordTargetWith()],
+        updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
       });
 
       mockStorageGet(state);
@@ -277,13 +295,22 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const rateLimitError = new DiscordError(429, { message: "Rate Limited", code: 0 });
       vi.spyOn(services.discordService, "editMessage").mockRejectedValue(rateLimitError);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "new-target" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Target should NOT be marked for removal
-      expect(state.updateTargets[0]?.markedForRemoval).toBeUndefined();
-      expect(state.updateTargets[0]?.lastFailureAt).toBeDefined();
-      expect(state.updateTargets).toHaveLength(1);
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      const failingTarget = body.state.updateTargets.find((t) => t.id === "existing-target");
+      expect(failingTarget?.markedForRemoval).toBeUndefined();
+      expect(failingTarget?.lastFailureAt).toBeDefined();
+      expect(body.state.updateTargets).toHaveLength(2);
     });
 
     it("should remove target after 10 minutes of transient failures", async () => {
@@ -292,6 +319,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
+            id: "old-failing-target",
             lastFailureAt: elevenMinutesAgo,
             failureReason: "Rate Limited",
           }),
@@ -300,14 +328,22 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       mockStorageGet(state);
 
-      // Mock successful update (won't be called due to cleanup)
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "new-target" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Target should be cleaned up
-      expect(state.updateTargets).toHaveLength(0);
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets.some((t) => t.id === "old-failing-target")).toBe(false);
+      expect(body.state.updateTargets.some((t) => t.id === "new-target")).toBe(true);
     });
 
     it("should keep target with failures less than 10 minutes old", async () => {
@@ -316,6 +352,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
+            id: "recent-failure",
             lastFailureAt: fiveMinutesAgo,
             failureReason: "Rate Limited",
             discord: {
@@ -333,20 +370,29 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "new-target" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Target should be kept (failure cleared on success)
-      expect(state.updateTargets).toHaveLength(1);
-      expect(state.updateTargets[0]?.lastFailureAt).toBeUndefined();
-      expect(state.updateTargets[0]?.failureReason).toBeUndefined();
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets).toHaveLength(2);
+      const recentFailureTarget = body.state.updateTargets.find((t) => t.id === "recent-failure");
+      expect(recentFailureTarget?.lastFailureAt).toBeUndefined();
+      expect(recentFailureTarget?.failureReason).toBeUndefined();
     });
   });
 
   describe("WebSocket error handling", () => {
     it("should immediately remove WebSocket target on send failure", async () => {
       const state = aFakeLiveTrackerIndividualStateWith({
-        updateTargets: [aFakeWebSocketTargetWith()],
+        updateTargets: [aFakeWebSocketTargetWith({ id: "failing-websocket" })],
       });
 
       mockStorageGet(state);
@@ -358,20 +404,28 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       });
 
       vi.spyOn(stateMock.durableObjectState, "getWebSockets").mockReturnValue([mockWebSocket]);
-      vi.spyOn(stateMock.durableObjectState, "getTags").mockReturnValue(["websocket-test-id"]);
+      vi.spyOn(stateMock.durableObjectState, "getTags").mockReturnValue(["failing-websocket"]);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "new-target" });
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // WebSocket target should be removed immediately
-      expect(state.updateTargets).toHaveLength(0);
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets.some((t) => t.id === "failing-websocket")).toBe(false);
+      expect(body.state.updateTargets.some((t) => t.id === "new-target")).toBe(true);
     });
   });
 
   describe("WebSocket lifecycle", () => {
     it.skip("should create WebSocket target on connection", async () => {
-      // Skip: Node.js Response doesn't support WebSocket upgrade (status 101)
-      // This is Cloudflare Workers-specific behavior that can't be tested in vitest
       const state = aFakeLiveTrackerIndividualStateWith();
       mockStorageGet(state);
 
@@ -379,7 +433,6 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         headers: { Upgrade: "websocket" },
       });
 
-      // Mock WebSocketPair
       const mockClientWS = createMockWebSocket();
       const mockServerWS = createMockWebSocket();
       const webSocketPairReturn: [WebSocket, WebSocket] = [mockClientWS, mockServerWS];
@@ -389,12 +442,16 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         return webSocketPairReturn;
       } as never;
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      const response = await durableObject["handleWebSocket"](request);
+      const response = await durableObject.fetch(request);
 
       expect(response.status).toBe(101);
-      expect(state.updateTargets).toHaveLength(1);
-      expect(state.updateTargets[0]?.type).toBe("websocket");
+      const storagePutSpy = vi.spyOn(stateMock.mocks.storage, "put");
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          updateTargets: expect.arrayContaining([expect.objectContaining({ type: "websocket" })]) as UpdateTarget[],
+        }),
+      );
       expect(acceptWebSocketSpy).toHaveBeenCalledWith(
         mockServerWS,
         expect.arrayContaining([expect.stringMatching(/^websocket-/)]),
@@ -409,13 +466,19 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       mockStorageGet(state);
 
+      const storagePutSpy = vi.spyOn(stateMock.mocks.storage, "put");
+
       const mockWebSocket = createMockWebSocket();
       vi.spyOn(stateMock.durableObjectState, "getTags").mockReturnValue([targetId]);
 
       await durableObject.webSocketClose(mockWebSocket, 1000, "Normal closure", true);
 
-      // Target should be removed
-      expect(state.updateTargets).toHaveLength(0);
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          updateTargets: expect.not.arrayContaining([expect.objectContaining({ id: targetId })]) as UpdateTarget[],
+        }),
+      );
     });
   });
 
@@ -424,6 +487,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
+            id: "target-1",
             discord: {
               userId: "user-123",
               guildId: "guild-456",
@@ -456,17 +520,22 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
       const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "target-2" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Should create new message
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
       expect(createMessageSpy).toHaveBeenCalledWith("channel-789", expect.any(Object));
-
-      // Should delete old message
       expect(deleteMessageSpy).toHaveBeenCalledWith("channel-789", "old-message", expect.any(String));
 
-      // Should update target with new message ID and match count
-      const [updatedTarget] = state.updateTargets;
+      const updatedTarget = body.state.updateTargets.find((t) => t.id === "target-1");
       expect(updatedTarget?.discord?.messageId).toBe("new-message");
       expect(updatedTarget?.discord?.lastMatchCount).toBe(1);
     });
@@ -475,6 +544,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const state = aFakeLiveTrackerIndividualStateWith({
         updateTargets: [
           aFakeDiscordTargetWith({
+            id: "target-1",
             discord: {
               userId: "user-123",
               guildId: "guild-456",
@@ -506,13 +576,17 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage");
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeWebSocketTargetWith({ id: "websocket-target" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Should edit existing message
+      const response = await durableObject.fetch(request);
+      expect(response.status).toBe(200);
+
       expect(editMessageSpy).toHaveBeenCalledWith("channel-789", "existing-message", expect.any(Object));
-
-      // Should NOT create new message
       expect(createMessageSpy).not.toHaveBeenCalled();
     });
   });
@@ -530,12 +604,22 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       mockStorageGet(state);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "target-4" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // target-2 should be removed
-      expect(state.updateTargets).toHaveLength(2);
-      expect(state.updateTargets.map((t) => t.id)).not.toContain("target-2");
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.state.updateTargets.some((t) => t.id === "target-2")).toBe(false);
+      expect(body.state.updateTargets.some((t) => t.id === "target-1")).toBe(true);
+      expect(body.state.updateTargets.some((t) => t.id === "target-3")).toBe(true);
+      expect(body.state.updateTargets.some((t) => t.id === "target-4")).toBe(true);
     });
 
     it("should log when targets are cleaned up", async () => {
@@ -553,16 +637,257 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
       const logSpy = vi.spyOn(services.logService, "info");
 
-      // eslint-disable-next-line @typescript-eslint/dot-notation -- Accessing private method
-      await durableObject["setState"](state);
+      const newTarget = aFakeDiscordTargetWith({ id: "target-3" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Should log cleanup
+      const response = await durableObject.fetch(request);
+      expect(response.status).toBe(200);
+
       expect(logSpy).toHaveBeenCalledWith("Cleaned up stale targets", expect.any(Map));
 
-      // Should show removed count
       const logCall = logSpy.mock.calls.find((call) => call[0] === "Cleaned up stale targets");
       const logData = logCall?.[1] as Map<string, string> | undefined;
       expect(logData?.get("removedCount")).toBe("1");
+    });
+  });
+
+  describe("Subscribe API", () => {
+    it("should add a new target to the tracker", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
+      });
+
+      mockStorageGet(state);
+
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      const newTarget = aFakeDiscordTargetWith({ id: "new-discord-target" });
+
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      const body = await response.json<LiveTrackerIndividualSubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.targetId).toBe("new-discord-target");
+
+      expect(state.updateTargets).toHaveLength(2);
+      expect(state.updateTargets.map((t) => t.id)).toContain("existing-target");
+      expect(state.updateTargets.map((t) => t.id)).toContain("new-discord-target");
+    });
+
+    it("should reject duplicate target IDs", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
+      });
+
+      mockStorageGet(state);
+
+      const duplicateTarget = aFakeDiscordTargetWith({ id: "existing-target" });
+
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: duplicateTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+
+      const body = await response.json<LiveTrackerIndividualSubscribeFailureResponse>();
+
+      expect(response.status).toBe(409);
+      expect(body.success).toBe(false);
+      expect(body.error).toBe("Target ID already exists");
+      expect(state.updateTargets).toHaveLength(1);
+    });
+
+    it("should reject invalid target data", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith();
+      mockStorageGet(state);
+
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: { invalid: "data" } }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeFailureResponse>();
+
+      expect(response.status).toBe(400);
+      expect(body.success).toBe(false);
+      expect(body.error).toBe("Invalid target data");
+    });
+
+    it("should return 404 when tracker not found", async () => {
+      mockStorageGet(null);
+
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: aFakeWebSocketTargetWith() }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualSubscribeFailureResponse>();
+
+      expect(response.status).toBe(404);
+
+      expect(body.success).toBe(false);
+    });
+  });
+
+  describe("Unsubscribe API", () => {
+    it("should remove a target from the tracker", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "target-1" }), aFakeDiscordTargetWith({ id: "target-2" })],
+      });
+
+      mockStorageGet(state);
+
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      const request = new Request("https://example.com/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ targetId: "target-1" }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualUnsubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.success).toBe(true);
+
+      expect(body.targetId).toBe("target-1");
+
+      expect(state.updateTargets).toHaveLength(1);
+      expect(state.updateTargets[0]?.id).toBe("target-2");
+    });
+
+    it("should stop tracker when last target is removed", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "last-target" })],
+      });
+
+      mockStorageGet(state);
+
+      const request = new Request("https://example.com/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ targetId: "last-target" }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualUnsubscribeSuccessResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.success).toBe(true);
+
+      expect(state.updateTargets).toHaveLength(0);
+
+      expect(body.state.status).toBe("stopped");
+    });
+
+    it("should return 404 when target not found", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "existing-target" })],
+      });
+
+      mockStorageGet(state);
+
+      const request = new Request("https://example.com/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ targetId: "nonexistent-target" }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualUnsubscribeFailureResponse>();
+
+      expect(response.status).toBe(404);
+
+      expect(body.success).toBe(false);
+
+      expect(body.error).toBe("Target not found");
+    });
+
+    it("should return 400 when targetId is missing", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith();
+      mockStorageGet(state);
+
+      const request = new Request("https://example.com/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ targetId: "" }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObject.fetch(request);
+      const body = await response.json<LiveTrackerIndividualUnsubscribeFailureResponse>();
+
+      expect(response.status).toBe(400);
+
+      expect(body.success).toBe(false);
+    });
+  });
+
+  describe("Get Targets API", () => {
+    it("should return list of all active targets", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "discord-1" }), aFakeWebSocketTargetWith({ id: "websocket-1" })],
+      });
+
+      mockStorageGet(state);
+
+      const response = await durableObject.fetch(new Request("https://example.com/targets", { method: "GET" }));
+      const body = await response.json<LiveTrackerIndividualTargetsResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.success).toBe(true);
+
+      expect(body.targets).toHaveLength(2);
+    });
+
+    it("should return empty array when no targets exist", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [],
+      });
+
+      mockStorageGet(state);
+
+      const response = await durableObject.fetch(new Request("https://example.com/targets", { method: "GET" }));
+      const body = await response.json<LiveTrackerIndividualTargetsResponse>();
+
+      expect(response.status).toBe(200);
+
+      expect(body.success).toBe(true);
+
+      expect(body.targets).toHaveLength(0);
+    });
+
+    it("should return 404 when tracker not found", async () => {
+      mockStorageGet(null);
+
+      const request = new Request("https://example.com/targets", {
+        method: "GET",
+      });
+
+      const response = await durableObject.fetch(request);
+
+      expect(response.status).toBe(404);
     });
   });
 });

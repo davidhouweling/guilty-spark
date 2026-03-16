@@ -10,6 +10,10 @@ interface ServerOpts {
   getCommands: typeof getCommands;
 }
 
+// Result types for helper methods
+type ValidationResult = { valid: true; gamertag: string } | { valid: false; response: Response };
+type StubResult = { success: true; stub: DurableObjectStub } | { success: false; response: Response };
+
 export class Server {
   readonly router: AutoRouterType;
   private readonly installServices: typeof installServices;
@@ -21,6 +25,127 @@ export class Server {
     this.getCommands = getCommands;
 
     this.addRoutes();
+  }
+
+  // Helper: Resolve gamertag to Individual Tracker DO stub
+  private async resolveIndividualTrackerStub(
+    gamertag: string,
+    services: ReturnType<typeof installServices>,
+    request: Request,
+    operation: string,
+  ): Promise<StubResult> {
+    try {
+      const stub = await services.liveTrackerService.getIndividualTrackerDOStub(gamertag);
+      return { success: true, stub };
+    } catch (error) {
+      services.logService.warn(
+        `Failed to resolve gamertag for ${operation}`,
+        new Map([
+          ["gamertag", gamertag],
+          ["error", String(error)],
+        ]),
+      );
+      return {
+        success: false,
+        response: addCorsHeaders(
+          new Response(JSON.stringify({ error: "not_found", message: `User with gamertag ${gamertag} not found` }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+        ),
+      };
+    }
+  }
+
+  // Helper: Forward request to DO and wrap with CORS
+  private async forwardToDO(
+    stub: DurableObjectStub,
+    path: string,
+    method: string,
+    body: unknown,
+    request: Request,
+  ): Promise<Response> {
+    const doRequest = new Request(`${new URL(request.url).origin}${path}`, {
+      method,
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const doResponse = await stub.fetch(doRequest);
+    return addCorsHeaders(doResponse, request);
+  }
+
+  // Helper: Create error response with CORS
+  private createErrorResponse(error: string, message: string, status: number, request: Request): Response {
+    return addCorsHeaders(
+      new Response(JSON.stringify({ error, message }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+      request,
+    );
+  }
+
+  // Helper: Validate gamertag for API routes (with CORS)
+  private validateGamertagParam(params: Record<string, string | undefined>, request: Request): ValidationResult {
+    const { gamertag } = params;
+    if (gamertag == null || gamertag === "") {
+      return {
+        valid: false,
+        response: this.createErrorResponse("missing_gamertag", "Missing required parameter: gamertag", 400, request),
+      };
+    }
+    return { valid: true, gamertag };
+  }
+
+  // Helper: Validate array body parameter
+  private validateArrayParam(value: unknown, fieldName: string, request: Request): Response | null {
+    if (!Array.isArray(value)) {
+      return this.createErrorResponse(
+        `invalid_${fieldName}`,
+        `Invalid ${fieldName} parameter (must be array)`,
+        400,
+        request,
+      );
+    }
+    return null;
+  }
+
+  // Helper: Validate gamertag for WebSocket routes (no CORS)
+  private validateGamertagParamWS(params: Record<string, string | undefined>): ValidationResult {
+    const { gamertag } = params;
+    if (gamertag == null || gamertag === "") {
+      return {
+        valid: false,
+        response: new Response("Missing required parameter: gamertag", { status: 400 }),
+      };
+    }
+    return { valid: true, gamertag };
+  }
+
+  // Helper: Resolve gamertag for WebSocket routes (no CORS)
+  private async resolveIndividualTrackerStubWS(
+    gamertag: string,
+    services: ReturnType<typeof installServices>,
+    operation: string,
+  ): Promise<StubResult> {
+    try {
+      const stub = await services.liveTrackerService.getIndividualTrackerDOStub(gamertag);
+      return { success: true, stub };
+    } catch (error) {
+      services.logService.warn(
+        `Failed to resolve gamertag for ${operation}`,
+        new Map([
+          ["gamertag", gamertag],
+          ["error", String(error)],
+        ]),
+      );
+      return {
+        success: false,
+        response: new Response(`User with gamertag ${gamertag} not found`, { status: 404 }),
+      };
+    }
   }
 
   private addRoutes(): void {
@@ -44,54 +169,22 @@ export class Server {
         }>();
 
         if (!body.gamertag || body.gamertag === "") {
-          return addCorsHeaders(
-            new Response(
-              JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
-              {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              },
-            ),
-            request,
-          );
+          return this.createErrorResponse("missing_gamertag", "Missing required parameter: gamertag", 400, request);
         }
 
-        if (!Array.isArray(body.selectedMatchIds)) {
-          return addCorsHeaders(
-            new Response(
-              JSON.stringify({
-                error: "invalid_matches",
-                message: "Invalid selectedMatchIds parameter (must be array)",
-              }),
-              {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              },
-            ),
-            request,
-          );
+        const matchesError = this.validateArrayParam(body.selectedMatchIds, "selectedMatchIds", request);
+        if (matchesError) {
+          return matchesError;
         }
 
-        if (!Array.isArray(body.groupings)) {
-          return addCorsHeaders(
-            new Response(
-              JSON.stringify({
-                error: "invalid_groupings",
-                message: "Invalid groupings parameter (must be array)",
-              }),
-              {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              },
-            ),
-            request,
-          );
+        const groupingsError = this.validateArrayParam(body.groupings, "groupings", request);
+        if (groupingsError) {
+          return groupingsError;
         }
 
         const services = this.installServices({ env });
         const { liveTrackerService, haloService, logService } = services;
 
-        // Resolve gamertag to XUID
         let xuid: string;
         try {
           const user = await haloService.getUserByGamertag(body.gamertag);
@@ -104,22 +197,11 @@ export class Server {
               ["error", String(error)],
             ]),
           );
-          return addCorsHeaders(
-            new Response(
-              JSON.stringify({ error: "not_found", message: `User with gamertag ${body.gamertag} not found` }),
-              {
-                status: 404,
-                headers: { "Content-Type": "application/json" },
-              },
-            ),
-            request,
-          );
+          return this.createErrorResponse("not_found", `User with gamertag ${body.gamertag} not found`, 404, request);
         }
 
-        // Get Individual DO stub (keyed by XUID)
         const stub = liveTrackerService.getIndividualTrackerDOStubByXuid(xuid);
 
-        // Build DO request
         const doRequest: LiveTrackerIndividualWebStartRequest = {
           xuid,
           gamertag: body.gamertag,
@@ -128,7 +210,6 @@ export class Server {
           groupings: body.groupings,
         };
 
-        // Call DO's web-start endpoint
         const doUrl = new URL(request.url);
         doUrl.pathname = "/web-start";
 
@@ -140,36 +221,98 @@ export class Server {
           }),
         );
 
-        // Forward DO response to client with CORS headers
         return addCorsHeaders(doResponse, request);
       } catch (error) {
         console.error("Tracker start route error:", error);
-        return addCorsHeaders(
-          new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }),
-          request,
-        );
+        return this.createErrorResponse("internal_error", "Internal Server Error", 500, request);
+      }
+    });
+    this.router.post("/api/tracker/individual/:gamertag/subscribe", async (request, env: Env) => {
+      try {
+        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        if (!validation.valid) {
+          return validation.response;
+        }
+
+        const body = await request.json<{ target: unknown }>();
+        if (body.target == null || typeof body.target !== "object") {
+          return this.createErrorResponse("invalid_target", "Invalid or missing target parameter", 400, request);
+        }
+
+        const services = this.installServices({ env });
+        const stubResult = await this.resolveIndividualTrackerStub(validation.gamertag, services, request, "subscribe");
+        if (!stubResult.success) {
+          return stubResult.response;
+        }
+
+        return await this.forwardToDO(stubResult.stub, "/subscribe", "POST", { target: body.target }, request);
+      } catch (error) {
+        console.error("Subscribe route error:", error);
+        return this.createErrorResponse("internal_error", "Internal Server Error", 500, request);
       }
     });
 
+    this.router.delete("/api/tracker/individual/:gamertag/unsubscribe/:targetId", async (request, env: Env) => {
+      try {
+        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        if (!validation.valid) {
+          return validation.response;
+        }
+
+        const { targetId } = request.params as { targetId: string };
+        if (!targetId || targetId === "") {
+          return this.createErrorResponse("missing_target_id", "Missing required parameter: targetId", 400, request);
+        }
+
+        const services = this.installServices({ env });
+        const stubResult = await this.resolveIndividualTrackerStub(
+          validation.gamertag,
+          services,
+          request,
+          "unsubscribe",
+        );
+        if (!stubResult.success) {
+          return stubResult.response;
+        }
+
+        return await this.forwardToDO(stubResult.stub, "/unsubscribe", "POST", { targetId }, request);
+      } catch (error) {
+        console.error("Unsubscribe route error:", error);
+        return this.createErrorResponse("internal_error", "Internal Server Error", 500, request);
+      }
+    });
+
+    this.router.get("/api/tracker/individual/:gamertag/targets", async (request, env: Env) => {
+      try {
+        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        if (!validation.valid) {
+          return validation.response;
+        }
+
+        const services = this.installServices({ env });
+        const stubResult = await this.resolveIndividualTrackerStub(
+          validation.gamertag,
+          services,
+          request,
+          "targets list",
+        );
+        if (!stubResult.success) {
+          return stubResult.response;
+        }
+
+        return await this.forwardToDO(stubResult.stub, "/targets", "GET", undefined, request);
+      } catch (error) {
+        console.error("Targets route error:", error);
+        return this.createErrorResponse("internal_error", "Internal Server Error", 500, request);
+      }
+    });
     this.router.get("/api/tracker/individual/:gamertag/matches", async (request, env: Env) => {
       try {
-        const { gamertag } = request.params as { gamertag: string };
-
-        if (!gamertag || gamertag === "") {
-          return addCorsHeaders(
-            new Response(
-              JSON.stringify({ error: "missing_gamertag", message: "Missing required parameter: gamertag" }),
-              {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              },
-            ),
-            request,
-          );
+        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        if (!validation.valid) {
+          return validation.response;
         }
+        const { gamertag } = validation;
 
         const services = this.installServices({ env });
         const { haloService, logService } = services;
@@ -187,16 +330,7 @@ export class Server {
         } catch (error) {
           if (error instanceof Error && error.message.includes("not found")) {
             logService.info("Gamertag not found for match history", new Map([["gamertag", gamertag]]));
-            return addCorsHeaders(
-              new Response(
-                JSON.stringify({ error: "not_found", message: `User with gamertag ${gamertag} not found` }),
-                {
-                  status: 404,
-                  headers: { "Content-Type": "application/json" },
-                },
-              ),
-              request,
-            );
+            return this.createErrorResponse("not_found", `User with gamertag ${gamertag} not found`, 404, request);
           }
 
           logService.error(
@@ -207,56 +341,36 @@ export class Server {
             ]),
           );
 
-          return addCorsHeaders(
-            new Response(JSON.stringify({ error: "internal_error", message: "Failed to retrieve match history" }), {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            }),
-            request,
-          );
+          return this.createErrorResponse("internal_error", "Failed to retrieve match history", 500, request);
         }
       } catch (error) {
         console.error("Match history route error:", error);
-        return addCorsHeaders(
-          new Response(JSON.stringify({ error: "internal_error", message: "Internal Server Error" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }),
-          request,
-        );
+        return this.createErrorResponse("internal_error", "Internal Server Error", 500, request);
       }
     });
 
     this.router.get("/ws/tracker/individual/:gamertag", async (request, env: Env) => {
       try {
-        const { gamertag } = request.params as { gamertag: string };
-
-        if (!gamertag || gamertag === "") {
-          return new Response("Missing required parameter: gamertag", { status: 400 });
+        const validation = this.validateGamertagParamWS(request.params as Record<string, string>);
+        if (!validation.valid) {
+          return validation.response;
         }
 
         const services = this.installServices({ env });
-        const { liveTrackerService, logService } = services;
-
-        let stub;
-        try {
-          stub = await liveTrackerService.getIndividualTrackerDOStub(gamertag);
-        } catch (error) {
-          logService.warn(
-            "Failed to resolve gamertag for individual tracker",
-            new Map([
-              ["gamertag", gamertag],
-              ["error", String(error)],
-            ]),
-          );
-          return new Response(`User with gamertag ${gamertag} not found`, { status: 404 });
+        const stubResult = await this.resolveIndividualTrackerStubWS(
+          validation.gamertag,
+          services,
+          "individual tracker",
+        );
+        if (!stubResult.success) {
+          return stubResult.response;
         }
 
-        // Forward the WebSocket upgrade request to the DO
+        // Forward WebSocket upgrade request to DO
         const doUrl = new URL(request.url);
         doUrl.pathname = "/websocket";
 
-        return await stub.fetch(
+        return await stubResult.stub.fetch(
           new Request(doUrl.toString(), {
             headers: request.headers,
           }),
