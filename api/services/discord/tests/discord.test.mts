@@ -17,6 +17,7 @@ import {
 } from "discord-api-types/v10";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 import {
   apiMessage,
   channelMessages,
@@ -487,7 +488,13 @@ describe("DiscordService", () => {
 
     it("throws EndUserError if no queue is found", async () => {
       await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrow(
-        new Error("No queue found within the last 100 messages"),
+        new EndUserError(
+          "No queue found within the last 100 messages of <#fake-channel>, with queue number 1000. If the results are in a different channel to this one, please specify the channel with the `/stats neatqueue channel:` option.",
+          {
+            errorType: EndUserErrorType.WARNING,
+            handled: true,
+          },
+        ),
       );
     });
 
@@ -590,7 +597,7 @@ describe("DiscordService", () => {
       };
 
       await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrow(
-        new Error("not from NeatQueue"),
+        new EndUserError("This message is not from NeatQueue.", { errorType: EndUserErrorType.ERROR, handled: true }),
       );
     });
 
@@ -601,7 +608,10 @@ describe("DiscordService", () => {
       };
 
       await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrow(
-        new Error("doesn't contain team information"),
+        new EndUserError("This NeatQueue message doesn't contain team information.", {
+          errorType: EndUserErrorType.ERROR,
+          handled: true,
+        }),
       );
     });
 
@@ -617,7 +627,10 @@ describe("DiscordService", () => {
       };
 
       await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrow(
-        new Error("doesn't contain series results"),
+        new EndUserError("This NeatQueue message doesn't contain series results.", {
+          errorType: EndUserErrorType.ERROR,
+          handled: true,
+        }),
       );
     });
   });
@@ -661,7 +674,7 @@ describe("DiscordService", () => {
       const manyMessages = Array.from({ length: 101 }, (_, i) => `msg${i.toString()}`);
 
       await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrow(
-        new Error("between 2 and 100"),
+        new Error("Message IDs length must be between 2 and 100 for bulk delete."),
       );
     });
   });
