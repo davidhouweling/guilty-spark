@@ -217,6 +217,7 @@ When mocking or spying, always use strongly-typed approaches:
 - Do not use reassuring or emotive language, instead prefer factual statements.
 - Explore code first, look for patterns in neighboring code, when in doubt, ask questions, do not assume.
 - Where code appears different than what you expect, please confirm with prompter if this was intended before reverting.
+- Follow nearest neighbor approach - when creating a method, look at methods surrounding and follow identified patterns, similarly with classes, services, UI components, etc. When in doubt, ask for clarification on what the desired architectural approach should be.
 - Steps to take in tackling any prompt
   1. come up with a plan/proposal
   2. gain alignment with prompter
