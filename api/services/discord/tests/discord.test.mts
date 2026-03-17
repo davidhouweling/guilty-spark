@@ -17,6 +17,7 @@ import {
 } from "discord-api-types/v10";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
+import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
 import {
   apiMessage,
   channelMessages,
@@ -486,8 +487,14 @@ describe("DiscordService", () => {
     });
 
     it("throws EndUserError if no queue is found", async () => {
-      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrowError(
-        "No queue found within the last 100 messages",
+      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 1000)).rejects.toThrow(
+        new EndUserError(
+          "No queue found within the last 100 messages of <#fake-channel>, with queue number 1000. If the results are in a different channel to this one, please specify the channel with the `/stats neatqueue channel:` option.",
+          {
+            errorType: EndUserErrorType.WARNING,
+            handled: true,
+          },
+        ),
       );
     });
 
@@ -589,8 +596,8 @@ describe("DiscordService", () => {
         } as APIMessage["author"],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrowError(
-        "not from NeatQueue",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonBotMessage)).rejects.toThrow(
+        new EndUserError("This message is not from NeatQueue.", { errorType: EndUserErrorType.ERROR, handled: true }),
       );
     });
 
@@ -600,8 +607,11 @@ describe("DiscordService", () => {
         embeds: [],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrowError(
-        "doesn't contain team information",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", noEmbedMessage)).rejects.toThrow(
+        new EndUserError("This NeatQueue message doesn't contain team information.", {
+          errorType: EndUserErrorType.ERROR,
+          handled: true,
+        }),
       );
     });
 
@@ -616,8 +626,11 @@ describe("DiscordService", () => {
         ],
       };
 
-      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrowError(
-        "doesn't contain series results",
+      await expect(discordService.getTeamsFromMessage("fake-guild-id", nonResultMessage)).rejects.toThrow(
+        new EndUserError("This NeatQueue message doesn't contain series results.", {
+          errorType: EndUserErrorType.ERROR,
+          handled: true,
+        }),
       );
     });
   });
@@ -660,8 +673,8 @@ describe("DiscordService", () => {
     it("throws error if message count is > 100", async () => {
       const manyMessages = Array.from({ length: 101 }, (_, i) => `msg${i.toString()}`);
 
-      await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrowError(
-        "between 2 and 100",
+      await expect(discordService.bulkDeleteMessages("fake-channel-id", manyMessages, "Too many")).rejects.toThrow(
+        new Error("Message IDs length must be between 2 and 100 for bulk delete."),
       );
     });
   });
@@ -934,7 +947,7 @@ describe("DiscordService", () => {
     it("throws an error if the thread name is too long", async () => {
       return expect(async () =>
         discordService.startThreadFromMessage("fake-channel", "fake-message", "a".repeat(101)),
-      ).rejects.toThrowError(new Error("Thread name must be 100 characters or fewer"));
+      ).rejects.toThrow(new Error("Thread name must be 100 characters or fewer"));
     });
   });
 
@@ -1190,7 +1203,7 @@ describe("DiscordService", () => {
           discordService.createMessage("fake-channel", { content: "fake-content" }),
           vi.advanceTimersByTimeAsync(100),
         ]),
-      ).rejects.toThrowError(new Error("Failed to fetch data from Discord API (HTTP 429): Too many requests"));
+      ).rejects.toThrow(new Error("Failed to fetch data from Discord API (HTTP 429): Too many requests"));
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });

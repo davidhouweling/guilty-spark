@@ -2815,7 +2815,7 @@ describe("Halo service", () => {
 
       infiniteClient.getUser.mockRejectedValue(new RequestError(new URL("https://example.com"), response));
 
-      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrowError(
+      return expect(haloService.getRecentMatchHistory(gamertag)).rejects.toThrow(
         new EndUserError(`No user found with gamertag "${gamertag}"`, {
           title: "User not found",
           handled: true,
