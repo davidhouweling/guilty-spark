@@ -11,12 +11,21 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       all:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
+
   - package-ecosystem: "npm"
     directory: "/api"
     schedule:
@@ -39,6 +48,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
   - package-ecosystem: "npm"
     directory: "/pages"
     schedule:
@@ -50,6 +60,14 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
+      astro:
+        patterns:
+          - "astro"
+          - "@astrojs/*"
         update-types:
           - "major"
           - "minor"
