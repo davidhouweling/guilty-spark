@@ -1041,7 +1041,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       );
     });
 
-    /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method -- Test assertions on mocked storage state */
+    /* eslint-disable @typescript-eslint/unbound-method -- Test assertions on mocked storage state */
     describe("series data fetching", () => {
       // TODO: These tests need proper mocking of full refresh cycle including NeatQueue DO stubs
       it.skip("preserves existing series data through refresh cycles", async () => {
@@ -1235,11 +1235,17 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         const response = await durableObjectForSeries.fetch(request);
         const body = await response.json();
 
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
         expect(body.state).toBeDefined();
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink).toBeDefined();
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
       });
 
+       
       it.skip("excludes series data when not present", async () => {
         const state = aFakeLiveTrackerIndividualStateWith();
         delete state.seriesData;
@@ -1254,11 +1260,14 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         const response = await durableObjectForSeries.fetch(request);
         const body = await response.json();
 
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesData).toBeUndefined();
       });
     });
 
     describe("websocket broadcasts with series data", () => {
+       
       it.skip("includes series link in broadcast payloads when present", async () => {
         vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
 
@@ -1295,10 +1304,14 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         const response = await durableObjectForSeries.fetch(request);
         const body = await response.json();
 
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink).toBeDefined();
+        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
       });
     });
-    /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
+    /* eslint-enable @typescript-eslint/unbound-method */
   });
 });

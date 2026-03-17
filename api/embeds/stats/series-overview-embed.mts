@@ -11,11 +11,6 @@ interface SeriesOverviewEmbedOpts {
   haloService: HaloService;
 }
 
-/**
- * @deprecated Use TeamMapping from @guilty-spark/contracts/live-tracker/series-types instead
- */
-export type SeriesOverviewEmbedFinalTeams = TeamMapping;
-
 export interface SeriesOverviewEmbedSubstitution {
   date: Date;
   playerOut: string;
