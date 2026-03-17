@@ -591,6 +591,8 @@ export function LiveTrackerView(): React.ReactElement {
                   teamColors={teamColorsArray}
                   viewMode={viewMode}
                   guildName={state.guildName}
+                  seriesData={state.seriesData}
+                  status={state.status}
                 />
               </>
             )}

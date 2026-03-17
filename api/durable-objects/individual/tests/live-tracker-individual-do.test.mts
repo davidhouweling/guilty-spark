@@ -21,6 +21,7 @@ import type {
   LiveTrackerIndividualTargetsResponse,
   LiveTrackerIndividualWebStartSuccessResponse,
   LiveTrackerIndividualWebStartFailureResponse,
+  LiveTrackerIndividualStatusResponse,
 } from "../types.mjs";
 
 const createMockWebSocket = (overrides: Partial<WebSocket> = {}): WebSocket => {
@@ -427,6 +428,8 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
   });
 
   describe("WebSocket lifecycle", () => {
+    // TODO: WebSocketPair is a Cloudflare Workers runtime API not available in Node.js test environment.
+    // Consider integration tests using miniflare or wrangler test environment for WebSocket functionality.
     it.skip("should create WebSocket target on connection", async () => {
       const state = aFakeLiveTrackerIndividualStateWith();
       mockStorageGet(state);
@@ -1041,9 +1044,19 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       );
     });
 
-    /* eslint-disable @typescript-eslint/unbound-method -- Test assertions on mocked storage state */
+    const mockStorageGetForSeries = (state: LiveTrackerIndividualState | null): void => {
+      vi.spyOn(stateMockForSeries.mocks.storage, "get").mockImplementation((async (keyOrKeys: string | string[]) => {
+        if (typeof keyOrKeys === "string") {
+          return Promise.resolve(keyOrKeys === "trackerState" ? state : undefined);
+        }
+        return Promise.resolve(new Map<string, unknown>());
+      }) as DurableObjectStorage["get"]);
+    };
+
     describe("series data fetching", () => {
-      // TODO: These tests need proper mocking of full refresh cycle including NeatQueue DO stubs
+      // TODO: These tests require mocking the full refresh cycle and NeatQueue DO HTTP client.
+      // The refresh logic calls fetchSeriesDataFromNeatQueueDO() which makes HTTP requests to NeatQueue DO.
+      // Implement these tests once proper NeatQueue DO stub factory is available.
       it.skip("preserves existing series data through refresh cycles", async () => {
         vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
 
@@ -1080,7 +1093,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         });
 
         mockStorageGet(state);
-        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+        const putSpy = vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
 
         const request = new Request("https://example.com/refresh", {
           method: "POST",
@@ -1090,9 +1103,9 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
         await durableObjectForSeries.fetch(request);
 
-        expect(stateMockForSeries.mocks.storage.put).toHaveBeenCalled();
+        expect(putSpy).toHaveBeenCalled();
 
-        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const putCalls = vi.mocked(putSpy).mock.calls;
         const stateArg = putCalls[0]?.[1];
         const savedState = stateArg as LiveTrackerIndividualState;
 
@@ -1152,7 +1165,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         });
 
         mockStorageGet(state);
-        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+        const putSpy = vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
 
         const request = new Request("https://example.com/refresh", {
           method: "POST",
@@ -1162,7 +1175,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
         await durableObjectForSeries.fetch(request);
 
-        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const putCalls = vi.mocked(putSpy).mock.calls;
         const stateArg = putCalls[0]?.[1];
         const savedState = stateArg as LiveTrackerIndividualState;
 
@@ -1179,7 +1192,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         });
 
         mockStorageGet(state);
-        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+        const putSpy = vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
 
         const request = new Request("https://example.com/refresh", {
           method: "POST",
@@ -1191,7 +1204,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
 
         expect(response.status).toBe(200);
 
-        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const putCalls = vi.mocked(putSpy).mock.calls;
         const stateArg = putCalls[0]?.[1];
         const savedState = stateArg as LiveTrackerIndividualState;
 
@@ -1201,7 +1214,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
     });
 
     describe("state conversion with series data", () => {
-      it.skip("includes series data in state response", async () => {
+      it("includes series data in state response", async () => {
         const seriesData = {
           seriesId: { guildId: "guild-123", queueNumber: 5 },
           teams: [
@@ -1226,51 +1239,43 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           },
         });
 
-        mockStorageGet(state);
+        mockStorageGetForSeries(state);
 
         const request = new Request("https://example.com/status", {
           method: "GET",
         });
 
         const response = await durableObjectForSeries.fetch(request);
-        const body = await response.json();
+        const body = await response.json<LiveTrackerIndividualStatusResponse>();
 
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
         expect(body.state).toBeDefined();
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink).toBeDefined();
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
+        expect(body.state.seriesData).toBeDefined();
+        expect(body.state.seriesData?.teams).toHaveLength(2);
       });
 
-       
-      it.skip("excludes series data when not present", async () => {
+      it("excludes series data when not present", async () => {
         const state = aFakeLiveTrackerIndividualStateWith();
         delete state.seriesData;
         delete state.seriesLink;
 
-        mockStorageGet(state);
+        mockStorageGetForSeries(state);
 
         const request = new Request("https://example.com/status", {
           method: "GET",
         });
 
         const response = await durableObjectForSeries.fetch(request);
-        const body = await response.json();
+        const body = await response.json<LiveTrackerIndividualStatusResponse>();
 
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesData).toBeUndefined();
+        expect(body.state.seriesLink).toBeUndefined();
       });
     });
 
     describe("websocket broadcasts with series data", () => {
-       
-      it.skip("includes series link in broadcast payloads when present", async () => {
-        vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
-
+      it("includes series link in broadcast payloads when present", async () => {
         const seriesData = {
           seriesId: { guildId: "guild-123", queueNumber: 5 },
           teams: [
@@ -1295,23 +1300,18 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           },
         });
 
-        mockStorageGet(state);
+        mockStorageGetForSeries(state);
 
         const request = new Request("https://example.com/status", {
           method: "GET",
         });
 
         const response = await durableObjectForSeries.fetch(request);
-        const body = await response.json();
+        const body = await response.json<LiveTrackerIndividualStatusResponse>();
 
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink).toBeDefined();
-        // @ts-expect-error - Skipped test, type will be fixed when properly implemented
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
       });
     });
-    /* eslint-enable @typescript-eslint/unbound-method */
   });
 });

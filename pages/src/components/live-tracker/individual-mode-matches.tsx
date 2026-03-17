@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { format, parseISO } from "date-fns";
+import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { Collapsible } from "../collapsible/collapsible";
@@ -9,7 +10,7 @@ import { SeriesStats } from "../stats/series-stats";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData } from "../stats/types";
-import type { LiveTrackerMatchRenderModel, LiveTrackerMatchGrouping } from "./types";
+import type { LiveTrackerMatchRenderModel, LiveTrackerMatchGrouping, LiveTrackerSeriesDataRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
 
 interface IndividualModeMatchesProps {
@@ -24,6 +25,8 @@ interface IndividualModeMatchesProps {
   readonly teamColors: readonly TeamColor[];
   readonly viewMode: string;
   readonly guildName: string;
+  readonly seriesData?: LiveTrackerSeriesDataRenderModel;
+  readonly status: LiveTrackerStatus;
 }
 
 export function IndividualModeMatches({
@@ -35,6 +38,8 @@ export function IndividualModeMatches({
   teamColors,
   viewMode,
   guildName,
+  seriesData,
+  status,
 }: IndividualModeMatchesProps): React.ReactElement {
   const renderedGroups = new Set<string>();
   const elements: React.ReactElement[] = [];
@@ -57,10 +62,27 @@ export function IndividualModeMatches({
       const groupMatches = matches.filter((m) => grouping.matchIds.includes(m.matchId));
       const stats = groupingStats.get(groupId);
 
+      // Determine if this is the active NeatQueue series
+      const isNeatQueueSeries =
+        seriesData != null &&
+        seriesData.seriesId.guildId === grouping.seriesId?.guildId &&
+        seriesData.seriesId.queueNumber === grouping.seriesId.queueNumber;
+
+      // Determine if series is completed (status is not "active")
+      const isCompletedSeries = isNeatQueueSeries && status !== "active";
+
       // Determine label
       let groupLabel: string;
+      let seriesBadge: React.ReactElement | null = null;
+
       if (grouping.seriesId !== undefined) {
-        groupLabel = `Series (${guildName} - Queue #${String(grouping.seriesId.queueNumber)})`;
+        // Only show badge if this is the active NeatQueue series
+        if (isNeatQueueSeries) {
+          const badgeText = isCompletedSeries ? "Completed Series" : "Active Series";
+          const badgeClass = isCompletedSeries ? styles.seriesBadgeCompleted : styles.seriesBadgeActive;
+          seriesBadge = <span className={badgeClass}>{badgeText}</span>;
+        }
+        groupLabel = `${guildName} - Queue #${String(grouping.seriesId.queueNumber)}`;
       } else {
         // Use date range
         const startDate = parseISO(groupMatches[0].startTime);
@@ -70,7 +92,28 @@ export function IndividualModeMatches({
 
       elements.push(
         <Container key={`group-${groupId}`} className={classNames(styles.contentContainer, styles[viewMode])}>
-          <Collapsible title={<h3 className={styles.sectionTitle}>{groupLabel}</h3>} defaultExpanded={true}>
+          <Collapsible
+            title={
+              <h3 className={styles.sectionTitle}>
+                {seriesBadge && <>{seriesBadge} </>}
+                {groupLabel}
+              </h3>
+            }
+            defaultExpanded={true}
+          >
+            {/* Display NeatQueue series info if available */}
+            {isNeatQueueSeries && (
+              <div className={styles.seriesInfo}>
+                <div className={styles.seriesScore}>{seriesData.seriesScore}</div>
+                <div className={styles.seriesTeams}>
+                  {seriesData.teams.map((team, teamIdx) => (
+                    <div key={teamIdx} className={styles.seriesTeam}>
+                      <strong>{team.name}:</strong> {team.playerIds.length} players
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Match scores overview */}
             <div className={styles.seriesScoresCompact}>
               {groupMatches.map((gMatch, idx) => (

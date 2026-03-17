@@ -77,7 +77,7 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     };
   });
 
-  return {
+  const renderModel = {
     guildName: message.data.guildName,
     queueNumber: message.data.queueNumber,
     status: message.data.status,
@@ -90,4 +90,21 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     playersAssociationData: message.data.playersAssociationData,
     matchGroupings: message.data.matchGroupings ?? {},
   };
+
+  // Include series data if present (from NeatQueue DO)
+  if (message.data.seriesData != null) {
+    return {
+      ...renderModel,
+      seriesData: {
+        seriesId: message.data.seriesData.seriesId,
+        teams: message.data.seriesData.teams,
+        seriesScore: message.data.seriesData.seriesScore,
+        matchIds: message.data.seriesData.matchIds,
+        startTime: message.data.seriesData.startTime,
+        lastUpdateTime: message.data.seriesData.lastUpdateTime,
+      },
+    };
+  }
+
+  return renderModel;
 }

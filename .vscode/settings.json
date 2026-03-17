@@ -7,6 +7,7 @@
   "chat.tools.terminal.autoApprove": {
     "/npm run (lint|format|test|build|typecheck)/": true,
     "/npm test/": true,
+    "npx (prettier|eslint|tsc)": true,
     "rm": false,
     "rmdir": false,
     "del": false,
@@ -17,8 +18,6 @@
     "chmod": false,
     "chown": false,
     "/^Remove-Item\\b/i": false,
-    "npx prettier": true,
-    "npx eslint": true,
     "mkdir": true
   },
   "files.associations": {
