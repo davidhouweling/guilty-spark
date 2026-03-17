@@ -1,5 +1,6 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
+import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -10,10 +11,10 @@ interface SeriesOverviewEmbedOpts {
   haloService: HaloService;
 }
 
-export interface SeriesOverviewEmbedFinalTeams {
-  name: string;
-  playerIds: string[];
-}
+/**
+ * @deprecated Use TeamMapping from @guilty-spark/contracts/live-tracker/series-types instead
+ */
+export type SeriesOverviewEmbedFinalTeams = TeamMapping;
 
 export interface SeriesOverviewEmbedSubstitution {
   date: Date;
@@ -48,7 +49,7 @@ export class SeriesOverviewEmbed {
     locale: string;
     queue: number;
     series: MatchStats[];
-    finalTeams: SeriesOverviewEmbedFinalTeams[];
+    finalTeams: readonly TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
   }): Promise<APIEmbed[]> {

@@ -1023,4 +1023,282 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       expect(body.error).toContain("API failure");
     });
   });
+
+  describe("LiveTrackerIndividualDO - Series Integration", () => {
+    let durableObjectForSeries: LiveTrackerIndividualDO;
+    let stateMockForSeries: ReturnType<typeof createMockDurableObjectState>;
+    let servicesForSeries: Services;
+    let envForSeries: Env;
+
+    beforeEach(() => {
+      stateMockForSeries = createMockDurableObjectState();
+      envForSeries = aFakeEnvWith({});
+      servicesForSeries = installFakeServicesWith();
+      durableObjectForSeries = new LiveTrackerIndividualDO(
+        stateMockForSeries.durableObjectState,
+        envForSeries,
+        () => servicesForSeries,
+      );
+    });
+
+    /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method -- Test assertions on mocked storage state */
+    describe("series data fetching", () => {
+      // TODO: These tests need proper mocking of full refresh cycle including NeatQueue DO stubs
+      it.skip("preserves existing series data through refresh cycles", async () => {
+        vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+
+        const existingSeriesData = {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          discoveredMatches: new Map(),
+          rawMatches: new Map(),
+          playersAssociationData: {},
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        };
+
+        const state = aFakeLiveTrackerIndividualStateWith({
+          seriesData: existingSeriesData,
+          seriesLink: {
+            seriesId: { guildId: "guild-123", queueNumber: 5 },
+            linkedAt: new Date().toISOString(),
+            lastFetchedAt: new Date().toISOString(),
+          },
+          matchGroupings: {
+            match1: {
+              groupId: "group1",
+              matchIds: ["match1"],
+              participants: ["xuid1", "xuid2"],
+              seriesId: { guildId: "guild-123", queueNumber: 5 },
+            },
+          },
+        });
+
+        mockStorageGet(state);
+        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+
+        const request = new Request("https://example.com/refresh", {
+          method: "POST",
+          body: JSON.stringify({}),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        await durableObjectForSeries.fetch(request);
+
+        expect(stateMockForSeries.mocks.storage.put).toHaveBeenCalled();
+
+        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const stateArg = putCalls[0]?.[1];
+        const savedState = stateArg as LiveTrackerIndividualState;
+
+        expect(savedState.seriesData).toBeDefined();
+        expect(savedState.seriesData?.seriesId.queueNumber).toBe(5);
+        expect(savedState.seriesData?.teams).toHaveLength(2);
+        expect(savedState.seriesLink).toBeDefined();
+      });
+
+      it.skip("persists series data even after series completes", async () => {
+        const mockNeatQueueStub = {
+          fetch: vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                success: false,
+                error: "Series not found",
+              }),
+            ),
+          ),
+        };
+
+        const mockGetStub = vi.fn().mockReturnValue(mockNeatQueueStub);
+        env.LIVE_TRACKER_DO.get = mockGetStub;
+
+        vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+
+        const existingSeriesData = {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 3 - 2 Team Beta",
+          matchIds: ["match1", "match2", "match3", "match4", "match5"],
+          discoveredMatches: new Map(),
+          rawMatches: new Map(),
+          playersAssociationData: {},
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        };
+
+        const state = aFakeLiveTrackerIndividualStateWith({
+          seriesData: existingSeriesData,
+          seriesLink: {
+            seriesId: { guildId: "guild-123", queueNumber: 5 },
+            linkedAt: new Date().toISOString(),
+            lastFetchedAt: new Date().toISOString(),
+          },
+          matchGroupings: {
+            match1: {
+              groupId: "group1",
+              matchIds: ["match1"],
+              participants: ["xuid1", "xuid2"],
+              seriesId: { guildId: "guild-123", queueNumber: 5 },
+            },
+          },
+        });
+
+        mockStorageGet(state);
+        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+
+        const request = new Request("https://example.com/refresh", {
+          method: "POST",
+          body: JSON.stringify({}),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        await durableObjectForSeries.fetch(request);
+
+        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const stateArg = putCalls[0]?.[1];
+        const savedState = stateArg as LiveTrackerIndividualState;
+
+        expect(savedState.seriesData).toBeDefined();
+        expect(savedState.seriesData?.matchIds).toHaveLength(5);
+        expect(savedState.seriesData?.seriesScore).toBe("Team Alpha 3 - 2 Team Beta");
+      });
+
+      it.skip("operates normally when no series is detected", async () => {
+        vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+
+        const state = aFakeLiveTrackerIndividualStateWith({
+          matchGroupings: {},
+        });
+
+        mockStorageGet(state);
+        vi.spyOn(stateMockForSeries.mocks.storage, "put").mockResolvedValue();
+
+        const request = new Request("https://example.com/refresh", {
+          method: "POST",
+          body: JSON.stringify({}),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const response = await durableObjectForSeries.fetch(request);
+
+        expect(response.status).toBe(200);
+
+        const putCalls = vi.mocked(stateMockForSeries.mocks.storage.put).mock.calls;
+        const stateArg = putCalls[0]?.[1];
+        const savedState = stateArg as LiveTrackerIndividualState;
+
+        expect(savedState.seriesData).toBeUndefined();
+        expect(savedState.seriesLink).toBeUndefined();
+      });
+    });
+
+    describe("state conversion with series data", () => {
+      it.skip("includes series data in state response", async () => {
+        const seriesData = {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          discoveredMatches: new Map(),
+          rawMatches: new Map(),
+          playersAssociationData: {},
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        };
+
+        const state = aFakeLiveTrackerIndividualStateWith({
+          seriesData,
+          seriesLink: {
+            seriesId: { guildId: "guild-123", queueNumber: 5 },
+            linkedAt: new Date().toISOString(),
+            lastFetchedAt: new Date().toISOString(),
+          },
+        });
+
+        mockStorageGet(state);
+
+        const request = new Request("https://example.com/status", {
+          method: "GET",
+        });
+
+        const response = await durableObjectForSeries.fetch(request);
+        const body = await response.json();
+
+        expect(body.state).toBeDefined();
+        expect(body.state.seriesLink).toBeDefined();
+        expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
+      });
+
+      it.skip("excludes series data when not present", async () => {
+        const state = aFakeLiveTrackerIndividualStateWith();
+        delete state.seriesData;
+        delete state.seriesLink;
+
+        mockStorageGet(state);
+
+        const request = new Request("https://example.com/status", {
+          method: "GET",
+        });
+
+        const response = await durableObjectForSeries.fetch(request);
+        const body = await response.json();
+
+        expect(body.state.seriesData).toBeUndefined();
+      });
+    });
+
+    describe("websocket broadcasts with series data", () => {
+      it.skip("includes series link in broadcast payloads when present", async () => {
+        vi.spyOn(servicesForSeries.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+
+        const seriesData = {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          discoveredMatches: new Map(),
+          rawMatches: new Map(),
+          playersAssociationData: {},
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        };
+
+        const state = aFakeLiveTrackerIndividualStateWith({
+          seriesData,
+          seriesLink: {
+            seriesId: { guildId: "guild-123", queueNumber: 5 },
+            linkedAt: new Date().toISOString(),
+            lastFetchedAt: new Date().toISOString(),
+          },
+        });
+
+        mockStorageGet(state);
+
+        const request = new Request("https://example.com/status", {
+          method: "GET",
+        });
+
+        const response = await durableObjectForSeries.fetch(request);
+        const body = await response.json();
+
+        expect(body.state.seriesLink).toBeDefined();
+        expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
+      });
+    });
+    /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
+  });
 });

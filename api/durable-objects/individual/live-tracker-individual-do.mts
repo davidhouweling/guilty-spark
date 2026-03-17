@@ -21,7 +21,12 @@ import {
   max,
   subMinutes,
 } from "date-fns";
-import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerStateData,
+  PlayerAssociationData,
+} from "@guilty-spark/contracts/live-tracker/types";
+import type { SeriesData, SeriesId } from "@guilty-spark/contracts/live-tracker/series-types";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
@@ -1024,6 +1029,56 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       // Check if player is in an active NeatQueue series
       const activeSeriesId = await this.findPlayerActiveSeriesId(trackerState.xuid);
 
+      // Fetch and cache series data if player is in an active NeatQueue series
+      if (activeSeriesId != null) {
+        const seriesData = await this.fetchSeriesDataFromNeatQueueDO(activeSeriesId);
+
+        if (seriesData != null) {
+          const now = new Date().toISOString();
+
+          if (trackerState.seriesLink == null) {
+            trackerState.seriesLink = {
+              seriesId: activeSeriesId,
+              linkedAt: now,
+              lastFetchedAt: now,
+            };
+            this.logService.info(
+              "Linked individual tracker to NeatQueue series",
+              new Map([
+                ["xuid", trackerState.xuid],
+                ["gamertag", trackerState.gamertag],
+                ["guildId", activeSeriesId.guildId],
+                ["queueNumber", activeSeriesId.queueNumber.toString()],
+              ]),
+            );
+          } else {
+            trackerState.seriesLink = {
+              ...trackerState.seriesLink,
+              lastFetchedAt: now,
+            };
+          }
+
+          trackerState.seriesData = seriesData;
+          this.logService.debug(
+            "Updated series data from NeatQueue DO",
+            new Map([
+              ["gamertag", trackerState.gamertag],
+              ["matchCount", seriesData.matchIds.length.toString()],
+            ]),
+          );
+        } else if (trackerState.seriesData != null) {
+          // Series is no longer active (404/410) but we have cached data - keep it
+          this.logService.info(
+            "NeatQueue series completed, preserving cached series data",
+            new Map([
+              ["gamertag", trackerState.gamertag],
+              ["guildId", activeSeriesId.guildId],
+              ["queueNumber", activeSeriesId.queueNumber.toString()],
+            ]),
+          );
+        }
+      }
+
       await this.enrichAndMergeIndividualMatches(trackerState, matches, activeSeriesId ?? undefined);
 
       return Object.values(trackerState.discoveredMatches);
@@ -1099,6 +1154,96 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         new Map([
           ["error", String(error)],
           ["xuid", xuid],
+        ]),
+      );
+      return null;
+    }
+  }
+
+  private async fetchSeriesDataFromNeatQueueDO(seriesId: SeriesId): Promise<SeriesData | null> {
+    try {
+      const doId = this.env.LIVE_TRACKER_DO.idFromName(`${seriesId.guildId}:${seriesId.queueNumber.toString()}`);
+      const doStub = this.env.LIVE_TRACKER_DO.get(doId);
+
+      const response = await doStub.fetch("http://do/series-data", {
+        method: "GET",
+      });
+
+      if (response.status === 404) {
+        this.logService.debug(
+          "NeatQueue series not found",
+          new Map([
+            ["guildId", seriesId.guildId],
+            ["queueNumber", seriesId.queueNumber.toString()],
+          ]),
+        );
+        return null;
+      }
+
+      if (response.status === 410) {
+        this.logService.debug(
+          "NeatQueue series is stopped",
+          new Map([
+            ["guildId", seriesId.guildId],
+            ["queueNumber", seriesId.queueNumber.toString()],
+          ]),
+        );
+        return null;
+      }
+
+      if (!response.ok) {
+        this.logService.warn(
+          "Failed to fetch series data from NeatQueue DO",
+          new Map([
+            ["status", response.status.toString()],
+            ["guildId", seriesId.guildId],
+            ["queueNumber", seriesId.queueNumber.toString()],
+          ]),
+        );
+        return null;
+      }
+
+      const rawSeriesData = await response.json<{
+        seriesId: SeriesId;
+        teams: { name: string; playerIds: string[] }[];
+        seriesScore: string;
+        matchIds: string[];
+        discoveredMatches: Record<string, LiveTrackerMatchSummary>;
+        rawMatches: Record<string, MatchStats>;
+        playersAssociationData: Record<string, PlayerAssociationData>;
+        startTime: string;
+        lastUpdateTime: string;
+      }>();
+
+      const seriesData: SeriesData = {
+        seriesId: rawSeriesData.seriesId,
+        teams: rawSeriesData.teams,
+        seriesScore: rawSeriesData.seriesScore,
+        matchIds: rawSeriesData.matchIds,
+        discoveredMatches: new Map(Object.entries(rawSeriesData.discoveredMatches)),
+        rawMatches: new Map(Object.entries(rawSeriesData.rawMatches)),
+        playersAssociationData: rawSeriesData.playersAssociationData,
+        startTime: rawSeriesData.startTime,
+        lastUpdateTime: rawSeriesData.lastUpdateTime,
+      };
+
+      this.logService.debug(
+        "Successfully fetched series data from NeatQueue DO",
+        new Map([
+          ["guildId", seriesId.guildId],
+          ["queueNumber", seriesId.queueNumber.toString()],
+          ["matchCount", seriesData.matchIds.length.toString()],
+        ]),
+      );
+
+      return seriesData;
+    } catch (error) {
+      this.logService.warn(
+        "Error fetching series data from NeatQueue DO",
+        new Map([
+          ["error", String(error)],
+          ["guildId", seriesId.guildId],
+          ["queueNumber", seriesId.queueNumber.toString()],
         ]),
       );
       return null;
@@ -1408,6 +1553,16 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         seriesScore: state.seriesScore,
         substitutions: [],
         errorState: state.errorState,
+        seriesData: state.seriesData
+          ? {
+              seriesId: state.seriesData.seriesId,
+              teams: state.seriesData.teams,
+              seriesScore: state.seriesData.seriesScore,
+              matchIds: Array.from(state.seriesData.matchIds),
+              startTime: state.seriesData.startTime,
+              lastUpdateTime: state.seriesData.lastUpdateTime,
+            }
+          : undefined,
       },
     );
 
@@ -1611,7 +1766,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       return acc;
     }, {});
 
-    return {
+    const baseData: LiveTrackerStateData = {
       guildId: guildId,
       guildName: guild.name,
       channelId: channelId,
@@ -1628,6 +1783,23 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       playersAssociationData: state.playersAssociationData,
       matchGroupings,
     };
+
+    // Include series data if present
+    if (state.seriesData != null) {
+      return {
+        ...baseData,
+        seriesData: {
+          seriesId: state.seriesData.seriesId,
+          teams: state.seriesData.teams,
+          seriesScore: state.seriesData.seriesScore,
+          matchIds: Array.from(state.seriesData.matchIds),
+          startTime: state.seriesData.startTime,
+          lastUpdateTime: state.seriesData.lastUpdateTime,
+        },
+      };
+    }
+
+    return baseData;
   }
 
   private async getMedalMetadataFromMatches(

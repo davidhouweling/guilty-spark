@@ -37,7 +37,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get embeds(): APIEmbed[] {
-    const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore } = this.data;
+    const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore, seriesData } =
+      this.data;
     const { discordService } = this.services;
 
     const hasMatches = enrichedMatches != null && enrichedMatches.length > 0;
@@ -113,7 +114,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     })();
 
     const postTableFieldsContent = [
-      seriesScore ?? "🦅 0:0 🐍",
+      seriesData?.seriesScore ?? seriesScore ?? "🦅 0:0 🐍",
       hasMatches
         ? discordService.getTimestamp(
             this.toISOString(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime),
@@ -128,7 +129,11 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       postTableFieldsContent.push(this.getErrorMessage(this.data.errorState));
     }
 
-    postTableFieldsContent.push(`-# Live tracking started by ${userDisplay}`);
+    let postTableFooterText = `-# Live tracking started by ${userDisplay}`;
+    if (seriesData != null) {
+      postTableFooterText += `\n-# 📊 Series data from NeatQueue (Server: ${seriesData.seriesId.guildId})`;
+    }
+    postTableFieldsContent.push(postTableFooterText);
 
     // Calculate total length of post-table fields
     const postTableFieldsLength = postTableFieldsContent.reduce((sum, content) => sum + content.length, 0);
@@ -182,8 +187,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       };
 
       if (isFirstEmbed) {
-        embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
-        embed.description = `**${statusText}**`;
+        if (seriesData != null) {
+          embed.title = `Live Tracker - NeatQueue Series (Queue #${seriesData.seriesId.queueNumber.toString()})`;
+          const teamNames = seriesData.teams.map((t) => t.name).join(" vs ");
+          embed.description = `**${statusText}**\n*${teamNames}*`;
+        } else {
+          embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
+          embed.description = `**${statusText}**`;
+        }
       }
 
       // Add table fields
@@ -201,9 +212,13 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (currentRowIndex >= dataRows.length) {
         this.addSeparatorField(embed);
 
+        // Use series data if available, otherwise fall back to local series score
+        const displaySeriesScore = seriesData?.seriesScore ?? seriesScore ?? "🦅 0:0 🐍";
+        const seriesScoreLabel = seriesData != null ? "NeatQueue Series Score" : "Series score";
+
         embed.fields.push({
-          name: "Series score",
-          value: seriesScore ?? "🦅 0:0 🐍",
+          name: seriesScoreLabel,
+          value: displaySeriesScore,
           inline: true,
         });
         embed.fields.push({
@@ -239,9 +254,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
           });
         }
 
+        let footerText = `-# Live tracking started by ${userDisplay}`;
+        if (seriesData != null) {
+          footerText += `\n-# 📊 Series data from NeatQueue (Server: ${seriesData.seriesId.guildId})`;
+        }
+
         embed.fields.push({
           name: "",
-          value: `-# Live tracking started by ${userDisplay}`,
+          value: footerText,
         });
       }
 

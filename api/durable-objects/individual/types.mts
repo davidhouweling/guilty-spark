@@ -4,6 +4,7 @@ import type {
   LiveTrackerStatus,
   PlayerAssociationData,
 } from "@guilty-spark/contracts/live-tracker/types";
+import type { SeriesData, SeriesLink } from "@guilty-spark/contracts/live-tracker/series-types";
 
 // Input types for individual tracker requests
 export interface LiveTrackerIndividualStartRequest {
@@ -123,6 +124,10 @@ export interface LiveTrackerIndividualState {
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;
   playersAssociationData: Record<string, PlayerAssociationData> | null;
+
+  // NeatQueue series integration
+  seriesLink?: SeriesLink;
+  seriesData?: SeriesData;
 }
 
 // Success response types

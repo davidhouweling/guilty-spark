@@ -746,4 +746,178 @@ describe("LiveTrackerEmbed", () => {
       expect(embeds).toHaveLength(1);
     });
   });
+
+  describe("series data integration", () => {
+    it("displays series data from NeatQueue in embed title", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 0 - 0 Team Beta",
+        enrichedMatches: [],
+        seriesData: {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          startTime: "2024-01-01T10:00:00Z",
+          lastUpdateTime: "2024-01-01T10:30:00Z",
+        },
+      });
+
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
+
+      expect(embed.title).toContain("NeatQueue Series");
+      expect(embed.title).toContain("Queue #5");
+    });
+
+    it("uses series score from NeatQueue data when available", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "0:0",
+        enrichedMatches: [],
+        seriesData: {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          startTime: "2024-01-01T10:00:00Z",
+          lastUpdateTime: "2024-01-01T10:30:00Z",
+        },
+      });
+
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
+
+      const seriesScoreField = embed.fields?.find((field: { name: string }) => field.name.includes("Series Score"));
+
+      expect(seriesScoreField).toBeDefined();
+      expect(seriesScoreField?.value).toContain("Team Alpha 2 - 1 Team Beta");
+    });
+
+    it("shows NeatQueue series attribution footer", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 0 - 0 Team Beta",
+        enrichedMatches: testEnrichedMatches,
+        seriesData: {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          matchIds: ["match1", "match2", "match3"],
+          startTime: "2024-01-01T10:00:00Z",
+          lastUpdateTime: "2024-01-01T10:30:00Z",
+        },
+      });
+
+      const embedsString = JSON.stringify(liveTrackerEmbed.embeds);
+
+      expect(embedsString).toContain("Series data from NeatQueue");
+      expect(embedsString).toContain("guild-123");
+    });
+
+    it("displays team names from series data", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Custom Team A 0 - 0 Custom Team B",
+        enrichedMatches: [],
+        seriesData: {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Custom Team A", playerIds: ["xuid1", "xuid2"] },
+            { name: "Custom Team B", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Custom Team A 1 - 0 Custom Team B",
+          matchIds: ["match1"],
+          startTime: "2024-01-01T10:00:00Z",
+          lastUpdateTime: "2024-01-01T10:15:00Z",
+        },
+      });
+
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
+
+      expect(embed.description).toContain("Custom Team A vs Custom Team B");
+    });
+
+    it("works without series data (fallback behavior)", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "active",
+        isPaused: false,
+        seriesScore: "Team Alpha 2 - 1 Team Beta",
+        enrichedMatches: testEnrichedMatches,
+        seriesData: undefined,
+      });
+
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
+
+      expect(embed.title).toContain("Live Tracker - Queue #42");
+      expect(embed.title).not.toContain("NeatQueue");
+
+      const seriesScoreField = embed.fields?.find((field: { name: string }) => field.name.includes("score"));
+      expect(seriesScoreField?.value).toContain("Team Alpha 2 - 1 Team Beta");
+    });
+
+    it("handles series data with completed series", () => {
+      const completedMatches: LiveTrackerMatchSummary[] = Array.from({ length: 5 }, (_, i) => ({
+        matchId: `match-${(i + 1).toString()}`,
+        gameTypeAndMap: `Slayer on Map ${(i + 1).toString()}`,
+        gameType: "Slayer",
+        gameMap: `Map ${(i + 1).toString()}`,
+        gameMapThumbnailUrl: `https://example.com/map-${(i + 1).toString()}-thumb.png`,
+        duration: "10m 00s",
+        gameScore: i % 2 === 0 ? "50:40" : "40:50",
+        gameSubScore: null,
+        startTime: new Date(2024, 0, 1, 10 + i, 0, 0).toISOString(),
+        endTime: new Date(2024, 0, 1, 10 + i, 10, 0).toISOString(),
+        playerXuidToGametag: {},
+      }));
+
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        queueNumber: 42,
+        status: "stopped",
+        isPaused: false,
+        seriesScore: "Team Alpha 3 - 2 Team Beta",
+        enrichedMatches: completedMatches,
+        seriesData: {
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            { name: "Team Alpha", playerIds: ["xuid1", "xuid2"] },
+            { name: "Team Beta", playerIds: ["xuid3", "xuid4"] },
+          ],
+          seriesScore: "Team Alpha 3 - 2 Team Beta",
+          matchIds: ["match1", "match2", "match3", "match4", "match5"],
+          startTime: "2024-01-01T10:00:00Z",
+          lastUpdateTime: "2024-01-01T11:00:00Z",
+        },
+      });
+
+      const [firstEmbed] = liveTrackerEmbed.embeds;
+      const embed = Preconditions.checkExists(firstEmbed);
+
+      expect(embed.title).toContain("NeatQueue Series");
+      expect(embed.description).toContain("Team Alpha vs Team Beta");
+
+      const seriesScoreField = embed.fields?.find((field: { name: string }) => field.name.includes("Series Score"));
+      expect(seriesScoreField?.value).toContain("Team Alpha 3 - 2 Team Beta");
+    });
+  });
 });

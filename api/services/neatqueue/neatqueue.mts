@@ -12,6 +12,7 @@ import type {
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
+import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
@@ -19,10 +20,7 @@ import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
 import type { LiveTrackerService } from "../live-tracker/live-tracker.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type {
-  SeriesOverviewEmbedFinalTeams,
-  SeriesOverviewEmbedSubstitution,
-} from "../../embeds/stats/series-overview-embed.mjs";
+import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
@@ -1650,7 +1648,7 @@ export class NeatQueueService {
     }
   }
 
-  private getTeams(request: NeatQueueMatchCompletedRequest): SeriesOverviewEmbedFinalTeams[] {
+  private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
     return request.teams.map((team, teamIndex) => ({
       name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
       playerIds: team.map((player) => player.id),
@@ -1659,7 +1657,7 @@ export class NeatQueueService {
 
   private getSubstitutionsFromTimeline(
     timeline: NeatQueueTimelineEvent[],
-    finalTeams: SeriesOverviewEmbedFinalTeams[],
+    finalTeams: TeamMapping[],
   ): SeriesOverviewEmbedSubstitution[] {
     return timeline
       .filter((event) => event.event.action === "SUBSTITUTION")
@@ -1771,7 +1769,7 @@ export class NeatQueueService {
     messageId: string;
     queue: number;
     series: MatchStats[];
-    finalTeams: SeriesOverviewEmbedFinalTeams[];
+    finalTeams: TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
   }): Promise<APIEmbed[]> {
     const { discordService, haloService } = this;

@@ -29,4 +29,20 @@ export interface LiveTrackerEmbedData {
         lastErrorMessage?: string | undefined;
       }
     | undefined;
+  seriesData?:
+    | {
+        seriesId: {
+          guildId: string;
+          queueNumber: number;
+        };
+        teams: readonly {
+          name: string;
+          playerIds: readonly string[];
+        }[];
+        seriesScore: string;
+        matchIds: readonly string[];
+        startTime: string;
+        lastUpdateTime: string;
+      }
+    | undefined;
 }

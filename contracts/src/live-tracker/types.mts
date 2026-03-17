@@ -81,6 +81,20 @@ export interface LiveTrackerStateData {
       };
     }
   >;
+  readonly seriesData?: {
+    seriesId: {
+      guildId: string;
+      queueNumber: number;
+    };
+    teams: readonly {
+      name: string;
+      playerIds: readonly string[];
+    }[];
+    seriesScore: string;
+    matchIds: readonly string[];
+    startTime: string;
+    lastUpdateTime: string;
+  };
 }
 
 export interface LiveTrackerStateMessage {
