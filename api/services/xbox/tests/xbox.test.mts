@@ -54,7 +54,7 @@ describe("Xbox Service", () => {
   });
 
   describe("loadCredentials + get token", () => {
-    it("should load credentials from the environment", async () => {
+    it("loads credentials from the environment", async () => {
       kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
       await xboxService.loadCredentials();
@@ -62,7 +62,7 @@ describe("Xbox Service", () => {
       expect(xboxService.tokenInfo?.XSTSToken).toBe("token");
     });
 
-    it("should not load credentials if they are not available", async () => {
+    it("does not load credentials if they are not available", async () => {
       kvAppDataGetSpy.mockResolvedValue(null);
 
       await xboxService.loadCredentials();
@@ -70,7 +70,7 @@ describe("Xbox Service", () => {
       expect(xboxService.tokenInfo).toBeNull();
     });
 
-    it("should not load credentials if they are invalid", async () => {
+    it("does not load credentials if they are invalid", async () => {
       kvAppDataGetSpy.mockImplementation(() => {
         throw new Error("Invalid JSON");
       });
@@ -81,7 +81,7 @@ describe("Xbox Service", () => {
   });
 
   describe("loadCredentials + maybeRefreshXstsToken", () => {
-    it("should refresh the token if it is expired", async () => {
+    it("refreshes the token if it is expired", async () => {
       kvAppDataGetSpy.mockResolvedValue(JSON.parse(expiredKvToken));
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
@@ -91,7 +91,7 @@ describe("Xbox Service", () => {
       expect(authenticate).toHaveBeenCalled();
     });
 
-    it("should not refresh the token if it is not expired", async () => {
+    it("does not refresh the token if it is not expired", async () => {
       kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
       await xboxService.loadCredentials();
@@ -100,7 +100,7 @@ describe("Xbox Service", () => {
       expect(authenticate).not.toHaveBeenCalled();
     });
 
-    it("should refresh the token if it is not set", async () => {
+    it("refreshes the token if it is not set", async () => {
       kvAppDataGetSpy.mockResolvedValue(null);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
@@ -110,7 +110,7 @@ describe("Xbox Service", () => {
       expect(authenticate).toHaveBeenCalled();
     });
 
-    it("should update APP_DATA with the new token", async () => {
+    it("updates APP_DATA with the new token", async () => {
       kvAppDataGetSpy.mockResolvedValue(null);
       const putSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue(void 0);
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
@@ -131,7 +131,7 @@ describe("Xbox Service", () => {
   });
 
   describe("clearToken", () => {
-    it("should clear the token", async () => {
+    it("clears the token", async () => {
       const deleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue(void 0);
       kvAppDataGetSpy.mockResolvedValue(JSON.parse(validKvToken));
 
@@ -153,14 +153,14 @@ describe("Xbox Service", () => {
       xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
     });
 
-    it("should return empty array when no xuids provided", async () => {
+    it("returns empty array when no xuids provided", async () => {
       const result = await xboxService.getUsersByXuids([]);
 
       expect(result).toEqual([]);
       expect(xsapiClientGetSpy).not.toHaveBeenCalled();
     });
 
-    it("should fetch user info by xuids and return gamertags", async () => {
+    it("fetches user info by xuids and return gamertags", async () => {
       const xuids = ["2533274844642438", "2533274844642439"];
 
       xsapiClientGetSpy.mockImplementation(async (url) => {
@@ -196,7 +196,7 @@ describe("Xbox Service", () => {
       expect(result[1]).toEqual({ xuid: "2533274844642439", gamertag: "TestPlayer2" });
     });
 
-    it("should handle failed requests gracefully", async () => {
+    it("handles failed requests gracefully", async () => {
       const xuids = ["2533274844642438", "2533274844642439"];
 
       xsapiClientGetSpy
@@ -218,7 +218,7 @@ describe("Xbox Service", () => {
       expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
     });
 
-    it("should use Unknown gamertag when gamertag setting is missing", async () => {
+    it("uses Unknown gamertag when gamertag setting is missing", async () => {
       const xuids = ["2533274844642438"];
 
       xsapiClientGetSpy.mockResolvedValueOnce(
@@ -238,7 +238,7 @@ describe("Xbox Service", () => {
       expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "Unknown" });
     });
 
-    it("should filter out results with no profileUser data", async () => {
+    it("filters out results with no profileUser data", async () => {
       const xuids = ["2533274844642438"];
 
       xsapiClientGetSpy.mockResolvedValueOnce(createMockXSAPIResponse([]));
@@ -248,7 +248,7 @@ describe("Xbox Service", () => {
       expect(result).toHaveLength(0);
     });
 
-    it("should refresh token if not loaded", async () => {
+    it("refreshes token if not loaded", async () => {
       xboxService.tokenInfo = null;
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
@@ -281,12 +281,12 @@ describe("Xbox Service", () => {
       xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
     });
 
-    it("should throw error when gamertag is empty", async () => {
+    it("throws error when gamertag is empty", async () => {
       await expect(xboxService.getUserByGamertag("")).rejects.toThrow("Gamertag cannot be empty");
       expect(xsapiClientGetSpy).not.toHaveBeenCalled();
     });
 
-    it("should fetch user info by gamertag and return xuid and gamertag", async () => {
+    it("fetches user info by gamertag and return xuid and gamertag", async () => {
       const gamertag = "TestPlayer1";
 
       xsapiClientGetSpy.mockResolvedValueOnce(
@@ -313,7 +313,7 @@ describe("Xbox Service", () => {
       );
     });
 
-    it("should use Unknown gamertag when gamertag setting is missing", async () => {
+    it("uses Unknown gamertag when gamertag setting is missing", async () => {
       const gamertag = "TestPlayer1";
 
       xsapiClientGetSpy.mockResolvedValueOnce(
@@ -332,7 +332,7 @@ describe("Xbox Service", () => {
       expect(result).toEqual({ xuid: "2533274844642438", gamertag: "Unknown" });
     });
 
-    it("should throw error when user not found", async () => {
+    it("throws error when user not found", async () => {
       const gamertag = "NonExistentPlayer";
 
       xsapiClientGetSpy.mockResolvedValueOnce(createMockXSAPIResponse([]));
@@ -340,7 +340,7 @@ describe("Xbox Service", () => {
       await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow(`User with gamertag ${gamertag} not found`);
     });
 
-    it("should throw error when API returns non-200 status", async () => {
+    it("throws error when API returns non-200 status", async () => {
       const gamertag = "TestPlayer1";
 
       xsapiClientGetSpy.mockResolvedValueOnce({
@@ -355,7 +355,7 @@ describe("Xbox Service", () => {
       );
     });
 
-    it("should refresh token if not loaded", async () => {
+    it("refreshes token if not loaded", async () => {
       xboxService.tokenInfo = null;
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 

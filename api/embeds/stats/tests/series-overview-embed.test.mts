@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
+import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
 import { SeriesOverviewEmbed } from "../series-overview-embed.mjs";
-import type { SeriesOverviewEmbedFinalTeams, SeriesOverviewEmbedSubstitution } from "../series-overview-embed.mjs";
+import type { SeriesOverviewEmbedSubstitution } from "../series-overview-embed.mjs";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { HaloService } from "../../../services/halo/halo.mjs";
 import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
 import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
-import { matchStats } from "../../../services/halo/fakes/data.mjs";
+import { getMatchStats } from "../../../services/halo/fakes/data.mjs";
 
 describe("SeriesOverviewEmbed", () => {
   let discordService: DiscordService;
@@ -20,9 +21,8 @@ describe("SeriesOverviewEmbed", () => {
     seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
 
     // Get a sample match from the fake data
-    const matchStatsArray = Array.from(matchStats.values());
-    const [firstMatch] = matchStatsArray;
-    if (firstMatch == null) {
+    const firstMatch = getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf");
+    if (!firstMatch) {
       throw new Error("No match stats available for testing");
     }
     sampleMatchStats = firstMatch;
@@ -35,7 +35,7 @@ describe("SeriesOverviewEmbed", () => {
 
   describe("getEmbed", () => {
     it("creates an embed with final teams data", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user2"],
@@ -68,7 +68,7 @@ describe("SeriesOverviewEmbed", () => {
     });
 
     it("creates an embed with substitutions", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user5"], // user5 substituted for user2
@@ -108,7 +108,7 @@ describe("SeriesOverviewEmbed", () => {
     });
 
     it("handles hidden teams description", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user2"],
@@ -140,7 +140,7 @@ describe("SeriesOverviewEmbed", () => {
     });
 
     it("handles empty substitutions array", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user2"],
@@ -171,7 +171,7 @@ describe("SeriesOverviewEmbed", () => {
     });
 
     it("includes correct game information in fields", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user2"],
@@ -211,7 +211,7 @@ describe("SeriesOverviewEmbed", () => {
     });
 
     it("splits into multiple embeds when data exceeds field character limits", async () => {
-      const finalTeams: SeriesOverviewEmbedFinalTeams[] = [
+      const finalTeams: TeamMapping[] = [
         {
           name: "Team Alpha",
           playerIds: ["user1", "user2"],

@@ -24,6 +24,7 @@
   "homepage": "https://github.com/davidhouweling/guilty-spark#readme",
   "scripts": {
     "postinstall": "patch-package",
+    "start": "npm run start:api & npm run start:pages",
     "start:api": "npm run start --workspace=api",
     "start:pages": "npm run start --workspace=pages",
     "ngrok": "ngrok http 8787",

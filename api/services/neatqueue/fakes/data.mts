@@ -84,7 +84,7 @@ export function aFakeNeatQueueStateWith(overrides: Partial<NeatQueueState> = {})
   return {
     timeline: [],
     playersMessageId: null,
-    playersAssociationData: null,
+    playersAssociationData: {},
     ...overrides,
   };
 }

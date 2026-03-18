@@ -112,6 +112,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           case "websocket": {
             return await this.handleWebSocket(request);
           }
+          case "series-data": {
+            return await this.handleGetSeriesData();
+          }
           case undefined: {
             return new Response("Bad Request", { status: 400 });
           }
@@ -296,7 +299,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
       trackerState.seriesScore = seriesScore;
       const liveTrackerEmbed = new LiveTrackerEmbed(
-        { discordService: this.discordService },
+        { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
         {
           userId: body.userId,
           guildId: body.guildId,
@@ -596,7 +599,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId } = await request.json<LiveTrackerSubstitutionRequest>();
+    const { playerOutId, playerInId, playerAssociationData } = await request.json<LiveTrackerSubstitutionRequest>();
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -641,6 +644,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
       targetTeam.playerIds[playerIndex] = playerInId;
       trackerState.players[playerInId] = newPlayerMember;
+      trackerState.playersAssociationData = {
+        ...trackerState.playersAssociationData,
+        [playerInId]: playerAssociationData,
+      };
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
 
@@ -712,6 +719,46 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
 
     return this.createRepostResponse(oldMessageId ?? "none", newMessageId);
+  }
+
+  private async handleGetSeriesData(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (!trackerState) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.status === "stopped") {
+      return new Response("Series is stopped", { status: 410 });
+    }
+
+    const seriesData = {
+      seriesId: {
+        guildId: trackerState.guildId,
+        queueNumber: trackerState.queueNumber,
+      },
+      teams: trackerState.teams.map((team) => ({
+        name: team.name,
+        playerIds: team.playerIds,
+      })),
+      seriesScore: trackerState.seriesScore,
+      matchIds: Object.keys(trackerState.rawMatches),
+      discoveredMatches: trackerState.discoveredMatches,
+      rawMatches: trackerState.rawMatches,
+      playersAssociationData: trackerState.playersAssociationData,
+      startTime: trackerState.startTime,
+      lastUpdateTime: trackerState.lastUpdateTime,
+    };
+
+    this.logService.debug(
+      `LiveTracker: Serving series data for queue ${trackerState.queueNumber.toString()}`,
+      new Map([
+        ["guildId", trackerState.guildId],
+        ["queueNumber", trackerState.queueNumber.toString()],
+        ["matchCount", seriesData.matchIds.length.toString()],
+      ]),
+    );
+
+    return Response.json(seriesData);
   }
 
   private async getState(): Promise<LiveTrackerState | null> {
@@ -908,7 +955,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     trackerState.seriesScore = seriesScore;
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: trackerState.userId,
         guildId: trackerState.guildId,

@@ -45,6 +45,8 @@ vi.mock("../../icons/rank-icon", () => ({
 
 const { StreamerOverlay } = await import("../streamer-overlay");
 
+const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
+
 function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>): LiveTrackerViewModel {
   return {
     guildNameText: "Test Guild",
@@ -67,6 +69,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
       seriesScore: "🦅 0:0 🐍",
       medalMetadata: {},
       playersAssociationData: {},
+      matchGroupings: {},
     },
     ...overrides,
   };
@@ -102,7 +105,7 @@ describe("StreamerOverlay", () => {
     const model = aFakeLiveTrackerViewModelWith({ state: null });
 
     render(
-      <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
@@ -114,7 +117,7 @@ describe("StreamerOverlay", () => {
     const model = aFakeLiveTrackerViewModelWith();
 
     render(
-      <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
@@ -153,6 +156,7 @@ describe("StreamerOverlay", () => {
         seriesScore: "🦅 1:0 🐍",
         medalMetadata: {},
         playersAssociationData: null,
+        matchGroupings: {},
       },
     });
 
@@ -177,7 +181,7 @@ describe("StreamerOverlay", () => {
     ];
 
     render(
-      <LiveTrackerProvider model={model} allMatchStats={allMatchStats} seriesStats={null}>
+      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
         <StreamerOverlay
           {...defaultProps}
           previewMode="none"
@@ -220,13 +224,14 @@ describe("StreamerOverlay", () => {
         seriesScore: "🦅 1:0 🐍",
         medalMetadata: {},
         playersAssociationData: null,
+        matchGroupings: {},
       },
     });
 
     const allMatchStats = [{ matchId: "match1", data: null }];
 
     render(
-      <LiveTrackerProvider model={model} allMatchStats={allMatchStats} seriesStats={null}>
+      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );

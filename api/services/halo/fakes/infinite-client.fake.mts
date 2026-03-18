@@ -3,16 +3,27 @@ import { AssetKind } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import {
-  assetVersion,
-  matchStats,
-  medalsMetadata,
-  playerMatches,
-  playlistRankedArena,
-  playlistAssetVersionRankedArena,
-  mapModePairKothLiveFire,
-  mapModePairSlayerLiveFire,
-  mapModePairCtfAquarius,
+  getAssetVersion,
+  getMatchStats,
+  getMedalsMetadata,
+  getPlayerMatches,
+  getPlaylistRankedArena,
+  getPlaylistAssetVersionRankedArena,
+  getMapModePairKothLiveFire,
+  getMapModePairSlayerLiveFire,
+  getMapModePairCtfAquarius,
 } from "./data.mjs";
+
+// Initialize data from getters
+const _assetVersion = getAssetVersion();
+const _matchStats = getMatchStats;
+const _medalsMetadata = getMedalsMetadata();
+const _playerMatches = getPlayerMatches();
+const _playlistRankedArena = getPlaylistRankedArena();
+const _playlistAssetVersionRankedArena = getPlaylistAssetVersionRankedArena();
+const _mapModePairKothLiveFire = getMapModePairKothLiveFire();
+const _mapModePairSlayerLiveFire = getMapModePairSlayerLiveFire();
+const _mapModePairCtfAquarius = getMapModePairCtfAquarius();
 
 function getFakeName(assetId: string): string {
   switch (assetId) {
@@ -123,14 +134,14 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
   infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
     if (xboxUserId === "0000000000001" && (start === 0 || start == null)) {
-      return Promise.resolve(playerMatches);
+      return Promise.resolve(_playerMatches);
     }
 
     return Promise.resolve([]);
   });
 
   infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
-    const stats = matchStats.get(matchId);
+    const stats = _matchStats(matchId);
     if (stats) {
       return Promise.resolve(stats);
     }
@@ -139,33 +150,33 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
   });
 
   infiniteClient.getSpecificAssetVersion.mockImplementation(async (assetKind, assetId, version) => {
-    if (assetKind === AssetKind.Map && assetVersion.AssetId === assetId && assetVersion.VersionId === version) {
-      return Promise.resolve(assetVersion);
+    if (assetKind === AssetKind.Map && _assetVersion.AssetId === assetId && _assetVersion.VersionId === version) {
+      return Promise.resolve(_assetVersion);
     }
 
     if (assetKind === AssetKind.Playlist && assetId === "edfef3ac-9cbe-4fa2-b949-8f29deafd483") {
-      return Promise.resolve(playlistAssetVersionRankedArena);
+      return Promise.resolve(_playlistAssetVersionRankedArena);
     }
 
     if (assetKind === AssetKind.MapModePair) {
       if (assetId === "91957e4b-b5e4-4a11-ac69-dce934fa7002") {
-        return Promise.resolve(mapModePairKothLiveFire);
+        return Promise.resolve(_mapModePairKothLiveFire);
       }
       if (assetId === "be1c791b-fbae-4e8d-aeee-9f48df6fee9d") {
-        return Promise.resolve(mapModePairSlayerLiveFire);
+        return Promise.resolve(_mapModePairSlayerLiveFire);
       }
       if (assetId === "2bb084c2-a047-4fe9-9023-4100cbe6860d") {
-        return Promise.resolve(mapModePairCtfAquarius);
+        return Promise.resolve(_mapModePairCtfAquarius);
       }
       // For test cases that use test-asset-id, return a MapModePair structure
       if (assetId === "test-asset-id") {
         return Promise.resolve({
-          ...assetVersion,
+          ..._assetVersion,
           AssetId: assetId,
           PublicName: getFakeName(assetId),
           VersionId: version,
           MapLink: {
-            ...assetVersion,
+            ..._assetVersion,
             AssetId: assetId,
             VersionId: version,
           },
@@ -174,7 +185,7 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
     }
 
     return Promise.resolve({
-      ...assetVersion,
+      ..._assetVersion,
       AssetId: assetId,
       PublicName: getFakeName(assetId),
       VersionId: version,
@@ -183,13 +194,13 @@ export function aFakeHaloInfiniteClient(): MockProxy<HaloInfiniteClient> {
 
   infiniteClient.getPlaylist.mockImplementation(async (playlistId) => {
     if (playlistId === "edfef3ac-9cbe-4fa2-b949-8f29deafd483") {
-      return Promise.resolve(playlistRankedArena);
+      return Promise.resolve(_playlistRankedArena);
     }
 
     return Promise.reject(new Error(`Playlist not found: ${playlistId}`));
   });
 
-  infiniteClient.getMedalsMetadataFile.mockResolvedValue(medalsMetadata);
+  infiniteClient.getMedalsMetadataFile.mockResolvedValue(_medalsMetadata);
 
   infiniteClient.getMatchSkill.mockResolvedValue([]);
 

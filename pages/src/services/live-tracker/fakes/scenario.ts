@@ -1,5 +1,8 @@
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
-import { sampleLiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import {
+  sampleLiveTrackerStateMessage,
+  sampleIndividualTrackerStateMessage,
+} from "@guilty-spark/contracts/live-tracker/fakes/data";
 
 export interface LiveTrackerScenario {
   readonly intervalMs: number;
@@ -42,6 +45,25 @@ export function createSampleScenario(): LiveTrackerScenario {
   for (let index = 0; index < allMatchIds.length; index += 1) {
     const timestamp = new Date(baseTimestamp.getTime() + (index + 1) * 30_000).toISOString();
     frames.push(cloneStateWithMatches(sampleLiveTrackerStateMessage, allMatchIds.slice(0, index + 1), timestamp));
+  }
+
+  return {
+    intervalMs: 1200,
+    frames,
+  };
+}
+
+export function createSampleIndividualScenario(): LiveTrackerScenario {
+  const allMatchIds = sampleIndividualTrackerStateMessage.data.discoveredMatches.map((match) => match.matchId);
+
+  const baseTimestamp = new Date(sampleIndividualTrackerStateMessage.timestamp);
+  const frames: LiveTrackerMessage[] = [];
+
+  frames.push(cloneStateWithMatches(sampleIndividualTrackerStateMessage, [], baseTimestamp.toISOString()));
+
+  for (let index = 0; index < allMatchIds.length; index += 1) {
+    const timestamp = new Date(baseTimestamp.getTime() + (index + 1) * 30_000).toISOString();
+    frames.push(cloneStateWithMatches(sampleIndividualTrackerStateMessage, allMatchIds.slice(0, index + 1), timestamp));
   }
 
   return {

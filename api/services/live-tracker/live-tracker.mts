@@ -1,6 +1,7 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
 import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do.mjs";
+import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerStartResponse,
@@ -17,10 +18,16 @@ import type {
   LiveTrackerRefreshCooldownErrorResponse,
   LiveTrackerRefreshRequest,
 } from "../../durable-objects/types.mjs";
+import type {
+  LiveTrackerIndividualStartRequest,
+  LiveTrackerIndividualStartResponse,
+} from "../../durable-objects/individual/types.mjs";
 import type { LogService } from "../log/types.mjs";
 import type { DiscordService } from "../discord/discord.mjs";
+import type { HaloService } from "../halo/halo.mjs";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
 import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
+import type { LiveTrackerIndividualDO } from "../../durable-objects/individual/live-tracker-individual-do.mjs";
 
 export interface LiveTrackerContext {
   userId: string;
@@ -33,6 +40,7 @@ export interface LiveTrackerServiceOpts {
   env: Env;
   logService: LogService;
   discordService: DiscordService;
+  haloService: HaloService;
 }
 
 interface StartTrackerOpts {
@@ -44,13 +52,14 @@ interface StartTrackerOpts {
   players: Record<string, APIGuildMember>;
   teams: { name: string; playerIds: string[] }[];
   queueStartTime: string;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
+  playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 interface RecordSubstitutionOpts {
   context: LiveTrackerContext;
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 interface RepostTrackerOpts {
@@ -75,6 +84,7 @@ interface SafeRecordSubstitutionOpts {
   queueNumber: number;
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 interface HandleRefreshCooldownOpts {
@@ -93,11 +103,13 @@ export class LiveTrackerService {
   private readonly env: Env;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
+  private readonly haloService: HaloService;
 
-  constructor({ env, logService, discordService }: LiveTrackerServiceOpts) {
+  constructor({ env, logService, discordService, haloService }: LiveTrackerServiceOpts) {
     this.env = env;
     this.logService = logService;
     this.discordService = discordService;
+    this.haloService = haloService;
   }
 
   /**
@@ -262,6 +274,7 @@ export class LiveTrackerService {
     context,
     playerOutId,
     playerInId,
+    playerAssociationData,
   }: RecordSubstitutionOpts): Promise<LiveTrackerSubstitutionResponse> {
     this.logService.info(
       "LiveTrackerService: Recording substitution",
@@ -278,6 +291,7 @@ export class LiveTrackerService {
     const substitutionData: LiveTrackerSubstitutionRequest = {
       playerOutId,
       playerInId,
+      playerAssociationData,
     };
 
     const response = await doStub.fetch("http://do/substitution", {
@@ -421,6 +435,7 @@ export class LiveTrackerService {
     queueNumber,
     playerOutId,
     playerInId,
+    playerAssociationData,
   }: SafeRecordSubstitutionOpts): Promise<boolean> {
     const context: LiveTrackerContext = {
       userId: "",
@@ -436,7 +451,7 @@ export class LiveTrackerService {
         return false;
       }
 
-      await this.recordSubstitution({ context, playerOutId, playerInId });
+      await this.recordSubstitution({ context, playerOutId, playerInId, playerAssociationData });
       return true;
     } catch (error) {
       this.logService.warn(
@@ -448,11 +463,61 @@ export class LiveTrackerService {
   }
 
   /**
+   * Starts a new live tracker for an individual player
+   */
+  async startTrackerIndividual(startRequest: LiveTrackerIndividualStartRequest): Promise<void> {
+    this.logService.info(
+      "LiveTrackerService: Starting individual tracker",
+      new Map([
+        ["xuid", startRequest.xuid],
+        ["gamertag", startRequest.gamertag],
+      ]),
+    );
+
+    const env = Preconditions.checkExists(
+      this.env.LIVE_TRACKER_INDIVIDUAL_DO,
+      "LIVE_TRACKER_INDIVIDUAL_DO binding not configured",
+    );
+
+    const doId = env.idFromName(`individual:${startRequest.xuid}`);
+    const doStub = env.get(doId);
+
+    const response = await doStub.fetch("http://do/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(startRequest),
+    });
+
+    if (!response.ok) {
+      const error = `Failed to start individual tracker: ${response.status.toString()}`;
+      this.logService.error(
+        error,
+        new Map([
+          ["xuid", startRequest.xuid],
+          ["gamertag", startRequest.gamertag],
+        ]),
+      );
+      throw new Error(error);
+    }
+
+    const result = await response.json<LiveTrackerIndividualStartResponse>();
+    if (!result.success) {
+      this.logService.warn(
+        "Individual tracker start request not fully successful",
+        new Map([
+          ["xuid", startRequest.xuid],
+          ["gamertag", startRequest.gamertag],
+        ]),
+      );
+    }
+  }
+
+  /**
    * Creates a fallback embed for error states
    */
   createErrorFallbackEmbed(context: LiveTrackerContext, status: "active" | "paused" | "stopped"): LiveTrackerEmbed {
     return new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: context.userId,
         guildId: context.guildId,
@@ -500,12 +565,12 @@ export class LiveTrackerService {
     additionalTime,
   }: CreateLiveTrackerEmbedFromResultOpts): LiveTrackerEmbed {
     if (embedData != null) {
-      return new LiveTrackerEmbed({ discordService: this.discordService }, embedData);
+      return new LiveTrackerEmbed({ discordService: this.discordService, pagesUrl: this.env.PAGES_URL }, embedData);
     }
 
     const currentTime = new Date();
     return new LiveTrackerEmbed(
-      { discordService: this.discordService },
+      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
       {
         userId: context.userId,
         guildId: context.guildId,
@@ -526,6 +591,25 @@ export class LiveTrackerService {
     const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
 
     return this.env.LIVE_TRACKER_DO.get(doId);
+  }
+
+  /**
+   * Get Individual Tracker Durable Object stub by gamertag
+   * Resolves gamertag to XUID and returns the DO stub
+   */
+  async getIndividualTrackerDOStub(gamertag: string): Promise<DurableObjectStub<LiveTrackerIndividualDO>> {
+    const userInfo = await this.haloService.getUserByGamertag(gamertag);
+    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(userInfo.xuid);
+    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
+  }
+
+  /**
+   * Get Individual Tracker Durable Object stub by XUID
+   * Directly creates DO stub without gamertag resolution
+   */
+  getIndividualTrackerDOStubByXuid(xuid: string): DurableObjectStub<LiveTrackerIndividualDO> {
+    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(xuid);
+    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
   }
 
   private createLogParams(

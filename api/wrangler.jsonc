@@ -30,6 +30,10 @@
         "name": "LIVE_TRACKER_DO",
         "class_name": "LiveTrackerDO",
       },
+      {
+        "name": "LIVE_TRACKER_INDIVIDUAL_DO",
+        "class_name": "LiveTrackerIndividualDO",
+      },
     ],
   },
 
@@ -39,11 +43,16 @@
       "tag": "v1",
       "new_classes": ["LiveTrackerDO"],
     },
+    {
+      "tag": "v2",
+      "new_classes": ["LiveTrackerIndividualDO"],
+    },
   ],
 
   // Development environment variables
   "vars": {
     "HOST_URL": "https://dev-api.guilty-spark.app",
+    "PAGES_URL": "https://dev.guilty-spark.app",
     "MODE": "development",
   },
 
@@ -84,10 +93,15 @@
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
           },
+          {
+            "name": "LIVE_TRACKER_INDIVIDUAL_DO",
+            "class_name": "LiveTrackerIndividualDO",
+          },
         ],
       },
       "vars": {
         "HOST_URL": "https://staging-api.guilty-spark.app",
+        "PAGES_URL": "https://staging.guilty-spark.app",
         "MODE": "production",
       },
     },
@@ -121,10 +135,15 @@
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
           },
+          {
+            "name": "LIVE_TRACKER_INDIVIDUAL_DO",
+            "class_name": "LiveTrackerIndividualDO",
+          },
         ],
       },
       "vars": {
         "HOST_URL": "https://api.guilty-spark.app",
+        "PAGES_URL": "https://guilty-spark.app",
         "MODE": "production",
       },
     },

@@ -18,6 +18,7 @@ export default defineConfig(
       ".wrangler/",
       "coverage/",
       "node_modules/**/*",
+      "api/.wrangler/**/*",
       "api/dist/",
       "api/worker-configuration.d.ts",
       "pages/.astro/**/*",

@@ -11,6 +11,10 @@ import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
+import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
+import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
+import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
+import type { MatchStatsData } from "../stats/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { useTeamColors } from "../team-colors/use-team-colors";
@@ -25,10 +29,12 @@ import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series
 import { PlayerName } from "../player-name/player-name";
 import { useStreamerPreferences } from "./use-streamer-preferences";
 import { StreamerOverlay } from "./streamer-overlay";
+import { IndividualModeMatches } from "./individual-mode-matches";
 import {
   useTrackerInfo,
   useTrackerState,
   useTrackerIdentity,
+  useTrackerParams,
   useAllMatchStats,
   useSeriesStats,
   useHasMatches,
@@ -70,11 +76,13 @@ export function LiveTrackerView(): React.ReactElement {
   const trackerInfo = useTrackerInfo();
   const state = useTrackerState();
   const identity = useTrackerIdentity();
+  const params = useTrackerParams();
   const hasMatches = useHasMatches();
   const sortedSubstitutions = useSubstitutions();
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
 
+  const isIndividualMode = params.type === "individual";
   const guildId = identity?.guildId ?? "";
   const queueNumber = identity?.queueNumber ?? 0;
   const teamColors = useTeamColors(guildId, queueNumber);
@@ -87,9 +95,9 @@ export function LiveTrackerView(): React.ReactElement {
     streamerOptions: StreamerOptions;
     teamColorPrefs: Record<number, string>;
   } {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get("view");
-    const previewParam = params.get("preview");
+    const urlSearchParams = new URLSearchParams(window.location.search);
+    const viewParam = urlSearchParams.get("view");
+    const previewParam = urlSearchParams.get("preview");
     const viewMode =
       viewParam === "standard" || viewParam === "wide" || viewParam === "streamer"
         ? (viewParam as ViewMode)
@@ -99,15 +107,15 @@ export function LiveTrackerView(): React.ReactElement {
         ? (previewParam as PreviewMode)
         : streamerPreferences.previewMode;
     const streamerOptions: StreamerOptions = {
-      showTeams: params.get("showTeams") !== "false",
-      showTicker: params.get("showTicker") !== "false",
-      showTabs: params.get("showTabs") !== "false",
-      showServerName: params.get("showServerName") !== "false",
+      showTeams: urlSearchParams.get("showTeams") !== "false",
+      showTicker: urlSearchParams.get("showTicker") !== "false",
+      showTabs: urlSearchParams.get("showTabs") !== "false",
+      showServerName: urlSearchParams.get("showServerName") !== "false",
     };
     // Team colors: teamColor0, teamColor1, etc.
     const teamColorPrefs: Record<number, string> = {};
     for (let i = 0; i < 2; i++) {
-      const color = params.get(`teamColor${i.toString()}`);
+      const color = urlSearchParams.get(`teamColor${i.toString()}`);
       if (color != null) {
         teamColorPrefs[i] = color;
       }
@@ -153,20 +161,20 @@ export function LiveTrackerView(): React.ReactElement {
     teamColorOverride?: { teamIndex: number; colorId: string },
   ): void {
     if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      params.set("view", currentViewMode);
-      params.set("preview", currentPreviewMode);
-      params.set("showTeams", String(currentOptions.showTeams));
-      params.set("showTicker", String(currentOptions.showTicker));
-      params.set("showTabs", String(currentOptions.showTabs));
-      params.set("showServerName", String(currentOptions.showServerName));
+      const urlSearchParams = new URLSearchParams(window.location.search);
+      urlSearchParams.set("view", currentViewMode);
+      urlSearchParams.set("preview", currentPreviewMode);
+      urlSearchParams.set("showTeams", String(currentOptions.showTeams));
+      urlSearchParams.set("showTicker", String(currentOptions.showTicker));
+      urlSearchParams.set("showTabs", String(currentOptions.showTabs));
+      urlSearchParams.set("showServerName", String(currentOptions.showServerName));
       // Team colors
       for (let i = 0; i < 2; i++) {
         const color =
           teamColorOverride?.teamIndex === i ? teamColorOverride.colorId : teamColors.getTeamColorForTeam(i).id;
-        params.set(`teamColor${i.toString()}`, color);
+        urlSearchParams.set(`teamColor${i.toString()}`, color);
       }
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      const newUrl = `${window.location.pathname}?${urlSearchParams.toString()}`;
       window.history.replaceState({}, "", newUrl);
     }
   }
@@ -221,6 +229,67 @@ export function LiveTrackerView(): React.ReactElement {
     return state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx));
   }, [state, teamColors]);
 
+  // For individual mode, compute match-to-group mapping and group stats
+  const matchGroupingInfo = useMemo(() => {
+    if (!isIndividualMode || !state) {
+      return null;
+    }
+
+    const matchToGroup = new Map<string, string>();
+    for (const [groupId, grouping] of Object.entries(state.matchGroupings)) {
+      for (const matchId of grouping.matchIds) {
+        matchToGroup.set(matchId, groupId);
+      }
+    }
+
+    return { matchToGroup };
+  }, [isIndividualMode, state]);
+
+  // Compute stats for each match grouping in individual mode
+  const groupingStats = useMemo(() => {
+    if (!isIndividualMode || !state || !matchGroupingInfo) {
+      return null;
+    }
+
+    const statsMap = new Map<
+      string,
+      { teamData: MatchStatsData[]; playerData: MatchStatsData[]; metadata: SeriesMetadata | null }
+    >();
+
+    for (const [groupId, grouping] of Object.entries(state.matchGroupings)) {
+      const groupMatches = state.matches.filter((m) => grouping.matchIds.includes(m.matchId));
+      const rawMatchStats = groupMatches
+        .map((m) => m.rawMatchStats)
+        .filter((stats): stats is NonNullable<typeof stats> => stats != null);
+
+      if (!rawMatchStats.length) {
+        continue;
+      }
+
+      const allPlayerXuidToGametag = new Map<string, string>();
+      for (const match of groupMatches) {
+        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          allPlayerXuidToGametag.set(xuid, gamertag);
+        }
+      }
+
+      // Compute scores string for metadata
+      const scoresStr = groupMatches.map((m) => m.gameScore).join(", ");
+      const metadata = calculateSeriesMetadata(groupMatches, scoresStr);
+
+      const teamPresenter = new SeriesTeamStatsPresenter();
+      const playerPresenter = new SeriesPlayerStatsPresenter();
+
+      statsMap.set(groupId, {
+        teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
+        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
+        metadata,
+      });
+    }
+
+    return statsMap;
+  }, [isIndividualMode, state, matchGroupingInfo]);
+
   // Set body data attribute for streamer mode styling
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -235,7 +304,9 @@ export function LiveTrackerView(): React.ReactElement {
   }, [viewMode]);
 
   const title: string[] = [trackerInfo.guildNameText];
-  if (state) {
+  if (isIndividualMode) {
+    title.push("- Individual Tracker");
+  } else if (state) {
     title.push(`#${state.queueNumber.toString()}`);
     title.push(`(${state.seriesScore})`);
   }
@@ -268,7 +339,9 @@ export function LiveTrackerView(): React.ReactElement {
           <div className={styles.headerLeft}>
             <h1 className={styles.headerTitle}>{trackerInfo.guildNameText}</h1>
             <div className={styles.headerSubtitle}>
-              Queue #{state ? state.queueNumber.toString() : trackerInfo.queueNumberText}
+              {isIndividualMode
+                ? "Individual Tracker"
+                : `Queue #${state ? state.queueNumber.toString() : trackerInfo.queueNumberText}`}
             </div>
           </div>
 
@@ -306,104 +379,106 @@ export function LiveTrackerView(): React.ReactElement {
 
         {state ? (
           <>
-            <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-              <h2 className={styles.sectionTitle}>Series overview</h2>
-              <div className={styles.seriesOverview}>
-                <section className={styles.seriesScores}>
-                  {hasMatches ? (
-                    <>
-                      <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                        {state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
-                      </h3>
-                      <ul className={styles.seriesScoresList}>
-                        {state.matches.map((match) => {
-                          // Determine winning team for overlay color
-                          let winningTeamIndex: number | null = null;
-                          if (match.rawMatchStats) {
-                            const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
-                            if (winningTeam) {
-                              winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
-                            }
-                          }
-
-                          const teamColor =
-                            winningTeamIndex !== null ? teamColors.getTeamColorForTeam(winningTeamIndex) : null;
-
-                          return (
-                            <li
-                              key={match.matchId}
-                              className={styles.seriesScore}
-                              style={
-                                {
-                                  "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                                  "--team-color": teamColor?.hex ?? "transparent",
-                                } as React.CSSProperties
+            {!isIndividualMode && (
+              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                <h2 className={styles.sectionTitle}>Series overview</h2>
+                <div className={styles.seriesOverview}>
+                  <section className={styles.seriesScores}>
+                    {hasMatches ? (
+                      <>
+                        <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                          {state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
+                        </h3>
+                        <ul className={styles.seriesScoresList}>
+                          {state.matches.map((match) => {
+                            // Determine winning team for overlay color
+                            let winningTeamIndex: number | null = null;
+                            if (match.rawMatchStats) {
+                              const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
+                              if (winningTeam) {
+                                winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
                               }
-                            >
-                              <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
-                                <img
-                                  src={gameModeIconUrl(match.gameType).src}
-                                  alt={match.gameType}
-                                  className={styles.gameTypeIcon}
-                                />
-                                {match.gameScore}
-                                {match.gameSubScore != null ? (
-                                  <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                                ) : (
-                                  ""
-                                )}
-                                <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                              </a>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </>
-                  ) : (
-                    <div className={styles.noticeFlexFill}>
-                      <Alert variant="info" icon="⏳">
-                        Waiting for first match to complete...
-                      </Alert>
-                    </div>
-                  )}
-                </section>
-                {state.teams.map((team, teamIndex) => {
-                  const teamColor = teamColors.getTeamColorForTeam(teamIndex);
+                            }
 
-                  return (
-                    <section
-                      key={team.name}
-                      className={styles.teamCard}
-                      style={{ "--team-color": teamColor.hex } as React.CSSProperties}
-                    >
-                      <TeamColorPicker
-                        currentColor={teamColor}
-                        onColorSelect={(colorId): void => {
-                          handleSetTeamColor(teamIndex, colorId);
-                        }}
-                        teamName={team.name}
-                      />
-                      <h3 className={styles.teamName}>{team.name}</h3>
-                      <ul className={styles.playerList}>
-                        {team.players.map((player) => {
-                          const playerData = state.playersAssociationData?.[player.id];
-                          return (
-                            <li key={player.id}>
-                              <PlayerName
-                                discordName={playerData?.discordName ?? player.displayName}
-                                gamertag={playerData?.gamertag ?? null}
-                                showIcons={true}
-                              />
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </section>
-                  );
-                })}
-              </div>
-            </Container>
-            {seriesStats && (
+                            const teamColor =
+                              winningTeamIndex !== null ? teamColors.getTeamColorForTeam(winningTeamIndex) : null;
+
+                            return (
+                              <li
+                                key={match.matchId}
+                                className={styles.seriesScore}
+                                style={
+                                  {
+                                    "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
+                                    "--team-color": teamColor?.hex ?? "transparent",
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
+                                  <img
+                                    src={gameModeIconUrl(match.gameType).src}
+                                    alt={match.gameType}
+                                    className={styles.gameTypeIcon}
+                                  />
+                                  {match.gameScore}
+                                  {match.gameSubScore != null ? (
+                                    <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                  <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                                </a>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </>
+                    ) : (
+                      <div className={styles.noticeFlexFill}>
+                        <Alert variant="info" icon="⏳">
+                          Waiting for first match to complete...
+                        </Alert>
+                      </div>
+                    )}
+                  </section>
+                  {state.teams.map((team, teamIndex) => {
+                    const teamColor = teamColors.getTeamColorForTeam(teamIndex);
+
+                    return (
+                      <section
+                        key={team.name}
+                        className={styles.teamCard}
+                        style={{ "--team-color": teamColor.hex } as React.CSSProperties}
+                      >
+                        <TeamColorPicker
+                          currentColor={teamColor}
+                          onColorSelect={(colorId): void => {
+                            handleSetTeamColor(teamIndex, colorId);
+                          }}
+                          teamName={team.name}
+                        />
+                        <h3 className={styles.teamName}>{team.name}</h3>
+                        <ul className={styles.playerList}>
+                          {team.players.map((player) => {
+                            const playerData = state.playersAssociationData?.[player.id];
+                            return (
+                              <li key={player.id}>
+                                <PlayerName
+                                  discordName={playerData?.discordName ?? player.displayName}
+                                  gamertag={playerData?.gamertag ?? null}
+                                  showIcons={true}
+                                />
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    );
+                  })}
+                </div>
+              </Container>
+            )}
+            {!isIndividualMode && seriesStats && (
               <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
                 <SeriesStats
                   teamData={seriesStats.teamData}
@@ -414,7 +489,7 @@ export function LiveTrackerView(): React.ReactElement {
                 />
               </Container>
             )}
-            {hasMatches && (
+            {!isIndividualMode && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                   <h2 className={styles.sectionTitle}>Matches</h2>
@@ -502,7 +577,26 @@ export function LiveTrackerView(): React.ReactElement {
                 })()}
               </>
             )}
-            {!hasMatches && state.playersAssociationData ? (
+            {isIndividualMode && hasMatches && matchGroupingInfo && groupingStats && (
+              <>
+                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                  <h2 className={styles.sectionTitle}>Matches</h2>
+                </Container>
+                <IndividualModeMatches
+                  matches={state.matches}
+                  matchGroupings={state.matchGroupings}
+                  allMatchStats={allMatchStats}
+                  groupingStats={groupingStats}
+                  gameModeIconUrl={gameModeIconSrc}
+                  teamColors={teamColorsArray}
+                  viewMode={viewMode}
+                  guildName={state.guildName}
+                  seriesData={state.seriesData}
+                  status={state.status}
+                />
+              </>
+            )}
+            {!isIndividualMode && !hasMatches && state.playersAssociationData ? (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
                 teams={state.teams}
@@ -510,7 +604,7 @@ export function LiveTrackerView(): React.ReactElement {
                 teamColors={teamColorsArray}
               />
             ) : null}
-            {!hasMatches && sortedSubstitutionsList.length > 0 && (
+            {!isIndividualMode && !hasMatches && sortedSubstitutionsList.length > 0 && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 {sortedSubstitutionsList.map((substitution) => (
                   <Alert key={substitution.timestamp} variant="info" icon="↔️">

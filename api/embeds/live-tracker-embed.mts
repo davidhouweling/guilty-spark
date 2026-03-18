@@ -17,10 +17,13 @@ export enum InteractionComponent {
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Repost = "btn_track_repost",
+  IndividualMatchSelect = "select_track_individual_matches",
+  IndividualStartWithoutGames = "btn_track_start_without_games",
 }
 
 interface LiveTrackerEmbedServices {
   discordService: DiscordService;
+  pagesUrl: string;
 }
 
 export class LiveTrackerEmbed extends BaseTableEmbed {
@@ -34,7 +37,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get embeds(): APIEmbed[] {
-    const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore } = this.data;
+    const { status, queueNumber, userId, lastUpdated, nextCheck, isPaused, enrichedMatches, seriesScore, seriesData } =
+      this.data;
     const { discordService } = this.services;
 
     const hasMatches = enrichedMatches != null && enrichedMatches.length > 0;
@@ -110,7 +114,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
     })();
 
     const postTableFieldsContent = [
-      seriesScore ?? "🦅 0:0 🐍",
+      seriesData?.seriesScore ?? seriesScore ?? "🦅 0:0 🐍",
       hasMatches
         ? discordService.getTimestamp(
             this.toISOString(Preconditions.checkExists(enrichedMatches[enrichedMatches.length - 1]).endTime),
@@ -125,7 +129,11 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       postTableFieldsContent.push(this.getErrorMessage(this.data.errorState));
     }
 
-    postTableFieldsContent.push(`-# Live tracking started by ${userDisplay}`);
+    let postTableFooterText = `-# Live tracking started by ${userDisplay}`;
+    if (seriesData != null) {
+      postTableFooterText += `\n-# 📊 Series data from NeatQueue (Server: ${seriesData.seriesId.guildId})`;
+    }
+    postTableFieldsContent.push(postTableFooterText);
 
     // Calculate total length of post-table fields
     const postTableFieldsLength = postTableFieldsContent.reduce((sum, content) => sum + content.length, 0);
@@ -179,8 +187,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       };
 
       if (isFirstEmbed) {
-        embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
-        embed.description = `**${statusText}**`;
+        if (seriesData != null) {
+          embed.title = `Live Tracker - NeatQueue Series (Queue #${seriesData.seriesId.queueNumber.toString()})`;
+          const teamNames = seriesData.teams.map((t) => t.name).join(" vs ");
+          embed.description = `**${statusText}**\n*${teamNames}*`;
+        } else {
+          embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
+          embed.description = `**${statusText}**`;
+        }
       }
 
       // Add table fields
@@ -198,9 +212,13 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (currentRowIndex >= dataRows.length) {
         this.addSeparatorField(embed);
 
+        // Use series data if available, otherwise fall back to local series score
+        const displaySeriesScore = seriesData?.seriesScore ?? seriesScore ?? "🦅 0:0 🐍";
+        const seriesScoreLabel = seriesData != null ? "NeatQueue Series Score" : "Series score";
+
         embed.fields.push({
-          name: "Series score",
-          value: seriesScore ?? "🦅 0:0 🐍",
+          name: seriesScoreLabel,
+          value: displaySeriesScore,
           inline: true,
         });
         embed.fields.push({
@@ -236,9 +254,14 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
           });
         }
 
+        let footerText = `-# Live tracking started by ${userDisplay}`;
+        if (seriesData != null) {
+          footerText += `\n-# 📊 Series data from NeatQueue (Server: ${seriesData.seriesId.guildId})`;
+        }
+
         embed.fields.push({
           name: "",
-          value: `-# Live tracking started by ${userDisplay}`,
+          value: footerText,
         });
       }
 
@@ -249,7 +272,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get actions(): APIMessageTopLevelComponent[] {
-    const { status, guildId, queueNumber, isPaused } = this.data;
+    const { status, guildId, queueNumber, trackerLabel, isPaused } = this.data;
     const components: APIButtonComponentWithCustomId[] = [];
 
     if (status !== "stopped") {
@@ -275,6 +298,12 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         : [];
 
     if (actions.length > 0) {
+      // Determine URL format based on tracker type
+      const isIndividualTracker = trackerLabel != null && trackerLabel !== "";
+      const webUrl = isIndividualTracker
+        ? `${this.services.pagesUrl}/tracker?gamertag=${encodeURIComponent(trackerLabel)}`
+        : `${this.services.pagesUrl}/tracker?server=${guildId}&queue=${queueNumber.toString()}`;
+
       actions.push({
         type: ComponentType.ActionRow,
         components: [
@@ -286,7 +315,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
             emoji: {
               name: "📈",
             },
-            url: `https://guilty-spark.app/tracker?server=${guildId}&queue=${queueNumber.toString()}`,
+            url: webUrl,
           },
         ],
       });

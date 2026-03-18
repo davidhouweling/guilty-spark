@@ -21,6 +21,9 @@ import {
   useTrackerIdentity,
 } from "../live-tracker-context";
 
+// Default params for test cases
+const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
+
 function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>): LiveTrackerViewModel {
   return {
     guildNameText: "Test Guild",
@@ -63,6 +66,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
       seriesScore: "🦅 1:0 🐍",
       medalMetadata: {},
       playersAssociationData: {},
+      matchGroupings: {},
     },
     ...overrides,
   };
@@ -80,7 +84,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerInfo(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -97,7 +101,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerState(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -112,7 +116,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerTeams(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -127,7 +131,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerTeams(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -141,7 +145,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -156,7 +160,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -195,7 +199,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerPlayersData(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -209,7 +213,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesScore(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -223,7 +227,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesScore(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -242,7 +246,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useAllMatchStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={allMatchStats} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -263,7 +267,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={seriesStats}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={seriesStats}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -277,7 +281,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchByIndex(0), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -291,7 +295,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchByIndex(5), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -305,7 +309,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchByIndex(-1), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -336,7 +340,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSubstitutions(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -351,7 +355,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchCount(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -365,7 +369,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchCount(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -379,7 +383,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -393,7 +397,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -415,7 +419,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -429,7 +433,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerIdentity(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),
@@ -444,7 +448,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerIdentity(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider model={model} allMatchStats={[]} seriesStats={null}>
+        <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
           {children}
         </LiveTrackerProvider>
       ),

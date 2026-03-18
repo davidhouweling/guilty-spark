@@ -29,7 +29,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},
-        playersAssociationData: null,
+        playersAssociationData: {},
       },
     };
 
@@ -53,7 +53,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
     const messages: LiveTrackerMessage[] = [];
     const statuses: string[] = [];
 
-    const connection = service.connect({ guildId: "1", queueNumber: "3" });
+    const connection = service.connect({ type: "team", guildId: "1", queueNumber: "3" });
 
     connection.subscribe((message) => {
       messages.push(message);

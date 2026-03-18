@@ -33,7 +33,7 @@ import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config.
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config.mjs";
 import { getFakeNeatQueueData, aFakeNeatQueueStateWith, neatQueueStateFromTimeline } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types.mjs";
-import { getRankedArenaCsrsData, matchStats } from "../../halo/fakes/data.mjs";
+import { getRankedArenaCsrsData, getMatchStats } from "../../halo/fakes/data.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
 import {
   aGuildMemberWith,
@@ -237,7 +237,7 @@ describe("NeatQueueService", () => {
         getGuildMemberSpy = vi.spyOn(discordService, "getGuildMember").mockResolvedValue(guildMember);
         hasPermissionsSpy = vi.spyOn(discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
         createMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
-        getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+        getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData());
         getPlayersEsrasSpy = vi
           .spyOn(haloService, "getPlayersEsras")
           .mockResolvedValue(
@@ -401,7 +401,7 @@ describe("NeatQueueService", () => {
           const stateJson = call[1] as string;
           try {
             const state = JSON.parse(stateJson) as NeatQueueState;
-            return state.playersAssociationData != null;
+            return Object.entries(state.playersAssociationData).length > 0;
           } catch {
             return false;
           }
@@ -414,12 +414,12 @@ describe("NeatQueueService", () => {
         const state = JSON.parse(stateJson) as NeatQueueState;
 
         // Should have association data for both players
-        expect(Object.keys(state.playersAssociationData ?? {})).toEqual(
+        expect(Object.keys(state.playersAssociationData)).toEqual(
           expect.arrayContaining(["discord_user_01", "discord_user_02"]),
         );
 
         // Verify structure of one player's data
-        const rawPlayerData = state.playersAssociationData?.["discord_user_01"];
+        const rawPlayerData = state.playersAssociationData["discord_user_01"];
         const playerData = Preconditions.checkExists(rawPlayerData, "Player data should exist for discord_user_01");
         expect(playerData.discordId).toBe("discord_user_01");
         expect(typeof playerData.discordName).toBe("string");
@@ -649,7 +649,10 @@ describe("NeatQueueService", () => {
         );
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
 
-        const [match1, match2] = Array.from(matchStats.values());
+        const [match1, match2] = [
+          getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"),
+          getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"),
+        ];
         haloServiceGetSeriesFromDiscordQueueSpy = vi
           .spyOn(haloService, "getSeriesFromDiscordQueue")
           .mockResolvedValue([Preconditions.checkExists(match1), Preconditions.checkExists(match2)]);
@@ -1026,10 +1029,10 @@ describe("NeatQueueService", () => {
           haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
             if (queueData.startDateTime.getTime() === new Date("2024-11-26T10:03:00.000Z").getTime()) {
               return Promise.resolve([
-                Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+                Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
               ]);
             }
-            return Promise.resolve([Preconditions.checkExists(matchStats.get("cf0fb794-2df1-4ba1-9415-00000oddball"))]);
+            return Promise.resolve([Preconditions.checkExists(getMatchStats("cf0fb794-2df1-4ba1-9415-00000oddball"))]);
           });
 
           const { jobToComplete } = neatQueueService.handleRequest(
@@ -1145,7 +1148,12 @@ describe("NeatQueueService", () => {
         const validateSpy = vi.spyOn(haloService, "validateDiscordAssociationsFromMatches").mockResolvedValue();
 
         // Setup live tracker data
-        const match = Preconditions.checkExists(Array.from(matchStats.values())[0]);
+        const match = Preconditions.checkExists(
+          [
+            getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"),
+            getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"),
+          ][0],
+        );
         const rawMatches: Record<string, MatchStats> = {
           [match.MatchId]: match,
         };
@@ -1459,7 +1467,7 @@ describe("NeatQueueService", () => {
       discordAssociationsSpy = vi
         .spyOn(databaseService, "getDiscordAssociations")
         .mockResolvedValue([aFakeDiscordAssociationsRow()]);
-      getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData);
+      getRankedArenaCsrsSpy = vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(getRankedArenaCsrsData());
       getPlayersEsrasSpy = vi
         .spyOn(haloService, "getPlayersEsras")
         .mockResolvedValue(

@@ -24,6 +24,20 @@ export interface Medal {
   type: string;
 }
 
+export interface MatchHistoryEntry {
+  matchId: string;
+  startTime: string;
+  endTime: string;
+  duration: string;
+  mapName: string;
+  modeName: string;
+  outcome: "Win" | "Loss" | "Tie" | "DNF";
+  resultString: string;
+  isMatchmaking: boolean;
+  teams: string[][];
+  mapThumbnailUrl: string;
+}
+
 export enum FetchablePlaylist {
   RANKED_ARENA = "edfef3ac-9cbe-4fa2-b949-8f29deafd483",
   RANKED_DOUBLES = "fa5aa2a3-2428-4912-a023-e1eeea7b877c",

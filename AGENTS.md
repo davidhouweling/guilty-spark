@@ -139,6 +139,7 @@ npm run format:fix
 
 - **Test Runner**: Use vitest only (`npm test`)
 - **Structure**: Use `describe` and `it`, separate tests with blank lines
+- **Test Descriptions**: Use factual present tense ("returns X", "throws error") rather than indicative ("should return X")
 - **Black Box**: Test inputs/outputs only, no internal mocking
 - **Dependencies**: Only mock constructor dependencies, never internal methods
 - **Data**: Use fake factories (`aFake...With()`) for test data
@@ -216,6 +217,7 @@ When mocking or spying, always use strongly-typed approaches:
 - Do not use reassuring or emotive language, instead prefer factual statements.
 - Explore code first, look for patterns in neighboring code, when in doubt, ask questions, do not assume.
 - Where code appears different than what you expect, please confirm with prompter if this was intended before reverting.
+- Follow nearest neighbor approach - when creating a method, look at methods surrounding and follow identified patterns, similarly with classes, services, UI components, etc. When in doubt, ask for clarification on what the desired architectural approach should be.
 - Steps to take in tackling any prompt
   1. come up with a plan/proposal
   2. gain alignment with prompter
@@ -226,3 +228,7 @@ When mocking or spying, always use strongly-typed approaches:
   5. revise if necessary
   6. once implementation is agreed, look to add tests where relevant. If no tests presently exist, ask for direction. Prefer using `npm test` to ensure all tests are passing.
   7. Once all is complete above, do `npm run format:fix` to format code.
+
+## Workarounds
+
+- Whenever regenerating cloudflare wrangler types, after completion, manually go through and update all dynamic `import()`s and re-introduce the file extension `.mjs`. This is required due to the typescript setup of the project.

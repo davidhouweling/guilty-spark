@@ -7,6 +7,13 @@ import type {
 } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 
+// Mutable version of TeamMapping for internal state management
+// The shared readonly TeamMapping type from contracts is used for cross-system communication
+export interface TeamMapping {
+  name: string;
+  playerIds: string[];
+}
+
 // Input types for requests to the LiveTracker DO
 export interface LiveTrackerStartRequest {
   userId: string;
@@ -16,14 +23,15 @@ export interface LiveTrackerStartRequest {
   interactionToken?: string;
   liveMessageId?: string | undefined;
   players: Record<string, APIGuildMember>;
-  teams: { name: string; playerIds: string[] }[];
+  teams: TeamMapping[];
   queueStartTime: string;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
+  playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 export interface LiveTrackerSubstitutionRequest {
   playerOutId: string;
   playerInId: string;
+  playerAssociationData: PlayerAssociationData;
 }
 
 export interface LiveTrackerRefreshRequest {
@@ -48,10 +56,8 @@ export interface LiveTrackerState {
   searchStartTime: string;
   checkCount: number;
   players: Record<string, APIGuildMember>;
-  teams: {
-    name: string;
-    playerIds: string[];
-  }[];
+  playersAssociationData: Record<string, PlayerAssociationData>;
+  teams: TeamMapping[];
   substitutions: {
     playerOutId: string;
     playerInId: string;
@@ -76,7 +82,6 @@ export interface LiveTrackerState {
   lastRefreshAttempt?: string;
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;
-  playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 // Success response types

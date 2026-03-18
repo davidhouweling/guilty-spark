@@ -12,8 +12,9 @@ import type { MatchStatsData } from "../stats/types";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
+import { TrackerInitiationFactory } from "../tracker-initiation/create";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
-import { LiveTrackerStore } from "./live-tracker-store";
+import { LiveTrackerStore, type LiveTrackerParams } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
@@ -24,9 +25,27 @@ interface LiveTrackerAppProps {
 
 interface LiveTrackerFactoryProps {
   readonly services: Services;
+  readonly apiHost: string;
 }
 
 TimeAgo.addDefaultLocale(en);
+
+// Helper function to compare params
+function areParamsEqual(prev: LiveTrackerParams, curr: LiveTrackerParams): boolean {
+  if (prev.type !== curr.type) {
+    return false;
+  }
+
+  if (prev.type === "team" && curr.type === "team") {
+    return prev.server === curr.server && prev.queue === curr.queue;
+  }
+
+  if (prev.type === "individual" && curr.type === "individual") {
+    return prev.gamertag === curr.gamertag;
+  }
+
+  return false;
+}
 
 // Helper function to deeply compare state messages, ignoring timestamps
 function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerMessage | null): boolean {
@@ -163,7 +182,7 @@ function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerM
   return true;
 }
 
-export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
+export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
@@ -188,12 +207,11 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     () => store.getSnapshot(),
   );
 
-  const loaderStatus =
-    snapshot.connectionState === "error"
+  const loaderStatus = snapshot.hasReceivedInitialData
+    ? ComponentLoaderStatus.LOADED
+    : snapshot.connectionState === "error" || snapshot.connectionState === "stopped"
       ? ComponentLoaderStatus.ERROR
-      : snapshot.hasReceivedInitialData
-        ? ComponentLoaderStatus.LOADED
-        : ComponentLoaderStatus.LOADING;
+      : ComponentLoaderStatus.LOADING;
 
   // Memoize model creation to prevent unnecessary re-renders when WebSocket
   // sends identical data (e.g., heartbeat messages every 3 minutes)
@@ -221,8 +239,7 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     const hasChanged =
       prev.connectionState !== curr.connectionState ||
       prev.statusText !== curr.statusText ||
-      prev.params.server !== curr.params.server ||
-      prev.params.queue !== curr.params.queue ||
+      !areParamsEqual(prev.params, curr.params) ||
       prev.hasConnection !== curr.hasConnection ||
       prev.hasReceivedInitialData !== curr.hasReceivedInitialData ||
       // Deep check the state message data
@@ -308,6 +325,12 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     }
   }, [model.state]);
 
+  // Show TrackerInitiation for idle or not_found states
+  if (snapshot.connectionState === "idle" || snapshot.connectionState === "not_found") {
+    const initialGamertag = snapshot.params.type === "individual" ? snapshot.params.gamertag : "";
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag={initialGamertag} />;
+  }
+
   return (
     <ComponentLoader
       status={loaderStatus}
@@ -315,13 +338,22 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
       error={
         <ErrorState
           message={snapshot.statusText}
-          onRetry={() => {
-            presenter.start();
-          }}
+          onRetry={
+            snapshot.connectionState === "error" || snapshot.connectionState === "disconnected"
+              ? (): void => {
+                  presenter.start();
+                }
+              : undefined
+          }
         />
       }
       loaded={
-        <LiveTrackerProvider model={model} allMatchStats={allMatchStats} seriesStats={seriesStats}>
+        <LiveTrackerProvider
+          model={model}
+          params={snapshot.params}
+          allMatchStats={allMatchStats}
+          seriesStats={seriesStats}
+        >
           <LiveTrackerView />
         </LiveTrackerProvider>
       }
@@ -332,6 +364,34 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
 export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
   const [loadingServices, setLoadingServices] = React.useState<ComponentLoaderStatus>(ComponentLoaderStatus.PENDING);
   const [services, setServices] = React.useState<Services | null>(null);
+
+  // Check URL params to determine if we need to connect to a tracker
+  const shouldConnectToTracker = React.useMemo(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    const url = new URL(window.location.href);
+    const gamertag = url.searchParams.get("gamertag");
+    const server = url.searchParams.get("server");
+    const queue = url.searchParams.get("queue");
+
+    // Individual mode: needs gamertag
+    if (gamertag !== null && gamertag.length > 0) {
+      return true;
+    }
+
+    // Team mode: needs both server and queue
+    if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  // If we don't have params to connect, show TrackerInitiation immediately
+  if (!shouldConnectToTracker) {
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -360,7 +420,7 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     };
   }, [apiHost]);
 
-  const loaded = services ? <LiveTrackerFactory services={services} /> : <ErrorState />;
+  const loaded = services ? <LiveTrackerFactory services={services} apiHost={apiHost} /> : <ErrorState />;
 
   return <ComponentLoader status={loadingServices} loading={<LoadingState />} error={<ErrorState />} loaded={loaded} />;
 }

@@ -35,6 +35,30 @@ export interface LiveTrackerSubstitutionRenderModel {
   readonly timestamp: string;
 }
 
+export interface LiveTrackerMatchGrouping {
+  readonly groupId: string;
+  readonly matchIds: readonly string[];
+  readonly seriesId?: {
+    readonly guildId: string;
+    readonly queueNumber: number;
+  };
+}
+
+export interface LiveTrackerSeriesDataRenderModel {
+  readonly seriesId: {
+    readonly guildId: string;
+    readonly queueNumber: number;
+  };
+  readonly teams: readonly {
+    readonly name: string;
+    readonly playerIds: readonly string[];
+  }[];
+  readonly seriesScore: string;
+  readonly matchIds: readonly string[];
+  readonly startTime: string;
+  readonly lastUpdateTime: string;
+}
+
 export interface LiveTrackerStateRenderModel {
   readonly guildName: string;
   readonly queueNumber: number;
@@ -46,6 +70,8 @@ export interface LiveTrackerStateRenderModel {
   readonly seriesScore: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly matchGroupings: Record<string, LiveTrackerMatchGrouping>;
+  readonly seriesData?: LiveTrackerSeriesDataRenderModel;
 }
 
 export interface LiveTrackerViewModel {

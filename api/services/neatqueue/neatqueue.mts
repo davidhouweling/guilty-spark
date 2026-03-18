@@ -12,6 +12,7 @@ import type {
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
+import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
@@ -19,10 +20,7 @@ import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
 import type { LiveTrackerService } from "../live-tracker/live-tracker.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
-import type {
-  SeriesOverviewEmbedFinalTeams,
-  SeriesOverviewEmbedSubstitution,
-} from "../../embeds/stats/series-overview-embed.mjs";
+import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
@@ -72,6 +70,7 @@ export class NeatQueueService {
   private readonly haloService: HaloService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly locale = "en-US";
+  private readonly queueStateCache = new Map<string, NeatQueueState>();
 
   constructor({
     env,
@@ -144,6 +143,7 @@ export class NeatQueueService {
           jobToComplete: async (): Promise<void> => {
             await this.extendTimeline(request, neatQueueConfig);
             await this.matchStartedJob(request, neatQueueConfig);
+            await this.saveQueueState(request, neatQueueConfig);
           },
         };
       }
@@ -153,6 +153,7 @@ export class NeatQueueService {
           jobToComplete: async (): Promise<void> => {
             await this.extendTimeline(request, neatQueueConfig);
             await this.teamsCreatedJob(request, neatQueueConfig);
+            await this.saveQueueState(request, neatQueueConfig);
           },
         };
       }
@@ -162,6 +163,7 @@ export class NeatQueueService {
           jobToComplete: async (): Promise<void> => {
             await this.extendTimeline(request, neatQueueConfig);
             await this.substitutionJob(request, neatQueueConfig);
+            await this.saveQueueState(request, neatQueueConfig);
           },
         };
       }
@@ -473,15 +475,14 @@ export class NeatQueueService {
         throw insufficientPermissionsError;
       }
 
-      if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
-        const { associationData, embedData } = await this.fetchPlayersAssociationData(request.players);
+      const { associationData, embedData } = await this.fetchPlayersAssociationData(request.players);
+      await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
 
+      if (guildConfig.NeatQueueInformerPlayerConnections === "Y") {
         const playersPostMessage = await this.getPlayersPostMessage(guildConfig, request.players, embedData);
         if (playersPostMessage) {
           const message = await discordService.createMessage(request.channel, playersPostMessage);
           await this.storePlayersMessageId(request, neatQueueConfig, message.id);
-
-          await this.storePlayersAssociationData(request, neatQueueConfig, associationData);
         }
       }
 
@@ -683,11 +684,20 @@ export class NeatQueueService {
         return;
       }
 
+      const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+      const { associationData } = await this.fetchPlayersAssociationData([request.player_subbed_in]);
+      state.playersAssociationData = {
+        ...state.playersAssociationData,
+        ...associationData,
+      };
+      this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+
       // Notify the live tracker about the substitution
       const substitutionResult = await this.liveTrackerService.recordSubstitution({
         context,
         playerOutId: request.player_subbed_out.id,
         playerInId: request.player_subbed_in.id,
+        playerAssociationData: Preconditions.checkExists(associationData[request.player_subbed_in.id]),
       });
 
       if (isSuccessResponse(substitutionResult)) {
@@ -1008,30 +1018,58 @@ export class NeatQueueService {
   }
 
   private async getQueueState(guildId: string, queueNumber: number): Promise<NeatQueueState> {
+    const cacheKey = this.getQueueStateKey(guildId, queueNumber);
+    const defaultState = { timeline: [], playersMessageId: null, playersAssociationData: {} };
+
     try {
-      const data = await this.env.APP_DATA.get<NeatQueueState>(this.getQueueStateKey(guildId, queueNumber), {
+      if (this.queueStateCache.has(cacheKey)) {
+        return Preconditions.checkExists(this.queueStateCache.get(cacheKey));
+      }
+
+      const data = await this.env.APP_DATA.get<NeatQueueState>(cacheKey, {
         type: "json",
       });
 
       if (data != null && typeof data === "object" && "timeline" in data) {
+        this.queueStateCache.set(cacheKey, data);
         return data;
       }
 
-      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+      this.queueStateCache.set(cacheKey, defaultState);
+      return defaultState;
     } catch (error) {
       this.logService.warn(error as Error);
-      return { timeline: [], playersMessageId: null, playersAssociationData: null };
+      this.queueStateCache.set(cacheKey, defaultState);
+      return defaultState;
     }
   }
 
-  private async setQueueState(guildId: string, queueNumber: number, state: NeatQueueState): Promise<void> {
-    await this.env.APP_DATA.put(this.getQueueStateKey(guildId, queueNumber), JSON.stringify(state), {
+  private setQueueState(guildId: string, queueNumber: number, state: NeatQueueState): void {
+    const cacheKey = this.getQueueStateKey(guildId, queueNumber);
+    this.queueStateCache.set(cacheKey, state);
+  }
+
+  private async saveQueueState(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {
+    const matchNumber = this.getMatchNumber(request);
+    if (matchNumber == null) {
+      this.logService.debug("No match number in request, cannot save queue state");
+      return;
+    }
+    const cacheKey = this.getQueueStateKey(neatQueueConfig.GuildId, matchNumber);
+    if (!this.queueStateCache.has(cacheKey)) {
+      this.logService.debug("No queue state in cache to save for request", new Map([["cacheKey", cacheKey]]));
+    }
+
+    const state = Preconditions.checkExists(this.queueStateCache.get(cacheKey));
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(state), {
       expirationTtl: 60 * 60 * 24, // 1 day
     });
   }
 
   private async deleteQueueState(guildId: string, queueNumber: number): Promise<void> {
-    await this.env.APP_DATA.delete(this.getQueueStateKey(guildId, queueNumber));
+    const cacheKey = this.getQueueStateKey(guildId, queueNumber);
+    this.queueStateCache.delete(cacheKey);
+    await this.env.APP_DATA.delete(cacheKey);
   }
 
   private async getTimeline(
@@ -1057,7 +1095,7 @@ export class NeatQueueService {
 
     const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
     state.timeline.push({ timestamp: new Date().toISOString(), event: request });
-    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+    this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async storePlayersMessageId(
@@ -1073,7 +1111,7 @@ export class NeatQueueService {
 
     const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
     state.playersMessageId = messageId;
-    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+    this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getPlayersMessageId(
@@ -1102,7 +1140,7 @@ export class NeatQueueService {
 
     const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
     state.playersMessageId = null;
-    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+    this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async storePlayersAssociationData(
@@ -1118,7 +1156,7 @@ export class NeatQueueService {
 
     const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
     state.playersAssociationData = playersAssociationData;
-    await this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+    this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
   }
 
   private async getCurrentPlayersFromTimeline(
@@ -1610,7 +1648,7 @@ export class NeatQueueService {
     }
   }
 
-  private getTeams(request: NeatQueueMatchCompletedRequest): SeriesOverviewEmbedFinalTeams[] {
+  private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
     return request.teams.map((team, teamIndex) => ({
       name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
       playerIds: team.map((player) => player.id),
@@ -1619,7 +1657,7 @@ export class NeatQueueService {
 
   private getSubstitutionsFromTimeline(
     timeline: NeatQueueTimelineEvent[],
-    finalTeams: SeriesOverviewEmbedFinalTeams[],
+    finalTeams: TeamMapping[],
   ): SeriesOverviewEmbedSubstitution[] {
     return timeline
       .filter((event) => event.event.action === "SUBSTITUTION")
@@ -1731,7 +1769,7 @@ export class NeatQueueService {
     messageId: string;
     queue: number;
     series: MatchStats[];
-    finalTeams: SeriesOverviewEmbedFinalTeams[];
+    finalTeams: TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
   }): Promise<APIEmbed[]> {
     const { discordService, haloService } = this;

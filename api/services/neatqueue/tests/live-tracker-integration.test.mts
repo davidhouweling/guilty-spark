@@ -17,7 +17,7 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake.mjs";
 import { guild, textChannel, guildMember } from "../../discord/fakes/data.mjs";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake.mjs";
-import { matchStats } from "../../halo/fakes/data.mjs";
+import { getMatchStats } from "../../halo/fakes/data.mjs";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake.mjs";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker.mjs";
 import type {
@@ -134,7 +134,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -162,7 +162,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           },
         ],
         queueStartTime: "2024-11-26T10:48:00.000Z",
-        playersAssociationData: null,
+        playersAssociationData: {},
       });
     });
 
@@ -353,7 +353,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -386,6 +386,20 @@ describe("NeatQueueService Live Tracker Integration", () => {
         },
         playerOutId: mockRequest.player_subbed_out.id,
         playerInId: mockRequest.player_subbed_in.id,
+        playerAssociationData: {
+          allTimePeakRank: null,
+          currentRank: null,
+          currentRankInitialMeasurementMatches: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankSubTier: null,
+          currentRankTier: null,
+          discordId: "discord_user_03",
+          discordName: "discord_user_03",
+          esra: null,
+          gamertag: null,
+          lastRankedGamePlayed: null,
+          xboxId: null,
+        },
       });
     });
 
@@ -438,7 +452,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -482,7 +496,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -522,7 +536,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -555,6 +569,20 @@ describe("NeatQueueService Live Tracker Integration", () => {
         },
         playerOutId: mockRequest.player_subbed_out.id,
         playerInId: mockRequest.player_subbed_in.id,
+        playerAssociationData: {
+          allTimePeakRank: null,
+          currentRank: null,
+          currentRankInitialMeasurementMatches: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankSubTier: null,
+          currentRankTier: null,
+          discordId: "discord_user_03",
+          discordName: "discord_user_03",
+          esra: null,
+          gamertag: null,
+          lastRankedGamePlayed: null,
+          xboxId: null,
+        },
       });
     });
 
@@ -588,7 +616,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -651,7 +679,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -683,7 +711,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             matchCount: 0,
             substitutionCount: 0,
           },
-          playersAssociationData: null,
+          playersAssociationData: {},
         },
       };
 
@@ -709,8 +737,8 @@ describe("NeatQueueService Live Tracker Integration", () => {
 
     it("refreshes live tracker with matchCompleted flag when active", async () => {
       const refreshTrackerSpy = vi.spyOn(liveTrackerService, "refreshTracker");
-      const match1 = Preconditions.checkExists(Array.from(matchStats.values())[0]);
-      const match2 = Preconditions.checkExists(Array.from(matchStats.values())[1]);
+      const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const mockRawMatches = {
         [match1.MatchId]: match1,
         [match2.MatchId]: match2,
@@ -751,8 +779,8 @@ describe("NeatQueueService Live Tracker Integration", () => {
     it("uses refreshed raw matches when available", async () => {
       const refreshTrackerSpy = vi.spyOn(liveTrackerService, "refreshTracker");
       const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
-      const match1 = Preconditions.checkExists(Array.from(matchStats.values())[0]);
-      const match2 = Preconditions.checkExists(Array.from(matchStats.values())[1]);
+      const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const mockRawMatches = {
         [match1.MatchId]: match1,
         [match2.MatchId]: match2,

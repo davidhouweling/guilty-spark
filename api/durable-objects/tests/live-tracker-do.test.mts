@@ -11,7 +11,7 @@ import { DiscordError } from "../../services/discord/discord-error.mjs";
 import { aGuildMemberWith, apiMessage, guild } from "../../services/discord/fakes/data.mjs";
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
 import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
-import { matchStats } from "../../services/halo/fakes/data.mjs";
+import { getMatchStats } from "../../services/halo/fakes/data.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
 import type { LiveTrackerStartRequest, LiveTrackerState } from "../types.mjs";
 
@@ -52,6 +52,7 @@ const createMockDurableObjectState = (): {
   const mockDurableObjectState: DurableObjectState = {
     storage: mockStorage,
     props: {},
+    exports: {} as Cloudflare.Exports,
     abort: () => void 0,
     acceptWebSocket: () => void 0,
     blockConcurrencyWhile: async (cb) => cb(),
@@ -135,7 +136,7 @@ const createBaseTestData = (): Omit<LiveTrackerStartRequest, "interactionToken">
       playerIds: ["player2"],
     },
   ],
-  playersAssociationData: null,
+  playersAssociationData: {},
 });
 
 const createMockStartData = (): LiveTrackerStartRequest => ({
@@ -164,7 +165,7 @@ const createMockTrackerState = (): LiveTrackerState => ({
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
 });
 
 const aMatchSummaryWith = (
@@ -219,7 +220,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
   ...overrides,
 });
 
@@ -258,7 +259,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
     matchCount: 0,
     substitutionCount: 0,
   },
-  playersAssociationData: null,
+  playersAssociationData: {},
   ...overrides,
 });
 
@@ -789,7 +790,7 @@ describe("LiveTrackerDO", () => {
       trackerState.players = eightPlayerSetup.players;
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -1240,7 +1241,7 @@ describe("LiveTrackerDO", () => {
           matchCount: 0,
           substitutionCount: 0,
         },
-        playersAssociationData: null,
+        playersAssociationData: {},
       };
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1250,8 +1251,8 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
 
       const mockMatches = [
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
       ];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
@@ -1377,7 +1378,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createAlarmTestTrackerState();
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -1399,7 +1400,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = createAlarmTestTrackerState();
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
 
@@ -1481,15 +1482,15 @@ describe("LiveTrackerDO", () => {
           }),
         },
         rawMatches: {
-          "existing-match-id": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+          "existing-match-id": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
         },
       });
 
       storageGetSpy.mockResolvedValue(existingState);
 
       const mockMatches = [
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
       ];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
@@ -1534,13 +1535,13 @@ describe("LiveTrackerDO", () => {
           }),
         },
         rawMatches: {
-          "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+          "pre-sub-match": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
         },
       });
 
       storageGetSpy.mockResolvedValue(existingState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
 
@@ -1587,7 +1588,7 @@ describe("LiveTrackerDO", () => {
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -1706,14 +1707,14 @@ describe("LiveTrackerDO", () => {
         },
         rawMatches: {
           "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-            matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
           ),
         },
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
       ]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
 
@@ -1759,7 +1760,7 @@ describe("LiveTrackerDO", () => {
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
       vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -1827,7 +1828,7 @@ describe("LiveTrackerDO", () => {
         },
         rawMatches: {
           "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-            matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+            getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
           ),
         },
       });
@@ -1839,8 +1840,8 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(guildConfig);
 
       const mockMatches = [
-        Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
-        Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
       ];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:0");
@@ -1918,7 +1919,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -1940,7 +1941,7 @@ describe("LiveTrackerDO", () => {
           missing: [],
         });
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -1981,7 +1982,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -2003,7 +2004,7 @@ describe("LiveTrackerDO", () => {
           missing: [],
         });
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -2049,7 +2050,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -2058,7 +2059,7 @@ describe("LiveTrackerDO", () => {
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel");
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -2090,7 +2091,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -2115,7 +2116,7 @@ describe("LiveTrackerDO", () => {
 
         const errorSpy = vi.spyOn(services.logService, "error").mockImplementation(() => undefined);
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -2152,7 +2153,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -2172,7 +2173,7 @@ describe("LiveTrackerDO", () => {
         });
         vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -2204,7 +2205,7 @@ describe("LiveTrackerDO", () => {
           },
           rawMatches: {
             "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
-              matchStats.get("9535b946-f30c-4a43-b852-000000slayer"),
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
             ),
           },
         });
@@ -2224,7 +2225,7 @@ describe("LiveTrackerDO", () => {
         });
         vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-        const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
         vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
@@ -2627,7 +2628,7 @@ describe("LiveTrackerDO", () => {
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const mockMatches = [Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer"))];
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
 
@@ -2670,7 +2671,7 @@ describe("LiveTrackerDO", () => {
         ...eightPlayerSetup,
         discoveredMatches: existingMatches,
         rawMatches: {
-          "pre-sub-match": Preconditions.checkExists(matchStats.get("9535b946-f30c-4a43-b852-000000slayer")),
+          "pre-sub-match": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
         },
         substitutions: [
           {
@@ -2684,7 +2685,7 @@ describe("LiveTrackerDO", () => {
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
-      const newMatches = [Preconditions.checkExists(matchStats.get("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
+      const newMatches = [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(newMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
 

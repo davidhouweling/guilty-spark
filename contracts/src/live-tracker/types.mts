@@ -1,7 +1,13 @@
-export interface LiveTrackerIdentity {
-  readonly guildId: string;
-  readonly queueNumber: string;
-}
+export type LiveTrackerIdentity =
+  | {
+      readonly type: "team";
+      readonly guildId: string;
+      readonly queueNumber: string;
+    }
+  | {
+      readonly type: "individual";
+      readonly gamertag: string;
+    };
 
 export type LiveTrackerStatus = "active" | "paused" | "stopped";
 
@@ -64,6 +70,31 @@ export interface LiveTrackerStateData {
   readonly lastUpdateTime: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly matchGroupings?: Record<
+    string,
+    {
+      groupId: string;
+      matchIds: readonly string[];
+      seriesId?: {
+        guildId: string;
+        queueNumber: number;
+      };
+    }
+  >;
+  readonly seriesData?: {
+    seriesId: {
+      guildId: string;
+      queueNumber: number;
+    };
+    teams: readonly {
+      name: string;
+      playerIds: readonly string[];
+    }[];
+    seriesScore: string;
+    matchIds: readonly string[];
+    startTime: string;
+    lastUpdateTime: string;
+  };
 }
 
 export interface LiveTrackerStateMessage {

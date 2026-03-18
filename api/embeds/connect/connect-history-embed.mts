@@ -2,7 +2,6 @@ import type { APIEmbed } from "discord-api-types/v10";
 import { MatchType } from "halo-infinite-api";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import { EmbedColors } from "../colors.mjs";
 
 interface ConnectHistoryEmbedServices {
@@ -29,44 +28,27 @@ export class ConnectHistoryEmbed {
   async getEmbed(): Promise<APIEmbed> {
     const { discordService, haloService } = this.services;
     const { gamertag, locale, title, description } = this.data;
-    const recentHistory = await haloService.getRecentMatchHistory(gamertag, MatchType.Custom);
+    const matchHistory = await haloService.getEnrichedMatchHistory(gamertag, locale, MatchType.Custom, 10);
 
     return {
       title: title ?? `Recent custom game matches for "${gamertag}"`,
       description: description ?? "",
       color: EmbedColors.INFO,
-      fields: recentHistory.length
+      fields: matchHistory.matches.length
         ? [
             {
               name: "Game",
-              value: (
-                await Promise.all(
-                  recentHistory.map(async (match) => await haloService.getGameTypeAndMap(match.MatchInfo)),
-                )
-              ).join("\n"),
+              value: matchHistory.matches.map((match) => `${match.modeName}: ${match.mapName}`).join("\n"),
               inline: true,
             },
             {
               name: "Result",
-              value: (
-                await Promise.all(
-                  recentHistory.map(async (match) => {
-                    const outcome = haloService.getMatchOutcome(match.Outcome);
-                    const [matchDetail] = await haloService.getMatchDetails([match.MatchId]);
-                    const { gameScore, gameSubScore } = haloService.getMatchScore(
-                      Preconditions.checkExists(matchDetail, `Cannot find match with match id ${match.MatchId}`),
-                      locale,
-                    );
-
-                    return `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
-                  }),
-                )
-              ).join("\n"),
+              value: matchHistory.matches.map((match) => match.resultString).join("\n"),
               inline: true,
             },
             {
               name: "When",
-              value: recentHistory.map((match) => discordService.getTimestamp(match.MatchInfo.EndTime, "R")).join("\n"),
+              value: matchHistory.matches.map((match) => discordService.getTimestamp(match.endTime, "R")).join("\n"),
               inline: true,
             },
           ]

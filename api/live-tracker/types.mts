@@ -5,6 +5,7 @@ export interface LiveTrackerEmbedData {
   guildId: string;
   channelId: string;
   queueNumber: number;
+  trackerLabel?: string;
   status: LiveTrackerStatus;
   isPaused: boolean;
   lastUpdated: Date | string | undefined;
@@ -26,6 +27,22 @@ export interface LiveTrackerEmbedData {
         backoffMinutes: number;
         lastSuccessTime: string;
         lastErrorMessage?: string | undefined;
+      }
+    | undefined;
+  seriesData?:
+    | {
+        seriesId: {
+          guildId: string;
+          queueNumber: number;
+        };
+        teams: readonly {
+          name: string;
+          playerIds: readonly string[];
+        }[];
+        seriesScore: string;
+        matchIds: readonly string[];
+        startTime: string;
+        lastUpdateTime: string;
       }
     | undefined;
 }

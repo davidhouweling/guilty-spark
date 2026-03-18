@@ -8,6 +8,7 @@ import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../.
 import type { Services } from "../../../services/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
+import { aFakeTrackerInitiationServiceWith } from "../../../services/tracker-initiation/fakes/tracker-initiation.fake";
 import { LiveTrackerFactory } from "../create";
 
 function isSteppableLiveTrackerConnection(
@@ -51,7 +52,7 @@ describe("LiveTracker", () => {
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},
-        playersAssociationData: null,
+        playersAssociationData: {},
       },
     };
 
@@ -63,6 +64,7 @@ describe("LiveTracker", () => {
     const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
 
     const identity = {
+      type: "team" as const,
       guildId: "1",
       queueNumber: "3",
     };
@@ -75,9 +77,10 @@ describe("LiveTracker", () => {
 
     const services: Services = {
       liveTrackerService,
+      trackerInitiationService: aFakeTrackerInitiationServiceWith(),
     };
 
-    render(<LiveTrackerFactory services={services} />);
+    render(<LiveTrackerFactory services={services} apiHost="http://localhost:8787" />);
 
     await waitFor(() => {
       expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();

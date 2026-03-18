@@ -14,7 +14,7 @@ import type {
 } from "halo-infinite-api";
 import type { HaloService } from "../halo.mjs";
 import { Preconditions } from "../../../base/preconditions.mjs";
-import type { SeriesData } from "../types.mjs";
+import type { SeriesData, MatchHistoryEntry } from "../types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -123,7 +123,8 @@ async function readServiceRecord(): Promise<ServiceRecord> {
   }
 }
 
-export const matchStats = new Map<string, MatchStats>(
+// Private data storage - not exported
+const matchStats = new Map<string, MatchStats>(
   await Promise.all([
     readMatchStats("ctf.json"),
     readMatchStats("koth.json"),
@@ -136,13 +137,13 @@ export const matchStats = new Map<string, MatchStats>(
   ]),
 );
 
-export const playerMatches = await readPlayerMatches();
+const playerMatches = await readPlayerMatches();
 
-export const playerMatchHistory = await readPlayerMatchHistory();
+const playerMatchHistory = await readPlayerMatchHistory();
 
-export const assetVersion = await readAssetVersion();
+const assetVersion = await readAssetVersion();
 
-export const playerXuidsToGametags = new Map([
+const playerXuidsToGametags = new Map([
   ["0100000000000000", "gamertag01"],
   ["0200000000000000", "gamertag02"],
   ["0300000000000000", "gamertag03"],
@@ -161,23 +162,23 @@ export const playerXuidsToGametags = new Map([
   ["1600000000000000", "gamertag16"],
 ]);
 
-export const medalsMetadata = await readMedalsMetadata();
+const medalsMetadata = await readMedalsMetadata();
 
-export const playlistRankedArena = await readPlaylist("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
+const playlistRankedArena = await readPlaylist("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
 
-export const playlistAssetVersionRankedArena = await readPlaylistAssetVersion("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
+const playlistAssetVersionRankedArena = await readPlaylistAssetVersion("edfef3ac-9cbe-4fa2-b949-8f29deafd483");
 
-export const mapModePairKothLiveFire = await readMapModePairAssetVersion("91957e4b-b5e4-4a11-ac69-dce934fa7002");
+const mapModePairKothLiveFire = await readMapModePairAssetVersion("91957e4b-b5e4-4a11-ac69-dce934fa7002");
 
-export const mapModePairSlayerLiveFire = await readMapModePairAssetVersion("be1c791b-fbae-4e8d-aeee-9f48df6fee9d");
+const mapModePairSlayerLiveFire = await readMapModePairAssetVersion("be1c791b-fbae-4e8d-aeee-9f48df6fee9d");
 
-export const mapModePairCtfAquarius = await readMapModePairAssetVersion("2bb084c2-a047-4fe9-9023-4100cbe6860d");
+const mapModePairCtfAquarius = await readMapModePairAssetVersion("2bb084c2-a047-4fe9-9023-4100cbe6860d");
 
-export const matchSkillData = await readMatchSkill();
+const matchSkillData = await readMatchSkill();
 
-export const serviceRecord = await readServiceRecord();
+const serviceRecord = await readServiceRecord();
 
-export const neatQueueSeriesData: SeriesData = {
+const neatQueueSeriesData: SeriesData = {
   startDateTime: new Date("2024-11-26T06:30:00.000Z"),
   endDateTime: new Date("2024-11-26T11:30:00.000Z"),
   teams: [
@@ -236,7 +237,7 @@ export const neatQueueSeriesData: SeriesData = {
   ],
 };
 
-export const getRankedArenaCsrsData: Awaited<ReturnType<HaloService["getRankedArenaCsrs"]>> = new Map([
+const rankedArenaCsrsData: Awaited<ReturnType<HaloService["getRankedArenaCsrs"]>> = new Map([
   [
     "0000000000001",
     {
@@ -283,24 +284,113 @@ export const getRankedArenaCsrsData: Awaited<ReturnType<HaloService["getRankedAr
   ],
 ]);
 
+// Getter functions that return clones to enforce immutability
+export function getMatchStats(matchId: string): MatchStats | undefined {
+  const match = matchStats.get(matchId);
+  return match ? structuredClone(match) : undefined;
+}
+
+export function getPlayerMatches(): PlayerMatchHistory[] {
+  return structuredClone(playerMatches);
+}
+
+export function getPlayerMatchHistory(): PlayerMatchHistory[] {
+  return structuredClone(playerMatchHistory);
+}
+
+export function getAssetVersion(): MapAsset {
+  return structuredClone(assetVersion);
+}
+
+export function getPlayerXuidsToGametags(): Map<string, string> {
+  return new Map(playerXuidsToGametags);
+}
+
+export function getMedalsMetadata(): Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>> {
+  return structuredClone(medalsMetadata);
+}
+
+export function getPlaylistRankedArena(): Awaited<ReturnType<HaloInfiniteClient["getPlaylist"]>> {
+  return structuredClone(playlistRankedArena);
+}
+
+export function getPlaylistAssetVersionRankedArena(): PlaylistAsset {
+  return structuredClone(playlistAssetVersionRankedArena);
+}
+
+export function getMapModePairKothLiveFire(): MapModePairAsset {
+  return structuredClone(mapModePairKothLiveFire);
+}
+
+export function getMapModePairSlayerLiveFire(): MapModePairAsset {
+  return structuredClone(mapModePairSlayerLiveFire);
+}
+
+export function getMapModePairCtfAquarius(): MapModePairAsset {
+  return structuredClone(mapModePairCtfAquarius);
+}
+
+export function getMatchSkillData(): ResultContainer<MatchSkill>[] {
+  return structuredClone(matchSkillData);
+}
+
+export function getServiceRecord(): ServiceRecord {
+  return structuredClone(serviceRecord);
+}
+
+export function getNeatQueueSeriesData(): SeriesData {
+  return structuredClone(neatQueueSeriesData);
+}
+
+export function getRankedArenaCsrsData(): Awaited<ReturnType<HaloService["getRankedArenaCsrs"]>> {
+  // For Map, we need to clone the entries
+  const clonedMap = new Map<string, typeof rankedArenaCsrsData extends Map<string, infer V> ? V : never>();
+  for (const [key, value] of rankedArenaCsrsData.entries()) {
+    clonedMap.set(key, structuredClone(value));
+  }
+  return clonedMap;
+}
+
+// Helper functions that create fake objects with overrides
 export function aFakePlayerMatchHistoryWith(overrides?: Partial<PlayerMatchHistory>): PlayerMatchHistory {
   const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
   return {
-    ...baseMatch,
+    ...structuredClone(baseMatch),
+    ...overrides,
+  };
+}
+
+export function aFakeMatchHistoryEntryWith(overrides?: Partial<MatchHistoryEntry>): MatchHistoryEntry {
+  const baseMatch = Preconditions.checkExists(playerMatchHistory[0]);
+  return {
+    matchId: baseMatch.MatchId,
+    startTime: baseMatch.MatchInfo.StartTime,
+    endTime: baseMatch.MatchInfo.EndTime,
+    duration: baseMatch.MatchInfo.Duration,
+    mapName: "Live Fire",
+    modeName: "Slayer",
+    outcome: "Win",
+    resultString: "Win - 50:49",
+    isMatchmaking: baseMatch.MatchInfo.Playlist != null,
+    teams: [
+      ["Player1", "Player2", "Player3", "Player4"],
+      ["Player5", "Player6", "Player7", "Player8"],
+    ],
+    mapThumbnailUrl: "data:,",
     ...overrides,
   };
 }
 
 export function aFakeServiceRecordWith(overrides?: Partial<ServiceRecord>): ServiceRecord {
   return {
-    ...serviceRecord,
+    ...structuredClone(serviceRecord),
     ...overrides,
   };
 }
 
 export function aFakeMapAssetWith(overrides?: Partial<MapAsset>): MapAsset {
   return {
-    ...assetVersion,
+    ...structuredClone(assetVersion),
     ...overrides,
   };
 }

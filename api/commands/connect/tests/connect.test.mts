@@ -193,7 +193,8 @@ describe("ConnectCommand", () => {
             it("calls getUsersByXuids with the expected opts", async () => {
               await jobToComplete?.();
 
-              expect(getUsersByXuidsSpy).toHaveBeenCalledOnce();
+              // Called twice: once for association gamertag, once for match history player enrichment
+              expect(getUsersByXuidsSpy).toHaveBeenCalled();
               expect(getUsersByXuidsSpy).toHaveBeenCalledWith(["0000000000001"]);
             });
           } else {

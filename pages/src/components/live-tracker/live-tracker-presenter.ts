@@ -16,7 +16,7 @@ interface Config {
 }
 
 export class LiveTrackerPresenter {
-  public static readonly usageText = "Usage: /tracker?server=123&queue=1";
+  public static readonly usageText = "Usage: /tracker?server=123&queue=1 or /tracker?gamertag=YourGamertag";
 
   private readonly config: Config;
 
@@ -37,19 +37,32 @@ export class LiveTrackerPresenter {
 
   public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
-    const queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
 
-    const guildNameText =
-      lastStateMessage?.type === "state"
-        ? lastStateMessage.data.guildName
-        : params.server.length > 0
-          ? `Guild ${params.server}`
-          : "Not set";
+    let queueNumberText: string;
+    let guildNameText: string;
+
+    if (params.type === "team") {
+      queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
+      guildNameText =
+        lastStateMessage?.type === "state"
+          ? lastStateMessage.data.guildName
+          : params.server.length > 0
+            ? `Guild ${params.server}`
+            : "Not set";
+    } else {
+      queueNumberText = "Individual";
+      guildNameText = params.gamertag.length > 0 ? params.gamertag : "Not set";
+    }
 
     let statusClassName = "";
     if (connectionState === "connected") {
       statusClassName = "connected";
-    } else if (connectionState === "error" || connectionState === "stopped" || connectionState === "connecting") {
+    } else if (
+      connectionState === "error" ||
+      connectionState === "stopped" ||
+      connectionState === "connecting" ||
+      connectionState === "not_found"
+    ) {
       statusClassName = "error";
     }
 
@@ -71,20 +84,39 @@ export class LiveTrackerPresenter {
   }
 
   private static parseParamsFromUrl(url: URL): LiveTrackerParams {
+    const gamertag = url.searchParams.get("gamertag");
+    if (gamertag !== null && gamertag.length > 0) {
+      return {
+        type: "individual",
+        gamertag,
+      };
+    }
+
     return {
+      type: "team",
       server: url.searchParams.get("server") ?? "",
       queue: url.searchParams.get("queue") ?? "",
     };
   }
 
   private static canConnect(params: LiveTrackerParams): boolean {
-    return params.server.length > 0 && params.queue.length > 0;
+    if (params.type === "team") {
+      return params.server.length > 0 && params.queue.length > 0;
+    }
+    return params.gamertag.length > 0;
   }
 
   private static toIdentity(params: LiveTrackerParams): LiveTrackerIdentity {
+    if (params.type === "team") {
+      return {
+        type: "team",
+        guildId: params.server,
+        queueNumber: params.queue,
+      };
+    }
     return {
-      guildId: params.server,
-      queueNumber: params.queue,
+      type: "individual",
+      gamertag: params.gamertag,
     };
   }
 
@@ -209,6 +241,20 @@ export class LiveTrackerPresenter {
           return;
         }
 
+        if (status === "not_found") {
+          this.stopReconnection();
+          const message =
+            snapshot.params.type === "individual"
+              ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
+              : "No active tracker found for this queue. Start a tracker first.";
+          this.config.store.setSnapshot({
+            ...snapshot,
+            connectionState: status,
+            statusText: message,
+          });
+          return;
+        }
+
         this.handleConnectionLost(identity, detail);
       },
     );
@@ -229,12 +275,29 @@ export class LiveTrackerPresenter {
   }
 
   private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {
+    const snapshot = this.config.store.getSnapshot();
+
+    // If we've never received initial data, this is likely a "tracker not found" scenario
+    // Don't retry in this case
+    if (!snapshot.hasReceivedInitialData && this.reconnectionAttempt === 0) {
+      const message =
+        snapshot.params.type === "individual"
+          ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
+          : "No active tracker found for this queue. Start a tracker first.";
+      this.config.store.setSnapshot({
+        ...snapshot,
+        connectionState: "not_found",
+        statusText: message,
+      });
+      this.stopReconnection();
+      return;
+    }
+
     const now = Date.now();
     this.firstReconnectionTimestamp ??= now;
 
     const elapsed = now - this.firstReconnectionTimestamp;
     if (elapsed > this.maxReconnectionDuration) {
-      const snapshot = this.config.store.getSnapshot();
       const hasDetail = (detail?.length ?? 0) > 0;
       const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
       this.config.store.setSnapshot({
@@ -254,7 +317,6 @@ export class LiveTrackerPresenter {
     const jitter = Math.random() * 1000;
     const totalDelay = delay + jitter;
 
-    const snapshot = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
       ...snapshot,
       connectionState: "connecting",

@@ -131,7 +131,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     rawMatches: sampleRawMatches,
     seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
-    playersAssociationData: null,
+    playersAssociationData: {},
     medalMetadata: {
       269174970: { name: "Boxer", sortingWeight: 50 },
       548533137: { name: "Back Smack", sortingWeight: 50 },
@@ -186,3 +186,75 @@ export function aFakePlayerAssociationDataWith(overrides: Partial<PlayerAssociat
     ...overrides,
   };
 }
+
+/**
+ * Sample individual tracker state message for web-only tracking
+ * (no Discord integration, no team structure)
+ */
+export const sampleIndividualTrackerStateMessage: LiveTrackerStateMessage = {
+  type: "state",
+  data: {
+    guildId: "0",
+    guildName: "Web Tracker",
+    channelId: "0",
+    queueNumber: 0,
+    status: "active",
+    players: [],
+    teams: [],
+    substitutions: [],
+    discoveredMatches,
+    rawMatches: sampleRawMatches,
+    seriesScore: "🦅 1:2 🐍",
+    lastUpdateTime: "2025-12-24T03:52:10.185Z",
+    playersAssociationData: null,
+    medalMetadata: {
+      269174970: { name: "Boxer", sortingWeight: 50 },
+      548533137: { name: "Back Smack", sortingWeight: 50 },
+      555849395: { name: "Bodyguard", sortingWeight: 50 },
+      580478179: { name: "Hill Guardian", sortingWeight: 100 },
+      622331684: { name: "Double Kill", sortingWeight: 100 },
+      835814121: { name: "Overkill", sortingWeight: 220 },
+      1169571763: { name: "Shot Caller", sortingWeight: 100 },
+      1211820913: { name: "Fastball", sortingWeight: 200 },
+      1284032216: { name: "Wingman", sortingWeight: 50 },
+      1512363953: { name: "Perfect", sortingWeight: 100 },
+      2063152177: { name: "Triple Kill", sortingWeight: 150 },
+      2123530881: { name: "Reversal", sortingWeight: 50 },
+      2477555653: { name: "Spotter", sortingWeight: 50 },
+      2602963073: { name: "No Scope", sortingWeight: 100 },
+      2625820422: { name: "From the Grave", sortingWeight: 50 },
+      2780740615: { name: "Killing Spree", sortingWeight: 100 },
+      2852571933: { name: "Rifleman", sortingWeight: 50 },
+      3091261182: { name: "Last Shot", sortingWeight: 50 },
+      3217141618: { name: "Achilles Spine", sortingWeight: 150 },
+      3233952928: { name: "Killjoy", sortingWeight: 50 },
+      3334154676: { name: "Guardian Angel", sortingWeight: 50 },
+      3488248720: { name: "Stopped Short", sortingWeight: 50 },
+      3655682764: { name: "Stick", sortingWeight: 50 },
+      3732790338: { name: "Fumble", sortingWeight: 100 },
+      3905838030: { name: "Cluster Luck", sortingWeight: 100 },
+      4100966367: { name: "Extermination", sortingWeight: 200 },
+      4229934157: { name: "Snipe", sortingWeight: 50 },
+      4277328263: { name: "Sharpshooter", sortingWeight: 50 },
+    },
+    matchGroupings: {
+      "2025-12-24T02:51:50.186Z": {
+        groupId: "2025-12-24T02:51:50.186Z",
+        matchIds: ["85022d98-5829-4da2-85ae-32b8cb48bbdd", "4ddc5187-d08d-48fc-96a3-8a490e577795"],
+        seriesId: {
+          guildId: "1238795949266964560",
+          queueNumber: 6038,
+        },
+      },
+      "2025-12-24T03:12:08.363Z": {
+        groupId: "2025-12-24T03:12:08.363Z",
+        matchIds: ["d127af7f-079c-4b28-a3ae-6e1bcdd44438"],
+      },
+      "2025-12-24T03:27:49.787Z": {
+        groupId: "2025-12-24T03:27:49.787Z",
+        matchIds: ["688cc0ac-2266-40e2-a3dd-a1f5b992f046"],
+      },
+    },
+  },
+  timestamp: "2025-12-24T03:52:10.687Z",
+};
