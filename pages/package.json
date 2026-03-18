@@ -30,7 +30,7 @@
     "tinyduration": "^3.4.1"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.7",
+    "@astrojs/check": "^0.9.8",
     "@csstools/postcss-global-data": "^4.0.0",
     "@playwright/test": "^1.58.2",
     "@types/postcss-clamp": "^4.1.3",
