@@ -593,6 +593,13 @@ export function LiveTrackerView(): React.ReactElement {
                 />
               </>
             )}
+            {isIndividualState(state) && !hasMatches && (
+              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                <Alert variant="info" icon="⏳">
+                  Tracking <strong>{state.gamertag}</strong>. Waiting for first match to complete...
+                </Alert>
+              </Container>
+            )}
             {isNeatQueueState(state) && !hasMatches && state.playersAssociationData && (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
 import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../../../services/live-tracker/types";
@@ -18,6 +18,10 @@ function isSteppableLiveTrackerConnection(
 }
 
 describe("LiveTracker", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("renders status and updates when messages arrive", async () => {
     window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
@@ -102,5 +106,67 @@ describe("LiveTracker", () => {
     });
 
     expect(screen.getByText("Matches")).toBeInTheDocument();
+  });
+
+  it("shows waiting message for individual tracker with no matches", async () => {
+    window.history.pushState({}, "", "/tracker?gamertag=TestGamer");
+
+    const stateMessage: LiveTrackerStateMessage = {
+      type: "state",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      data: {
+        type: "individual",
+        gamertag: "TestGamer",
+        xuid: "123456",
+        status: "active",
+        lastUpdateTime: "2025-01-01T00:00:00.000Z",
+        groups: [], // No matches yet
+        rawMatches: {},
+        medalMetadata: {},
+        playersAssociationData: null,
+      },
+    };
+
+    const scenario = aFakeLiveTrackerScenarioWith({
+      intervalMs: 10,
+      frames: [stateMessage] satisfies readonly LiveTrackerMessage[],
+    });
+
+    const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
+
+    const identity = {
+      type: "individual" as const,
+      gamertag: "TestGamer",
+    };
+
+    const connection = liveTrackerService.connect(identity);
+
+    vi.spyOn(liveTrackerService, "connect").mockImplementation(() => {
+      return connection;
+    });
+
+    const services: Services = {
+      liveTrackerService,
+      trackerInitiationService: aFakeTrackerInitiationServiceWith(),
+    };
+
+    render(<LiveTrackerFactory services={services} apiHost="http://localhost:8787" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();
+    });
+
+    if (!isSteppableLiveTrackerConnection(connection)) {
+      throw new Error("Expected steppable fake connection in manual mode");
+    }
+
+    connection.step();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Waiting for first match to complete/i)).toBeInTheDocument();
+    });
+
+    // Verify the gamertag appears in both the header and alert message
+    expect(screen.getAllByText("TestGamer")).toHaveLength(2);
   });
 });
