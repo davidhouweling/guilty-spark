@@ -553,6 +553,7 @@ describe("SetupCommand", () => {
         await Preconditions.checkExists(liveTrackingJob)();
 
         expect(updateDeferredReplySpy).toHaveBeenCalled();
+        expect.assertions(3);
         const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
         const actionRow = content?.components?.[0];
         if (actionRow?.type === ComponentType.ActionRow) {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import classNames from "classnames";
 import { format, parseISO } from "date-fns";
 import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
@@ -7,17 +7,17 @@ import { Alert } from "../alert/alert";
 import { Collapsible } from "../collapsible/collapsible";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
+import { createMatchStatsPresenter } from "../stats/create";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData } from "../stats/types";
-import type { LiveTrackerMatchRenderModel, LiveTrackerMatchGrouping, LiveTrackerSeriesDataRenderModel } from "./types";
+import { UnreachableError } from "../../base/unreachable-error";
+import type { LiveTrackerGroupRenderModel, LiveTrackerMatchRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
 
 interface IndividualModeMatchesProps {
-  readonly matches: readonly LiveTrackerMatchRenderModel[];
-  readonly matchGroupings: Record<string, LiveTrackerMatchGrouping>;
-  readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
-  readonly groupingStats: Map<
+  readonly groups: readonly LiveTrackerGroupRenderModel[];
+  readonly groupStats: Map<
     string,
     { teamData: MatchStatsData[]; playerData: MatchStatsData[]; metadata: SeriesMetadata | null }
   >;
@@ -25,186 +25,250 @@ interface IndividualModeMatchesProps {
   readonly teamColors: readonly TeamColor[];
   readonly viewMode: string;
   readonly guildName: string;
-  readonly seriesData?: LiveTrackerSeriesDataRenderModel;
   readonly status: LiveTrackerStatus;
 }
 
 export function IndividualModeMatches({
-  matches,
-  matchGroupings,
-  allMatchStats,
-  groupingStats,
+  groups,
+  groupStats,
   gameModeIconUrl,
   teamColors,
   viewMode,
   guildName,
-  seriesData,
   status,
 }: IndividualModeMatchesProps): React.ReactElement {
-  const renderedGroups = new Set<string>();
+  // Compute match stats for all matches across all groups
+  const allMatchStats = useMemo(() => {
+    const statsMap = new Map<string, MatchStatsData[] | null>();
+
+    for (const group of groups) {
+      // Handle discriminated union: get matches array based on group type
+      const matchesInGroup: readonly LiveTrackerMatchRenderModel[] =
+        group.type === "single-match" ? [group.match] : group.matches;
+
+      for (const match of matchesInGroup) {
+        if (match.rawMatchStats == null) {
+          statsMap.set(match.matchId, null);
+          continue;
+        }
+
+        try {
+          const matchStats = match.rawMatchStats;
+          const matchStatsPresenter = createMatchStatsPresenter(matchStats.MatchInfo.GameVariantCategory);
+          const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
+          statsMap.set(match.matchId, matchStatsPresenter.getData(matchStats, playerMap, {}));
+        } catch (error) {
+          console.error("Error processing match stats:", error);
+          statsMap.set(match.matchId, null);
+        }
+      }
+    }
+
+    return statsMap;
+  }, [groups]);
+
   const elements: React.ReactElement[] = [];
 
-  // Build match-to-group map
-  const matchToGroup = new Map<string, string>();
-  for (const [groupId, grouping] of Object.entries(matchGroupings)) {
-    for (const matchId of grouping.matchIds) {
-      matchToGroup.set(matchId, groupId);
-    }
-  }
+  for (const group of groups) {
+    switch (group.type) {
+      case "neatqueue-series": {
+        const stats = groupStats.get(group.groupId);
+        const isCompletedSeries = status !== "active";
 
-  for (const [matchIndex, match] of matches.entries()) {
-    const groupId = matchToGroup.get(match.matchId);
+        const badgeText = isCompletedSeries ? "Completed Series" : "Active Series";
+        const badgeClass = isCompletedSeries ? styles.seriesBadgeCompleted : styles.seriesBadgeActive;
+        const seriesBadge = <span className={badgeClass}>{badgeText}</span>;
 
-    // If match belongs to a group and we haven't rendered it yet
-    if (groupId !== undefined && !renderedGroups.has(groupId)) {
-      renderedGroups.add(groupId);
-      const grouping = matchGroupings[groupId];
-      const groupMatches = matches.filter((m) => grouping.matchIds.includes(m.matchId));
-      const stats = groupingStats.get(groupId);
+        const groupLabel = `${guildName} - Queue #${String(group.seriesId.queueNumber)}`;
 
-      // Determine if this is the active NeatQueue series
-      const isNeatQueueSeries =
-        seriesData != null &&
-        seriesData.seriesId.guildId === grouping.seriesId?.guildId &&
-        seriesData.seriesId.queueNumber === grouping.seriesId.queueNumber;
-
-      // Determine if series is completed (status is not "active")
-      const isCompletedSeries = isNeatQueueSeries && status !== "active";
-
-      // Determine label
-      let groupLabel: string;
-      let seriesBadge: React.ReactElement | null = null;
-
-      if (grouping.seriesId !== undefined) {
-        // Only show badge if this is the active NeatQueue series
-        if (isNeatQueueSeries) {
-          const badgeText = isCompletedSeries ? "Completed Series" : "Active Series";
-          const badgeClass = isCompletedSeries ? styles.seriesBadgeCompleted : styles.seriesBadgeActive;
-          seriesBadge = <span className={badgeClass}>{badgeText}</span>;
-        }
-        groupLabel = `${guildName} - Queue #${String(grouping.seriesId.queueNumber)}`;
-      } else {
-        // Use date range
-        const startDate = parseISO(groupMatches[0].startTime);
-        const endDate = parseISO(groupMatches[groupMatches.length - 1].endTime);
-        groupLabel = `Series Matches ${format(startDate, "MMM d, h:mm a")} to ${format(endDate, "MMM d, h:mm a")}`;
-      }
-
-      elements.push(
-        <Container key={`group-${groupId}`} className={classNames(styles.contentContainer, styles[viewMode])}>
-          <Collapsible
-            title={
-              <h3 className={styles.sectionTitle}>
-                {seriesBadge && <>{seriesBadge} </>}
-                {groupLabel}
-              </h3>
-            }
-            defaultExpanded={true}
-          >
-            {/* Display NeatQueue series info if available */}
-            {isNeatQueueSeries && (
-              <div className={styles.seriesInfo}>
-                <div className={styles.seriesScore}>{seriesData.seriesScore}</div>
-                <div className={styles.seriesTeams}>
-                  {seriesData.teams.map((team, teamIdx) => (
-                    <div key={teamIdx} className={styles.seriesTeam}>
-                      <strong>{team.name}:</strong> {team.playerIds.length} players
-                    </div>
-                  ))}
+        elements.push(
+          <Container key={group.groupId} className={classNames(styles.contentContainer, styles[viewMode])}>
+            <Collapsible
+              title={
+                <h3 className={styles.sectionTitle}>
+                  {seriesBadge} {groupLabel}
+                </h3>
+              }
+              defaultExpanded={true}
+            >
+              {/* Display NeatQueue series info */}
+              {group.seriesData && (
+                <div className={styles.seriesInfo}>
+                  <div className={styles.seriesScore}>{group.seriesData.seriesScore}</div>
+                  <div className={styles.seriesTeams}>
+                    {group.seriesData.teams.map((team, teamIdx) => (
+                      <div key={teamIdx} className={styles.seriesTeam}>
+                        <strong>{team.name}:</strong> {team.playerIds.length} players
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              )}
+              {/* Match scores overview */}
+              <div className={styles.seriesScoresCompact}>
+                {group.matches.map((gMatch, idx) => (
+                  <a key={gMatch.matchId} href={`#${gMatch.matchId}`} className={styles.seriesScoreCompactItem}>
+                    Game {String(idx + 1)}: {gMatch.gameScore}
+                  </a>
+                ))}
               </div>
-            )}
-            {/* Match scores overview */}
-            <div className={styles.seriesScoresCompact}>
-              {groupMatches.map((gMatch, idx) => (
-                <a key={gMatch.matchId} href={`#${gMatch.matchId}`} className={styles.seriesScoreCompactItem}>
-                  Game {String(idx + 1)}: {gMatch.gameScore}
-                </a>
-              ))}
-            </div>
 
-            {/* Group series stats */}
-            {stats !== undefined && (
-              <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
-                <SeriesStats
-                  teamData={stats.teamData}
-                  playerData={stats.playerData}
-                  title="Series Totals"
-                  metadata={stats.metadata}
+              {/* Group series stats */}
+              {stats && (
+                <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
+                  <SeriesStats
+                    teamData={stats.teamData}
+                    playerData={stats.playerData}
+                    title="Series Totals"
+                    metadata={stats.metadata}
+                    teamColors={teamColors}
+                  />
+                </Container>
+              )}
+
+              {/* Individual matches in the group */}
+              {group.matches.map((gMatch, idx) => {
+                const matchStatsData = allMatchStats.get(gMatch.matchId);
+                return matchStatsData ? (
+                  <Container
+                    key={gMatch.matchId}
+                    mobileDown="0"
+                    className={classNames(styles.contentContainer, styles[viewMode])}
+                  >
+                    <Collapsible title={`Match ${String(idx + 1)}: ${gMatch.gameTypeAndMap}`} defaultExpanded={false}>
+                      <MatchStatsView
+                        data={matchStatsData}
+                        id={gMatch.matchId}
+                        backgroundImageUrl={gMatch.gameMapThumbnailUrl}
+                        gameModeIconUrl={gameModeIconUrl(gMatch.gameType)}
+                        gameModeAlt={gMatch.gameType}
+                        matchNumber={idx + 1}
+                        gameTypeAndMap={gMatch.gameTypeAndMap}
+                        duration={gMatch.duration}
+                        score={gMatch.gameScore}
+                        startTime={gMatch.startTime}
+                        endTime={gMatch.endTime}
+                        teamColors={teamColors}
+                      />
+                    </Collapsible>
+                  </Container>
+                ) : (
+                  <Container key={gMatch.matchId} className={classNames(styles.contentContainer, styles[viewMode])}>
+                    <Alert variant="warning">Match stats unavailable</Alert>
+                  </Container>
+                );
+              })}
+            </Collapsible>
+          </Container>,
+        );
+        break;
+      }
+      case "grouped-matches": {
+        const stats = groupStats.get(group.groupId);
+        const startDate = parseISO(group.matches[0].startTime);
+        const endDate = parseISO(group.matches[group.matches.length - 1].endTime);
+        const groupLabel = `${group.label} • ${format(startDate, "MMM d, h:mm a")} to ${format(endDate, "MMM d, h:mm a")}`;
+
+        elements.push(
+          <Container key={group.groupId} className={classNames(styles.contentContainer, styles[viewMode])}>
+            <Collapsible title={<h3 className={styles.sectionTitle}>{groupLabel}</h3>} defaultExpanded={true}>
+              {/* Match scores overview */}
+              <div className={styles.seriesScoresCompact}>
+                {group.matches.map((gMatch, idx) => (
+                  <a key={gMatch.matchId} href={`#${gMatch.matchId}`} className={styles.seriesScoreCompactItem}>
+                    Game {String(idx + 1)}: {gMatch.gameScore}
+                  </a>
+                ))}
+              </div>
+
+              {/* Group series stats */}
+              {stats && (
+                <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
+                  <SeriesStats
+                    teamData={stats.teamData}
+                    playerData={stats.playerData}
+                    title="Series Totals"
+                    metadata={stats.metadata}
+                    teamColors={teamColors}
+                  />
+                </Container>
+              )}
+
+              {/* Individual matches in the group */}
+              {group.matches.map((gMatch, idx) => {
+                const matchStatsData = allMatchStats.get(gMatch.matchId);
+                return matchStatsData ? (
+                  <Container
+                    key={gMatch.matchId}
+                    mobileDown="0"
+                    className={classNames(styles.contentContainer, styles[viewMode])}
+                  >
+                    <Collapsible title={`Match ${String(idx + 1)}: ${gMatch.gameTypeAndMap}`} defaultExpanded={false}>
+                      <MatchStatsView
+                        data={matchStatsData}
+                        id={gMatch.matchId}
+                        backgroundImageUrl={gMatch.gameMapThumbnailUrl}
+                        gameModeIconUrl={gameModeIconUrl(gMatch.gameType)}
+                        gameModeAlt={gMatch.gameType}
+                        matchNumber={idx + 1}
+                        gameTypeAndMap={gMatch.gameTypeAndMap}
+                        duration={gMatch.duration}
+                        score={gMatch.gameScore}
+                        startTime={gMatch.startTime}
+                        endTime={gMatch.endTime}
+                        teamColors={teamColors}
+                      />
+                    </Collapsible>
+                  </Container>
+                ) : (
+                  <Container key={gMatch.matchId} className={classNames(styles.contentContainer, styles[viewMode])}>
+                    <Alert variant="warning">Match stats unavailable</Alert>
+                  </Container>
+                );
+              })}
+            </Collapsible>
+          </Container>,
+        );
+        break;
+      }
+      case "single-match": {
+        const { match } = group;
+        const matchStatsData = allMatchStats.get(match.matchId);
+
+        elements.push(
+          matchStatsData ? (
+            <Container
+              key={group.groupId}
+              mobileDown="0"
+              className={classNames(styles.contentContainer, styles[viewMode])}
+            >
+              <Collapsible title={`Match: ${match.gameTypeAndMap}`} defaultExpanded={true}>
+                <MatchStatsView
+                  data={matchStatsData}
+                  id={match.matchId}
+                  backgroundImageUrl={match.gameMapThumbnailUrl}
+                  gameModeIconUrl={gameModeIconUrl(match.gameType)}
+                  gameModeAlt={match.gameType}
+                  matchNumber={1}
+                  gameTypeAndMap={match.gameTypeAndMap}
+                  duration={match.duration}
+                  score={match.gameScore}
+                  startTime={match.startTime}
+                  endTime={match.endTime}
                   teamColors={teamColors}
                 />
-              </Container>
-            )}
-
-            {/* Individual matches in the group */}
-            {groupMatches.map((gMatch, idx) => {
-              const matchStats = allMatchStats.find((s) => s.matchId === gMatch.matchId);
-              return matchStats?.data ? (
-                <Container
-                  key={gMatch.matchId}
-                  mobileDown="0"
-                  className={classNames(styles.contentContainer, styles[viewMode])}
-                >
-                  <Collapsible title={`Match ${String(idx + 1)}: ${gMatch.gameTypeAndMap}`} defaultExpanded={false}>
-                    <MatchStatsView
-                      data={matchStats.data}
-                      id={gMatch.matchId}
-                      backgroundImageUrl={gMatch.gameMapThumbnailUrl}
-                      gameModeIconUrl={gameModeIconUrl(gMatch.gameType)}
-                      gameModeAlt={gMatch.gameType}
-                      matchNumber={idx + 1}
-                      gameTypeAndMap={gMatch.gameTypeAndMap}
-                      duration={gMatch.duration}
-                      score={gMatch.gameScore}
-                      startTime={gMatch.startTime}
-                      endTime={gMatch.endTime}
-                      teamColors={teamColors}
-                    />
-                  </Collapsible>
-                </Container>
-              ) : (
-                <Container key={gMatch.matchId} className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <Alert variant="warning">Match stats unavailable</Alert>
-                </Container>
-              );
-            })}
-          </Collapsible>
-        </Container>,
-      );
-    } else if (groupId === undefined) {
-      // Ungrouped standalone match
-      const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
-
-      elements.push(
-        matchStats?.data ? (
-          <Container
-            key={match.matchId}
-            mobileDown="0"
-            className={classNames(styles.contentContainer, styles[viewMode])}
-          >
-            <Collapsible title={`Match ${String(matchIndex + 1)}: ${match.gameTypeAndMap}`} defaultExpanded={true}>
-              <MatchStatsView
-                data={matchStats.data}
-                id={match.matchId}
-                backgroundImageUrl={match.gameMapThumbnailUrl}
-                gameModeIconUrl={gameModeIconUrl(match.gameType)}
-                gameModeAlt={match.gameType}
-                matchNumber={matchIndex + 1}
-                gameTypeAndMap={match.gameTypeAndMap}
-                duration={match.duration}
-                score={match.gameScore}
-                startTime={match.startTime}
-                endTime={match.endTime}
-                teamColors={teamColors}
-              />
-            </Collapsible>
-          </Container>
-        ) : (
-          <Container key={match.matchId} className={classNames(styles.contentContainer, styles[viewMode])}>
-            <Alert variant="warning">Match stats unavailable</Alert>
-          </Container>
-        ),
-      );
+              </Collapsible>
+            </Container>
+          ) : (
+            <Container key={group.groupId} className={classNames(styles.contentContainer, styles[viewMode])}>
+              <Alert variant="warning">Match stats unavailable</Alert>
+            </Container>
+          ),
+        );
+        break;
+      }
+      default:
+        throw new UnreachableError(group);
     }
   }
 

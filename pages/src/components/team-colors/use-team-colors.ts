@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Preconditions } from "../../base/preconditions.mts";
+import { Preconditions } from "../../base/preconditions";
 import { DEFAULT_TEAM_COLORS, getTeamColor, HALO_TEAM_COLORS, type TeamColor } from "./team-colors";
 
 type TeamColorPreferences = Readonly<Record<number, string>>;

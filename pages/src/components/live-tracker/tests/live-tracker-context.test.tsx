@@ -31,6 +31,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     statusText: "active",
     statusClassName: "status-active",
     state: {
+      type: "neatqueue",
       guildName: "Test Guild",
       queueNumber: 5,
       status: "active",
@@ -66,7 +67,6 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
       seriesScore: "🦅 1:0 🐍",
       medalMetadata: {},
       playersAssociationData: {},
-      matchGroupings: {},
     },
     ...overrides,
   };
@@ -107,8 +107,12 @@ describe("LiveTrackerContext", () => {
       ),
     });
 
-    expect(result.current?.guildName).toBe("Test Guild");
-    expect(result.current?.status).toBe("active");
+    expect.assertions(3);
+    expect(result.current?.type).toBe("neatqueue");
+    if (result.current?.type === "neatqueue") {
+      expect(result.current.guildName).toBe("Test Guild");
+      expect(result.current.status).toBe("active");
+    }
   });
 
   it("provides teams to hooks", () => {
@@ -321,21 +325,23 @@ describe("LiveTrackerContext", () => {
   it("provides substitutions to hooks", () => {
     const defaultState = aFakeLiveTrackerViewModelWith().state;
     const model = aFakeLiveTrackerViewModelWith({
-      state: defaultState
-        ? {
-            ...defaultState,
-            substitutions: [
-              {
-                playerInId: "player2",
-                playerInDisplayName: "Player Two",
-                playerOutId: "player1",
-                playerOutDisplayName: "Player One",
-                teamName: "Team 1",
-                timestamp: "2025-01-01T00:05:00.000Z",
-              },
-            ],
-          }
-        : undefined,
+      state:
+        defaultState?.type === "neatqueue"
+          ? {
+              ...defaultState,
+              type: "neatqueue",
+              substitutions: [
+                {
+                  playerInId: "player2",
+                  playerInDisplayName: "Player Two",
+                  playerOutId: "player1",
+                  playerOutDisplayName: "Player One",
+                  teamName: "Team 1",
+                  timestamp: "2025-01-01T00:05:00.000Z",
+                },
+              ],
+            }
+          : defaultState,
     });
 
     const { result } = renderHook(() => useSubstitutions(), {
@@ -409,12 +415,14 @@ describe("LiveTrackerContext", () => {
   it("returns false for has matches when no matches exist", () => {
     const defaultState = aFakeLiveTrackerViewModelWith().state;
     const model = aFakeLiveTrackerViewModelWith({
-      state: defaultState
-        ? {
-            ...defaultState,
-            matches: [],
-          }
-        : undefined,
+      state:
+        defaultState?.type === "neatqueue"
+          ? {
+              ...defaultState,
+              type: "neatqueue",
+              matches: [],
+            }
+          : defaultState,
     });
 
     const { result } = renderHook(() => useHasMatches(), {

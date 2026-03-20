@@ -3,8 +3,13 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { IndividualModeMatches } from "../individual-mode-matches";
-import type { LiveTrackerMatchRenderModel, LiveTrackerMatchGrouping, LiveTrackerSeriesDataRenderModel } from "../types";
-import type { MatchStatsData } from "../../stats/types";
+import type {
+  LiveTrackerMatchRenderModel,
+  LiveTrackerGroupRenderModel,
+  LiveTrackerSeriesDataRenderModel,
+  LiveTrackerPlayerRenderModel,
+  LiveTrackerTeamRenderModel,
+} from "../types";
 import type { TeamColor } from "../../team-colors/team-colors";
 
 const createMockMatch = (overrides: Partial<LiveTrackerMatchRenderModel> = {}): LiveTrackerMatchRenderModel => ({
@@ -23,6 +28,18 @@ const createMockMatch = (overrides: Partial<LiveTrackerMatchRenderModel> = {}): 
   ...overrides,
 });
 
+const createMockPlayer = (overrides: Partial<LiveTrackerPlayerRenderModel> = {}): LiveTrackerPlayerRenderModel => ({
+  id: "player-1",
+  displayName: "Player1",
+  ...overrides,
+});
+
+const createMockTeam = (overrides: Partial<LiveTrackerTeamRenderModel> = {}): LiveTrackerTeamRenderModel => ({
+  name: "Team 1",
+  players: [createMockPlayer()],
+  ...overrides,
+});
+
 const mockTeamColors: TeamColor[] = [
   { id: "eagle", name: "Eagle", hex: "#FF0000" },
   { id: "cobra", name: "Cobra", hex: "#0000FF" },
@@ -35,16 +52,6 @@ describe("Individual ModeMatches", () => {
 
   describe("Series Badge Display", () => {
     it("renders Active Series badge when series data matches grouping and status is active", () => {
-      const matches = [createMockMatch({ matchId: "match-1" }), createMockMatch({ matchId: "match-2" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
-          groupId: "group-1",
-          matchIds: ["match-1", "match-2"],
-          seriesId: { guildId: "guild-123", queueNumber: 5 },
-        },
-      };
-
       const seriesData: LiveTrackerSeriesDataRenderModel = {
         seriesId: { guildId: "guild-123", queueNumber: 5 },
         teams: [
@@ -57,17 +64,36 @@ describe("Individual ModeMatches", () => {
         lastUpdateTime: "2025-01-01T00:10:00.000Z",
       };
 
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "neatqueue-series",
+          groupId: "group-1",
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            createMockTeam({
+              name: "Team Alpha",
+              players: [createMockPlayer({ id: "xuid1" }), createMockPlayer({ id: "xuid2" })],
+            }),
+            createMockTeam({
+              name: "Team Beta",
+              players: [createMockPlayer({ id: "xuid3" }), createMockPlayer({ id: "xuid4" })],
+            }),
+          ],
+          matches: [createMockMatch({ matchId: "match-1" }), createMockMatch({ matchId: "match-2" })],
+          substitutions: [],
+          seriesScore: "Team Alpha 2 - 1 Team Beta",
+          seriesData,
+        },
+      ];
+
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="active"
         />,
       );
@@ -77,16 +103,6 @@ describe("Individual ModeMatches", () => {
     });
 
     it("renders Completed Series badge when series data matches grouping and status is not active", () => {
-      const matches = [createMockMatch({ matchId: "match-1" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
-          groupId: "group-1",
-          matchIds: ["match-1"],
-          seriesId: { guildId: "guild-123", queueNumber: 5 },
-        },
-      };
-
       const seriesData: LiveTrackerSeriesDataRenderModel = {
         seriesId: { guildId: "guild-123", queueNumber: 5 },
         teams: [{ name: "Team Alpha", playerIds: ["xuid1"] }],
@@ -96,17 +112,27 @@ describe("Individual ModeMatches", () => {
         lastUpdateTime: "2025-01-01T00:10:00.000Z",
       };
 
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "neatqueue-series",
+          groupId: "group-1",
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [createMockTeam({ name: "Team Alpha", players: [createMockPlayer({ id: "xuid1" })] })],
+          matches: [createMockMatch({ matchId: "match-1" })],
+          substitutions: [],
+          seriesScore: "Team Alpha 3 - 0 Team Beta",
+          seriesData,
+        },
+      ];
+
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="stopped"
         />,
       );
@@ -115,27 +141,24 @@ describe("Individual ModeMatches", () => {
     });
 
     it("does not render badge when seriesData is undefined", () => {
-      const matches = [createMockMatch({ matchId: "match-unique-3" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "grouped-matches",
           groupId: "group-1",
-          matchIds: ["match-unique-3"],
-          seriesId: undefined,
+          label: "Custom Games • Jan 1",
+          seriesScore: "Series Matches",
+          matches: [createMockMatch({ matchId: "match-unique-3" })],
         },
-      };
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={undefined}
           status="active"
         />,
       );
@@ -144,37 +167,23 @@ describe("Individual ModeMatches", () => {
       expect(screen.queryByText("Completed Series")).not.toBeInTheDocument();
     });
 
-    it("does not render badge when seriesId does not match grouping", () => {
-      const matches = [createMockMatch({ matchId: "match-unique-4" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
-          groupId: "group-1",
-          matchIds: ["match-unique-4"],
-          seriesId: { guildId: "guild-456", queueNumber: 10 },
+    it("does not render badge when group is not a neatqueue series", () => {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "single-match",
+          groupId: "match-unique-4",
+          match: createMockMatch({ matchId: "match-unique-4" }),
         },
-      };
-
-      const seriesData: LiveTrackerSeriesDataRenderModel = {
-        seriesId: { guildId: "guild-123", queueNumber: 5 },
-        teams: [{ name: "Team Alpha", playerIds: ["xuid1"] }],
-        seriesScore: "Team Alpha 1 - 0 Team Beta",
-        matchIds: ["match-1"],
-        startTime: "2025-01-01T00:00:00.000Z",
-        lastUpdateTime: "2025-01-01T00:10:00.000Z",
-      };
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="active"
         />,
       );
@@ -186,16 +195,6 @@ describe("Individual ModeMatches", () => {
 
   describe("Series Info Display", () => {
     it("displays series score and team information when NeatQueue series detected", () => {
-      const matches = [createMockMatch({ matchId: "match-unique-5" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
-          groupId: "group-1",
-          matchIds: ["match-unique-5"],
-          seriesId: { guildId: "guild-123", queueNumber: 5 },
-        },
-      };
-
       const seriesData: LiveTrackerSeriesDataRenderModel = {
         seriesId: { guildId: "guild-123", queueNumber: 5 },
         teams: [
@@ -208,17 +207,40 @@ describe("Individual ModeMatches", () => {
         lastUpdateTime: "2025-01-01T00:10:00.000Z",
       };
 
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "neatqueue-series",
+          groupId: "group-1",
+          seriesId: { guildId: "guild-123", queueNumber: 5 },
+          teams: [
+            createMockTeam({
+              name: "Team Eagle",
+              players: [
+                createMockPlayer({ id: "xuid1" }),
+                createMockPlayer({ id: "xuid2" }),
+                createMockPlayer({ id: "xuid3" }),
+              ],
+            }),
+            createMockTeam({
+              name: "Team Cobra",
+              players: [createMockPlayer({ id: "xuid4" }), createMockPlayer({ id: "xuid5" })],
+            }),
+          ],
+          matches: [createMockMatch({ matchId: "match-unique-5" })],
+          substitutions: [],
+          seriesScore: "Team Eagle 2 - 1 Team Cobra",
+          seriesData,
+        },
+      ];
+
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="active"
         />,
       );
@@ -230,37 +252,25 @@ describe("Individual ModeMatches", () => {
       expect(screen.getByText("2 players")).toBeInTheDocument();
     });
 
-    it("does not display series info when seriesData does not match grouping", () => {
-      const matches = [createMockMatch({ matchId: "match-unique-6" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
+    it("does not display series info when group is not a neatqueue series", () => {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "grouped-matches",
           groupId: "group-1",
-          matchIds: ["match-unique-6"],
-          seriesId: { guildId: "guild-999", queueNumber: 99 },
+          label: "Custom Games • Jan 1",
+          seriesScore: "Series Matches",
+          matches: [createMockMatch({ matchId: "match-unique-6" })],
         },
-      };
-
-      const seriesData: LiveTrackerSeriesDataRenderModel = {
-        seriesId: { guildId: "guild-123", queueNumber: 5 },
-        teams: [{ name: "Team Alpha", playerIds: ["xuid1"] }],
-        seriesScore: "Team Alpha 1 - 0 Team Beta",
-        matchIds: ["match-1"],
-        startTime: "2025-01-01T00:00:00.000Z",
-        lastUpdateTime: "2025-01-01T00:10:00.000Z",
-      };
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="active"
         />,
       );
@@ -271,32 +281,31 @@ describe("Individual ModeMatches", () => {
 
   describe("Grouped Matches Display", () => {
     it("renders grouped matches with date range label when no seriesId", () => {
-      const matches = [
-        createMockMatch({
-          matchId: "match-1",
-          startTime: "2025-01-01T00:00:00.000Z",
-          endTime: "2025-01-01T00:05:00.000Z",
-        }),
-        createMockMatch({
-          matchId: "match-2",
-          startTime: "2025-01-01T00:10:00.000Z",
-          endTime: "2025-01-01T00:15:00.000Z",
-        }),
-      ];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "grouped-matches",
           groupId: "group-1",
-          matchIds: ["match-1", "match-2"],
+          label: "Custom Games • Jan 1",
+          seriesScore: "Series Matches",
+          matches: [
+            createMockMatch({
+              matchId: "match-1",
+              startTime: "2025-01-01T00:00:00.000Z",
+              endTime: "2025-01-01T00:05:00.000Z",
+            }),
+            createMockMatch({
+              matchId: "match-2",
+              startTime: "2025-01-01T00:10:00.000Z",
+              endTime: "2025-01-01T00:15:00.000Z",
+            }),
+          ],
         },
-      };
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
@@ -305,28 +314,28 @@ describe("Individual ModeMatches", () => {
         />,
       );
 
-      expect(screen.getByText(/Series Matches/)).toBeInTheDocument();
+      // Check for the Custom Games label (part of the group label)
+      expect(screen.getByText(/Custom Games/)).toBeInTheDocument();
     });
 
     it("renders match scores overview for grouped matches", () => {
-      const matches = [
-        createMockMatch({ matchId: "match-1", gameScore: "50:45" }),
-        createMockMatch({ matchId: "match-2", gameScore: "50:48" }),
-      ];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "grouped-matches",
           groupId: "group-1",
-          matchIds: ["match-1", "match-2"],
+          label: "Custom Games • Jan 1",
+          seriesScore: "2 - 0",
+          matches: [
+            createMockMatch({ matchId: "match-1", gameScore: "50:45" }),
+            createMockMatch({ matchId: "match-2", gameScore: "50:48" }),
+          ],
         },
-      };
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
@@ -342,18 +351,18 @@ describe("Individual ModeMatches", () => {
 
   describe("Ungrouped Matches Display", () => {
     it("renders ungrouped matches as standalone", () => {
-      const matches = [createMockMatch({ matchId: "standalone-unique-7" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {};
-
-      const allMatchStats = [{ matchId: "standalone-unique-7", data: [] as MatchStatsData[] }];
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "single-match",
+          groupId: "standalone-unique-7",
+          match: createMockMatch({ matchId: "standalone-unique-7" }),
+        },
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={allMatchStats}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
@@ -362,35 +371,27 @@ describe("Individual ModeMatches", () => {
         />,
       );
 
-      // The match title appears both in the Collapsible header and in the MatchStatsView component
-      expect(screen.queryAllByText("Match 1: Slayer: Recharge").length).toBeGreaterThan(0);
+      // For single-match groups without match stats, should show unavailable alert
+      expect(screen.getByText("Match stats unavailable")).toBeInTheDocument();
     });
 
     it("does not render series badge for ungrouped matches", () => {
-      const matches = [createMockMatch({ matchId: "standalone-unique-8" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {};
-
-      const seriesData: LiveTrackerSeriesDataRenderModel = {
-        seriesId: { guildId: "guild-123", queueNumber: 5 },
-        teams: [{ name: "Team Alpha", playerIds: ["xuid1"] }],
-        seriesScore: "Team Alpha 1 - 0 Team Beta",
-        matchIds: ["match-1"],
-        startTime: "2025-01-01T00:00:00.000Z",
-        lastUpdateTime: "2025-01-01T00:10:00.000Z",
-      };
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "single-match",
+          groupId: "standalone-unique-8",
+          match: createMockMatch({ matchId: "standalone-unique-8" }),
+        },
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={[]}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"
           guildName="Test Guild"
-          seriesData={seriesData}
           status="active"
         />,
       );
@@ -402,23 +403,20 @@ describe("Individual ModeMatches", () => {
 
   describe("Match Stats Display", () => {
     it("renders alert when match stats are unavailable", () => {
-      const matches = [createMockMatch({ matchId: "match-1" })];
-
-      const matchGroupings: Record<string, LiveTrackerMatchGrouping> = {
-        "group-1": {
+      const groups: LiveTrackerGroupRenderModel[] = [
+        {
+          type: "grouped-matches",
           groupId: "group-1",
-          matchIds: ["match-1"],
+          label: "Custom Games • Jan 1",
+          seriesScore: "Series Matches",
+          matches: [createMockMatch({ matchId: "match-1" })],
         },
-      };
-
-      const allMatchStats = [{ matchId: "match-1", data: null }];
+      ];
 
       render(
         <IndividualModeMatches
-          matches={matches}
-          matchGroupings={matchGroupings}
-          allMatchStats={allMatchStats}
-          groupingStats={new Map()}
+          groups={groups}
+          groupStats={new Map()}
           gameModeIconUrl={() => "data:,"}
           teamColors={mockTeamColors}
           viewMode="desktop"

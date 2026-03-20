@@ -52,88 +52,98 @@ npm run format:fix
 - `/maps` - Generate maps for custom games
 - `/track` - Live match tracking with real-time updates
 
-## File Structure
+## File Structure & Conventions
 
-- `api/` - Discord bot API source code with `.mts` extensions for Node ESM
-  - `api/commands/` - Discord command implementations
-  - `api/services/` - Business logic and external integrations
-  - `api/durable-objects/` - Cloudflare Durable Objects for state
-- `pages/` - Cloudflare Pages website
-  - `pages/src/` - Astro components, pages, and styles
-- `contracts/` - Shared types and contracts
-- Tests in sibling `tests/` folders, fakes in `fakes/` folders
+- `api/` - Discord bot (`.mts` extensions); `pages/` - Website (Astro); `contracts/` - Shared types
+- Tests in `tests/` folders, fakes in `fakes/` folders
 - Use `.mjs` for imports, never `.mts`
-- Import Astro components directly (e.g., `../components/cards/demo-card.astro`); avoid `.astro` barrel files that break eslint resolution.
-- Maintain a single source of truth for shared components.
-- For astro components, consolidate commonalities into a sub folder, example being `cards`
+- **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
+- **Types**: Colocate in `types.mts` files with implementation
+- **Fakes**: `<feature>/fakes/data.mts` for fixtures, separate files for behavior
+- **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
+- **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders
 
 ## Code Style
 
-- **TypeScript**: Strict mode, explicit types, no `any`, `unknown` or `!` operator
-- **Imports**: Always use `.mjs` extensions for import paths
-- **Loops**: Prefer `for...of` over `forEach` or traditional `for` loops
-- **Error Handling**: Use `EndUserError` for user-facing errors
-- **Null Safety**: Use `Preconditions.checkExists()` instead of `!`
-- **Formatting**: Run `npm run lint:fix` and `npm run format:fix`
-- **Accessibility**: Preserve established ARIA attributes, focus handling, and keyboard support patterns when extending interactive components.
-- **Rendering Patterns**: Prefer data-driven rendering—extend typed configuration arrays and map to components instead of duplicating inline markup.
-- **Date operations**: use `date-fns` functions where suitable when manipulating, comparing, or computing dates. For frontend rendering, seek guidance if relative rendering should be used or absolute. For relative rendering use `react-time-ago`, for absolute, use `Date.toLocaleString()`.
+- **TypeScript**: Strict mode, explicit types, no `any`/`unknown`/`!`; use `Preconditions.checkExists()` for null safety
+- **Imports**: Always use `.mjs` extensions
+- **Loops**: Prefer `for...of` over `forEach`
+- **Switch**: wrap all cases with curly brackets
+- **Errors**: Use `EndUserError` for user-facing errors
+- **Dates**: Use `date-fns` for operations; `react-time-ago` (relative) or `Date.toLocaleString()` (absolute) for display
+- **Rendering**: Data-driven patterns with typed arrays; preserve ARIA attributes
 
-## Conventions (Contracts, API, Pages)
+## CSS/Styling (Pages Project)
 
-- **Feature folders**: Group related code under a single feature folder (e.g. `live-tracker/`) rather than scattering files at top level.
-- **Types live beside implementation**:
-  - Contracts: `contracts/src/<feature>/types.mts` and other modules in the same folder.
-  - API/Pages: keep feature/service types colocated with the feature/service.
-- **Fakes live under the feature**: Use `<feature>/fakes/` (not a standalone global `fakes/`).
-  - Use `fakes/data.mts` for deterministic sample fixtures/data.
-  - Use separate fake implementations for behavior (e.g. service fakes) when needed.
-- **Imports**:
-  - Prefer importing from stable package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`) over deep relative paths across packages.
-
-## CSS/Styling Principles (Pages Project)
-
-- **Mobile-First Approach**: Start with mobile base styles, enhance progressively for larger screens
-- **Custom Media Queries**: Use PostCSS custom media from `variables.css`:
-  - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed, mobile is default)
+- **Mobile-First**: Base styles for mobile, progressively enhance for larger screens
+- **Media Queries**: Use PostCSS custom media from `variables.css`:
+  - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed)
   - `@media (--tablet-viewport)` - min-width: 750px
   - `@media (--desktop-viewport)` - min-width: 1000px
   - `@media (--ultrawide-viewport)` - min-width: 1200px
-- **Organization**: Group all media queries at the bottom of `<style>` blocks with clear section headers
-- **Structure Pattern**:
+- **Organization**: Group media queries at bottom with section headers; never use `max-width` queries
+- **Design Tokens**: Use `variables.css` tokens (font size, spacing, colors)
 
-  ```
-  <style>
-    /* Base Styles - Mobile First */
-    .element { /* mobile styles */ }
+## Type Safety
 
-    /* Media Queries - Tablet and Above */
-    @media (--tablet-viewport) {
-      .element { /* tablet overrides */ }
-    }
+- Never use `as` casting; use typed parsing and type guards
+- Define explicit interfaces for all API interactions
+- Use discriminated unions with `isSuccessResponse()` patterns
+- **Exhaustive Switch Statements**: For discriminated unions, use switch statements with exhaustive case coverage rather than if-else chains. Always include a `default: throw new UnreachableError(value)` case to ensure compile-time detection of unhandled types
+- Keep types in `types.mts` files alongside implementation
+- Add `import type` for framework types (e.g., `ImageMetadata`)
+- Prefer compile-time errors over runtime failures
 
-    /* Media Queries - Desktop and Above */
-    @media (--desktop-viewport) {
-      .element { /* desktop overrides */ }
-    }
-  </style>
-  ```
+### Exhaustive Switch Pattern
 
-- **Progressive Enhancement**: Only override properties that change at larger breakpoints
-- **Avoid Desktop-First**: Never use `max-width` media queries unless absolutely necessary
-- **Consistent Blocks**: Keep the “Base / Tablet / Desktop” comment structure and place new declarations in the appropriate section to preserve readability.
-- **Design tokens**: Make use of `variables.css` which has defined tokens for font size, spacing, colors, etc. Prefer these over creating your own where appropriate.
+**Problem**: If-else chains for discriminated unions don't provide compile-time exhaustiveness checking:
 
-## Type Safety Principles
+```typescript
+// BAD - No compile-time check if new type is added
+if (group.type === "neatqueue-series") {
+  // handle series
+} else if (group.type === "grouped-matches") {
+  // handle grouped
+} else {
+  // handle single-match - but what if a new type is added?
+}
+```
 
-- **No Unsafe Assertions**: Never use `as` casting or manual type assertions; always use proper typed parsing
-- **Request/Response Typing**: Define explicit interfaces for all API interactions with external services
-- **Type Guards**: Use discriminated unions and type guard functions for safe response handling
-- **Centralized Types**: Keep related types in dedicated `types.mts` files alongside implementation
-- **Response Discrimination**: Use `isSuccessResponse()` patterns for safe success/failure handling
-- **API Contracts**: Types serve as living documentation and enforce API compatibility
-- **Compile-Time Safety**: Prefer TypeScript compilation errors over runtime type failures
-- **Astro Types**: When component props rely on framework-provided types (for example `ImageMetadata`), add the corresponding `import type` so files remain self-contained.
+**Solution**: Use switch statements with `UnreachableError` in the default case:
+
+```typescript
+// GOOD - Compile error if new type added but not handled
+switch (group.type) {
+  case "neatqueue-series": {
+    // handle series
+    break;
+  }
+  case "grouped-matches": {
+    // handle grouped
+    break;
+  }
+  case "single-match": {
+    // handle single
+    break;
+  }
+  default: {
+    throw new UnreachableError(group.type); // Compile error if cases incomplete
+  }
+}
+```
+
+Benefits:
+
+- **Type Safety**: TypeScript catches missing cases at compile time
+- **Maintainability**: Adding new union types forces code updates
+- **Runtime Safety**: `UnreachableError` catches impossible states
+- **Self-Documenting**: All possible types visible in one place
+
+Use this pattern for:
+
+- Discriminated union type fields (`type`, `kind`, `status`, etc.)
+- Any branching logic based on string literal union types
+- Mapping or transforming data based on type discriminators
 
 ## Testing Instructions
 
@@ -143,7 +153,38 @@ npm run format:fix
 - **Black Box**: Test inputs/outputs only, no internal mocking
 - **Dependencies**: Only mock constructor dependencies, never internal methods
 - **Data**: Use fake factories (`aFake...With()`) for test data
+- **Conditional Assertions**: Use `expect.assertions(n)` when assertions are inside conditionals (if statements, type guards, loops) to ensure they execute
 - Tests must pass before committing
+
+### Conditional Assertion Pattern
+
+**Problem**: Assertions inside conditionals can silently pass if the condition is false:
+
+```typescript
+// BAD - Test passes even if type guard fails
+const result = parseData();
+if (result?.type === "expected") {
+  expect(result.field).toBe("value"); // Never runs if type is wrong
+}
+```
+
+**Solution**: Declare expected assertion count at the start:
+
+```typescript
+// GOOD - Test fails if assertion doesn't run
+expect.assertions(2); // Declare expected count
+const result = parseData();
+if (result?.type === "expected") {
+  expect(result.field).toBe("value"); // Must run or test fails
+}
+```
+
+Use this pattern for:
+
+- Type guard conditionals (`if (x?.type === "...")`)
+- Discriminated union narrowing
+- Loop iterations with assertions
+- Any assertion inside control flow
 
 ### Mock and Spy Type Safety
 
@@ -190,44 +231,38 @@ When mocking or spying, always use strongly-typed approaches:
 - Do not use `ReturnType<typeof vi.spyOn>` - use `MockInstance<typeof target.method>` instead
 - Do not override properties using `X.y = vi.fn()`, use `vi.spyOn()` to preserve the original implementation
 
-## Development Environment
+## Architecture & Environment
 
-- **Node.js**: 24.11.0+ required
-- **Environment**: Use `.dev.vars` for local development
-- **Commands**: Stick to npm scripts in `package.json`
-- **Validation**: Use `npm run typecheck` instead of building, and rerun it after structural refactors to catch slot/type regressions early.
-- **Directory**: Assume commands run from project root
+**Stack**:
 
-- **Dependency Injection**: Services use constructor injection for testability
-- **Command Pattern**: Discord interactions handled through unified command interface
-- **Service Layer**: Business logic separated from infrastructure concerns
-- **Black-Box Testing**: Test behavior and outcomes, not implementation details
-- **Fake Data**: Use `aFake...With()` pattern for test objects with overrides
+- Cloudflare Workers (edge computing), Durable Objects (persistent state), D1 (relational), KV (fast temporary)
+- Node.js 24.11.0+, TypeScript strict mode, Node ESM with `.mjs` extensions
 
-## Architecture Decisions
+**Patterns**:
 
-- **Cloudflare Workers**: Edge computing for global low-latency Discord responses
-- **Durable Objects**: Persistent state for live match tracking across worker restarts
-- **Node ESM + .mjs**: Required for Cloudflare Workers Node.js compatibility
-- **D1 + KV Storage**: D1 for relational integrity, KV for fast temporary state
-- **TypeScript Strict**: Comprehensive type safety without unsafe casts
+- Dependency injection (constructor injection), Command pattern (Discord interactions), Service layer (business logic)
+- Black-box testing with fake factories (`aFake...With()`)
 
-## Agent behavior
+**Development**:
 
-- Do not use reassuring or emotive language, instead prefer factual statements.
-- Explore code first, look for patterns in neighboring code, when in doubt, ask questions, do not assume.
-- Where code appears different than what you expect, please confirm with prompter if this was intended before reverting.
-- Follow nearest neighbor approach - when creating a method, look at methods surrounding and follow identified patterns, similarly with classes, services, UI components, etc. When in doubt, ask for clarification on what the desired architectural approach should be.
-- Steps to take in tackling any prompt
-  1. come up with a plan/proposal
-  2. gain alignment with prompter
-  3. execute on implementation and fix any outstanding issues, i.e.
-     a. for typescript, use `npm run typecheck` and `npm run lint:ts:fix`
-     b. for CSS, use `npm run stylelint:pages:fix`
-  4. ask for confirmation that things are as expected
-  5. revise if necessary
-  6. once implementation is agreed, look to add tests where relevant. If no tests presently exist, ask for direction. Prefer using `npm test` to ensure all tests are passing.
-  7. Once all is complete above, do `npm run format:fix` to format code.
+- Use `.dev.vars` for local environment
+- Run commands from project root
+- Validate with `npm run typecheck` after refactors
+
+## Agent Workflow
+
+**Communication**: Factual statements only, no emotive language
+
+**Approach**: Explore code first, follow nearest-neighbor patterns, ask before assuming
+
+**Implementation Steps**:
+
+1. Propose plan and gain alignment
+2. Implement solution
+3. Validate: `npm run typecheck`, `npm run lint:ts:fix`, `npm run stylelint:pages:fix` (for CSS)
+4. Confirm with user
+5. Add/update tests if applicable (`npm test`)
+6. Format: `npm run format:fix`
 
 ## Workarounds
 

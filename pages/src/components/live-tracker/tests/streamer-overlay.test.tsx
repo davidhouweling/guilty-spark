@@ -54,6 +54,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     statusText: "active",
     statusClassName: "status-active",
     state: {
+      type: "neatqueue",
       guildName: "Test Guild",
       queueNumber: 5,
       status: "active",
@@ -69,7 +70,6 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
       seriesScore: "🦅 0:0 🐍",
       medalMetadata: {},
       playersAssociationData: {},
-      matchGroupings: {},
     },
     ...overrides,
   };
@@ -128,6 +128,7 @@ describe("StreamerOverlay", () => {
   it("renders information ticker when showTicker is enabled and matches exist", () => {
     const model = aFakeLiveTrackerViewModelWith({
       state: {
+        type: "neatqueue",
         guildName: "Test Guild",
         queueNumber: 5,
         status: "active",
@@ -156,7 +157,6 @@ describe("StreamerOverlay", () => {
         seriesScore: "🦅 1:0 🐍",
         medalMetadata: {},
         playersAssociationData: null,
-        matchGroupings: {},
       },
     });
 
@@ -196,6 +196,7 @@ describe("StreamerOverlay", () => {
   it("renders with matches data", () => {
     const model = aFakeLiveTrackerViewModelWith({
       state: {
+        type: "neatqueue",
         guildName: "Test Guild",
         queueNumber: 5,
         status: "active",
@@ -224,7 +225,6 @@ describe("StreamerOverlay", () => {
         seriesScore: "🦅 1:0 🐍",
         medalMetadata: {},
         playersAssociationData: null,
-        matchGroupings: {},
       },
     });
 

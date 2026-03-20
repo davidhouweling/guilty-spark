@@ -40,7 +40,20 @@ import {
   useHasMatches,
   useSubstitutions,
 } from "./live-tracker-context";
+import type {
+  LiveTrackerStateRenderModel,
+  LiveTrackerNeatQueueStateRenderModel,
+  LiveTrackerIndividualStateRenderModel,
+} from "./types";
 import styles from "./live-tracker.module.css";
+
+function isNeatQueueState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerNeatQueueStateRenderModel {
+  return state !== null && state.type === "neatqueue";
+}
+
+function isIndividualState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerIndividualStateRenderModel {
+  return state !== null && state.type === "individual";
+}
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
   // todo: resolve the rest of the game modes
@@ -223,31 +236,15 @@ export function LiveTrackerView(): React.ReactElement {
 
   // Memoize team colors array to prevent unnecessary re-renders
   const teamColorsArray = useMemo(() => {
-    if (!state) {
+    if (!isNeatQueueState(state)) {
       return [];
     }
     return state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx));
-  }, [state, teamColors]);
+  }, [state?.type, isNeatQueueState(state) ? state.teams : null, teamColors]);
 
-  // For individual mode, compute match-to-group mapping and group stats
-  const matchGroupingInfo = useMemo(() => {
-    if (!isIndividualMode || !state) {
-      return null;
-    }
-
-    const matchToGroup = new Map<string, string>();
-    for (const [groupId, grouping] of Object.entries(state.matchGroupings)) {
-      for (const matchId of grouping.matchIds) {
-        matchToGroup.set(matchId, groupId);
-      }
-    }
-
-    return { matchToGroup };
-  }, [isIndividualMode, state]);
-
-  // Compute stats for each match grouping in individual mode
-  const groupingStats = useMemo(() => {
-    if (!isIndividualMode || !state || !matchGroupingInfo) {
+  // For individual mode, compute stats for each group
+  const individualGroupStats = useMemo(() => {
+    if (!isIndividualState(state)) {
       return null;
     }
 
@@ -256,8 +253,12 @@ export function LiveTrackerView(): React.ReactElement {
       { teamData: MatchStatsData[]; playerData: MatchStatsData[]; metadata: SeriesMetadata | null }
     >();
 
-    for (const [groupId, grouping] of Object.entries(state.matchGroupings)) {
-      const groupMatches = state.matches.filter((m) => grouping.matchIds.includes(m.matchId));
+    for (const group of state.groups) {
+      if (group.type === "single-match") {
+        continue;
+      }
+
+      const groupMatches = group.matches;
       const rawMatchStats = groupMatches
         .map((m) => m.rawMatchStats)
         .filter((stats): stats is NonNullable<typeof stats> => stats != null);
@@ -273,14 +274,13 @@ export function LiveTrackerView(): React.ReactElement {
         }
       }
 
-      // Compute scores string for metadata
-      const scoresStr = groupMatches.map((m) => m.gameScore).join(", ");
-      const metadata = calculateSeriesMetadata(groupMatches, scoresStr);
+      const { seriesScore } = group;
+      const metadata = calculateSeriesMetadata(groupMatches, seriesScore);
 
       const teamPresenter = new SeriesTeamStatsPresenter();
       const playerPresenter = new SeriesPlayerStatsPresenter();
 
-      statsMap.set(groupId, {
+      statsMap.set(group.groupId, {
         teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
         playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
         metadata,
@@ -288,7 +288,7 @@ export function LiveTrackerView(): React.ReactElement {
     }
 
     return statsMap;
-  }, [isIndividualMode, state, matchGroupingInfo]);
+  }, [state?.type, isIndividualState(state) ? state.groups : null, state?.medalMetadata]);
 
   // Set body data attribute for streamer mode styling
   useEffect(() => {
@@ -306,7 +306,7 @@ export function LiveTrackerView(): React.ReactElement {
   const title: string[] = [trackerInfo.guildNameText];
   if (isIndividualMode) {
     title.push("- Individual Tracker");
-  } else if (state) {
+  } else if (isNeatQueueState(state)) {
     title.push(`#${state.queueNumber.toString()}`);
     title.push(`(${state.seriesScore})`);
   }
@@ -341,7 +341,7 @@ export function LiveTrackerView(): React.ReactElement {
             <div className={styles.headerSubtitle}>
               {isIndividualMode
                 ? "Individual Tracker"
-                : `Queue #${state ? state.queueNumber.toString() : trackerInfo.queueNumberText}`}
+                : `Queue #${isNeatQueueState(state) ? state.queueNumber.toString() : trackerInfo.queueNumberText}`}
             </div>
           </div>
 
@@ -379,7 +379,7 @@ export function LiveTrackerView(): React.ReactElement {
 
         {state ? (
           <>
-            {!isIndividualMode && (
+            {isNeatQueueState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 <h2 className={styles.sectionTitle}>Series overview</h2>
                 <div className={styles.seriesOverview}>
@@ -478,7 +478,7 @@ export function LiveTrackerView(): React.ReactElement {
                 </div>
               </Container>
             )}
-            {!isIndividualMode && seriesStats && (
+            {isNeatQueueState(state) && seriesStats && (
               <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
                 <SeriesStats
                   teamData={seriesStats.teamData}
@@ -489,7 +489,7 @@ export function LiveTrackerView(): React.ReactElement {
                 />
               </Container>
             )}
-            {!isIndividualMode && hasMatches && (
+            {isNeatQueueState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                   <h2 className={styles.sectionTitle}>Matches</h2>
@@ -577,34 +577,31 @@ export function LiveTrackerView(): React.ReactElement {
                 })()}
               </>
             )}
-            {isIndividualMode && hasMatches && matchGroupingInfo && groupingStats && (
+            {isIndividualState(state) && hasMatches && individualGroupStats && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                   <h2 className={styles.sectionTitle}>Matches</h2>
                 </Container>
                 <IndividualModeMatches
-                  matches={state.matches}
-                  matchGroupings={state.matchGroupings}
-                  allMatchStats={allMatchStats}
-                  groupingStats={groupingStats}
+                  groups={state.groups}
+                  groupStats={individualGroupStats}
                   gameModeIconUrl={gameModeIconSrc}
                   teamColors={teamColorsArray}
                   viewMode={viewMode}
-                  guildName={state.guildName}
-                  seriesData={state.seriesData}
+                  guildName={trackerInfo.guildNameText}
                   status={state.status}
                 />
               </>
             )}
-            {!isIndividualMode && !hasMatches && state.playersAssociationData ? (
+            {isNeatQueueState(state) && !hasMatches && state.playersAssociationData && (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
                 teams={state.teams}
                 playersAssociationData={state.playersAssociationData}
                 teamColors={teamColorsArray}
               />
-            ) : null}
-            {!isIndividualMode && !hasMatches && sortedSubstitutionsList.length > 0 && (
+            )}
+            {isNeatQueueState(state) && !hasMatches && sortedSubstitutionsList.length > 0 && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 {sortedSubstitutionsList.map((substitution) => (
                   <Alert key={substitution.timestamp} variant="info" icon="↔️">

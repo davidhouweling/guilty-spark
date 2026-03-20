@@ -35,15 +35,6 @@ export interface LiveTrackerSubstitutionRenderModel {
   readonly timestamp: string;
 }
 
-export interface LiveTrackerMatchGrouping {
-  readonly groupId: string;
-  readonly matchIds: readonly string[];
-  readonly seriesId?: {
-    readonly guildId: string;
-    readonly queueNumber: number;
-  };
-}
-
 export interface LiveTrackerSeriesDataRenderModel {
   readonly seriesId: {
     readonly guildId: string;
@@ -59,7 +50,54 @@ export interface LiveTrackerSeriesDataRenderModel {
   readonly lastUpdateTime: string;
 }
 
-export interface LiveTrackerStateRenderModel {
+// ============================================================================
+// INDIVIDUAL GROUP RENDER MODELS (discriminated union)
+// ============================================================================
+
+export type LiveTrackerGroupRenderModel =
+  | LiveTrackerNeatQueueSeriesGroupRenderModel
+  | LiveTrackerManualMatchGroupRenderModel
+  | LiveTrackerSingleMatchGroupRenderModel;
+
+export interface LiveTrackerNeatQueueSeriesGroupRenderModel {
+  readonly type: "neatqueue-series";
+  readonly groupId: string;
+  readonly seriesId: {
+    readonly guildId: string;
+    readonly queueNumber: number;
+  };
+  readonly teams: readonly LiveTrackerTeamRenderModel[];
+  readonly matches: readonly LiveTrackerMatchRenderModel[];
+  readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
+  readonly seriesScore: string;
+  readonly seriesData?: LiveTrackerSeriesDataRenderModel;
+}
+
+export interface LiveTrackerManualMatchGroupRenderModel {
+  readonly type: "grouped-matches";
+  readonly groupId: string;
+  readonly label: string;
+  readonly seriesScore: string;
+  readonly matches: readonly LiveTrackerMatchRenderModel[];
+}
+
+export interface LiveTrackerSingleMatchGroupRenderModel {
+  readonly type: "single-match";
+  readonly groupId: string;
+  readonly match: LiveTrackerMatchRenderModel;
+}
+
+// ============================================================================
+// STATE RENDER MODEL (discriminated union)
+// ============================================================================
+
+export type LiveTrackerStateRenderModel = LiveTrackerNeatQueueStateRenderModel | LiveTrackerIndividualStateRenderModel;
+
+/**
+ * Render model for NeatQueue tracker (Discord guild queue).
+ */
+export interface LiveTrackerNeatQueueStateRenderModel {
+  readonly type: "neatqueue";
   readonly guildName: string;
   readonly queueNumber: number;
   readonly status: LiveTrackerStatus;
@@ -70,8 +108,21 @@ export interface LiveTrackerStateRenderModel {
   readonly seriesScore: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
-  readonly matchGroupings: Record<string, LiveTrackerMatchGrouping>;
   readonly seriesData?: LiveTrackerSeriesDataRenderModel;
+}
+
+/**
+ * Render model for Individual tracker (single player).
+ */
+export interface LiveTrackerIndividualStateRenderModel {
+  readonly type: "individual";
+  readonly gamertag: string;
+  readonly xuid: string;
+  readonly status: LiveTrackerStatus;
+  readonly lastUpdateTime: string;
+  readonly groups: readonly LiveTrackerGroupRenderModel[];
+  readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
+  readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
 }
 
 export interface LiveTrackerViewModel {

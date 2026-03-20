@@ -1,6 +1,6 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
-import { Preconditions } from "../../base/preconditions.mts";
+import { Preconditions } from "../../base/preconditions";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";

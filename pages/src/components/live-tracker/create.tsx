@@ -13,6 +13,7 @@ import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import { TrackerInitiationFactory } from "../tracker-initiation/create";
+import { UnreachableError } from "../../base/unreachable-error";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore, type LiveTrackerParams } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -61,75 +62,17 @@ function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerM
   const prevData = prev.data;
   const currData = curr.data;
 
-  // Fast checks first
-  if (
-    prevData.status !== currData.status ||
-    prevData.queueNumber !== currData.queueNumber ||
-    prevData.guildId !== currData.guildId ||
-    prevData.channelId !== currData.channelId ||
-    prevData.seriesScore !== currData.seriesScore ||
-    prevData.players.length !== currData.players.length ||
-    prevData.teams.length !== currData.teams.length ||
-    prevData.substitutions.length !== currData.substitutions.length ||
-    prevData.discoveredMatches.length !== currData.discoveredMatches.length
-  ) {
+  // First check if types match
+  if (prevData.type !== currData.type) {
     return false;
   }
 
-  // Compare players by ID (order matters)
-  for (let i = 0; i < prevData.players.length; i++) {
-    if (
-      prevData.players[i].id !== currData.players[i].id ||
-      prevData.players[i].discordUsername !== currData.players[i].discordUsername
-    ) {
-      return false;
-    }
+  // Common fields
+  if (prevData.status !== currData.status) {
+    return false;
   }
 
-  // Compare teams structure
-  for (let i = 0; i < prevData.teams.length; i++) {
-    const prevTeam = prevData.teams[i];
-    const currTeam = currData.teams[i];
-    if (
-      prevTeam.name !== currTeam.name ||
-      prevTeam.playerIds.length !== currTeam.playerIds.length ||
-      !prevTeam.playerIds.every((id, idx) => id === currTeam.playerIds[idx])
-    ) {
-      return false;
-    }
-  }
-
-  // Compare substitutions (excluding timestamps if they're the same event)
-  for (let i = 0; i < prevData.substitutions.length; i++) {
-    const prevSub = prevData.substitutions[i];
-    const currSub = currData.substitutions[i];
-    if (
-      prevSub.playerOutId !== currSub.playerOutId ||
-      prevSub.playerInId !== currSub.playerInId ||
-      prevSub.teamIndex !== currSub.teamIndex ||
-      prevSub.timestamp !== currSub.timestamp
-    ) {
-      return false;
-    }
-  }
-
-  // Compare discovered matches by matchId and key properties
-  for (let i = 0; i < prevData.discoveredMatches.length; i++) {
-    const prevMatch = prevData.discoveredMatches[i];
-    const currMatch = currData.discoveredMatches[i];
-    if (
-      prevMatch.matchId !== currMatch.matchId ||
-      prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
-      prevMatch.gameScore !== currMatch.gameScore ||
-      prevMatch.duration !== currMatch.duration ||
-      prevMatch.startTime !== currMatch.startTime ||
-      prevMatch.endTime !== currMatch.endTime
-    ) {
-      return false;
-    }
-  }
-
-  // Compare rawMatches keys (actual content changes would be caught by discoveredMatches)
+  // Compare rawMatches keys (actual content changes would be caught by match arrays)
   const prevMatchIds = Object.keys(prevData.rawMatches).sort();
   const currMatchIds = Object.keys(currData.rawMatches).sort();
   if (prevMatchIds.length !== currMatchIds.length || !prevMatchIds.every((id, idx) => id === currMatchIds[idx])) {
@@ -138,7 +81,7 @@ function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerM
 
   // Compare medalMetadata keys (structural check)
   const prevMedalIds = Object.keys(prevData.medalMetadata).sort();
-  const currMedalIds = Object.keys(currData.medalMetadata).sort();
+  const currMedalIds = Object.keys(prevData.medalMetadata).sort();
   if (prevMedalIds.length !== currMedalIds.length || !prevMedalIds.every((id, idx) => id === currMedalIds[idx])) {
     return false;
   }
@@ -176,6 +119,137 @@ function isStateMessageEqual(prev: LiveTrackerMessage | null, curr: LiveTrackerM
         return false;
       }
     }
+  }
+
+  // Type-specific comparisons
+  if (prevData.type === "neatqueue" && currData.type === "neatqueue") {
+    if (
+      prevData.queueNumber !== currData.queueNumber ||
+      prevData.guildId !== currData.guildId ||
+      prevData.channelId !== currData.channelId ||
+      prevData.guildName !== currData.guildName ||
+      prevData.seriesScore !== currData.seriesScore ||
+      prevData.players.length !== currData.players.length ||
+      prevData.teams.length !== currData.teams.length ||
+      prevData.substitutions.length !== currData.substitutions.length ||
+      prevData.matchSummaries.length !== currData.matchSummaries.length
+    ) {
+      return false;
+    }
+
+    // Compare players by ID (order matters)
+    for (let i = 0; i < prevData.players.length; i++) {
+      if (
+        prevData.players[i].id !== currData.players[i].id ||
+        prevData.players[i].discordUsername !== currData.players[i].discordUsername
+      ) {
+        return false;
+      }
+    }
+
+    // Compare teams structure
+    for (let i = 0; i < prevData.teams.length; i++) {
+      const prevTeam = prevData.teams[i];
+      const currTeam = currData.teams[i];
+      if (
+        prevTeam.name !== currTeam.name ||
+        prevTeam.playerIds.length !== currTeam.playerIds.length ||
+        !prevTeam.playerIds.every((id: string, idx: number) => id === currTeam.playerIds[idx])
+      ) {
+        return false;
+      }
+    }
+
+    // Compare substitutions (excluding timestamps if they're the same event)
+    for (let i = 0; i < prevData.substitutions.length; i++) {
+      const prevSub = prevData.substitutions[i];
+      const currSub = currData.substitutions[i];
+      if (
+        prevSub.playerOutId !== currSub.playerOutId ||
+        prevSub.playerInId !== currSub.playerInId ||
+        prevSub.teamIndex !== currSub.teamIndex ||
+        prevSub.timestamp !== currSub.timestamp
+      ) {
+        return false;
+      }
+    }
+
+    // Compare match summaries by matchId and key properties
+    for (let i = 0; i < prevData.matchSummaries.length; i++) {
+      const prevMatch = prevData.matchSummaries[i];
+      const currMatch = currData.matchSummaries[i];
+      if (
+        prevMatch.matchId !== currMatch.matchId ||
+        prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
+        prevMatch.gameScore !== currMatch.gameScore ||
+        prevMatch.duration !== currMatch.duration ||
+        prevMatch.startTime !== currMatch.startTime ||
+        prevMatch.endTime !== currMatch.endTime
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (prevData.type === "individual" && currData.type === "individual") {
+    if (
+      prevData.gamertag !== currData.gamertag ||
+      prevData.xuid !== currData.xuid ||
+      prevData.groups.length !== currData.groups.length
+    ) {
+      return false;
+    }
+
+    // Compare groups structure
+    for (let i = 0; i < prevData.groups.length; i++) {
+      const prevGroup = prevData.groups[i];
+      const currGroup = currData.groups[i];
+
+      if (prevGroup.type !== currGroup.type || prevGroup.groupId !== currGroup.groupId) {
+        return false;
+      }
+
+      // Type-specific group comparisons (types are equal at this point)
+      switch (prevGroup.type) {
+        case "neatqueue-series": {
+          // Type assertion: we know currGroup.type === "neatqueue-series" from the equality check above
+          const currentTyped = currGroup as typeof prevGroup;
+          if (
+            prevGroup.seriesScore !== currentTyped.seriesScore ||
+            prevGroup.matchSummaries.length !== currentTyped.matchSummaries.length ||
+            prevGroup.players.length !== currentTyped.players.length ||
+            prevGroup.teams.length !== currentTyped.teams.length
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "grouped-matches": {
+          const currentTyped = currGroup as typeof prevGroup;
+          if (
+            prevGroup.label !== currentTyped.label ||
+            prevGroup.seriesScore !== currentTyped.seriesScore ||
+            prevGroup.matchSummaries.length !== currentTyped.matchSummaries.length
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "single-match": {
+          const currentTyped = currGroup as typeof prevGroup;
+          if (prevGroup.matchSummary.matchId !== currentTyped.matchSummary.matchId) {
+            return false;
+          }
+          break;
+        }
+        default:
+          throw new UnreachableError(prevGroup);
+      }
+    }
+
+    return true;
   }
 
   // All meaningful data is the same, only timestamps differ
@@ -257,11 +331,13 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
     return newModel;
   }, [snapshot]);
 
-  // Compute match stats from model state
+  // Compute match stats from model state (NeatQueue only)
   const allMatchStats = useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
-    if (!model.state) {
+    if (model.state?.type !== "neatqueue") {
       return [];
     }
+
+    const { medalMetadata } = model.state;
 
     return model.state.matches.map((match) => {
       if (match.rawMatchStats == null) {
@@ -274,22 +350,22 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
         return {
           matchId: match.matchId,
-          data: matchStatsPresenter.getData(matchStats, playerMap, model.state?.medalMetadata),
+          data: matchStatsPresenter.getData(matchStats, playerMap, medalMetadata),
         };
       } catch (error) {
         console.error("Error processing match stats:", error);
         return { matchId: match.matchId, data: null };
       }
     });
-  }, [model.state]);
+  }, [model.state]); // Depend on entire state to catch type changes
 
-  // Compute series stats from model state
+  // Compute series stats from model state (NeatQueue only)
   const seriesStats = useMemo((): {
     teamData: MatchStatsData[];
     playerData: MatchStatsData[];
     metadata: SeriesMetadata | null;
   } | null => {
-    if (!model.state || model.state.matches.length === 0) {
+    if (model.state?.type !== "neatqueue" || model.state.matches.length === 0) {
       return null;
     }
 
@@ -323,7 +399,7 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
       console.error("Error processing series stats:", error);
       return null;
     }
-  }, [model.state]);
+  }, [model.state]); // Depend on entire state to catch type changes
 
   // Show TrackerInitiation for idle or not_found states
   if (snapshot.connectionState === "idle" || snapshot.connectionState === "not_found") {

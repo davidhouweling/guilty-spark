@@ -244,6 +244,7 @@ describe("NeatQueuePlayersEmbed", () => {
 
     const { actions } = embed;
 
+    expect.assertions(6);
     expect(actions).toHaveLength(1);
     const [firstAction] = actions;
     expect(firstAction?.type).toBe(ComponentType.ActionRow);
@@ -285,6 +286,7 @@ describe("NeatQueuePlayersEmbed", () => {
 
     const { actions } = embed;
 
+    expect.assertions(4);
     expect(actions).toHaveLength(1);
     const [firstAction] = actions;
     expect(firstAction?.type).toBe(ComponentType.ActionRow);

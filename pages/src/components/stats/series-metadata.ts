@@ -1,4 +1,4 @@
-import { Preconditions } from "../../base/preconditions.mts";
+import { Preconditions } from "../../base/preconditions";
 import type { LiveTrackerMatchRenderModel } from "../live-tracker/types";
 
 export interface SeriesMetadata {

@@ -31,6 +31,13 @@ export interface SeriesData {
   readonly discoveredMatches: ReadonlyMap<string, LiveTrackerMatchSummary>;
   readonly rawMatches: ReadonlyMap<string, MatchStats>;
   readonly playersAssociationData: Record<string, PlayerAssociationData>;
+  readonly substitutions: readonly {
+    playerOutId: string;
+    playerInId: string;
+    teamIndex: number;
+    teamName: string;
+    timestamp: string;
+  }[];
   readonly startTime: string;
   readonly lastUpdateTime: string;
 }

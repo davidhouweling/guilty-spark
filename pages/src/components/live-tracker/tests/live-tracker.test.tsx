@@ -25,6 +25,7 @@ describe("LiveTracker", () => {
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
+        type: "neatqueue",
         guildId: "1",
         guildName: "Guild 1",
         channelId: "2",
@@ -34,7 +35,7 @@ describe("LiveTracker", () => {
         players: [{ id: "p1", discordUsername: "Player 1" }],
         teams: [],
         substitutions: [],
-        discoveredMatches: [
+        matchSummaries: [
           {
             matchId: "m1",
             gameTypeAndMap: "Slayer: Aquarius",
