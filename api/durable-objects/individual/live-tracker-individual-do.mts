@@ -1404,40 +1404,63 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async webSocketClose(ws: WebSocket, code: number, reason: string, _wasClean: boolean): Promise<void> {
-    const trackerState = await this.getState();
-    if (trackerState !== null) {
-      // Get tags attached to this WebSocket
-      const tags = this.state.getTags(ws);
-      const [targetId] = tags;
+    try {
+      const trackerState = await this.getState();
+      if (trackerState !== null) {
+        // Get tags attached to this WebSocket
+        // In some edge cases (e.g., WebSocket closes before being properly accepted),
+        // getTags may return an empty array or the operation may fail
+        try {
+          const tags = this.state.getTags(ws);
+          const [targetId] = tags;
 
-      if (targetId != null) {
-        const beforeCount = trackerState.updateTargets.length;
-        trackerState.updateTargets = trackerState.updateTargets.filter((t) => t.id !== targetId);
-        const afterCount = trackerState.updateTargets.length;
+          if (targetId != null) {
+            const beforeCount = trackerState.updateTargets.length;
+            trackerState.updateTargets = trackerState.updateTargets.filter((t) => t.id !== targetId);
+            const afterCount = trackerState.updateTargets.length;
 
-        if (beforeCount > afterCount) {
-          await this.setState(trackerState);
+            if (beforeCount > afterCount) {
+              await this.setState(trackerState);
 
-          this.logService.info(
-            "LiveTracker Individual: Removed WebSocket target",
-            new Map([
-              ["targetId", targetId],
-              ["remainingTargets", afterCount.toString()],
-            ]),
+              this.logService.info(
+                "LiveTracker Individual: Removed WebSocket target",
+                new Map([
+                  ["targetId", targetId],
+                  ["remainingTargets", afterCount.toString()],
+                ]),
+              );
+            }
+          }
+        } catch (tagError) {
+          // Log but don't fail - WebSocket may have closed before being properly tagged
+          this.logService.warn(
+            "LiveTracker Individual: Failed to get tags from closing WebSocket",
+            new Map([["error", String(tagError)]]),
           );
         }
       }
-    }
 
-    const allWebSockets = this.state.getWebSockets();
-    this.logService.debug(
-      "LiveTracker Individual: WebSocket client disconnected",
-      new Map([
-        ["code", code.toString()],
-        ["reason", reason],
-        ["remainingClients", allWebSockets.length.toString()],
-      ]),
-    );
+      const allWebSockets = this.state.getWebSockets();
+      this.logService.debug(
+        "LiveTracker Individual: WebSocket client disconnected",
+        new Map([
+          ["code", code.toString()],
+          ["reason", reason],
+          ["remainingClients", allWebSockets.length.toString()],
+        ]),
+      );
+    } catch (error) {
+      // Log errors but don't fail - WebSocket cleanup should be resilient
+      this.logService.error(
+        "LiveTracker Individual: Error during WebSocket close",
+        new Map([
+          ["error", String(error)],
+          ["code", code.toString()],
+          ["reason", reason],
+        ]),
+      );
+      Sentry.captureException(error);
+    }
 
     return Promise.resolve();
   }
@@ -1464,42 +1487,67 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const server = webSocketPair[1];
 
     const targetId = `websocket-${Date.now().toString()}-${Math.random().toString(36).substring(7)}`;
-    trackerState.updateTargets.push({
-      id: targetId,
-      type: "websocket",
-      createdAt: new Date().toISOString(),
-      websocket: {
-        sessionId: targetId,
-      },
-    });
 
-    this.state.acceptWebSocket(server, [targetId]);
-    await this.setState(trackerState);
+    try {
+      // Accept WebSocket first to ensure tags are set before any potential close events
+      this.state.acceptWebSocket(server, [targetId]);
 
-    const allWebSockets = this.state.getWebSockets();
-    this.logService.info(
-      "LiveTracker Individual: WebSocket client connected",
-      new Map([
-        ["targetId", targetId],
-        ["totalClients", allWebSockets.length.toString()],
-        ["gamertag", trackerState.gamertag],
-      ]),
-    );
+      // Add to update targets and save state
+      trackerState.updateTargets.push({
+        id: targetId,
+        type: "websocket",
+        createdAt: new Date().toISOString(),
+        websocket: {
+          sessionId: targetId,
+        },
+      });
 
-    // Send current state immediately on connection
-    const data = await this.stateToContractData(trackerState);
-    server.send(
-      JSON.stringify({
-        type: "state",
-        data,
-        timestamp: new Date().toISOString(),
-      }),
-    );
+      await this.setState(trackerState);
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
-    });
+      const allWebSockets = this.state.getWebSockets();
+      this.logService.info(
+        "LiveTracker Individual: WebSocket client connected",
+        new Map([
+          ["targetId", targetId],
+          ["totalClients", allWebSockets.length.toString()],
+          ["gamertag", trackerState.gamertag],
+        ]),
+      );
+
+      // Send current state immediately on connection
+      const data = await this.stateToContractData(trackerState);
+      server.send(
+        JSON.stringify({
+          type: "state",
+          data,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+      });
+    } catch (error) {
+      this.logService.error(
+        "LiveTracker Individual: Failed to establish WebSocket",
+        new Map([
+          ["error", String(error)],
+          ["targetId", targetId],
+          ["gamertag", trackerState.gamertag],
+        ]),
+      );
+      Sentry.captureException(error);
+
+      // Close the WebSocket if setup failed
+      try {
+        server.close(1011, "Internal error");
+      } catch {
+        // Ignore errors during cleanup
+      }
+
+      return new Response("Failed to establish WebSocket connection", { status: 500 });
+    }
   }
 
   private shouldRemoveTarget(target: UpdateTarget, error: unknown): boolean {

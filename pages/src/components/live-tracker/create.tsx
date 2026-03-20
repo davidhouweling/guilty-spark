@@ -440,11 +440,13 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
 export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
   const [loadingServices, setLoadingServices] = React.useState<ComponentLoaderStatus>(ComponentLoaderStatus.PENDING);
   const [services, setServices] = React.useState<Services | null>(null);
+  const [shouldConnectToTracker, setShouldConnectToTracker] = React.useState(false);
 
   // Check URL params to determine if we need to connect to a tracker
-  const shouldConnectToTracker = React.useMemo(() => {
+  // Use useEffect to avoid hydration mismatch (server has no window)
+  useEffect(() => {
     if (typeof window === "undefined") {
-      return false;
+      return;
     }
     const url = new URL(window.location.href);
     const gamertag = url.searchParams.get("gamertag");
@@ -453,23 +455,22 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
 
     // Individual mode: needs gamertag
     if (gamertag !== null && gamertag.length > 0) {
-      return true;
+      setShouldConnectToTracker(true);
+      return;
     }
 
     // Team mode: needs both server and queue
     if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
-      return true;
+      setShouldConnectToTracker(true);
     }
-
-    return false;
   }, []);
 
-  // If we don't have params to connect, show TrackerInitiation immediately
-  if (!shouldConnectToTracker) {
-    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
-  }
-
+  // Load services when we have tracker params
   useEffect(() => {
+    if (!shouldConnectToTracker) {
+      return;
+    }
+
     let isCancelled = false;
 
     setServices(null);
@@ -494,7 +495,12 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     return (): void => {
       isCancelled = true;
     };
-  }, [apiHost]);
+  }, [apiHost, shouldConnectToTracker]);
+
+  // If we don't have params to connect, show TrackerInitiation immediately
+  if (!shouldConnectToTracker) {
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
+  }
 
   const loaded = services ? <LiveTrackerFactory services={services} apiHost={apiHost} /> : <ErrorState />;
 

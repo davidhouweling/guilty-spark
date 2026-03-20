@@ -1344,16 +1344,29 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   async webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-    this.logService.debug(
-      "LiveTracker: WebSocket client disconnected",
-      new Map([
-        ["code", code.toString()],
-        ["reason", reason],
-        ["wasClean", wasClean.toString()],
-        ["remainingClients", allWebSockets.length.toString()],
-      ]),
-    );
+    try {
+      const allWebSockets = this.state.getWebSockets();
+      this.logService.debug(
+        "LiveTracker: WebSocket client disconnected",
+        new Map([
+          ["code", code.toString()],
+          ["reason", reason],
+          ["wasClean", wasClean.toString()],
+          ["remainingClients", allWebSockets.length.toString()],
+        ]),
+      );
+    } catch (error) {
+      // Log errors but don't fail - WebSocket cleanup should be resilient
+      this.logService.error(
+        "LiveTracker: Error during WebSocket close",
+        new Map([
+          ["error", String(error)],
+          ["code", code.toString()],
+          ["reason", reason],
+        ]),
+      );
+      Sentry.captureException(error);
+    }
 
     return Promise.resolve();
   }
@@ -1383,34 +1396,55 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const client = webSocketPair[0];
     const server = webSocketPair[1];
 
-    // Use hibernation API - allows DO to be evicted from memory while maintaining connection
-    this.state.acceptWebSocket(server);
+    try {
+      // Use hibernation API - allows DO to be evicted from memory while maintaining connection
+      this.state.acceptWebSocket(server);
 
-    const allWebSockets = this.state.getWebSockets();
-    this.logService.info(
-      "LiveTracker: WebSocket client connected",
-      new Map([
-        ["totalClients", allWebSockets.length.toString()],
-        ["guildId", trackerState.guildId],
-        ["channelId", trackerState.channelId],
-        ["queueNumber", trackerState.queueNumber.toString()],
-      ]),
-    );
+      const allWebSockets = this.state.getWebSockets();
+      this.logService.info(
+        "LiveTracker: WebSocket client connected",
+        new Map([
+          ["totalClients", allWebSockets.length.toString()],
+          ["guildId", trackerState.guildId],
+          ["channelId", trackerState.channelId],
+          ["queueNumber", trackerState.queueNumber.toString()],
+        ]),
+      );
 
-    // Send current state immediately on connection
-    const data = await this.stateToContractData(trackerState);
-    server.send(
-      JSON.stringify({
-        type: "state",
-        data,
-        timestamp: new Date().toISOString(),
-      }),
-    );
+      // Send current state immediately on connection
+      const data = await this.stateToContractData(trackerState);
+      server.send(
+        JSON.stringify({
+          type: "state",
+          data,
+          timestamp: new Date().toISOString(),
+        }),
+      );
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
-    });
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+      });
+    } catch (error) {
+      this.logService.error(
+        "LiveTracker: Failed to establish WebSocket",
+        new Map([
+          ["error", String(error)],
+          ["guildId", trackerState.guildId],
+          ["queueNumber", trackerState.queueNumber.toString()],
+        ]),
+      );
+      Sentry.captureException(error);
+
+      // Close the WebSocket if setup failed
+      try {
+        server.close(1011, "Internal error");
+      } catch {
+        // Ignore errors during cleanup
+      }
+
+      return new Response("Failed to establish WebSocket connection", { status: 500 });
+    }
   }
 
   private async broadcastStateUpdate(state: LiveTrackerState): Promise<void> {
