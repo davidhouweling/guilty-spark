@@ -119,6 +119,7 @@ const sampleRawMatches: Record<string, MatchStats> = {
 export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
   type: "state",
   data: {
+    type: "neatqueue",
     guildId: "1238795949266964560",
     guildName: "Sample Guild",
     channelId: "1453215131843563550",
@@ -127,7 +128,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     players,
     teams,
     substitutions: [],
-    discoveredMatches,
+    matchSummaries: discoveredMatches,
     rawMatches: sampleRawMatches,
     seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
@@ -187,6 +188,15 @@ export function aFakePlayerAssociationDataWith(overrides: Partial<PlayerAssociat
   };
 }
 
+// Type-safe helper to access known array elements
+function getMatchSummary(matches: readonly LiveTrackerMatchSummary[], index: number): LiveTrackerMatchSummary {
+  const match = matches[index];
+  if (!match) {
+    throw new Error(`Match at index ${index.toString()} does not exist`);
+  }
+  return match;
+}
+
 /**
  * Sample individual tracker state message for web-only tracking
  * (no Discord integration, no team structure)
@@ -194,17 +204,10 @@ export function aFakePlayerAssociationDataWith(overrides: Partial<PlayerAssociat
 export const sampleIndividualTrackerStateMessage: LiveTrackerStateMessage = {
   type: "state",
   data: {
-    guildId: "0",
-    guildName: "Web Tracker",
-    channelId: "0",
-    queueNumber: 0,
+    type: "individual",
+    gamertag: "iSydneyzz",
+    xuid: "2535433357884073",
     status: "active",
-    players: [],
-    teams: [],
-    substitutions: [],
-    discoveredMatches,
-    rawMatches: sampleRawMatches,
-    seriesScore: "🦅 1:2 🐍",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
     playersAssociationData: null,
     medalMetadata: {
@@ -237,24 +240,48 @@ export const sampleIndividualTrackerStateMessage: LiveTrackerStateMessage = {
       4229934157: { name: "Snipe", sortingWeight: 50 },
       4277328263: { name: "Sharpshooter", sortingWeight: 50 },
     },
-    matchGroupings: {
-      "2025-12-24T02:51:50.186Z": {
-        groupId: "2025-12-24T02:51:50.186Z",
-        matchIds: ["85022d98-5829-4da2-85ae-32b8cb48bbdd", "4ddc5187-d08d-48fc-96a3-8a490e577795"],
+    groups: [
+      {
+        type: "neatqueue-series",
+        groupId: "neatqueue-1238795949266964560-6038",
         seriesId: {
           guildId: "1238795949266964560",
           queueNumber: 6038,
         },
+        players: [
+          { id: "1189356946680188960", discordUsername: "isydneyzz" },
+          { id: "505426249007497236", discordUsername: "polqi" },
+          { id: "1101793401311080480", discordUsername: "siasami" },
+          { id: "365374177181696010", discordUsername: "fistcats69420" },
+        ],
+        teams: [
+          {
+            name: "Team 1",
+            playerIds: ["1189356946680188960", "505426249007497236"],
+          },
+          {
+            name: "Team 2",
+            playerIds: ["1101793401311080480", "365374177181696010"],
+          },
+        ],
+        substitutions: [],
+        seriesScore: "🦅 1:0 🐍",
+        matchSummaries: [getMatchSummary(discoveredMatches, 0), getMatchSummary(discoveredMatches, 1)],
       },
-      "2025-12-24T03:12:08.363Z": {
-        groupId: "2025-12-24T03:12:08.363Z",
-        matchIds: ["d127af7f-079c-4b28-a3ae-6e1bcdd44438"],
+      {
+        type: "grouped-matches",
+        groupId: "custom-games-feb-15",
+        label: "Custom Games • Feb 15 • 4 players",
+        seriesScore: "1:0",
+        matchSummaries: [getMatchSummary(discoveredMatches, 2)],
       },
-      "2025-12-24T03:27:49.787Z": {
-        groupId: "2025-12-24T03:27:49.787Z",
-        matchIds: ["688cc0ac-2266-40e2-a3dd-a1f5b992f046"],
+      {
+        type: "single-match",
+        groupId: getMatchSummary(discoveredMatches, 3).matchId,
+        matchSummary: getMatchSummary(discoveredMatches, 3),
       },
-    },
+    ],
+    rawMatches: sampleRawMatches,
   },
   timestamp: "2025-12-24T03:52:10.687Z",
 };

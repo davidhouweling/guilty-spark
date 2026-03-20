@@ -533,6 +533,8 @@ describe("SetupCommand", () => {
       });
 
       it("displays Live Tracking configuration buttons with correct disabled state when live tracking is off", async () => {
+        expect.assertions(2);
+
         const mockConfig = aFakeGuildConfigRow({
           NeatQueueInformerLiveTracking: "N",
           NeatQueueInformerLiveTrackingChannelName: "N",

@@ -1,6 +1,8 @@
 import { sampleIndividualTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import type { LiveTrackerMatchRenderModel } from "../../../components/live-tracker/types";
 import type { MatchHistoryEntry, MatchHistoryResponse } from "../../../components/tracker-initiation/types";
 import type { StartTrackerRequest, StartTrackerResponse, TrackerInitiationService } from "../types";
+import { UnreachableError } from "../../../base/unreachable-error";
 
 export interface FakeTrackerInitiationServiceOptions {
   readonly customGameIndices?: readonly number[];
@@ -23,9 +25,79 @@ export class FakeTrackerInitiationService implements TrackerInitiationService {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    const matches = sampleIndividualTrackerStateMessage.data.discoveredMatches.map((match) =>
-      this.convertToMatchHistoryEntry(match),
-    );
+    // Extract all matches from individual tracker groups
+    const { data } = sampleIndividualTrackerStateMessage;
+    if (data.type !== "individual") {
+      throw new Error("Expected individual tracker state");
+    }
+
+    const allMatches: LiveTrackerMatchRenderModel[] = [];
+
+    for (const group of data.groups) {
+      switch (group.type) {
+        case "neatqueue-series": {
+          // Convert from LiveTrackerMatchSummary to LiveTrackerMatchRenderModel
+          for (const summary of group.matchSummaries) {
+            allMatches.push({
+              matchId: summary.matchId,
+              gameTypeAndMap: summary.gameTypeAndMap,
+              gameType: summary.gameType,
+              gameMap: summary.gameMap,
+              gameMapThumbnailUrl: summary.gameMapThumbnailUrl,
+              duration: summary.duration,
+              gameScore: summary.gameScore,
+              gameSubScore: summary.gameSubScore,
+              startTime: summary.startTime,
+              endTime: summary.endTime,
+              rawMatchStats: null,
+              playerXuidToGametag: summary.playerXuidToGametag,
+            });
+          }
+          break;
+        }
+        case "grouped-matches": {
+          for (const summary of group.matchSummaries) {
+            allMatches.push({
+              matchId: summary.matchId,
+              gameTypeAndMap: summary.gameTypeAndMap,
+              gameType: summary.gameType,
+              gameMap: summary.gameMap,
+              gameMapThumbnailUrl: summary.gameMapThumbnailUrl,
+              duration: summary.duration,
+              gameScore: summary.gameScore,
+              gameSubScore: summary.gameSubScore,
+              startTime: summary.startTime,
+              endTime: summary.endTime,
+              rawMatchStats: null,
+              playerXuidToGametag: summary.playerXuidToGametag,
+            });
+          }
+          break;
+        }
+        case "single-match": {
+          allMatches.push({
+            matchId: group.matchSummary.matchId,
+            gameTypeAndMap: group.matchSummary.gameTypeAndMap,
+            gameType: group.matchSummary.gameType,
+            gameMap: group.matchSummary.gameMap,
+            gameMapThumbnailUrl: group.matchSummary.gameMapThumbnailUrl,
+            duration: group.matchSummary.duration,
+            gameScore: group.matchSummary.gameScore,
+            gameSubScore: group.matchSummary.gameSubScore,
+            startTime: group.matchSummary.startTime,
+            endTime: group.matchSummary.endTime,
+            rawMatchStats: null,
+            playerXuidToGametag: group.matchSummary.playerXuidToGametag,
+          });
+          break;
+        }
+        default: {
+          throw new UnreachableError(group);
+        }
+      }
+    }
+
+    const matches = allMatches.map((match) => this.convertToMatchHistoryEntry(match));
 
     // Mark some as custom games (create new objects to avoid mutation)
     const modifiedMatches = matches.map((match, index) => {
@@ -58,11 +130,9 @@ export class FakeTrackerInitiationService implements TrackerInitiationService {
   }
 
   /**
-   * Convert LiveTrackerMatchSummary from contracts to MatchHistoryEntry for tracker initiation
+   * Convert LiveTrackerMatchRenderModel to MatchHistoryEntry for tracker initiation
    */
-  private convertToMatchHistoryEntry(
-    match: (typeof sampleIndividualTrackerStateMessage.data.discoveredMatches)[0],
-  ): MatchHistoryEntry {
+  private convertToMatchHistoryEntry(match: LiveTrackerMatchRenderModel): MatchHistoryEntry {
     return {
       matchId: match.matchId,
       startTime: match.startTime,

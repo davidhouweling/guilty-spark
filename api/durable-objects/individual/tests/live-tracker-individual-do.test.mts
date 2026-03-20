@@ -1071,6 +1071,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           discoveredMatches: new Map(),
           rawMatches: new Map(),
           playersAssociationData: {},
+          substitutions: [],
           startTime: new Date().toISOString(),
           lastUpdateTime: new Date().toISOString(),
         };
@@ -1143,6 +1144,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           discoveredMatches: new Map(),
           rawMatches: new Map(),
           playersAssociationData: {},
+          substitutions: [],
           startTime: new Date().toISOString(),
           lastUpdateTime: new Date().toISOString(),
         };
@@ -1226,6 +1228,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           discoveredMatches: new Map(),
           rawMatches: new Map(),
           playersAssociationData: {},
+          substitutions: [],
           startTime: new Date().toISOString(),
           lastUpdateTime: new Date().toISOString(),
         };
@@ -1287,6 +1290,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           discoveredMatches: new Map(),
           rawMatches: new Map(),
           playersAssociationData: {},
+          substitutions: [],
           startTime: new Date().toISOString(),
           lastUpdateTime: new Date().toISOString(),
         };

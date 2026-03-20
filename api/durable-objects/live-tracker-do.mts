@@ -745,6 +745,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       discoveredMatches: trackerState.discoveredMatches,
       rawMatches: trackerState.rawMatches,
       playersAssociationData: trackerState.playersAssociationData,
+      substitutions: trackerState.substitutions,
       startTime: trackerState.startTime,
       lastUpdateTime: trackerState.lastUpdateTime,
     };
@@ -1440,6 +1441,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
     return {
+      type: "neatqueue",
       guildId: state.guildId,
       guildName: guild.name,
       channelId: state.channelId,
@@ -1454,14 +1456,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         playerOutId: sub.playerOutId,
         playerInId: sub.playerInId,
         teamIndex: sub.teamIndex,
+        teamName: sub.teamName,
         timestamp: sub.timestamp,
       })),
-      discoveredMatches: Object.values(state.discoveredMatches),
-      rawMatches: state.rawMatches,
+      matchSummaries: Object.values(state.discoveredMatches),
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
+      rawMatches: state.rawMatches,
     };
   }
 

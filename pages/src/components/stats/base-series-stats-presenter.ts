@@ -1,6 +1,6 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
-import { Preconditions } from "../../base/preconditions.mts";
+import { Preconditions } from "../../base/preconditions";
 import type { MatchStatsPlayerData, PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {

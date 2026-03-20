@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { UnreachableError } from "../../base/unreachable-error";
 import styles from "./alert.module.css";
 
 export type AlertVariant = "info" | "success" | "warning" | "error";
@@ -22,6 +23,8 @@ function getDefaultIcon(variant: AlertVariant): string {
       return "⚠️";
     case "error":
       return "❌";
+    default:
+      throw new UnreachableError(variant);
   }
 }
 
@@ -35,6 +38,8 @@ function getVariantClassName(variant: AlertVariant): string {
       return styles.alertWarning;
     case "error":
       return styles.alertError;
+    default:
+      throw new UnreachableError(variant);
   }
 }
 

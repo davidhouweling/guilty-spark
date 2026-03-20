@@ -1,3 +1,5 @@
+import { UnreachableError } from "../../base/unreachable-error";
+
 export enum ComponentLoaderStatus {
   PENDING = "PENDING",
   LOADING = "LOADING",
@@ -23,6 +25,9 @@ export function ComponentLoader({ status, loading, error, loaded }: ComponentLoa
     }
     case ComponentLoaderStatus.LOADED: {
       return loaded;
+    }
+    default: {
+      throw new UnreachableError(status);
     }
   }
 }

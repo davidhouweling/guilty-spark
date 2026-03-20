@@ -44,7 +44,7 @@ export class LiveTrackerPresenter {
     if (params.type === "team") {
       queueNumberText = params.queue.length > 0 ? params.queue : "Not set";
       guildNameText =
-        lastStateMessage?.type === "state"
+        lastStateMessage?.type === "state" && lastStateMessage.data.type === "neatqueue"
           ? lastStateMessage.data.guildName
           : params.server.length > 0
             ? `Guild ${params.server}`

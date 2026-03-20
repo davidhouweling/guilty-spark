@@ -13,7 +13,7 @@ import type {
   LiveTrackerMatchSummary,
   LiveTrackerMessage,
   LiveTrackerStatus,
-  LiveTrackerStateData,
+  LiveTrackerNeatQueueStateData,
   LiveTrackerStateMessage,
   LiveTrackerTeam,
   PlayerAssociationData,
@@ -45,7 +45,7 @@ function parsePlayer(value: JsonValue): LiveTrackerPlayer | null {
   };
 }
 
-function parseSubstitution(value: JsonValue): LiveTrackerStateData["substitutions"][number] | null {
+function parseSubstitution(value: JsonValue): LiveTrackerNeatQueueStateData["substitutions"][number] | null {
   const substitution = readJsonObject(value);
   if (!substitution) {
     return null;
@@ -54,9 +54,10 @@ function parseSubstitution(value: JsonValue): LiveTrackerStateData["substitution
   const playerOutId = readString(substitution["playerOutId"] ?? null);
   const playerInId = readString(substitution["playerInId"] ?? null);
   const teamIndex = readNumber(substitution["teamIndex"] ?? null);
+  const teamName = readString(substitution["teamName"] ?? null);
   const timestamp = readString(substitution["timestamp"] ?? null);
 
-  if (playerOutId === null || playerInId === null || teamIndex === null || timestamp === null) {
+  if (playerOutId === null || playerInId === null || teamIndex === null || teamName === null || timestamp === null) {
     return null;
   }
 
@@ -64,6 +65,7 @@ function parseSubstitution(value: JsonValue): LiveTrackerStateData["substitution
     playerOutId,
     playerInId,
     teamIndex,
+    teamName,
     timestamp,
   };
 }
@@ -143,7 +145,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   };
 }
 
-export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateData | null {
+export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueueStateData | null {
   const data = readJsonObject(value);
   if (!data) {
     return null;
@@ -158,7 +160,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
   const playersArray = readJsonArray(data["players"] ?? null);
   const teamsArray = readJsonArray(data["teams"] ?? null);
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
-  const matchesArray = readJsonArray(data["discoveredMatches"] ?? null);
+  const matchesArray = readJsonArray(data["matchSummaries"] ?? null);
   const rawMatches = readRecord<string, MatchStats>(data["rawMatches"] ?? null);
   const seriesScore = readString(data["seriesScore"] ?? null);
   const medalMetadata = readRecord<string, { name: string; sortingWeight: number }>(data["medalMetadata"] ?? null);
@@ -209,7 +211,13 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     teams.push(team);
   }
 
-  const substitutions: LiveTrackerStateData["substitutions"] = [];
+  const substitutions: {
+    playerOutId: string;
+    playerInId: string;
+    teamIndex: number;
+    teamName: string;
+    timestamp: string;
+  }[] = [];
   for (const substitutionValue of substitutionsArray) {
     const substitution = parseSubstitution(substitutionValue);
     if (!substitution) {
@@ -218,16 +226,17 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     substitutions.push(substitution);
   }
 
-  const discoveredMatches: LiveTrackerMatchSummary[] = [];
+  const matchSummaries: LiveTrackerMatchSummary[] = [];
   for (const matchValue of matchesArray) {
     const match = parseMatchSummary(matchValue);
     if (!match) {
       return null;
     }
-    discoveredMatches.push(match);
+    matchSummaries.push(match);
   }
 
   return {
+    type: "neatqueue",
     guildId,
     guildName,
     channelId,
@@ -236,7 +245,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerStateDat
     players,
     teams,
     substitutions,
-    discoveredMatches,
+    matchSummaries,
     rawMatches,
     seriesScore,
     lastUpdateTime,

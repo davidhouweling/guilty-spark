@@ -23,8 +23,12 @@ import {
 } from "date-fns";
 import type {
   LiveTrackerMatchSummary,
-  LiveTrackerStateData,
   PlayerAssociationData,
+  LiveTrackerIndividualStateData,
+  LiveTrackerIndividualGroup,
+  LiveTrackerNeatQueueSeriesGroup,
+  LiveTrackerManualMatchGroup,
+  LiveTrackerSingleMatchGroup,
 } from "@guilty-spark/contracts/live-tracker/types";
 import type { SeriesData, SeriesId } from "@guilty-spark/contracts/live-tracker/series-types";
 import type { LogService } from "../../services/log/types.mjs";
@@ -1211,6 +1215,13 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         discoveredMatches: Record<string, LiveTrackerMatchSummary>;
         rawMatches: Record<string, MatchStats>;
         playersAssociationData: Record<string, PlayerAssociationData>;
+        substitutions: {
+          playerOutId: string;
+          playerInId: string;
+          teamIndex: number;
+          teamName: string;
+          timestamp: string;
+        }[];
         startTime: string;
         lastUpdateTime: string;
       }>();
@@ -1223,6 +1234,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         discoveredMatches: new Map(Object.entries(rawSeriesData.discoveredMatches)),
         rawMatches: new Map(Object.entries(rawSeriesData.rawMatches)),
         playersAssociationData: rawSeriesData.playersAssociationData,
+        substitutions: rawSeriesData.substitutions,
         startTime: rawSeriesData.startTime,
         lastUpdateTime: rawSeriesData.lastUpdateTime,
       };
@@ -1491,33 +1503,36 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private shouldRemoveTarget(target: UpdateTarget, error: unknown): boolean {
-    if (target.type === "websocket") {
-      // WebSocket: always remove on send failure (expect reconnect)
-      return true;
-    }
-
-    if (error instanceof DiscordError) {
-      // Discord permanent errors (unknown resources, missing permissions)
-      const permanentErrorCodes = [
-        10003, // Unknown Channel
-        10004, // Unknown Guild
-        10008, // Unknown Message
-        10062, // Unknown Interaction
-        50001, // Missing Access
-      ];
-
-      if (permanentErrorCodes.includes(error.restError.code)) {
+    switch (target.type) {
+      case "websocket":
+        // WebSocket: always remove on send failure (expect reconnect)
         return true;
-      }
+      case "discord":
+        if (error instanceof DiscordError) {
+          // Discord permanent errors (unknown resources, missing permissions)
+          const permanentErrorCodes = [
+            10003, // Unknown Channel
+            10004, // Unknown Guild
+            10008, // Unknown Message
+            10062, // Unknown Interaction
+            50001, // Missing Access
+          ];
 
-      // 404 without specific code also indicates unknown resource
-      if (error.httpStatus === 404) {
-        return true;
-      }
+          if (permanentErrorCodes.includes(error.restError.code)) {
+            return true;
+          }
+
+          // 404 without specific code also indicates unknown resource
+          if (error.httpStatus === 404) {
+            return true;
+          }
+        }
+
+        // All other errors are transient (rate limits, 5xx, network issues)
+        return false;
+      default:
+        throw new UnreachableError(target.type);
     }
-
-    // All other errors are transient (rate limits, 5xx, network issues)
-    return false;
   }
 
   private async updateDiscordTarget(state: LiveTrackerIndividualState, target: UpdateTarget): Promise<void> {
@@ -1727,79 +1742,175 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
   }
 
-  private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerStateData> {
-    const firstDiscordTarget = state.updateTargets.find((t) => t.type === "discord");
-    const guildId = firstDiscordTarget?.discord?.guildId ?? "0";
-    const channelId = firstDiscordTarget?.discord?.channelId ?? "0";
-
-    const guild = guildId !== "0" ? await this.discordService.getGuild(guildId) : { name: "Web Tracker" };
+  private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerIndividualStateData> {
     const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
+    const groups = await this.transformMatchGroupingsToGroups(state);
 
-    const matchGroupings = Object.entries(state.matchGroupings).reduce<
-      Record<
-        string,
-        {
-          groupId: string;
-          matchIds: string[];
-          seriesId?: {
-            guildId: string;
-            queueNumber: number;
-          };
-        }
-      >
-    >((acc, [groupId, grouping]) => {
-      const groupData: {
-        groupId: string;
-        matchIds: string[];
-        seriesId?: {
-          guildId: string;
-          queueNumber: number;
-        };
-      } = {
-        groupId: grouping.groupId,
-        matchIds: grouping.matchIds,
-      };
-      if (grouping.seriesId !== undefined) {
-        groupData.seriesId = grouping.seriesId;
-      }
-      acc[groupId] = groupData;
-      return acc;
-    }, {});
-
-    const baseData: LiveTrackerStateData = {
-      guildId: guildId,
-      guildName: guild.name,
-      channelId: channelId,
-      queueNumber: 0,
+    return {
+      type: "individual",
+      gamertag: state.gamertag,
+      xuid: state.xuid,
       status: state.status,
-      players: [],
-      teams: [],
-      substitutions: [],
-      discoveredMatches: Object.values(state.discoveredMatches),
-      rawMatches: state.rawMatches,
-      seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
-      matchGroupings,
+      groups,
+      rawMatches: state.rawMatches,
     };
+  }
 
-    // Include series data if present
-    if (state.seriesData != null) {
-      return {
-        ...baseData,
-        seriesData: {
-          seriesId: state.seriesData.seriesId,
-          teams: state.seriesData.teams,
-          seriesScore: state.seriesData.seriesScore,
-          matchIds: Array.from(state.seriesData.matchIds),
-          startTime: state.seriesData.startTime,
-          lastUpdateTime: state.seriesData.lastUpdateTime,
-        },
-      };
+  private async transformMatchGroupingsToGroups(
+    state: LiveTrackerIndividualState,
+  ): Promise<LiveTrackerIndividualGroup[]> {
+    const groups: LiveTrackerIndividualGroup[] = [];
+    const groupedMatchIds = new Set<string>();
+
+    // Process each grouping in matchGroupings
+    for (const grouping of Object.values(state.matchGroupings)) {
+      // Track which matches are in groups
+      for (const matchId of grouping.matchIds) {
+        groupedMatchIds.add(matchId);
+      }
+
+      // NeatQueue series group
+      if (grouping.seriesId !== undefined) {
+        const seriesData = await this.fetchSeriesDataFromNeatQueueDO(grouping.seriesId);
+
+        if (seriesData !== null) {
+          // Convert SeriesData to LiveTrackerNeatQueueSeriesGroup
+          const matchSummaries = Array.from(seriesData.discoveredMatches.values());
+
+          // Transform player association data to player array
+          const players = Object.values(seriesData.playersAssociationData).map((playerData) => ({
+            id: playerData.discordId,
+            discordUsername: playerData.discordName,
+          }));
+
+          const group: LiveTrackerNeatQueueSeriesGroup = {
+            type: "neatqueue-series",
+            groupId: grouping.groupId,
+            seriesId: seriesData.seriesId,
+            players,
+            teams: seriesData.teams,
+            substitutions: seriesData.substitutions,
+            seriesScore: seriesData.seriesScore,
+            matchSummaries,
+            seriesData: {
+              seriesId: seriesData.seriesId,
+              teams: seriesData.teams,
+              seriesScore: seriesData.seriesScore,
+              matchIds: Array.from(seriesData.matchIds),
+              startTime: seriesData.startTime,
+              lastUpdateTime: seriesData.lastUpdateTime,
+            },
+          };
+          groups.push(group);
+        } else {
+          // Series data not available, fall back to manual grouping
+          const matchSummaries = grouping.matchIds
+            .map((matchId) => state.discoveredMatches[matchId])
+            .filter((match): match is LiveTrackerMatchSummary => match !== undefined);
+
+          if (matchSummaries.length > 1) {
+            const group: LiveTrackerManualMatchGroup = {
+              type: "grouped-matches",
+              groupId: grouping.groupId,
+              label: this.generateGroupLabel(matchSummaries),
+              seriesScore: this.calculateSeriesScore(matchSummaries, state),
+              matchSummaries,
+            };
+            groups.push(group);
+          } else if (matchSummaries.length === 1 && matchSummaries[0] !== undefined) {
+            const group: LiveTrackerSingleMatchGroup = {
+              type: "single-match",
+              groupId: grouping.groupId,
+              matchSummary: matchSummaries[0],
+            };
+            groups.push(group);
+          }
+        }
+      }
+      // Manual match group (multiple matches, no seriesId)
+      else if (grouping.matchIds.length > 1) {
+        const matchSummaries = grouping.matchIds
+          .map((matchId) => state.discoveredMatches[matchId])
+          .filter((match): match is LiveTrackerMatchSummary => match !== undefined);
+
+        const group: LiveTrackerManualMatchGroup = {
+          type: "grouped-matches",
+          groupId: grouping.groupId,
+          label: this.generateGroupLabel(matchSummaries),
+          seriesScore: this.calculateSeriesScore(matchSummaries, state),
+          matchSummaries,
+        };
+        groups.push(group);
+      }
+      // Single match in grouping
+      else if (grouping.matchIds.length === 1) {
+        const [firstMatchId] = grouping.matchIds;
+        if (firstMatchId !== undefined) {
+          const matchSummary = state.discoveredMatches[firstMatchId];
+          if (matchSummary !== undefined) {
+            const group: LiveTrackerSingleMatchGroup = {
+              type: "single-match",
+              groupId: grouping.groupId,
+              matchSummary,
+            };
+            groups.push(group);
+          }
+        }
+      }
     }
 
-    return baseData;
+    // Add ungrouped matches as single match groups
+    for (const [matchId, matchSummary] of Object.entries(state.discoveredMatches)) {
+      if (!groupedMatchIds.has(matchId)) {
+        const group: LiveTrackerSingleMatchGroup = {
+          type: "single-match",
+          groupId: matchId,
+          matchSummary,
+        };
+        groups.push(group);
+      }
+    }
+
+    return groups;
+  }
+
+  private calculateSeriesScore(matches: readonly LiveTrackerMatchSummary[], state: LiveTrackerIndividualState): string {
+    const rawMatchesArray = matches
+      .map((match) => state.rawMatches[match.matchId])
+      .filter((match): match is MatchStats => match !== undefined);
+
+    return this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+  }
+
+  private generateGroupLabel(matches: readonly LiveTrackerMatchSummary[]): string {
+    if (matches.length === 0) {
+      return "Custom Games";
+    }
+
+    // Extract unique player count from first match
+    const [firstMatch] = matches;
+    if (firstMatch === undefined) {
+      return "Custom Games";
+    }
+
+    const playerCount = Object.keys(firstMatch.playerXuidToGametag).length;
+
+    // Get date range
+    const dates = matches.map((m) => new Date(m.startTime));
+    const [firstDate] = dates;
+    const lastDate = dates[dates.length - 1];
+
+    // Format date range
+    const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+    const firstDateStr = dateFormat.format(firstDate);
+    const lastDateStr = dateFormat.format(lastDate);
+
+    const dateRange = firstDateStr === lastDateStr ? firstDateStr : `${firstDateStr}-${lastDateStr}`;
+
+    return `Custom Games • ${dateRange} • ${playerCount.toLocaleString()} players`;
   }
 
   private async getMedalMetadataFromMatches(

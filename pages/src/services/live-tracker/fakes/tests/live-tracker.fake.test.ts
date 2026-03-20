@@ -16,6 +16,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
+        type: "neatqueue",
         guildId: "1",
         guildName: "Guild 1",
         channelId: "2",
@@ -25,7 +26,7 @@ describe("FakeLiveTrackerService (fake mode)", () => {
         players: [],
         teams: [],
         substitutions: [],
-        discoveredMatches: [],
+        matchSummaries: [],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},

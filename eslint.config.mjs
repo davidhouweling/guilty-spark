@@ -71,7 +71,9 @@ export default defineConfig(
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "import/order": "error",
-      curly: "error",
+      curly: ["error", "all"],
+      "default-case": "error",
+      "no-fallthrough": "error",
     },
   },
   {

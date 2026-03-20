@@ -5,9 +5,21 @@ import { toLiveTrackerStateRenderModel } from "../state-render-model";
 
 describe("toLiveTrackerStateRenderModel", () => {
   it("maps teams and matches with stable ordering", () => {
+    expect.assertions(12);
     const model = toLiveTrackerStateRenderModel(sampleLiveTrackerStateMessage);
 
-    expect(model.queueNumber).toBe(sampleLiveTrackerStateMessage.data.queueNumber);
+    expect(model.type).toBe("neatqueue");
+
+    // Type guard to access NeatQueue-specific properties
+    if (model.type !== "neatqueue") {
+      throw new Error("Expected NeatQueue state");
+    }
+
+    expect(model.queueNumber).toBe(
+      sampleLiveTrackerStateMessage.data.type === "neatqueue"
+        ? sampleLiveTrackerStateMessage.data.queueNumber
+        : undefined,
+    );
     expect(model.status).toBe(sampleLiveTrackerStateMessage.data.status);
 
     expect(model.teams.length).toBe(2);

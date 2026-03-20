@@ -96,19 +96,19 @@ export function useTrackerState(): LiveTrackerViewModel["state"] {
 }
 
 /**
- * Select teams data only
+ * Select teams data only (NeatQueue only)
  */
 export function useTrackerTeams(): readonly LiveTrackerTeamRenderModel[] | null {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state?.teams ?? null, [model.state?.teams]);
+  return useMemo(() => (model.state?.type === "neatqueue" ? model.state.teams : null), [model.state]);
 }
 
 /**
- * Select matches data only
+ * Select matches data only (NeatQueue only)
  */
 export function useTrackerMatches(): readonly LiveTrackerMatchRenderModel[] | null {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state?.matches ?? null, [model.state?.matches]);
+  return useMemo(() => (model.state?.type === "neatqueue" ? model.state.matches : null), [model.state]);
 }
 
 /**
@@ -120,11 +120,11 @@ export function useTrackerPlayersData(): Record<string, PlayerAssociationData> |
 }
 
 /**
- * Select series score
+ * Select series score (NeatQueue only)
  */
 export function useSeriesScore(): string | null {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state?.seriesScore ?? null, [model.state?.seriesScore]);
+  return useMemo(() => (model.state?.type === "neatqueue" ? model.state.seriesScore : null), [model.state]);
 }
 
 /**
@@ -148,12 +148,12 @@ export function useSeriesStats(): {
 }
 
 /**
- * Select a specific match by index
+ * Select a specific match by index (NeatQueue only)
  */
 export function useMatchByIndex(index: number): LiveTrackerMatchRenderModel | null {
   const { model } = useLiveTrackerContext();
   return useMemo(() => {
-    if (model.state == null || index < 0 || index >= model.state.matches.length) {
+    if (model.state?.type !== "neatqueue" || index < 0 || index >= model.state.matches.length) {
       return null;
     }
     return model.state.matches[index];
@@ -161,11 +161,11 @@ export function useMatchByIndex(index: number): LiveTrackerMatchRenderModel | nu
 }
 
 /**
- * Select substitutions
+ * Select substitutions (NeatQueue only)
  */
 export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[] | null {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state?.substitutions ?? null, [model.state?.substitutions]);
+  return useMemo(() => (model.state?.type === "neatqueue" ? model.state.substitutions : null), [model.state]);
 }
 
 /**
@@ -173,7 +173,22 @@ export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[
  */
 export function useMatchCount(): number {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state?.matches.length ?? 0, [model.state?.matches.length]);
+  return useMemo(() => {
+    if (model.state?.type === "neatqueue") {
+      return model.state.matches.length;
+    }
+    if (model.state?.type === "individual") {
+      // Count all matches across all groups
+      return model.state.groups.reduce((count, group) => {
+        if (group.type === "single-match") {
+          return count + 1;
+        }
+        // neatqueue-series or grouped-matches
+        return count + group.matches.length;
+      }, 0);
+    }
+    return 0;
+  }, [model.state]);
 }
 
 /**
@@ -181,23 +196,31 @@ export function useMatchCount(): number {
  */
 export function useHasMatches(): boolean {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => model.state != null && model.state.matches.length > 0, [model.state?.matches.length]);
+  return useMemo(() => {
+    if (model.state?.type === "neatqueue") {
+      return model.state.matches.length > 0;
+    }
+    if (model.state?.type === "individual") {
+      return model.state.groups.length > 0;
+    }
+    return false;
+  }, [model.state]);
 }
 
 /**
- * Select guild ID and queue number (for team colors)
+ * Select guild ID and queue number (NeatQueue only, for team colors)
  */
 export function useTrackerIdentity(): { guildId: string; queueNumber: number } | null {
   const { model } = useLiveTrackerContext();
   return useMemo(() => {
-    if (model.state == null) {
+    if (model.state?.type !== "neatqueue") {
       return null;
     }
     return {
       guildId: model.state.guildName,
       queueNumber: model.state.queueNumber,
     };
-  }, [model.state?.guildName, model.state?.queueNumber]);
+  }, [model.state]);
 }
 
 /**

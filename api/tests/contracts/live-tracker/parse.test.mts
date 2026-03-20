@@ -8,15 +8,19 @@ import {
 
 describe("parseLiveTrackerStateData", () => {
   it("parses valid state data with all required fields", () => {
+    expect.assertions(6);
     const { data } = sampleLiveTrackerStateMessage;
 
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
 
     expect(result).not.toBeNull();
-    expect(result?.guildId).toBe("1238795949266964560");
-    expect(result?.status).toBe("active");
-    expect(result?.players).toHaveLength(8);
-    expect(result?.teams).toHaveLength(2);
+    expect(result?.type).toBe("neatqueue");
+    if (result?.type === "neatqueue") {
+      expect(result.guildId).toBe("1238795949266964560");
+      expect(result.status).toBe("active");
+      expect(result.players).toHaveLength(8);
+      expect(result.teams).toHaveLength(2);
+    }
   });
 
   it("returns null when status is invalid", () => {
@@ -136,6 +140,7 @@ describe("parseLiveTrackerStateData", () => {
   });
 
   it("parses substitutions with valid data", () => {
+    expect.assertions(3);
     const data = {
       ...sampleLiveTrackerStateMessage.data,
       substitutions: [
@@ -143,6 +148,7 @@ describe("parseLiveTrackerStateData", () => {
           playerOutId: "player-out-1",
           playerInId: "player-in-1",
           teamIndex: 0,
+          teamName: "Team 1",
           timestamp: "2025-01-01T00:00:00.000Z",
         },
       ],
@@ -151,8 +157,10 @@ describe("parseLiveTrackerStateData", () => {
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
 
     expect(result).not.toBeNull();
-    expect(result?.substitutions).toHaveLength(1);
-    expect(result?.substitutions[0]?.playerOutId).toBe("player-out-1");
+    if (result?.type === "neatqueue") {
+      expect(result.substitutions).toHaveLength(1);
+      expect(result.substitutions[0]?.playerOutId).toBe("player-out-1");
+    }
   });
 
   it("returns null when substitution playerOutId is missing", () => {
@@ -180,6 +188,7 @@ describe("parseLiveTrackerStateData", () => {
           playerOutId: "player-out-1",
           playerInId: "player-in-1",
           teamIndex: "not-a-number",
+          teamName: "Team 1",
           timestamp: "2025-01-01T00:00:00.000Z",
         },
       ],
@@ -191,19 +200,22 @@ describe("parseLiveTrackerStateData", () => {
   });
 
   it("parses discovered matches with valid data", () => {
+    expect.assertions(3);
     const { data } = sampleLiveTrackerStateMessage;
 
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
 
     expect(result).not.toBeNull();
-    expect(result?.discoveredMatches).toHaveLength(4);
-    expect(result?.discoveredMatches[0]?.matchId).toBe("85022d98-5829-4da2-85ae-32b8cb48bbdd");
+    if (result?.type === "neatqueue") {
+      expect(result.matchSummaries).toHaveLength(4);
+      expect(result.matchSummaries[0]?.matchId).toBe("85022d98-5829-4da2-85ae-32b8cb48bbdd");
+    }
   });
 
   it("returns null when match summary missing required field", () => {
     const data = {
       ...sampleLiveTrackerStateMessage.data,
-      discoveredMatches: [
+      matchSummaries: [
         {
           matchId: "test-match",
           gameTypeAndMap: "Slayer: Streets",
@@ -225,9 +237,10 @@ describe("parseLiveTrackerStateData", () => {
   });
 
   it("parses match with null gameSubScore", () => {
+    expect.assertions(2);
     const data = {
       ...sampleLiveTrackerStateMessage.data,
-      discoveredMatches: [
+      matchSummaries: [
         {
           matchId: "test-match",
           gameTypeAndMap: "Slayer: Streets",
@@ -247,7 +260,9 @@ describe("parseLiveTrackerStateData", () => {
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
 
     expect(result).not.toBeNull();
-    expect(result?.discoveredMatches[0]?.gameSubScore).toBeNull();
+    if (result?.type === "neatqueue") {
+      expect(result.matchSummaries[0]?.gameSubScore).toBeNull();
+    }
   });
 
   it("parses playersAssociationData when present", () => {
@@ -376,7 +391,7 @@ describe("parseLiveTrackerStateData", () => {
   it("returns null when match in array is not an object", () => {
     const data = {
       ...sampleLiveTrackerStateMessage.data,
-      discoveredMatches: ["not-an-object"],
+      matchSummaries: ["not-an-object"],
     };
 
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
@@ -387,10 +402,12 @@ describe("parseLiveTrackerStateData", () => {
 
 describe("tryParseLiveTrackerMessage", () => {
   it("parses valid state message", () => {
+    expect.assertions(4);
     const payload = JSON.stringify({
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
+        type: "neatqueue",
         guildId: "1",
         guildName: "Guild 1",
         channelId: "2",
@@ -400,7 +417,7 @@ describe("tryParseLiveTrackerMessage", () => {
         players: [],
         teams: [],
         substitutions: [],
-        discoveredMatches: [],
+        matchSummaries: [],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},
@@ -411,15 +428,19 @@ describe("tryParseLiveTrackerMessage", () => {
 
     expect(result).not.toBeNull();
     expect(result?.type).toBe("state");
-    expect(result?.data.guildId).toBe("1");
-    expect(result?.data.status).toBe("active");
+    if (result?.data.type === "neatqueue") {
+      expect(result.data.guildId).toBe("1");
+      expect(result.data.status).toBe("active");
+    }
   });
 
   it("parses state message with stopped status", () => {
+    expect.assertions(3);
     const payload = JSON.stringify({
       type: "state",
       timestamp: "2025-01-01T00:00:00.000Z",
       data: {
+        type: "neatqueue",
         guildId: "1",
         guildName: "Guild 1",
         channelId: "2",
@@ -429,7 +450,7 @@ describe("tryParseLiveTrackerMessage", () => {
         players: [],
         teams: [],
         substitutions: [],
-        discoveredMatches: [],
+        matchSummaries: [],
         rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         medalMetadata: {},
@@ -440,7 +461,9 @@ describe("tryParseLiveTrackerMessage", () => {
 
     expect(result).not.toBeNull();
     expect(result?.type).toBe("state");
-    expect(result?.data.status).toBe("stopped");
+    if (result?.data.type === "neatqueue") {
+      expect(result.data.status).toBe("stopped");
+    }
   });
 
   it("returns null for legacy stopped message type", () => {
@@ -519,6 +542,7 @@ describe("tryParseLiveTrackerMessage", () => {
   });
 
   it("parses all valid LiveTrackerStatus values", () => {
+    expect.assertions(9); // 3 iterations × 3 assertions each
     const statuses = ["active", "paused", "stopped"] as const;
 
     for (const status of statuses) {
@@ -526,6 +550,7 @@ describe("tryParseLiveTrackerMessage", () => {
         type: "state",
         timestamp: "2025-01-01T00:00:00.000Z",
         data: {
+          type: "neatqueue",
           guildId: "1",
           guildName: "Guild 1",
           channelId: "2",
@@ -535,7 +560,7 @@ describe("tryParseLiveTrackerMessage", () => {
           players: [],
           teams: [],
           substitutions: [],
-          discoveredMatches: [],
+          matchSummaries: [],
           rawMatches: {},
           seriesScore: "🦅 0:0 🐍",
           medalMetadata: {},
@@ -546,7 +571,9 @@ describe("tryParseLiveTrackerMessage", () => {
 
       expect(result).not.toBeNull();
       expect(result?.type).toBe("state");
-      expect(result?.data.status).toBe(status);
+      if (result?.data.type === "neatqueue") {
+        expect(result.data.status).toBe(status);
+      }
     }
   });
 
