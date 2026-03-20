@@ -465,12 +465,12 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     }
   }, []);
 
-  // If we don't have params to connect, show TrackerInitiation immediately
-  if (!shouldConnectToTracker) {
-    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
-  }
-
+  // Load services when we have tracker params
   useEffect(() => {
+    if (!shouldConnectToTracker) {
+      return;
+    }
+
     let isCancelled = false;
 
     setServices(null);
@@ -496,6 +496,11 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
       isCancelled = true;
     };
   }, [apiHost, shouldConnectToTracker]);
+
+  // If we don't have params to connect, show TrackerInitiation immediately
+  if (!shouldConnectToTracker) {
+    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />;
+  }
 
   const loaded = services ? <LiveTrackerFactory services={services} apiHost={apiHost} /> : <ErrorState />;
 
