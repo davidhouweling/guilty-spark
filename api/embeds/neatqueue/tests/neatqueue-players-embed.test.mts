@@ -224,6 +224,7 @@ describe("NeatQueuePlayersEmbed", () => {
   });
 
   it("includes connect and maps buttons when mapsPostType is BUTTON", () => {
+    expect.assertions(5);
     const players: PlayerData[] = [];
     const associations: DiscordAssociationsRow[] = [];
     const haloPlayersMap: NeatQueuePlayersEmbedData["haloPlayersMap"] = new Map();
@@ -244,7 +245,6 @@ describe("NeatQueuePlayersEmbed", () => {
 
     const { actions } = embed;
 
-    expect.assertions(6);
     expect(actions).toHaveLength(1);
     const [firstAction] = actions;
     expect(firstAction?.type).toBe(ComponentType.ActionRow);

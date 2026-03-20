@@ -533,6 +533,8 @@ describe("SetupCommand", () => {
       });
 
       it("displays Live Tracking configuration buttons with correct disabled state when live tracking is off", async () => {
+        expect.assertions(2);
+
         const mockConfig = aFakeGuildConfigRow({
           NeatQueueInformerLiveTracking: "N",
           NeatQueueInformerLiveTrackingChannelName: "N",
@@ -553,7 +555,6 @@ describe("SetupCommand", () => {
         await Preconditions.checkExists(liveTrackingJob)();
 
         expect(updateDeferredReplySpy).toHaveBeenCalled();
-        expect.assertions(3);
         const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
         const actionRow = content?.components?.[0];
         if (actionRow?.type === ComponentType.ActionRow) {
