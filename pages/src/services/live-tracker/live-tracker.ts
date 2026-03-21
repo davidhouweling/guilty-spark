@@ -57,7 +57,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   }
 
   public handleStatus(
-    status: "connecting" | "connected" | "stopped" | "error" | "disconnected",
+    status: "connecting" | "connected" | "stopped" | "error" | "disconnected" | "not_found",
     detail?: string,
   ): void {
     for (const listener of this.statusListeners) {
@@ -84,7 +84,26 @@ export class RealLiveTrackerService implements LiveTrackerService {
     this.config = config;
   }
 
-  public connect(identity: LiveTrackerIdentity): LiveTrackerConnection {
+  /**
+   * Performs a preflight check to see if the tracker exists before establishing WebSocket
+   * @returns true if tracker exists, false if 404 (not found)
+   */
+  private async checkTrackerExists(identity: LiveTrackerIdentity): Promise<boolean> {
+    const statusUrl =
+      identity.type === "team"
+        ? `${this.config.apiHost}/tracker/${identity.guildId}/${identity.queueNumber}/status`
+        : `${this.config.apiHost}/tracker/individual/${identity.gamertag}/status`;
+
+    try {
+      const response = await fetch(statusUrl);
+      return response.ok; // Returns true for 2xx, false for 404/other errors
+    } catch {
+      // Network error - assume tracker might exist but we can't verify
+      return true;
+    }
+  }
+
+  public async connect(identity: LiveTrackerIdentity): Promise<LiveTrackerConnection> {
     // Parse the host from the HTTP(S) URL for WebSocket connection
     const apiUrl = new URL(this.config.apiHost);
     const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
@@ -92,6 +111,24 @@ export class RealLiveTrackerService implements LiveTrackerService {
       identity.type === "team"
         ? `${protocol}//${apiUrl.host}/ws/tracker/${identity.guildId}/${identity.queueNumber}`
         : `${protocol}//${apiUrl.host}/ws/tracker/individual/${identity.gamertag}`;
+
+    // Preflight check to detect 404 before attempting WebSocket
+    const trackerExists = await this.checkTrackerExists(identity);
+    if (!trackerExists) {
+      // Create a dummy connection that immediately reports "not_found"
+      const ws = new WebSocket(wsUrl); // Still create WS to maintain API contract
+      const connection = new RealLiveTrackerConnection(ws);
+
+      // Close the WebSocket immediately
+      ws.close();
+
+      // Report not found status
+      setTimeout(() => {
+        connection.handleStatus("not_found");
+      }, 0);
+
+      return connection;
+    }
 
     const ws = new WebSocket(wsUrl);
     const connection = new RealLiveTrackerConnection(ws);
