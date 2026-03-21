@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import { LiveTrackerIndividualDO } from "../live-tracker-individual-do.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -6,6 +7,8 @@ import type { Services } from "../../../services/install.mjs";
 import { DiscordError } from "../../../services/discord/discord-error.mjs";
 import { apiMessage, guild } from "../../../services/discord/fakes/data.mjs";
 import { aFakeDurableObjectId } from "../../fakes/live-tracker-do.fake.mjs";
+import { getMatchStats } from "../../../services/halo/fakes/data.mjs";
+import { Preconditions } from "../../../base/preconditions.mjs";
 import {
   aFakeLiveTrackerIndividualStateWith,
   aFakeDiscordTargetWith,
@@ -1069,7 +1072,6 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           seriesScore: "Team Alpha 2 - 1 Team Beta",
           matchIds: ["match1", "match2", "match3"],
           discoveredMatches: new Map(),
-          rawMatches: new Map(),
           playersAssociationData: {},
           substitutions: [],
           startTime: new Date().toISOString(),
@@ -1142,7 +1144,6 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           seriesScore: "Team Alpha 3 - 2 Team Beta",
           matchIds: ["match1", "match2", "match3", "match4", "match5"],
           discoveredMatches: new Map(),
-          rawMatches: new Map(),
           playersAssociationData: {},
           substitutions: [],
           startTime: new Date().toISOString(),
@@ -1226,7 +1227,6 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           seriesScore: "Team Alpha 2 - 1 Team Beta",
           matchIds: ["match1", "match2", "match3"],
           discoveredMatches: new Map(),
-          rawMatches: new Map(),
           playersAssociationData: {},
           substitutions: [],
           startTime: new Date().toISOString(),
@@ -1288,7 +1288,6 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
           seriesScore: "Team Alpha 2 - 1 Team Beta",
           matchIds: ["match1", "match2", "match3"],
           discoveredMatches: new Map(),
-          rawMatches: new Map(),
           playersAssociationData: {},
           substitutions: [],
           startTime: new Date().toISOString(),
@@ -1316,6 +1315,312 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
         expect(body.state.seriesLink).toBeDefined();
         expect(body.state.seriesLink?.seriesId.queueNumber).toBe(5);
       });
+    });
+  });
+
+  describe("KV Storage Integration", () => {
+    let durableObjectForKV: LiveTrackerIndividualDO;
+    let stateMockForKV: ReturnType<typeof createMockDurableObjectState>;
+    let servicesForKV: Services;
+    let envForKV: Env;
+
+    beforeEach(() => {
+      stateMockForKV = createMockDurableObjectState();
+      envForKV = aFakeEnvWith({});
+      servicesForKV = installFakeServicesWith();
+
+      vi.spyOn(servicesForKV.discordService, "getGuild").mockResolvedValue(guild);
+
+      durableObjectForKV = new LiveTrackerIndividualDO(
+        stateMockForKV.durableObjectState,
+        envForKV,
+        () => servicesForKV,
+      );
+    });
+
+    const mockStorageGetForKV = (state: LiveTrackerIndividualState | null): void => {
+      vi.spyOn(stateMockForKV.mocks.storage, "get").mockImplementation((async (keyOrKeys: string | string[]) => {
+        if (typeof keyOrKeys === "string") {
+          return Promise.resolve(state);
+        }
+        return Promise.resolve(new Map<string, unknown>());
+      }) as DurableObjectStorage["get"]);
+    };
+
+    it("saves newly discovered matches to KV storage", async () => {
+      mockStorageGetForKV(null);
+
+      const mockMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      vi.spyOn(servicesForKV.haloService, "getMatchDetails").mockResolvedValue([mockMatch]);
+      vi.spyOn(servicesForKV.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
+      vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
+      vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
+      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+      vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const kvPutSpy = vi.spyOn(envForKV.APP_DATA, "put");
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          searchStartTime: new Date().toISOString(),
+          selectedMatchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          groupings: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      await durableObjectForKV.fetch(request);
+
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        "live-tracker-match:9535b946-f30c-4a43-b852-000000slayer",
+        expect.any(String),
+        { expirationTtl: 86400 },
+      );
+
+      const firstCallData = kvPutSpy.mock.calls[0]?.[1];
+      if (typeof firstCallData === "string") {
+        const parsedMatch = JSON.parse(firstCallData) as typeof mockMatch;
+        expect(parsedMatch).toHaveProperty("MatchId");
+        expect(parsedMatch.MatchId).toBe("9535b946-f30c-4a43-b852-000000slayer");
+      }
+    });
+
+    it("stores match IDs in state instead of full match data", async () => {
+      mockStorageGetForKV(null);
+
+      const mockMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      vi.spyOn(servicesForKV.haloService, "getMatchDetails").mockResolvedValue([mockMatch]);
+      vi.spyOn(servicesForKV.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
+      vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
+      vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
+      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+      vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+
+      const storagePutSpy = vi.spyOn(stateMockForKV.mocks.storage, "put");
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          searchStartTime: new Date().toISOString(),
+          selectedMatchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          groupings: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      await durableObjectForKV.fetch(request);
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          matchIds: expect.arrayContaining(["9535b946-f30c-4a43-b852-000000slayer"]) as string[],
+        }),
+      );
+    });
+
+    it("loads matches from KV when broadcasting to targets", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeWebSocketTargetWith({ id: "ws-target" })],
+        matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+        discoveredMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": {
+            matchId: "9535b946-f30c-4a43-b852-000000slayer",
+            gameTypeAndMap: "Slayer: Recharge",
+            gameType: "Slayer",
+            gameMap: "Recharge",
+            gameMapThumbnailUrl: "data:,",
+            duration: "5m",
+            gameScore: "50:49",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: {},
+          },
+        },
+      });
+
+      mockStorageGetForKV(state);
+
+      const mockMatch = getMatchStats("9535b946-f30c-4a43-b852-000000slayer");
+      if (!mockMatch) {
+        throw new Error("Test setup error: match not found");
+      }
+
+      // Mock getWebSockets and getTags for WebSocket target
+      const mockWebSocket = createMockWebSocket();
+      vi.spyOn(stateMockForKV.durableObjectState, "getWebSockets").mockReturnValue([mockWebSocket]);
+      vi.spyOn(stateMockForKV.durableObjectState, "getTags").mockReturnValue(["ws-target"]);
+
+      // KV.get returns parsed object, not JSON string
+      const kvGetSpy: MockInstance = vi.spyOn(envForKV.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(mockMatch);
+
+      const newTarget = aFakeWebSocketTargetWith({ id: "ws-target-2" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      await durableObjectForKV.fetch(request);
+
+      expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
+    });
+
+    it("handles missing matches in KV gracefully during broadcast", async () => {
+      const state = aFakeLiveTrackerIndividualStateWith({
+        updateTargets: [aFakeDiscordTargetWith({ id: "target-1" })],
+        matchIds: ["expired-match"],
+        discoveredMatches: {
+          "expired-match": {
+            matchId: "expired-match",
+            gameTypeAndMap: "Slayer: Recharge",
+            gameType: "Slayer",
+            gameMap: "Recharge",
+            gameMapThumbnailUrl: "data:,",
+            duration: "5m",
+            gameScore: "50:49",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: {},
+          },
+        },
+      });
+
+      mockStorageGetForKV(state);
+
+      const kvGetSpy: MockInstance = vi.spyOn(envForKV.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+      vi.spyOn(servicesForKV.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      const newTarget = aFakeWebSocketTargetWith({ id: "ws-target" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await durableObjectForKV.fetch(request);
+
+      expect(response.status).toBe(200);
+    });
+
+    it("loads matches from KV for series score calculations", async () => {
+      const mockMatch1 = getMatchStats("9535b946-f30c-4a43-b852-000000slayer");
+      const mockMatch2 = getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf");
+      if (!mockMatch1 || !mockMatch2) {
+        throw new Error("Test setup error: matches not found");
+      }
+
+      const state = aFakeLiveTrackerIndividualStateWith({
+        matchIds: ["9535b946-f30c-4a43-b852-000000slayer", "d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        discoveredMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": {
+            matchId: "9535b946-f30c-4a43-b852-000000slayer",
+            gameTypeAndMap: "Slayer: Recharge",
+            gameType: "Slayer",
+            gameMap: "Recharge",
+            gameMapThumbnailUrl: "data:,",
+            duration: "5m",
+            gameScore: "50:49",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: {},
+          },
+          "d81554d7-ddfe-44da-a6cb-000000000ctf": {
+            matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+            gameTypeAndMap: "CTF: Behemoth",
+            gameType: "CTF",
+            gameMap: "Behemoth",
+            gameMapThumbnailUrl: "data:,",
+            duration: "7m",
+            gameScore: "3:2",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: {},
+          },
+        },
+        updateTargets: [aFakeWebSocketTargetWith({ id: "ws-target" })],
+      });
+
+      mockStorageGetForKV(state);
+
+      // Mock getWebSockets and getTags for WebSocket target
+      const mockWebSocket = createMockWebSocket();
+      vi.spyOn(stateMockForKV.durableObjectState, "getWebSockets").mockReturnValue([mockWebSocket]);
+      vi.spyOn(stateMockForKV.durableObjectState, "getTags").mockReturnValue(["ws-target"]);
+
+      // KV.get returns parsed objects, not JSON strings
+      const kvGetSpy: MockInstance = vi.spyOn(envForKV.APP_DATA, "get");
+      kvGetSpy.mockImplementation(async (key) => {
+        if (key === "live-tracker-match:9535b946-f30c-4a43-b852-000000slayer") {
+          return Promise.resolve(mockMatch1);
+        }
+        if (key === "live-tracker-match:d81554d7-ddfe-44da-a6cb-000000000ctf") {
+          return Promise.resolve(mockMatch2);
+        }
+        return Promise.resolve(null);
+      });
+
+      const newTarget = aFakeWebSocketTargetWith({ id: "ws-target-2" });
+      const request = new Request("https://example.com/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ target: newTarget }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      await durableObjectForKV.fetch(request);
+
+      // Verify both matches were loaded from KV for broadcast payload
+      expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
+      expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:d81554d7-ddfe-44da-a6cb-000000000ctf", "json");
+    });
+
+    it("continues operation when KV put fails", async () => {
+      mockStorageGetForKV(null);
+
+      const mockMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      vi.spyOn(servicesForKV.haloService, "getMatchDetails").mockResolvedValue([mockMatch]);
+      vi.spyOn(servicesForKV.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
+      vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
+      vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
+      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+      vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
+      const kvPutSpy = vi.spyOn(envForKV.APP_DATA, "put").mockRejectedValue(new Error("KV storage error"));
+
+      const request = new Request("https://example.com/web-start", {
+        method: "POST",
+        body: JSON.stringify({
+          xuid: "xuid(1234567890)",
+          gamertag: "TestPlayer",
+          searchStartTime: new Date().toISOString(),
+          selectedMatchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          groupings: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      // handleWebStart catches errors and returns 500 failure response
+      const response = await durableObjectForKV.fetch(request);
+
+      expect(kvPutSpy).toHaveBeenCalled();
+      expect(response.status).toBe(500);
+      const body = await response.json<LiveTrackerIndividualWebStartFailureResponse>();
+      expect(body.success).toBe(false);
     });
   });
 });

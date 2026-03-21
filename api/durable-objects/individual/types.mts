@@ -1,4 +1,3 @@
-import type { MatchStats } from "halo-infinite-api";
 import type {
   LiveTrackerMatchSummary,
   LiveTrackerStatus,
@@ -96,7 +95,7 @@ export interface LiveTrackerIndividualState {
   selectedGameIds: string[];
   substitutions: []; // No substitutions for individual tracking
   discoveredMatches: Record<string, LiveTrackerMatchSummary>;
-  rawMatches: Record<string, MatchStats>;
+  matchIds: string[]; // Just IDs - full match data stored in KV
   seriesScore: string;
   lastMessageState: {
     matchCount: number;

@@ -128,11 +128,17 @@ export class FakeLiveTrackerService implements LiveTrackerService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public connect(_identity: LiveTrackerIdentity): LiveTrackerConnection {
+  public async connect(_identity: LiveTrackerIdentity): Promise<LiveTrackerConnection> {
+    // Simulate async behavior of real service (which does a preflight fetch)
+    await Promise.resolve();
+
     const connection = new FakeLiveTrackerConnection(this.scenario, this.options.mode);
 
+    // Use nested queueMicrotask to ensure subscribers are added first
     queueMicrotask(() => {
-      connection.start();
+      queueMicrotask(() => {
+        connection.start();
+      });
     });
 
     return connection;
