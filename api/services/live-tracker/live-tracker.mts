@@ -587,6 +587,28 @@ export class LiveTrackerService {
     );
   }
 
+  /**
+   * Gets series data including rawMatches loaded from KV
+   */
+  async getSeriesData(context: LiveTrackerContext): Promise<{ rawMatches: Record<string, unknown> } | null> {
+    this.logService.debug("LiveTrackerService: Getting series data", this.createLogParams(context));
+
+    const doStub = this.getDurableObjectStub(context);
+    const response = await doStub.fetch("http://do/series-data", {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      this.logService.warn(
+        "LiveTrackerService: Failed to get series data",
+        this.createLogParams(context, new Map([["status", response.status.toString()]])),
+      );
+      return null;
+    }
+
+    return response.json<{ rawMatches: Record<string, unknown> }>();
+  }
+
   private getDurableObjectStub(context: LiveTrackerContext): DurableObjectStub<LiveTrackerDO> {
     const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
 

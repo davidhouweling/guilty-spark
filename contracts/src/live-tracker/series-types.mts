@@ -1,4 +1,3 @@
-import type { MatchStats } from "halo-infinite-api";
 import type { LiveTrackerMatchSummary, PlayerAssociationData } from "./types.mjs";
 
 /**
@@ -29,7 +28,6 @@ export interface SeriesData {
   readonly seriesScore: string;
   readonly matchIds: readonly string[];
   readonly discoveredMatches: ReadonlyMap<string, LiveTrackerMatchSummary>;
-  readonly rawMatches: ReadonlyMap<string, MatchStats>;
   readonly playersAssociationData: Record<string, PlayerAssociationData>;
   readonly substitutions: readonly {
     playerOutId: string;

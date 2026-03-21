@@ -8,6 +8,7 @@ import type {
   APIMessageComponentSelectMenuInteraction,
   APIGuildMember,
   RESTPostAPIChannelMessageJSONBody,
+  APIEmbed,
 } from "discord-api-types/v10";
 import {
   ButtonStyle,
@@ -35,6 +36,7 @@ import type { DiscordService } from "../../../services/discord/discord.mjs";
 import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker.mjs";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
 import type { LiveTrackerRefreshResponse } from "../../../durable-objects/types.mjs";
+import type { DiscordTarget } from "../../../durable-objects/individual/types.mjs";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -139,7 +141,7 @@ describe("TrackCommand", () => {
               lastSuccessTime: "2024-11-26T10:48:00.000Z",
             },
             discoveredMatches: {},
-            rawMatches: {},
+            matchIds: [],
             seriesScore: "🦅 0:0 🐍",
             lastMessageState: {
               matchCount: 0,
@@ -796,16 +798,16 @@ describe("TrackCommand", () => {
             selectedGameIds: ["match-1"],
             gamertag: "TestPlayer",
             xuid: "fake-xuid",
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+
             initialTarget: expect.objectContaining({
               type: "discord",
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+
               discord: expect.objectContaining({
                 userId: "discord_user_01",
                 guildId: "fake-guild-id",
                 channelId: "fake-channel-id",
-              }),
-            }),
+              }) as DiscordTarget,
+            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
           }),
         );
       });
@@ -820,12 +822,11 @@ describe("TrackCommand", () => {
           "fake-token",
 
           expect.objectContaining({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
             embeds: expect.arrayContaining([
               expect.objectContaining({
                 title: "🔄 Starting Live Tracker",
-              }),
-            ]),
+              }) as Partial<APIEmbed>,
+            ]) as APIEmbed[],
           }),
         );
       });
@@ -842,10 +843,10 @@ describe("TrackCommand", () => {
             selectedGameIds: [],
             gamertag: "TestPlayer",
             xuid: "fake-xuid",
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matcher returns any
+
             initialTarget: expect.objectContaining({
               type: "discord",
-            }),
+            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
           }),
         );
       });
