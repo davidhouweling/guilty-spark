@@ -28,9 +28,8 @@ export class LiveTrackerPresenter {
   private reconnectionTimer: NodeJS.Timeout | null = null;
   private firstReconnectionTimestamp: number | null = null;
   private reconnectionAttempt = 0;
-  private readonly maxReconnectionAttempts = 10;
-  private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
-  private readonly baseReconnectionDelayMs = 2000;
+  private readonly maxReconnectionDuration = 3 * 60 * 1000;
+  private readonly baseReconnectionDelay = 2000;
 
   public constructor(config: Config) {
     this.config = config;
@@ -147,7 +146,7 @@ export class LiveTrackerPresenter {
       hasConnection: false,
     });
 
-    void this.connectInternal(LiveTrackerPresenter.toIdentity(params));
+    this.connectInternal(LiveTrackerPresenter.toIdentity(params));
   }
 
   public dispose(): void {
@@ -189,14 +188,14 @@ export class LiveTrackerPresenter {
     }
   }
 
-  private async connectInternal(identity: LiveTrackerIdentity): Promise<void> {
+  private connectInternal(identity: LiveTrackerIdentity): void {
     if (this.isDisposed) {
       return;
     }
 
     this.cleanupConnection();
 
-    const nextConnection = await this.config.services.liveTrackerService.connect(identity);
+    const nextConnection = this.config.services.liveTrackerService.connect(identity);
     this.connection = nextConnection;
 
     const current = this.config.store.getSnapshot();
@@ -298,36 +297,34 @@ export class LiveTrackerPresenter {
     this.firstReconnectionTimestamp ??= now;
 
     const elapsed = now - this.firstReconnectionTimestamp;
-
-    if (elapsed > this.maxReconnectionDurationMs || this.reconnectionAttempt >= this.maxReconnectionAttempts) {
+    if (elapsed > this.maxReconnectionDuration) {
       const hasDetail = (detail?.length ?? 0) > 0;
       const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
-      const reason =
-        elapsed > this.maxReconnectionDurationMs
-          ? "Gave up after 3m"
-          : `Max retries reached (${String(this.maxReconnectionAttempts)})`;
       this.config.store.setSnapshot({
         ...snapshot,
         connectionState: "error",
-        statusText: `${errorText} (${reason})`,
+        statusText: `${errorText} (Gave up after 3m)`,
       });
       this.stopReconnection();
       return;
     }
 
+    // Exponential backoff with jitter
+    // Base delay * 2^attempt
     const backoffFactor = Math.pow(1.5, this.reconnectionAttempt);
-    const delay = Math.min(this.baseReconnectionDelayMs * backoffFactor, 30000); // Cap at 30s
+    const delay = Math.min(this.baseReconnectionDelay * backoffFactor, 30000); // Cap at 30s
+    // Add some jitter
     const jitter = Math.random() * 1000;
     const totalDelay = delay + jitter;
 
     this.config.store.setSnapshot({
       ...snapshot,
       connectionState: "connecting",
-      statusText: `Lost connection, reconnecting... (Attempt ${String(this.reconnectionAttempt + 1)}/${String(this.maxReconnectionAttempts)})`,
+      statusText: `Lost connection, reconnecting... (Attempt ${(this.reconnectionAttempt + 1).toString()})`,
     });
 
     this.reconnectionTimer = setTimeout(() => {
-      void this.connectInternal(identity);
+      this.connectInternal(identity);
       this.reconnectionAttempt++;
     }, totalDelay);
   }

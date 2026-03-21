@@ -93,7 +93,6 @@ npm run format:fix
 - Keep types in `types.mts` files alongside implementation
 - Add `import type` for framework types (e.g., `ImageMetadata`)
 - Prefer compile-time errors over runtime failures
-- You are forbidden to modify eslint config and tsconfig files. In situations where it is required, you must tell prompter, explain the need and what it solves, and ask the prompter to manually do this.
 
 ### Exhaustive Switch Pattern
 
@@ -231,17 +230,6 @@ When mocking or spying, always use strongly-typed approaches:
 - Do not use `vi.fn()` without type parameters
 - Do not use `ReturnType<typeof vi.spyOn>` - use `MockInstance<typeof target.method>` instead
 - Do not override properties using `X.y = vi.fn()`, use `vi.spyOn()` to preserve the original implementation
-
-4. **Mocking and overloads**
-
-```typescript
-const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-kvGetSpy.mockResolvedValue(null);
-```
-
-- Used when a method signature has overloads and the right type cannot be selected
-- Create a spy with the type `MockInstance`
-- On a separate line, mock the value accordingly
 
 ## Architecture & Environment
 

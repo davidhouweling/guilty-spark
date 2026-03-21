@@ -74,10 +74,10 @@ describe("LiveTracker", () => {
       queueNumber: "3",
     };
 
-    const connection = await liveTrackerService.connect(identity);
+    const connection = liveTrackerService.connect(identity);
 
-    vi.spyOn(liveTrackerService, "connect").mockImplementation(async () => {
-      return Promise.resolve(connection);
+    vi.spyOn(liveTrackerService, "connect").mockImplementation(() => {
+      return connection;
     });
 
     const services: Services = {
@@ -139,10 +139,10 @@ describe("LiveTracker", () => {
       gamertag: "TestGamer",
     };
 
-    const connection = await liveTrackerService.connect(identity);
+    const connection = liveTrackerService.connect(identity);
 
-    vi.spyOn(liveTrackerService, "connect").mockImplementation(async () => {
-      return Promise.resolve(connection);
+    vi.spyOn(liveTrackerService, "connect").mockImplementation(() => {
+      return connection;
     });
 
     const services: Services = {

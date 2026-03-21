@@ -15,7 +15,7 @@ export const aFakeLiveTrackerIndividualStateWith = (
   selectedGameIds: [],
   substitutions: [],
   discoveredMatches: {},
-  matchIds: [],
+  rawMatches: {},
   seriesScore: "0:0",
   lastMessageState: {
     matchCount: 0,

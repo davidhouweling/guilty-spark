@@ -649,11 +649,6 @@ describe("NeatQueueService", () => {
         );
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
 
-        // Mock live tracker to be inactive so tests fall back to timeline-based flow
-        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
-          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
-        });
-
         const [match1, match2] = [
           getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"),
           getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"),
@@ -1159,7 +1154,6 @@ describe("NeatQueueService", () => {
             getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"),
           ][0],
         );
-        const matchIds = [match.MatchId];
         const rawMatches: Record<string, MatchStats> = {
           [match.MatchId]: match,
         };
@@ -1189,7 +1183,7 @@ describe("NeatQueueService", () => {
         };
 
         const state = aFakeLiveTrackerStateWith({
-          matchIds,
+          rawMatches,
           discoveredMatches,
           teams,
           players,
@@ -1198,11 +1192,6 @@ describe("NeatQueueService", () => {
         vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
           success: true,
           state,
-        });
-
-        // Mock getSeriesData to return raw matches
-        vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
-          rawMatches,
         });
 
         const { jobToComplete } = neatQueueService.handleRequest(

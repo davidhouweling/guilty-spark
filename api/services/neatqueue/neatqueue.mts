@@ -886,25 +886,17 @@ export class NeatQueueService {
       if (liveTrackerStatus?.state.status === "active") {
         const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
         if (isSuccessResponse(refreshResult)) {
-          const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
+          const { rawMatches, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
           this.logService.info(
             "MatchCompletedJob: Retrieved series data from live tracker",
             new Map([
               ["guildId", request.guild],
               ["channelId", request.channel],
               ["queueNumber", request.match_number.toString()],
-              ["matchCount", matchIds.length.toString()],
+              ["matchCount", Object.keys(rawMatches).length.toString()],
             ]),
           );
-
-          // Get rawMatches from KV via series data endpoint
-          const seriesData = await this.liveTrackerService.getSeriesData(context);
-
-          if (seriesData === null) {
-            throw new Error("Failed to get series data from live tracker");
-          }
-
-          series = Object.values(seriesData.rawMatches) as MatchStats[];
+          series = Object.values(rawMatches);
 
           if (series.length > 0) {
             const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>

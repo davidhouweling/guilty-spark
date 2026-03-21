@@ -27,5 +27,5 @@ export interface SteppableLiveTrackerConnection extends LiveTrackerConnection {
 }
 
 export interface LiveTrackerService {
-  connect(identity: LiveTrackerIdentity): Promise<LiveTrackerConnection>;
+  connect(identity: LiveTrackerIdentity): LiveTrackerConnection;
 }
