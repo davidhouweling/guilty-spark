@@ -48,7 +48,7 @@ describe("RealLiveTrackerService", () => {
     global.WebSocket = originalWebSocket;
   });
 
-  it("creates WebSocket connection with correct URL for https protocol", () => {
+  it("creates WebSocket connection with correct URL for https protocol", async () => {
     Object.defineProperty(window, "location", {
       value: { protocol: "https:" },
       writable: true,
@@ -57,13 +57,13 @@ describe("RealLiveTrackerService", () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    service.connect(identity);
+    await service.connect(identity);
 
     expect(MockWebSocket.instances.length).toBe(1);
     expect(MockWebSocket.instances[0]?.url).toBe("wss://api.example.com/ws/tracker/123/5");
   });
 
-  it("creates WebSocket connection with correct URL for http protocol", () => {
+  it("creates WebSocket connection with correct URL for http protocol", async () => {
     Object.defineProperty(window, "location", {
       value: { protocol: "http:" },
       writable: true,
@@ -72,28 +72,28 @@ describe("RealLiveTrackerService", () => {
     const service = new RealLiveTrackerService({ apiHost: "http://localhost:8787" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "456", queueNumber: "3" };
 
-    service.connect(identity);
+    await service.connect(identity);
 
     expect(MockWebSocket.instances.length).toBe(1);
     expect(MockWebSocket.instances[0]?.url).toBe("ws://localhost:8787/ws/tracker/456/3");
   });
 
-  it("creates connection and allows status subscription", () => {
+  it("creates connection and allows status subscription", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
     expect(MockWebSocket.instances.length).toBe(1);
   });
 
-  it("emits connected status when WebSocket opens", () => {
+  it("emits connected status when WebSocket opens", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
@@ -107,11 +107,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("connected", undefined);
   });
 
-  it("emits error status when WebSocket errors", () => {
+  it("emits error status when WebSocket errors", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
@@ -125,11 +125,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("error", undefined);
   });
 
-  it("emits stopped status when WebSocket closes with stopped reason", () => {
+  it("emits stopped status when WebSocket closes with stopped reason", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
@@ -143,11 +143,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("stopped", undefined);
   });
 
-  it("emits disconnected status when WebSocket closes normally", () => {
+  it("emits disconnected status when WebSocket closes normally", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
@@ -161,11 +161,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("disconnected", undefined);
   });
 
-  it("emits error status with reason when WebSocket closes abnormally", () => {
+  it("emits error status with reason when WebSocket closes abnormally", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     connection.subscribeStatus(statusListener);
 
@@ -179,11 +179,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("error", "Connection lost");
   });
 
-  it("parses and emits valid LiveTracker messages", () => {
+  it("parses and emits valid LiveTracker messages", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const messageListener = vi.fn<LiveTrackerListener>();
     connection.subscribe(messageListener);
 
@@ -197,11 +197,11 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).toHaveBeenCalledWith(sampleLiveTrackerStateMessage);
   });
 
-  it("ignores non-string WebSocket messages", () => {
+  it("ignores non-string WebSocket messages", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const messageListener = vi.fn();
     connection.subscribe(messageListener);
 
@@ -213,11 +213,11 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).not.toHaveBeenCalled();
   });
 
-  it("ignores invalid JSON messages", () => {
+  it("ignores invalid JSON messages", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const messageListener = vi.fn();
     connection.subscribe(messageListener);
 
@@ -229,11 +229,11 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).not.toHaveBeenCalled();
   });
 
-  it("emits stopped status and disconnects when message status is stopped", () => {
+  it("emits stopped status and disconnects when message status is stopped", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
     const messageListener = vi.fn<LiveTrackerListener>();
 
@@ -256,11 +256,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledWith("stopped", undefined);
   });
 
-  it("allows subscribing and unsubscribing message listeners", () => {
+  it("allows subscribing and unsubscribing message listeners", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const messageListener = vi.fn<LiveTrackerListener>();
 
     const subscription = connection.subscribe(messageListener);
@@ -281,11 +281,11 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).toHaveBeenCalledTimes(1);
   });
 
-  it("allows subscribing and unsubscribing status listeners", () => {
+  it("allows subscribing and unsubscribing status listeners", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const statusListener = vi.fn();
 
     const subscription = connection.subscribeStatus(statusListener);
@@ -307,11 +307,11 @@ describe("RealLiveTrackerService", () => {
     expect(statusListener).toHaveBeenCalledTimes(1);
   });
 
-  it("closes WebSocket and clears listeners on disconnect", () => {
+  it("closes WebSocket and clears listeners on disconnect", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
     const messageListener = vi.fn();
     const statusListener = vi.fn();
 
@@ -334,11 +334,11 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).not.toHaveBeenCalled();
   });
 
-  it("closes WebSocket when window goes offline", () => {
+  it("closes WebSocket when window goes offline", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
 
     const [ws] = MockWebSocket.instances;
     const closeSpy = vi.spyOn(ws, "close");
@@ -350,16 +350,72 @@ describe("RealLiveTrackerService", () => {
     connection.disconnect();
   });
 
-  it("removes offline listener on disconnect", () => {
+  it("removes offline listener on disconnect", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
-    const connection = service.connect(identity);
+    const connection = await service.connect(identity);
 
     const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
 
     connection.disconnect();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith("offline", expect.any(Function));
+  });
+
+  it("emits not_found status when server returns 404 for tracker status", async () => {
+    // Mock fetch to return 404 for the status endpoint
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
+
+    const statusListener = vi.fn();
+
+    const connection = await service.connect(identity);
+    connection.subscribeStatus(statusListener);
+
+    // Wait for async status update
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Should have received not_found status
+    expect(statusListener).toHaveBeenCalledWith("not_found", undefined);
+
+    // WebSocket should have been closed immediately
+    const [ws] = MockWebSocket.instances;
+    expect(ws).toBeDefined();
+
+    connection.disconnect();
+    global.fetch = originalFetch;
+  });
+
+  it("emits not_found status when server returns 404 for individual tracker", async () => {
+    // Mock fetch to return 404 for the status endpoint
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    const identity: LiveTrackerIdentity = { type: "individual", gamertag: "TestPlayer" };
+
+    const statusListener = vi.fn();
+
+    const connection = await service.connect(identity);
+    connection.subscribeStatus(statusListener);
+
+    // Wait for async status update
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Should have received not_found status
+    expect(statusListener).toHaveBeenCalledWith("not_found", undefined);
+
+    connection.disconnect();
+    global.fetch = originalFetch;
   });
 });
