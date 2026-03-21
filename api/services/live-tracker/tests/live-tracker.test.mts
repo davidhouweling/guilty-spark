@@ -90,7 +90,7 @@ describe("LiveTrackerService", () => {
       lastSuccessTime: "2024-01-01T00:00:00.000Z",
     },
     discoveredMatches: {},
-    matchIds: [],
+    rawMatches: {},
     seriesScore: "🦅 0:0 🐍",
     lastMessageState: {
       matchCount: 0,

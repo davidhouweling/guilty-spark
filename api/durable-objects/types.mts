@@ -1,4 +1,5 @@
 import type { APIGuildMember } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
 import type {
   LiveTrackerMatchSummary,
   LiveTrackerStatus,
@@ -71,7 +72,7 @@ export interface LiveTrackerState {
     lastErrorMessage?: string | undefined;
   };
   discoveredMatches: Record<string, LiveTrackerMatchSummary>;
-  matchIds: string[];
+  rawMatches: Record<string, MatchStats>;
   seriesScore: string;
   lastMessageState: {
     matchCount: number;

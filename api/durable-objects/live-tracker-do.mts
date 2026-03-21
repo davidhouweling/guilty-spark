@@ -153,12 +153,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           return;
         }
 
-        // Load matches from KV to check for stale tracker
-        const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
-        const rawMatchesArray = Object.values(rawMatches);
+        const rawMatches = Object.values(trackerState.rawMatches);
         const lastGameActivityTime =
-          rawMatchesArray.length > 0
-            ? max(rawMatchesArray.map((m) => m.MatchInfo.EndTime))
+          rawMatches.length > 0
+            ? max(rawMatches.map((m) => m.MatchInfo.EndTime))
             : new Date(trackerState.searchStartTime);
         if (differenceInMinutes(new Date(), lastGameActivityTime) > STALE_TRACKER_THRESHOLD_MINUTES) {
           await this.dispose(trackerState, "Tracker stale, disposing on alarm");
@@ -271,7 +269,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       teams: body.teams,
       substitutions: [],
       discoveredMatches: {},
-      matchIds: [],
+      rawMatches: {},
       seriesScore: "🦅 0:0 🐍",
       errorState: {
         consecutiveErrors: 0,
@@ -296,18 +294,29 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const currentTime = new Date();
       const nextCheckTime = addMinutes(currentTime, 3);
 
-      const embedData = await this.buildEnrichedEmbedData(trackerState, {
-        status: "active",
-        isPaused: false,
-        nextCheck: nextCheckTime,
-      });
-
+      const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+      const rawMatchesArray = Object.values(trackerState.rawMatches);
+      const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      trackerState.seriesScore = seriesScore;
       const liveTrackerEmbed = new LiveTrackerEmbed(
         { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
-        embedData,
+        {
+          userId: body.userId,
+          guildId: body.guildId,
+          channelId: body.channelId,
+          queueNumber: body.queueNumber,
+          status: "active",
+          isPaused: false,
+          lastUpdated: currentTime,
+          nextCheck: nextCheckTime,
+          enrichedMatches: enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        },
       );
 
-      await this.updateChannelName(trackerState, trackerState.seriesScore, true);
+      await this.updateChannelName(trackerState, seriesScore, true);
       await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
 
       this.logService.info(
@@ -365,7 +374,24 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     if (Object.keys(trackerState.discoveredMatches).length > 0) {
       try {
-        const embedData = await this.buildEnrichedEmbedData(trackerState);
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
+        const embedData: LiveTrackerEmbedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: trackerState.status,
+          isPaused: trackerState.isPaused,
+          lastUpdated: currentTime,
+          nextCheck: undefined,
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
 
         return this.createPauseResponse(trackerState, embedData);
       } catch (error) {
@@ -397,10 +423,24 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
         const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
-
-        const embedData = await this.buildEnrichedEmbedData(trackerState, {
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
+        const embedData: LiveTrackerEmbedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
+          status: trackerState.status,
+          isPaused: trackerState.isPaused,
+          lastUpdated: currentTime,
           nextCheck: nextCheckTime,
-        });
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
 
         return this.createResumeResponse(trackerState, embedData);
       } catch (error) {
@@ -423,10 +463,25 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     let embedData: LiveTrackerEmbedData | undefined;
     if (Object.keys(trackerState.discoveredMatches).length > 0) {
       try {
-        embedData = await this.buildEnrichedEmbedData(trackerState, {
+        const currentTime = new Date();
+        const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
+        const rawMatchesArray = Object.values(trackerState.rawMatches);
+        const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+        trackerState.seriesScore = seriesScore;
+        embedData = {
+          userId: trackerState.userId,
+          guildId: trackerState.guildId,
+          channelId: trackerState.channelId,
+          queueNumber: trackerState.queueNumber,
           status: "stopped",
           isPaused: false,
-        });
+          lastUpdated: currentTime,
+          nextCheck: undefined,
+          enrichedMatches,
+          seriesScore,
+          substitutions: trackerState.substitutions,
+          errorState: trackerState.errorState,
+        };
       } catch (error) {
         this.logService.warn(
           "LiveTracker: Failed to enrich stop response, returning basic state",
@@ -686,9 +741,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         playerIds: team.playerIds,
       })),
       seriesScore: trackerState.seriesScore,
-      matchIds: trackerState.matchIds,
+      matchIds: Object.keys(trackerState.rawMatches),
       discoveredMatches: trackerState.discoveredMatches,
-      rawMatches: await this.loadMatchesFromKV(trackerState.matchIds),
+      rawMatches: trackerState.rawMatches,
       playersAssociationData: trackerState.playersAssociationData,
       substitutions: trackerState.substitutions,
       startTime: trackerState.startTime,
@@ -716,74 +771,6 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await this.state.storage.put("trackerState", state);
     // Broadcast state update to all connected WebSocket clients
     await this.broadcastStateUpdate(state);
-  }
-
-  // KV storage helpers for match data
-  private async saveMatchToKV(matchId: string, matchStats: MatchStats): Promise<void> {
-    const key = `live-tracker-match:${matchId}`;
-    await this.env.APP_DATA.put(key, JSON.stringify(matchStats), {
-      expirationTtl: 86400, // 24 hours
-    });
-  }
-
-  private async loadMatchesFromKV(matchIds: readonly string[]): Promise<Record<string, MatchStats>> {
-    const matches: Record<string, MatchStats> = {};
-    await Promise.all(
-      matchIds.map(async (matchId) => {
-        const key = `live-tracker-match:${matchId}`;
-        const data = await this.env.APP_DATA.get<MatchStats>(key, "json");
-        if (data !== null) {
-          matches[matchId] = data;
-        }
-      }),
-    );
-    return matches;
-  }
-
-  /**
-   * Loads matches from KV and computes the series score, updating trackerState
-   * @returns The computed series score
-   */
-  private async computeAndUpdateSeriesScore(trackerState: LiveTrackerState): Promise<string> {
-    const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
-    const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
-    trackerState.seriesScore = seriesScore;
-    return seriesScore;
-  }
-
-  /**
-   * Fetches series data and builds enriched embed data
-   * @param trackerState - Current tracker state
-   * @param options - Configuration options for embed data
-   * @returns Enriched embed data ready for Discord message
-   */
-  private async buildEnrichedEmbedData(
-    trackerState: LiveTrackerState,
-    options: {
-      status?: LiveTrackerState["status"];
-      isPaused?: boolean;
-      nextCheck?: Date;
-    } = {},
-  ): Promise<LiveTrackerEmbedData> {
-    const currentTime = new Date();
-    const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
-    const seriesScore = await this.computeAndUpdateSeriesScore(trackerState);
-
-    return {
-      userId: trackerState.userId,
-      guildId: trackerState.guildId,
-      channelId: trackerState.channelId,
-      queueNumber: trackerState.queueNumber,
-      status: options.status ?? trackerState.status,
-      isPaused: options.isPaused ?? trackerState.isPaused,
-      lastUpdated: currentTime,
-      nextCheck: options.nextCheck,
-      enrichedMatches,
-      seriesScore,
-      substitutions: trackerState.substitutions,
-      errorState: trackerState.errorState,
-    };
   }
 
   // Typed response helpers
@@ -964,7 +951,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
     const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-    const seriesScore = await this.computeAndUpdateSeriesScore(trackerState);
+    const rawMatchesArray = Object.values(trackerState.rawMatches);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    trackerState.seriesScore = seriesScore;
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
       { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
@@ -1063,13 +1052,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         continue;
       }
 
-      // Save raw match to KV instead of persisting in DO state
-      await this.saveMatchToKV(match.MatchId, match);
-
-      // Track match ID in state
-      if (!trackerState.matchIds.includes(match.MatchId)) {
-        trackerState.matchIds.push(match.MatchId);
-      }
+      trackerState.rawMatches[match.MatchId] = match;
 
       let gameTypeAndMap = "*Unknown Map and mode*";
       try {
@@ -1489,8 +1472,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
-    const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
 
     return {
       type: "neatqueue",
@@ -1516,7 +1498,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
-      rawMatches: rawMatches,
+      rawMatches: state.rawMatches,
     };
   }
 

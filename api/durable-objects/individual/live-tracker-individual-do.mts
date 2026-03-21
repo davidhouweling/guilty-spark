@@ -192,12 +192,10 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           return;
         }
 
-        // Load matches from KV to check for stale tracker
-        const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
-        const rawMatchesArray = Object.values(rawMatches);
+        const rawMatches = Object.values(trackerState.rawMatches);
         const lastGameActivityTime =
-          rawMatchesArray.length > 0
-            ? max(rawMatchesArray.map((m) => m.MatchInfo.EndTime))
+          rawMatches.length > 0
+            ? max(rawMatches.map((m) => m.MatchInfo.EndTime))
             : new Date(trackerState.searchStartTime);
         if (differenceInMinutes(new Date(), lastGameActivityTime) > STALE_TRACKER_THRESHOLD_MINUTES) {
           await this.dispose(trackerState, "Tracker stale, disposing on alarm");
@@ -283,7 +281,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       selectedGameIds: body.selectedGameIds,
       substitutions: [],
       discoveredMatches: {},
-      matchIds: [],
+      rawMatches: {},
       seriesScore: "0:0",
       errorState: {
         consecutiveErrors: 0,
@@ -302,7 +300,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     try {
       // Fetch initial matches
       await this.fetchAndMergeIndividualMatches(trackerState);
-      await this.computeAndUpdateSeriesScore(trackerState);
+      const rawMatchesArray = Object.values(trackerState.rawMatches);
+      const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      trackerState.seriesScore = seriesScore;
 
       // Persist and broadcast initial state
       await this.setState(trackerState);
@@ -345,7 +345,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         selectedGameIds: body.selectedMatchIds,
         substitutions: [],
         discoveredMatches: {},
-        matchIds: [],
+        rawMatches: {},
         seriesScore: "0:0",
         errorState: {
           consecutiveErrors: 0,
@@ -373,10 +373,12 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       await this.enrichAndMergeIndividualMatches(trackerState, matches, activeSeriesId ?? undefined);
 
       // Apply user-provided groupings
-      await this.applyUserGroupings(trackerState, body.groupings, activeSeriesId ?? undefined);
+      this.applyUserGroupings(trackerState, body.groupings, activeSeriesId ?? undefined);
 
       // Calculate series score
-      await this.computeAndUpdateSeriesScore(trackerState);
+      const rawMatchesArray = Object.values(trackerState.rawMatches);
+      const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+      trackerState.seriesScore = seriesScore;
 
       await this.setState(trackerState);
 
@@ -389,7 +391,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         `LiveTracker Individual (Web): Started for ${trackerState.gamertag}`,
         new Map([
           ["gamertag", trackerState.gamertag],
-          ["matchCount", trackerState.matchIds.length.toString()],
+          ["matchCount", Object.keys(trackerState.rawMatches).length.toString()],
           ["groupingCount", Object.keys(trackerState.matchGroupings).length.toString()],
         ]),
       );
@@ -431,22 +433,19 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     }
   }
 
-  private async applyUserGroupings(
+  private applyUserGroupings(
     trackerState: LiveTrackerIndividualState,
     userGroupings: string[][],
     seriesId?: { guildId: string; queueNumber: number },
-  ): Promise<void> {
+  ): void {
     // Clear any auto-detected groupings
     trackerState.matchGroupings = {};
-
-    // Load all matches from KV
-    const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
 
     // Apply user-provided groupings
     for (const matchIds of userGroupings) {
       if (matchIds.length > 0) {
         // Get the first match's start time to use as group ID
-        const firstMatch = rawMatches[matchIds[0] ?? ""];
+        const firstMatch = trackerState.rawMatches[matchIds[0] ?? ""];
         if (firstMatch == null) {
           continue;
         }
@@ -456,7 +455,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         // Extract participants from all matches in the group
         const participantsSet = new Set<string>();
         for (const matchId of matchIds) {
-          const match = rawMatches[matchId];
+          const match = trackerState.rawMatches[matchId];
           if (match != null) {
             const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) =>
               this.haloService.getPlayerXuid(p),
@@ -839,40 +838,6 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     await this.broadcastStateUpdate(state);
   }
 
-  // KV storage helpers for match data
-  private async saveMatchToKV(matchId: string, matchStats: MatchStats): Promise<void> {
-    const key = `live-tracker-match:${matchId}`;
-    await this.env.APP_DATA.put(key, JSON.stringify(matchStats), {
-      expirationTtl: 86400, // 24 hours
-    });
-  }
-
-  private async loadMatchesFromKV(matchIds: readonly string[]): Promise<Record<string, MatchStats>> {
-    const matches: Record<string, MatchStats> = {};
-    await Promise.all(
-      matchIds.map(async (matchId) => {
-        const key = `live-tracker-match:${matchId}`;
-        const data = await this.env.APP_DATA.get<MatchStats>(key, "json");
-        if (data !== null) {
-          matches[matchId] = data;
-        }
-      }),
-    );
-    return matches;
-  }
-
-  /**
-   * Loads matches from KV and computes the series score, updating trackerState
-   * @returns The computed series score
-   */
-  private async computeAndUpdateSeriesScore(trackerState: LiveTrackerIndividualState): Promise<string> {
-    const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
-    const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
-    trackerState.seriesScore = seriesScore;
-    return seriesScore;
-  }
-
   // Response helpers
   private createStartSuccessResponse(state: LiveTrackerIndividualState): Response {
     const response: LiveTrackerIndividualStartResponse = { success: true, state };
@@ -1010,8 +975,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     trackerState.checkCount += 1;
     trackerState.lastUpdateTime = new Date().toISOString();
 
-    // Load matches from KV to compute series score
-    await this.computeAndUpdateSeriesScore(trackerState);
+    const rawMatchesArray = Object.values(trackerState.rawMatches);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    trackerState.seriesScore = seriesScore;
 
     // Note: Caller must call setState() after this method to persist and broadcast updates
     // Alarm handler does this in finally block, handleRefresh() does this after execution
@@ -1266,6 +1232,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         seriesScore: rawSeriesData.seriesScore,
         matchIds: rawSeriesData.matchIds,
         discoveredMatches: new Map(Object.entries(rawSeriesData.discoveredMatches)),
+        rawMatches: new Map(Object.entries(rawSeriesData.rawMatches)),
         playersAssociationData: rawSeriesData.playersAssociationData,
         substitutions: rawSeriesData.substitutions,
         startTime: rawSeriesData.startTime,
@@ -1305,13 +1272,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         continue;
       }
 
-      // Save raw match to KV instead of persisting in DO state
-      await this.saveMatchToKV(match.MatchId, match);
-
-      // Track match ID in state
-      if (!trackerState.matchIds.includes(match.MatchId)) {
-        trackerState.matchIds.push(match.MatchId);
-      }
+      trackerState.rawMatches[match.MatchId] = match;
 
       let gameTypeAndMap = "*Unknown Map and mode*";
       try {
@@ -1371,13 +1332,13 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;
     }
 
-    await this.updateMatchGroupings(trackerState, seriesId);
+    this.updateMatchGroupings(trackerState, seriesId);
   }
 
-  private async updateMatchGroupings(
+  private updateMatchGroupings(
     trackerState: LiveTrackerIndividualState,
     seriesId?: { guildId: string; queueNumber: number },
-  ): Promise<void> {
+  ): void {
     // Group consecutive custom/local games with same participants
     const groupings: Record<
       string,
@@ -1392,9 +1353,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     let currentGroupId = "";
     let currentParticipants: Set<string> | null = null;
 
-    // Load matches from KV
-    const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
-    const orderedMatches = Object.values(rawMatches).sort(
+    const orderedMatches = Object.values(trackerState.rawMatches).sort(
       (a, b) => new Date(a.MatchInfo.StartTime).getTime() - new Date(b.MatchInfo.StartTime).getTime(),
     );
 
@@ -1832,8 +1791,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
   }
 
   private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerIndividualStateData> {
-    const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await this.getMedalMetadataFromMatches(state.rawMatches);
     const groups = await this.transformMatchGroupingsToGroups(state);
 
     return {
@@ -1845,7 +1803,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
       groups,
-      rawMatches,
+      rawMatches: state.rawMatches,
     };
   }
 
@@ -1906,7 +1864,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
               type: "grouped-matches",
               groupId: grouping.groupId,
               label: this.generateGroupLabel(matchSummaries),
-              seriesScore: await this.calculateSeriesScore(matchSummaries, state),
+              seriesScore: this.calculateSeriesScore(matchSummaries, state),
               matchSummaries,
             };
             groups.push(group);
@@ -1930,7 +1888,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
           type: "grouped-matches",
           groupId: grouping.groupId,
           label: this.generateGroupLabel(matchSummaries),
-          seriesScore: await this.calculateSeriesScore(matchSummaries, state),
+          seriesScore: this.calculateSeriesScore(matchSummaries, state),
           matchSummaries,
         };
         groups.push(group);
@@ -1967,13 +1925,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     return groups;
   }
 
-  private async calculateSeriesScore(
-    matches: readonly LiveTrackerMatchSummary[],
-    state: LiveTrackerIndividualState,
-  ): Promise<string> {
-    const rawMatches = await this.loadMatchesFromKV(state.matchIds);
+  private calculateSeriesScore(matches: readonly LiveTrackerMatchSummary[], state: LiveTrackerIndividualState): string {
     const rawMatchesArray = matches
-      .map((match) => rawMatches[match.matchId])
+      .map((match) => state.rawMatches[match.matchId])
       .filter((match): match is MatchStats => match !== undefined);
 
     return this.haloService.getSeriesScore(rawMatchesArray, "en-US");

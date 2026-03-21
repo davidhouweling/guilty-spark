@@ -1,5 +1,6 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
+import type { MatchStats } from "halo-infinite-api";
 import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
 import { LiveTrackerDO } from "../live-tracker-do.mjs";
@@ -21,7 +22,7 @@ const createMockSqlStorage = (): SqlStorage => {
     databaseSize: 0,
     Cursor: vi.fn() as never, // Mock constructor
     Statement: vi.fn() as never, // Mock constructor
-  } satisfies SqlStorage;
+  } as SqlStorage;
 };
 
 // Helper to create mock with proper types and access to mock functions
@@ -153,7 +154,7 @@ const createMockTrackerState = (): LiveTrackerState => ({
   checkCount: 1,
   substitutions: [],
   discoveredMatches: {},
-  matchIds: [],
+  rawMatches: {},
   seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
@@ -207,7 +208,7 @@ const createAlarmTestTrackerState = (overrides: Partial<LiveTrackerState> = {}):
   ],
   substitutions: [],
   discoveredMatches: {},
-  matchIds: [],
+  rawMatches: {},
   seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
@@ -246,7 +247,7 @@ const aFakeStateWith = (overrides: Partial<LiveTrackerState> = {}): LiveTrackerS
   ],
   substitutions: [],
   discoveredMatches: {},
-  matchIds: [],
+  rawMatches: {},
   seriesScore: "🦅 0:0 🐍",
   errorState: {
     consecutiveErrors: 0,
@@ -286,7 +287,10 @@ const createMockTrackerStateWithMatches = (): LiveTrackerState => {
         endTime: new Date("2024-01-01T00:10:00.000Z").toISOString(),
       }),
     },
-    matchIds: ["match1", "match2"],
+    rawMatches: {
+      match1: {} as MatchStats, // Mock raw match data
+      match2: {} as MatchStats, // Mock raw match data
+    },
   };
 };
 
@@ -915,7 +919,7 @@ describe("LiveTrackerDO", () => {
           expect(callArg[1]).toBeDefined();
 
           // Check that lastRefreshAttempt was set to a valid timestamp string
-          const stateArg = callArg[1] satisfies { lastRefreshAttempt?: string };
+          const stateArg = callArg[1] as { lastRefreshAttempt?: string };
           expect(stateArg.lastRefreshAttempt).toBeDefined();
           expect(typeof stateArg.lastRefreshAttempt).toBe("string");
 
@@ -1225,7 +1229,7 @@ describe("LiveTrackerDO", () => {
         ...eightPlayerSetup,
         substitutions: [],
         discoveredMatches: {},
-        matchIds: [],
+        rawMatches: {},
         seriesScore: "🦅 0:0 🐍",
         errorState: {
           consecutiveErrors: 0,
@@ -1254,12 +1258,11 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
 
-      const mockChannel: APIChannel = {
+      const mockChannel = {
         id: "channel-456",
         name: "test-queue",
         type: 0,
-        position: 0,
-      };
+      } as APIChannel;
       vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
       vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
 
@@ -1297,10 +1300,14 @@ describe("LiveTrackerDO", () => {
               endTime: expect.any(String) as string,
             }) as LiveTrackerState["discoveredMatches"][string],
           }) as LiveTrackerState["discoveredMatches"],
-          matchIds: expect.arrayContaining([
-            "9535b946-f30c-4a43-b852-000000slayer",
-            "d81554d7-ddfe-44da-a6cb-000000000ctf",
-          ]) as string[],
+          rawMatches: expect.objectContaining({
+            "9535b946-f30c-4a43-b852-000000slayer": expect.objectContaining({
+              MatchId: "9535b946-f30c-4a43-b852-000000slayer",
+            }) as MatchStats,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.objectContaining({
+              MatchId: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+            }) as MatchStats,
+          }) as LiveTrackerState["rawMatches"],
           lastMessageState: expect.objectContaining({
             matchCount: 0,
             substitutionCount: 0,
@@ -1448,7 +1455,7 @@ describe("LiveTrackerDO", () => {
           checkCount: 1,
           liveMessageId: apiMessage.id,
           discoveredMatches: {},
-          matchIds: [],
+          rawMatches: {},
           lastMessageState: expect.objectContaining({
             matchCount: 0,
             substitutionCount: 0,
@@ -1474,7 +1481,9 @@ describe("LiveTrackerDO", () => {
             endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
           }),
         },
-        matchIds: ["existing-match-id"],
+        rawMatches: {
+          "existing-match-id": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        },
       });
 
       storageGetSpy.mockResolvedValue(existingState);
@@ -1492,10 +1501,13 @@ describe("LiveTrackerDO", () => {
         "trackerState",
         expect.objectContaining({
           discoveredMatches: expect.objectContaining({
-            "existing-match-id": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
-            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
+            "existing-match-id": expect.any(Object) as Record<string, unknown>,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as Record<string, unknown>,
           }) as LiveTrackerState["discoveredMatches"],
-          matchIds: expect.arrayContaining(["existing-match-id", "d81554d7-ddfe-44da-a6cb-000000000ctf"]) as string[],
+          rawMatches: expect.objectContaining({
+            "existing-match-id": expect.any(Object) as Record<string, unknown>,
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["rawMatches"],
         }),
       );
     });
@@ -1522,7 +1534,9 @@ describe("LiveTrackerDO", () => {
             endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
           }),
         },
-        matchIds: ["pre-sub-match"],
+        rawMatches: {
+          "pre-sub-match": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        },
       });
 
       storageGetSpy.mockResolvedValue(existingState);
@@ -1542,12 +1556,14 @@ describe("LiveTrackerDO", () => {
               playerInId: "user2",
               teamIndex: 0,
               teamName: "Team Alpha",
-            }) as LiveTrackerState["substitutions"][number],
+            }),
           ]) as LiveTrackerState["substitutions"],
           discoveredMatches: expect.objectContaining({
-            "pre-sub-match": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
+            "pre-sub-match": expect.any(Object) as Record<string, unknown>,
           }) as LiveTrackerState["discoveredMatches"],
-          matchIds: expect.arrayContaining(["pre-sub-match"]) as string[],
+          rawMatches: expect.objectContaining({
+            "pre-sub-match": expect.any(Object) as Record<string, unknown>,
+          }) as LiveTrackerState["rawMatches"],
         }),
       );
     });
@@ -1568,7 +1584,7 @@ describe("LiveTrackerDO", () => {
           substitutionCount: 0,
         },
         discoveredMatches: {},
-        matchIds: [],
+        rawMatches: {},
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1630,7 +1646,7 @@ describe("LiveTrackerDO", () => {
           },
         ],
         discoveredMatches: {},
-        matchIds: [],
+        rawMatches: {},
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1689,7 +1705,11 @@ describe("LiveTrackerDO", () => {
             endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
           }),
         },
-        matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+        rawMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+            getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+          ),
+        },
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1736,7 +1756,7 @@ describe("LiveTrackerDO", () => {
           substitutionCount: 0,
         },
         discoveredMatches: {},
-        matchIds: [],
+        rawMatches: {},
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1806,7 +1826,11 @@ describe("LiveTrackerDO", () => {
             endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
           }),
         },
-        matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+        rawMatches: {
+          "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+            getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+          ),
+        },
       });
       storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1893,7 +1917,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -1952,7 +1980,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -2016,7 +2048,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -2053,7 +2089,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -2111,7 +2151,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -2159,7 +2203,11 @@ describe("LiveTrackerDO", () => {
               endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
             }),
           },
-          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+          rawMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": Preconditions.checkExists(
+              getMatchStats("9535b946-f30c-4a43-b852-000000slayer"),
+            ),
+          },
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
@@ -2586,6 +2634,7 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
@@ -2593,13 +2642,14 @@ describe("LiveTrackerDO", () => {
             expect.objectContaining({
               playerOutId: "oldplayer",
               playerInId: "user1",
-            }) as LiveTrackerState["substitutions"][number],
-          ]) as LiveTrackerState["substitutions"],
+            }),
+          ]),
           discoveredMatches: expect.objectContaining({
-            "9535b946-f30c-4a43-b852-000000slayer": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
-          }) as LiveTrackerState["discoveredMatches"],
+            "9535b946-f30c-4a43-b852-000000slayer": expect.any(Object),
+          }),
         }),
       );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
     it("maintains match history when substitution happens between alarms", async () => {
@@ -2620,7 +2670,9 @@ describe("LiveTrackerDO", () => {
         // Update to match the mock data (2 teams, 8 players)
         ...eightPlayerSetup,
         discoveredMatches: existingMatches,
-        matchIds: ["pre-sub-match"],
+        rawMatches: {
+          "pre-sub-match": Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        },
         substitutions: [
           {
             playerOutId: "oldplayer",
@@ -2639,21 +2691,23 @@ describe("LiveTrackerDO", () => {
 
       await liveTrackerDO.alarm();
 
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(storagePutSpy).toHaveBeenCalledWith(
         "trackerState",
         expect.objectContaining({
           discoveredMatches: expect.objectContaining({
-            "pre-sub-match": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
-            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
-          }) as LiveTrackerState["discoveredMatches"],
+            "pre-sub-match": expect.any(Object),
+            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object),
+          }),
           substitutions: expect.arrayContaining([
             expect.objectContaining({
               playerOutId: "oldplayer",
               playerInId: "newplayer",
-            }) as LiveTrackerState["substitutions"][number],
-          ]) as LiveTrackerState["substitutions"],
+            }),
+          ]),
         }),
       );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
     it("updates message when substitution count changes", async () => {
@@ -2693,7 +2747,7 @@ describe("LiveTrackerDO", () => {
           lastMessageState: {
             matchCount: 0,
             substitutionCount: 1,
-          } satisfies LiveTrackerState["lastMessageState"],
+          },
         }),
       );
     });
@@ -3012,223 +3066,6 @@ describe("LiveTrackerDO", () => {
         const body = await response.json<{ error: string }>();
         expect(body.error).toBe("in_progress");
       });
-    });
-  });
-
-  describe("KV Storage Integration", () => {
-    it("saves newly discovered matches to KV storage during alarm", async () => {
-      const eightPlayerSetup = createEightPlayerSetup();
-      const trackerState = createAlarmTestTrackerState({
-        ...eightPlayerSetup,
-      });
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      const mockMatches = [
-        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
-        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
-      ];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-
-      const kvPutSpy = vi.spyOn(env.APP_DATA, "put");
-
-      await liveTrackerDO.alarm();
-
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        "live-tracker-match:9535b946-f30c-4a43-b852-000000slayer",
-        expect.any(String),
-        { expirationTtl: 86400 },
-      );
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        "live-tracker-match:d81554d7-ddfe-44da-a6cb-000000000ctf",
-        expect.any(String),
-        { expirationTtl: 86400 },
-      );
-
-      const firstCallData = kvPutSpy.mock.calls[0]?.[1];
-      if (typeof firstCallData === "string") {
-        const parsedMatch = JSON.parse(firstCallData) as (typeof mockMatches)[number];
-        expect(parsedMatch).toHaveProperty("MatchId");
-        expect(parsedMatch.MatchId).toBe("9535b946-f30c-4a43-b852-000000slayer");
-      }
-    });
-
-    it("stores match IDs in state instead of full match data", async () => {
-      const eightPlayerSetup = createEightPlayerSetup();
-      const trackerState = createAlarmTestTrackerState({
-        ...eightPlayerSetup,
-      });
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-
-      await liveTrackerDO.alarm();
-
-      expect(storagePutSpy).toHaveBeenCalledWith(
-        "trackerState",
-        expect.objectContaining({
-          matchIds: expect.arrayContaining(["9535b946-f30c-4a43-b852-000000slayer"]) as string[],
-        }),
-      );
-
-      const storedState = storagePutSpy.mock.calls[0]?.[1];
-      expect(storedState).toBeDefined();
-      expect(storedState?.matchIds).toHaveLength(1);
-    });
-
-    it("loads matches from KV when calculating series scores", async () => {
-      const mockMatch = getMatchStats("9535b946-f30c-4a43-b852-000000slayer");
-      if (!mockMatch) {
-        throw new Error("Test setup error: match not found");
-      }
-
-      const trackerState = createAlarmTestTrackerState({
-        matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
-        discoveredMatches: {
-          "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
-            matchId: "9535b946-f30c-4a43-b852-000000slayer",
-          }),
-        },
-      });
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      // KV.get with "json" parameter returns parsed object, not string
-      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-      kvGetSpy.mockResolvedValue(mockMatch);
-      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-
-      await liveTrackerDO.alarm();
-
-      expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
-      expect(getSeriesScoreSpy).toHaveBeenCalled();
-
-      const [seriesScoreCall] = getSeriesScoreSpy.mock.calls;
-      expect(seriesScoreCall?.[0]).toHaveLength(1);
-      expect(seriesScoreCall?.[0]?.[0]).toMatchObject({
-        MatchId: "9535b946-f30c-4a43-b852-000000slayer",
-      });
-    });
-
-    it("handles missing matches in KV gracefully", async () => {
-      const trackerState = createAlarmTestTrackerState({
-        matchIds: ["expired-match-id"],
-        discoveredMatches: {
-          "expired-match-id": aMatchSummaryWith({
-            matchId: "expired-match-id",
-          }),
-        },
-      });
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-      kvGetSpy.mockResolvedValue(null);
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-
-      await liveTrackerDO.alarm();
-
-      expect(storagePutSpy).toHaveBeenCalled();
-      const updatedState = storagePutSpy.mock.calls[0]?.[1];
-      expect(updatedState).toBeDefined();
-    });
-
-    it("loads matches from KV for series data endpoint", async () => {
-      const mockMatch = getMatchStats("9535b946-f30c-4a43-b852-000000slayer");
-      if (!mockMatch) {
-        throw new Error("Test setup error: match not found");
-      }
-
-      const trackerState = createMockTrackerState();
-      trackerState.matchIds = ["9535b946-f30c-4a43-b852-000000slayer"];
-      trackerState.discoveredMatches = {
-        "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({ matchId: "9535b946-f30c-4a43-b852-000000slayer" }),
-      };
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      // KV.get with "json" returns parsed object
-      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-      kvGetSpy.mockResolvedValue(mockMatch);
-      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-
-      const response = await liveTrackerDO.fetch(new Request("http://do/series-data", { method: "GET" }));
-
-      expect(response.status).toBe(200);
-      expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
-
-      const data = await response.json<{
-        rawMatches: Record<string, typeof mockMatch>;
-      }>();
-      expect(data).toHaveProperty("rawMatches");
-      expect(data.rawMatches).toHaveProperty("9535b946-f30c-4a43-b852-000000slayer");
-    });
-
-    it("continues operation when KV put fails", async () => {
-      const eightPlayerSetup = createEightPlayerSetup();
-      const trackerState = createAlarmTestTrackerState({
-        ...eightPlayerSetup,
-      });
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
-      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
-      const kvPutSpy = vi.spyOn(env.APP_DATA, "put").mockRejectedValue(new Error("KV storage full"));
-
-      // Alarm catches KV errors internally and increments error counter
-      await liveTrackerDO.alarm();
-
-      expect(kvPutSpy).toHaveBeenCalled();
-      expect(storagePutSpy).toHaveBeenCalledWith(
-        "trackerState",
-        expect.objectContaining({
-          errorState: expect.objectContaining({
-            consecutiveErrors: 1,
-          }) as LiveTrackerState["errorState"],
-        }),
-      );
-      expect(storageSetAlarmSpy).toHaveBeenCalled();
-    });
-
-    it("uses KV stored matches for pause handler series score", async () => {
-      const mockMatch1 = getMatchStats("9535b946-f30c-4a43-b852-000000slayer");
-      const mockMatch2 = getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf");
-      if (!mockMatch1 || !mockMatch2) {
-        throw new Error("Test setup error: matches not found");
-      }
-
-      const trackerState = createMockTrackerStateWithMatches();
-      trackerState.status = "active";
-      storageGetSpy.mockResolvedValue(trackerState);
-
-      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === "live-tracker-match:match1") {
-          return Promise.resolve(mockMatch1);
-        }
-        if (key === "live-tracker-match:match2") {
-          return Promise.resolve(mockMatch2);
-        }
-        return Promise.resolve(null);
-      });
-
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      const getSeriesScoreSpy = vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:0");
-
-      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
-
-      expect(response.status).toBe(200);
-      expect(getSeriesScoreSpy).toHaveBeenCalled();
-
-      const [seriesScoreCall] = getSeriesScoreSpy.mock.calls;
-      expect(seriesScoreCall?.[0]).toHaveLength(2);
     });
   });
 });
