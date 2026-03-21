@@ -128,7 +128,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -347,7 +347,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -446,7 +446,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -490,7 +490,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -530,7 +530,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -610,7 +610,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -673,7 +673,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -705,7 +705,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
             lastSuccessTime: "2024-11-26T10:48:00.000Z",
           },
           discoveredMatches: {},
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
           lastMessageState: {
             matchCount: 0,
@@ -739,6 +739,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       const refreshTrackerSpy = vi.spyOn(liveTrackerService, "refreshTracker");
       const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const mockMatchIds = [match1.MatchId, match2.MatchId];
       const mockRawMatches = {
         [match1.MatchId]: match1,
         [match2.MatchId]: match2,
@@ -750,7 +751,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
           guildId: mockMatchCompletedRequest.guild,
           channelId: mockMatchCompletedRequest.channel,
-          rawMatches: mockRawMatches,
+          matchIds: mockMatchIds,
         }),
       };
 
@@ -762,6 +763,12 @@ describe("NeatQueueService Live Tracker Integration", () => {
       getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
+
+      // Mock getSeriesData to return raw matches
+      const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+        rawMatches: mockRawMatches,
+      });
+      void _getSeriesDataSpy;
 
       await callMatchCompletedJob(mockMatchCompletedRequest);
 
@@ -781,6 +788,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
       const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const mockMatchIds = [match1.MatchId, match2.MatchId];
       const mockRawMatches = {
         [match1.MatchId]: match1,
         [match2.MatchId]: match2,
@@ -792,7 +800,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
           queueNumber: Preconditions.checkExists(mockMatchCompletedRequest.match_number),
           guildId: mockMatchCompletedRequest.guild,
           channelId: mockMatchCompletedRequest.channel,
-          rawMatches: {},
+          matchIds: [],
           seriesScore: "D83eDd85 0:0 D83dDc0d",
         }),
       };
@@ -801,13 +809,19 @@ describe("NeatQueueService Live Tracker Integration", () => {
         success: true as const,
         state: {
           ...mockStatusResponse.state,
-          rawMatches: mockRawMatches,
+          matchIds: mockMatchIds,
         },
       };
 
       getTrackerStatusSpy.mockResolvedValue(mockStatusResponse);
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
+
+      // Mock getSeriesData to return raw matches
+      const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+        rawMatches: mockRawMatches,
+      });
+      void _getSeriesDataSpy;
 
       // Mock the series data fetching to verify it wasn't called
       getSeriesFromDiscordQueueSpy.mockResolvedValue([]);

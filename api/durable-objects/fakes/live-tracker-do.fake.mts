@@ -50,7 +50,7 @@ export function aFakeLiveTrackerStateWith(opts: Partial<LiveTrackerState> = {}):
     teams: [],
     substitutions: [],
     discoveredMatches: {},
-    rawMatches: {},
+    matchIds: [],
     seriesScore: "🦅 0:0 🐍",
     errorState: {
       consecutiveErrors: 0,
