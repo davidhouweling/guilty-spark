@@ -1,0 +1,96 @@
+/* ============================================ */
+/* Base Styles - Mobile First                  */
+/* ============================================ */
+
+/* Shared input styling - hidden native checkbox */
+.input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Simple checkbox variant - for grids and compact layouts */
+.checkboxSimple {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-base);
+}
+
+.checkboxSimple:hover {
+  background: var(--halo-bg-card);
+}
+
+/* Toggle checkbox variant - for full-width settings with descriptions */
+.checkboxToggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+  user-select: none;
+}
+
+.checkboxToggle:hover {
+  background-color: var(--halo-bg-card);
+}
+
+/* Custom checkbox styling via ::before pseudo-element */
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--halo-white);
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.label::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: var(--space-2);
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: 3px;
+  background: var(--halo-bg-primary);
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+/* Checked state - show checkmark */
+.input:checked ~ .label::before {
+  background: var(--halo-bg-primary);
+  border-color: var(--halo-accent);
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="%230fa"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>');
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Focus visible state */
+.input:focus-visible ~ .label::before {
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}
+
+/* Description text */
+.description {
+  font-size: var(--text-xs);
+  color: var(--halo-gray);
+  margin-left: 26px; /* Align with label text after checkbox */
+}
+
+/* Disabled state */
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

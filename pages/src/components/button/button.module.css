@@ -11,22 +11,36 @@
   color: var(--halo-white);
   display: inline-flex;
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 700;
   justify-content: center;
   letter-spacing: 0.1em;
-  min-height: 48px;
+  min-height: 40px;
   overflow: hidden;
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-2) var(--space-5);
   position: relative;
   text-decoration: none;
   text-transform: uppercase;
   transition: all var(--transition-base) ease;
+  cursor: pointer;
+}
+
+.haloBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .large {
   font-size: var(--text-base);
+  min-height: 48px;
   padding: var(--space-4) var(--space-8);
+}
+
+.small {
+  font-size: var(--text-2xs);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-4);
 }
 
 .haloBtn::before {
@@ -103,9 +117,18 @@
   height: 1.25rem;
   object-fit: contain;
   width: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.large .btnIcon {
+.btnIcon svg {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.large .btnIcon,
+.large .btnIcon svg {
   height: 1.5rem;
   width: 1.5rem;
 }
@@ -126,13 +149,18 @@
 
 @media (--tablet-viewport) {
   .haloBtn {
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     letter-spacing: 0.15em;
-    padding: var(--space-4) var(--space-10);
+    padding: var(--space-3) var(--space-8);
   }
 
   .large {
     font-size: var(--text-lg);
     padding: var(--space-5) var(--space-12);
+  }
+
+  .small {
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-6);
   }
 }

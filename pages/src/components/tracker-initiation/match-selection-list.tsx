@@ -7,6 +7,7 @@ import oddballPng from "../../assets/game-modes/oddball.png";
 import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { TeamIcon } from "../icons/team-icon";
+import { Button } from "../button/button";
 import styles from "./match-selection-list.module.css";
 import type { MatchHistoryEntry } from "./types";
 
@@ -100,12 +101,12 @@ export function MatchSelectionList({
           </p>
         </div>
         <div className={styles.buttonGroup}>
-          <button type="button" className={styles.selectButton} onClick={allSelected ? onDeselectAll : onSelectAll}>
+          <Button onClick={allSelected ? onDeselectAll : onSelectAll} variant="secondary">
             {allSelected ? "Deselect All" : "Select All"}
-          </button>
-          <button type="button" className={styles.startButton} onClick={onStartTracker}>
+          </Button>
+          <Button onClick={onStartTracker} variant="primary">
             {selectedCount === 0 ? "Start Tracker (From Now)" : `Start Tracker (${selectedCount.toLocaleString()})`}
-          </button>
+          </Button>
         </div>
       </div>
 

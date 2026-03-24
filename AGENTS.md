@@ -76,13 +76,13 @@ npm run format:fix
 ## CSS/Styling (Pages Project)
 
 - **Mobile-First**: Base styles for mobile, progressively enhance for larger screens
-- **Media Queries**: Use PostCSS custom media from `variables.css`:
+- **Media Queries**: Use PostCSS custom media from `pages/src/styles/variables.css`:
   - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed)
   - `@media (--tablet-viewport)` - min-width: 750px
   - `@media (--desktop-viewport)` - min-width: 1000px
   - `@media (--ultrawide-viewport)` - min-width: 1200px
 - **Organization**: Group media queries at bottom with section headers; never use `max-width` queries
-- **Design Tokens**: Use `variables.css` tokens (font size, spacing, colors)
+- **Design Tokens**: Use `pages/src/styles/variables.css` tokens (e.g. font size, spacing, colors, border radius)
 
 ## Type Safety
 

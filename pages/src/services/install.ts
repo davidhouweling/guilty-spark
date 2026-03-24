@@ -14,7 +14,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   const mode = getMode();
 
   if (mode === "FAKE") {
-    return import("./install.fake").then(async (module) => module.installFakeServices());
+    return import("./install.fake").then(async ({ installFakeServices }) => installFakeServices());
   }
 
   return {
