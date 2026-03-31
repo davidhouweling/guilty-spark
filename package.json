@@ -43,7 +43,7 @@
     "typecheck": "npm run typecheck:api && npm run typecheck:pages",
     "typecheck:api": "npm run typecheck --workspace=api",
     "typecheck:pages": "npm run typecheck --workspace=pages",
-    "done": "npm run format:fix && npm run lint:fix && npm run typecheck",
+    "done": "npm run format:fix && npm run typecheck && npm run lint:fix && npm run test",
     "build:api": "npm run build --workspace=api",
     "build:pages": "npm run build --workspace=pages",
     "deploy:api": "npm run deploy --workspace=api",

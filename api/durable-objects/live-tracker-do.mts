@@ -1513,7 +1513,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: sub.timestamp,
       })),
       matchSummaries: Object.values(state.discoveredMatches),
-      seriesScore: state.seriesScore,
+      seriesScore: state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim(),
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,

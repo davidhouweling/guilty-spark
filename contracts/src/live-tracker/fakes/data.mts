@@ -132,7 +132,7 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     substitutions: [],
     matchSummaries: discoveredMatches,
     rawMatches: sampleRawMatches,
-    seriesScore: "🦅 1:2 🐍",
+    seriesScore: "1:2",
     lastUpdateTime: "2025-12-24T03:52:10.185Z",
     playersAssociationData: {},
     medalMetadata: {
@@ -267,7 +267,7 @@ export const sampleIndividualTrackerStateMessage: LiveTrackerStateMessage = {
           },
         ],
         substitutions: [],
-        seriesScore: "🦅 1:0 🐍",
+        seriesScore: "1:0",
         matchSummaries: [getMatchSummary(discoveredMatches, 0), getMatchSummary(discoveredMatches, 1)],
       },
       {

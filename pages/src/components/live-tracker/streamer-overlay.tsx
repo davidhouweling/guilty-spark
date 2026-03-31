@@ -455,7 +455,7 @@ const StreamerOverlayComponent = function StreamerOverlay({
     {
       type: "series",
       label: `${neatQueueState.guildName} #${neatQueueState.queueNumber.toString()}`,
-      score: neatQueueState.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim(),
+      score: neatQueueState.seriesScore,
     },
     ...neatQueueState.matches.map((match, idx) => {
       // Determine winning team for overlay color
@@ -506,7 +506,7 @@ const StreamerOverlayComponent = function StreamerOverlay({
           )}
           {/* Center Score */}
           <div className={styles.scoreDisplay}>
-            <div className={styles.scoreText}>{neatQueueState.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}</div>
+            <div className={styles.scoreText}>{neatQueueState.seriesScore}</div>
           </div>
         </div>
 

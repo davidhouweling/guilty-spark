@@ -64,7 +64,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
         },
       ],
       substitutions: [],
-      seriesScore: "🦅 1:0 🐍",
+      seriesScore: "1:0",
       medalMetadata: {},
       playersAssociationData: {},
     },
@@ -223,7 +223,7 @@ describe("LiveTrackerContext", () => {
       ),
     });
 
-    expect(result.current).toBe("🦅 1:0 🐍");
+    expect(result.current).toBe("1:0");
   });
 
   it("returns null for series score when state is null", () => {
