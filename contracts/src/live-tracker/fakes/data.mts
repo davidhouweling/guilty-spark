@@ -121,6 +121,8 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
   data: {
     type: "neatqueue",
     guildId: "1238795949266964560",
+    guildIcon:
+      "https://cdn.discordapp.com/icons/1238795949266964560/a_cc131cc524d2152adf23bdf532b9925e.webp?animated=true",
     guildName: "Sample Guild",
     channelId: "1453215131843563550",
     queueNumber: 6038,

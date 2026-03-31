@@ -31,6 +31,7 @@ describe("LiveTracker", () => {
       data: {
         type: "neatqueue",
         guildId: "1",
+        guildIcon: null,
         guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,

@@ -1496,6 +1496,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       type: "neatqueue",
       guildId: state.guildId,
       guildName: guild.name,
+      guildIcon: guild.icon != null ? this.discordService.getGuildIconUrl(guild.id, guild.icon) : null,
       channelId: state.channelId,
       queueNumber: state.queueNumber,
       status: state.status,
