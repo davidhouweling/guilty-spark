@@ -867,6 +867,20 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("getGuildIconUrl()", () => {
+    it("returns the correct guild icon URL", () => {
+      const url = discordService.getGuildIconUrl("fake-guild-id", "fake-icon-hash");
+
+      expect(url).toBe("https://cdn.discordapp.com/icons/fake-guild-id/fake-icon-hash.webp?animated=true");
+    });
+
+    it("returns null if no icon hash is provided", () => {
+      const url = discordService.getGuildIconUrl("fake-guild-id", null);
+
+      expect(url).toBeNull();
+    });
+  });
+
   describe("getMessageFromInteractionToken()", () => {
     it("fetches the message", async () => {
       const response = await discordService.getMessageFromInteractionToken("fake-interaction-token");

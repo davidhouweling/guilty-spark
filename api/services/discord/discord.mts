@@ -518,8 +518,11 @@ export class DiscordService {
     });
   }
 
-  getGuildIconUrl(id: string, icon: string): string | null {
-    return `https://cdn.discordapp.com/icons/${id}/${icon}.webp?animated=true`;
+  getGuildIconUrl(id: string, icon: string | null): string | null {
+    if (icon != null && icon !== "") {
+      return `https://cdn.discordapp.com/icons/${id}/${icon}.webp?animated=true`;
+    }
+    return null;
   }
 
   async getChannel(channelId: string): Promise<APIChannel> {
