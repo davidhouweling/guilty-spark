@@ -13,7 +13,7 @@ interface PlayerNameProps {
 }
 
 export function PlayerName({ discordName, gamertag, showIcons = false, className }: PlayerNameProps): JSX.Element {
-  const [showDiscord, setShowDiscord] = useState<boolean>(true);
+  const [showDiscord, setShowDiscord] = useState(true);
 
   const displayDiscordName = discordName ?? "Unknown";
   const displayGamertag = gamertag ?? "-";
