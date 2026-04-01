@@ -110,6 +110,7 @@ export type LiveTrackerStateData = LiveTrackerNeatQueueStateData | LiveTrackerIn
 export interface LiveTrackerNeatQueueStateData extends LiveTrackerNeatQueueSeriesData {
   readonly type: "neatqueue";
   readonly guildId: string;
+  readonly guildIcon: string | null;
   readonly guildName: string;
   readonly channelId: string;
   readonly queueNumber: number;

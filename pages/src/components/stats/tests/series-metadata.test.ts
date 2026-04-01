@@ -4,7 +4,7 @@ import { calculateSeriesMetadata } from "../series-metadata";
 
 describe("calculateSeriesMetadata", () => {
   it("returns null when there are no matches", () => {
-    const result = calculateSeriesMetadata([], "🦅 0:0 🐍");
+    const result = calculateSeriesMetadata([], "0:0");
     expect(result).toBeNull();
   });
 
@@ -26,7 +26,7 @@ describe("calculateSeriesMetadata", () => {
       },
     ];
 
-    const result = calculateSeriesMetadata(matches, "🦅 1:0 🐍");
+    const result = calculateSeriesMetadata(matches, "1:0");
 
     expect(result).toEqual({
       score: "1:0",
@@ -68,7 +68,7 @@ describe("calculateSeriesMetadata", () => {
       },
     ];
 
-    const result = calculateSeriesMetadata(matches, "🦅 2:1 🐍");
+    const result = calculateSeriesMetadata(matches, "2:1");
 
     expect(result).toEqual({
       score: "2:1",
@@ -96,7 +96,7 @@ describe("calculateSeriesMetadata", () => {
       },
     ];
 
-    const result = calculateSeriesMetadata(matches, "🦅 50:47 🐍");
+    const result = calculateSeriesMetadata(matches, "50:47");
 
     expect(result?.score).toBe("50:47");
   });
@@ -133,7 +133,7 @@ describe("calculateSeriesMetadata", () => {
       },
     ];
 
-    const result = calculateSeriesMetadata(matches, "🦅 2:0 🐍");
+    const result = calculateSeriesMetadata(matches, "2:0");
 
     expect(result).toEqual({
       score: "2:0",

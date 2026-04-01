@@ -80,6 +80,14 @@ function gameModeIconUrl(gameMode: string): ImageMetadata {
   }
 }
 
+function emojifySeriesScore(seriesScore: string): string {
+  const teamScores = seriesScore.split(":").map((s) => s.trim());
+  if (teamScores.length !== 2) {
+    return seriesScore;
+  }
+  return `🦅${teamScores[0]}:${teamScores[1]}🐍`;
+}
+
 function gameModeIconSrc(gameMode: string): string {
   return gameModeIconUrl(gameMode).src;
 }
@@ -308,7 +316,7 @@ export function LiveTrackerView(): React.ReactElement {
     title.push("- Individual Tracker");
   } else if (isNeatQueueState(state)) {
     title.push(`#${state.queueNumber.toString()}`);
-    title.push(`(${state.seriesScore})`);
+    title.push(`(${emojifySeriesScore(state.seriesScore)})`);
   }
   title.push("| Live Tracker - Guilty Spark");
 
@@ -387,7 +395,7 @@ export function LiveTrackerView(): React.ReactElement {
                     {hasMatches ? (
                       <>
                         <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                          {state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim()}
+                          {state.seriesScore}
                         </h3>
                         <ul className={styles.seriesScoresList}>
                           {state.matches.map((match) => {

@@ -1,6 +1,7 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import { isBefore } from "date-fns";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { Preconditions } from "../../base/preconditions.mjs";
@@ -50,9 +51,10 @@ export class SeriesOverviewEmbed {
   }): Promise<APIEmbed[]> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
+    const seriesMatches = [...series].sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
     const subs = [...substitutions].sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    for (const seriesMatch of series) {
+    for (const seriesMatch of seriesMatches) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = this.haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(seriesMatch, locale);
@@ -87,9 +89,11 @@ export class SeriesOverviewEmbed {
     const teamsDescription = finalTeams
       .map((team) => `**${team.name}:** ${team.playerIds.map((playerId) => `<@${playerId}>`).join(" ")}`)
       .join("\n");
-    const startTime = this.discordService.getTimestamp(Preconditions.checkExists(series[0]?.MatchInfo.StartTime));
+    const startTime = this.discordService.getTimestamp(
+      Preconditions.checkExists(seriesMatches[0]?.MatchInfo.StartTime),
+    );
     const endTime = this.discordService.getTimestamp(
-      Preconditions.checkExists(series[series.length - 1]?.MatchInfo.EndTime),
+      Preconditions.checkExists(seriesMatches[seriesMatches.length - 1]?.MatchInfo.EndTime),
     );
 
     const embeds: APIEmbed[] = [];

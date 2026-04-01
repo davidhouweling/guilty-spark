@@ -10,7 +10,7 @@ export interface SeriesMetadata {
 
 export function calculateSeriesMetadata(
   matches: readonly LiveTrackerMatchRenderModel[],
-  seriesScore: string,
+  score: string,
 ): SeriesMetadata | null {
   if (matches.length === 0) {
     return null;
@@ -18,8 +18,6 @@ export function calculateSeriesMetadata(
 
   const firstMatch = Preconditions.checkExists(matches[0]);
   const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
-
-  const score = seriesScore.replaceAll(/(🦅|🐍)/g, "").trim();
 
   const startMs = new Date(firstMatch.startTime).getTime();
   const endMs = new Date(lastMatch.endTime).getTime();

@@ -1471,17 +1471,19 @@ export class HaloService {
     const lastMatchPresentAtBeginningPlayers = lastMatch.Players.filter(
       (player) => player.ParticipationInfo.PresentAtBeginning,
     );
-    return matches.filter((match) => {
-      const presentAtBeginningPlayers = match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning);
-      return (
-        lastMatchPresentAtBeginningPlayers.length === presentAtBeginningPlayers.length &&
-        presentAtBeginningPlayers.every((player) =>
-          lastMatchPresentAtBeginningPlayers.some(
-            (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
-          ),
-        )
-      );
-    });
+    return matches
+      .filter((match) => {
+        const presentAtBeginningPlayers = match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning);
+        return (
+          lastMatchPresentAtBeginningPlayers.length === presentAtBeginningPlayers.length &&
+          presentAtBeginningPlayers.every((player) =>
+            lastMatchPresentAtBeginningPlayers.some(
+              (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
+            ),
+          )
+        );
+      })
+      .sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
   }
 
   private async getMapName(assetId: string, versionId: string): Promise<string> {

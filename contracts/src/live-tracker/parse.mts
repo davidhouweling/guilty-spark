@@ -152,6 +152,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
   }
 
   const guildId = readString(data["guildId"] ?? null);
+  const guildIcon = readString(data["guildIcon"] ?? null);
   const guildName = readString(data["guildName"] ?? null);
   const channelId = readString(data["channelId"] ?? null);
   const queueNumber = readNumber(data["queueNumber"] ?? null);
@@ -238,6 +239,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
   return {
     type: "neatqueue",
     guildId,
+    guildIcon,
     guildName,
     channelId,
     queueNumber,

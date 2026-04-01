@@ -5,6 +5,7 @@ import {
   sampleLiveTrackerStateMessage,
   aFakePlayerAssociationDataWith,
 } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import type { LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
 
 describe("parseLiveTrackerStateData", () => {
   it("parses valid state data with all required fields", () => {
@@ -409,6 +410,7 @@ describe("tryParseLiveTrackerMessage", () => {
       data: {
         type: "neatqueue",
         guildId: "1",
+        guildIcon: null,
         guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,
@@ -419,10 +421,11 @@ describe("tryParseLiveTrackerMessage", () => {
         substitutions: [],
         matchSummaries: [],
         rawMatches: {},
-        seriesScore: "🦅 0:0 🐍",
+        seriesScore: "0:0",
         medalMetadata: {},
+        playersAssociationData: {},
       },
-    });
+    } satisfies LiveTrackerStateMessage);
 
     const result = tryParseLiveTrackerMessage(payload);
 
@@ -442,6 +445,7 @@ describe("tryParseLiveTrackerMessage", () => {
       data: {
         type: "neatqueue",
         guildId: "1",
+        guildIcon: null,
         guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,
@@ -452,10 +456,11 @@ describe("tryParseLiveTrackerMessage", () => {
         substitutions: [],
         matchSummaries: [],
         rawMatches: {},
-        seriesScore: "🦅 0:0 🐍",
+        seriesScore: "0:0",
         medalMetadata: {},
+        playersAssociationData: {},
       },
-    });
+    } satisfies LiveTrackerStateMessage);
 
     const result = tryParseLiveTrackerMessage(payload);
 
@@ -520,21 +525,25 @@ describe("tryParseLiveTrackerMessage", () => {
     const payload = JSON.stringify({
       type: "state",
       data: {
+        type: "neatqueue",
         guildId: "1",
+        guildIcon: null,
         guildName: "Guild 1",
         channelId: "2",
         queueNumber: 3,
-        status: "active",
+        status: "stopped",
         lastUpdateTime: "2025-01-01T00:00:00.000Z",
         players: [],
         teams: [],
         substitutions: [],
-        discoveredMatches: [],
+        matchSummaries: [],
         rawMatches: {},
-        seriesScore: "🦅 0:0 🐍",
+        seriesScore: "0:0",
+        medalMetadata: {},
+        playersAssociationData: {},
       },
       // missing timestamp
-    });
+    } satisfies Omit<LiveTrackerStateMessage, "timestamp">);
 
     const result = tryParseLiveTrackerMessage(payload);
 
@@ -552,6 +561,7 @@ describe("tryParseLiveTrackerMessage", () => {
         data: {
           type: "neatqueue",
           guildId: "1",
+          guildIcon: null,
           guildName: "Guild 1",
           channelId: "2",
           queueNumber: 3,
@@ -562,10 +572,11 @@ describe("tryParseLiveTrackerMessage", () => {
           substitutions: [],
           matchSummaries: [],
           rawMatches: {},
-          seriesScore: "🦅 0:0 🐍",
+          seriesScore: "0:0",
           medalMetadata: {},
+          playersAssociationData: {},
         },
-      });
+      } satisfies LiveTrackerStateMessage);
 
       const result = tryParseLiveTrackerMessage(payload);
 

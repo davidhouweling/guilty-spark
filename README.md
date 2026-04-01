@@ -258,11 +258,6 @@ https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
    npm start
    ```
 
-6. **Set up ngrok tunnel** (for webhook testing):
-   ```bash
-   npm run ngrok
-   ```
-
 ## Technical Features
 
 ### Resilient Halo API Integration
