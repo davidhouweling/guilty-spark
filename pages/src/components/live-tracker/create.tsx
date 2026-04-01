@@ -438,7 +438,7 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
 }
 
 export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
-  const [loadingServices, setLoadingServices] = React.useState<ComponentLoaderStatus>(ComponentLoaderStatus.PENDING);
+  const [loadingServices, setLoadingServices] = React.useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = React.useState<Services | null>(null);
   const [shouldConnectToTracker, setShouldConnectToTracker] = React.useState(false);
 

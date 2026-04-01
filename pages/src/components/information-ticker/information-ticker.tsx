@@ -35,7 +35,7 @@ const InformationTickerComponent = function InformationTicker({
   teamColors,
   onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
-  const [currentRowIndex, setCurrentRowIndex] = React.useState<number>(0);
+  const [currentRowIndex, setCurrentRowIndex] = React.useState(0);
 
   // Reset to first row when match group changes
   useEffect(() => {

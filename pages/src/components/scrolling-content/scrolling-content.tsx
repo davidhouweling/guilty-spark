@@ -23,8 +23,8 @@ const ScrollingContentComponent = function ScrollingContent({
   mode = "continuous",
 }: ScrollingContentProps): JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [needsScroll, setNeedsScroll] = useState<boolean>(false);
-  const [containerWidth, setContainerWidth] = useState<number>(maxWidth);
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(maxWidth);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
 

@@ -150,10 +150,10 @@ const StreamerOverlayComponent = function StreamerOverlay({
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
 
-  const [selectedTab, setSelectedTab] = useState<number>(-1); // -1 = series, 0+ = match index
-  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0); // Index of which match to show in ticker
-  const [previousMatchCount, setPreviousMatchCount] = useState<number>(0);
+  const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0); // Index of which match to show in ticker
+  const [previousMatchCount, setPreviousMatchCount] = useState(0);
   const nodeRef = useRef<HTMLDivElement>(null);
 
   if (!model.state) {

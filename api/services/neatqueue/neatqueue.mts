@@ -919,7 +919,7 @@ export class NeatQueueService {
               }),
             );
 
-            const playerXuidToGametags = Object.values(discoveredMatches).reduce<Map<string, string>>((acc, match) => {
+            const playerXuidToGametags = Object.values(discoveredMatches).reduce((acc, match) => {
               for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
                 acc.set(playerXuid, gamertag);
               }
