@@ -1,0 +1,396 @@
+{
+  "type": "state",
+  "data": {
+    "type": "neatqueue",
+    "guildIcon": "https://cdn.discordapp.com/icons/1238795949266964560/a_cc131cc524d2152adf23bdf532b9925e.webp?animated=true",
+    "guildId": "1238795949266964560",
+    "guildName": "Dog Crew",
+    "channelId": "1487383667998199918",
+    "queueNumber": 7156,
+    "status": "active",
+    "players": [
+      {
+        "id": "998023469566533633",
+        "discordUsername": "Mr Jonathan EL JoGGiiNs"
+      },
+      {
+        "id": "237222473500852224",
+        "discordUsername": "soundmanD"
+      },
+      {
+        "id": "1304018805327921174",
+        "discordUsername": "BigDᴸ⁰ʳᵈ"
+      },
+      {
+        "id": "706816920032378940",
+        "discordUsername": "Noxious"
+      },
+      {
+        "id": "1017679569907613757",
+        "discordUsername": "Peon²ᴺ"
+      },
+      {
+        "id": "1054416239398756382",
+        "discordUsername": "TREM0L0"
+      },
+      {
+        "id": "398022198889021443",
+        "discordUsername": "deeds2184"
+      },
+      {
+        "id": "559965483730731008",
+        "discordUsername": "Goldy"
+      }
+    ],
+    "teams": [
+      {
+        "name": "Team 1",
+        "playerIds": ["998023469566533633", "237222473500852224", "1304018805327921174", "706816920032378940"]
+      },
+      {
+        "name": "Team 2",
+        "playerIds": ["1017679569907613757", "1054416239398756382", "398022198889021443", "559965483730731008"]
+      }
+    ],
+    "substitutions": [],
+    "matchSummaries": [
+      {
+        "matchId": "3d203681-2950-46a9-b6ae-d9da82d3d0d5",
+        "gameTypeAndMap": "Oddball: Streets",
+        "gameType": "Oddball",
+        "gameMap": "Streets",
+        "gameMapThumbnailUrl": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/e23ea388-9bcb-4180-a0dc-fbe987751b9e/c95b9013-e8ae-4a5a-9a5b-4be3943025fc/images/thumbnail.png",
+        "duration": "18m 42s",
+        "gameScore": "2:1",
+        "gameSubScore": "216:201",
+        "startTime": "2026-03-28T09:43:42.285Z",
+        "endTime": "2026-03-28T10:02:25.185Z",
+        "playerXuidToGametag": {
+          "2535436073941755": "xLEGIT JOEYx",
+          "2533274810015061": "DragonWarriorAU",
+          "2535431620415074": "TREM0L0",
+          "2533274844642438": "soundmanD",
+          "2535439780546683": "Noxiious I",
+          "2533274872101377": "Goldy Guns",
+          "2535434084007302": "Harag1",
+          "2533274979028678": "RagingPeon"
+        }
+      },
+      {
+        "matchId": "c1a97bd1-84ae-43b3-9aeb-89de689bfeeb",
+        "gameTypeAndMap": "Slayer: Solitude",
+        "gameType": "Slayer",
+        "gameMap": "Solitude",
+        "gameMapThumbnailUrl": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/4a5e5612-2b2e-4375-a0b3-9335a68815f3/77710e1b-d9bc-42fd-a74b-918c27387783/images/thumbnail.jpg",
+        "duration": "8m 18s",
+        "gameScore": "47:50",
+        "gameSubScore": null,
+        "startTime": "2026-03-28T10:04:36.117Z",
+        "endTime": "2026-03-28T10:12:54.525Z",
+        "playerXuidToGametag": {
+          "2533274844642438": "soundmanD",
+          "2533274810015061": "DragonWarriorAU",
+          "2533274979028678": "RagingPeon",
+          "2535431620415074": "TREM0L0",
+          "2535436073941755": "xLEGIT JOEYx",
+          "2535434084007302": "Harag1",
+          "2535439780546683": "Noxiious I",
+          "2533274872101377": "Goldy Guns"
+        }
+      },
+      {
+        "matchId": "5e4af690-193c-417c-a05b-9c9ac8773bd2",
+        "gameTypeAndMap": "Capture the Flag: Origin",
+        "gameType": "Capture the Flag",
+        "gameMap": "Origin",
+        "gameMapThumbnailUrl": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/46a8319c-2c63-46ee-9382-788906dcb049/82e20c0a-ca3d-450a-a797-f5ed277a7dc2/images/thumbnail.jpg",
+        "duration": "11m 32s",
+        "gameScore": "1:3",
+        "gameSubScore": null,
+        "startTime": "2026-03-28T10:22:17.700Z",
+        "endTime": "2026-03-28T10:33:49.728Z",
+        "playerXuidToGametag": {
+          "2533274844642438": "soundmanD",
+          "2535436073941755": "xLEGIT JOEYx",
+          "2533274810015061": "DragonWarriorAU",
+          "2535434084007302": "Harag1",
+          "2535431620415074": "TREM0L0",
+          "2533274872101377": "Goldy Guns",
+          "2535439780546683": "Noxiious I",
+          "2533274979028678": "RagingPeon"
+        }
+      },
+      {
+        "matchId": "abcb4fd9-fc0d-4b41-b17e-c6b548437826",
+        "gameTypeAndMap": "King of the Hill: Live Fire",
+        "gameType": "King of the Hill",
+        "gameMap": "Live Fire",
+        "gameMapThumbnailUrl": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/309253f8-7a75-48ff-83e1-e7fb3db2ac47/86a644f0-5063-40b8-b601-ce361439da72/images/thumbnail.jpg",
+        "duration": "10m 34s",
+        "gameScore": "4:2",
+        "gameSubScore": null,
+        "startTime": "2026-03-28T10:35:04.976Z",
+        "endTime": "2026-03-28T10:45:39.690Z",
+        "playerXuidToGametag": {
+          "2535436073941755": "xLEGIT JOEYx",
+          "2533274844642438": "soundmanD",
+          "2533274979028678": "RagingPeon",
+          "2533274810015061": "DragonWarriorAU",
+          "2535439780546683": "Noxiious I",
+          "2535431620415074": "TREM0L0",
+          "2535434084007302": "Harag1",
+          "2533274872101377": "Goldy Guns"
+        }
+      },
+      {
+        "matchId": "958c4d06-0fc8-4da2-b49f-6ca8c48d9c3c",
+        "gameTypeAndMap": "Slayer: Recharge",
+        "gameType": "Slayer",
+        "gameMap": "Recharge",
+        "gameMapThumbnailUrl": "https://blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map/336b5174-3579-4fd8-b2f0-922e4a5f7628/c0c6705e-167b-4335-afe0-2bafc7290f40/images/thumbnail.png",
+        "duration": "8m 51s",
+        "gameScore": "50:48",
+        "gameSubScore": null,
+        "startTime": "2026-03-28T10:59:00.332Z",
+        "endTime": "2026-03-28T11:07:51.805Z",
+        "playerXuidToGametag": {
+          "2533274979028678": "RagingPeon",
+          "2535436073941755": "xLEGIT JOEYx",
+          "2533274810015061": "DragonWarriorAU",
+          "2533274844642438": "soundmanD",
+          "2535431620415074": "TREM0L0",
+          "2535439780546683": "Noxiious I",
+          "2533274872101377": "Goldy Guns",
+          "2535434084007302": "Harag1"
+        }
+      }
+    ],
+    "seriesScore": "3:2",
+    "lastUpdateTime": "2026-03-28T11:26:08.001Z",
+    "medalMetadata": {
+      "269174970": {
+        "name": "Boxer",
+        "sortingWeight": 50
+      },
+      "548533137": {
+        "name": "Back Smack",
+        "sortingWeight": 50
+      },
+      "555849395": {
+        "name": "Bodyguard",
+        "sortingWeight": 50
+      },
+      "622331684": {
+        "name": "Double Kill",
+        "sortingWeight": 100
+      },
+      "670606868": {
+        "name": "Sneak King",
+        "sortingWeight": 150
+      },
+      "1169571763": {
+        "name": "Shot Caller",
+        "sortingWeight": 100
+      },
+      "1283796619": {
+        "name": "Off the Rack",
+        "sortingWeight": 100
+      },
+      "1284032216": {
+        "name": "Wingman",
+        "sortingWeight": 50
+      },
+      "1512363953": {
+        "name": "Perfect",
+        "sortingWeight": 100
+      },
+      "1734214473": {
+        "name": "Whiplash",
+        "sortingWeight": 100
+      },
+      "1880789493": {
+        "name": "Mind the Gap",
+        "sortingWeight": 100
+      },
+      "2063152177": {
+        "name": "Triple Kill",
+        "sortingWeight": 150
+      },
+      "2123530881": {
+        "name": "Reversal",
+        "sortingWeight": 50
+      },
+      "2477555653": {
+        "name": "Spotter",
+        "sortingWeight": 50
+      },
+      "2602963073": {
+        "name": "No Scope",
+        "sortingWeight": 100
+      },
+      "2625820422": {
+        "name": "From the Grave",
+        "sortingWeight": 50
+      },
+      "2648272972": {
+        "name": "Grenadier",
+        "sortingWeight": 50
+      },
+      "2780740615": {
+        "name": "Killing Spree",
+        "sortingWeight": 100
+      },
+      "2852571933": {
+        "name": "Rifleman",
+        "sortingWeight": 50
+      },
+      "3091261182": {
+        "name": "Last Shot",
+        "sortingWeight": 50
+      },
+      "3227840152": {
+        "name": "Goal Line Stand",
+        "sortingWeight": 100
+      },
+      "3233952928": {
+        "name": "Killjoy",
+        "sortingWeight": 50
+      },
+      "3334154676": {
+        "name": "Guardian Angel",
+        "sortingWeight": 50
+      },
+      "3655682764": {
+        "name": "Stick",
+        "sortingWeight": 50
+      },
+      "3905838030": {
+        "name": "Cluster Luck",
+        "sortingWeight": 100
+      },
+      "4229934157": {
+        "name": "Snipe",
+        "sortingWeight": 50
+      },
+      "4261842076": {
+        "name": "Killing Frenzy",
+        "sortingWeight": 150
+      }
+    },
+    "playersAssociationData": {
+      "1304018805327921174": {
+        "discordId": "1304018805327921174",
+        "discordName": "BigDᴸ⁰ʳᵈ",
+        "xboxId": "2533274810015061",
+        "gamertag": "DragonWarriorAU",
+        "currentRank": -1,
+        "currentRankTier": "",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 5,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1271,
+        "esra": 1046.7036168241204,
+        "lastRankedGamePlayed": "2026-02-01T05:37:28.633Z"
+      },
+      "398022198889021443": {
+        "discordId": "398022198889021443",
+        "discordName": "deeds2184",
+        "xboxId": "2535434084007302",
+        "gamertag": "Harag1",
+        "currentRank": 1188,
+        "currentRankTier": "Platinum",
+        "currentRankSubTier": 5,
+        "currentRankMeasurementMatchesRemaining": 0,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1308,
+        "esra": 1297.6963313485605,
+        "lastRankedGamePlayed": "2026-03-20T15:29:44.536Z"
+      },
+      "559965483730731008": {
+        "discordId": "559965483730731008",
+        "discordName": "Goldy",
+        "xboxId": "2533274872101377",
+        "gamertag": "Goldy Guns",
+        "currentRank": -1,
+        "currentRankTier": "",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 4,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1333,
+        "esra": 1189.7952457865379,
+        "lastRankedGamePlayed": "2026-03-08T14:20:28.528Z"
+      },
+      "706816920032378940": {
+        "discordId": "706816920032378940",
+        "discordName": "Noxious",
+        "xboxId": "2535439780546683",
+        "gamertag": "Noxiious I",
+        "currentRank": -1,
+        "currentRankTier": "",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 5,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1613,
+        "esra": 1283.283682706918,
+        "lastRankedGamePlayed": "2025-12-07T09:03:03.134Z"
+      },
+      "1017679569907613757": {
+        "discordId": "1017679569907613757",
+        "discordName": "Peon²ᴺ",
+        "xboxId": "2533274979028678",
+        "gamertag": "RagingPeon",
+        "currentRank": -1,
+        "currentRankTier": "",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 5,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1560,
+        "esra": 1458.8684332253513,
+        "lastRankedGamePlayed": "2026-02-05T05:54:43.703Z"
+      },
+      "237222473500852224": {
+        "discordId": "237222473500852224",
+        "discordName": "soundmanD",
+        "xboxId": "2533274844642438",
+        "gamertag": "soundmanD",
+        "currentRank": 1244,
+        "currentRankTier": "Diamond",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 0,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1565,
+        "esra": 1356.4329122249972,
+        "lastRankedGamePlayed": "2026-03-28T09:21:33.942Z"
+      },
+      "187139068654649356": {
+        "discordId": "187139068654649356",
+        "discordName": "Spazzen",
+        "xboxId": "2733658166685952",
+        "gamertag": "Spazzen",
+        "currentRank": -1,
+        "currentRankTier": "",
+        "currentRankSubTier": 0,
+        "currentRankMeasurementMatchesRemaining": 2,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1273,
+        "esra": 1229.12855605173,
+        "lastRankedGamePlayed": "2026-03-15T13:07:22.724Z"
+      },
+      "1054416239398756382": {
+        "discordId": "1054416239398756382",
+        "discordName": "TREM0L0",
+        "xboxId": "2535431620415074",
+        "gamertag": "TREM0L0",
+        "currentRank": 1301,
+        "currentRankTier": "Diamond",
+        "currentRankSubTier": 2,
+        "currentRankMeasurementMatchesRemaining": 0,
+        "currentRankInitialMeasurementMatches": 5,
+        "allTimePeakRank": 1602,
+        "esra": 1351.0466367748388,
+        "lastRankedGamePlayed": "2026-03-27T17:44:17.433Z"
+      }
+    }
+  },
+  "timestamp": "2026-03-28T11:28:38.057Z"
+}
