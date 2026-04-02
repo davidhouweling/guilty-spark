@@ -1,0 +1,54 @@
+/* Settings Trigger Button */
+.trigger {
+  align-items: center;
+  background: var(--halo-bg-primary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.trigger.compact {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  opacity: 0.8;
+}
+
+.trigger:hover {
+  background: var(--halo-bg-secondary);
+  border-color: var(--halo-accent);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+.trigger.compact:hover {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.triggerIcon {
+  height: 24px;
+  width: 24px;
+}
+
+.triggerLabel {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .triggerLabel {
+    display: none;
+  }
+}

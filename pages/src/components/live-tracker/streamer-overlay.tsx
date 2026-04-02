@@ -1,21 +1,27 @@
-// TODO: work out why the types aren't aligned
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import React, { useState, useEffect, useMemo, useRef, memo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
 import type { TeamColor } from "../team-colors/team-colors";
-import {
-  ViewModeSelector,
-  type ViewMode,
-  type PreviewMode,
-  type StreamerOptions,
-} from "../view-mode/view-mode-selector";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { InformationTicker, type TickerMatchGroup, type TickerStatRow } from "../information-ticker/information-ticker";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { ScrollingContent } from "../scrolling-content/scrolling-content";
 import { RankIcon } from "../icons/rank-icon";
+import discordLogo from "../../assets/discord-logo.png";
+import xboxLogo from "../../assets/xbox-logo.png";
+import { TeamIcon } from "../icons/team-icon";
+import type { AllStreamerSettings } from "./settings/types";
+import styles from "./streamer-overlay.module.css";
+import { useTrackerState, useAllMatchStats, useSeriesStats, useTrackerInfo } from "./live-tracker-context";
+import type { LiveTrackerNeatQueueStateRenderModel, LiveTrackerTeamRenderModel } from "./types";
+
+export interface StreamerOverlayProps {
+  readonly teamColors: TeamColor[];
+  readonly gameModeIconUrl: (gameMode: string) => string;
+  readonly settings: AllStreamerSettings;
+  readonly settingsUi: React.ReactNode;
+}
 
 function getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
   if (csr >= 1500) {
@@ -110,98 +116,112 @@ function getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } 
   }
   return { rankTier: "Bronze", subTier: 0 };
 }
-import discordLogo from "../../assets/discord-logo.png";
-import XboxLogo from "../../assets/xbox-logo.png";
-import styles from "./streamer-overlay.module.css";
-import { useTrackerInfo, useTrackerState, useAllMatchStats, useSeriesStats } from "./live-tracker-context";
-import type { LiveTrackerNeatQueueStateRenderModel } from "./types";
 
-interface StreamerOverlayProps {
-  readonly teamColors: TeamColor[];
-  readonly gameModeIconUrl: (gameMode: string) => string;
-  readonly viewMode: ViewMode;
-  readonly onViewModeSelect: (mode: ViewMode) => void;
-  readonly previewMode: PreviewMode;
-  readonly onPreviewModeSelect: (mode: PreviewMode) => void;
-  readonly streamerOptions: StreamerOptions;
-  readonly onStreamerOptionsChange: (options: StreamerOptions) => void;
-}
-
-type TabType = "series" | "match";
-
-interface TabData {
-  readonly type: TabType;
-  readonly matchIndex?: number;
-  readonly matchId?: string;
-}
-
-const StreamerOverlayComponent = function StreamerOverlay({
+export function StreamerOverlay({
   teamColors,
   gameModeIconUrl,
-  viewMode,
-  onViewModeSelect,
-  previewMode,
-  onPreviewModeSelect,
-  streamerOptions,
-  onStreamerOptionsChange,
+  settings,
+  settingsUi,
 }: StreamerOverlayProps): React.ReactElement {
-  // Use context to get data
-  const model = { state: useTrackerState(), ...useTrackerInfo() };
+  const trackerInfo = useTrackerInfo();
+  const state = useTrackerState();
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
 
   const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0); // Index of which match to show in ticker
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [previousMatchCount, setPreviousMatchCount] = useState(0);
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  if (!model.state) {
-    return <div className={styles.overlay}>No data available</div>;
-  }
-
-  const { state } = model;
-
-  // Streamer overlay only works with NeatQueue mode (team tracker)
-  if (state.type !== "neatqueue") {
+  if (state?.type !== "neatqueue") {
     return <div className={styles.overlay}>Streamer overlay is only available for NeatQueue trackers</div>;
   }
 
-  // Type guard: state is now narrowed to LiveTrackerNeatQueueStateRenderModel
-  // This ensures teams, matches, and seriesScore are always defined
   const neatQueueState: LiveTrackerNeatQueueStateRenderModel = state;
 
-  // Generate ticker match groups with structured data for styling
+  // Apply per-series overrides
+  const title =
+    settings.series.titleOverride !== null && settings.series.titleOverride !== ""
+      ? settings.series.titleOverride
+      : settings.global.display.showTitle && trackerInfo.title
+        ? trackerInfo.title
+        : null;
+  const subtitle =
+    settings.series.subTitleOverride !== null && settings.series.subTitleOverride !== ""
+      ? settings.series.subTitleOverride
+      : settings.global.display.showSubtitle && trackerInfo.subTitle
+        ? trackerInfo.subTitle
+        : null;
+  const iconUrl = settings.global.display.showServerIcon ? trackerInfo.iconUrl : null;
+
+  // Generate ticker match groups with filtered stats
   const tickerMatchGroups = useMemo((): TickerMatchGroup[] => {
     const groups: TickerMatchGroup[] = [];
 
-    // Pre-series player info (when no matches yet but have player association data)
-    if (neatQueueState.matches.length === 0 && neatQueueState.playersAssociationData) {
+    // Filter function for stats based on settings
+    const filterStats = (stats: TickerStatRow["stats"]): TickerStatRow["stats"] => {
+      return stats.filter((stat) => {
+        // For slayer stats, check if it's in the selected list
+        if (settings.global.ticker.selectedSlayerStats.includes(stat.name)) {
+          return true;
+        }
+        // For objective stats, check the toggle
+        if (settings.global.ticker.showObjectiveStats) {
+          // TODO: Identify objective stats - for now include all non-slayer stats
+          return !settings.global.ticker.selectedSlayerStats.includes(stat.name);
+        }
+        return false;
+      });
+    };
+
+    const medalWeights = new Map(Object.values(state.medalMetadata).map((m) => [m.name, m.sortingWeight]));
+    const difficultyRange = new Map([
+      [0, [0, 99]],
+      [1, [100, 149]],
+      [2, [150, 199]],
+      [3, [200, Infinity]],
+    ]);
+    const filterMedals = (medals: TickerStatRow["medals"]): TickerStatRow["medals"] => {
+      return medals.filter((medal) => {
+        const weight = medalWeights.get(medal.name);
+        if (weight === undefined) {
+          return false;
+        }
+
+        for (const [difficultyIndex, [minWeight, maxWeight]] of difficultyRange.entries()) {
+          if (weight >= minWeight && weight <= maxWeight) {
+            return settings.global.ticker.medalRarityFilter.includes(difficultyIndex);
+          }
+        }
+
+        return false;
+      });
+    };
+
+    // Pre-series player info (if enabled)
+    if (
+      settings.global.ticker.showPreSeriesInfo &&
+      neatQueueState.matches.length === 0 &&
+      neatQueueState.playersAssociationData
+    ) {
+      const playersAssociationData = new Map(Object.entries(neatQueueState.playersAssociationData));
       const rows: TickerStatRow[] = [];
 
-      // Build ticker rows per team with all players' stats combined
       for (const [teamIndex, team] of neatQueueState.teams.entries()) {
-        const teamStats: {
-          name: string;
-          value: number;
-          bestInTeam: boolean;
-          bestInMatch: boolean;
-          display: string;
-          icon?: React.ReactNode;
-        }[] = [];
-
         for (const player of team.players) {
-          const playerData = neatQueueState.playersAssociationData[player.id];
-          if (playerData == null) {
+          const playerData = playersAssociationData.get(player.id);
+          if (!playerData) {
             continue;
           }
 
           const playerName = playerData.gamertag ?? playerData.discordName;
+          const playerStats: TickerStatRow["stats"] = [];
 
           // Current Rank
           if (playerData.currentRank !== null && playerData.currentRank >= 0) {
-            teamStats.push({
-              name: `${playerName} - Current rank`,
+            playerStats.push({
+              name: "Current rank",
               value: playerData.currentRank,
               bestInTeam: false,
               bestInMatch: false,
@@ -221,7 +241,7 @@ const StreamerOverlayComponent = function StreamerOverlay({
           // Peak Rank
           if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
             const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
-            teamStats.push({
+            playerStats.push({
               name: `Peak rank`,
               value: playerData.allTimePeakRank,
               bestInTeam: false,
@@ -241,9 +261,8 @@ const StreamerOverlayComponent = function StreamerOverlay({
 
           // ESRA
           if (playerData.esra !== null && playerData.esra >= 0) {
-            // Calculate rank tier from ESRA
             const { rankTier, subTier } = getRankTierFromCsr(playerData.esra);
-            teamStats.push({
+            playerStats.push({
               name: `ESRA`,
               value: playerData.esra,
               bestInTeam: false,
@@ -261,47 +280,11 @@ const StreamerOverlayComponent = function StreamerOverlay({
             });
           }
 
-          // Last Match (as time ago)
-          if (playerData.lastRankedGamePlayed !== null) {
-            const lastMatchDate = new Date(playerData.lastRankedGamePlayed);
-            const now = new Date();
-            const diffMs = now.getTime() - lastMatchDate.getTime();
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-            let timeAgoDisplay: string;
-            let stableValue: number;
-            if (diffDays > 0) {
-              timeAgoDisplay = `${diffDays.toString()}d ago`;
-              stableValue = diffDays * 1000000; // Stable by day
-            } else if (diffHours > 0) {
-              timeAgoDisplay = `${diffHours.toString()}h ago`;
-              stableValue = diffHours * 10000; // Stable by hour
-            } else if (diffMinutes > 0) {
-              timeAgoDisplay = `${diffMinutes.toString()}m ago`;
-              stableValue = diffMinutes * 100; // Stable by minute
-            } else {
-              timeAgoDisplay = "just now";
-              stableValue = 0;
-            }
-
-            teamStats.push({
-              name: `Last ranked game played`,
-              value: stableValue, // Use stable value instead of actual diffMs
-              bestInTeam: false,
-              bestInMatch: false,
-              display: timeAgoDisplay,
-            });
-          }
-        }
-
-        if (teamStats.length > 0) {
           rows.push({
-            type: "team",
+            type: "player",
             teamId: teamIndex,
-            name: `Team ${team.name}`,
-            stats: teamStats,
+            name: playerName,
+            stats: playerStats,
             medals: [],
           });
         }
@@ -312,31 +295,42 @@ const StreamerOverlayComponent = function StreamerOverlay({
       }
     }
 
-    // Series stats first
+    // Series stats
     if (seriesStats && seriesStats.teamData.length > 0) {
       const rows: TickerStatRow[] = [];
 
       // Team stats
-      for (const [idx, teamData] of seriesStats.teamData.entries()) {
-        const teamName = neatQueueState.teams[idx]?.name ?? `Team ${(idx + 1).toString()}`;
+      for (const teamData of seriesStats.teamData.values()) {
+        const { teamId, teamStats, teamMedals } = teamData;
+        const { eagleTeamNameOverride, cobraTeamNameOverride } = settings.series;
+        const teamOverride = teamId === 0 ? eagleTeamNameOverride : cobraTeamNameOverride;
+
+        let teamName = teamId === 0 ? "Eagle" : "Cobra";
+        if (teamOverride !== null && teamOverride !== "") {
+          teamName = teamOverride;
+        } else if (neatQueueState.teams[teamId]?.name) {
+          teamName = neatQueueState.teams[teamId].name;
+        }
+
         rows.push({
           type: "team",
-          teamId: idx,
-          name: teamName,
-          stats: teamData.teamStats,
-          medals: teamData.teamMedals,
+          teamId,
+          name: `${teamName} (Accumulated)`,
+          stats: filterStats(teamStats),
+          medals: filterMedals(teamMedals),
         });
       }
 
       // Player stats
       for (const teamData of seriesStats.playerData) {
+        const { teamId } = teamData;
         for (const player of teamData.players) {
           rows.push({
             type: "player",
-            teamId: teamData.teamId,
+            teamId,
             name: player.name,
-            stats: player.values,
-            medals: player.medals,
+            stats: filterStats(player.values),
+            medals: filterMedals(player.medals),
           });
         }
       }
@@ -351,25 +345,36 @@ const StreamerOverlayComponent = function StreamerOverlay({
 
         // Team stats for this match
         for (const teamData of matchStat.data) {
-          const teamName = neatQueueState.teams[teamData.teamId]?.name ?? `Team ${(teamData.teamId + 1).toString()}`;
+          const { teamId, teamStats, teamMedals } = teamData;
+          const { eagleTeamNameOverride, cobraTeamNameOverride } = settings.series;
+          const teamOverride = teamId === 0 ? eagleTeamNameOverride : cobraTeamNameOverride;
+
+          let teamName = teamId === 0 ? "Eagle" : "Cobra";
+          if (teamOverride !== null && teamOverride !== "") {
+            teamName = teamOverride;
+          } else if (neatQueueState.teams[teamId]?.name) {
+            teamName = neatQueueState.teams[teamId].name;
+          }
+
           rows.push({
             type: "team",
-            teamId: teamData.teamId,
-            name: teamName,
-            stats: teamData.teamStats,
-            medals: teamData.teamMedals,
+            teamId,
+            name: `${teamName} (Accumulated)`,
+            stats: filterStats(teamStats),
+            medals: filterMedals(teamMedals),
           });
         }
 
         // Player stats for this match
         for (const teamData of matchStat.data) {
+          const { teamId } = teamData;
           for (const player of teamData.players) {
             rows.push({
               type: "player",
-              teamId: teamData.teamId,
+              teamId,
               name: player.name,
-              stats: player.values,
-              medals: player.medals,
+              stats: filterStats(player.values),
+              medals: filterMedals(player.medals),
             });
           }
         }
@@ -381,7 +386,15 @@ const StreamerOverlayComponent = function StreamerOverlay({
     }
 
     return groups;
-  }, [neatQueueState, seriesStats, allMatchStats]);
+  }, [
+    neatQueueState,
+    seriesStats,
+    allMatchStats,
+    settings.global.ticker.selectedSlayerStats,
+    settings.global.ticker.showObjectiveStats,
+    settings.global.ticker.medalRarityFilter,
+    settings.global.ticker.showPreSeriesInfo,
+  ]);
 
   // Handler for when ticker scroll animation completes
   const handleScrollComplete = (): void => {
@@ -390,13 +403,12 @@ const StreamerOverlayComponent = function StreamerOverlay({
 
   // When a new match is added, jump to it (only if ticker is enabled)
   useEffect(() => {
-    if (!streamerOptions.showTicker) {
+    if (!settings.global.ticker.showTicker) {
       return;
     }
 
     const currentMatchCount = allMatchStats.length;
 
-    // Only jump to new match if count increased (not on first load)
     if (currentMatchCount > previousMatchCount && previousMatchCount > 0) {
       const latestMatchIndex = tickerMatchGroups.findIndex((group) => group.matchIndex === currentMatchCount - 1);
       if (latestMatchIndex !== -1) {
@@ -405,8 +417,7 @@ const StreamerOverlayComponent = function StreamerOverlay({
     }
 
     setPreviousMatchCount(currentMatchCount);
-    // Note: tickerMatchGroups and previousMatchCount intentionally excluded from deps to prevent infinite loop
-  }, [allMatchStats.length, streamerOptions.showTicker]);
+  }, [allMatchStats.length, settings.global.ticker.showTicker, tickerMatchGroups, previousMatchCount]);
 
   const handleTabClick = (tabIndex: number): void => {
     const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
@@ -419,43 +430,104 @@ const StreamerOverlayComponent = function StreamerOverlay({
   };
 
   const currentMatchGroup = tickerMatchGroups[currentMatchIndex];
-  const activeTabIndex = streamerOptions.showTicker ? currentMatchGroup?.matchIndex : undefined;
+  const activeTabIndex =
+    settings.global.ticker.showTicker && Boolean(currentMatchGroup) ? currentMatchGroup.matchIndex : undefined;
 
-  // Helper to render player name content for streamer overlay
+  // Helper to render player name content
   const renderPlayerNameContent = (playerId: string, displayName: string): React.ReactElement => {
     const playerData = neatQueueState.playersAssociationData?.[playerId];
+    const showDiscord = settings.global.display.showDiscordNames;
+    const showXbox = settings.global.display.showXboxNames;
+
+    if (!showDiscord && !showXbox) {
+      // Show at least one - default to display name
+      return <>{displayName}</>;
+    }
+
     const discordName = playerData?.discordName ?? displayName;
     const gamertag = playerData?.gamertag ?? null;
     const namesAreSame = discordName.toLowerCase() === gamertag?.toLowerCase();
 
-    if (namesAreSame) {
+    if (showDiscord && showXbox) {
+      if (namesAreSame) {
+        return (
+          <>
+            <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
+            <img src={xboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+          </>
+        );
+      }
+
       return (
         <>
-          <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} />
-          <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+          <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
+          {gamertag != null && (
+            <>
+              {" "}
+              <img src={xboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+            </>
+          )}
         </>
       );
     }
 
-    return (
-      <>
-        <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
-        {gamertag != null && (
-          <>
-            {" "}
-            <img src={XboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
-          </>
-        )}
-      </>
-    );
+    if (showDiscord) {
+      return (
+        <>
+          <img src={discordLogo.src} alt="Discord" className={styles.playerIcon} /> {discordName}
+        </>
+      );
+    }
+
+    if (showXbox && gamertag !== null && gamertag !== "") {
+      return (
+        <>
+          <img src={xboxLogo.src} alt="Xbox" className={styles.playerIcon} /> {gamertag}
+        </>
+      );
+    }
+
+    return <>{displayName}</>;
   };
 
+  const teamRender = (team: LiveTrackerTeamRenderModel, teamName: string | null): React.ReactNode => {
+    const scrollingContent = (
+      <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
+        {team.players.map((player, idx) => (
+          <React.Fragment key={player.id}>
+            {idx > 0 && ", "}
+            {renderPlayerNameContent(player.id, player.displayName)}
+          </React.Fragment>
+        ))}
+      </ScrollingContent>
+    );
+
+    if (teamName == null || teamName === "") {
+      return scrollingContent;
+    }
+
+    if (settings.series.disableTeamPlayerNames === true) {
+      return <div className={styles.teamName}>{teamName}</div>;
+    }
+
+    return (
+      <div className={styles.teamWithPlayers}>
+        <div className={styles.teamName}>{teamName}</div>
+        {scrollingContent}
+      </div>
+    );
+  };
+  const teamLeft = teamRender(neatQueueState.teams[0], settings.series.eagleTeamNameOverride);
+  const teamRight = teamRender(neatQueueState.teams[1], settings.series.cobraTeamNameOverride);
+
   // Build tabs array
-  const tabs: (TabData & { label: string; score?: string; icon?: string; teamColor?: string })[] = [
+  const tabs = [
     {
-      type: "series",
-      label: `${neatQueueState.guildName} #${neatQueueState.queueNumber.toString()}`,
+      type: "series" as const,
+      index: -1,
+      label: "Series score",
       score: neatQueueState.seriesScore,
+      teamColor: undefined,
     },
     ...neatQueueState.matches.map((match, idx) => {
       // Determine winning team for overlay color
@@ -471,9 +543,9 @@ const StreamerOverlayComponent = function StreamerOverlay({
 
       return {
         type: "match" as const,
-        matchIndex: idx,
+        index: idx,
         matchId: match.matchId,
-        label: match.gameMap,
+        label: settings.global.ticker.showTabs ? match.gameMap : "",
         score: match.gameScore,
         icon: gameModeIconUrl(match.gameType),
         teamColor,
@@ -481,74 +553,65 @@ const StreamerOverlayComponent = function StreamerOverlay({
     }),
   ];
 
+  // CSS custom properties for font sizes
+  const fontSizeStyles = {
+    "--font-size-queue-info": (settings.global.fontSizes.queueInfo / 100).toString(),
+    "--font-size-score": (settings.global.fontSizes.score / 100).toString(),
+    "--font-size-teams": (settings.global.fontSizes.teams / 100).toString(),
+    "--font-size-tabs": (settings.global.fontSizes.tabs / 100).toString(),
+    "--font-size-ticker": (settings.global.fontSizes.ticker / 100).toString(),
+  } as React.CSSProperties;
+
   return (
-    <div className={classNames(styles.overlay, styles[`preview-${previewMode}`])}>
-      {/* View Mode Selector */}
-      <div className={styles.viewModeContainer}>
-        <ViewModeSelector
-          currentMode={viewMode}
-          onModeSelect={onViewModeSelect}
-          previewMode={previewMode}
-          onPreviewModeSelect={onPreviewModeSelect}
-          streamerOptions={streamerOptions}
-          onStreamerOptionsChange={onStreamerOptionsChange}
-        />
-      </div>
+    <div
+      className={classNames(styles.overlay, {
+        [styles.previewPlayer]: settings.global.viewPreview && settings.global.colors.mode === "player",
+        [styles.previewObserver]: settings.global.viewPreview && settings.global.colors.mode === "observer",
+      })}
+      style={fontSizeStyles}
+    >
+      {settingsUi}
 
       {/* Top Section: Teams and Score */}
       <div className={styles.topSection}>
-        <div className={styles.queueInfo}>
-          {streamerOptions.showServerName && (
-            <>
-              <div className={styles.serverName}>{neatQueueState.guildName}</div>{" "}
-              <div className={styles.queueNumber}>Queue #{neatQueueState.queueNumber}</div>
-            </>
-          )}
-          {/* Center Score */}
-          <div className={styles.scoreDisplay}>
-            <div className={styles.scoreText}>{neatQueueState.seriesScore}</div>
-          </div>
-        </div>
-
-        {streamerOptions.showTeams && (
+        {title != null && <div className={styles.title}>{title}</div>}
+        {iconUrl != null && <img src={iconUrl} alt="Server" className={styles.serverIcon} />}
+        {subtitle != null && <div className={styles.subtitle}>{subtitle}</div>}
+        {settings.global.display.showScore && (
+          <>
+            <div className={styles.teamLeftScore} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
+              {neatQueueState.seriesScore.split(":")[0]}
+            </div>
+            <div
+              className={styles.teamRightScore}
+              style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}
+            >
+              {neatQueueState.seriesScore.split(":")[1]}
+            </div>
+          </>
+        )}
+        {settings.global.display.showTeamDetails && (
           <>
             <div className={styles.teamLeft} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
-              <span className={styles.teamName}>{neatQueueState.teams[0]?.name ?? "Team 1"}:</span>
-              <span className={styles.teamPlayers}>
-                <ScrollingContent maxWidth={400}>
-                  {neatQueueState.teams[0]?.players.map((p, idx) => (
-                    <React.Fragment key={p.id}>
-                      {idx > 0 && ", "}
-                      {renderPlayerNameContent(p.id, p.displayName)}
-                    </React.Fragment>
-                  ))}
-                </ScrollingContent>
-              </span>
+              <TeamIcon teamId={0} />
+              <div className={styles.teamPlayers}>{teamLeft}</div>
             </div>
             <div className={styles.teamRight} style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}>
-              <span className={styles.teamName}>{neatQueueState.teams[1]?.name ?? "Team 2"}:</span>
-              <span className={styles.teamPlayers}>
-                <ScrollingContent maxWidth={400}>
-                  {neatQueueState.teams[1]?.players.map((p, idx) => (
-                    <React.Fragment key={p.id}>
-                      {idx > 0 && ", "}
-                      {renderPlayerNameContent(p.id, p.displayName)}
-                    </React.Fragment>
-                  ))}
-                </ScrollingContent>
-              </span>
+              <TeamIcon teamId={1} />
+              <div className={styles.teamPlayers}>{teamRight}</div>
             </div>
           </>
         )}
       </div>
 
       {/* Bottom Section: Ticker and Tabs */}
-      {(streamerOptions.showTabs || streamerOptions.showTicker) && (
+      {(settings.global.ticker.showTabs || settings.global.ticker.showTicker) && (
         <div className={styles.bottomSection}>
-          {streamerOptions.showTabs && (
+          {/* Bottom Tabs */}
+          {settings.global.ticker.showTabs && (
             <div className={styles.tabBar}>
               {tabs.map((tab) => {
-                const tabIndex = tab.type === "series" ? -1 : (tab.matchIndex ?? 0);
+                const tabIndex = tab.type === "series" ? -1 : tab.index;
                 const isActive = activeTabIndex === tabIndex;
                 const isSelected = selectedTab === tabIndex && isPanelOpen;
 
@@ -573,9 +636,9 @@ const StreamerOverlayComponent = function StreamerOverlay({
                     }
                   >
                     <div className={styles.tabContent}>
-                      {tab.icon != null && <img src={tab.icon} alt="" className={styles.tabIcon} />}
+                      {tab.type === "match" && tab.icon && <img src={tab.icon} alt="" className={styles.tabIcon} />}
                       <span className={styles.tabLabel}>{tab.label}</span>
-                      {tab.score != null && (
+                      {tab.score && (
                         <>
                           {" "}
                           • <span className={styles.tabScore}>{tab.score}</span>
@@ -587,8 +650,9 @@ const StreamerOverlayComponent = function StreamerOverlay({
               })}
             </div>
           )}
+
           {/* Information Ticker */}
-          {streamerOptions.showTicker && currentMatchGroup != null && (
+          {settings.global.ticker.showTicker && Boolean(currentMatchGroup) && (
             <InformationTicker
               currentMatchGroup={currentMatchGroup}
               teamColors={teamColors}
@@ -637,7 +701,7 @@ const StreamerOverlayComponent = function StreamerOverlay({
                 teamColors={teamColors}
               />
             ) : null}
-            {selectedTab >= 0 && neatQueueState.matches[selectedTab] != null && allMatchStats[selectedTab]?.data ? (
+            {selectedTab >= 0 && allMatchStats[selectedTab]?.data ? (
               <MatchStatsView
                 data={allMatchStats[selectedTab].data}
                 id={neatQueueState.matches[selectedTab].matchId}
@@ -658,25 +722,4 @@ const StreamerOverlayComponent = function StreamerOverlay({
       </CSSTransition>
     </div>
   );
-};
-
-// Custom comparison to prevent re-renders when props haven't changed
-// Note: model/stats data comes from context hooks, React handles those re-renders automatically
-function arePropsEqual(prevProps: StreamerOverlayProps, nextProps: StreamerOverlayProps): boolean {
-  return (
-    prevProps.teamColors === nextProps.teamColors &&
-    prevProps.gameModeIconUrl === nextProps.gameModeIconUrl &&
-    prevProps.viewMode === nextProps.viewMode &&
-    prevProps.onViewModeSelect === nextProps.onViewModeSelect &&
-    prevProps.previewMode === nextProps.previewMode &&
-    prevProps.onPreviewModeSelect === nextProps.onPreviewModeSelect &&
-    prevProps.onStreamerOptionsChange === nextProps.onStreamerOptionsChange &&
-    // Check streamerOptions deeply
-    prevProps.streamerOptions.showTeams === nextProps.streamerOptions.showTeams &&
-    prevProps.streamerOptions.showTicker === nextProps.streamerOptions.showTicker &&
-    prevProps.streamerOptions.showTabs === nextProps.streamerOptions.showTabs &&
-    prevProps.streamerOptions.showServerName === nextProps.streamerOptions.showServerName
-  );
 }
-
-export const StreamerOverlay = memo(StreamerOverlayComponent, arePropsEqual);

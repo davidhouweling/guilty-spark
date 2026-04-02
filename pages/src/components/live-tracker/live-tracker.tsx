@@ -17,23 +17,18 @@ import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-me
 import type { MatchStatsData } from "../stats/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
-import { useTeamColors } from "../team-colors/use-team-colors";
-import { TeamColorPicker } from "../team-colors/team-color-picker";
-import {
-  ViewModeSelector,
-  type ViewMode,
-  type PreviewMode,
-  type StreamerOptions,
-} from "../view-mode/view-mode-selector";
+import type { ViewMode } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { PlayerName } from "../player-name/player-name";
-import { useStreamerPreferences } from "./use-streamer-preferences";
-import { StreamerOverlay } from "./streamer-overlay";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
+import { SettingsTrigger } from "./settings/settings-trigger";
+import { SettingsDialog } from "./settings/settings-dialog";
+import { useStreamerSettings } from "./settings/use-streamer-settings";
 import { IndividualModeMatches } from "./individual-mode-matches";
+import { StreamerOverlay } from "./streamer-overlay";
 import {
   useTrackerInfo,
   useTrackerState,
-  useTrackerIdentity,
   useTrackerParams,
   useAllMatchStats,
   useSeriesStats,
@@ -46,6 +41,7 @@ import type {
   LiveTrackerIndividualStateRenderModel,
 } from "./types";
 import styles from "./live-tracker.module.css";
+import { buildUrlWithSettings, parseSettingsFromUrl } from "./settings/settings-url-params";
 
 function isNeatQueueState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerNeatQueueStateRenderModel {
   return state !== null && state.type === "neatqueue";
@@ -96,7 +92,6 @@ export function LiveTrackerView(): React.ReactElement {
   // Use selector hooks to get data from context
   const trackerInfo = useTrackerInfo();
   const state = useTrackerState();
-  const identity = useTrackerIdentity();
   const params = useTrackerParams();
   const hasMatches = useHasMatches();
   const sortedSubstitutions = useSubstitutions();
@@ -104,135 +99,82 @@ export function LiveTrackerView(): React.ReactElement {
   const seriesStats = useSeriesStats();
 
   const isIndividualMode = params.type === "individual";
-  const guildId = identity?.guildId ?? "";
-  const queueNumber = identity?.queueNumber ?? 0;
-  const teamColors = useTeamColors(guildId, queueNumber);
-  const streamerPreferences = useStreamerPreferences();
+  const { settings, setSettings } = useStreamerSettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [team1Color, setTeam1Color] = useState(DEFAULT_TEAM_COLORS[0]);
+  const [team2Color, setTeam2Color] = useState(DEFAULT_TEAM_COLORS[1]);
 
-  // Helper to parse streamer options, preview mode, and team colors from URL
-  function parseUrlParams(): {
-    viewMode: ViewMode;
-    previewMode: PreviewMode;
-    streamerOptions: StreamerOptions;
-    teamColorPrefs: Record<number, string>;
-  } {
-    const urlSearchParams = new URLSearchParams(window.location.search);
-    const viewParam = urlSearchParams.get("view");
-    const previewParam = urlSearchParams.get("preview");
-    const viewMode =
-      viewParam === "standard" || viewParam === "wide" || viewParam === "streamer"
-        ? (viewParam as ViewMode)
-        : "standard";
-    const previewMode =
-      previewParam === "none" || previewParam === "player" || previewParam === "observer"
-        ? (previewParam as PreviewMode)
-        : streamerPreferences.previewMode;
-    const streamerOptions: StreamerOptions = {
-      showTeams: urlSearchParams.get("showTeams") !== "false",
-      showTicker: urlSearchParams.get("showTicker") !== "false",
-      showTabs: urlSearchParams.get("showTabs") !== "false",
-      showServerName: urlSearchParams.get("showServerName") !== "false",
-    };
-    // Team colors: teamColor0, teamColor1, etc.
-    const teamColorPrefs: Record<number, string> = {};
-    for (let i = 0; i < 2; i++) {
-      const color = urlSearchParams.get(`teamColor${i.toString()}`);
-      if (color != null) {
-        teamColorPrefs[i] = color;
-      }
-    }
-    return { viewMode, previewMode, streamerOptions, teamColorPrefs };
-  }
-
-  // State for view mode, preview mode, streamer options
+  // State for view mode
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const urlSearchParams = new URLSearchParams(window.location.search);
     if (typeof window !== "undefined") {
-      return parseUrlParams().viewMode;
+      return parseSettingsFromUrl(urlSearchParams).global.viewMode;
     }
     return "standard";
   });
-  const [previewMode, setPreviewMode] = useState<PreviewMode>(() => {
-    if (typeof window !== "undefined") {
-      return parseUrlParams().previewMode;
-    }
-    return streamerPreferences.previewMode;
-  });
-  const [streamerOptions, setStreamerOptions] = useState<StreamerOptions>(() => {
-    if (typeof window !== "undefined") {
-      return parseUrlParams().streamerOptions;
-    }
-    return streamerPreferences.streamerOptions;
-  });
 
-  // Sync team colors from URL/localStorage on load
-  useEffect(() => {
+  function updateUrl(currentViewMode: ViewMode): void {
     if (typeof window !== "undefined") {
-      const { teamColorPrefs } = parseUrlParams();
-      Object.entries(teamColorPrefs).forEach(([idx, colorId]) => {
-        teamColors.setTeamColor(Number(idx), colorId);
-      });
-    }
-  }, [guildId, queueNumber]);
-
-  // Helper to update URL with current state
-  function updateUrl(
-    currentViewMode: ViewMode,
-    currentPreviewMode: PreviewMode,
-    currentOptions: StreamerOptions,
-    teamColorOverride?: { teamIndex: number; colorId: string },
-  ): void {
-    if (typeof window !== "undefined") {
-      const urlSearchParams = new URLSearchParams(window.location.search);
-      urlSearchParams.set("view", currentViewMode);
-      urlSearchParams.set("preview", currentPreviewMode);
-      urlSearchParams.set("showTeams", String(currentOptions.showTeams));
-      urlSearchParams.set("showTicker", String(currentOptions.showTicker));
-      urlSearchParams.set("showTabs", String(currentOptions.showTabs));
-      urlSearchParams.set("showServerName", String(currentOptions.showServerName));
-      // Team colors
-      for (let i = 0; i < 2; i++) {
-        const color =
-          teamColorOverride?.teamIndex === i ? teamColorOverride.colorId : teamColors.getTeamColorForTeam(i).id;
-        urlSearchParams.set(`teamColor${i.toString()}`, color);
-      }
-      const newUrl = `${window.location.pathname}?${urlSearchParams.toString()}`;
-      window.history.replaceState({}, "", newUrl);
+      window.history.replaceState(
+        {},
+        "",
+        buildUrlWithSettings({ baseUrl: window.location.href, settings, viewMode: currentViewMode }),
+      );
     }
   }
 
-  const handleSetViewMode = useCallback(
-    (mode: ViewMode): void => {
-      setViewMode(mode);
-      updateUrl(mode, previewMode, streamerOptions);
-    },
-    [previewMode, streamerOptions, teamColors],
-  );
+  // Sync team colors based on player/observer view settings
+  useEffect(() => {
+    if (!isNeatQueueState(state)) {
+      return;
+    }
 
-  const handleSetPreviewMode = useCallback(
-    (mode: PreviewMode): void => {
-      setPreviewMode(mode);
-      streamerPreferences.setPreviewMode(mode);
-      updateUrl(viewMode, mode, streamerOptions);
-    },
-    [viewMode, streamerOptions, streamerPreferences, teamColors],
-  );
+    const colorMode = settings.global.colors.mode;
 
-  const handleSetStreamerOptions = useCallback(
-    (options: StreamerOptions): void => {
-      setStreamerOptions(options);
-      streamerPreferences.setStreamerOptions(options);
-      updateUrl(viewMode, previewMode, options);
-    },
-    [viewMode, previewMode, streamerPreferences, teamColors],
-  );
+    if (colorMode === "player") {
+      // Player view mode - determine which team the selected player is on
+      const { selectedPlayerId, teamColor, enemyColor } = settings.global.colors.playerView;
 
-  const handleSetTeamColor = useCallback(
-    (teamIndex: number, colorId: string): void => {
-      teamColors.setTeamColor(teamIndex, colorId);
-      updateUrl(viewMode, previewMode, streamerOptions, { teamIndex, colorId });
-    },
-    [viewMode, previewMode, streamerOptions, teamColors],
-  );
+      if (selectedPlayerId !== null && selectedPlayerId !== "") {
+        // Find which team the selected player is on
+        let playerTeamIndex = -1;
+        for (let i = 0; i < state.teams.length; i++) {
+          if (state.teams[i].players.some((p) => p.id === selectedPlayerId)) {
+            playerTeamIndex = i;
+            break;
+          }
+        }
+
+        if (playerTeamIndex === 0) {
+          if (team1Color !== teamColor || team2Color !== enemyColor) {
+            setTeam1Color(teamColor);
+            setTeam2Color(enemyColor);
+          }
+          return;
+        } else if (playerTeamIndex === 1) {
+          if (team2Color !== teamColor || team1Color !== enemyColor) {
+            setTeam1Color(enemyColor);
+            setTeam2Color(teamColor);
+          }
+          return;
+        }
+      }
+    }
+
+    // Observer view mode / fallback - apply fixed team colors
+    const { eagleColor, cobraColor } = settings.global.colors.observerView;
+
+    // Only update if colors have changed to avoid unnecessary updates
+    if (team1Color !== eagleColor || team2Color !== cobraColor) {
+      setTeam1Color(eagleColor);
+      setTeam2Color(cobraColor);
+    }
+  }, [state, settings.global.colors]);
+
+  const handleSetViewMode = useCallback((mode: ViewMode): void => {
+    setViewMode(mode);
+    updateUrl(mode);
+  }, []);
 
   // Sort substitutions by timestamp for rendering between matches (memoized)
   const sortedSubstitutionsList = useMemo(() => {
@@ -241,14 +183,6 @@ export function LiveTrackerView(): React.ReactElement {
     }
     return [...sortedSubstitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
   }, [sortedSubstitutions]);
-
-  // Memoize team colors array to prevent unnecessary re-renders
-  const teamColorsArray = useMemo(() => {
-    if (!isNeatQueueState(state)) {
-      return [];
-    }
-    return state.teams.map((_, idx) => teamColors.getTeamColorForTeam(idx));
-  }, [state?.type, isNeatQueueState(state) ? state.teams : null, teamColors]);
 
   // For individual mode, compute stats for each group
   const individualGroupStats = useMemo(() => {
@@ -298,6 +232,20 @@ export function LiveTrackerView(): React.ReactElement {
     return statsMap;
   }, [state?.type, isIndividualState(state) ? state.groups : null, state?.medalMetadata]);
 
+  // Memoize available players for settings dialog
+  const availablePlayers = useMemo(
+    () =>
+      isNeatQueueState(state)
+        ? state.teams.flatMap((team) =>
+            team.players.map((player) => ({
+              id: player.id,
+              name: player.displayName,
+            })),
+          )
+        : [],
+    [state],
+  );
+
   // Set body data attribute for streamer mode styling
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -311,7 +259,7 @@ export function LiveTrackerView(): React.ReactElement {
     };
   }, [viewMode]);
 
-  const title: string[] = [trackerInfo.guildNameText];
+  const title: string[] = [trackerInfo.title];
   if (isIndividualMode) {
     title.push("- Individual Tracker");
   } else if (isNeatQueueState(state)) {
@@ -320,20 +268,53 @@ export function LiveTrackerView(): React.ReactElement {
   }
   title.push("| Live Tracker - Guilty Spark");
 
+  const teamColorsArray = [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)];
+
+  const settingsUi = (
+    <>
+      <SettingsTrigger
+        compact={viewMode === "streamer"}
+        onClick={(): void => {
+          setIsSettingsOpen(true);
+        }}
+      />
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        settings={settings}
+        viewMode={viewMode}
+        availablePlayers={availablePlayers}
+        defaultTitle={state?.type === "neatqueue" ? state.guildName : undefined}
+        defaultSubtitle={state?.type === "neatqueue" ? `Queue #${state.queueNumber.toString()}` : undefined}
+        server={isNeatQueueState(state) ? state.guildId : undefined}
+        queue={isNeatQueueState(state) ? state.queueNumber : undefined}
+        onClose={(): void => {
+          setIsSettingsOpen(false);
+        }}
+        onSettingsChange={setSettings}
+        onViewModeChange={handleSetViewMode}
+        onViewPreviewChange={(enabled): void => {
+          setSettings({
+            ...settings,
+            global: {
+              ...settings.global,
+              viewPreview: enabled,
+            },
+          });
+        }}
+      />
+    </>
+  );
+
   // Render streamer overlay if in streamer mode
-  if (viewMode === "streamer" && state) {
+  if (viewMode === "streamer" && state && isNeatQueueState(state)) {
     return (
       <>
         <title>{title.join(" ")}</title>
         <StreamerOverlay
           teamColors={teamColorsArray}
           gameModeIconUrl={gameModeIconSrc}
-          viewMode={viewMode}
-          onViewModeSelect={handleSetViewMode}
-          previewMode={previewMode}
-          onPreviewModeSelect={handleSetPreviewMode}
-          streamerOptions={streamerOptions}
-          onStreamerOptionsChange={handleSetStreamerOptions}
+          settings={settings}
+          settingsUi={settingsUi}
         />
       </>
     );
@@ -345,11 +326,13 @@ export function LiveTrackerView(): React.ReactElement {
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{trackerInfo.guildNameText}</h1>
+            <h1 className={styles.headerTitle}>{trackerInfo.title}</h1>
             <div className={styles.headerSubtitle}>
               {isIndividualMode
-                ? "Individual Tracker"
-                : `Queue #${isNeatQueueState(state) ? state.queueNumber.toString() : trackerInfo.queueNumberText}`}
+                ? trackerInfo.subTitle
+                : isNeatQueueState(state)
+                  ? `Queue #${state.queueNumber.toString()}`
+                  : trackerInfo.subTitle}
             </div>
           </div>
 
@@ -371,14 +354,7 @@ export function LiveTrackerView(): React.ReactElement {
       </Container>
 
       <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, styles[viewMode])}>
-        <ViewModeSelector
-          currentMode={viewMode}
-          onModeSelect={handleSetViewMode}
-          previewMode={previewMode}
-          onPreviewModeSelect={handleSetPreviewMode}
-          streamerOptions={streamerOptions}
-          onStreamerOptionsChange={handleSetStreamerOptions}
-        />
+        {settingsUi}
         {state?.status === "stopped" ? (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">The series has completed. Tracker stopped.</Alert>
@@ -408,8 +384,11 @@ export function LiveTrackerView(): React.ReactElement {
                               }
                             }
 
+                            const teamColorId = winningTeamIndex === 0 ? team1Color : team2Color;
                             const teamColor =
-                              winningTeamIndex !== null ? teamColors.getTeamColorForTeam(winningTeamIndex) : null;
+                              winningTeamIndex !== null && winningTeamIndex < 2
+                                ? getTeamColorOrDefault(teamColorId, winningTeamIndex)
+                                : undefined;
 
                             return (
                               <li
@@ -450,7 +429,8 @@ export function LiveTrackerView(): React.ReactElement {
                     )}
                   </section>
                   {state.teams.map((team, teamIndex) => {
-                    const teamColor = teamColors.getTeamColorForTeam(teamIndex);
+                    const teamColorId = teamIndex === 0 ? team1Color : team2Color;
+                    const teamColor = getTeamColorOrDefault(teamIndex < 2 ? teamColorId : undefined, teamIndex);
 
                     return (
                       <section
@@ -458,13 +438,6 @@ export function LiveTrackerView(): React.ReactElement {
                         className={styles.teamCard}
                         style={{ "--team-color": teamColor.hex } as React.CSSProperties}
                       >
-                        <TeamColorPicker
-                          currentColor={teamColor}
-                          onColorSelect={(colorId): void => {
-                            handleSetTeamColor(teamIndex, colorId);
-                          }}
-                          teamName={team.name}
-                        />
                         <h3 className={styles.teamName}>{team.name}</h3>
                         <ul className={styles.playerList}>
                           {team.players.map((player) => {
@@ -596,7 +569,7 @@ export function LiveTrackerView(): React.ReactElement {
                   gameModeIconUrl={gameModeIconSrc}
                   teamColors={teamColorsArray}
                   viewMode={viewMode}
-                  guildName={trackerInfo.guildNameText}
+                  guildName={trackerInfo.title}
                   status={state.status}
                 />
               </>

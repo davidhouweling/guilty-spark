@@ -1,0 +1,217 @@
+/* Settings Dialog Overlay */
+.overlay {
+  align-items: center;
+  animation: fadeIn 0.2s ease-out;
+  background-color: rgb(0 0 0 / 50%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--space-4);
+  position: fixed;
+  z-index: 9999;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog {
+  animation: slideUp 0.3s ease-out;
+  background: var(--halo-bg-primary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 70%);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  max-width: 1200px;
+  opacity: 1;
+  width: 100%;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  align-items: center;
+  border-bottom: 1px solid var(--halo-teal-primary);
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-4);
+}
+
+.title {
+  color: var(--halo-white);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.closeButton {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--halo-gray);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2);
+  transition: background-color 0.2s ease;
+}
+
+.closeButton:hover {
+  background-color: var(--halo-bg-secondary);
+  color: var(--halo-white);
+}
+
+.closeIcon {
+  height: 24px;
+  width: 24px;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.twoColumn {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 2fr 1fr;
+}
+
+@media (max-width: 900px) {
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  background: var(--halo-bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.sectionHeader {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.sectionDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-base);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+  margin: var(--space-6) 0;
+}
+
+.subsectionHeader {
+  color: var(--halo-teal-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--space-2) 0;
+  text-transform: uppercase;
+}
+
+.subsectionDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.fontSizeContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.viewModeButton {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.viewModeButton:hover {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
+}
+
+.viewModeButtonSelected {
+  background: var(--halo-bg-card);
+  border: 2px solid var(--halo-teal-primary);
+}
+
+.viewModeLabel {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.viewModeDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-base);
+}
+
+.viewModeCheckmark {
+  color: var(--halo-teal-primary);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+}
+
+.viewModeButtonsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.copyUrlContainer {
+  margin-top: var(--space-3);
+}

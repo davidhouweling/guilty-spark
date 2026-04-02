@@ -27,7 +27,7 @@ export const HALO_TEAM_COLORS: readonly TeamColor[] = [
   { id: "pineapple", name: "Pineapple", hex: "#FFEA00" },
   { id: "carrot", name: "Carrot", hex: "#DC5839" },
   { id: "tangelo", name: "Tangelo", hex: "#DA3A04" },
-] as const;
+];
 
 export const DEFAULT_TEAM_COLORS: Record<number, string> = {
   0: "salmon", // Team 1 default
@@ -38,8 +38,9 @@ export function getTeamColor(colorId: string): TeamColor | undefined {
   return HALO_TEAM_COLORS.find((color) => color.id === colorId);
 }
 
-export function getTeamColorOrDefault(colorId: string | undefined, defaultColorId: string): TeamColor {
+export function getTeamColorOrDefault(colorId: string | undefined, index: number): TeamColor {
   const color = colorId != null && colorId !== "" ? getTeamColor(colorId) : undefined;
+  const defaultColorId = DEFAULT_TEAM_COLORS[index];
   const defaultColor = getTeamColor(defaultColorId);
 
   if (color != null) {

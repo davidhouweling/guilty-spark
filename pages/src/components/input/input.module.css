@@ -1,0 +1,47 @@
+.inputField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  color: var(--halo-white);
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.input {
+  background: var(--halo-bg-secondary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  font-size: var(--text-sm);
+  padding: var(--space-2);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+  width: 100%;
+}
+
+.input:hover {
+  background: var(--halo-bg-card);
+}
+
+.input:focus {
+  background: var(--halo-bg-primary);
+  border-color: var(--halo-accent);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(color-mix(in srgb, var(--halo-gray) 70%, transparent));
+  font-style: italic;
+}
+
+.hint {
+  color: var(color-mix(in srgb, var(--halo-gray) 70%, transparent));
+  font-size: var(--text-xs);
+  font-style: italic;
+  margin: 0;
+}

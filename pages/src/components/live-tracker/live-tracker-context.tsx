@@ -70,20 +70,22 @@ function useLiveTrackerContext(): LiveTrackerContextValue {
  * Select basic model information (status, guild name, etc.)
  */
 export function useTrackerInfo(): {
-  guildNameText: string;
-  queueNumberText: string;
+  title: string;
+  subTitle: string;
+  iconUrl: string | null;
   statusText: string;
   statusClassName: string;
 } {
   const { model } = useLiveTrackerContext();
   return useMemo(
     () => ({
-      guildNameText: model.guildNameText,
-      queueNumberText: model.queueNumberText,
+      title: model.title,
+      subTitle: model.subTitle,
+      iconUrl: model.iconUrl,
       statusText: model.statusText,
       statusClassName: model.statusClassName,
     }),
-    [model.guildNameText, model.queueNumberText, model.statusText, model.statusClassName],
+    [model.title, model.subTitle, model.statusText, model.statusClassName, model.iconUrl],
   );
 }
 

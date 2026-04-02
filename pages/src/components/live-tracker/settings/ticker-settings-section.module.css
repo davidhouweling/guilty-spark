@@ -1,0 +1,45 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitleRow {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.subsectionHeader {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0;
+}
+
+.sectionDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.bulkActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.checkboxGrid {
+  background: var(--halo-bg-secondary);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  padding: var(--space-2);
+}

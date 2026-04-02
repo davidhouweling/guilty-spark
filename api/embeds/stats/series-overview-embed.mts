@@ -61,10 +61,8 @@ export class SeriesOverviewEmbed {
 
       while (subs[0]) {
         const [substitution] = subs;
-        const substitutionTime = substitution.date.getTime();
-        const matchStartTime = new Date(seriesMatch.MatchInfo.StartTime).getTime();
 
-        if (substitutionTime < matchStartTime) {
+        if (isBefore(substitution.date, seriesMatch.MatchInfo.StartTime)) {
           if (tableData.length > 1) {
             tableData.push([
               `*<@${substitution.playerIn}> subbed in for <@${substitution.playerOut}> (${substitution.team})*`,

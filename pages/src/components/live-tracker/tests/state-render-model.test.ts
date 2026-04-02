@@ -27,13 +27,13 @@ describe("toLiveTrackerStateRenderModel", () => {
     expect(model.teams[1]?.name).toBe("Team 2");
 
     expect(model.teams[0]?.players.length).toBe(4);
-    expect(model.teams[0]?.players[0]?.id).toBe("1189356946680188960");
+    expect(model.teams[0]?.players[0]?.id).toBe("998023469566533633");
 
-    expect(model.matches.length).toBe(4);
+    expect(model.matches.length).toBe(5);
 
     // Sorted by endTime ascending (ISO strings)
-    expect(model.matches[0]?.endTime).toBe("2025-12-24T02:59:47.384Z");
-    expect(model.matches[0]?.matchId).toBe("85022d98-5829-4da2-85ae-32b8cb48bbdd");
-    expect(model.matches[model.matches.length - 1]?.endTime).toBe("2025-12-24T03:41:30.534Z");
+    expect(model.matches[0]?.endTime).toBe("2026-03-28T10:02:25.185Z");
+    expect(model.matches[0]?.matchId).toBe("3d203681-2950-46a9-b6ae-d9da82d3d0d5");
+    expect(model.matches[model.matches.length - 1]?.endTime).toBe("2026-03-28T11:07:51.805Z");
   });
 });

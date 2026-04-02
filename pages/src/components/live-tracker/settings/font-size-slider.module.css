@@ -1,0 +1,110 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.labelRow {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.label {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.value {
+  color: var(--halo-gray);
+  font-size: var(--text-base);
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+}
+
+.sliderContainer {
+  padding: var(--space-2) 0;
+  position: relative;
+}
+
+.slider {
+  appearance: none;
+  background: var(--halo-bg-card);
+  border-radius: 3px;
+  cursor: pointer;
+  height: 6px;
+  outline: none;
+  width: 100%;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  background: var(--halo-bg-primary);
+  border: 2px solid var(--halo-accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+  cursor: pointer;
+  height: 20px;
+  transition: all 0.2s ease;
+  width: 20px;
+}
+
+.slider::-moz-range-thumb {
+  background: var(--halo-bg-primary);
+  border: 2px solid var(--halo-accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+  cursor: pointer;
+  height: 20px;
+  transition: all 0.2s ease;
+  width: 20px;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 3px 6px rgb(0 0 0 / 30%);
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb:hover {
+  box-shadow: 0 3px 6px rgb(0 0 0 / 30%);
+  transform: scale(1.1);
+}
+
+.slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgb(var(--halo-accent-rgb, 59, 130, 246), 0.3);
+}
+
+.slider:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgb(var(--halo-accent-rgb, 59, 130, 246), 0.3);
+}
+
+.ticks {
+  height: 12px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tick {
+  background: color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  height: 12px;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 2px;
+}
+
+.tickLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+}
+
+.tickLabel {
+  color: color-mix(in srgb, var(--halo-gray) 70%, transparent);
+  font-size: var(--text-xs);
+}

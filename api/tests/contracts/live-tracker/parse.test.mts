@@ -208,8 +208,8 @@ describe("parseLiveTrackerStateData", () => {
 
     expect(result).not.toBeNull();
     if (result?.type === "neatqueue") {
-      expect(result.matchSummaries).toHaveLength(4);
-      expect(result.matchSummaries[0]?.matchId).toBe("85022d98-5829-4da2-85ae-32b8cb48bbdd");
+      expect(result.matchSummaries).toHaveLength(5);
+      expect(result.matchSummaries[0]?.matchId).toBe("3d203681-2950-46a9-b6ae-d9da82d3d0d5");
     }
   });
 
@@ -268,7 +268,7 @@ describe("parseLiveTrackerStateData", () => {
 
   it("parses playersAssociationData when present", () => {
     const associationData = {
-      "1189356946680188960": aFakePlayerAssociationDataWith(),
+      "237222473500852224": aFakePlayerAssociationDataWith(),
     };
     const data = {
       ...sampleLiveTrackerStateMessage.data,
@@ -279,7 +279,7 @@ describe("parseLiveTrackerStateData", () => {
 
     expect(result).not.toBeNull();
     expect(result?.playersAssociationData).not.toBeNull();
-    expect(result?.playersAssociationData?.["1189356946680188960"]).toBeDefined();
+    expect(result?.playersAssociationData?.["237222473500852224"]).toBeDefined();
   });
 
   it("handles null playersAssociationData", () => {

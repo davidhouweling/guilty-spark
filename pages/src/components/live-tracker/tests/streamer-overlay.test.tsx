@@ -3,8 +3,10 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
+import type { StreamerOverlayProps } from "../streamer-overlay";
 import { LiveTrackerProvider } from "../live-tracker-context";
 import type { LiveTrackerViewModel } from "../types";
+import { DEFAULT_ALL_SETTINGS } from "../settings/types";
 
 vi.mock("../live-tracker-context", async () => {
   const actual = await vi.importActual("../live-tracker-context");
@@ -12,10 +14,6 @@ vi.mock("../live-tracker-context", async () => {
     ...actual,
   };
 });
-
-vi.mock("../../view-mode/view-mode-selector", () => ({
-  ViewModeSelector: (): React.ReactNode => <div data-testid="view-mode-selector">View Mode Selector</div>,
-}));
 
 vi.mock("../../stats/match-stats", () => ({
   MatchStats: (): React.ReactNode => <div data-testid="match-stats">Match Stats</div>,
@@ -43,19 +41,27 @@ vi.mock("../../icons/rank-icon", () => ({
   RankIcon: (): React.ReactNode => <div data-testid="rank-icon">Rank</div>,
 }));
 
+// Mock TeamIcon to avoid PNG import issues in tests
+vi.mock("../../icons/team-icon", () => ({
+  TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
+}));
+
 const { StreamerOverlay } = await import("../streamer-overlay");
 
 const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
 
 function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>): LiveTrackerViewModel {
   return {
-    guildNameText: "Test Guild",
-    queueNumberText: "Queue 5",
+    title: "Test Guild",
+    subTitle: "Queue 5",
+    iconUrl: "data:,",
     statusText: "active",
     statusClassName: "status-active",
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
+      guildId: "test-guild-id",
+      guildIcon: "data:,",
       queueNumber: 5,
       status: "active",
       lastUpdateTime: "2025-01-01T00:00:00.000Z",
@@ -63,6 +69,10 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
         {
           name: "Team 1",
           players: [{ id: "player1", displayName: "player_one" }],
+        },
+        {
+          name: "Team 2",
+          players: [{ id: "player2", displayName: "player_two" }],
         },
       ],
       matches: [],
@@ -83,22 +93,11 @@ describe("StreamerOverlay", () => {
 
   const gameModeIconUrl = (gameMode: string): string => `https://example.com/icons/${gameMode}.png`;
 
-  const defaultProps = {
+  const defaultProps: StreamerOverlayProps = {
     teamColors,
     gameModeIconUrl,
-    viewMode: "streamer" as const,
-    onViewModeSelect: vi.fn(),
-    previewMode: "none" as const,
-    onPreviewModeSelect: vi.fn(),
-    streamerOptions: {
-      primaryTeamIndex: 0,
-      displayMode: "team" as const,
-      showTeams: true,
-      showTicker: false,
-      showTabs: true,
-      showServerName: true,
-    },
-    onStreamerOptionsChange: vi.fn(),
+    settings: DEFAULT_ALL_SETTINGS,
+    settingsUi: <div>Settings UI</div>,
   };
 
   it("renders no data message when state is null", () => {
@@ -110,10 +109,10 @@ describe("StreamerOverlay", () => {
       </LiveTrackerProvider>,
     );
 
-    expect(screen.getByText("No data available")).toBeInTheDocument();
+    expect(screen.getByText("Streamer overlay is only available for NeatQueue trackers")).toBeInTheDocument();
   });
 
-  it("renders streamer overlay with view mode selector", () => {
+  it("renders streamer overlay with settings UI", () => {
     const model = aFakeLiveTrackerViewModelWith();
 
     render(
@@ -122,7 +121,8 @@ describe("StreamerOverlay", () => {
       </LiveTrackerProvider>,
     );
 
-    expect(screen.getAllByTestId("view-mode-selector").length).toBeGreaterThan(0);
+    expect(screen.getByText("Settings UI")).toBeInTheDocument();
+    expect(screen.getByText("Test Guild")).toBeInTheDocument();
   });
 
   it("renders information ticker when showTicker is enabled and matches exist", () => {
@@ -130,6 +130,8 @@ describe("StreamerOverlay", () => {
       state: {
         type: "neatqueue",
         guildName: "Test Guild",
+        guildId: "test-guild-id",
+        guildIcon: "data:,",
         queueNumber: 5,
         status: "active",
         lastUpdateTime: "2025-01-01T00:00:00.000Z",
@@ -182,11 +184,7 @@ describe("StreamerOverlay", () => {
 
     render(
       <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
-        <StreamerOverlay
-          {...defaultProps}
-          previewMode="none"
-          streamerOptions={{ ...defaultProps.streamerOptions, showTicker: true }}
-        />
+        <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
 
@@ -198,6 +196,8 @@ describe("StreamerOverlay", () => {
       state: {
         type: "neatqueue",
         guildName: "Test Guild",
+        guildId: "test-guild-id",
+        guildIcon: "data:,",
         queueNumber: 5,
         status: "active",
         lastUpdateTime: "2025-01-01T00:00:00.000Z",
@@ -236,6 +236,7 @@ describe("StreamerOverlay", () => {
       </LiveTrackerProvider>,
     );
 
-    expect(screen.getAllByTestId("view-mode-selector").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Test Guild").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Series score").length).toBeGreaterThan(0);
   });
 });

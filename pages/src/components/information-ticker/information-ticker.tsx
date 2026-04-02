@@ -57,7 +57,14 @@ const InformationTickerComponent = function InformationTicker({
   const teamColor = teamColors[currentRow.teamId];
 
   return (
-    <div className={styles.ticker}>
+    <div
+      className={styles.ticker}
+      style={
+        {
+          "--row-color": teamColor.hex,
+        } as React.CSSProperties
+      }
+    >
       <div className={styles.tickerContent}>
         {/* Pinned Section: "label | team icon + name" */}
         <div
@@ -65,11 +72,6 @@ const InformationTickerComponent = function InformationTicker({
             [styles.tickerTeamRow]: currentRow.type === "team",
             [styles.tickerPlayerRow]: currentRow.type === "player",
           })}
-          style={
-            {
-              "--row-color": teamColor.hex,
-            } as React.CSSProperties
-          }
         >
           {/* Label */}
           <span className={styles.tickerLabel}>{currentMatchGroup.label}</span>
