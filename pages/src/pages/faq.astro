@@ -21,6 +21,16 @@ const faqItems = [
     answer: `When a NeatQueue series begins, I initialize real-time monitoring that refreshes every 3 minutes. The live tracker displays series status and match outcomes, updating automatically. Manual controls (🔄 refresh, ⏸️ pause, ▶️ resume) are available. The system handles player substitutions throughout the series.`,
   },
   {
+    question: "How do I configure the stream overlay URL for OBS?",
+    answer: `Use this exact workflow to go from live tracker to OBS.<ol>
+      <li><strong>Open your live tracker</strong> and verify the series you want to stream.<figure><img src="/images/faq/tracker-step-1-live-tracker.png" alt="Live tracker page showing series overview and Settings button" loading="lazy" /><figcaption>Step 1: Open the tracker and locate the Settings button in the overview panel.</figcaption></figure></li>
+      <li><strong>Open Overlay Settings</strong> from the tracker, then set your preferred colors, display options, tabs, and ticker choices.<figure><img src="/images/faq/tracker-step-2-settings-dialog.png" alt="Overlay settings dialog opened from the live tracker" loading="lazy" /><figcaption>Step 2: Configure the overlay in the settings dialog.</figcaption></figure></li>
+      <li><strong>Select Streamer Overlay mode</strong> in View Mode, then click <code>Copy URL for OBS</code>.<figure><img src="/images/faq/tracker-step-3-streamer-and-copy-url.png" alt="Overlay settings showing Streamer Overlay mode and Copy URL for OBS button" loading="lazy" /><figcaption>Step 3: Switch to Streamer Overlay and copy the generated URL.</figcaption></figure></li>
+      <li><strong>In OBS</strong>, add a new <code>Browser Source</code>, paste the copied URL, set your preferred width/height, and enable audio control options only if needed.<figure><img src="/images/faq/obs-step-1-browser-source-settings.png" alt="Placeholder for OBS Browser Source settings screenshot" loading="lazy" /><figcaption>Step 4 (OBS): Browser Source configuration screen (placeholder).</figcaption></figure></li>
+      <li><strong>Confirm in OBS preview/program</strong> that the overlay is visible and aligned with your scene layout. Save the source after validating readability at stream resolution.<figure><img src="/images/faq/obs-step-2-overlay-preview.png" alt="Placeholder for OBS preview showing the live tracker overlay" loading="lazy" /><figcaption>Step 5 (OBS): Final overlay appearance in OBS preview/program (placeholder).</figcaption></figure></li>
+    </ol><p>Tip: whenever you change tracker settings, recopy the URL and update the Browser Source so OBS reflects the latest configuration.</p><p>Tip: Stream OBS to Discord by following these <a href="https://discordlabs.org/faqs/how-to-stream-obs-to-discord" rel="noopener noreferrer" target="_blank">instructions</a>.</p>`,
+  },
+  {
     question: "Can I customize which stats are displayed?",
     answer: `Indeed. Server administrators may use <code>/setup</code> to configure display parameters: series-only versus series plus individual games, threaded replies versus dedicated channels, and live tracking enablement. These settings tailor output to your community's requirements.`,
   },
