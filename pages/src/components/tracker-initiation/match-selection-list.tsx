@@ -1,5 +1,6 @@
 import React from "react";
 import type { ImageMetadata } from "astro";
+import classNames from "classnames";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -143,11 +144,13 @@ export function MatchSelectionList({
           return (
             <div
               key={match.matchId}
-              className={`${styles.matchCard} ${isSelected ? styles.selected : ""} ${
-                groupPosition.inGroup ? styles.grouped : ""
-              } ${groupPosition.isFirst && !groupPosition.isLast ? styles.groupFirst : ""} ${
-                groupPosition.isLast && !groupPosition.isFirst ? styles.groupLast : ""
-              } ${groupPosition.inGroup && !groupPosition.isFirst && !groupPosition.isLast ? styles.groupMiddle : ""}`}
+              className={classNames(styles.matchCard, {
+                [styles.selected]: isSelected,
+                [styles.grouped]: groupPosition.inGroup,
+                [styles.groupFirst]: groupPosition.isFirst && !groupPosition.isLast,
+                [styles.groupLast]: groupPosition.isLast && !groupPosition.isFirst,
+                [styles.groupMiddle]: groupPosition.inGroup && !groupPosition.isFirst && !groupPosition.isLast,
+              })}
               style={
                 {
                   "--map-bg": `url(${match.mapThumbnailUrl})`,
@@ -176,7 +179,11 @@ export function MatchSelectionList({
                       <li>
                         <span className={styles.matchMetaLabel}>Outcome:</span>{" "}
                         <span
-                          className={`${styles.matchMetaValue} ${styles.outcome} ${styles[match.outcome.toLowerCase()]}`}
+                          className={classNames(
+                            styles.matchMetaValue,
+                            styles.outcome,
+                            styles[match.outcome.toLowerCase()],
+                          )}
                         >
                           {match.resultString}
                         </span>

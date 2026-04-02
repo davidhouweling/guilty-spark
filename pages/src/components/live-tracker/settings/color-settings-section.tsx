@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import { HALO_TEAM_COLORS, getTeamColor } from "../../team-colors/team-colors";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
 import type { ColorMode } from "./types";
@@ -41,7 +42,7 @@ export function ColorSettingsSection({
       <div className={styles.modeToggle}>
         <button
           type="button"
-          className={`${styles.modeButton} ${mode === "player" ? styles.active : ""}`}
+          className={classNames(styles.modeButton, { [styles.active]: mode === "player" })}
           onClick={(): void => {
             onModeChange("player");
           }}
@@ -50,7 +51,7 @@ export function ColorSettingsSection({
         </button>
         <button
           type="button"
-          className={`${styles.modeButton} ${mode === "observer" ? styles.active : ""}`}
+          className={classNames(styles.modeButton, { [styles.active]: mode === "observer" })}
           onClick={(): void => {
             onModeChange("observer");
           }}

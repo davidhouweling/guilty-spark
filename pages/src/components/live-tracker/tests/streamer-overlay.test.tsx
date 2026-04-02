@@ -70,6 +70,10 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
           name: "Team 1",
           players: [{ id: "player1", displayName: "player_one" }],
         },
+        {
+          name: "Team 2",
+          players: [{ id: "player2", displayName: "player_two" }],
+        },
       ],
       matches: [],
       substitutions: [],

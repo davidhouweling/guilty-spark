@@ -162,3 +162,56 @@
   gap: var(--space-4);
   margin-top: var(--space-3);
 }
+
+.viewModeButton {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.viewModeButton:hover {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 50%, transparent);
+}
+
+.viewModeButtonSelected {
+  background: var(--halo-bg-card);
+  border: 2px solid var(--halo-teal-primary);
+}
+
+.viewModeLabel {
+  color: var(--halo-white);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.viewModeDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-base);
+}
+
+.viewModeCheckmark {
+  color: var(--halo-teal-primary);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+}
+
+.viewModeButtonsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.copyUrlContainer {
+  margin-top: var(--space-3);
+}

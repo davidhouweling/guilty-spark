@@ -83,6 +83,8 @@ npm run format:fix
   - `@media (--ultrawide-viewport)` - min-width: 1200px
 - **Organization**: Group media queries at bottom with section headers; never use `max-width` queries
 - **Design Tokens**: Use `pages/src/styles/variables.css` tokens (e.g. font size, spacing, colors, border radius)
+- **Classes and styles**: We use CSS modules, all styling is to be done via CSS modules. Only use `style` attribute to pass a value via a CSS variable.
+- **Conditional classes**: do not use template literals to do conditional classes, instead use `classnames` package
 
 ## Type Safety
 

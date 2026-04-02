@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { Checkbox } from "../../checkbox/checkbox";
 import type {
@@ -46,37 +47,11 @@ function ViewModeButton({ label, description, isSelected, onClick }: ViewModeBut
     <button
       type="button"
       onClick={onClick}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        padding: "var(--space-3)",
-        border: isSelected
-          ? "2px solid var(--halo-teal-primary)"
-          : "1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent)",
-        borderRadius: "var(--radius-sm)",
-        background: isSelected ? "var(--halo-bg-card)" : "transparent",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-        position: "relative",
-      }}
+      className={classNames(styles.viewModeButton, { [styles.viewModeButtonSelected]: isSelected })}
     >
-      <span style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--halo-white)" }}>{label}</span>
-      <span style={{ fontSize: "var(--text-base)", color: "var(--halo-gray)" }}>{description}</span>
-      {isSelected && (
-        <span
-          style={{
-            position: "absolute",
-            top: "var(--space-2)",
-            right: "var(--space-2)",
-            color: "var(--halo-teal-primary)",
-            fontSize: "var(--text-lg)",
-            fontWeight: "bold",
-          }}
-        >
-          ✓
-        </span>
-      )}
+      <span className={styles.viewModeLabel}>{label}</span>
+      <span className={styles.viewModeDescription}>{description}</span>
+      {isSelected && <span className={styles.viewModeCheckmark}>✓</span>}
     </button>
   );
 }
@@ -334,14 +309,7 @@ export function SettingsDialog({
                 <h3 className={styles.sectionHeader}>View Mode</h3>
                 <p className={styles.sectionDescription}>Select how to display the tracker</p>
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "var(--space-2)",
-                    marginTop: "var(--space-3)",
-                  }}
-                >
+                <div className={styles.viewModeButtonsContainer}>
                   <ViewModeButton
                     mode="standard"
                     label="Standard View"
@@ -385,7 +353,7 @@ export function SettingsDialog({
               <div className={styles.section}>
                 <h3 className={styles.sectionHeader}>Share Settings</h3>
                 <p className={styles.sectionDescription}>Copy URL with all current settings for OBS Browser Source</p>
-                <div style={{ marginTop: "var(--space-3)" }}>
+                <div className={styles.copyUrlContainer}>
                   <CopyUrlButton settings={settings} server={server} queue={queue} viewMode={"streamer"} />
                 </div>
               </div>

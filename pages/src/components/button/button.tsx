@@ -44,10 +44,10 @@ export function Button({
         className,
       )}
     >
-      <span className={`${styles.btnCorner} ${styles.tl}`}></span>
-      <span className={`${styles.btnCorner} ${styles.tr}`}></span>
-      <span className={`${styles.btnCorner} ${styles.bl}`}></span>
-      <span className={`${styles.btnCorner} ${styles.br}`}></span>
+      <span className={classNames(styles.btnCorner, styles.tl)}></span>
+      <span className={classNames(styles.btnCorner, styles.tr)}></span>
+      <span className={classNames(styles.btnCorner, styles.bl)}></span>
+      <span className={classNames(styles.btnCorner, styles.br)}></span>
       <span className={styles.btnContent}>
         {icon !== null && icon !== undefined && (
           <>
