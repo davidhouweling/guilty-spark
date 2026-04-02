@@ -16,14 +16,14 @@ export function SeriesTitleSection({
   defaultTitle,
   defaultSubtitle,
 }: SeriesTitleSectionProps): React.ReactElement {
-  const handleFirstLineChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { value } = e.target;
     onChange({ titleOverride: value === "" ? null : value });
   };
 
-  const handleSecondLineChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleSubtitleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { value } = e.target;
-    onChange({ subTitleOverride: value === "" ? null : value });
+    onChange({ subtitleOverride: value === "" ? null : value });
   };
 
   return (
@@ -38,7 +38,7 @@ export function SeriesTitleSection({
           label="Title"
           value={settings.titleOverride ?? ""}
           type="text"
-          onChange={handleFirstLineChange}
+          onChange={handleTitleChange}
           placeholder={defaultTitle ?? "e.g. Discord Server"}
           hint={defaultTitle !== null && defaultTitle !== "" ? `Default: ${defaultTitle}` : undefined}
         />
@@ -46,9 +46,9 @@ export function SeriesTitleSection({
         <Input
           containerClassName={styles.section}
           label="Subtitle"
-          value={settings.subTitleOverride ?? ""}
+          value={settings.subtitleOverride ?? ""}
           type="text"
-          onChange={handleSecondLineChange}
+          onChange={handleSubtitleChange}
           placeholder={defaultSubtitle ?? "e.g. Queue #42"}
           hint={defaultSubtitle !== null && defaultSubtitle !== "" ? `Default: ${defaultSubtitle}` : undefined}
         />

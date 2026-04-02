@@ -148,10 +148,10 @@ export function StreamerOverlay({
         ? trackerInfo.title
         : null;
   const subtitle =
-    settings.series.subTitleOverride !== null && settings.series.subTitleOverride !== ""
-      ? settings.series.subTitleOverride
-      : settings.global.display.showSubtitle && trackerInfo.subTitle
-        ? trackerInfo.subTitle
+    settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== ""
+      ? settings.series.subtitleOverride
+      : settings.global.display.showSubtitle && trackerInfo.subtitle
+        ? trackerInfo.subtitle
         : null;
   const iconUrl = settings.global.display.showServerIcon ? trackerInfo.iconUrl : null;
 

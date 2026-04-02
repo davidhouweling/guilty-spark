@@ -71,7 +71,7 @@ function useLiveTrackerContext(): LiveTrackerContextValue {
  */
 export function useTrackerInfo(): {
   title: string;
-  subTitle: string;
+  subtitle: string;
   iconUrl: string | null;
   statusText: string;
   statusClassName: string;
@@ -80,12 +80,12 @@ export function useTrackerInfo(): {
   return useMemo(
     () => ({
       title: model.title,
-      subTitle: model.subTitle,
+      subtitle: model.subtitle,
       iconUrl: model.iconUrl,
       statusText: model.statusText,
       statusClassName: model.statusClassName,
     }),
-    [model.title, model.subTitle, model.statusText, model.statusClassName, model.iconUrl],
+    [model.title, model.subtitle, model.statusText, model.statusClassName, model.iconUrl],
   );
 }
 

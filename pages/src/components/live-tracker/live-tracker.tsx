@@ -329,10 +329,10 @@ export function LiveTrackerView(): React.ReactElement {
             <h1 className={styles.headerTitle}>{trackerInfo.title}</h1>
             <div className={styles.headerSubtitle}>
               {isIndividualMode
-                ? trackerInfo.subTitle
+                ? trackerInfo.subtitle
                 : isNeatQueueState(state)
                   ? `Queue #${state.queueNumber.toString()}`
-                  : trackerInfo.subTitle}
+                  : trackerInfo.subtitle}
             </div>
           </div>
 

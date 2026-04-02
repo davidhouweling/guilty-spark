@@ -61,7 +61,7 @@ export interface GlobalStreamerSettings {
 
 export interface SeriesStreamerSettings {
   readonly titleOverride: string | null;
-  readonly subTitleOverride: string | null;
+  readonly subtitleOverride: string | null;
   readonly eagleTeamNameOverride: string | null;
   readonly cobraTeamNameOverride: string | null;
   readonly disableTeamPlayerNames: boolean | null;
@@ -136,7 +136,7 @@ export const DEFAULT_TICKER_SETTINGS: TickerSettings = {
 
 export const DEFAULT_SERIES_SETTINGS: SeriesStreamerSettings = {
   titleOverride: null,
-  subTitleOverride: null,
+  subtitleOverride: null,
   eagleTeamNameOverride: null,
   cobraTeamNameOverride: null,
   disableTeamPlayerNames: null,

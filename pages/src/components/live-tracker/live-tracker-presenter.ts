@@ -41,7 +41,7 @@ export class LiveTrackerPresenter {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
 
     let title: string;
-    let subTitle: string;
+    let subtitle: string;
     let iconUrl: string | null = null;
 
     if (params.type === "team") {
@@ -51,14 +51,14 @@ export class LiveTrackerPresenter {
           : params.server.length > 0
             ? `Guild ${params.server}`
             : "";
-      subTitle = params.queue.length > 0 ? `Queue #${params.queue}` : "";
+      subtitle = params.queue.length > 0 ? `Queue #${params.queue}` : "";
       iconUrl =
         lastStateMessage?.type === "state" && lastStateMessage.data.type === "neatqueue"
           ? lastStateMessage.data.guildIcon
           : null;
     } else {
       title = params.gamertag.length > 0 ? params.gamertag : "Not set";
-      subTitle = "Individual";
+      subtitle = "Individual";
       iconUrl = null;
     }
 
@@ -84,7 +84,7 @@ export class LiveTrackerPresenter {
 
     return {
       title,
-      subTitle,
+      subtitle,
       statusText,
       statusClassName,
       iconUrl,
