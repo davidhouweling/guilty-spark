@@ -115,7 +115,11 @@ export function LiveTrackerView(): React.ReactElement {
 
   function updateUrl(currentViewMode: ViewMode): void {
     if (typeof window !== "undefined") {
-      window.history.replaceState({}, "", buildUrlWithSettings(window.location.href, settings, currentViewMode));
+      window.history.replaceState(
+        {},
+        "",
+        buildUrlWithSettings({ baseUrl: window.location.href, settings, viewMode: currentViewMode }),
+      );
     }
   }
 
@@ -281,6 +285,8 @@ export function LiveTrackerView(): React.ReactElement {
         availablePlayers={availablePlayers}
         defaultTitle={state?.type === "neatqueue" ? state.guildName : undefined}
         defaultSubtitle={state?.type === "neatqueue" ? `Queue #${state.queueNumber.toString()}` : undefined}
+        server={isNeatQueueState(state) ? state.guildId : undefined}
+        queue={isNeatQueueState(state) ? state.queueNumber : undefined}
         onClose={(): void => {
           setIsSettingsOpen(false);
         }}

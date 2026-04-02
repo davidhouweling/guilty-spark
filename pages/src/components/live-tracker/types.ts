@@ -99,6 +99,7 @@ export type LiveTrackerStateRenderModel = LiveTrackerNeatQueueStateRenderModel |
 export interface LiveTrackerNeatQueueStateRenderModel {
   readonly type: "neatqueue";
   readonly guildName: string;
+  readonly guildId: string;
   readonly guildIcon: string | null;
   readonly queueNumber: number;
   readonly status: LiveTrackerStatus;

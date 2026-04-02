@@ -47,7 +47,7 @@
   align-items: center;
   display: grid;
   gap: 0;
-  grid-template: "teamLeft serverIcon teamRight" min-content "title serverIcon subtitle" min-content / 1fr min-content 1fr;
+  grid-template: "teamLeft scoreLeft serverIcon scoreRight teamRight" min-content "title title serverIcon subtitle subtitle" min-content / 1fr min-content min-content min-content 1fr;
   left: 0;
   position: absolute;
   right: 0;
@@ -85,9 +85,36 @@
   width: 64px;
 }
 
+.teamLeftScore,
+.teamRightScore {
+  align-items: center;
+  align-self: stretch;
+  background-color: color-mix(in srgb, var(--team-color, transparent) 80%, transparent);
+  border: 2px solid var(--team-color, var(--halo-teal-primary));
+  border-radius: var(--radius-sm);
+  border-top: 0;
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  padding: var(--space-1) var(--space-3);
+}
+
+.teamLeftScore {
+  grid-area: scoreLeft;
+  justify-self: end;
+}
+
+.teamRightScore {
+  grid-area: scoreRight;
+  justify-self: start;
+}
+
 .teamLeft,
 .teamRight {
   align-items: center;
+  align-self: stretch;
   background-color: color-mix(in srgb, var(--team-color, transparent) 40%, transparent);
   border: 2px solid var(--team-color, var(--halo-teal-primary));
   border-top: 0;
@@ -108,6 +135,8 @@
 
 .teamLeft {
   border-right: 0;
+  display: flex;
+  flex-direction: row-reverse;
   grid-area: teamLeft;
   justify-self: end;
   padding-left: calc(var(--space-3) + 10px);
@@ -120,6 +149,71 @@
   padding-right: calc(var(--space-3) + 10px);
 }
 
+.teamWithPlayers {
+  display: grid;
+  position: relative;
+}
+
+.teamWithPlayers .teamName,
+.teamWithPlayers .teamPlayersScroll {
+  grid-area: 1 / 1;
+}
+
+.teamWithPlayers .teamName {
+  animation: fadeTeamName 40s infinite;
+  z-index: 2;
+}
+
+.teamWithPlayers .teamPlayersScroll {
+  animation: fadePlayerNames 40s infinite;
+  z-index: 1;
+}
+
+@keyframes fadeTeamName {
+  0% {
+    opacity: 1;
+  }
+
+  47% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+
+  97% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadePlayerNames {
+  0% {
+    opacity: 0;
+  }
+
+  47% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  97% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.teamName,
 .teamPlayers {
   color: var(--halo-white);
   font-size: calc(var(--text-base) * var(--font-size-team-players, 1));
@@ -127,6 +221,7 @@
   max-width: 600px;
   overflow: hidden;
   position: relative;
+  text-align: center;
   text-shadow:
     0 1px 2px rgb(0 0 0 / 80%),
     0 0 10px rgb(0 0 0 / 60%);

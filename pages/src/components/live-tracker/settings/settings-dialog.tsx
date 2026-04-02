@@ -29,6 +29,8 @@ interface SettingsDialogProps {
   readonly defaultTitle?: string | null;
   readonly defaultSubtitle?: string | null;
   readonly availablePlayers?: readonly { id: string; name: string }[];
+  readonly server?: string;
+  readonly queue?: number;
 }
 
 interface ViewModeButtonProps {
@@ -83,6 +85,8 @@ export function SettingsDialog({
   isOpen,
   settings,
   viewMode,
+  server,
+  queue,
   defaultTitle = null,
   defaultSubtitle = null,
   availablePlayers = [],
@@ -382,7 +386,7 @@ export function SettingsDialog({
                 <h3 className={styles.sectionHeader}>Share Settings</h3>
                 <p className={styles.sectionDescription}>Copy URL with all current settings for OBS Browser Source</p>
                 <div style={{ marginTop: "var(--space-3)" }}>
-                  <CopyUrlButton settings={settings} />
+                  <CopyUrlButton settings={settings} server={server} queue={queue} viewMode={"streamer"} />
                 </div>
               </div>
             </div>

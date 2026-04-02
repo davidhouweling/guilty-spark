@@ -34,6 +34,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
+      guildId: "test-guild-id",
       guildIcon: null,
       queueNumber: 5,
       status: "active",

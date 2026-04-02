@@ -60,6 +60,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
+      guildId: "test-guild-id",
       guildIcon: "data:,",
       queueNumber: 5,
       status: "active",
@@ -125,6 +126,7 @@ describe("StreamerOverlay", () => {
       state: {
         type: "neatqueue",
         guildName: "Test Guild",
+        guildId: "test-guild-id",
         guildIcon: "data:,",
         queueNumber: 5,
         status: "active",
@@ -190,6 +192,7 @@ describe("StreamerOverlay", () => {
       state: {
         type: "neatqueue",
         guildName: "Test Guild",
+        guildId: "test-guild-id",
         guildIcon: "data:,",
         queueNumber: 5,
         status: "active",

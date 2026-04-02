@@ -74,7 +74,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
           onChange={(checked): void => {
             onChange({ showTitle: checked });
           }}
-          label="Show First Line / Server Name"
+          label="Show Title / Server Name"
         />
 
         <Checkbox
@@ -82,7 +82,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
           onChange={(checked): void => {
             onChange({ showSubtitle: checked });
           }}
-          label="Show Second Line / Queue Number"
+          label="Show Subtitle / Queue Number"
         />
 
         <Checkbox

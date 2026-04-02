@@ -1,17 +1,27 @@
 import React, { useState } from "react";
 import { Button } from "../../button/button";
+import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { buildUrlWithSettings } from "./settings-url-params";
 import type { AllStreamerSettings } from "./types";
 
 interface CopyUrlButtonProps {
   readonly settings: AllStreamerSettings;
+  readonly server?: string;
+  readonly queue?: number;
+  readonly viewMode?: ViewMode;
 }
 
-export function CopyUrlButton({ settings }: CopyUrlButtonProps): React.ReactElement {
+export function CopyUrlButton({ settings, viewMode, server, queue }: CopyUrlButtonProps): React.ReactElement {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (): Promise<void> => {
-    const url = buildUrlWithSettings(window.location.origin + window.location.pathname, settings);
+    const url = buildUrlWithSettings({
+      baseUrl: window.location.origin + window.location.pathname,
+      settings,
+      viewMode,
+      server,
+      queue,
+    });
 
     try {
       await navigator.clipboard.writeText(url);

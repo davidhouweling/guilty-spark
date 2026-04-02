@@ -236,11 +236,31 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
 /**
  * Build full URL with streamer settings encoded
  */
-export function buildUrlWithSettings(baseUrl: string, settings: AllStreamerSettings, viewMode?: ViewMode): string {
+export function buildUrlWithSettings({
+  baseUrl,
+  settings,
+  server,
+  queue,
+  viewMode,
+}: {
+  baseUrl: string;
+  settings: AllStreamerSettings;
+  server?: string;
+  queue?: number;
+  viewMode?: ViewMode;
+}): string {
   const url = new URL(baseUrl);
 
   if (viewMode) {
     url.searchParams.set("viewMode", viewMode);
+  }
+
+  if (server != null && server !== "") {
+    url.searchParams.set("server", server);
+  }
+
+  if (queue != null) {
+    url.searchParams.set("queue", queue.toString());
   }
 
   // Add all settings

@@ -14,7 +14,7 @@ import { TeamIcon } from "../icons/team-icon";
 import type { AllStreamerSettings } from "./settings/types";
 import styles from "./streamer-overlay.module.css";
 import { useTrackerState, useAllMatchStats, useSeriesStats, useTrackerInfo } from "./live-tracker-context";
-import type { LiveTrackerNeatQueueStateRenderModel } from "./types";
+import type { LiveTrackerNeatQueueStateRenderModel, LiveTrackerTeamRenderModel } from "./types";
 
 export interface StreamerOverlayProps {
   readonly teamColors: TeamColor[];
@@ -490,6 +490,36 @@ export function StreamerOverlay({
     return <>{displayName}</>;
   };
 
+  const teamRender = (team: LiveTrackerTeamRenderModel, teamName: string | null): React.ReactNode => {
+    const scrollingContent = (
+      <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
+        {team.players.map((player, idx) => (
+          <React.Fragment key={player.id}>
+            {idx > 0 && ", "}
+            {renderPlayerNameContent(player.id, player.displayName)}
+          </React.Fragment>
+        ))}
+      </ScrollingContent>
+    );
+
+    if (teamName == null || teamName === "") {
+      return scrollingContent;
+    }
+
+    if (settings.series.disableTeamPlayerNames === true) {
+      return <div className={styles.teamName}>{teamName}</div>;
+    }
+
+    return (
+      <div className={styles.teamWithPlayers}>
+        <div className={styles.teamName}>{teamName}</div>
+        {scrollingContent}
+      </div>
+    );
+  };
+  const teamLeft = teamRender(neatQueueState.teams[0], settings.series.eagleTeamNameOverride);
+  const teamRight = teamRender(neatQueueState.teams[1], settings.series.cobraTeamNameOverride);
+
   // Build tabs array
   const tabs = [
     {
@@ -547,33 +577,28 @@ export function StreamerOverlay({
         {title != null && <div className={styles.title}>{title}</div>}
         {iconUrl != null && <img src={iconUrl} alt="Server" className={styles.serverIcon} />}
         {subtitle != null && <div className={styles.subtitle}>{subtitle}</div>}
+        {settings.global.display.showScore && (
+          <>
+            <div className={styles.teamLeftScore} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
+              {neatQueueState.seriesScore.split(":")[0]}
+            </div>
+            <div
+              className={styles.teamRightScore}
+              style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}
+            >
+              {neatQueueState.seriesScore.split(":")[1]}
+            </div>
+          </>
+        )}
         {settings.global.display.showTeamDetails && (
           <>
             <div className={styles.teamLeft} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
-              <span className={styles.teamPlayers}>
-                <ScrollingContent maxWidth={600}>
-                  {neatQueueState.teams[0]?.players.map((player, idx) => (
-                    <React.Fragment key={player.id}>
-                      {idx > 0 && ", "}
-                      {renderPlayerNameContent(player.id, player.displayName)}
-                    </React.Fragment>
-                  ))}
-                </ScrollingContent>
-              </span>
               <TeamIcon teamId={0} />
+              <div className={styles.teamPlayers}>{teamLeft}</div>
             </div>
             <div className={styles.teamRight} style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}>
               <TeamIcon teamId={1} />
-              <span className={styles.teamPlayers}>
-                <ScrollingContent maxWidth={600}>
-                  {neatQueueState.teams[1]?.players.map((player, idx) => (
-                    <React.Fragment key={player.id}>
-                      {idx > 0 && ", "}
-                      {renderPlayerNameContent(player.id, player.displayName)}
-                    </React.Fragment>
-                  ))}
-                </ScrollingContent>
-              </span>
+              <div className={styles.teamPlayers}>{teamRight}</div>
             </div>
           </>
         )}
