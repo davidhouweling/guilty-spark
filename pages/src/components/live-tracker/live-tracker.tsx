@@ -113,6 +113,16 @@ export function LiveTrackerView(): React.ReactElement {
     return "standard";
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const urlSettings = parseSettingsFromUrl(new URLSearchParams(window.location.search));
+    setSettings(urlSettings);
+    setViewMode(urlSettings.global.viewMode);
+  }, [setSettings]);
+
   function updateUrl(currentViewMode: ViewMode): void {
     if (typeof window !== "undefined") {
       window.history.replaceState(
@@ -175,6 +185,23 @@ export function LiveTrackerView(): React.ReactElement {
     setViewMode(mode);
     updateUrl(mode);
   }, []);
+
+  // Apply settings overrides for title and subtitle
+  const displayTitle = useMemo(
+    () =>
+      settings.series.titleOverride !== null && settings.series.titleOverride !== ""
+        ? settings.series.titleOverride
+        : trackerInfo.title,
+    [settings.series.titleOverride, trackerInfo.title],
+  );
+
+  const displaySubtitle = useMemo(
+    () =>
+      settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== ""
+        ? settings.series.subtitleOverride
+        : trackerInfo.subtitle,
+    [settings.series.subtitleOverride, trackerInfo.subtitle],
+  );
 
   // Sort substitutions by timestamp for rendering between matches (memoized)
   const sortedSubstitutionsList = useMemo(() => {
@@ -326,13 +353,13 @@ export function LiveTrackerView(): React.ReactElement {
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{trackerInfo.title}</h1>
+            <h1 className={styles.headerTitle}>{displayTitle}</h1>
             <div className={styles.headerSubtitle}>
               {isIndividualMode
-                ? trackerInfo.subtitle
+                ? displaySubtitle
                 : isNeatQueueState(state)
                   ? `Queue #${state.queueNumber.toString()}`
-                  : trackerInfo.subtitle}
+                  : displaySubtitle}
             </div>
           </div>
 

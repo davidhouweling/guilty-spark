@@ -15,6 +15,9 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
     observerColors?: { eagleColor?: string; cobraColor?: string };
     display?: Record<string, boolean>;
     ticker?: {
+      showTicker?: boolean;
+      showTabs?: boolean;
+      showPreSeriesInfo?: boolean;
       selectedSlayerStats?: string[];
       showObjectiveStats?: boolean;
       medalRarityFilter?: number[];
@@ -22,6 +25,9 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
     series?: {
       titleOverride?: string | null;
       subtitleOverride?: string | null;
+      eagleTeamNameOverride?: string | null;
+      cobraTeamNameOverride?: string | null;
+      disableTeamPlayerNames?: boolean | null;
     };
   } = {};
 
@@ -84,12 +90,27 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   }
 
   // Ticker settings
+  const showTicker = searchParams.get("showTicker");
+  const showTabs = searchParams.get("showTabs");
+  const showPreSeriesInfo = searchParams.get("showPreSeriesInfo");
   const enabledStats = searchParams.get("enabledStats");
   const showObjectiveStats = searchParams.get("showObjectiveStats");
   const medalRarityFilter = searchParams.get("medalRarityFilter");
 
-  if (enabledStats !== null || showObjectiveStats !== null || medalRarityFilter !== null) {
+  if (
+    showTicker !== null ||
+    showTabs !== null ||
+    showPreSeriesInfo !== null ||
+    enabledStats !== null ||
+    showObjectiveStats !== null ||
+    medalRarityFilter !== null
+  ) {
     parsed.ticker = {
+      ...(showTicker === "true" || showTicker === "false" ? { showTicker: showTicker === "true" } : {}),
+      ...(showTabs === "true" || showTabs === "false" ? { showTabs: showTabs === "true" } : {}),
+      ...(showPreSeriesInfo === "true" || showPreSeriesInfo === "false"
+        ? { showPreSeriesInfo: showPreSeriesInfo === "true" }
+        : {}),
       ...(enabledStats !== null &&
         enabledStats !== "" && { selectedSlayerStats: enabledStats.split(",").filter((s) => s.length > 0) }),
       ...(showObjectiveStats === "true" || showObjectiveStats === "false"
@@ -124,10 +145,24 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   // Series settings
   const title = searchParams.get("title");
   const subtitle = searchParams.get("subtitle");
-  if (title !== null || subtitle !== null) {
+  const eagleTeamName = searchParams.get("eagleTeamName");
+  const cobraTeamName = searchParams.get("cobraTeamName");
+  const disableTeamPlayerNames = searchParams.get("disableTeamPlayerNames");
+  if (
+    title !== null ||
+    subtitle !== null ||
+    eagleTeamName !== null ||
+    cobraTeamName !== null ||
+    disableTeamPlayerNames !== null
+  ) {
     parsed.series = {
       ...(title !== null && { titleOverride: title !== "" ? title : null }),
       ...(subtitle !== null && { subtitleOverride: subtitle !== "" ? subtitle : null }),
+      ...(eagleTeamName !== null && { eagleTeamNameOverride: eagleTeamName !== "" ? eagleTeamName : null }),
+      ...(cobraTeamName !== null && { cobraTeamNameOverride: cobraTeamName !== "" ? cobraTeamName : null }),
+      ...(disableTeamPlayerNames === "true" || disableTeamPlayerNames === "false"
+        ? { disableTeamPlayerNames: disableTeamPlayerNames === "true" }
+        : {}),
     };
   }
 
@@ -208,6 +243,15 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
 
   // Ticker settings
   const { ticker } = settings.global;
+  if (!ticker.showTicker) {
+    params.showTicker = "false";
+  }
+  if (!ticker.showTabs) {
+    params.showTabs = "false";
+  }
+  if (!ticker.showPreSeriesInfo) {
+    params.showPreSeriesInfo = "false";
+  }
   params.enabledStats = ticker.selectedSlayerStats.join(",");
   if (!ticker.showObjectiveStats) {
     params.showObjectiveStats = "false";
@@ -228,6 +272,15 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
   }
   if (settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== "") {
     params.subtitle = settings.series.subtitleOverride;
+  }
+  if (settings.series.eagleTeamNameOverride !== null && settings.series.eagleTeamNameOverride !== "") {
+    params.eagleTeamName = settings.series.eagleTeamNameOverride;
+  }
+  if (settings.series.cobraTeamNameOverride !== null && settings.series.cobraTeamNameOverride !== "") {
+    params.cobraTeamName = settings.series.cobraTeamNameOverride;
+  }
+  if (settings.series.disableTeamPlayerNames === true) {
+    params.disableTeamPlayerNames = "true";
   }
 
   return params;

@@ -256,6 +256,18 @@
   justify-content: center;
 }
 
+.tickerPlaceholder {
+  align-items: center;
+  background: rgb(15 40 48 / 90%);
+  color: var(--halo-gray);
+  display: flex;
+  font-size: calc(var(--text-sm) * var(--font-size-ticker, 1));
+  justify-content: center;
+  min-height: 60px;
+  padding: var(--space-3);
+  text-align: center;
+}
+
 .title,
 .subtitle,
 .tab {

@@ -113,16 +113,15 @@ export function TickerSettingsSection({ settings, onChange }: TickerSettingsSect
         </div>
       </div>
 
-      {/* Pre-Series Info Toggle - Placeholder for Phase 6 */}
+      {/* Pre-Series Info Toggle */}
       <div className={styles.section}>
         <Checkbox
-          checked
-          onChange={(): void => {
-            // Intentionally empty - this is disabled for Phase 6
+          checked={settings.showPreSeriesInfo}
+          onChange={(checked): void => {
+            onChange({ showPreSeriesInfo: checked });
           }}
           label="Display Pre-Series Player Info"
-          description="Show individual player info before the first match (Phase 6)"
-          disabled
+          description="Show individual player info before the first match starts"
         />
       </div>
     </div>

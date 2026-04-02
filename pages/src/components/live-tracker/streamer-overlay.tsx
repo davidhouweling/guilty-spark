@@ -659,6 +659,15 @@ export function StreamerOverlay({
               onScrollComplete={handleScrollComplete}
             />
           )}
+
+          {/* Waiting for first match message when ticker is enabled but no data yet and pre-series info is disabled */}
+          {settings.global.ticker.showTicker &&
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            currentMatchGroup == null &&
+            !settings.global.ticker.showPreSeriesInfo &&
+            neatQueueState.matches.length === 0 && (
+              <div className={styles.tickerPlaceholder}>Waiting for first match to complete...</div>
+            )}
         </div>
       )}
 
