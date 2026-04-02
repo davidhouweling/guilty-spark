@@ -27,7 +27,7 @@ const defaultParams = { type: "team" as const, server: "test-server", queue: "5"
 function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>): LiveTrackerViewModel {
   return {
     title: "Test Guild",
-    subTitle: "Queue 5",
+    subtitle: "Queue 5",
     iconUrl: "data:,",
     statusText: "active",
     statusClassName: "status-active",
@@ -94,7 +94,7 @@ describe("LiveTrackerContext", () => {
     });
 
     expect(result.current.title).toBe("Test Guild");
-    expect(result.current.subTitle).toBe("Queue 5");
+    expect(result.current.subtitle).toBe("Queue 5");
     expect(result.current.iconUrl).toBe("data:,");
     expect(result.current.statusText).toBe("active");
     expect(result.current.statusClassName).toBe("status-active");

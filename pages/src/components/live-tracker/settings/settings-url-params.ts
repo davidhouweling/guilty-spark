@@ -20,8 +20,8 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
       medalRarityFilter?: number[];
     };
     series?: {
-      queueFirstLineOverride?: string | null;
-      queueSecondLineOverride?: string | null;
+      titleOverride?: string | null;
+      subtitleOverride?: string | null;
     };
   } = {};
 
@@ -68,8 +68,8 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
     "showTeamDetails",
     "showDiscordNames",
     "showXboxNames",
-    "showQueueFirstLine",
-    "showQueueSecondLine",
+    "showTitle",
+    "showSubtitle",
     "showScore",
   ];
   const displaySettings: Record<string, boolean> = {};
@@ -122,12 +122,12 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   }
 
   // Series settings
-  const queueFirstLine = searchParams.get("queueFirstLine");
-  const queueSecondLine = searchParams.get("queueSecondLine");
-  if (queueFirstLine !== null || queueSecondLine !== null) {
+  const title = searchParams.get("title");
+  const subtitle = searchParams.get("subtitle");
+  if (title !== null || subtitle !== null) {
     parsed.series = {
-      ...(queueFirstLine !== null && { queueFirstLineOverride: queueFirstLine !== "" ? queueFirstLine : null }),
-      ...(queueSecondLine !== null && { queueSecondLineOverride: queueSecondLine !== "" ? queueSecondLine : null }),
+      ...(title !== null && { titleOverride: title !== "" ? title : null }),
+      ...(subtitle !== null && { subtitleOverride: subtitle !== "" ? subtitle : null }),
     };
   }
 
@@ -224,10 +224,10 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
 
   // Series settings
   if (settings.series.titleOverride !== null && settings.series.titleOverride !== "") {
-    params.queueFirstLine = settings.series.titleOverride;
+    params.title = settings.series.titleOverride;
   }
-  if (settings.series.subTitleOverride !== null && settings.series.subTitleOverride !== "") {
-    params.queueSecondLine = settings.series.subTitleOverride;
+  if (settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== "") {
+    params.subtitle = settings.series.subtitleOverride;
   }
 
   return params;

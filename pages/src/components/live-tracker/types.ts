@@ -129,7 +129,7 @@ export interface LiveTrackerIndividualStateRenderModel {
 
 export interface LiveTrackerViewModel {
   readonly title: string;
-  readonly subTitle: string;
+  readonly subtitle: string;
   readonly iconUrl: string | null;
   readonly statusText: string;
   readonly statusClassName: string;
