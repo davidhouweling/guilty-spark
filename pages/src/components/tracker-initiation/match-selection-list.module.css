@@ -152,24 +152,24 @@
 
 .checkbox {
   appearance: none;
+  background: var(--halo-bg-primary);
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: 3px;
   cursor: pointer;
   flex-shrink: 0;
   height: 18px;
   margin-top: 2px;
-  width: 18px;
-  border: 2px solid var(--halo-teal-primary);
-  border-radius: 3px;
-  background: var(--halo-bg-primary);
   transition: all var(--transition-base);
+  width: 18px;
 }
 
 .checkbox:checked {
   background: var(--halo-accent);
-  border-color: var(--halo-accent);
   background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="white"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>');
-  background-size: 12px;
   background-position: center;
   background-repeat: no-repeat;
+  background-size: 12px;
+  border-color: var(--halo-accent);
 }
 
 .checkbox:focus-visible {

@@ -23,14 +23,14 @@
 }
 
 /* Preview backgrounds for development */
-.preview-player {
+.previewPlayer {
   background-image: url("/in-game-player.jpg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
 }
 
-.preview-observer {
+.previewObserver {
   background-image: url("/in-game-observer.jpg");
   background-position: center;
   background-repeat: no-repeat;
@@ -44,10 +44,10 @@
 /* ============================================ */
 
 .topSection {
-  align-items: start;
+  align-items: center;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: auto;
+  gap: 0;
+  grid-template: "teamLeft serverIcon teamRight" min-content "title serverIcon subtitle" min-content / 1fr min-content 1fr;
   left: 0;
   position: absolute;
   right: 0;
@@ -56,66 +56,34 @@
   z-index: 10;
 }
 
-.queueInfo {
-  background: rgb(15 40 48 / 90%);
-  border: 2px solid var(--halo-teal-primary);
-  border-bottom-left-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-lg);
+.title,
+.subtitle {
+  border: 2px solid var(--halo-bg-primary);
   border-top: 0;
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  gap: 0;
-  grid-column: 2;
-  grid-row: 1;
-  line-height: 1;
-  padding: var(--space-1) var(--space-3);
-  text-align: center;
-}
-
-.serverName {
-  color: var(--halo-gray);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 80%),
-    0 0 10px rgb(0 0 0 / 60%);
-  text-transform: uppercase;
-}
-
-.scoreDisplay {
-  align-items: center;
-  display: flex;
-  gap: var(--space-2);
-  justify-content: center;
-}
-
-.scoreText {
+  color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: var(--text-3xl);
   font-weight: 700;
-  line-height: 1;
-  padding: 0;
-  text-shadow:
-    0 2px 4px rgb(0 0 0 / 80%),
-    0 0 20px var(--halo-teal-primary);
+  padding: 0 var(--space-3);
   white-space: nowrap;
 }
 
-.queueNumber {
-  color: var(--halo-gray);
-  font-weight: 600;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 80%),
-    0 0 10px rgb(0 0 0 / 60%);
+.title {
+  border-right: 0;
+  grid-area: title;
+  justify-self: end;
 }
 
-/* ============================================ */
+.subtitle {
+  border-left: 0;
+  grid-area: subtitle;
+  justify-self: start;
+}
 
-/* Team Displays (Inline at Top)               */
-
-/* ============================================ */
+.serverIcon {
+  grid-area: serverIcon;
+  height: 64px;
+  width: 64px;
+}
 
 .teamLeft,
 .teamRight {
@@ -123,44 +91,40 @@
   background-color: color-mix(in srgb, var(--team-color, transparent) 40%, transparent);
   border: 2px solid var(--team-color, var(--halo-teal-primary));
   border-top: 0;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--team-color, var(--halo-teal-primary)) 40%, transparent);
   display: flex;
   flex-direction: row;
   gap: var(--space-2);
+  overflow: hidden;
   padding: var(--space-1) var(--space-3);
+  position: relative;
+
+  > img {
+    filter: drop-shadow(0 100px 0 var(--team-color));
+    margin-bottom: calc(var(--space-1) * -1);
+    margin-top: calc(var(--space-1) * -1);
+    transform: translateY(-100px);
+  }
 }
 
 .teamLeft {
-  border-bottom-left-radius: var(--radius-lg);
   border-right: 0;
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: teamLeft;
   justify-self: end;
+  padding-left: calc(var(--space-3) + 10px);
 }
 
 .teamRight {
-  border-bottom-right-radius: var(--radius-lg);
   border-left: 0;
-  grid-column: 3;
-  grid-row: 1;
+  grid-area: teamRight;
   justify-self: start;
-}
-
-.teamName {
-  color: var(--team-color, var(--halo-accent));
-  font-family: var(--font-heading);
-  font-size: var(--text-base);
-  font-weight: 700;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 80%),
-    0 0 10px var(--team-color, var(--halo-teal-primary));
+  padding-right: calc(var(--space-3) + 10px);
 }
 
 .teamPlayers {
   color: var(--halo-white);
-  font-size: var(--text-sm);
+  font-size: calc(var(--text-base) * var(--font-size-team-players, 1));
   font-weight: 700;
-  max-width: 400px;
+  max-width: 600px;
   overflow: hidden;
   position: relative;
   text-shadow:
@@ -192,12 +156,14 @@
 
 .tabBar {
   display: flex;
+  font-size: calc(var(--text-sm) * var(--font-size-tabs, 1));
   gap: var(--space-1);
   justify-content: center;
 }
 
+.title,
+.subtitle,
 .tab {
-  align-items: center;
   background: rgb(15 40 48 / 90%);
   background-color: color-mix(in srgb, var(--tab-team-color, transparent) 20%, rgb(15 40 48 / 90%));
   background-image:
@@ -216,15 +182,17 @@
     100% 100%,
     10px 10px,
     cover;
+}
+
+.tab {
+  align-items: center;
   border: 2px solid var(--tab-team-color, var(--halo-bg-primary));
   border-bottom: 0;
-  border-top-left-radius: var(--radius-base);
-  border-top-right-radius: var(--radius-base);
   color: var(--halo-white);
   cursor: pointer;
   display: flex;
   font-family: var(--font-body);
-  font-size: var(--text-base);
+  font-size: inherit;
   font-weight: 700;
   justify-content: center;
   min-width: 80px;
@@ -248,18 +216,18 @@
 }
 
 .tab:hover {
-  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 30%, rgb(15 40 48 / 90%));
+  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-bg-primary)) 30%, rgb(15 40 48 / 90%));
   border-color: var(--halo-accent);
   transform: translateY(-2px);
 }
 
 .tabActive {
-  outline: 2px solid var(--tab-team-color, var(--halo-teal-primary));
+  outline: 2px solid var(--tab-team-color, var(--halo-bg-primary));
   position: relative;
 }
 
 .tabActive::after {
-  border-color: var(--tab-team-color, var(--halo-teal-primary)) transparent transparent;
+  border-color: var(--tab-team-color, var(--halo-bg-primary)) transparent transparent;
   border-style: solid;
   border-width: 12px 9px 0;
   bottom: -12px;
@@ -270,7 +238,7 @@
 }
 
 .tabActive::before {
-  border-color: color-mix(in srgb, var(--tab-team-color, var(--halo-teal-primary)) 40%, rgb(15 40 48 / 90%)) transparent
+  border-color: color-mix(in srgb, var(--tab-team-color, var(--halo-bg-primary)) 40%, rgb(15 40 48 / 90%)) transparent
     transparent;
   border-style: solid;
   border-width: 9px 6px 0;
@@ -359,7 +327,7 @@
   border: 2px solid var(--halo-teal-primary);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: 0 -4px 40px rgb(0 0 0 / 60%);
-  max-height: 80vh;
+  max-height: 95vh;
   max-width: 1400px;
   overflow-y: auto;
   padding: var(--space-6);

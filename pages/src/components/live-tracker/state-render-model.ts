@@ -173,6 +173,7 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     const renderModel: LiveTrackerStateRenderModel = {
       type: "neatqueue",
       guildName: message.data.guildName,
+      guildIcon: message.data.guildIcon,
       queueNumber: message.data.queueNumber,
       status: message.data.status,
       lastUpdateTime: message.data.lastUpdateTime,

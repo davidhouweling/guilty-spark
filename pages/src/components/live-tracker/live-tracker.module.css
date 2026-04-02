@@ -46,13 +46,13 @@
 .headerMetaLabel {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 .headerMetaValue {
   color: var(--halo-white);
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 /* Keep IDs since the existing JS targets them */
@@ -258,7 +258,7 @@
   color: var(--halo-accent);
   cursor: pointer;
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   padding: var(--space-2) var(--space-4);
   transition: all var(--transition-fast) ease;
 }
@@ -321,7 +321,7 @@
 .seriesTeam {
   color: var(--halo-white);
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 .seriesTeam strong {
