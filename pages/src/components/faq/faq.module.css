@@ -79,6 +79,36 @@
   text-shadow: 0 0 8px color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
 }
 
+.faqAnswer ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.faqAnswer li + li {
+  margin-top: var(--space-4);
+}
+
+.faqAnswer figure {
+  margin: var(--space-3) 0 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.faqAnswer img {
+  border: 1px solid var(--halo-teal-dark);
+  border-radius: var(--radius-sm);
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 100%;
+}
+
+.faqAnswer figcaption {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
+}
+
 /* ============================================ */
 
 /* Media Queries - Tablet and Above            */
