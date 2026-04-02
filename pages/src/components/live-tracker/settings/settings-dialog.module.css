@@ -62,6 +62,14 @@
   margin: 0;
 }
 
+.subtitle {
+  color: var(--halo-gray);
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  margin-top: var(--space-1);
+}
+
 .closeButton {
   align-items: center;
   background: none;
