@@ -15,6 +15,9 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
     observerColors?: { eagleColor?: string; cobraColor?: string };
     display?: Record<string, boolean>;
     ticker?: {
+      showTicker?: boolean;
+      showTabs?: boolean;
+      showPreSeriesInfo?: boolean;
       selectedSlayerStats?: string[];
       showObjectiveStats?: boolean;
       medalRarityFilter?: number[];
@@ -87,12 +90,27 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   }
 
   // Ticker settings
+  const showTicker = searchParams.get("showTicker");
+  const showTabs = searchParams.get("showTabs");
+  const showPreSeriesInfo = searchParams.get("showPreSeriesInfo");
   const enabledStats = searchParams.get("enabledStats");
   const showObjectiveStats = searchParams.get("showObjectiveStats");
   const medalRarityFilter = searchParams.get("medalRarityFilter");
 
-  if (enabledStats !== null || showObjectiveStats !== null || medalRarityFilter !== null) {
+  if (
+    showTicker !== null ||
+    showTabs !== null ||
+    showPreSeriesInfo !== null ||
+    enabledStats !== null ||
+    showObjectiveStats !== null ||
+    medalRarityFilter !== null
+  ) {
     parsed.ticker = {
+      ...(showTicker === "true" || showTicker === "false" ? { showTicker: showTicker === "true" } : {}),
+      ...(showTabs === "true" || showTabs === "false" ? { showTabs: showTabs === "true" } : {}),
+      ...(showPreSeriesInfo === "true" || showPreSeriesInfo === "false"
+        ? { showPreSeriesInfo: showPreSeriesInfo === "true" }
+        : {}),
       ...(enabledStats !== null &&
         enabledStats !== "" && { selectedSlayerStats: enabledStats.split(",").filter((s) => s.length > 0) }),
       ...(showObjectiveStats === "true" || showObjectiveStats === "false"
@@ -225,6 +243,15 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
 
   // Ticker settings
   const { ticker } = settings.global;
+  if (!ticker.showTicker) {
+    params.showTicker = "false";
+  }
+  if (!ticker.showTabs) {
+    params.showTabs = "false";
+  }
+  if (!ticker.showPreSeriesInfo) {
+    params.showPreSeriesInfo = "false";
+  }
   params.enabledStats = ticker.selectedSlayerStats.join(",");
   if (!ticker.showObjectiveStats) {
     params.showObjectiveStats = "false";
