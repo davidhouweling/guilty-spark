@@ -22,6 +22,9 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
     series?: {
       titleOverride?: string | null;
       subtitleOverride?: string | null;
+      eagleTeamNameOverride?: string | null;
+      cobraTeamNameOverride?: string | null;
+      disableTeamPlayerNames?: boolean | null;
     };
   } = {};
 
@@ -124,10 +127,24 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   // Series settings
   const title = searchParams.get("title");
   const subtitle = searchParams.get("subtitle");
-  if (title !== null || subtitle !== null) {
+  const eagleTeamName = searchParams.get("eagleTeamName");
+  const cobraTeamName = searchParams.get("cobraTeamName");
+  const disableTeamPlayerNames = searchParams.get("disableTeamPlayerNames");
+  if (
+    title !== null ||
+    subtitle !== null ||
+    eagleTeamName !== null ||
+    cobraTeamName !== null ||
+    disableTeamPlayerNames !== null
+  ) {
     parsed.series = {
       ...(title !== null && { titleOverride: title !== "" ? title : null }),
       ...(subtitle !== null && { subtitleOverride: subtitle !== "" ? subtitle : null }),
+      ...(eagleTeamName !== null && { eagleTeamNameOverride: eagleTeamName !== "" ? eagleTeamName : null }),
+      ...(cobraTeamName !== null && { cobraTeamNameOverride: cobraTeamName !== "" ? cobraTeamName : null }),
+      ...(disableTeamPlayerNames === "true" || disableTeamPlayerNames === "false"
+        ? { disableTeamPlayerNames: disableTeamPlayerNames === "true" }
+        : {}),
     };
   }
 
@@ -228,6 +245,15 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
   }
   if (settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== "") {
     params.subtitle = settings.series.subtitleOverride;
+  }
+  if (settings.series.eagleTeamNameOverride !== null && settings.series.eagleTeamNameOverride !== "") {
+    params.eagleTeamName = settings.series.eagleTeamNameOverride;
+  }
+  if (settings.series.cobraTeamNameOverride !== null && settings.series.cobraTeamNameOverride !== "") {
+    params.cobraTeamName = settings.series.cobraTeamNameOverride;
+  }
+  if (settings.series.disableTeamPlayerNames === true) {
+    params.disableTeamPlayerNames = "true";
   }
 
   return params;
