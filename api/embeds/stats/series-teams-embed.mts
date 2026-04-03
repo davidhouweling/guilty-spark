@@ -1,6 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { aggregateTeamCoreStats } from "@guilty-spark/shared/halo/series-team-utils";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 
@@ -12,7 +13,7 @@ export class SeriesTeamsEmbed extends BaseSeriesEmbed {
       fields: [],
     };
 
-    const teamCoreStats = this.aggregateTeamCoreStats(matches);
+    const teamCoreStats = aggregateTeamCoreStats(matches);
     const bestCoreStats = this.getBestTeamSeriesStatValues(teamCoreStats);
 
     let teamFields = [];
@@ -54,30 +55,6 @@ export class SeriesTeamsEmbed extends BaseSeriesEmbed {
     }
 
     return embed;
-  }
-
-  private aggregateTeamCoreStats(matches: MatchStats[]): Map<number, Stats["CoreStats"]> {
-    const teamCoreStats = new Map<number, Stats["CoreStats"]>();
-    for (const match of matches) {
-      for (const team of match.Teams) {
-        const { TeamId } = team;
-        const { CoreStats } = team.Stats;
-        if (!teamCoreStats.has(TeamId)) {
-          teamCoreStats.set(TeamId, CoreStats);
-          continue;
-        }
-
-        const mergedStats = this.mergeCoreStats(Preconditions.checkExists(teamCoreStats.get(TeamId)), CoreStats);
-        teamCoreStats.set(TeamId, mergedStats);
-      }
-    }
-
-    // adjust some of the values which should be averages rather than sums
-    for (const [playerId, stats] of teamCoreStats.entries()) {
-      teamCoreStats.set(playerId, this.adjustAveragesInCoreStats(stats, matches.length));
-    }
-
-    return teamCoreStats;
   }
 
   private getBestTeamSeriesStatValues(teamCoreStats: Map<number, Stats["CoreStats"]>): Map<string, number | number[]> {

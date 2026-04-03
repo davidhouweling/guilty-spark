@@ -1,9 +1,6 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import {
-  mergeCoreStats as mergeSharedCoreStats,
-  adjustAveragesInCoreStats as adjustSharedCoreStatsAverages,
-} from "@guilty-spark/shared/halo/series-core-stats";
+import { aggregateTeamCoreStats as aggregateSharedTeamCoreStats } from "@guilty-spark/shared/halo/series-team-utils";
 import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
@@ -21,7 +18,7 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
 
-    const teamCoreStats = this.aggregateTeamCoreStats(matches);
+    const teamCoreStats = aggregateSharedTeamCoreStats(matches);
     const teamStats = new Map<number, StatsCollection>();
     for (const [teamId, stats] of teamCoreStats) {
       teamStats.set(teamId, this.getTeamSlayerStats({ CoreStats: stats }));
@@ -67,30 +64,6 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
 
   private getTeamSlayerStats(stats: Stats): StatsCollection {
     return getSharedPlayerSlayerStats(stats.CoreStats);
-  }
-
-  private aggregateTeamCoreStats(matches: MatchStats[]): Map<number, Stats["CoreStats"]> {
-    const teamCoreStats = new Map<number, Stats["CoreStats"]>();
-    for (const match of matches) {
-      for (const team of match.Teams) {
-        const { TeamId } = team;
-        const { CoreStats } = team.Stats;
-        if (!teamCoreStats.has(TeamId)) {
-          teamCoreStats.set(TeamId, CoreStats);
-          continue;
-        }
-
-        const mergedStats = mergeSharedCoreStats(Preconditions.checkExists(teamCoreStats.get(TeamId)), CoreStats);
-        teamCoreStats.set(TeamId, mergedStats);
-      }
-    }
-
-    // adjust some of the values which should be averages rather than sums
-    for (const [teamId, stats] of teamCoreStats.entries()) {
-      teamCoreStats.set(teamId, adjustSharedCoreStatsAverages(stats, matches.length));
-    }
-
-    return teamCoreStats;
   }
 
   private transformTeamStats(matchBestValues: Map<string, number>, teamStats: StatsCollection): MatchStatsValues[] {
