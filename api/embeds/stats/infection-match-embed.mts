@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
@@ -18,9 +19,9 @@ export class InfectionMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mult
       [
         "Time as last spartan standing",
         {
-          value: this.haloService.getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
+          value: getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding, this.locale),
+          display: getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding, this.locale),
         },
       ],
       ["Spartans infected", { value: stats.InfectionSTats.SpartansInfected, sortBy: StatsValueSortBy.DESC }],

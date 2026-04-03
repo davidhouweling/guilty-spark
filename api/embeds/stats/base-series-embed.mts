@@ -1,5 +1,6 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
+import { getDurationInIsoString, getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed } from "./base-match-embed.mjs";
 
@@ -76,9 +77,9 @@ export abstract class BaseSeriesEmbed extends BaseMatchEmbed<GameVariantCategory
     }
 
     const accLifeDurationInSeconds = averageLifeDurations
-      .map((duration) => this.haloService.getDurationInSeconds(duration))
+      .map((duration) => getDurationInSeconds(duration))
       .reduce((a, b) => a + b, 0);
     const accAverageLifeDuration = accLifeDurationInSeconds / averageLifeDurations.length;
-    return this.haloService.getDurationInIsoString(accAverageLifeDuration);
+    return getDurationInIsoString(accAverageLifeDuration);
   }
 }

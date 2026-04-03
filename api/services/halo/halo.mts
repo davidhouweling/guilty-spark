@@ -14,6 +14,7 @@ import type {
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
@@ -519,44 +520,6 @@ export class HaloService {
     }
   }
 
-  getDurationInSeconds(duration: string): number {
-    const parsedDuration = tinyduration.parse(duration);
-    return parseFloat(
-      (
-        (parsedDuration.days ?? 0) * 86400 +
-        (parsedDuration.hours ?? 0) * 3600 +
-        (parsedDuration.minutes ?? 0) * 60 +
-        (parsedDuration.seconds ?? 0)
-      ).toFixed(1),
-    );
-  }
-
-  getDurationInIsoString(seconds: number): string {
-    return tinyduration.serialize({
-      seconds: parseFloat(seconds.toFixed(1)),
-    });
-  }
-
-  getReadableDuration(duration: string, locale: string): string {
-    const parsedDuration = tinyduration.parse(duration);
-    const { days, hours, minutes, seconds } = parsedDuration;
-    const output: string[] = [];
-    if (days != null && days > 0) {
-      output.push(`${days.toLocaleString(locale)}d`);
-    }
-    if (hours != null && hours > 0) {
-      output.push(`${hours.toLocaleString(locale)}h`);
-    }
-    if (minutes != null && minutes > 0) {
-      output.push(`${minutes.toLocaleString(locale)}m`);
-    }
-    if (seconds != null && seconds > 0) {
-      output.push(`${Math.floor(seconds).toLocaleString(locale)}s`);
-    }
-
-    return output.length ? output.join(" ") : "0s";
-  }
-
   async getMedal(medalId: number): Promise<Medal | undefined> {
     this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
       cf: {
@@ -705,7 +668,7 @@ export class HaloService {
         matchId: match.MatchId,
         startTime: dateTimeFormat.format(startDate),
         endTime: dateTimeFormat.format(endDate),
-        duration: this.getReadableDuration(match.MatchInfo.Duration, locale),
+        duration: getReadableDuration(match.MatchInfo.Duration, locale),
         mapName,
         modeName,
         outcome,

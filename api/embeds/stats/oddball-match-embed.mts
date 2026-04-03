@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
@@ -8,17 +9,17 @@ export class OddballMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multip
       [
         "Total time as carrier",
         {
-          value: this.haloService.getDurationInSeconds(stats.OddballStats.TimeAsSkullCarrier),
+          value: getDurationInSeconds(stats.OddballStats.TimeAsSkullCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.OddballStats.TimeAsSkullCarrier, this.locale),
+          display: getReadableDuration(stats.OddballStats.TimeAsSkullCarrier, this.locale),
         },
       ],
       [
         "Longest time as carrier",
         {
-          value: this.haloService.getDurationInSeconds(stats.OddballStats.LongestTimeAsSkullCarrier),
+          value: getDurationInSeconds(stats.OddballStats.LongestTimeAsSkullCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.OddballStats.LongestTimeAsSkullCarrier, this.locale),
+          display: getReadableDuration(stats.OddballStats.LongestTimeAsSkullCarrier, this.locale),
         },
       ],
     ]);

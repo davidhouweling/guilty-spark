@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
@@ -18,17 +19,17 @@ export class StockpileMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mult
       [
         "Time as power seed carrier",
         {
-          value: this.haloService.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
+          value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier, this.locale),
+          display: getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier, this.locale),
         },
       ],
       [
         "Time as power seed driver",
         {
-          value: this.haloService.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
+          value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver, this.locale),
+          display: getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver, this.locale),
         },
       ],
     ]);

@@ -5,6 +5,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -1084,7 +1085,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
 
-      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
 
       let gameType = "*Unknown Game Type*";

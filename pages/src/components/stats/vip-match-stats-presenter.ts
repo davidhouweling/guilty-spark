@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
 import type { StatsCollection } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -14,17 +15,17 @@ export class VIPMatchStatsPresenter extends BaseMatchStatsPresenter {
       [
         "Longest Time as VIP",
         {
-          value: this.getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
+          value: getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.VipStats.LongestTimeAsVip),
+          display: getReadableDuration(stats.VipStats.LongestTimeAsVip),
         },
       ],
       [
         "Time as VIP",
         {
-          value: this.getDurationInSeconds(stats.VipStats.TimeAsVip),
+          value: getDurationInSeconds(stats.VipStats.TimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.VipStats.TimeAsVip),
+          display: getReadableDuration(stats.VipStats.TimeAsVip),
         },
       ],
     ]);

@@ -12,6 +12,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import {
   addMilliseconds,
   differenceInMilliseconds,
@@ -1326,7 +1327,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         );
       }
 
-      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
 
       let gameType = "*Unknown Game Type*";

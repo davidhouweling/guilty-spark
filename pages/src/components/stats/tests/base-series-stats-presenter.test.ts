@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { MatchStats, Stats } from "halo-infinite-api";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { BaseSeriesStatsPresenter } from "../base-series-stats-presenter";
 import type { MatchStatsPlayerData } from "../types";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
@@ -14,7 +15,7 @@ class TestSeriesStatsPresenter extends BaseSeriesStatsPresenter {
   }
 
   public testGetDurationInSeconds(duration: string): number {
-    return this.getDurationInSeconds(duration);
+    return getDurationInSeconds(duration);
   }
 
   public testGetTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {

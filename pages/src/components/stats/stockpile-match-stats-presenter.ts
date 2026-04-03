@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
 import type { StatsCollection } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -19,17 +20,17 @@ export class StockpileMatchStatsPresenter extends BaseMatchStatsPresenter {
       [
         "Time as power seed carrier",
         {
-          value: this.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
+          value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier),
+          display: getReadableDuration(stats.StockpileStats.TimeAsPowerSeedCarrier),
         },
       ],
       [
         "Time as power seed driver",
         {
-          value: this.getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
+          value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver),
+          display: getReadableDuration(stats.StockpileStats.TimeAsPowerSeedDriver),
         },
       ],
     ]);

@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
@@ -9,9 +10,9 @@ export class StrongholdsMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Mu
       [
         "Occupation time",
         {
-          value: this.haloService.getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
+          value: getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.ZonesStats.StrongholdOccupationTime, this.locale),
+          display: getReadableDuration(stats.ZonesStats.StrongholdOccupationTime, this.locale),
         },
       ],
       ["Secures", { value: stats.ZonesStats.StrongholdSecures, sortBy: StatsValueSortBy.DESC }],

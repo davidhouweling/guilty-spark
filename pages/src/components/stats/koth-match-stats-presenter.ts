@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
 import type { StatsCollection } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -10,9 +11,9 @@ export class KOTHMatchStatsPresenter extends BaseMatchStatsPresenter {
       [
         "Occupation time",
         {
-          value: this.getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
+          value: getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.ZonesStats.StrongholdOccupationTime),
+          display: getReadableDuration(stats.ZonesStats.StrongholdOccupationTime),
         },
       ],
       ["Secures", { value: stats.ZonesStats.StrongholdSecures, sortBy: StatsValueSortBy.DESC }],

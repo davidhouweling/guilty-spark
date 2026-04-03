@@ -1,6 +1,7 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
@@ -88,9 +89,9 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         "Avg life time (damage/life)",
         [
           {
-            value: this.haloService.getDurationInSeconds(CoreStats.AverageLifeDuration),
+            value: getDurationInSeconds(CoreStats.AverageLifeDuration),
             sortBy: StatsValueSortBy.DESC,
-            display: this.haloService.getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
+            display: getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
           },
           {
             value:

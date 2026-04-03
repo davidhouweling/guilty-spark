@@ -13,6 +13,7 @@ import type {
 } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo, MatchPlayer } from "../types.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
@@ -2507,14 +2508,14 @@ describe("Halo service", () => {
   describe("getDurationInSeconds()", () => {
     it("returns the duration in seconds", () => {
       const duration = "PT10M58.2413691S";
-      const result = haloService.getDurationInSeconds(duration);
+      const result = getDurationInSeconds(duration);
 
       expect(result).toBe(658.2);
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
-      const result = haloService.getDurationInSeconds(duration);
+      const result = getDurationInSeconds(duration);
 
       expect(result).toBe(275415.5);
     });
@@ -2523,21 +2524,21 @@ describe("Halo service", () => {
   describe("getReadableDuration()", () => {
     it("returns the duration in a readable format", () => {
       const duration = "PT10M58.2413691S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("10m 58s");
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("3d 4h 30m 15s");
     });
 
     it("returns '0s' when the duration is zero", () => {
       const duration = "PT0S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("0s");
     });

@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseMatchEmbed, StatsValueSortBy } from "./base-match-embed.mjs";
 
@@ -13,17 +14,17 @@ export class VIPMatchEmbed extends BaseMatchEmbed<GameVariantCategory.Multiplaye
       [
         "Longest Time as VIP",
         {
-          value: this.haloService.getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
+          value: getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.VipStats.LongestTimeAsVip, this.locale),
+          display: getReadableDuration(stats.VipStats.LongestTimeAsVip, this.locale),
         },
       ],
       [
         "Time as VIP",
         {
-          value: this.haloService.getDurationInSeconds(stats.VipStats.TimeAsVip),
+          value: getDurationInSeconds(stats.VipStats.TimeAsVip),
           sortBy: StatsValueSortBy.DESC,
-          display: this.haloService.getReadableDuration(stats.VipStats.TimeAsVip, this.locale),
+          display: getReadableDuration(stats.VipStats.TimeAsVip, this.locale),
         },
       ],
     ]);

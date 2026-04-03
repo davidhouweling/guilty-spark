@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
 import type { StatsCollection } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -11,9 +12,9 @@ export class CtfMatchStatsPresenter extends BaseMatchStatsPresenter {
       [
         "Carrier time",
         {
-          value: this.getDurationInSeconds(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
+          value: getDurationInSeconds(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
+          display: getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
         },
       ],
       ["Grabs", { value: stats.CaptureTheFlagStats.FlagGrabs, sortBy: StatsValueSortBy.DESC }],

@@ -1,6 +1,6 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
-import * as tinyduration from "tinyduration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds, getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
 import type { MatchStatsPlayerData, PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {
@@ -67,41 +67,10 @@ export abstract class BaseSeriesStatsPresenter {
     }
 
     const accLifeDurationInSeconds = averageLifeDurations
-      .map((duration) => this.getDurationInSeconds(duration))
+      .map((duration) => getDurationInSeconds(duration))
       .reduce((a, b) => a + b, 0);
     const accAverageLifeDuration = accLifeDurationInSeconds / averageLifeDurations.length;
-    return this.getDurationInIsoString(accAverageLifeDuration);
-  }
-
-  protected getDurationInSeconds(duration: string): number {
-    const parsedDuration = tinyduration.parse(duration);
-    return parseFloat(
-      (
-        (parsedDuration.days ?? 0) * 86400 +
-        (parsedDuration.hours ?? 0) * 3600 +
-        (parsedDuration.minutes ?? 0) * 60 +
-        (parsedDuration.seconds ?? 0)
-      ).toFixed(1),
-    );
-  }
-
-  private getDurationInIsoString(durationInSeconds: number): string {
-    const hours = Math.floor(durationInSeconds / 3600);
-    const minutes = Math.floor((durationInSeconds % 3600) / 60);
-    const seconds = durationInSeconds % 60;
-
-    let output = "PT";
-    if (hours > 0) {
-      output += `${hours.toString()}H`;
-    }
-    if (minutes > 0) {
-      output += `${minutes.toString()}M`;
-    }
-    if (seconds > 0) {
-      output += `${seconds.toFixed(1)}S`;
-    }
-
-    return output === "PT" ? "PT0S" : output;
+    return getDurationInIsoString(accAverageLifeDuration);
   }
 
   protected getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {

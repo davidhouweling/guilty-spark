@@ -1,4 +1,5 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
 import type { StatsCollection } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -19,9 +20,9 @@ export class InfectionMatchStatsPresenter extends BaseMatchStatsPresenter {
       [
         "Time as last spartan standing",
         {
-          value: this.getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
+          value: getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding),
+          display: getReadableDuration(stats.InfectionSTats.TimeAsLastSpartanStanding),
         },
       ],
       ["Spartans infected", { value: stats.InfectionSTats.SpartansInfected, sortBy: StatsValueSortBy.DESC }],

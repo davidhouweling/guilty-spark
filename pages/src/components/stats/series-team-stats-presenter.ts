@@ -1,6 +1,6 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
-import * as tinyduration from "tinyduration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -96,9 +96,9 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
       [
         "Avg life time",
         {
-          value: this.getDurationInSeconds(CoreStats.AverageLifeDuration),
+          value: getDurationInSeconds(CoreStats.AverageLifeDuration),
           sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(CoreStats.AverageLifeDuration),
+          display: getReadableDuration(CoreStats.AverageLifeDuration),
         },
       ],
       [
@@ -115,26 +115,6 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
         },
       ],
     ]);
-  }
-
-  private getReadableDuration(duration: string): string {
-    const parsedDuration = tinyduration.parse(duration);
-    const { days, hours, minutes, seconds } = parsedDuration;
-    const output: string[] = [];
-    if (days != null && days > 0) {
-      output.push(`${days.toLocaleString()}d`);
-    }
-    if (hours != null && hours > 0) {
-      output.push(`${hours.toLocaleString()}h`);
-    }
-    if (minutes != null && minutes > 0) {
-      output.push(`${minutes.toLocaleString()}m`);
-    }
-    if (seconds != null && seconds > 0) {
-      output.push(`${Math.floor(seconds).toLocaleString()}s`);
-    }
-
-    return output.length ? output.join(" ") : "0s";
   }
 
   private formatStatValue(statValue: number): string {
