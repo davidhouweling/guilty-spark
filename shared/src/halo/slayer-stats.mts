@@ -2,12 +2,7 @@ import type { Stats } from "halo-infinite-api";
 import { Preconditions } from "../base/preconditions.mjs";
 import { getDurationInSeconds, getReadableDuration } from "./duration.mjs";
 import { formatDamageRatio, formatStatValue, getSafeRatioValue, StatsValueSortBy } from "./stat-formatting.mjs";
-
-export interface SlayerStatsValue {
-  value: number;
-  sortBy: StatsValueSortBy;
-  display?: string;
-}
+import type { StatsCollection } from "./types.mjs";
 
 interface PlayerSlayerStatsOptions {
   includeRank?: boolean;
@@ -19,10 +14,10 @@ interface PlayerSlayerStatsOptions {
 export function getPlayerSlayerStats(
   coreStats: Stats["CoreStats"],
   options: PlayerSlayerStatsOptions = {},
-): Map<string, SlayerStatsValue> {
+): StatsCollection {
   const { includeRank = false, includeScore = true, rank, locale } = options;
 
-  const slayerStats = new Map<string, SlayerStatsValue>();
+  const slayerStats: StatsCollection = new Map();
 
   if (includeRank) {
     slayerStats.set("Rank", {

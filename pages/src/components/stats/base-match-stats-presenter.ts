@@ -3,13 +3,14 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
+import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import {
   getPlayerXuid,
   getTeamPlayersFromMatches,
   getBestStatValues,
   getBestTeamStatValues,
 } from "@guilty-spark/shared/halo/match-utils";
-import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
+import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
 export abstract class BaseMatchStatsPresenter {
   protected abstract getPlayerObjectiveStats(stats: Stats): StatsCollection;

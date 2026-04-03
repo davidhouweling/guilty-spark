@@ -2,7 +2,7 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { formatStatValue, StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import type { SlayerStatsValue } from "@guilty-spark/shared/halo/slayer-stats";
+import type { StatsValue as SharedStatsValue } from "@guilty-spark/shared/halo/types";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
 export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
@@ -155,7 +155,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     );
   }
 
-  private mapSharedSlayerStatsToEmbed(slayerStats: Map<string, SlayerStatsValue>): EmbedPlayerStats {
+  private mapSharedSlayerStatsToEmbed(slayerStats: Map<string, SharedStatsValue>): EmbedPlayerStats {
     const embedStats: EmbedPlayerStats = new Map();
     for (const [key, value] of slayerStats.entries()) {
       embedStats.set(key, value);

@@ -4,15 +4,6 @@ export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
 
 export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import type { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-
-export interface StatsValue {
-  value: number;
-  sortBy: StatsValueSortBy;
-  display?: string;
-}
-
-export type StatsCollection = Map<string, StatsValue>;
 
 export interface MatchStatsData {
   teamId: number;

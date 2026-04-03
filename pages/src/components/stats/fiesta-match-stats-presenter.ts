@@ -1,5 +1,5 @@
+import type { StatsCollection } from "@guilty-spark/shared/halo/types";
 import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
-import type { StatsCollection } from "./types";
 
 export class FiestaMatchStatsPresenter extends BaseMatchStatsPresenter {
   protected getPlayerObjectiveStats(): StatsCollection {
