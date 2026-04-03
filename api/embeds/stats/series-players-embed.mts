@@ -1,12 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   aggregatePlayerCoreStats,
   getPlayerMatches,
   getSeriesTeamPlayersFromMatches,
-} from "@guilty-spark/shared/halo/series-player-utils";
+} from "@guilty-spark/shared/halo/series-player";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 

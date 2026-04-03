@@ -1,7 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { aggregateTeamCoreStats } from "@guilty-spark/shared/halo/series-team-utils";
+import { aggregateTeamCoreStats } from "@guilty-spark/shared/halo/series-team";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 

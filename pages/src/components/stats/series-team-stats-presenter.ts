@@ -1,11 +1,11 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { aggregateTeamCoreStats as aggregateSharedTeamCoreStats } from "@guilty-spark/shared/halo/series-team-utils";
+import { aggregateTeamCoreStats as aggregateSharedTeamCoreStats } from "@guilty-spark/shared/halo/series-team";
 import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
-import { getBestStatValues, getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
+import { getBestStatValues, getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 

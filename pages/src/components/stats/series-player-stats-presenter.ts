@@ -6,9 +6,9 @@ import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/
 import {
   getPlayerMatches as getSharedPlayerMatches,
   getSeriesTeamPlayersFromMatches,
-} from "@guilty-spark/shared/halo/series-player-utils";
+} from "@guilty-spark/shared/halo/series-player";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
-import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
+import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 

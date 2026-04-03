@@ -1,7 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "../base/preconditions.mjs";
 import { adjustAveragesInCoreStats, mergeCoreStats } from "./series-core-stats.mjs";
-import { getTeamPlayersFromMatches } from "./match-utils.mjs";
+import { getTeamPlayersFromMatches } from "./match-stats.mjs";
 
 export function getPlayerMatches(matches: MatchStats[]): Map<string, MatchStats[]> {
   const playerMatches = new Map<string, MatchStats[]>();

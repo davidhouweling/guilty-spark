@@ -9,7 +9,7 @@ import {
   getTeamPlayersFromMatches,
   getBestStatValues,
   getBestTeamStatValues,
-} from "@guilty-spark/shared/halo/match-utils";
+} from "@guilty-spark/shared/halo/match-stats";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
 export abstract class BaseMatchStatsPresenter {

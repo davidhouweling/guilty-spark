@@ -13,7 +13,7 @@ import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   addMilliseconds,
   differenceInMilliseconds,

@@ -15,7 +15,7 @@ import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError }
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";

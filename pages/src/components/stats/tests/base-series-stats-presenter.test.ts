@@ -3,7 +3,7 @@ import type { MatchStats, Stats } from "halo-infinite-api";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { mergeCoreStats, adjustAveragesInCoreStats } from "@guilty-spark/shared/halo/series-core-stats";
 import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
-import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
+import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
 import { BaseSeriesStatsPresenter } from "../base-series-stats-presenter";
 import type { MatchStatsPlayerData } from "../types";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
