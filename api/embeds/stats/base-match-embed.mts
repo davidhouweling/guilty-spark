@@ -1,14 +1,10 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import {
-  formatDamageRatio,
-  formatStatValue,
-  getSafeRatioValue,
-  StatsValueSortBy,
-} from "@guilty-spark/shared/halo/stat-formatting";
-import { getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
+import { formatStatValue, StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
+import type { SlayerStatsValue } from "@guilty-spark/shared/halo/slayer-stats";
+import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
+import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
 export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
@@ -50,56 +46,12 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   protected abstract getPlayerObjectiveStats(stats: Stats): EmbedPlayerStats;
 
   protected getPlayerSlayerStats(stats: Stats): EmbedPlayerStats {
-    const { CoreStats } = stats;
-    return new Map([
-      ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
-      ["Deaths", { value: CoreStats.Deaths, sortBy: StatsValueSortBy.ASC }],
-      ["Assists", { value: CoreStats.Assists, sortBy: StatsValueSortBy.DESC }],
-      ["KDA", { value: CoreStats.KDA, sortBy: StatsValueSortBy.DESC }],
-      ["Headshot kills", { value: CoreStats.HeadshotKills, sortBy: StatsValueSortBy.DESC }],
-      [
-        "Shots H:F (acc)",
-        [
-          { value: CoreStats.ShotsHit, sortBy: StatsValueSortBy.DESC },
-          { value: CoreStats.ShotsFired, sortBy: StatsValueSortBy.DESC },
-          {
-            value: CoreStats.Accuracy,
-            sortBy: StatsValueSortBy.DESC,
-            display: `(${formatStatValue(CoreStats.Accuracy, this.locale)}%)`,
-            prefix: " ",
-          },
-        ],
-      ],
-      [
-        "Damage D:T (D/T)",
-        [
-          { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
-          { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
-          {
-            value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.DamageTaken),
-            sortBy: StatsValueSortBy.DESC,
-            display: `(${formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken, this.locale)})`,
-            prefix: " ",
-          },
-        ],
-      ],
-      [
-        "Avg life time (damage/life)",
-        [
-          {
-            value: getDurationInSeconds(CoreStats.AverageLifeDuration),
-            sortBy: StatsValueSortBy.DESC,
-            display: getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
-          },
-          {
-            value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.Deaths),
-            sortBy: StatsValueSortBy.DESC,
-            display: `(${formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths, this.locale)})`,
-            prefix: " ",
-          },
-        ],
-      ],
-    ]);
+    const sharedSlayerStats = getSharedPlayerSlayerStats(stats.CoreStats, {
+      includeScore: false,
+      locale: this.locale,
+    });
+
+    return this.mapSharedSlayerStatsToEmbed(sharedSlayerStats);
   }
 
   async getEmbed(match: MatchStats, players: Map<string, string>): Promise<APIEmbed> {
@@ -141,7 +93,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
 
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
-        const playerXuid = this.haloService.getPlayerXuid(teamPlayer);
+        const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag =
           teamPlayer.PlayerType === 1
             ? Preconditions.checkExists(
@@ -201,6 +153,66 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     return Array.from(playerStats.entries()).map(
       ([key, value]) => `${key}: ${this.getStatsValue(matchBestValues, teamBestValues, key, value)}`,
     );
+  }
+
+  private mapSharedSlayerStatsToEmbed(slayerStats: Map<string, SlayerStatsValue>): EmbedPlayerStats {
+    const embedStats: EmbedPlayerStats = new Map();
+    for (const [key, value] of slayerStats.entries()) {
+      embedStats.set(key, value);
+    }
+
+    const takeStat = (key: string): StatsValue => {
+      const value = Preconditions.checkExists(embedStats.get(key), `Expected slayer stat '${key}'`);
+      if (Array.isArray(value)) {
+        throw new Error(`Expected single stat value for '${key}'`);
+      }
+
+      embedStats.delete(key);
+      return value;
+    };
+
+    const shotsHit = takeStat("Shots hit");
+    const shotsFired = takeStat("Shots fired");
+    const accuracy = takeStat("Accuracy");
+
+    const damageDealt = takeStat("Damage dealt");
+    const damageTaken = takeStat("Damage taken");
+    const damageRatio = takeStat("Damage ratio");
+
+    const avgLifeTime = takeStat("Avg life time");
+    const avgDamagePerLife = takeStat("Avg damage per life");
+
+    embedStats.set("Shots H:F (acc)", [
+      shotsHit,
+      shotsFired,
+      {
+        value: accuracy.value,
+        sortBy: accuracy.sortBy,
+        display: `(${Preconditions.checkExists(accuracy.display)})`,
+        prefix: " ",
+      },
+    ]);
+    embedStats.set("Damage D:T (D/T)", [
+      damageDealt,
+      damageTaken,
+      {
+        value: damageRatio.value,
+        sortBy: damageRatio.sortBy,
+        display: `(${Preconditions.checkExists(damageRatio.display)})`,
+        prefix: " ",
+      },
+    ]);
+    embedStats.set("Avg life time (damage/life)", [
+      avgLifeTime,
+      {
+        value: avgDamagePerLife.value,
+        sortBy: avgDamagePerLife.sortBy,
+        display: `(${Preconditions.checkExists(avgDamagePerLife.display)})`,
+        prefix: " ",
+      },
+    ]);
+
+    return embedStats;
   }
 
   protected async playerMedalsToFields(coreStats: Stats["CoreStats"]): Promise<string> {

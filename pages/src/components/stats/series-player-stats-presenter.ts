@@ -1,8 +1,8 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import {
   getBestStatValues,
   getBestTeamStatValues,
@@ -11,7 +11,6 @@ import {
 } from "@guilty-spark/shared/halo/match-utils";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
-import { StatsValueSortBy } from "./types";
 
 export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
   getSeriesData(
@@ -94,52 +93,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
   }
 
   private getPlayerSlayerStats(stats: Stats): StatsCollection {
-    const { CoreStats } = stats;
-
-    return new Map([
-      ["Score", { value: CoreStats.PersonalScore, sortBy: StatsValueSortBy.DESC }],
-      ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
-      ["Deaths", { value: CoreStats.Deaths, sortBy: StatsValueSortBy.ASC }],
-      ["Assists", { value: CoreStats.Assists, sortBy: StatsValueSortBy.DESC }],
-      ["KDA", { value: CoreStats.KDA, sortBy: StatsValueSortBy.DESC }],
-      ["Headshot kills", { value: CoreStats.HeadshotKills, sortBy: StatsValueSortBy.DESC }],
-      ["Shots hit", { value: CoreStats.ShotsHit, sortBy: StatsValueSortBy.DESC }],
-      ["Shots fired", { value: CoreStats.ShotsFired, sortBy: StatsValueSortBy.DESC }],
-      [
-        "Accuracy",
-        {
-          value: CoreStats.Accuracy,
-          sortBy: StatsValueSortBy.DESC,
-          display: `${formatStatValue(CoreStats.Accuracy)}%`,
-        },
-      ],
-      ["Damage dealt", { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC }],
-      ["Damage taken", { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC }],
-      [
-        "Damage ratio",
-        {
-          value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.DamageTaken),
-          sortBy: StatsValueSortBy.DESC,
-          display: formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
-        },
-      ],
-      [
-        "Avg life time",
-        {
-          value: getDurationInSeconds(CoreStats.AverageLifeDuration),
-          sortBy: StatsValueSortBy.DESC,
-          display: getReadableDuration(CoreStats.AverageLifeDuration),
-        },
-      ],
-      [
-        "Avg damage per life",
-        {
-          value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.Deaths),
-          sortBy: StatsValueSortBy.DESC,
-          display: formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
-        },
-      ],
-    ]);
+    return getSharedPlayerSlayerStats(stats.CoreStats);
   }
 
   private transformStats(
