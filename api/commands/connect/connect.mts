@@ -17,6 +17,8 @@ import {
   InteractionType,
 } from "discord-api-types/v10";
 import { getTime } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
   BaseInteraction,
   ExecuteResponse,
@@ -24,10 +26,8 @@ import type {
   ComponentHandlerMap,
 } from "../base/base-command.mjs";
 import { BaseCommand } from "../base/base-command.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import { EndUserError } from "../../base/end-user-error.mjs";
 import { ConnectSuccessEmbed } from "../../embeds/connect/connect-success-embed.mjs";
 import { ConnectHistoryEmbed } from "../../embeds/connect/connect-history-embed.mjs";

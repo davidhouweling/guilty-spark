@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   computeSkill,
   isValidCounterfactual,
@@ -7,7 +8,6 @@ import {
   skillRankCombined,
 } from "../skill-helpers.mjs";
 import { getMatchSkillData } from "../fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("skill-helpers", () => {
   describe("computeSkill()", () => {

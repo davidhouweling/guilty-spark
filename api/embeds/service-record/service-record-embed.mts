@@ -1,10 +1,10 @@
 import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord, MatchCount } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/payloads/v10";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import { AssociationReason } from "../../services/database/types/discord_associations.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 
 interface ServiceRecordEmbedServices {

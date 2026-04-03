@@ -1,5 +1,5 @@
 import type { APIEmbed } from "discord-api-types/v10";
-import { Preconditions } from "../base/preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 export abstract class BaseTableEmbed {
   protected addEmbedFields(embed: APIEmbed, titles: string[], data: string[][]): void {

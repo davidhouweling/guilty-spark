@@ -1,5 +1,6 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LiveTrackerIndividualDO } from "../live-tracker-individual-do.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -8,7 +9,6 @@ import { DiscordError } from "../../../services/discord/discord-error.mjs";
 import { apiMessage, guild } from "../../../services/discord/fakes/data.mjs";
 import { aFakeDurableObjectId } from "../../fakes/live-tracker-do.fake.mjs";
 import { getMatchStats } from "../../../services/halo/fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import {
   aFakeLiveTrackerIndividualStateWith,
   aFakeDiscordTargetWith,

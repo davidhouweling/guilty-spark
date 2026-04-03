@@ -1,6 +1,6 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
-import { Preconditions } from "../../base/preconditions";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MatchStatsPlayerData, PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {

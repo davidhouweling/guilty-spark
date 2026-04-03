@@ -7,8 +7,8 @@ import type {
   LiveTrackerStateMessage,
 } from "@guilty-spark/contracts/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
-import { Preconditions } from "../../base/preconditions";
-import { UnreachableError } from "../../base/unreachable-error";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
   LiveTrackerGroupRenderModel,
   LiveTrackerMatchRenderModel,

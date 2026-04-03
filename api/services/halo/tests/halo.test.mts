@@ -12,6 +12,7 @@ import type {
   UgcGameVariantAsset,
 } from "halo-infinite-api";
 import { sub } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo, MatchPlayer } from "../types.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
@@ -27,7 +28,6 @@ import {
   aFakeMapAssetWith,
 } from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";

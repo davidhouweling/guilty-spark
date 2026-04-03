@@ -1,6 +1,6 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import * as tinyduration from "tinyduration";
-import { Preconditions } from "../../base/preconditions";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 

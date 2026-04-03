@@ -1,5 +1,6 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, vi, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { NeatQueueService } from "../neatqueue.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import {
@@ -33,7 +34,6 @@ import type {
   LiveTrackerRefreshResponse,
 } from "../../../durable-objects/types.mjs";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("NeatQueueService Live Tracker Integration", () => {
   // align this with time just after ctf.json match completed

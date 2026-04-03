@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UnreachableError } from "../unreachable-error.mjs";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 describe("UnreachableError", () => {
   it("creates an error with the specified value in the message", () => {
@@ -7,7 +7,7 @@ describe("UnreachableError", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe("UnreachableError");
-    expect(error.message).toBe("Unreachable code with specified value: test-value");
+    expect(error.message).toBe('Unreachable value supplied: "test-value"');
   });
 
   it("has correct error name", () => {

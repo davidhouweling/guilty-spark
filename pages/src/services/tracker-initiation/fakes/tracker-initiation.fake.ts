@@ -1,8 +1,8 @@
 import { sampleIndividualTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LiveTrackerMatchRenderModel } from "../../../components/live-tracker/types";
 import type { MatchHistoryEntry, MatchHistoryResponse } from "../../../components/tracker-initiation/types";
 import type { StartTrackerRequest, StartTrackerResponse, TrackerInitiationService } from "../types";
-import { UnreachableError } from "../../../base/unreachable-error";
 
 export interface FakeTrackerInitiationServiceOptions {
   readonly customGameIndices?: readonly number[];

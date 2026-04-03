@@ -1,6 +1,6 @@
 import React from "react";
 import classNames from "classnames";
-import { UnreachableError } from "../../base/unreachable-error";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import styles from "./alert.module.css";
 
 export type AlertVariant = "info" | "success" | "warning" | "error";

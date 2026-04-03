@@ -1,7 +1,7 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../../services/halo/halo.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
 import type { Medal } from "../../services/halo/types.mjs";

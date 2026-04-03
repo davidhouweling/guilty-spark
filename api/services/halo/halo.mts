@@ -13,11 +13,12 @@ import type {
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
-import { Preconditions } from "../../base/preconditions.mjs";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
@@ -915,97 +916,7 @@ export class HaloService {
   }
 
   getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
-    if (csr >= 1500) {
-      return { rankTier: "Onyx", subTier: 0 };
-    }
-    if (csr >= 1450) {
-      return { rankTier: "Diamond", subTier: 5 };
-    }
-    if (csr >= 1400) {
-      return { rankTier: "Diamond", subTier: 4 };
-    }
-    if (csr >= 1350) {
-      return { rankTier: "Diamond", subTier: 3 };
-    }
-    if (csr >= 1300) {
-      return { rankTier: "Diamond", subTier: 2 };
-    }
-    if (csr >= 1250) {
-      return { rankTier: "Diamond", subTier: 1 };
-    }
-    if (csr >= 1200) {
-      return { rankTier: "Diamond", subTier: 0 };
-    }
-    if (csr >= 1150) {
-      return { rankTier: "Platinum", subTier: 5 };
-    }
-    if (csr >= 1100) {
-      return { rankTier: "Platinum", subTier: 4 };
-    }
-    if (csr >= 1050) {
-      return { rankTier: "Platinum", subTier: 3 };
-    }
-    if (csr >= 1000) {
-      return { rankTier: "Platinum", subTier: 2 };
-    }
-    if (csr >= 950) {
-      return { rankTier: "Platinum", subTier: 1 };
-    }
-    if (csr >= 900) {
-      return { rankTier: "Platinum", subTier: 0 };
-    }
-    if (csr >= 850) {
-      return { rankTier: "Gold", subTier: 5 };
-    }
-    if (csr >= 800) {
-      return { rankTier: "Gold", subTier: 4 };
-    }
-    if (csr >= 750) {
-      return { rankTier: "Gold", subTier: 3 };
-    }
-    if (csr >= 700) {
-      return { rankTier: "Gold", subTier: 2 };
-    }
-    if (csr >= 650) {
-      return { rankTier: "Gold", subTier: 1 };
-    }
-    if (csr >= 600) {
-      return { rankTier: "Gold", subTier: 0 };
-    }
-    if (csr >= 550) {
-      return { rankTier: "Silver", subTier: 5 };
-    }
-    if (csr >= 500) {
-      return { rankTier: "Silver", subTier: 4 };
-    }
-    if (csr >= 450) {
-      return { rankTier: "Silver", subTier: 3 };
-    }
-    if (csr >= 400) {
-      return { rankTier: "Silver", subTier: 2 };
-    }
-    if (csr >= 350) {
-      return { rankTier: "Silver", subTier: 1 };
-    }
-    if (csr >= 300) {
-      return { rankTier: "Silver", subTier: 0 };
-    }
-    if (csr >= 250) {
-      return { rankTier: "Bronze", subTier: 5 };
-    }
-    if (csr >= 200) {
-      return { rankTier: "Bronze", subTier: 4 };
-    }
-    if (csr >= 150) {
-      return { rankTier: "Bronze", subTier: 3 };
-    }
-    if (csr >= 100) {
-      return { rankTier: "Bronze", subTier: 2 };
-    }
-    if (csr >= 50) {
-      return { rankTier: "Bronze", subTier: 1 };
-    }
-    return { rankTier: "Bronze", subTier: 0 };
+    return getRankTierFromCsr(csr);
   }
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {

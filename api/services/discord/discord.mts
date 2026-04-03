@@ -37,11 +37,11 @@ import {
   PermissionFlagsBits,
   OverwriteType,
 } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { BaseCommand, BaseInteraction } from "../../commands/base/base-command.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason } from "../database/types/discord_associations.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { TimeInSeconds } from "../halo/types.mjs";

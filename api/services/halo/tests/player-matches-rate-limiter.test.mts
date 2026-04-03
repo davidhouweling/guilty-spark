@@ -1,9 +1,9 @@
 import type { Mock } from "vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { RequestError } from "halo-infinite-api";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { PlayerMatchesRateLimiter } from "../player-matches-rate-limiter.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 
 describe("PlayerMatchesRateLimiter", () => {
   let rateLimiter: PlayerMatchesRateLimiter;

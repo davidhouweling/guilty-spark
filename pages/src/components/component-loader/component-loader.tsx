@@ -1,4 +1,4 @@
-import { UnreachableError } from "../../base/unreachable-error";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 export enum ComponentLoaderStatus {
   PENDING = "PENDING",

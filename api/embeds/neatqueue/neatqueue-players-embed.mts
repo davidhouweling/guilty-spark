@@ -5,8 +5,8 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DiscordService } from "../../services/discord/discord.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { BaseTableEmbed } from "../base-table-embed.mjs";

@@ -2,9 +2,9 @@ import "dotenv/config";
 import { inspect } from "util";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import { APIVersion, Routes } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getCommands } from "../commands/commands.mjs";
 import type { Services } from "../services/install.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
 import type { ApplicationCommandData } from "../commands/base/base-command.mjs";
 
 const env: Pick<Env, "DISCORD_APP_ID" | "DISCORD_TOKEN"> = {

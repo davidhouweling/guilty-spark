@@ -3,7 +3,7 @@ import {
   sampleLiveTrackerStateMessage,
   sampleIndividualTrackerStateMessage,
 } from "@guilty-spark/contracts/live-tracker/fakes/data";
-import { UnreachableError } from "../../../base/unreachable-error";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 export interface LiveTrackerScenario {
   readonly intervalMs: number;

@@ -15,6 +15,7 @@ import {
   Locale,
   ComponentType,
 } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { ConnectCommand, InteractionButton } from "../connect.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -28,7 +29,6 @@ import {
 import { aFakeDiscordAssociationsRow } from "../../../services/database/fakes/database.fake.mjs";
 import type { DiscordAssociationsRow } from "../../../services/database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../../../services/database/types/discord_associations.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { EndUserErrorColor } from "../../../base/end-user-error.mjs";
 

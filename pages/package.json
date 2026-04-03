@@ -18,6 +18,7 @@
     "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/react": "^4.3.1",
     "@guilty-spark/contracts": "file:../contracts",
+    "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^8.21.3",
     "astro": "^5.18.0",
     "classnames": "^2.5.1",

@@ -1,0 +1,10 @@
+{
+  "name": "@guilty-spark/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./base/*": "./src/base/*.mts",
+    "./halo/*": "./src/halo/*.mts"
+  }
+}

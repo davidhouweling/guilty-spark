@@ -31,6 +31,7 @@ import type {
   LiveTrackerSingleMatchGroup,
 } from "@guilty-spark/contracts/live-tracker/types";
 import type { SeriesData, SeriesId } from "@guilty-spark/contracts/live-tracker/series-types";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
@@ -39,7 +40,6 @@ import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type {
   LiveTrackerIndividualStartRequest,
   LiveTrackerIndividualWebStartRequest,

@@ -1,4 +1,4 @@
-import { Preconditions } from "../../base/preconditions";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LiveTrackerMatchRenderModel } from "../live-tracker/types";
 
 export interface SeriesMetadata {

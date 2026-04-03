@@ -4,6 +4,7 @@ import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -14,7 +15,6 @@ import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
 import { DiscordError } from "../services/discord/discord-error.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
 import type { SeriesData } from "../services/halo/types.mjs";
 import type {
   LiveTrackerStartRequest,

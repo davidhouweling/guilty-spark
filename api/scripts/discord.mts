@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import type { APIGuild } from "discord-api-types/v10";
 import { APIVersion, Routes } from "discord-api-types/v10";
-import { Preconditions } from "../base/preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

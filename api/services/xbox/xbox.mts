@@ -1,6 +1,6 @@
 import { XSAPIClient, type authenticate } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
-import { Preconditions } from "../../base/preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types.mjs";
 
 export interface XboxServiceOpts {

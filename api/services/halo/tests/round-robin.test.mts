@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { generateRoundRobinMaps } from "../round-robin.mjs";
 import { CURRENT_HCS_MAPS, HCS_SET_FORMAT, ALL_MODES } from "../hcs.mjs";
 import type { MapMode } from "../hcs.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 
 // Minimal fake pool for deterministic tests
 const fakePool: { mode: MapMode; map: string }[] = [

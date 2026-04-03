@@ -1,11 +1,11 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { Services } from "../../services/types";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
-import { UnreachableError } from "../../base/unreachable-error";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
 import type { LiveTrackerViewModel } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";

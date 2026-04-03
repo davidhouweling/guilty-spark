@@ -2,6 +2,7 @@ import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LiveTrackerDO } from "../live-tracker-do.mjs";
 import { installFakeServicesWith } from "../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../base/fakes/env.fake.mjs";
@@ -11,7 +12,6 @@ import { aGuildMemberWith, apiMessage, guild } from "../../services/discord/fake
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake.mjs";
 import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake.mjs";
 import { getMatchStats } from "../../services/halo/fakes/data.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type { LiveTrackerStartRequest, LiveTrackerState } from "../types.mjs";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Preconditions } from "../preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 describe("Preconditions", () => {
   describe("checkExists", () => {

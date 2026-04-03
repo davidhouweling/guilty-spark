@@ -1,6 +1,6 @@
 import { ApplicationCommandType, InteractionType } from "discord-api-types/v10";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { Services } from "../services/install.mjs";
-import { UnreachableError } from "../base/unreachable-error.mjs";
 import type { BaseCommand } from "./base/base-command.mjs";
 import { ConnectCommand } from "./connect/connect.mjs";
 import { StatsCommand } from "./stats/stats.mjs";
