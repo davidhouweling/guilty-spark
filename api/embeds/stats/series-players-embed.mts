@@ -1,7 +1,13 @@
-import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { EmbedPlayerStats, PlayerTeamStats } from "./base-match-embed.mjs";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
+import {
+  aggregatePlayerCoreStats,
+  getPlayerMatches,
+  getSeriesTeamPlayersFromMatches,
+} from "@guilty-spark/shared/halo/series-player-utils";
+import type { EmbedPlayerStats } from "./base-match-embed.mjs";
 import { BaseSeriesEmbed } from "./base-series-embed.mjs";
 
 export class SeriesPlayersEmbed extends BaseSeriesEmbed {
@@ -9,8 +15,8 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const embeds: APIEmbed[] = [];
 
-    const playerMatches = this.getPlayerMatches(matches);
-    const playersCoreStats = this.aggregatePlayerCoreStats(matches);
+    const playerMatches = getPlayerMatches(matches);
+    const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
     for (const [playerId, stats] of playersCoreStats) {
       playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
@@ -25,16 +31,12 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         fields: [],
       };
 
-      const teamPlayers = this.getTeamPlayers(matches, team).sort(
-        (a, b) =>
-          Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
-          Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
-      );
+      const teamPlayers = getSeriesTeamPlayersFromMatches(matches, team, playersCoreStats);
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       let playerFields = [];
       for (const teamPlayer of teamPlayers) {
-        const playerXuid = this.haloService.getPlayerXuid(teamPlayer);
+        const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag =
           teamPlayer.PlayerType === 1
             ? Preconditions.checkExists(
@@ -87,52 +89,5 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     }
 
     return embeds;
-  }
-
-  getPlayerMatches(matches: MatchStats[]): Map<string, MatchStats[]> {
-    const playerMatches = new Map<string, MatchStats[]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        const pm = playerMatches.get(player.PlayerId) ?? [];
-        pm.push(match);
-        playerMatches.set(player.PlayerId, pm);
-      }
-    }
-
-    return playerMatches;
-  }
-
-  private aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
-    const playerCoreStats = new Map<string, Stats["CoreStats"]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        const { PlayerId } = player;
-        const stats = Preconditions.checkExists(player.PlayerTeamStats[0]) as PlayerTeamStats<GameVariantCategory>;
-        const { CoreStats } = stats.Stats;
-
-        if (!playerCoreStats.has(PlayerId)) {
-          playerCoreStats.set(PlayerId, CoreStats);
-          continue;
-        }
-
-        const mergedStats = this.mergeCoreStats(Preconditions.checkExists(playerCoreStats.get(PlayerId)), CoreStats);
-        playerCoreStats.set(PlayerId, mergedStats);
-      }
-    }
-
-    // adjust some of the values which should be averages rather than sums
-    for (const [playerId, stats] of playerCoreStats.entries()) {
-      playerCoreStats.set(playerId, this.adjustAveragesInCoreStats(stats, matches.length));
-    }
-
-    return playerCoreStats;
   }
 }

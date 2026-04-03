@@ -3,13 +3,12 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
-import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import {
-  getBestStatValues,
-  getBestTeamStatValues,
-  getPlayerXuid,
-  getTeamPlayersFromMatches,
-} from "@guilty-spark/shared/halo/match-utils";
+  getPlayerMatches as getSharedPlayerMatches,
+  getSeriesTeamPlayersFromMatches,
+} from "@guilty-spark/shared/halo/series-player-utils";
+import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
+import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
@@ -22,7 +21,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
 
-    const playerMatches = this.getPlayerMatches(matches);
+    const playerMatches = getSharedPlayerMatches(matches);
     const playersCoreStats = this.aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, StatsCollection>();
     for (const [playerId, stats] of playersCoreStats) {
@@ -32,11 +31,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const seriesBestValues = getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
-      const teamPlayers = getTeamPlayersFromMatches(matches, team).sort(
-        (a, b) =>
-          Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
-          Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
-      );
+      const teamPlayers = getSeriesTeamPlayersFromMatches(matches, team, playersCoreStats);
       const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
 
       const playerStats: MatchStatsPlayerData[] = [];
@@ -74,23 +69,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     }
 
     return results;
-  }
-
-  private getPlayerMatches(matches: MatchStats[]): Map<string, MatchStats[]> {
-    const playerMatches = new Map<string, MatchStats[]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        const pm = playerMatches.get(player.PlayerId) ?? [];
-        pm.push(match);
-        playerMatches.set(player.PlayerId, pm);
-      }
-    }
-
-    return playerMatches;
   }
 
   private getPlayerSlayerStats(stats: Stats): StatsCollection {
