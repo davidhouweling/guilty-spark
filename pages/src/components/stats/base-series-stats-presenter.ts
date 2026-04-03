@@ -1,6 +1,9 @@
 import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getDurationInSeconds, getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
+import {
+  mergeCoreStats as mergeSharedCoreStats,
+  adjustAveragesInCoreStats as adjustSharedCoreStatsAverages,
+} from "@guilty-spark/shared/halo/series-core-stats";
 import type { MatchStatsPlayerData, PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {
@@ -8,69 +11,11 @@ export abstract class BaseSeriesStatsPresenter {
     existingCoreStats: Stats["CoreStats"],
     incomingCoreStats: Stats["CoreStats"],
   ): Stats["CoreStats"] {
-    let mergedCoreStats: Stats["CoreStats"] = { ...existingCoreStats };
-    for (const [key, value] of Object.entries(incomingCoreStats)) {
-      const castKey = key as keyof Stats["CoreStats"];
-
-      if (castKey === "Medals" || castKey === "PersonalScores") {
-        const existingStatMap = new Map(mergedCoreStats[castKey].map((stat) => [stat.NameId, stat]));
-        const castValue = value as Stats["CoreStats"]["Medals"];
-        for (const statValue of castValue) {
-          const existingStat = existingStatMap.get(statValue.NameId);
-          if (existingStat) {
-            existingStatMap.set(statValue.NameId, {
-              ...existingStat,
-              Count: existingStat.Count + statValue.Count,
-              TotalPersonalScoreAwarded: existingStat.TotalPersonalScoreAwarded + statValue.TotalPersonalScoreAwarded,
-            });
-          } else {
-            existingStatMap.set(statValue.NameId, statValue);
-          }
-        }
-
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          [castKey]: Array.from(existingStatMap.values()),
-        };
-      } else if (castKey === "AverageLifeDuration" && typeof value === "string") {
-        const averageLifeDuration = mergedCoreStats[castKey];
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          [castKey]: [averageLifeDuration, value].join(","),
-        };
-      } else if (typeof value === "number" && typeof mergedCoreStats[castKey] === "number") {
-        const oldValue = mergedCoreStats[castKey];
-        mergedCoreStats = {
-          ...mergedCoreStats,
-          [castKey]: oldValue + value,
-        };
-      } else {
-        throw new Error(`Invalid type for key ${key}`);
-      }
-    }
-
-    return mergedCoreStats;
+    return mergeSharedCoreStats(existingCoreStats, incomingCoreStats);
   }
 
   protected adjustAveragesInCoreStats(coreStats: Stats["CoreStats"], matches: number): Stats["CoreStats"] {
-    return {
-      ...coreStats,
-      Accuracy: coreStats.Accuracy / matches,
-      AverageLifeDuration: this.getAccumulatedAverageLifeDuration(coreStats.AverageLifeDuration),
-    };
-  }
-
-  private getAccumulatedAverageLifeDuration(averageLifeDuration: string): string {
-    const averageLifeDurations = averageLifeDuration.split(",");
-    if (averageLifeDurations.length === 1) {
-      return averageLifeDuration;
-    }
-
-    const accLifeDurationInSeconds = averageLifeDurations
-      .map((duration) => getDurationInSeconds(duration))
-      .reduce((a, b) => a + b, 0);
-    const accAverageLifeDuration = accLifeDurationInSeconds / averageLifeDurations.length;
-    return getDurationInIsoString(accAverageLifeDuration);
+    return adjustSharedCoreStatsAverages(coreStats, matches);
   }
 
   protected getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
