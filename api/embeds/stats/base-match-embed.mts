@@ -2,10 +2,11 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { formatStatValue, StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import type { StatsValue as SharedStatsValue } from "@guilty-spark/shared/halo/types";
+import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
 export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
+export type { StatsValue } from "@guilty-spark/shared/halo/types";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
@@ -13,13 +14,6 @@ import type { Medal } from "../../services/halo/types.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
-
-export interface StatsValue {
-  value: number;
-  sortBy: StatsValueSortBy;
-  display?: string;
-  prefix?: string;
-}
 
 export type EmbedPlayerStats = Map<string, StatsValue | StatsValue[]>;
 
@@ -155,7 +149,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     );
   }
 
-  private mapSharedSlayerStatsToEmbed(slayerStats: Map<string, SharedStatsValue>): EmbedPlayerStats {
+  private mapSharedSlayerStatsToEmbed(slayerStats: StatsCollection): EmbedPlayerStats {
     const embedStats: EmbedPlayerStats = new Map();
     for (const [key, value] of slayerStats.entries()) {
       embedStats.set(key, value);

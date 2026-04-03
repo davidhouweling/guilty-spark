@@ -51,6 +51,14 @@ export default defineConfig({
           ],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: "shared",
+          environment: "node",
+          include: ["shared/src/**/*.test.mts", "shared/src/**/*.spec.mts"],
+        },
+      },
     ],
   },
 });
