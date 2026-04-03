@@ -2,6 +2,7 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
@@ -62,7 +63,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           {
             value: CoreStats.Accuracy,
             sortBy: StatsValueSortBy.DESC,
-            display: `(${this.formatStatValue(CoreStats.Accuracy)}%)`,
+            display: `(${formatStatValue(CoreStats.Accuracy, this.locale)}%)`,
             prefix: " ",
           },
         ],
@@ -73,14 +74,9 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
           { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC },
           { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC },
           {
-            value:
-              CoreStats.DamageDealt === 0
-                ? 0
-                : CoreStats.DamageTaken === 0
-                  ? Number.POSITIVE_INFINITY
-                  : CoreStats.DamageDealt / CoreStats.DamageTaken,
+            value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.DamageTaken),
             sortBy: StatsValueSortBy.DESC,
-            display: `(${this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken)})`,
+            display: `(${formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken, this.locale)})`,
             prefix: " ",
           },
         ],
@@ -94,14 +90,9 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
             display: getReadableDuration(CoreStats.AverageLifeDuration, this.locale),
           },
           {
-            value:
-              CoreStats.DamageDealt === 0
-                ? 0
-                : CoreStats.Deaths === 0
-                  ? Number.POSITIVE_INFINITY
-                  : CoreStats.DamageDealt / CoreStats.Deaths,
+            value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.Deaths),
             sortBy: StatsValueSortBy.DESC,
-            display: `(${this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths)})`,
+            display: `(${formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths, this.locale)})`,
             prefix: " ",
           },
         ],
@@ -286,7 +277,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     }
 
     const { value: statValue, display } = value;
-    let outputValue = display ?? this.formatStatValue(statValue);
+    let outputValue = display ?? formatStatValue(statValue, this.locale);
 
     const tbValue = teamBestValues.get(key);
     const teamBestValue = tbValue != null && Array.isArray(tbValue) && index != null ? tbValue[index] : tbValue;
@@ -301,24 +292,6 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
     }
 
     return outputValue;
-  }
-
-  private formatStatValue(statValue: number): string {
-    return Number.isSafeInteger(statValue)
-      ? statValue.toLocaleString(this.locale)
-      : Number(statValue.toFixed(2)).toLocaleString(this.locale);
-  }
-
-  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
-    if (damageDealt === 0) {
-      return "0";
-    }
-
-    if (damageTaken === 0) {
-      return "♾️";
-    }
-
-    return this.formatStatValue(damageDealt / damageTaken);
   }
 
   protected getBestTeamStatValues(

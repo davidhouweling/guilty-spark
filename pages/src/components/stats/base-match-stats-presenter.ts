@@ -1,6 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 
@@ -25,7 +26,7 @@ export abstract class BaseMatchStatsPresenter {
         {
           value: CoreStats.Accuracy,
           sortBy: StatsValueSortBy.DESC,
-          display: `${this.formatStatValue(CoreStats.Accuracy)}%`,
+          display: `${formatStatValue(CoreStats.Accuracy)}%`,
         },
       ],
       ["Damage dealt", { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC }],
@@ -33,14 +34,9 @@ export abstract class BaseMatchStatsPresenter {
       [
         "Damage ratio",
         {
-          value:
-            CoreStats.DamageDealt === 0
-              ? 0
-              : CoreStats.DamageTaken === 0
-                ? Number.POSITIVE_INFINITY
-                : CoreStats.DamageDealt / CoreStats.DamageTaken,
+          value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.DamageTaken),
           sortBy: StatsValueSortBy.DESC,
-          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
+          display: formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
         },
       ],
       [
@@ -54,14 +50,9 @@ export abstract class BaseMatchStatsPresenter {
       [
         "Avg damage per life",
         {
-          value:
-            CoreStats.DamageDealt === 0
-              ? 0
-              : CoreStats.Deaths === 0
-                ? Number.POSITIVE_INFINITY
-                : CoreStats.DamageDealt / CoreStats.Deaths,
+          value: getSafeRatioValue(CoreStats.DamageDealt, CoreStats.Deaths),
           sortBy: StatsValueSortBy.DESC,
-          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
+          display: formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
         },
       ],
     ]);
@@ -158,22 +149,6 @@ export abstract class BaseMatchStatsPresenter {
       }
     }
     return Array.from(medalMap.values()).sort((a, b) => b.sortingWeight - a.sortingWeight);
-  }
-
-  private formatStatValue(statValue: number): string {
-    return Number.isSafeInteger(statValue) ? statValue.toLocaleString() : Number(statValue.toFixed(2)).toLocaleString();
-  }
-
-  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
-    if (damageDealt === 0) {
-      return "0";
-    }
-
-    if (damageTaken === 0) {
-      return "♾️";
-    }
-
-    return this.formatStatValue(damageDealt / damageTaken);
   }
 
   private getBestStatValues(playersStats: Map<string | number, StatsCollection>): Map<string, number> {
@@ -301,7 +276,7 @@ export abstract class BaseMatchStatsPresenter {
       value: statValue,
       bestInTeam: teamBestValues.get(key) === statValue,
       bestInMatch: matchBestValues.get(key) === statValue,
-      display: display ?? this.formatStatValue(statValue),
+      display: display ?? formatStatValue(statValue),
     };
   }
 }
