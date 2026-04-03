@@ -15,6 +15,7 @@ import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError }
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
@@ -235,7 +236,7 @@ export class HaloService {
   }
 
   getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+    return getPlayerXuid(player);
   }
 
   wrapPlayerXuid(xuid: string): string {
@@ -246,7 +247,7 @@ export class HaloService {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
       .filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning)
-      .map((player) => this.getPlayerXuid(player))
+      .map((player) => getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
 
     const uniqueXuids = new Set(xuidsToResolve);
@@ -630,7 +631,7 @@ export class HaloService {
         for (const player of matchDetail.Players) {
           if (player.PlayerType === 1) {
             // Human players only
-            const xuid = this.getPlayerXuid(player);
+            const xuid = getPlayerXuid(player);
             const playerGamertag = xuidToGamertagMap.get(xuid) ?? "*Unknown*";
             const teamId = player.LastTeamId;
 
@@ -766,7 +767,7 @@ export class HaloService {
 
       for (const player of match.Players) {
         if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
-          const xuid = this.getPlayerXuid(player);
+          const xuid = getPlayerXuid(player);
           const teamId = player.LastTeamId;
 
           if (!rosters.has(teamId)) {
@@ -935,7 +936,7 @@ export class HaloService {
     const xuidsFromMatches = new Set(
       matches.flatMap((match) =>
         match.Players.filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning).map(
-          (player) => this.getPlayerXuid(player),
+          (player) => getPlayerXuid(player),
         ),
       ),
     );
@@ -1414,7 +1415,7 @@ export class HaloService {
     for (const player of match.Players) {
       if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
         const teamId = player.LastTeamId;
-        const xuid = this.getPlayerXuid(player);
+        const xuid = getPlayerXuid(player);
 
         if (!xboxPlayersByTeam.has(teamId)) {
           xboxPlayersByTeam.set(teamId, []);

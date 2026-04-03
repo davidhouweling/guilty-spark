@@ -3,6 +3,12 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import {
+  getPlayerXuid,
+  getTeamPlayersFromMatches,
+  getBestStatValues,
+  getBestTeamStatValues,
+} from "@guilty-spark/shared/halo/match-utils";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 
@@ -87,12 +93,12 @@ export abstract class BaseMatchStatsPresenter {
       }),
     );
 
-    const matchBestTeamValues = this.getBestStatValues(teamsStats);
-    const matchBestPlayerValues = this.getBestStatValues(playersStats);
+    const matchBestTeamValues = getBestStatValues(teamsStats);
+    const matchBestPlayerValues = getBestStatValues(playersStats);
 
     for (const team of match.Teams) {
-      const teamPlayers = this.getTeamPlayers([match], team);
-      const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
+      const teamPlayers = getTeamPlayersFromMatches([match], team);
+      const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
       const teamStats = new Map([
         ...this.getPlayerSlayerStats(team.Stats, team.Rank),
         ...this.getPlayerObjectiveStats(team.Stats),
@@ -100,7 +106,7 @@ export abstract class BaseMatchStatsPresenter {
 
       const playerStats: MatchStatsPlayerData[] = [];
       for (const teamPlayer of teamPlayers) {
-        const playerXuid = this.getPlayerXuid(teamPlayer);
+        const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag =
           teamPlayer.PlayerType === 1
             ? Preconditions.checkExists(
@@ -133,84 +139,6 @@ export abstract class BaseMatchStatsPresenter {
       });
     }
     return results;
-  }
-
-  private getBestStatValues(playersStats: Map<string | number, StatsCollection>): Map<string, number> {
-    const bestValues = new Map<string, number>();
-    for (const embedPlayerStats of playersStats.values()) {
-      for (const [key, playerStats] of embedPlayerStats.entries()) {
-        const previousBestValue = bestValues.get(key);
-
-        if (previousBestValue == null) {
-          bestValues.set(key, playerStats.value);
-          continue;
-        }
-
-        bestValues.set(
-          key,
-          playerStats.sortBy === StatsValueSortBy.ASC
-            ? Math.min(previousBestValue, playerStats.value)
-            : Math.max(previousBestValue, playerStats.value),
-        );
-      }
-    }
-
-    return bestValues;
-  }
-
-  private getBestTeamStatValues(
-    playersStats: Map<string, StatsCollection>,
-    teamPlayers: MatchStats["Players"],
-  ): Map<string, number> {
-    const teamPlayersStats = new Map<string, StatsCollection>();
-    for (const teamPlayer of teamPlayers) {
-      const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
-      teamPlayersStats.set(teamPlayer.PlayerId, playerStats);
-    }
-
-    return this.getBestStatValues(teamPlayersStats);
-  }
-
-  private getTeamPlayers(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        if (!uniquePlayersMap.has(player.PlayerId)) {
-          uniquePlayersMap.set(player.PlayerId, player);
-        }
-      }
-    }
-
-    return Array.from(uniquePlayersMap.values())
-      .filter((player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null)
-      .sort((a, b) => {
-        const rankCalc = a.Rank - b.Rank;
-        if (rankCalc !== 0) {
-          return rankCalc;
-        }
-
-        const aStats = Preconditions.checkExists(
-          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        const bStats = Preconditions.checkExists(
-          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-
-        const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
-        if (scoreCalc !== 0) {
-          return scoreCalc;
-        }
-
-        return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
-      });
-  }
-
-  private getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
   }
 
   private extractMedals(

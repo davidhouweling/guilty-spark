@@ -3,6 +3,12 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import {
+  getBestStatValues,
+  getBestTeamStatValues,
+  getPlayerXuid,
+  getTeamPlayersFromMatches,
+} from "@guilty-spark/shared/halo/match-utils";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -23,19 +29,19 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
       playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
     }
 
-    const seriesBestValues = this.getBestStatValues(playersStats);
+    const seriesBestValues = getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
-      const teamPlayers = this.getTeamPlayersFromMatches(matches, team).sort(
+      const teamPlayers = getTeamPlayersFromMatches(matches, team).sort(
         (a, b) =>
           Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
           Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
       );
-      const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
+      const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
 
       const playerStats: MatchStatsPlayerData[] = [];
       for (const teamPlayer of teamPlayers) {
-        const playerXuid = this.getPlayerXuid(teamPlayer);
+        const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag =
           teamPlayer.PlayerType === 1
             ? Preconditions.checkExists(
@@ -134,42 +140,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         },
       ],
     ]);
-  }
-
-  private getBestStatValues(playersStats: Map<string, StatsCollection>): Map<string, number> {
-    const bestValues = new Map<string, number>();
-    for (const statsCollection of playersStats.values()) {
-      for (const [key, playerStats] of statsCollection.entries()) {
-        const previousBestValue = bestValues.get(key);
-
-        if (previousBestValue == null) {
-          bestValues.set(key, playerStats.value);
-          continue;
-        }
-
-        bestValues.set(
-          key,
-          playerStats.sortBy === StatsValueSortBy.ASC
-            ? Math.min(previousBestValue, playerStats.value)
-            : Math.max(previousBestValue, playerStats.value),
-        );
-      }
-    }
-
-    return bestValues;
-  }
-
-  private getBestTeamStatValues(
-    playersStats: Map<string, StatsCollection>,
-    teamPlayers: MatchStats["Players"],
-  ): Map<string, number> {
-    const teamPlayersStats = new Map<string, StatsCollection>();
-    for (const teamPlayer of teamPlayers) {
-      const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
-      teamPlayersStats.set(teamPlayer.PlayerId, playerStats);
-    }
-
-    return this.getBestStatValues(teamPlayersStats);
   }
 
   private transformStats(

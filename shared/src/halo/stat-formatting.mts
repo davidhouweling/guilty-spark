@@ -1,3 +1,8 @@
+export enum StatsValueSortBy {
+  ASC,
+  DESC,
+}
+
 export function formatStatValue(statValue: number, locale?: string): string {
   return Number.isSafeInteger(statValue)
     ? statValue.toLocaleString(locale)

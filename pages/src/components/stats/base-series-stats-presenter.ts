@@ -7,25 +7,6 @@ import {
 import type { PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {
-  protected getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        if (!uniquePlayersMap.has(player.PlayerId)) {
-          uniquePlayersMap.set(player.PlayerId, player);
-        }
-      }
-    }
-
-    return Array.from(uniquePlayersMap.values()).filter(
-      (player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null,
-    );
-  }
-
   protected aggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
     const playerCoreStats = new Map<string, Stats["CoreStats"]>();
     for (const match of matches) {
@@ -54,9 +35,5 @@ export abstract class BaseSeriesStatsPresenter {
     }
 
     return playerCoreStats;
-  }
-
-  public getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
   }
 }

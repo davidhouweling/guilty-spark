@@ -3,10 +3,8 @@ import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
 
-export enum StatsValueSortBy {
-  ASC,
-  DESC,
-}
+export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
+import type { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
 
 export interface StatsValue {
   value: number;

@@ -2,7 +2,14 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
+import {
+  formatDamageRatio,
+  formatStatValue,
+  getSafeRatioValue,
+  StatsValueSortBy,
+} from "@guilty-spark/shared/halo/stat-formatting";
+import { getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
+export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
 import type { HaloService } from "../../services/halo/halo.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { GuildConfigRow } from "../../services/database/types/guild_config.mjs";
@@ -10,11 +17,6 @@ import type { Medal } from "../../services/halo/types.mjs";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
-
-export enum StatsValueSortBy {
-  ASC,
-  DESC,
-}
 
 export interface StatsValue {
   value: number;
@@ -134,7 +136,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
         inline: false,
       });
 
-      const teamPlayers = this.getTeamPlayers([match], team);
+      const teamPlayers = getTeamPlayersFromMatches([match], team);
       const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
 
       let playerFields = [];
@@ -188,41 +190,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
   }
 
   protected getTeamPlayers(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        if (!uniquePlayersMap.has(player.PlayerId)) {
-          uniquePlayersMap.set(player.PlayerId, player);
-        }
-      }
-    }
-
-    return Array.from(uniquePlayersMap.values())
-      .filter((player): boolean => player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId) != null)
-      .sort((a, b) => {
-        const rankCalc = a.Rank - b.Rank;
-        if (rankCalc !== 0) {
-          return rankCalc;
-        }
-
-        const aStats = Preconditions.checkExists(
-          a.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-        const bStats = Preconditions.checkExists(
-          b.PlayerTeamStats.find((teamStats) => teamStats.TeamId === team.TeamId),
-        );
-
-        const scoreCalc = bStats.Stats.CoreStats.Score - aStats.Stats.CoreStats.Score;
-        if (scoreCalc !== 0) {
-          return scoreCalc;
-        }
-
-        return bStats.Stats.CoreStats.PersonalScore - aStats.Stats.CoreStats.PersonalScore;
-      });
+    return getTeamPlayersFromMatches(matches, team);
   }
 
   protected playerStatsToFields(

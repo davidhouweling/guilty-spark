@@ -13,6 +13,7 @@ import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-utils";
 import {
   addMilliseconds,
   differenceInMilliseconds,
@@ -459,9 +460,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         for (const matchId of matchIds) {
           const match = rawMatches[matchId];
           if (match != null) {
-            const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) =>
-              this.haloService.getPlayerXuid(p),
-            );
+            const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
             for (const participant of matchParticipants) {
               participantsSet.add(participant);
             }
@@ -1408,9 +1407,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         continue;
       }
 
-      const participants = new Set(
-        match.Players.filter((p) => p.PlayerType === 1).map((p) => this.haloService.getPlayerXuid(p)),
-      );
+      const participants = new Set(match.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p)));
 
       // Check if same participants as current group
       if (

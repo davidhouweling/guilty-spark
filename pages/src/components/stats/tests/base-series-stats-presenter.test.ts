@@ -3,6 +3,7 @@ import type { MatchStats, Stats } from "halo-infinite-api";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { mergeCoreStats, adjustAveragesInCoreStats } from "@guilty-spark/shared/halo/series-core-stats";
 import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-utils";
 import { BaseSeriesStatsPresenter } from "../base-series-stats-presenter";
 import type { MatchStatsPlayerData } from "../types";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
@@ -21,7 +22,7 @@ class TestSeriesStatsPresenter extends BaseSeriesStatsPresenter {
   }
 
   public testGetTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    return this.getTeamPlayersFromMatches(matches, team);
+    return getTeamPlayersFromMatches(matches, team);
   }
 
   public testAggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
@@ -361,7 +362,7 @@ describe("BaseSeriesStatsPresenter", () => {
     it("extracts XUID from PlayerId", () => {
       const player = { PlayerId: "xuid(1234567890)" };
 
-      const result = presenter.getPlayerXuid(player);
+      const result = getPlayerXuid(player);
 
       expect(result).toBe("1234567890");
     });
