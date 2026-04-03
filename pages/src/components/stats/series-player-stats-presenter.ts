@@ -1,6 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
 import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
@@ -61,7 +62,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         teamId: team.TeamId,
         teamStats: [],
         players: playerStats,
-        teamMedals: this.aggregateTeamMedals(playerStats),
+        teamMedals: aggregateSharedTeamMedals(playerStats),
       });
     }
 

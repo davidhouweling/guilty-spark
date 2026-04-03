@@ -1,17 +1,19 @@
 import { describe, it, expect } from "vitest";
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { mergeCoreStats, adjustAveragesInCoreStats } from "@guilty-spark/shared/halo/series-core-stats";
+import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
 import { BaseSeriesStatsPresenter } from "../base-series-stats-presenter";
 import type { MatchStatsPlayerData } from "../types";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
 
 class TestSeriesStatsPresenter extends BaseSeriesStatsPresenter {
   public testMergeCoreStats(existing: Stats["CoreStats"], incoming: Stats["CoreStats"]): Stats["CoreStats"] {
-    return this.mergeCoreStats(existing, incoming);
+    return mergeCoreStats(existing, incoming);
   }
 
   public testAdjustAveragesInCoreStats(coreStats: Stats["CoreStats"], matches: number): Stats["CoreStats"] {
-    return this.adjustAveragesInCoreStats(coreStats, matches);
+    return adjustAveragesInCoreStats(coreStats, matches);
   }
 
   public testGetDurationInSeconds(duration: string): number {
@@ -29,7 +31,7 @@ class TestSeriesStatsPresenter extends BaseSeriesStatsPresenter {
   public testAggregateTeamMedals(
     players: MatchStatsPlayerData[],
   ): { name: string; count: number; sortingWeight: number }[] {
-    return this.aggregateTeamMedals(players);
+    return aggregateTeamMedals(players);
   }
 }
 

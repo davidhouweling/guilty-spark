@@ -2,6 +2,7 @@ import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { formatDamageRatio, formatStatValue, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, StatsCollection, StatsValue } from "./types";
 import { StatsValueSortBy } from "./types";
 
@@ -128,27 +129,10 @@ export abstract class BaseMatchStatsPresenter {
         teamId: team.TeamId,
         teamStats: this.transformTeamStats(matchBestTeamValues, teamStats),
         players: playerStats,
-        teamMedals: this.aggregateTeamMedals(playerStats),
+        teamMedals: aggregateSharedTeamMedals(playerStats),
       });
     }
     return results;
-  }
-
-  protected aggregateTeamMedals(
-    players: MatchStatsPlayerData[],
-  ): { name: string; count: number; sortingWeight: number }[] {
-    const medalMap = new Map<string, { name: string; count: number; sortingWeight: number }>();
-    for (const player of players) {
-      for (const medal of player.medals) {
-        const existing = medalMap.get(medal.name);
-        if (existing) {
-          existing.count += medal.count;
-        } else {
-          medalMap.set(medal.name, { ...medal });
-        }
-      }
-    }
-    return Array.from(medalMap.values()).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 
   private getBestStatValues(playersStats: Map<string | number, StatsCollection>): Map<string, number> {

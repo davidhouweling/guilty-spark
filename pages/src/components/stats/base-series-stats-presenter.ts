@@ -4,20 +4,9 @@ import {
   mergeCoreStats as mergeSharedCoreStats,
   adjustAveragesInCoreStats as adjustSharedCoreStatsAverages,
 } from "@guilty-spark/shared/halo/series-core-stats";
-import type { MatchStatsPlayerData, PlayerTeamStats } from "./types";
+import type { PlayerTeamStats } from "./types";
 
 export abstract class BaseSeriesStatsPresenter {
-  protected mergeCoreStats(
-    existingCoreStats: Stats["CoreStats"],
-    incomingCoreStats: Stats["CoreStats"],
-  ): Stats["CoreStats"] {
-    return mergeSharedCoreStats(existingCoreStats, incomingCoreStats);
-  }
-
-  protected adjustAveragesInCoreStats(coreStats: Stats["CoreStats"], matches: number): Stats["CoreStats"] {
-    return adjustSharedCoreStatsAverages(coreStats, matches);
-  }
-
   protected getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
     const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
     for (const match of matches) {
@@ -54,14 +43,14 @@ export abstract class BaseSeriesStatsPresenter {
           continue;
         }
 
-        const mergedStats = this.mergeCoreStats(Preconditions.checkExists(playerCoreStats.get(PlayerId)), CoreStats);
+        const mergedStats = mergeSharedCoreStats(Preconditions.checkExists(playerCoreStats.get(PlayerId)), CoreStats);
         playerCoreStats.set(PlayerId, mergedStats);
       }
     }
 
     // adjust some of the values which should be averages rather than sums
     for (const [playerId, stats] of playerCoreStats.entries()) {
-      playerCoreStats.set(playerId, this.adjustAveragesInCoreStats(stats, matches.length));
+      playerCoreStats.set(playerId, adjustSharedCoreStatsAverages(stats, matches.length));
     }
 
     return playerCoreStats;
@@ -69,22 +58,5 @@ export abstract class BaseSeriesStatsPresenter {
 
   public getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
     return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
-  }
-
-  protected aggregateTeamMedals(
-    players: MatchStatsPlayerData[],
-  ): { name: string; count: number; sortingWeight: number }[] {
-    const medalMap = new Map<string, { name: string; count: number; sortingWeight: number }>();
-    for (const player of players) {
-      for (const medal of player.medals) {
-        const existing = medalMap.get(medal.name);
-        if (existing) {
-          existing.count += medal.count;
-        } else {
-          medalMap.set(medal.name, { ...medal });
-        }
-      }
-    }
-    return Array.from(medalMap.values()).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 }
