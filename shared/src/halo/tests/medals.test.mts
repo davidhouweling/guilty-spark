@@ -41,10 +41,12 @@ describe("getMedalMetadataFromMatches", () => {
       },
     };
 
-    const getMedal = vi.fn(async (medalId: number) => ({
-      name: `Medal ${medalId}`,
-      sortingWeight: medalId * 10,
-    }));
+    const getMedal = vi.fn(async (medalId: number) =>
+      Promise.resolve({
+        name: `Medal ${medalId.toString()}`,
+        sortingWeight: medalId * 10,
+      }),
+    );
 
     const result = await getMedalMetadataFromMatches(rawMatches, getMedal);
 
@@ -75,13 +77,13 @@ describe("getMedalMetadataFromMatches", () => {
 
     const getMedal = vi.fn(async (medalId: number) => {
       if (medalId === 2) {
-        return undefined;
+        return Promise.resolve(undefined);
       }
 
-      return {
-        name: `Medal ${medalId}`,
+      return Promise.resolve({
+        name: `Medal ${medalId.toString()}`,
         sortingWeight: medalId * 10,
-      };
+      });
     });
 
     const result = await getMedalMetadataFromMatches(rawMatches, getMedal);
