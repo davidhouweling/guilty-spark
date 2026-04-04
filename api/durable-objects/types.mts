@@ -3,7 +3,7 @@ import type {
   LiveTrackerMatchSummary,
   LiveTrackerStatus,
   PlayerAssociationData,
-} from "@guilty-spark/contracts/live-tracker/types";
+} from "@guilty-spark/shared/live-tracker/types";
 import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 
 // Mutable version of TeamMapping for internal state management

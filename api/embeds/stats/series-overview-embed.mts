@@ -1,6 +1,6 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { isBefore } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";

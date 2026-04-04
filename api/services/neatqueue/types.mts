@@ -1,4 +1,4 @@
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 

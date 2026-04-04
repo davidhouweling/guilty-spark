@@ -8,7 +8,7 @@ import {
   readNullableString,
   readRecord,
   readStringRecord,
-} from "@guilty-spark/contracts/base/json-readers";
+} from "@guilty-spark/shared/base/json-readers";
 
 describe("isJsonObject", () => {
   it("returns true for plain objects", () => {

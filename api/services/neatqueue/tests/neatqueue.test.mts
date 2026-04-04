@@ -10,7 +10,7 @@ import type {
 import { ChannelType } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
-import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";

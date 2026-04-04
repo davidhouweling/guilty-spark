@@ -1,4 +1,4 @@
-import type { LiveTrackerMatchSummary, LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMatchSummary, LiveTrackerStatus } from "@guilty-spark/shared/live-tracker/types";
 
 export interface LiveTrackerEmbedData {
   userId: string;

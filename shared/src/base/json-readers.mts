@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from "./json.mts";
+import type { JsonObject, JsonValue } from "./json.mjs";
 
 export function isJsonObject(value: JsonValue): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -1,4 +1,4 @@
-import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { Services } from "../../services/types";
 import type {

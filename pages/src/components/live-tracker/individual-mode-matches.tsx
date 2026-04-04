@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import classNames from "classnames";
 import { format, parseISO } from "date-fns";
-import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerStatus } from "@guilty-spark/shared/live-tracker/types";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";

@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     "./base/*": "./src/base/*.mts",
-    "./halo/*": "./src/halo/*.mts"
+    "./halo/*": "./src/halo/*.mts",
+    "./live-tracker/*": "./src/live-tracker/*.mts",
+    "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.mts"
   },
   "dependencies": {
     "halo-infinite-api": "^14.2.2"

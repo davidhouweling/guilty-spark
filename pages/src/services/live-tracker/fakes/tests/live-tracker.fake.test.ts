@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 import { FakeLiveTrackerService } from "../live-tracker.fake";
 import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../../types";
 

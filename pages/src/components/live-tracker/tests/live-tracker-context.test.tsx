@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { LiveTrackerViewModel } from "../types";
 import {
   LiveTrackerProvider,

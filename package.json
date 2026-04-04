@@ -9,7 +9,6 @@
   "workspaces": [
     "api",
     "pages",
-    "contracts",
     "shared"
   ],
   "engines": {

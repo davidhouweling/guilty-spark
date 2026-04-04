@@ -1,5 +1,5 @@
-import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
-import { tryParseLiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/parse";
+import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import { tryParseLiveTrackerMessage } from "@guilty-spark/shared/live-tracker/parse";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,

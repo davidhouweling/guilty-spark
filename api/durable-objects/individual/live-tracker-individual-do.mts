@@ -31,8 +31,8 @@ import type {
   LiveTrackerNeatQueueSeriesGroup,
   LiveTrackerManualMatchGroup,
   LiveTrackerSingleMatchGroup,
-} from "@guilty-spark/contracts/live-tracker/types";
-import type { SeriesData, SeriesId } from "@guilty-spark/contracts/live-tracker/series-types";
+} from "@guilty-spark/shared/live-tracker/types";
+import type { SeriesData, SeriesId } from "@guilty-spark/shared/live-tracker/series-types";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";

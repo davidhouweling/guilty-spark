@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from "react";
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStatsData } from "../stats/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { LiveTrackerParams } from "./live-tracker-store";

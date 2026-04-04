@@ -1,6 +1,6 @@
 import React from "react";
 import ReactTimeAgo from "react-time-ago";
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { RankIcon } from "../icons/rank-icon";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";

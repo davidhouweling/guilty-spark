@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
-import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import { SeriesOverviewEmbed } from "../series-overview-embed.mjs";
 import type { SeriesOverviewEmbedSubstitution } from "../series-overview-embed.mjs";

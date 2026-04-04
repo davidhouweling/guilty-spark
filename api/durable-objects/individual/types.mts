@@ -2,8 +2,8 @@ import type {
   LiveTrackerMatchSummary,
   LiveTrackerStatus,
   PlayerAssociationData,
-} from "@guilty-spark/contracts/live-tracker/types";
-import type { SeriesData, SeriesLink } from "@guilty-spark/contracts/live-tracker/series-types";
+} from "@guilty-spark/shared/live-tracker/types";
+import type { SeriesData, SeriesLink } from "@guilty-spark/shared/live-tracker/series-types";
 
 // Input types for individual tracker requests
 export interface LiveTrackerIndividualStartRequest {

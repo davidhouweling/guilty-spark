@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 
 import { PlayerPreSeriesInfo } from "../player-pre-series-info";
 import type { TeamColor } from "../../team-colors/team-colors";

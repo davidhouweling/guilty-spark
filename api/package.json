@@ -19,7 +19,6 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@guilty-spark/contracts": "file:../contracts",
     "@guilty-spark/shared": "file:../shared",
     "@sentry/cli": "^3.3.5",
     "@sentry/cloudflare": "^10.47.0",

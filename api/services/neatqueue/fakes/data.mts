@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { aFakePlayerAssociationDataWith } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
   NeatQueueJoinQueueRequest,

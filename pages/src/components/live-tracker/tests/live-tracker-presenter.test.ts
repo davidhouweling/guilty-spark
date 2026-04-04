@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
-import { sampleLiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
 import type {
   LiveTrackerConnection,

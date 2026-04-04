@@ -1,4 +1,4 @@
-import { sampleIndividualTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import { sampleIndividualTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LiveTrackerMatchRenderModel } from "../../../components/live-tracker/types";
 import type { MatchHistoryEntry, MatchHistoryResponse } from "../../../components/tracker-initiation/types";

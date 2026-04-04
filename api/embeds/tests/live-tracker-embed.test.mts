@@ -1,7 +1,7 @@
 import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
-import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LiveTrackerEmbed } from "../live-tracker-embed.mjs";
 import type { LiveTrackerEmbedData } from "../../live-tracker/types.mjs";
