@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./base/*": "./src/base/*.mts",
-    "./halo/*": "./src/halo/*.mts",
-    "./live-tracker/*": "./src/live-tracker/*.mts",
-    "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.mts"
+    "./base/*": "./src/base/*.ts",
+    "./halo/*": "./src/halo/*.ts",
+    "./live-tracker/*": "./src/live-tracker/*.ts",
+    "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.ts"
   },
   "dependencies": {
     "halo-infinite-api": "^14.2.2"

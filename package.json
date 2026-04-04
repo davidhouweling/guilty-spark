@@ -4,7 +4,6 @@
   "author": "David Houweling",
   "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
-  "type": "module",
   "private": true,
   "workspaces": [
     "api",

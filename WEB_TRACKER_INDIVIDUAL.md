@@ -170,7 +170,7 @@ Create a web version of the individual tracker feature that allows users to view
 ### Phase 1: Individual DO Type Updates
 
 - [x] Add optional `seriesId` field to match groupings in `LiveTrackerIndividualState`
-- [x] Update type definitions in `api/durable-objects/individual/types.mts`
+- [x] Update type definitions in `api/durable-objects/individual/types.ts`
 
 ### Phase 2: Individual DO Alarm Logic ✅ COMPLETED
 
@@ -199,7 +199,7 @@ Create a web version of the individual tracker feature that allows users to view
 
 ### Phase 4: API Server Routes ✅ COMPLETED
 
-- [x] Add `/ws/tracker/individual/:gamertag` WebSocket route in `server.mts`
+- [x] Add `/ws/tracker/individual/:gamertag` WebSocket route in `server.ts`
 - [x] Resolve gamertag → XUID via Xbox service
 - [x] Get Individual DO stub and forward WebSocket upgrade
 - [x] Error handling for missing XUID
@@ -277,7 +277,7 @@ Create a web version of the individual tracker feature that allows users to view
 
 - Service pattern refactoring:
   - Added `LiveTrackerService.getIndividualTrackerDOStub()` method for individual tracker route
-  - Simplified `api/server.mts` route handler to use service layer
+  - Simplified `api/server.ts` route handler to use service layer
   - Maintains consistency with team tracker service pattern
 - Error handling improvements:
   - Added "not_found" status to `LiveTrackerConnectionStatus` for non-existent trackers
@@ -294,8 +294,8 @@ Create a web version of the individual tracker feature that allows users to view
 
 **Modified Files**:
 
-- `api/services/live-tracker/live-tracker.mts` - Added getIndividualTrackerDOStub method
-- `api/server.mts` - Simplified individual tracker route
+- `api/services/live-tracker/live-tracker.ts` - Added getIndividualTrackerDOStub method
+- `api/server.ts` - Simplified individual tracker route
 - `pages/src/services/live-tracker/types.ts` - Extended LiveTrackerConnectionStatus with "not_found"
 - `pages/src/components/live-tracker/live-tracker-presenter.ts` - Smart retry logic
 - `pages/src/components/live-tracker/create.tsx` - Fixed loaderStatus calculation
@@ -324,13 +324,13 @@ Create a web version of the individual tracker feature that allows users to view
 
 - `api/wrangler.jsonc` - Added PAGES_URL to all environments
 - `api/worker-configuration.d.ts` - Regenerated types with PAGES_URL
-- `api/embeds/live-tracker-embed.mts` - Added pagesUrl parameter and dynamic URL logic
-- `api/services/live-tracker/live-tracker.mts` - Pass PAGES_URL to embed, removed unnecessary binding checks
-- `api/durable-objects/live-tracker-do.mts` - Pass PAGES_URL to embed
-- `api/durable-objects/individual/live-tracker-individual-do.mts` - Pass PAGES_URL to embed
-- `api/server.mts` - Removed unnecessary LIVE_TRACKER_INDIVIDUAL_DO check
-- `api/base/fakes/env.fake.mts` - Added PAGES_URL and LIVE_TRACKER_INDIVIDUAL_DO to fake env
-- `api/embeds/tests/live-tracker-embed.test.mts` - Updated test assertions for pagesUrl
+- `api/embeds/live-tracker-embed.ts` - Added pagesUrl parameter and dynamic URL logic
+- `api/services/live-tracker/live-tracker.ts` - Pass PAGES_URL to embed, removed unnecessary binding checks
+- `api/durable-objects/live-tracker-do.ts` - Pass PAGES_URL to embed
+- `api/durable-objects/individual/live-tracker-individual-do.ts` - Pass PAGES_URL to embed
+- `api/server.ts` - Removed unnecessary LIVE_TRACKER_INDIVIDUAL_DO check
+- `api/base/fakes/env.fake.ts` - Added PAGES_URL and LIVE_TRACKER_INDIVIDUAL_DO to fake env
+- `api/embeds/tests/live-tracker-embed.test.ts` - Updated test assertions for pagesUrl
 
 **Validation**:
 
@@ -369,7 +369,7 @@ This phase allows users to initiate tracking from the web page when no active tr
   - [x] Renamed method to `getEnrichedMatchHistory()` with flexible parameters
   - [x] Added `matchType` and `count` parameters with defaults
   - [x] Integrated match details fetching for score calculation
-  - [x] Updated all consumers (track.mts, connect-history-embed.mts, LiveTrackerIndividualMatchSelectEmbed)
+  - [x] Updated all consumers (track.ts, connect-history-embed.ts, LiveTrackerIndividualMatchSelectEmbed)
   - [x] Simplified embed constructors and removed duplicate enrichment logic
   - [x] Restructured API route to RESTful format: `GET /api/tracker/individual/:gamertag/matches`
 
@@ -386,13 +386,13 @@ This phase allows users to initiate tracking from the web page when no active tr
   - Calculates `resultString` field using `getMatchScore()` method (e.g., "Win - 50:49" or "Loss - 25:50 (120:98)")
   - Adds `isMatchmaking` boolean field (true if `match.MatchInfo.Playlist != null`)
   - Returns structured JSON with gamertag, xuid, and enriched match array
-- **API Route**: `GET /api/tracker/individual/:gamertag/matches` in `server.mts`
+- **API Route**: `GET /api/tracker/individual/:gamertag/matches` in `server.ts`
   - RESTful resource hierarchy: tracker → individual → gamertag → matches
   - Returns JSON response with enriched match history
   - Error handling: 400 (missing gamertag), 404 (not found), 500 (internal error)
 - **Refactored Consumers**:
-  - `track.mts`: Changed from `getRecentMatchHistory()` to `getEnrichedMatchHistory()`, reduced from 25 to 12 lines
-  - `connect-history-embed.mts`: Uses enriched method with `MatchType.Custom, 10` parameters, eliminated manual enrichment
+  - `track.ts`: Changed from `getRecentMatchHistory()` to `getEnrichedMatchHistory()`, reduced from 25 to 12 lines
+  - `connect-history-embed.ts`: Uses enriched method with `MatchType.Custom, 10` parameters, eliminated manual enrichment
   - `LiveTrackerIndividualMatchSelectEmbed`: Simplified constructor (removed services parameter), uses pre-enriched data, added `[Matchmaking]`/`[Custom]` prefix
 - **Type Safety**: `MatchHistoryEntry` interface with 9 fields including `resultString: string`
 - **Test Infrastructure**: Added `aFakeMatchHistoryEntryWith()` factory function for test data
@@ -421,15 +421,15 @@ This phase allows users to initiate tracking from the web page when no active tr
 
 **Modified Files**:
 
-- `api/services/halo/types.mts` - Enhanced `MatchHistoryEntry` interface with `resultString` field
-- `api/services/halo/halo.mts` - Renamed and enhanced `getEnrichedMatchHistory()` method with match details integration
-- `api/services/halo/fakes/data.mts` - Added `aFakeMatchHistoryEntryWith()` factory function
-- `api/server.mts` - Updated route structure to `GET /api/tracker/individual/:gamertag/matches`
-- `api/commands/track/track.mts` - Refactored to use enriched method
-- `api/embeds/live-tracker-individual-match-select-embed.mts` - Simplified constructor, added match type prefix
-- `api/embeds/connect/connect-history-embed.mts` - Refactored to use enriched method with flexible parameters
-- `api/embeds/tests/live-tracker-individual-match-select-embed.test.mts` - Updated tests for simplified constructor
-- `api/embeds/connect/tests/connect-history-embed.test.mts` - Updated tests to mock enriched method
+- `api/services/halo/types.ts` - Enhanced `MatchHistoryEntry` interface with `resultString` field
+- `api/services/halo/halo.ts` - Renamed and enhanced `getEnrichedMatchHistory()` method with match details integration
+- `api/services/halo/fakes/data.ts` - Added `aFakeMatchHistoryEntryWith()` factory function
+- `api/server.ts` - Updated route structure to `GET /api/tracker/individual/:gamertag/matches`
+- `api/commands/track/track.ts` - Refactored to use enriched method
+- `api/embeds/live-tracker-individual-match-select-embed.ts` - Simplified constructor, added match type prefix
+- `api/embeds/connect/connect-history-embed.ts` - Refactored to use enriched method with flexible parameters
+- `api/embeds/tests/live-tracker-individual-match-select-embed.test.ts` - Updated tests for simplified constructor
+- `api/embeds/connect/tests/connect-history-embed.test.ts` - Updated tests to mock enriched method
 
 **Validation**:
 
@@ -496,8 +496,8 @@ This phase allows users to initiate tracking from the web page when no active tr
 
 **Modified Files**:
 
-- `api/services/halo/halo.mts` - Added `analyzeMatchGroupings()` and `haveSameTeamRosters()` methods, updated return type
-- `api/embeds/connect/tests/connect-history-embed.test.mts` - Updated test mocks to include `suggestedGroupings` field
+- `api/services/halo/halo.ts` - Added `analyzeMatchGroupings()` and `haveSameTeamRosters()` methods, updated return type
+- `api/embeds/connect/tests/connect-history-embed.test.ts` - Updated test mocks to include `suggestedGroupings` field
 
 **Validation**:
 
@@ -526,7 +526,7 @@ This phase allows users to initiate tracking from the web page when no active tr
 
 **Implementation Details**:
 
-- **API Endpoint**: `POST /api/tracker/individual/start` in `server.mts`
+- **API Endpoint**: `POST /api/tracker/individual/start` in `server.ts`
   - Request body: `{ gamertag: string, selectedMatchIds: string[], groupings: string[][] }`
   - Validates required parameters (gamertag, selectedMatchIds non-empty, groupings is array)
   - Resolves gamertag → XUID via Xbox service (404 if not found)
@@ -595,10 +595,10 @@ Error Response:
 
 **Modified Files**:
 
-- `api/durable-objects/individual/types.mts` - Added `LiveTrackerIndividualWebStartRequest`, response types, and union type
-- `api/durable-objects/individual/live-tracker-individual-do.mts` - Added `handleWebStart` and `applyUserGroupings` methods
-- `api/services/live-tracker/live-tracker.mts` - Added `getIndividualTrackerDOStubByXuid` method
-- `api/server.mts` - Added `POST /api/tracker/individual/start` route
+- `api/durable-objects/individual/types.ts` - Added `LiveTrackerIndividualWebStartRequest`, response types, and union type
+- `api/durable-objects/individual/live-tracker-individual-do.ts` - Added `handleWebStart` and `applyUserGroupings` methods
+- `api/services/live-tracker/live-tracker.ts` - Added `getIndividualTrackerDOStubByXuid` method
+- `api/server.ts` - Added `POST /api/tracker/individual/start` route
 
 **Validation**:
 
@@ -691,7 +691,7 @@ Error Response:
 - `pages/src/components/live-tracker/tests/live-tracker.test.tsx` - Added apiHost prop to test
 - `pages/src/components/error-state/error-state.tsx` - Removed unused onNavigateToSearch prop
 - `pages/src/components/error-state/error-state.module.css` - Cleaned up unused button styles
-- `api/durable-objects/individual/live-tracker-individual-do.mts` - Fixed for-of loop linting issue
+- `api/durable-objects/individual/live-tracker-individual-do.ts` - Fixed for-of loop linting issue
 
 **Validation**:
 
@@ -769,10 +769,10 @@ Error Response:
 
 **Modified Files**:
 
-- `api/durable-objects/individual/types.mts` - Added UpdateTarget interface, updated state type
-- `api/durable-objects/individual/live-tracker-individual-do.mts` - Refactored broadcast logic, added target management
-- `api/durable-objects/individual/fakes/data.mts` - Created fake factories for tests
-- `api/durable-objects/individual/tests/live-tracker-individual-do.test.mts` - Comprehensive test suite
+- `api/durable-objects/individual/types.ts` - Added UpdateTarget interface, updated state type
+- `api/durable-objects/individual/live-tracker-individual-do.ts` - Refactored broadcast logic, added target management
+- `api/durable-objects/individual/fakes/data.ts` - Created fake factories for tests
+- `api/durable-objects/individual/tests/live-tracker-individual-do.test.ts` - Comprehensive test suite
 
 **Validation**:
 
@@ -844,7 +844,7 @@ The integration was completed as part of Phase 9.4 work. The TrackerInitiation c
 
 **Status**: ✅ Complete (March 16, 2026)
 
-**Summary**: Improved server.mts maintainability and consistency through helper method extraction and duplication reduction.
+**Summary**: Improved server.ts maintainability and consistency through helper method extraction and duplication reduction.
 
 **What Was Built**:
 
@@ -865,7 +865,7 @@ The integration was completed as part of Phase 9.4 work. The TrackerInitiation c
 
 **Modified Files**:
 
-- `api/server.mts` - Added helpers, refactored routes
+- `api/server.ts` - Added helpers, refactored routes
 
 **Validation**:
 
@@ -1001,7 +1001,7 @@ _startTracker (8 tests):_
 - `pages/src/services/install.ts` - Instantiate RealTrackerInitiationService
 - `pages/src/services/install.fake.ts` - Instantiate FakeTrackerInitiationService, removed fetch interception
 - `pages/src/components/live-tracker/tests/live-tracker.test.tsx` - Added fake service to test setup
-- `contracts/src/live-tracker/fakes/data.mts` - Added `sampleIndividualTrackerStateMessage`
+- `contracts/src/live-tracker/fakes/data.ts` - Added `sampleIndividualTrackerStateMessage`
 - `pages/src/services/live-tracker/fakes/scenario.ts` - Added `createSampleIndividualScenario()`
 
 **Removed Files**:
@@ -1181,7 +1181,7 @@ npm start --workspace=@guilty-spark/pages -- --mode=fake
 
 - [ ] Update WebSocket broadcast contract
   - [ ] Ensure `LiveTrackerStateData` includes `seriesMetadata` per grouping
-  - [ ] contracts/src/live-tracker/types.mts: Add series metadata fields
+  - [ ] contracts/src/live-tracker/types.ts: Add series metadata fields
   - [ ] Serialize and send to web clients on state updates
 
 **Implementation Notes**:
@@ -1482,9 +1482,9 @@ When NeatQueue series ends:
 
 **Backend (API):**
 
-- `api/durable-objects/individual/types.mts` - Add `seriesId` to type
-- `api/durable-objects/individual/live-tracker-individual-do.mts` - Series detection & fetching logic
-- `api/server.mts` - Add individual WebSocket route
+- `api/durable-objects/individual/types.ts` - Add `seriesId` to type
+- `api/durable-objects/individual/live-tracker-individual-do.ts` - Series detection & fetching logic
+- `api/server.ts` - Add individual WebSocket route
 
 **Frontend (Pages):**
 
@@ -1495,7 +1495,7 @@ When NeatQueue series ends:
 
 **Contracts:**
 
-- `contracts/src/live-tracker/types.mts` - Update `LiveTrackerStateData` if needed
+- `contracts/src/live-tracker/types.ts` - Update `LiveTrackerStateData` if needed
 
 ## Questions Resolved
 
@@ -1628,7 +1628,7 @@ When NeatQueue series ends:
 5. Extract `match_num` field from event (proper discriminated type `NeatQueueMatchStartedRequest`)
 6. Return `{ guildId, queueNumber }` if match_num found; null otherwise
 
-**Implementation Location**: `api/durable-objects/individual/live-tracker-individual-do.mts` method `findPlayerActiveSeriesId(xuid: string)`
+**Implementation Location**: `api/durable-objects/individual/live-tracker-individual-do.ts` method `findPlayerActiveSeriesId(xuid: string)`
 
 ## Subsequent Optimizations (Not MVP)
 

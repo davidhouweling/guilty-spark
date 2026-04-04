@@ -1,0 +1,138 @@
+import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord, MatchCount } from "halo-infinite-api";
+import type { APIEmbed } from "discord-api-types/payloads/v10";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import { BaseTableEmbed } from "../base-table-embed";
+import { EmbedColors } from "../colors";
+import { AssociationReason } from "../../services/database/types/discord_associations";
+import type { DiscordService } from "../../services/discord/discord";
+
+interface ServiceRecordEmbedServices {
+  discordService: DiscordService;
+}
+
+interface ServiceRecordEmbedData {
+  locale: string;
+  discordUserId: string;
+  associationReason: AssociationReason;
+  gamertag: string;
+  serviceRecord: ServiceRecord;
+  matchCount: MatchCount | undefined;
+  csr: PlaylistCsrContainer;
+  esra: number;
+}
+
+export class ServiceRecordEmbed extends BaseTableEmbed {
+  constructor(
+    private readonly services: ServiceRecordEmbedServices,
+    private readonly data: ServiceRecordEmbedData,
+  ) {
+    super();
+  }
+
+  get embed(): APIEmbed {
+    const { locale, discordUserId, associationReason, gamertag, serviceRecord, csr } = this.data;
+
+    return {
+      color: EmbedColors.INFO,
+      title: `Service record`,
+      description: [
+        `**Discord user**: <@${discordUserId}>`,
+        `**Xbox Gamertag:** ${gamertag}`,
+        `**Association reason:** ${this.formatAssociationReason(associationReason)}`,
+        "",
+        `**Matchmade matches played:** ${this.data.matchCount?.MatchmadeMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        `**Custom matches played:** ${this.data.matchCount?.CustomMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        `**Local matches played:** ${this.data.matchCount?.LocalMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
+        "",
+        `**Matchmaking Time played:** ${getReadableDuration(serviceRecord.TimePlayed, locale)}`,
+        `**Matchmaking Wins : Losses : Ties:** ${serviceRecord.Wins.toLocaleString(locale)} : ${serviceRecord.Losses.toLocaleString(locale)} : ${serviceRecord.Ties.toLocaleString(locale)}`,
+        `**Matchmaking Win percentage: ** ${this.formatStatValue((serviceRecord.Wins / Math.max(serviceRecord.MatchesCompleted, 1)) * 100)}%`,
+        `**Matchmaking Total kills:deaths : assists (av KDA):** ${serviceRecord.CoreStats.Kills.toLocaleString(locale)} : ${serviceRecord.CoreStats.Deaths.toLocaleString(locale)} : ${serviceRecord.CoreStats.Assists.toLocaleString(locale)} (${serviceRecord.CoreStats.AverageKDA.toLocaleString(locale)})`,
+        `**Matchmaking Total Damage D:T (D/T):** ${serviceRecord.CoreStats.DamageDealt.toLocaleString(locale)} : ${serviceRecord.CoreStats.DamageTaken.toLocaleString(locale)} (${this.formatDamageRatio(serviceRecord.CoreStats.DamageDealt, serviceRecord.CoreStats.DamageTaken)})`,
+        "",
+        `**Current Ranked Arena CSR:** ${this.formatCsr(csr.Current)}`,
+        `**Season Peak Ranked Arena CSR:** ${this.formatCsr(csr.SeasonMax)}`,
+        `**All Time Peak Ranked Arena CSR:** ${this.formatCsr(csr.AllTimeMax)}`,
+        `**Expected Skill Rating Averaged - ESRA:** ${this.formatEsra(this.data.esra)}`,
+      ].join("\n"),
+    };
+  }
+
+  private formatStatValue(statValue: number): string {
+    return Number.isSafeInteger(statValue)
+      ? statValue.toLocaleString(this.data.locale)
+      : Number(statValue.toFixed(2)).toLocaleString(this.data.locale);
+  }
+
+  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
+    if (damageDealt === 0) {
+      return "0";
+    }
+
+    if (damageTaken === 0) {
+      return "♾️";
+    }
+
+    return this.formatStatValue(damageDealt / damageTaken);
+  }
+
+  private formatAssociationReason(reason: AssociationReason): string {
+    switch (reason) {
+      case AssociationReason.CONNECTED: {
+        return "Xbox Connected";
+      }
+      case AssociationReason.MANUAL: {
+        return "Manually Connected";
+      }
+      case AssociationReason.USERNAME_SEARCH: {
+        return "Username matched";
+      }
+      case AssociationReason.DISPLAY_NAME_SEARCH: {
+        return "Display Name matched";
+      }
+      case AssociationReason.GAME_SIMILARITY: {
+        return "Matched via games played";
+      }
+      case AssociationReason.UNKNOWN: {
+        return "Unknown";
+      }
+      default: {
+        throw new UnreachableError(reason);
+      }
+    }
+  }
+
+  private formatCsr(csr: PlaylistCsr): string {
+    const { discordService } = this.services;
+    const getRank = (value: number): string => (value >= 0 ? value.toString() : "-");
+    const currentRank = getRank(csr.Value);
+    const currentRankEmoji = discordService.getRankEmoji({
+      rankTier: csr.Tier,
+      subTier: csr.SubTier,
+      measurementMatchesRemaining: csr.MeasurementMatchesRemaining,
+      initialMeasurementMatches: csr.InitialMeasurementMatches,
+    });
+    return `${currentRankEmoji}${currentRank}`;
+  }
+
+  private formatEsra(esra: number): string {
+    const { discordService } = this.services;
+
+    if (esra <= 0) {
+      return "-";
+    }
+
+    const roundedEsra = Math.round(esra);
+    const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
+    const esraEmoji = discordService.getRankEmoji({
+      rankTier,
+      subTier,
+      measurementMatchesRemaining: 0,
+      initialMeasurementMatches: 0,
+    });
+
+    return `${esraEmoji}${roundedEsra.toString()}`;
+  }
+}

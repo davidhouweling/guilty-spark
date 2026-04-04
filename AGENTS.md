@@ -39,9 +39,9 @@ npm run format:fix
 
 **Core Services**:
 
-- `api/worker.mts` - Main Cloudflare Worker entry point
-- `api/server.mts` - Request routing and dependency injection
-- `api/services/install.mts` - Service configuration and wiring
+- `api/worker.ts` - Main Cloudflare Worker entry point
+- `api/server.ts` - Request routing and dependency injection
+- `api/services/install.ts` - Service configuration and wiring
 - `api/commands/` - Discord slash commands and interactions
 - `api/durable-objects/` - Persistent state management for live tracking
 
@@ -54,19 +54,19 @@ npm run format:fix
 
 ## File Structure & Conventions
 
-- `api/` - Discord bot (`.mts` extensions); `pages/` - Website (Astro); `contracts/` - Shared types
+- `api/` - Discord bot (`.ts` extensions); `pages/` - Website (Astro); `contracts/` - Shared types
 - Tests in `tests/` folders, fakes in `fakes/` folders
-- Use `.mjs` for imports, never `.mts`
+- Use extensionless imports for internal TypeScript modules
 - **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
-- **Types**: Colocate in `types.mts` files with implementation
-- **Fakes**: `<feature>/fakes/data.mts` for fixtures, separate files for behavior
+- **Types**: Colocate in `types.ts` files with implementation
+- **Fakes**: `<feature>/fakes/data.ts` for fixtures, separate files for behavior
 - **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
 - **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders
 
 ## Code Style
 
 - **TypeScript**: Strict mode, explicit types, no `any`/`unknown`/`!`; use `Preconditions.checkExists()` for null safety
-- **Imports**: Always use `.mjs` extensions
+- **Imports**: Prefer extensionless imports for internal TypeScript modules
 - **Loops**: Prefer `for...of` over `forEach`
 - **Switch**: wrap all cases with curly brackets
 - **Errors**: Use `EndUserError` for user-facing errors
@@ -92,7 +92,7 @@ npm run format:fix
 - Define explicit interfaces for all API interactions
 - Use discriminated unions with `isSuccessResponse()` patterns
 - **Exhaustive Switch Statements**: For discriminated unions, use switch statements with exhaustive case coverage rather than if-else chains. Always include a `default: throw new UnreachableError(value)` case to ensure compile-time detection of unhandled types
-- Keep types in `types.mts` files alongside implementation
+- Keep types in `types.ts` files alongside implementation
 - Add `import type` for framework types (e.g., `ImageMetadata`)
 - Prefer compile-time errors over runtime failures
 - You are forbidden to modify eslint config and tsconfig files. In situations where it is required, you must tell prompter, explain the need and what it solves, and ask the prompter to manually do this.
@@ -250,7 +250,7 @@ kvGetSpy.mockResolvedValue(null);
 **Stack**:
 
 - Cloudflare Workers (edge computing), Durable Objects (persistent state), D1 (relational), KV (fast temporary)
-- Node.js 24.11.0+, TypeScript strict mode, Node ESM with `.mjs` extensions
+- Node.js 24.11.0+, TypeScript strict mode, Node ESM
 
 **Patterns**:
 
@@ -280,4 +280,4 @@ kvGetSpy.mockResolvedValue(null);
 
 ## Workarounds
 
-- Whenever regenerating cloudflare wrangler types, after completion, manually go through and update all dynamic `import()`s and re-introduce the file extension `.mjs`. This is required due to the typescript setup of the project.
+- Whenever regenerating cloudflare wrangler types, review dynamic `import()` paths and keep them aligned with the repository's extensionless TypeScript import convention.

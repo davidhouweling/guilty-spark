@@ -1,0 +1,64 @@
+import { coverageConfigDefaults, defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    mockReset: true,
+    restoreMocks: true,
+    reporters: ["junit", "default"],
+    outputFile: {
+      junit: "./test-results/junit-report.xml",
+    },
+    // issue: https://github.com/vitest-dev/vitest/issues/7288
+    fakeTimers: {
+      toFake: ["setTimeout", "clearTimeout", "Date"],
+    },
+    coverage: {
+      reporter: ["text", "json-summary", "json", "html"],
+      reportOnFailure: true,
+      exclude: [
+        ...coverageConfigDefaults.exclude,
+        "api/scripts/**/*",
+        "**/fakes/**",
+        "**/install.ts",
+        "*.css",
+        "*.png",
+        "*.jpg",
+        "*.jpeg",
+        "*.svg",
+        "*.mp4",
+      ],
+    },
+
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "api",
+          environment: "node",
+          include: ["api/**/*.test.ts", "api/**/*.spec.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "pages",
+          environment: "jsdom",
+          include: [
+            "pages/src/**/*.test.ts",
+            "pages/src/**/*.test.tsx",
+            "pages/src/**/*.spec.ts",
+            "pages/src/**/*.spec.tsx",
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "shared",
+          environment: "node",
+          include: ["shared/src/**/*.test.ts", "shared/src/**/*.spec.ts"],
+        },
+      },
+    ],
+  },
+});

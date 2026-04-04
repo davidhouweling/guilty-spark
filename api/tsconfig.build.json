@@ -6,5 +6,5 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "exclude": ["vitest.config.mts", "scripts", "**/fakes/**", "**/tests/**", "dist"]
+  "exclude": ["vitest.config.ts", "scripts", "**/fakes/**", "**/tests/**", "dist"]
 }
