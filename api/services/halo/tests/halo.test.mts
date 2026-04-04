@@ -1941,16 +1941,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getPlayerXuid()", () => {
-    it("returns the xuid for the specified player", () => {
-      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const player = Preconditions.checkExists(match.Players[0]);
-
-      const result = haloService.getPlayerXuid(player);
-      expect(result).toBe("0100000000000000");
-    });
-  });
-
   describe("getPlayerXuidsToGametags()", () => {
     it("returns the xuids to gamertags map for the specified players", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
@@ -3063,58 +3053,6 @@ describe("Halo service", () => {
       infiniteClient.getUserServiceRecord.mockRejectedValue(new Error("API Error"));
 
       await expect(haloService.getServiceRecord(xuid)).rejects.toThrow("API Error");
-    });
-  });
-
-  describe("getRankTierFromCsr", () => {
-    it("returns Onyx for CSR >= 1500", () => {
-      expect(haloService.getRankTierFromCsr(1500)).toEqual({ rankTier: "Onyx", subTier: 0 });
-      expect(haloService.getRankTierFromCsr(2000)).toEqual({ rankTier: "Onyx", subTier: 0 });
-    });
-
-    it("returns Diamond tiers for CSR 1200-1499", () => {
-      expect(haloService.getRankTierFromCsr(1450)).toEqual({ rankTier: "Diamond", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(1400)).toEqual({ rankTier: "Diamond", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(1350)).toEqual({ rankTier: "Diamond", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(1300)).toEqual({ rankTier: "Diamond", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(1250)).toEqual({ rankTier: "Diamond", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(1200)).toEqual({ rankTier: "Diamond", subTier: 0 });
-    });
-
-    it("returns Platinum tiers for CSR 900-1199", () => {
-      expect(haloService.getRankTierFromCsr(1150)).toEqual({ rankTier: "Platinum", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(1100)).toEqual({ rankTier: "Platinum", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(1050)).toEqual({ rankTier: "Platinum", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(1000)).toEqual({ rankTier: "Platinum", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(950)).toEqual({ rankTier: "Platinum", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(900)).toEqual({ rankTier: "Platinum", subTier: 0 });
-    });
-
-    it("returns Gold tiers for CSR 600-899", () => {
-      expect(haloService.getRankTierFromCsr(850)).toEqual({ rankTier: "Gold", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(800)).toEqual({ rankTier: "Gold", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(750)).toEqual({ rankTier: "Gold", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(700)).toEqual({ rankTier: "Gold", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(650)).toEqual({ rankTier: "Gold", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(600)).toEqual({ rankTier: "Gold", subTier: 0 });
-    });
-
-    it("returns Silver tiers for CSR 300-599", () => {
-      expect(haloService.getRankTierFromCsr(550)).toEqual({ rankTier: "Silver", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(500)).toEqual({ rankTier: "Silver", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(450)).toEqual({ rankTier: "Silver", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(400)).toEqual({ rankTier: "Silver", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(350)).toEqual({ rankTier: "Silver", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(300)).toEqual({ rankTier: "Silver", subTier: 0 });
-    });
-
-    it("returns Bronze tiers for CSR 0-299", () => {
-      expect(haloService.getRankTierFromCsr(250)).toEqual({ rankTier: "Bronze", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(200)).toEqual({ rankTier: "Bronze", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(150)).toEqual({ rankTier: "Bronze", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(100)).toEqual({ rankTier: "Bronze", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(50)).toEqual({ rankTier: "Bronze", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(0)).toEqual({ rankTier: "Bronze", subTier: 0 });
     });
   });
 

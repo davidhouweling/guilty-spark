@@ -155,7 +155,7 @@ export class ServiceRecordCommand extends BaseCommand {
       }
 
       const embed = new ServiceRecordEmbed(
-        { discordService, haloService },
+        { discordService },
         {
           locale,
           discordUserId: DiscordId,

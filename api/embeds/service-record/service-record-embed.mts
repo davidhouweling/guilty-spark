@@ -2,14 +2,13 @@ import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord, MatchCount } fro
 import type { APIEmbed } from "discord-api-types/payloads/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
-import type { HaloService } from "../../services/halo/halo.mjs";
 import { AssociationReason } from "../../services/database/types/discord_associations.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 
 interface ServiceRecordEmbedServices {
-  haloService: HaloService;
   discordService: DiscordService;
 }
 
@@ -119,14 +118,14 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
   }
 
   private formatEsra(esra: number): string {
-    const { discordService, haloService } = this.services;
+    const { discordService } = this.services;
 
     if (esra <= 0) {
       return "-";
     }
 
     const roundedEsra = Math.round(esra);
-    const { rankTier, subTier } = haloService.getRankTierFromCsr(roundedEsra);
+    const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
     const esraEmoji = discordService.getRankEmoji({
       rankTier,
       subTier,

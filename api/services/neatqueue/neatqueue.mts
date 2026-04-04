@@ -1244,7 +1244,7 @@ export class NeatQueueService {
     }
 
     const playersEmbed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
         discordAssociations,

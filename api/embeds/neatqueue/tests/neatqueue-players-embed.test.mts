@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
+import type { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { NeatQueuePlayersEmbed } from "../neatqueue-players-embed.mjs";
 import type { NeatQueuePlayersEmbedData, PlayerData } from "../neatqueue-players-embed.mjs";
 import { AssociationReason, GamesRetrievable } from "../../../services/database/types/discord_associations.mjs";
@@ -8,18 +9,22 @@ import { MapsPostType } from "../../../services/database/types/guild_config.mjs"
 import { EmbedColors } from "../../colors.mjs";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
 import { aFakeDiscordServiceWith } from "../../../services/discord/fakes/discord.fake.mjs";
-import type { HaloService } from "../../../services/halo/halo.mjs";
-import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake.mjs";
+
+const { getRankTierFromCsrMock } = vi.hoisted(() => ({
+  getRankTierFromCsrMock: vi.fn<typeof getRankTierFromCsr>(),
+}));
+
+vi.mock("@guilty-spark/shared/halo/rank", () => ({
+  getRankTierFromCsr: getRankTierFromCsrMock,
+}));
 
 describe("NeatQueuePlayersEmbed", () => {
   let discordService: DiscordService;
-  let haloService: HaloService;
 
   beforeEach(() => {
     discordService = aFakeDiscordServiceWith();
-    haloService = aFakeHaloServiceWith();
     vi.spyOn(discordService, "getRankEmoji").mockReturnValue("🏅");
-    vi.spyOn(haloService, "getRankTierFromCsr").mockReturnValue({ rankTier: "Platinum", subTier: 1 });
+    getRankTierFromCsrMock.mockReturnValue({ rankTier: "Platinum", subTier: 1 });
   });
 
   it("creates embed with connected players and ranks", () => {
@@ -99,7 +104,7 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -147,7 +152,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -172,7 +177,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -207,7 +212,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -232,7 +237,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -273,7 +278,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -309,7 +314,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -343,7 +348,7 @@ describe("NeatQueuePlayersEmbed", () => {
     const esras: NeatQueuePlayersEmbedData["esras"] = new Map();
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -365,7 +370,6 @@ describe("NeatQueuePlayersEmbed", () => {
   });
 
   it("formats ESRA with rank emoji and rounded value", () => {
-    const getRankTierFromCsrSpy = vi.spyOn(haloService, "getRankTierFromCsr");
     const getRankEmojiSpy = vi.spyOn(discordService, "getRankEmoji");
 
     const players: PlayerData[] = [
@@ -444,7 +448,7 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -458,8 +462,8 @@ describe("NeatQueuePlayersEmbed", () => {
     const result = embed.embed;
     const rankField = result.fields?.[2]?.value ?? "";
 
-    expect(getRankTierFromCsrSpy).toHaveBeenCalledWith(1451);
-    expect(getRankTierFromCsrSpy).toHaveBeenCalledWith(1349);
+    expect(getRankTierFromCsrMock).toHaveBeenCalledWith(1451);
+    expect(getRankTierFromCsrMock).toHaveBeenCalledWith(1349);
 
     expect(getRankEmojiSpy).toHaveBeenCalledWith({
       rankTier: "Platinum",
@@ -550,7 +554,7 @@ describe("NeatQueuePlayersEmbed", () => {
     ]);
 
     const embed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players,
         discordAssociations: associations,
@@ -562,7 +566,7 @@ describe("NeatQueuePlayersEmbed", () => {
     );
 
     // Create spies to verify method calls
-    const getRankTierFromCsrSpy = vi.spyOn(haloService, "getRankTierFromCsr");
+    getRankTierFromCsrMock.mockClear();
 
     const result = embed.embed;
     const rankField = result.fields?.[2]?.value ?? "";
@@ -573,7 +577,7 @@ describe("NeatQueuePlayersEmbed", () => {
     expect(lines[1]).toMatch(/\(-, 🏅1500\)/); // ESRA is dash, ATP is 1500
 
     // Verify getRankTierFromCsr was NOT called for zero/negative ESRA
-    expect(getRankTierFromCsrSpy).not.toHaveBeenCalledWith(0);
-    expect(getRankTierFromCsrSpy).not.toHaveBeenCalledWith(-5);
+    expect(getRankTierFromCsrMock).not.toHaveBeenCalledWith(0);
+    expect(getRankTierFromCsrMock).not.toHaveBeenCalledWith(-5);
   });
 });

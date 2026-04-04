@@ -13,7 +13,6 @@ import type {
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
-import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -229,18 +228,14 @@ export class HaloService {
     return score;
   }
 
+  wrapPlayerXuid(xuid: string): string {
+    return `xuid(${xuid})`;
+  }
+
   getTeamName(teamId: number): string {
     const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
 
     return teams[teamId] ?? "Unknown";
-  }
-
-  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-    return getPlayerXuid(player);
-  }
-
-  wrapPlayerXuid(xuid: string): string {
-    return `xuid(${xuid})`;
   }
 
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
@@ -877,10 +872,6 @@ export class HaloService {
         f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
       ),
     });
-  }
-
-  getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
-    return getRankTierFromCsr(csr);
   }
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
