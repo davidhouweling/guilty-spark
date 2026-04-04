@@ -1,4 +1,5 @@
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
@@ -9,13 +10,13 @@ export interface MatchStatsData {
   teamId: number;
   teamStats: MatchStatsValues[];
   players: MatchStatsPlayerData[];
-  teamMedals: MatchStatsMedal[];
+  teamMedals: MedalEntry[];
 }
 
 export interface MatchStatsPlayerData {
   name: string;
   values: MatchStatsValues[];
-  medals: MatchStatsMedal[];
+  medals: MedalEntry[];
 }
 
 export interface MatchStatsValues {
@@ -25,10 +26,4 @@ export interface MatchStatsValues {
   bestInMatch: boolean;
   display: string;
   icon?: React.ReactNode;
-}
-
-export interface MatchStatsMedal {
-  name: string;
-  count: number;
-  sortingWeight: number;
 }

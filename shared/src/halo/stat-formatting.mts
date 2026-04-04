@@ -1,6 +1,16 @@
+import type { StatsValue } from "./types.mjs";
+
 export enum StatsValueSortBy {
   ASC,
   DESC,
+}
+
+export interface ResolvedStatsValue {
+  name: string;
+  value: number;
+  bestInTeam: boolean;
+  bestInMatch: boolean;
+  display: string;
 }
 
 export function formatStatValue(statValue: number, locale?: string): string {
@@ -31,4 +41,22 @@ export function formatDamageRatio(damageDealt: number, damageTaken: number, loca
   }
 
   return formatStatValue(damageDealt / damageTaken, locale);
+}
+
+export function resolveStatsValue(
+  matchBestValues: Map<string, number>,
+  teamBestValues: Map<string, number>,
+  key: string,
+  value: StatsValue,
+  locale?: string,
+): ResolvedStatsValue {
+  const { value: statValue, display } = value;
+
+  return {
+    name: key,
+    value: statValue,
+    bestInTeam: teamBestValues.get(key) === statValue,
+    bestInMatch: matchBestValues.get(key) === statValue,
+    display: display ?? formatStatValue(statValue, locale),
+  };
 }

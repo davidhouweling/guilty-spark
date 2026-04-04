@@ -1,7 +1,7 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
-import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import {
@@ -81,7 +81,7 @@ export abstract class BaseMatchStatsPresenter {
         playerStats.push({
           name: playerGamertag,
           values: outputStats,
-          medals: this.extractMedals(playerTeamStats.Stats.CoreStats, medalMetadata),
+          medals: extractMedals(playerTeamStats.Stats.CoreStats, medalMetadata),
         });
       }
 
@@ -93,24 +93,6 @@ export abstract class BaseMatchStatsPresenter {
       });
     }
     return results;
-  }
-
-  private extractMedals(
-    coreStats: MatchStats["Teams"][0]["Stats"]["CoreStats"],
-    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
-  ): {
-    name: string;
-    count: number;
-    sortingWeight: number;
-  }[] {
-    return coreStats.Medals.map((medal) => {
-      const metadata = medalMetadata?.[medal.NameId];
-      return {
-        name: metadata?.name ?? medal.NameId.toString(),
-        count: medal.Count,
-        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
-      };
-    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
   }
 
   private transformTeamStats(matchBestValues: Map<string, number>, teamStats: StatsCollection): MatchStatsValues[] {
@@ -135,14 +117,6 @@ export abstract class BaseMatchStatsPresenter {
     key: string,
     value: StatsValue,
   ): MatchStatsValues {
-    const { value: statValue, display } = value;
-
-    return {
-      name: key,
-      value: statValue,
-      bestInTeam: teamBestValues.get(key) === statValue,
-      bestInMatch: matchBestValues.get(key) === statValue,
-      display: display ?? formatStatValue(statValue),
-    };
+    return resolveStatsValue(matchBestValues, teamBestValues, key, value);
   }
 }

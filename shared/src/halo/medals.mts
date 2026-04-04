@@ -1,7 +1,22 @@
+import type { Stats } from "halo-infinite-api";
+
 export interface MedalEntry {
   name: string;
   count: number;
   sortingWeight: number;
+}
+
+export type MedalMetadata = Record<number, { name: string; sortingWeight: number }>;
+
+export function extractMedals(coreStats: Stats["CoreStats"], medalMetadata?: MedalMetadata): MedalEntry[] {
+  return coreStats.Medals.map((medal) => {
+    const metadata = medalMetadata?.[medal.NameId];
+    return {
+      name: metadata?.name ?? medal.NameId.toString(),
+      count: medal.Count,
+      sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
+    };
+  }).sort((a, b) => b.sortingWeight - a.sortingWeight);
 }
 
 export function aggregateTeamMedals(players: { medals: MedalEntry[] }[]): MedalEntry[] {

@@ -1,18 +1,18 @@
-import type { MatchStats, Stats } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
-import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
 import {
+  aggregatePlayerCoreStats,
   getPlayerMatches as getSharedPlayerMatches,
   getSeriesTeamPlayersFromMatches,
 } from "@guilty-spark/shared/halo/series-player";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
-export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
+export class SeriesPlayerStatsPresenter {
   getSeriesData(
     matches: MatchStats[],
     players: Map<string, string>,
@@ -22,10 +22,10 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const results: MatchStatsData[] = [];
 
     const playerMatches = getSharedPlayerMatches(matches);
-    const playersCoreStats = this.aggregatePlayerCoreStats(matches);
+    const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, StatsCollection>();
     for (const [playerId, stats] of playersCoreStats) {
-      playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
+      playersStats.set(playerId, getSharedPlayerSlayerStats(stats));
     }
 
     const seriesBestValues = getBestStatValues(playersStats);
@@ -56,7 +56,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         playerStats.push({
           name: `${playerGamertag}${gamesInfo}`,
           values: outputStats,
-          medals: this.extractMedals(playerCoreStats, medalMetadata),
+          medals: extractMedals(playerCoreStats, medalMetadata),
         });
       }
 
@@ -69,10 +69,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     }
 
     return results;
-  }
-
-  private getPlayerSlayerStats(stats: Stats): StatsCollection {
-    return getSharedPlayerSlayerStats(stats.CoreStats);
   }
 
   private transformStats(
@@ -91,32 +87,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     key: string,
     value: StatsValue,
   ): MatchStatsPlayerData["values"][0] {
-    const { value: statValue, display } = value;
-
-    return {
-      name: key,
-      value: statValue,
-      bestInTeam: teamBestValues.get(key) === statValue,
-      bestInMatch: matchBestValues.get(key) === statValue,
-      display: display ?? formatStatValue(statValue),
-    };
-  }
-
-  private extractMedals(
-    coreStats: Stats["CoreStats"],
-    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
-  ): {
-    name: string;
-    count: number;
-    sortingWeight: number;
-  }[] {
-    return coreStats.Medals.map((medal) => {
-      const metadata = medalMetadata?.[medal.NameId];
-      return {
-        name: metadata?.name ?? medal.NameId.toString(),
-        count: medal.Count,
-        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
-      };
-    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
+    return resolveStatsValue(matchBestValues, teamBestValues, key, value);
   }
 }

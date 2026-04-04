@@ -1,15 +1,15 @@
-import type { MatchStats, Stats } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aggregateTeamCoreStats as aggregateSharedTeamCoreStats } from "@guilty-spark/shared/halo/series-team";
-import { formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
-import { aggregateTeamMedals as aggregateSharedTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getBestStatValues, getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
-import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
+import { aggregatePlayerCoreStats } from "@guilty-spark/shared/halo/series-player";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
-export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
+export class SeriesTeamStatsPresenter {
   getSeriesData(
     matches: MatchStats[],
     players: Map<string, string>,
@@ -21,11 +21,11 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
     const teamCoreStats = aggregateSharedTeamCoreStats(matches);
     const teamStats = new Map<number, StatsCollection>();
     for (const [teamId, stats] of teamCoreStats) {
-      teamStats.set(teamId, this.getTeamSlayerStats({ CoreStats: stats }));
+      teamStats.set(teamId, getSharedPlayerSlayerStats(stats));
     }
 
     const bestTeamValues = getBestStatValues(teamStats);
-    const playersCoreStats = this.aggregatePlayerCoreStats(matches);
+    const playersCoreStats = aggregatePlayerCoreStats(matches);
 
     for (const team of firstMatch.Teams) {
       const stats = Preconditions.checkExists(teamStats.get(team.TeamId));
@@ -47,7 +47,7 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
         playerStats.push({
           name: playerGamertag,
           values: [],
-          medals: this.extractMedals(playerCoreStats, medalMetadata),
+          medals: extractMedals(playerCoreStats, medalMetadata),
         });
       }
 
@@ -62,10 +62,6 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
     return results;
   }
 
-  private getTeamSlayerStats(stats: Stats): StatsCollection {
-    return getSharedPlayerSlayerStats(stats.CoreStats);
-  }
-
   private transformTeamStats(matchBestValues: Map<string, number>, teamStats: StatsCollection): MatchStatsValues[] {
     return Array.from(teamStats.entries()).map(([key, value]) =>
       this.getStatsValue(matchBestValues, new Map(), key, value),
@@ -78,32 +74,6 @@ export class SeriesTeamStatsPresenter extends BaseSeriesStatsPresenter {
     key: string,
     value: StatsValue,
   ): MatchStatsValues {
-    const { value: statValue, display } = value;
-
-    return {
-      name: key,
-      value: statValue,
-      bestInTeam: teamBestValues.get(key) === statValue,
-      bestInMatch: matchBestValues.get(key) === statValue,
-      display: display ?? formatStatValue(statValue),
-    };
-  }
-
-  private extractMedals(
-    coreStats: Stats["CoreStats"],
-    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
-  ): {
-    name: string;
-    count: number;
-    sortingWeight: number;
-  }[] {
-    return coreStats.Medals.map((medal) => {
-      const metadata = medalMetadata?.[medal.NameId];
-      return {
-        name: metadata?.name ?? medal.NameId.toString(),
-        count: medal.Count,
-        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
-      };
-    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
+    return resolveStatsValue(matchBestValues, teamBestValues, key, value);
   }
 }
