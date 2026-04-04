@@ -1,0 +1,887 @@
+import type { MockInstance } from "vitest";
+import { describe, beforeEach, vi, it, expect } from "vitest";
+import type {
+  APIApplicationCommandInteraction,
+  APIApplicationCommandInteractionDataBasicOption,
+  APIInteractionResponse,
+  APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
+  APIGuildMember,
+  RESTPostAPIChannelMessageJSONBody,
+  APIEmbed,
+} from "discord-api-types/v10";
+import {
+  ButtonStyle,
+  ApplicationCommandOptionType,
+  ApplicationCommandType,
+  ComponentType,
+  InteractionResponseType,
+  InteractionType,
+  Locale,
+} from "discord-api-types/v10";
+import { TrackCommand } from "../track";
+import type { LiveTrackerEmbedData } from "../../../live-tracker/types";
+import { InteractionComponent } from "../../../embeds/live-tracker-embed";
+import type { Services } from "../../../services/install";
+import { installFakeServicesWith } from "../../../services/fakes/services";
+import {
+  apiMessage,
+  fakeBaseAPIApplicationCommandInteraction,
+  fakeButtonClickInteraction,
+  discordNeatQueueData,
+  aWizardStringSelectWith,
+} from "../../../services/discord/fakes/data";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import type { DiscordService } from "../../../services/discord/discord";
+import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake";
+import type { LiveTrackerRefreshResponse } from "../../../durable-objects/types";
+import type { DiscordTarget } from "../../../durable-objects/individual/types";
+
+const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  guild: {
+    features: [],
+    id: "fake-guild-id",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "fake-guild-id",
+  data: {
+    id: "fake-command-id",
+    name: "track",
+    options: [
+      {
+        name: "neatqueue",
+        options: [
+          {
+            name: "channel",
+            value: "1234567890",
+            type: ApplicationCommandOptionType.Channel,
+          },
+          {
+            name: "queue",
+            value: 42,
+            type: ApplicationCommandOptionType.Integer,
+          },
+        ],
+        type: ApplicationCommandOptionType.Subcommand,
+      },
+    ],
+    type: ApplicationCommandType.ChatInput,
+  },
+};
+
+describe("TrackCommand", () => {
+  let trackCommand: TrackCommand;
+  let services: Services;
+  let env: Env;
+  let updateDeferredReplySpy: MockInstance<DiscordService["updateDeferredReply"]>;
+  let editMessageSpy: MockInstance<DiscordService["editMessage"]>;
+
+  beforeEach(() => {
+    services = installFakeServicesWith();
+    env = aFakeEnvWith();
+    trackCommand = new TrackCommand(services, env);
+
+    updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+    editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+  });
+
+  describe("execute(): subcommand neatqueue", () => {
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "neatqueue",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["channel", "1234567890"],
+          ["queue", 42],
+        ]),
+        options: [],
+      });
+    });
+
+    it("returns response and jobToComplete", () => {
+      const { response, jobToComplete } = trackCommand.execute(applicationCommandInteractionTrackNeatQueue);
+
+      expect(response).toEqual<APIInteractionResponse>({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+      });
+      expect(jobToComplete).toBeInstanceOf(Function);
+    });
+
+    describe("jobToComplete", () => {
+      let jobToComplete: (() => Promise<void>) | undefined;
+      let getTeamsFromQueueChannelSpy: MockInstance<typeof services.discordService.getTeamsFromQueueChannel>;
+      let startTrackerSpy: MockInstance<LiveTrackerService["startTracker"]>;
+
+      beforeEach(() => {
+        getTeamsFromQueueChannelSpy = vi
+          .spyOn(services.discordService, "getTeamsFromQueueChannel")
+          .mockResolvedValue(discordNeatQueueData);
+
+        startTrackerSpy = vi.spyOn(services.liveTrackerService, "startTracker").mockResolvedValue({
+          success: true,
+          state: {
+            userId: "fake-user-id",
+            guildId: "fake-guild-id",
+            channelId: "1234567890",
+            queueNumber: 42,
+            status: "active",
+            isPaused: false,
+            startTime: "2024-11-26T10:48:00.000Z",
+            lastUpdateTime: "2024-11-26T10:48:00.000Z",
+            searchStartTime: "2024-11-26T10:48:00.000Z",
+            checkCount: 0,
+            players: {},
+            teams: [],
+            substitutions: [],
+            errorState: {
+              consecutiveErrors: 0,
+              backoffMinutes: 1,
+              lastSuccessTime: "2024-11-26T10:48:00.000Z",
+            },
+            discoveredMatches: {},
+            matchIds: [],
+            seriesScore: "🦅 0:0 🐍",
+            lastMessageState: {
+              matchCount: 0,
+              substitutionCount: 0,
+            },
+            playersAssociationData: {},
+          },
+        });
+
+        const { jobToComplete: jtc } = trackCommand.execute(applicationCommandInteractionTrackNeatQueue);
+        jobToComplete = jtc;
+      });
+
+      it("fetches queue data from discordService", async () => {
+        await jobToComplete?.();
+
+        expect(getTeamsFromQueueChannelSpy).toHaveBeenCalledWith("fake-guild-id", "1234567890");
+      });
+
+      it("calls updateDeferredReply when no queue data is returned", async () => {
+        getTeamsFromQueueChannelSpy.mockReset().mockResolvedValue(null);
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const callArgs = updateDeferredReplySpy.mock.lastCall;
+        expect(callArgs?.[0]).toBe("fake-token");
+        expect(callArgs?.[1]).toEqual({
+          embeds: [
+            expect.objectContaining({
+              description: "No active queue found in the specified channel.",
+            }),
+          ],
+          components: [],
+        });
+      });
+
+      it("starts live tracking via service", async () => {
+        await jobToComplete?.();
+
+        expect(startTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "1234567890",
+          queueNumber: 777,
+          interactionToken: "fake-token",
+          players: expect.any(Object) as Record<string, APIGuildMember>,
+          teams: [
+            {
+              name: "Eagle",
+              playerIds: ["000000000000000001", "000000000000000002", "000000000000000003", "000000000000000004"],
+            },
+            {
+              name: "Cobra",
+              playerIds: ["000000000000000005", "000000000000000006", "000000000000000007", "000000000000000008"],
+            },
+          ],
+          queueStartTime: "2024-11-26T11:30:00.000Z",
+          playersAssociationData: {},
+        });
+      });
+
+      it("handles service errors gracefully", async () => {
+        startTrackerSpy.mockRejectedValue(new Error("Service initialization failed"));
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const callArgs = updateDeferredReplySpy.mock.lastCall;
+        expect(callArgs?.[0]).toBe("fake-token");
+        expect(callArgs?.[1]).toHaveProperty("embeds");
+      });
+    });
+  });
+
+  describe("execute(): button interactions", () => {
+    let pauseTrackerSpy: MockInstance<LiveTrackerService["pauseTracker"]>;
+    let resumeTrackerSpy: MockInstance<LiveTrackerService["resumeTracker"]>;
+    let refreshTrackerSpy: MockInstance<LiveTrackerService["refreshTracker"]>;
+    let repostTrackerSpy: MockInstance<LiveTrackerService["repostTracker"]>;
+
+    beforeEach(() => {
+      const mockQueueData = {
+        ...discordNeatQueueData,
+        queue: 42,
+      };
+      vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
+
+      pauseTrackerSpy = vi.spyOn(services.liveTrackerService, "pauseTracker");
+      resumeTrackerSpy = vi.spyOn(services.liveTrackerService, "resumeTracker");
+      refreshTrackerSpy = vi.spyOn(services.liveTrackerService, "refreshTracker");
+      repostTrackerSpy = vi.spyOn(services.liveTrackerService, "repostTracker");
+    });
+
+    describe("pause button", () => {
+      const pauseButtonInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.Pause,
+        },
+      };
+
+      it("returns deferred response", () => {
+        const { response } = trackCommand.execute(pauseButtonInteraction);
+
+        expect(response).toEqual<APIInteractionResponse>({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+      });
+
+      it("calls pause tracker service", async () => {
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+        });
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+        await jobToComplete?.();
+
+        expect(pauseTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+        });
+      });
+
+      it("handles errors gracefully", async () => {
+        pauseTrackerSpy.mockRejectedValue(new Error("Pause failed"));
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+        await jobToComplete?.();
+
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[0]).toBe("fake-channel-id");
+        expect(callArgs?.[1]).toBe("fake-message-id");
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+      });
+
+      it("uses enriched embed data when returned by service", async () => {
+        const enrichedEmbedData: LiveTrackerEmbedData = {
+          userId: "fake-user-id",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 123,
+          status: "active",
+          isPaused: true,
+          lastUpdated: new Date(),
+          nextCheck: new Date(),
+          enrichedMatches: [
+            {
+              matchId: "match1",
+              gameTypeAndMap: "Slayer on Recharge",
+              gameType: "Slayer",
+              gameMap: "Recharge",
+              gameMapThumbnailUrl: "data:,",
+              duration: "7m 30s",
+              gameScore: "50:47",
+              gameSubScore: null,
+              startTime: new Date(Date.now() - 7.5 * 60 * 1000).toISOString(),
+              endTime: new Date().toISOString(),
+              playerXuidToGametag: {},
+            },
+          ],
+          seriesScore: "2:1",
+          substitutions: [],
+          errorState: undefined,
+        };
+
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+          embedData: enrichedEmbedData,
+        });
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+
+        let error: unknown;
+        try {
+          await jobToComplete?.();
+        } catch (e) {
+          error = e;
+        }
+
+        expect(error).toBeUndefined();
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+        const messageData = callArgs?.[2] as Partial<RESTPostAPIChannelMessageJSONBody>;
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Paused**");
+      });
+
+      it("falls back to basic embed when no enriched data returned", async () => {
+        pauseTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "paused",
+            isPaused: true,
+          }),
+          // No embedData returned
+        });
+
+        const { jobToComplete } = trackCommand.execute(pauseButtonInteraction);
+        await jobToComplete?.();
+
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+      });
+    });
+
+    describe("resume button", () => {
+      const resumeButtonInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.Resume,
+        },
+      };
+
+      it("calls resume tracker service", async () => {
+        resumeTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            isPaused: false,
+          }),
+        });
+
+        const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
+        await jobToComplete?.();
+
+        expect(resumeTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+        });
+      });
+
+      it("uses enriched embed data when returned by service", async () => {
+        const enrichedEmbedData: LiveTrackerEmbedData = {
+          userId: "fake-user-id",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 123,
+          status: "active",
+          isPaused: false,
+          lastUpdated: new Date(),
+          nextCheck: new Date(Date.now() + 180000), // 3 minutes from now
+          enrichedMatches: [
+            {
+              matchId: "match1",
+              gameTypeAndMap: "Slayer on Recharge",
+              gameType: "Slayer",
+              gameMap: "Recharge",
+              gameMapThumbnailUrl: "data:,",
+              duration: "7m 30s",
+              gameScore: "50:47",
+              gameSubScore: null,
+              startTime: new Date(Date.now() - 7.5 * 60 * 1000).toISOString(),
+              endTime: new Date().toISOString(),
+              playerXuidToGametag: {},
+            },
+          ],
+          seriesScore: "2:1",
+          substitutions: [],
+          errorState: undefined,
+        };
+
+        resumeTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            isPaused: false,
+          }),
+          embedData: enrichedEmbedData,
+        });
+
+        const { jobToComplete } = trackCommand.execute(resumeButtonInteraction);
+        await jobToComplete?.();
+
+        expect(editMessageSpy).toHaveBeenCalledOnce();
+        const callArgs = editMessageSpy.mock.lastCall;
+        expect(callArgs?.[2]).toHaveProperty("embeds");
+        const messageData = callArgs?.[2] as Partial<RESTPostAPIChannelMessageJSONBody>;
+        expect(messageData.embeds?.[0]?.description).toBe("**Live Tracking Active**");
+      });
+    });
+
+    describe("refresh button", () => {
+      const refreshButtonInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.Refresh,
+        },
+      };
+
+      it("calls refresh tracker service", async () => {
+        refreshTrackerSpy.mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({ status: "active", isPaused: false }),
+        });
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+        });
+      });
+
+      it("handles cooldown response gracefully", async () => {
+        const handleRefreshCooldownSpy = vi
+          .spyOn(services.liveTrackerService, "handleRefreshCooldown")
+          .mockResolvedValue();
+
+        const cooldownResponse: LiveTrackerRefreshResponse = {
+          success: false,
+          error: "cooldown",
+          message: "Refresh cooldown active, next refresh available <t:1695800000:R>",
+        };
+
+        refreshTrackerSpy.mockResolvedValue(cooldownResponse);
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+        });
+
+        expect(handleRefreshCooldownSpy).toHaveBeenCalledWith({
+          interaction: refreshButtonInteraction,
+          response: cooldownResponse,
+        });
+      });
+
+      it("continues with normal error handling for non-cooldown failures", async () => {
+        refreshTrackerSpy.mockRejectedValue(new Error("Internal Server Error"));
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(refreshTrackerSpy).toHaveBeenCalledWith({
+          userId: "discord_user_01",
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+        });
+      });
+    });
+
+    describe("repost button", () => {
+      const repostButtonInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          ...fakeButtonClickInteraction.data,
+          custom_id: InteractionComponent.Repost,
+        },
+        message: {
+          ...apiMessage,
+          embeds: [
+            {
+              title: "Live Tracker - Queue #123",
+              description: "Test description",
+            },
+          ],
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  style: ButtonStyle.Primary,
+                  custom_id: "test_button",
+                  label: "Test Button",
+                },
+              ],
+            },
+          ],
+          content: "Test content",
+        },
+      };
+
+      it("creates new message with same content, deletes original, and updates service message ID", async () => {
+        const newMessage = { ...apiMessage, id: "new-message-id-456" };
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        repostTrackerSpy.mockResolvedValue({
+          success: true,
+          oldMessageId: "fake-message-id",
+          newMessageId: "new-message-id-456",
+        });
+
+        const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalledWith(repostButtonInteraction.channel.id, {
+          embeds: repostButtonInteraction.message.embeds,
+          components: repostButtonInteraction.message.components,
+          content: repostButtonInteraction.message.content,
+        });
+
+        expect(deleteMessageSpy).toHaveBeenCalledWith(
+          repostButtonInteraction.channel.id,
+          repostButtonInteraction.message.id,
+          "Reposting maps",
+        );
+
+        expect(repostTrackerSpy).toHaveBeenCalledWith({
+          context: {
+            userId: "",
+            guildId: "fake-guild-id",
+            channelId: "fake-channel-id",
+            queueNumber: 123,
+          },
+          newMessageId: "new-message-id-456",
+        });
+      });
+
+      it("handles case when queue number cannot be extracted from title", async () => {
+        const repostInteractionWithoutQueue = {
+          ...repostButtonInteraction,
+          message: {
+            ...repostButtonInteraction.message,
+            embeds: [
+              {
+                title: "Test Embed",
+                description: "Test description",
+              },
+            ],
+          },
+        };
+
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        const { jobToComplete } = trackCommand.execute(repostInteractionWithoutQueue);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalled();
+        expect(deleteMessageSpy).toHaveBeenCalled();
+        expect(repostTrackerSpy).not.toHaveBeenCalled();
+      });
+
+      it("handles service update failure gracefully", async () => {
+        const newMessage = { ...apiMessage, id: "new-message-id-456" };
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(newMessage);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        repostTrackerSpy.mockRejectedValue(new Error("Service update failed"));
+
+        const { jobToComplete } = trackCommand.execute(repostButtonInteraction);
+        await jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalled();
+        expect(deleteMessageSpy).toHaveBeenCalled();
+        expect(repostTrackerSpy).toHaveBeenCalled();
+      });
+
+      it("returns deferred message update response", () => {
+        const response = trackCommand.execute(repostButtonInteraction);
+
+        expect(response.response).toEqual({
+          type: InteractionResponseType.DeferredMessageUpdate,
+        });
+      });
+    });
+  });
+
+  describe("execute(): subcommand individual xbox", () => {
+    const individualXboxInteraction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "fake-guild-id",
+      data: {
+        id: "fake-command-id",
+        name: "track",
+        options: [
+          {
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            name: "individual",
+            options: [
+              {
+                type: ApplicationCommandOptionType.Subcommand,
+                name: "xbox",
+                options: [
+                  {
+                    name: "gamertag",
+                    value: "TestPlayer",
+                    type: ApplicationCommandOptionType.String,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        type: ApplicationCommandType.ChatInput,
+      },
+    };
+
+    beforeEach(() => {
+      vi.spyOn(services.haloService, "getUserByGamertag").mockResolvedValue({
+        xuid: "fake-xuid",
+        gamertag: "TestPlayer",
+      });
+
+      vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([
+        {
+          MatchId: "match-1",
+          MatchInfo: {
+            StartTime: "2024-11-26T10:00:00.000Z",
+            EndTime: "2024-11-26T10:10:00.000Z",
+            Duration: "PT10M",
+            LifecycleMode: 1,
+            GameVariantCategory: 11,
+            LevelId: "level-1",
+            MapVariant: { AssetKind: 2, AssetId: "map-1", VersionId: "v1" },
+            UgcGameVariant: { AssetKind: 6, AssetId: "variant-1", VersionId: "v1" },
+            ClearanceId: "clearance-1",
+            Playlist: { AssetKind: 5, AssetId: "playlist-1", VersionId: "v1" },
+            PlaylistExperience: null,
+            PlaylistMapModePair: null,
+            SeasonId: "season-1",
+            PlayableDuration: "PT10M",
+            TeamsEnabled: true,
+            TeamScoringEnabled: true,
+          },
+          LastTeamId: 0,
+          Outcome: 1,
+          Rank: 1,
+          PresentAtEndOfMatch: true,
+        },
+      ]);
+
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Live Fire");
+      vi.spyOn(services.haloService, "getMatchOutcome").mockReturnValue("Win");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:30", gameSubScore: null });
+    });
+
+    it("returns deferred channel message response", () => {
+      const { response } = trackCommand.execute(individualXboxInteraction);
+
+      expect(response).toEqual<APIInteractionResponse>({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+      });
+    });
+
+    it("shows match selection embed in jobToComplete", async () => {
+      const { jobToComplete } = trackCommand.execute(individualXboxInteraction);
+
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+    });
+
+    it("handles no recent matches gracefully", async () => {
+      vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+
+      const { jobToComplete } = trackCommand.execute(individualXboxInteraction);
+
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalled();
+      const callArgs = updateDeferredReplySpy.mock.lastCall;
+      expect(callArgs?.[1]).toEqual({
+        embeds: [
+          expect.objectContaining({
+            description: "No recent matches found for TestPlayer.",
+          }),
+        ],
+        components: [],
+      });
+    });
+  });
+
+  describe("component handlers: individual match select", () => {
+    let startTrackerIndividualSpy: MockInstance<LiveTrackerService["startTrackerIndividual"]>;
+
+    const selectMenuInteraction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({
+        customId: InteractionComponent.IndividualMatchSelect,
+        value: "match-1",
+        embedTitle: "Select matches for TestPlayer",
+        embedDescription: "Select 0-25 matches to seed tracking.",
+      }),
+      guild_id: "fake-guild-id",
+      channel: {
+        ...aWizardStringSelectWith({
+          customId: InteractionComponent.IndividualMatchSelect,
+          value: "match-1",
+        }).channel,
+        id: "fake-channel-id",
+      },
+      channel_id: "fake-channel-id",
+    };
+
+    const buttonInteraction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      data: {
+        ...fakeButtonClickInteraction.data,
+        custom_id: InteractionComponent.IndividualStartWithoutGames,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        embeds: [
+          {
+            title: "Select matches for TestPlayer",
+            color: 5793266,
+            description: "Select 0-25 matches to seed tracking.",
+            fields: [],
+          },
+        ],
+      },
+    };
+
+    beforeEach(() => {
+      startTrackerIndividualSpy = vi
+        .spyOn(services.liveTrackerService, "startTrackerIndividual")
+        .mockResolvedValue(undefined);
+
+      vi.spyOn(services.haloService, "getUserByGamertag").mockResolvedValue({
+        xuid: "fake-xuid",
+        gamertag: "TestPlayer",
+      });
+    });
+
+    describe("select menu interaction", () => {
+      it("starts individual tracker with selected game IDs", async () => {
+        const { jobToComplete } = trackCommand.execute(selectMenuInteraction);
+
+        await jobToComplete?.();
+
+        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            selectedGameIds: ["match-1"],
+            gamertag: "TestPlayer",
+            xuid: "fake-xuid",
+
+            initialTarget: expect.objectContaining({
+              type: "discord",
+
+              discord: expect.objectContaining({
+                userId: "discord_user_01",
+                guildId: "fake-guild-id",
+                channelId: "fake-channel-id",
+              }) as DiscordTarget,
+            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
+          }),
+        );
+      });
+
+      it("creates initial loading message via deferred reply", async () => {
+        const { jobToComplete } = trackCommand.execute(selectMenuInteraction);
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+          "fake-token",
+
+          expect.objectContaining({
+            embeds: expect.arrayContaining([
+              expect.objectContaining({
+                title: "🔄 Starting Live Tracker",
+              }) as Partial<APIEmbed>,
+            ]) as APIEmbed[],
+          }),
+        );
+      });
+    });
+
+    describe("button interaction (start without games)", () => {
+      it("starts individual tracker with empty selected game IDs", async () => {
+        const { jobToComplete } = trackCommand.execute(buttonInteraction);
+
+        await jobToComplete?.();
+
+        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            selectedGameIds: [],
+            gamertag: "TestPlayer",
+            xuid: "fake-xuid",
+
+            initialTarget: expect.objectContaining({
+              type: "discord",
+            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
+          }),
+        );
+      });
+
+      it("extracts gamertag from match selection embed title", async () => {
+        const { jobToComplete } = trackCommand.execute(buttonInteraction);
+
+        await jobToComplete?.();
+
+        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gamertag: "TestPlayer",
+          }),
+        );
+      });
+
+      it("handles missing gamertag in embed title gracefully", async () => {
+        const invalidInteraction = {
+          ...buttonInteraction,
+          message: {
+            ...buttonInteraction.message,
+            embeds: [
+              {
+                title: "Invalid embed",
+              },
+            ],
+          },
+        };
+
+        const { jobToComplete } = trackCommand.execute(invalidInteraction);
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalled();
+      });
+    });
+  });
+});

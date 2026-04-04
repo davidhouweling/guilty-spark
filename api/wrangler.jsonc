@@ -1,7 +1,7 @@
 {
   // Development environment configuration
   "name": "guilty-spark-dev",
-  "main": "./worker.mts",
+  "main": "./worker.ts",
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-02-28",
   "upload_source_maps": true,

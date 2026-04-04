@@ -31,14 +31,13 @@ export default defineConfig(
     ],
   },
   {
-    files: ["**/*.mts", "**/*.ts", "**/*.tsx", "**/*.mjs", "**/*.js"],
+    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",
-      sourceType: "module",
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.mjs"],
+          allowDefaultProject: ["*.js", "*.mjs"],
           defaultProject: "tsconfig.json",
         },
         tsconfigRootDir: import.meta.dirname,
@@ -77,11 +76,10 @@ export default defineConfig(
     },
   },
   {
-    files: ["pages/**/*.mts", "pages/**/*.ts", "pages/**/*.tsx"],
+    files: ["pages/**/*.ts", "pages/**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",
-      sourceType: "module",
       parserOptions: {
         projectService: {
           defaultProject: "./pages/tsconfig.json",
