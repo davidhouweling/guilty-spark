@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import classNames from "classnames";
 import { format, parseISO } from "date-fns";
-import type { LiveTrackerStatus } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerStatus } from "@guilty-spark/shared/live-tracker/types";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { Collapsible } from "../collapsible/collapsible";
@@ -11,7 +12,6 @@ import { createMatchStatsPresenter } from "../stats/create";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { MatchStatsData } from "../stats/types";
-import { UnreachableError } from "../../base/unreachable-error";
 import type { LiveTrackerGroupRenderModel, LiveTrackerMatchRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
 

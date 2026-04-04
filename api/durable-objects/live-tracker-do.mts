@@ -3,7 +3,10 @@ import type { APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
-import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/shared/live-tracker/types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -14,7 +17,6 @@ import { LiveTrackerEmbed } from "../embeds/live-tracker-embed.mjs";
 import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../base/end-user-error.mjs";
 import { DiscordError } from "../services/discord/discord-error.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
 import type { SeriesData } from "../services/halo/types.mjs";
 import type {
   LiveTrackerStartRequest,
@@ -1084,7 +1086,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
 
-      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
 
       let gameType = "*Unknown Game Type*";
@@ -1490,7 +1492,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
     const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await getMedalMetadataFromMatches(rawMatches, async (medalId) =>
+      this.haloService.getMedal(medalId),
+    );
 
     return {
       type: "neatqueue",
@@ -1519,39 +1523,6 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       playersAssociationData: state.playersAssociationData,
       rawMatches: rawMatches,
     };
-  }
-
-  private async getMedalMetadataFromMatches(
-    rawMatches: Record<string, MatchStats>,
-  ): Promise<Record<number, { name: string; sortingWeight: number }>> {
-    const medalIds = new Set<number>();
-    for (const match of Object.values(rawMatches)) {
-      for (const team of match.Teams) {
-        for (const medal of team.Stats.CoreStats.Medals) {
-          medalIds.add(medal.NameId);
-        }
-      }
-      for (const player of match.Players) {
-        for (const teamStats of player.PlayerTeamStats) {
-          for (const medal of teamStats.Stats.CoreStats.Medals) {
-            medalIds.add(medal.NameId);
-          }
-        }
-      }
-    }
-
-    const medalMetadata: Record<number, { name: string; sortingWeight: number }> = {};
-    for (const medalId of medalIds) {
-      const medal = await this.haloService.getMedal(medalId);
-      if (medal != null) {
-        medalMetadata[medalId] = {
-          name: medal.name,
-          sortingWeight: medal.sortingWeight,
-        };
-      }
-    }
-
-    return medalMetadata;
   }
 
   /**

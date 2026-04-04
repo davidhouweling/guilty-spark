@@ -1,7 +1,7 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
-import type { PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerStartResponse,

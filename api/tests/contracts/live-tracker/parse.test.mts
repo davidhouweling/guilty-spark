@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { tryParseLiveTrackerMessage, parseLiveTrackerStateData } from "@guilty-spark/contracts/live-tracker/parse";
-import type { JsonValue } from "@guilty-spark/contracts/base/json";
+import { tryParseLiveTrackerMessage, parseLiveTrackerStateData } from "@guilty-spark/shared/live-tracker/parse";
+import type { JsonValue } from "@guilty-spark/shared/base/json";
 import {
   sampleLiveTrackerStateMessage,
   aFakePlayerAssociationDataWith,
-} from "@guilty-spark/contracts/live-tracker/fakes/data";
-import type { LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
+} from "@guilty-spark/shared/live-tracker/fakes/data";
+import type { LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 
 describe("parseLiveTrackerStateData", () => {
   it("parses valid state data with all required fields", () => {

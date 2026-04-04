@@ -12,8 +12,8 @@ import type {
   MatchSkill,
   ServiceRecord,
 } from "halo-infinite-api";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import type { SeriesData, MatchHistoryEntry } from "../types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

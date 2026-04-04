@@ -1,11 +1,18 @@
-import type { MatchStats, Stats } from "halo-infinite-api";
-import * as tinyduration from "tinyduration";
-import { Preconditions } from "../../base/preconditions";
-import { BaseSeriesStatsPresenter } from "./base-series-stats-presenter";
-import type { MatchStatsData, MatchStatsPlayerData, StatsCollection, StatsValue } from "./types";
-import { StatsValueSortBy } from "./types";
+import type { MatchStats } from "halo-infinite-api";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
+import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
+import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
+import {
+  aggregatePlayerCoreStats,
+  getPlayerMatches as getSharedPlayerMatches,
+  getSeriesTeamPlayersFromMatches,
+} from "@guilty-spark/shared/halo/series-player";
+import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
+import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
-export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
+export class SeriesPlayerStatsPresenter {
   getSeriesData(
     matches: MatchStats[],
     players: Map<string, string>,
@@ -14,26 +21,22 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
 
-    const playerMatches = this.getPlayerMatches(matches);
-    const playersCoreStats = this.aggregatePlayerCoreStats(matches);
+    const playerMatches = getSharedPlayerMatches(matches);
+    const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, StatsCollection>();
     for (const [playerId, stats] of playersCoreStats) {
-      playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
+      playersStats.set(playerId, getSharedPlayerSlayerStats(stats));
     }
 
-    const seriesBestValues = this.getBestStatValues(playersStats);
+    const seriesBestValues = getBestStatValues(playersStats);
 
     for (const team of firstMatch.Teams) {
-      const teamPlayers = this.getTeamPlayersFromMatches(matches, team).sort(
-        (a, b) =>
-          Preconditions.checkExists(playersCoreStats.get(b.PlayerId)).PersonalScore -
-          Preconditions.checkExists(playersCoreStats.get(a.PlayerId)).PersonalScore,
-      );
-      const teamBestValues = this.getBestTeamStatValues(playersStats, teamPlayers);
+      const teamPlayers = getSeriesTeamPlayersFromMatches(matches, team, playersCoreStats);
+      const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
 
       const playerStats: MatchStatsPlayerData[] = [];
       for (const teamPlayer of teamPlayers) {
-        const playerXuid = this.getPlayerXuid(teamPlayer);
+        const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag =
           teamPlayer.PlayerType === 1
             ? Preconditions.checkExists(
@@ -53,7 +56,7 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         playerStats.push({
           name: `${playerGamertag}${gamesInfo}`,
           values: outputStats,
-          medals: this.extractMedals(playerCoreStats, medalMetadata),
+          medals: extractMedals(playerCoreStats, medalMetadata),
         });
       }
 
@@ -61,159 +64,11 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
         teamId: team.TeamId,
         teamStats: [],
         players: playerStats,
-        teamMedals: this.aggregateTeamMedals(playerStats),
+        teamMedals: aggregateSharedTeamMedals(playerStats),
       });
     }
 
     return results;
-  }
-
-  private getPlayerMatches(matches: MatchStats[]): Map<string, MatchStats[]> {
-    const playerMatches = new Map<string, MatchStats[]>();
-    for (const match of matches) {
-      for (const player of match.Players) {
-        if (!player.ParticipationInfo.PresentAtBeginning) {
-          continue;
-        }
-
-        const pm = playerMatches.get(player.PlayerId) ?? [];
-        pm.push(match);
-        playerMatches.set(player.PlayerId, pm);
-      }
-    }
-
-    return playerMatches;
-  }
-
-  private getPlayerSlayerStats(stats: Stats): StatsCollection {
-    const { CoreStats } = stats;
-
-    return new Map([
-      ["Score", { value: CoreStats.PersonalScore, sortBy: StatsValueSortBy.DESC }],
-      ["Kills", { value: CoreStats.Kills, sortBy: StatsValueSortBy.DESC }],
-      ["Deaths", { value: CoreStats.Deaths, sortBy: StatsValueSortBy.ASC }],
-      ["Assists", { value: CoreStats.Assists, sortBy: StatsValueSortBy.DESC }],
-      ["KDA", { value: CoreStats.KDA, sortBy: StatsValueSortBy.DESC }],
-      ["Headshot kills", { value: CoreStats.HeadshotKills, sortBy: StatsValueSortBy.DESC }],
-      ["Shots hit", { value: CoreStats.ShotsHit, sortBy: StatsValueSortBy.DESC }],
-      ["Shots fired", { value: CoreStats.ShotsFired, sortBy: StatsValueSortBy.DESC }],
-      [
-        "Accuracy",
-        {
-          value: CoreStats.Accuracy,
-          sortBy: StatsValueSortBy.DESC,
-          display: `${this.formatStatValue(CoreStats.Accuracy)}%`,
-        },
-      ],
-      ["Damage dealt", { value: CoreStats.DamageDealt, sortBy: StatsValueSortBy.DESC }],
-      ["Damage taken", { value: CoreStats.DamageTaken, sortBy: StatsValueSortBy.ASC }],
-      [
-        "Damage ratio",
-        {
-          value:
-            CoreStats.DamageDealt === 0
-              ? 0
-              : CoreStats.DamageTaken === 0
-                ? Number.POSITIVE_INFINITY
-                : CoreStats.DamageDealt / CoreStats.DamageTaken,
-          sortBy: StatsValueSortBy.DESC,
-          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.DamageTaken),
-        },
-      ],
-      [
-        "Avg life time",
-        {
-          value: this.getDurationInSeconds(CoreStats.AverageLifeDuration),
-          sortBy: StatsValueSortBy.DESC,
-          display: this.getReadableDuration(CoreStats.AverageLifeDuration),
-        },
-      ],
-      [
-        "Avg damage per life",
-        {
-          value:
-            CoreStats.DamageDealt === 0
-              ? 0
-              : CoreStats.Deaths === 0
-                ? Number.POSITIVE_INFINITY
-                : CoreStats.DamageDealt / CoreStats.Deaths,
-          sortBy: StatsValueSortBy.DESC,
-          display: this.formatDamageRatio(CoreStats.DamageDealt, CoreStats.Deaths),
-        },
-      ],
-    ]);
-  }
-
-  private getReadableDuration(duration: string): string {
-    const parsedDuration = tinyduration.parse(duration);
-    const { days, hours, minutes, seconds } = parsedDuration;
-    const output: string[] = [];
-    if (days != null && days > 0) {
-      output.push(`${days.toLocaleString()}d`);
-    }
-    if (hours != null && hours > 0) {
-      output.push(`${hours.toLocaleString()}h`);
-    }
-    if (minutes != null && minutes > 0) {
-      output.push(`${minutes.toLocaleString()}m`);
-    }
-    if (seconds != null && seconds > 0) {
-      output.push(`${Math.floor(seconds).toLocaleString()}s`);
-    }
-
-    return output.length ? output.join(" ") : "0s";
-  }
-
-  private formatStatValue(statValue: number): string {
-    return Number.isSafeInteger(statValue) ? statValue.toLocaleString() : Number(statValue.toFixed(2)).toLocaleString();
-  }
-
-  private formatDamageRatio(damageDealt: number, damageTaken: number): string {
-    if (damageDealt === 0) {
-      return "0";
-    }
-
-    if (damageTaken === 0) {
-      return "♾️";
-    }
-
-    return this.formatStatValue(damageDealt / damageTaken);
-  }
-
-  private getBestStatValues(playersStats: Map<string, StatsCollection>): Map<string, number> {
-    const bestValues = new Map<string, number>();
-    for (const statsCollection of playersStats.values()) {
-      for (const [key, playerStats] of statsCollection.entries()) {
-        const previousBestValue = bestValues.get(key);
-
-        if (previousBestValue == null) {
-          bestValues.set(key, playerStats.value);
-          continue;
-        }
-
-        bestValues.set(
-          key,
-          playerStats.sortBy === StatsValueSortBy.ASC
-            ? Math.min(previousBestValue, playerStats.value)
-            : Math.max(previousBestValue, playerStats.value),
-        );
-      }
-    }
-
-    return bestValues;
-  }
-
-  private getBestTeamStatValues(
-    playersStats: Map<string, StatsCollection>,
-    teamPlayers: MatchStats["Players"],
-  ): Map<string, number> {
-    const teamPlayersStats = new Map<string, StatsCollection>();
-    for (const teamPlayer of teamPlayers) {
-      const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
-      teamPlayersStats.set(teamPlayer.PlayerId, playerStats);
-    }
-
-    return this.getBestStatValues(teamPlayersStats);
   }
 
   private transformStats(
@@ -232,32 +87,6 @@ export class SeriesPlayerStatsPresenter extends BaseSeriesStatsPresenter {
     key: string,
     value: StatsValue,
   ): MatchStatsPlayerData["values"][0] {
-    const { value: statValue, display } = value;
-
-    return {
-      name: key,
-      value: statValue,
-      bestInTeam: teamBestValues.get(key) === statValue,
-      bestInMatch: matchBestValues.get(key) === statValue,
-      display: display ?? this.formatStatValue(statValue),
-    };
-  }
-
-  private extractMedals(
-    coreStats: Stats["CoreStats"],
-    medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
-  ): {
-    name: string;
-    count: number;
-    sortingWeight: number;
-  }[] {
-    return coreStats.Medals.map((medal) => {
-      const metadata = medalMetadata?.[medal.NameId];
-      return {
-        name: metadata?.name ?? medal.NameId.toString(),
-        count: medal.Count,
-        sortingWeight: metadata?.sortingWeight ?? medal.TotalPersonalScoreAwarded,
-      };
-    }).sort((a, b) => b.sortingWeight - a.sortingWeight);
+    return resolveStatsValue(matchBestValues, teamBestValues, key, value);
   }
 }

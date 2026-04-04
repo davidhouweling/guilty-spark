@@ -2,7 +2,7 @@ import type { MockInstance, MockedFunction } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { APIGuildMember, APIMessageComponentButtonInteraction } from "discord-api-types/v10";
 import { GuildMemberFlags } from "discord-api-types/v10";
-import { aFakePlayerAssociationDataWith } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker.mjs";
 import type { LogService } from "../../log/types.mjs";
 import type { DiscordService } from "../../discord/discord.mjs";

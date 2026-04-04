@@ -9,7 +9,7 @@
   "workspaces": [
     "api",
     "pages",
-    "contracts"
+    "shared"
   ],
   "engines": {
     "node": ">=24.11.0"

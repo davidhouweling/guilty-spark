@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
-import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
+import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import { SeriesOverviewEmbed } from "../series-overview-embed.mjs";
 import type { SeriesOverviewEmbedSubstitution } from "../series-overview-embed.mjs";
 import type { DiscordService } from "../../../services/discord/discord.mjs";
@@ -28,7 +29,7 @@ describe("SeriesOverviewEmbed", () => {
     sampleMatchStats = firstMatch;
 
     vi.spyOn(haloService, "getGameTypeAndMap").mockResolvedValue("CTF on Bazaar");
-    vi.spyOn(haloService, "getReadableDuration").mockReturnValue("10m 30s");
+    vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("10m 30s");
     vi.spyOn(haloService, "getMatchScore").mockReturnValue({ gameScore: "3-1", gameSubScore: null });
     vi.spyOn(discordService, "getTimestamp").mockReturnValue("<t:1700000000:f>");
   });
@@ -183,7 +184,7 @@ describe("SeriesOverviewEmbed", () => {
       ];
 
       const getGameTypeAndMapSpy = vi.spyOn(haloService, "getGameTypeAndMap");
-      const getReadableDurationSpy = vi.spyOn(haloService, "getReadableDuration");
+      const getReadableDurationSpy = vi.spyOn(haloDuration, "getReadableDuration");
       const getMatchScoreSpy = vi.spyOn(haloService, "getMatchScore");
 
       const embeds = await seriesOverviewEmbed.getEmbed({
@@ -225,7 +226,7 @@ describe("SeriesOverviewEmbed", () => {
       // Create a very long game type/map string that will force splitting
       const longGameType = "A".repeat(100);
       vi.spyOn(haloService, "getGameTypeAndMap").mockResolvedValue(longGameType);
-      vi.spyOn(haloService, "getReadableDuration").mockReturnValue("10m 30s");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("10m 30s");
       vi.spyOn(haloService, "getMatchScore").mockReturnValue({ gameScore: "3-1", gameSubScore: null });
 
       // Create enough matches to exceed the 1024 character limit for a single field

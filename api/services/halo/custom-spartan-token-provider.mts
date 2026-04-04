@@ -1,8 +1,8 @@
 import type { SpartanTokenProvider } from "halo-infinite-api";
 import { HaloAuthenticationClient } from "halo-infinite-api";
 import { DateTime } from "luxon";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { XboxService } from "../xbox/xbox.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 
 interface SpartanToken {
   token: string;

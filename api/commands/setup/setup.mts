@@ -25,6 +25,8 @@ import {
   PermissionFlagsBits,
   RESTJSONErrorCodes,
 } from "discord-api-types/v10";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
   BaseInteraction,
   ExecuteResponse,
@@ -39,8 +41,6 @@ import {
   MapsPlaylistType,
   MapsFormatType,
 } from "../../services/database/types/guild_config.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import { HCS_LAST_UPDATED } from "../../services/halo/hcs.mjs";
 import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed.mjs";
 import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed.mjs";

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { StatsCollection } from "@guilty-spark/shared/halo/types";
 import { BaseMatchStatsPresenter } from "../base-match-stats-presenter";
 import {
   aFakeMatchStatsWith,
@@ -7,7 +8,6 @@ import {
   aFakeTeamWith,
   aFakeCoreStatsWith,
 } from "../fakes/data";
-import type { StatsCollection } from "../types";
 
 class TestMatchStatsPresenter extends BaseMatchStatsPresenter {
   protected getPlayerObjectiveStats(): StatsCollection {

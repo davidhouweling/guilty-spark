@@ -1,4 +1,5 @@
-import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues, MatchStatsMedal } from "../types";
+import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
+import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "../types";
 
 export function aFakeMatchStatsValuesWith(overrides?: Partial<MatchStatsValues>): MatchStatsValues {
   return {
@@ -12,7 +13,7 @@ export function aFakeMatchStatsValuesWith(overrides?: Partial<MatchStatsValues>)
   };
 }
 
-export function aFakeMatchStatsMedalWith(overrides?: Partial<MatchStatsMedal>): MatchStatsMedal {
+export function aFakeMatchStatsMedalWith(overrides?: Partial<MedalEntry>): MedalEntry {
   return {
     name: "Killing Spree",
     count: 1,

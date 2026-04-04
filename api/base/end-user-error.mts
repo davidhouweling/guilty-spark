@@ -5,7 +5,7 @@ import {
   type APIEmbed,
   type APIMessageTopLevelComponent,
 } from "discord-api-types/v10";
-import { UnreachableError } from "./unreachable-error.mjs";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 type EndUserErrorAction = "connect" | "retry";
 

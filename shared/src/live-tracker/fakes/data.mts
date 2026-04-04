@@ -6,7 +6,7 @@ import type {
   LiveTrackerTeam,
   PlayerAssociationData,
   LiveTrackerStatus,
-} from "../types.mts";
+} from "../types.mjs";
 import stateJson from "./state.json" with { type: "json" };
 import match1 from "./3d203681-2950-46a9-b6ae-d9da82d3d0d5.json" with { type: "json" };
 import match2 from "./c1a97bd1-84ae-43b3-9aeb-89de689bfeeb.json" with { type: "json" };

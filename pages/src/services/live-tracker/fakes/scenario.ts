@@ -1,9 +1,9 @@
-import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 import {
   sampleLiveTrackerStateMessage,
   sampleIndividualTrackerStateMessage,
-} from "@guilty-spark/contracts/live-tracker/fakes/data";
-import { UnreachableError } from "../../../base/unreachable-error";
+} from "@guilty-spark/shared/live-tracker/fakes/data";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 export interface LiveTrackerScenario {
   readonly intervalMs: number;

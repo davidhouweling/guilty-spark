@@ -1,10 +1,11 @@
 import type { APIEmbed } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
-import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { isBefore } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import { EmbedColors } from "../colors.mjs";
 
 interface SeriesOverviewEmbedOpts {
@@ -56,7 +57,7 @@ export class SeriesOverviewEmbed {
 
     for (const seriesMatch of seriesMatches) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
-      const gameDuration = this.haloService.getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
+      const gameDuration = getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(seriesMatch, locale);
 
       while (subs[0]) {

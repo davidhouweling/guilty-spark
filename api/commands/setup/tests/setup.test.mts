@@ -16,6 +16,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
 } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { SetupCommand } from "../setup.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -31,7 +32,6 @@ import {
   aGuildMemberWith,
   textChannel,
 } from "../../../services/discord/fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../../../services/database/types/neat_queue_config.mjs";

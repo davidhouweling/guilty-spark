@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { Row } from "@tanstack/react-table";
+import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import { medalsToWeightMap, getTeamMedalsMap, getPlayerMedalsMap, sortByMedals } from "../medals-sorting";
-import type { MatchStatsData, MatchStatsPlayerData, MatchStatsMedal } from "../types";
+import type { MatchStatsData, MatchStatsPlayerData } from "../types";
 
 describe("medalsToWeightMap", () => {
   it("converts medals to weight map", () => {
-    const medals: MatchStatsMedal[] = [
+    const medals: MedalEntry[] = [
       { name: "Killing Spree", count: 3, sortingWeight: 100 },
       { name: "Double Kill", count: 5, sortingWeight: 50 },
     ];
@@ -17,7 +18,7 @@ describe("medalsToWeightMap", () => {
   });
 
   it("sums counts for medals with same weight", () => {
-    const medals: MatchStatsMedal[] = [
+    const medals: MedalEntry[] = [
       { name: "Killing Spree", count: 3, sortingWeight: 100 },
       { name: "Running Riot", count: 2, sortingWeight: 100 },
     ];
@@ -28,7 +29,7 @@ describe("medalsToWeightMap", () => {
   });
 
   it("handles empty medals array", () => {
-    const medals: MatchStatsMedal[] = [];
+    const medals: MedalEntry[] = [];
 
     const result = medalsToWeightMap(medals);
 

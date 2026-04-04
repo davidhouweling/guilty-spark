@@ -1,46 +1,19 @@
 import { describe, it, expect } from "vitest";
-import type { MatchStats, Stats } from "halo-infinite-api";
-import { BaseSeriesStatsPresenter } from "../base-series-stats-presenter";
-import type { MatchStatsPlayerData } from "../types";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { mergeCoreStats, adjustAveragesInCoreStats } from "@guilty-spark/shared/halo/series-core-stats";
+import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
+import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
+import { aggregatePlayerCoreStats } from "@guilty-spark/shared/halo/series-player";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
 
-class TestSeriesStatsPresenter extends BaseSeriesStatsPresenter {
-  public testMergeCoreStats(existing: Stats["CoreStats"], incoming: Stats["CoreStats"]): Stats["CoreStats"] {
-    return this.mergeCoreStats(existing, incoming);
-  }
-
-  public testAdjustAveragesInCoreStats(coreStats: Stats["CoreStats"], matches: number): Stats["CoreStats"] {
-    return this.adjustAveragesInCoreStats(coreStats, matches);
-  }
-
-  public testGetDurationInSeconds(duration: string): number {
-    return this.getDurationInSeconds(duration);
-  }
-
-  public testGetTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
-    return this.getTeamPlayersFromMatches(matches, team);
-  }
-
-  public testAggregatePlayerCoreStats(matches: MatchStats[]): Map<string, Stats["CoreStats"]> {
-    return this.aggregatePlayerCoreStats(matches);
-  }
-
-  public testAggregateTeamMedals(
-    players: MatchStatsPlayerData[],
-  ): { name: string; count: number; sortingWeight: number }[] {
-    return this.aggregateTeamMedals(players);
-  }
-}
-
-describe("BaseSeriesStatsPresenter", () => {
-  const presenter = new TestSeriesStatsPresenter();
-
+describe("Series shared helpers", () => {
   describe("mergeCoreStats", () => {
     it("merges numeric stats by summing", () => {
       const existing = aFakeCoreStatsWith({ Kills: 10, Deaths: 5 });
       const incoming = aFakeCoreStatsWith({ Kills: 15, Deaths: 8 });
 
-      const result = presenter.testMergeCoreStats(existing, incoming);
+      const result = mergeCoreStats(existing, incoming);
 
       expect(result.Kills).toBe(25);
       expect(result.Deaths).toBe(13);
@@ -50,7 +23,7 @@ describe("BaseSeriesStatsPresenter", () => {
       const existing = aFakeCoreStatsWith({ AverageLifeDuration: "PT30S" });
       const incoming = aFakeCoreStatsWith({ AverageLifeDuration: "PT45S" });
 
-      const result = presenter.testMergeCoreStats(existing, incoming);
+      const result = mergeCoreStats(existing, incoming);
 
       expect(result.AverageLifeDuration).toBe("PT30S,PT45S");
     });
@@ -69,7 +42,7 @@ describe("BaseSeriesStatsPresenter", () => {
         ],
       });
 
-      const result = presenter.testMergeCoreStats(existing, incoming);
+      const result = mergeCoreStats(existing, incoming);
 
       expect(result.Medals).toHaveLength(3);
       const medal100 = result.Medals.find((m) => m.NameId === 100);
@@ -85,7 +58,7 @@ describe("BaseSeriesStatsPresenter", () => {
         PersonalScores: [{ NameId: 1000, Count: 3, TotalPersonalScoreAwarded: 300 }],
       });
 
-      const result = presenter.testMergeCoreStats(existing, incoming);
+      const result = mergeCoreStats(existing, incoming);
 
       expect(result.PersonalScores).toHaveLength(1);
       expect(result.PersonalScores[0]?.Count).toBe(8);
@@ -97,7 +70,7 @@ describe("BaseSeriesStatsPresenter", () => {
     it("averages accuracy across matches", () => {
       const coreStats = aFakeCoreStatsWith({ Accuracy: 150 });
 
-      const result = presenter.testAdjustAveragesInCoreStats(coreStats, 3);
+      const result = adjustAveragesInCoreStats(coreStats, 3);
 
       expect(result.Accuracy).toBe(50);
     });
@@ -105,7 +78,7 @@ describe("BaseSeriesStatsPresenter", () => {
     it("averages life duration from concatenated values", () => {
       const coreStats = aFakeCoreStatsWith({ AverageLifeDuration: "PT30S,PT45S,PT60S" });
 
-      const result = presenter.testAdjustAveragesInCoreStats(coreStats, 3);
+      const result = adjustAveragesInCoreStats(coreStats, 3);
 
       expect(result.AverageLifeDuration).toBe("PT45.0S");
     });
@@ -113,7 +86,7 @@ describe("BaseSeriesStatsPresenter", () => {
     it("handles single life duration", () => {
       const coreStats = aFakeCoreStatsWith({ AverageLifeDuration: "PT38.1S" });
 
-      const result = presenter.testAdjustAveragesInCoreStats(coreStats, 1);
+      const result = adjustAveragesInCoreStats(coreStats, 1);
 
       expect(result.AverageLifeDuration).toBe("PT38.1S");
     });
@@ -121,19 +94,19 @@ describe("BaseSeriesStatsPresenter", () => {
 
   describe("getDurationInSeconds", () => {
     it("converts ISO duration to seconds", () => {
-      const result = presenter.testGetDurationInSeconds("PT1M30S");
+      const result = getDurationInSeconds("PT1M30S");
 
       expect(result).toBe(90);
     });
 
     it("handles hours and minutes", () => {
-      const result = presenter.testGetDurationInSeconds("PT1H5M30S");
+      const result = getDurationInSeconds("PT1H5M30S");
 
       expect(result).toBe(3930);
     });
 
     it("handles fractional seconds", () => {
-      const result = presenter.testGetDurationInSeconds("PT38.1S");
+      const result = getDurationInSeconds("PT38.1S");
 
       expect(result).toBe(38.1);
     });
@@ -204,7 +177,7 @@ describe("BaseSeriesStatsPresenter", () => {
         ],
       });
 
-      const result = presenter.testGetTeamPlayersFromMatches([match1, match2], match1.Teams[0]);
+      const result = getTeamPlayersFromMatches([match1, match2], Preconditions.checkExists(match1.Teams[0]));
 
       expect(result).toHaveLength(2);
       expect(result.map((p) => p.PlayerId)).toContain("xuid(1111)");
@@ -264,7 +237,7 @@ describe("BaseSeriesStatsPresenter", () => {
         ],
       });
 
-      const result = presenter.testGetTeamPlayersFromMatches([match], match.Teams[0]);
+      const result = getTeamPlayersFromMatches([match], Preconditions.checkExists(match.Teams[0]));
 
       expect(result).toHaveLength(1);
       expect(result[0]?.PlayerId).toBe("xuid(1111)");
@@ -306,7 +279,7 @@ describe("BaseSeriesStatsPresenter", () => {
         ],
       });
 
-      const result = presenter.testAggregatePlayerCoreStats([match1, match2]);
+      const result = aggregatePlayerCoreStats([match1, match2]);
 
       const playerStats = result.get("xuid(1111)");
       expect(playerStats?.Kills).toBe(25);
@@ -347,7 +320,7 @@ describe("BaseSeriesStatsPresenter", () => {
         ],
       });
 
-      const result = presenter.testAggregatePlayerCoreStats([match1, match2]);
+      const result = aggregatePlayerCoreStats([match1, match2]);
 
       const playerStats = result.get("xuid(1111)");
       expect(playerStats?.Accuracy).toBe(55);
@@ -358,7 +331,7 @@ describe("BaseSeriesStatsPresenter", () => {
     it("extracts XUID from PlayerId", () => {
       const player = { PlayerId: "xuid(1234567890)" };
 
-      const result = presenter.getPlayerXuid(player);
+      const result = getPlayerXuid(player);
 
       expect(result).toBe("1234567890");
     });
@@ -385,7 +358,7 @@ describe("BaseSeriesStatsPresenter", () => {
         },
       ];
 
-      const result = presenter.testAggregateTeamMedals(players);
+      const result = aggregateTeamMedals(players);
 
       expect(result).toHaveLength(3);
       const killingSpree = result.find((m) => m.name === "Killing Spree");
@@ -405,7 +378,7 @@ describe("BaseSeriesStatsPresenter", () => {
         },
       ];
 
-      const result = presenter.testAggregateTeamMedals(players);
+      const result = aggregateTeamMedals(players);
 
       expect(result[0]?.name).toBe("Killing Spree");
       expect(result[1]?.name).toBe("Triple Kill");

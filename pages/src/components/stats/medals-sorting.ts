@@ -1,5 +1,6 @@
 import type { Row } from "@tanstack/react-table";
-import type { MatchStatsData, MatchStatsPlayerData, MatchStatsMedal } from "./types";
+import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
+import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
 /**
  * Converts an array of medals into a Map keyed by sorting weight.
@@ -8,7 +9,7 @@ import type { MatchStatsData, MatchStatsPlayerData, MatchStatsMedal } from "./ty
  * @param medals Array of medals to convert
  * @returns Map of sorting weight to total count
  */
-export function medalsToWeightMap(medals: readonly MatchStatsMedal[]): Map<number, number> {
+export function medalsToWeightMap(medals: readonly MedalEntry[]): Map<number, number> {
   const medalMap = new Map<number, number>();
   for (const medal of medals) {
     medalMap.set(medal.sortingWeight, (medalMap.get(medal.sortingWeight) ?? 0) + medal.count);

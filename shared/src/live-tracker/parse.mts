@@ -7,7 +7,7 @@ import {
   readString,
   readStringRecord,
 } from "../base/json-readers.mjs";
-import type { JsonValue } from "../base/json.mts";
+import type { JsonValue } from "../base/json.mjs";
 import type {
   LiveTrackerPlayer,
   LiveTrackerMatchSummary,
@@ -17,7 +17,7 @@ import type {
   LiveTrackerStateMessage,
   LiveTrackerTeam,
   PlayerAssociationData,
-} from "./types.mts";
+} from "./types.mjs";
 
 function parseStatus(value: JsonValue): LiveTrackerStatus | null {
   const status = readString(value);

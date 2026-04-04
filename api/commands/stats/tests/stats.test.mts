@@ -20,6 +20,7 @@ import {
   MessageFlags,
   MessageType,
 } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { StatsCommand } from "../stats.mjs";
 import type { Services } from "../../../services/install.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
@@ -33,7 +34,6 @@ import {
   threadChannel,
 } from "../../../services/discord/fakes/data.mjs";
 import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { StatsReturnType } from "../../../services/database/types/guild_config.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake.mjs";

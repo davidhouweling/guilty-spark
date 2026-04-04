@@ -1,4 +1,4 @@
-import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 
 export type LiveTrackerListener = (message: LiveTrackerMessage) => void;
 

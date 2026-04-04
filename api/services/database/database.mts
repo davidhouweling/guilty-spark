@@ -1,5 +1,5 @@
 import { instrumentD1WithSentry } from "@sentry/cloudflare";
-import { Preconditions } from "../../base/preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DiscordAssociationsRow } from "./types/discord_associations.mjs";
 import type { GuildConfigRow } from "./types/guild_config.mjs";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "./types/guild_config.mjs";

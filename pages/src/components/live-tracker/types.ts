@@ -1,4 +1,4 @@
-import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 
 export interface LiveTrackerPlayerRenderModel {

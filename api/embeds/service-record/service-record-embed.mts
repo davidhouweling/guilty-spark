@@ -1,14 +1,14 @@
 import type { PlaylistCsr, PlaylistCsrContainer, ServiceRecord, MatchCount } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/payloads/v10";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
-import type { HaloService } from "../../services/halo/halo.mjs";
 import { AssociationReason } from "../../services/database/types/discord_associations.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 
 interface ServiceRecordEmbedServices {
-  haloService: HaloService;
   discordService: DiscordService;
 }
 
@@ -32,7 +32,6 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
   }
 
   get embed(): APIEmbed {
-    const { haloService } = this.services;
     const { locale, discordUserId, associationReason, gamertag, serviceRecord, csr } = this.data;
 
     return {
@@ -47,7 +46,7 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
         `**Custom matches played:** ${this.data.matchCount?.CustomMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
         `**Local matches played:** ${this.data.matchCount?.LocalMatchesPlayedCount.toLocaleString(locale) ?? "*Unavailable*"}`,
         "",
-        `**Matchmaking Time played:** ${haloService.getReadableDuration(serviceRecord.TimePlayed, locale)}`,
+        `**Matchmaking Time played:** ${getReadableDuration(serviceRecord.TimePlayed, locale)}`,
         `**Matchmaking Wins : Losses : Ties:** ${serviceRecord.Wins.toLocaleString(locale)} : ${serviceRecord.Losses.toLocaleString(locale)} : ${serviceRecord.Ties.toLocaleString(locale)}`,
         `**Matchmaking Win percentage: ** ${this.formatStatValue((serviceRecord.Wins / Math.max(serviceRecord.MatchesCompleted, 1)) * 100)}%`,
         `**Matchmaking Total kills:deaths : assists (av KDA):** ${serviceRecord.CoreStats.Kills.toLocaleString(locale)} : ${serviceRecord.CoreStats.Deaths.toLocaleString(locale)} : ${serviceRecord.CoreStats.Assists.toLocaleString(locale)} (${serviceRecord.CoreStats.AverageKDA.toLocaleString(locale)})`,
@@ -119,14 +118,14 @@ export class ServiceRecordEmbed extends BaseTableEmbed {
   }
 
   private formatEsra(esra: number): string {
-    const { discordService, haloService } = this.services;
+    const { discordService } = this.services;
 
     if (esra <= 0) {
       return "-";
     }
 
     const roundedEsra = Math.round(esra);
-    const { rankTier, subTier } = haloService.getRankTierFromCsr(roundedEsra);
+    const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
     const esraEmoji = discordService.getRankEmoji({
       rankTier,
       subTier,

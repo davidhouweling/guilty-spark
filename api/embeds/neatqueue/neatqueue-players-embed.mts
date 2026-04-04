@@ -5,18 +5,18 @@ import type {
   APIButtonComponentWithCustomId,
 } from "discord-api-types/v10";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import type { DiscordService } from "../../services/discord/discord.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import { AssociationReason, GamesRetrievable } from "../../services/database/types/discord_associations.mjs";
 import type { DiscordAssociationsRow } from "../../services/database/types/discord_associations.mjs";
 import { BaseTableEmbed } from "../base-table-embed.mjs";
 import { EmbedColors } from "../colors.mjs";
 import { MapsPostType } from "../../services/database/types/guild_config.mjs";
-import type { HaloService, PlayerEsraData } from "../../services/halo/halo.mjs";
+import type { PlayerEsraData } from "../../services/halo/halo.mjs";
 
 interface NeatQueuePlayersEmbedServices {
   discordService: DiscordService;
-  haloService: HaloService;
 }
 
 export interface PlayerData {
@@ -173,14 +173,14 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
   }
 
   private formatEsra(esra: number): string {
-    const { discordService, haloService } = this.services;
+    const { discordService } = this.services;
 
     if (esra <= 0) {
       return "-";
     }
 
     const roundedEsra = Math.round(esra);
-    const { rankTier, subTier } = haloService.getRankTierFromCsr(roundedEsra);
+    const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
     const esraEmoji = discordService.getRankEmoji({
       rankTier,
       subTier,

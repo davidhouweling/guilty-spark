@@ -10,7 +10,8 @@ import type {
 import { ChannelType } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
-import type { LiveTrackerMatchSummary } from "@guilty-spark/contracts/live-tracker/types";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { NeatQueueService } from "../neatqueue.mjs";
 import type { DatabaseService } from "../../database/database.mjs";
 import {
@@ -34,7 +35,6 @@ import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_
 import { getFakeNeatQueueData, aFakeNeatQueueStateWith, neatQueueStateFromTimeline } from "../fakes/data.mjs";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types.mjs";
 import { getRankedArenaCsrsData, getMatchStats } from "../../halo/fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import {
   aGuildMemberWith,
   apiMessage,

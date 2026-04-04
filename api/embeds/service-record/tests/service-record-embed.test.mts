@@ -59,7 +59,7 @@ describe("ServiceRecordEmbed", () => {
   describe("embed", () => {
     it("includes basic service record information", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -83,7 +83,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats time played correctly", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -103,7 +103,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays win percentage correctly", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -123,7 +123,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays damage ratio correctly", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -143,7 +143,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays CSR information correctly", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -165,7 +165,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays ESRA when provided", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -186,7 +186,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays dash for ESRA when 0", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -206,7 +206,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats association reason for CONNECTED", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -226,7 +226,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats association reason for USERNAME_SEARCH", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -246,7 +246,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats association reason for DISPLAY_NAME_SEARCH", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -266,7 +266,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats association reason for GAME_SIMILARITY", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -286,7 +286,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("formats association reason for MANUAL", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -314,7 +314,7 @@ describe("ServiceRecordEmbed", () => {
       };
 
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -342,7 +342,7 @@ describe("ServiceRecordEmbed", () => {
       };
 
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -362,7 +362,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays match count information when available", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",
@@ -384,7 +384,7 @@ describe("ServiceRecordEmbed", () => {
 
     it("displays 'Unavailable' for match counts when undefined", () => {
       const embed = new ServiceRecordEmbed(
-        { haloService: services.haloService, discordService: services.discordService },
+        { discordService: services.discordService },
         {
           locale: "en-US",
           discordUserId: "123456789",

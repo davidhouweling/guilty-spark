@@ -1,5 +1,7 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import { LiveTrackerIndividualDO } from "../live-tracker-individual-do.mjs";
 import { installFakeServicesWith } from "../../../services/fakes/services.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
@@ -8,7 +10,6 @@ import { DiscordError } from "../../../services/discord/discord-error.mjs";
 import { apiMessage, guild } from "../../../services/discord/fakes/data.mjs";
 import { aFakeDurableObjectId } from "../../fakes/live-tracker-do.fake.mjs";
 import { getMatchStats } from "../../../services/halo/fakes/data.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import {
   aFakeLiveTrackerIndividualStateWith,
   aFakeDiscordTargetWith,
@@ -1356,7 +1357,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
       vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
       vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
-      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
       vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
 
@@ -1399,7 +1400,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
       vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
       vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
-      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
       vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
 
@@ -1597,7 +1598,7 @@ describe("LiveTrackerIndividualDO - Broadcast System", () => {
       vi.spyOn(servicesForKV.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer: Aquarius");
       vi.spyOn(servicesForKV.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
       vi.spyOn(servicesForKV.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
-      vi.spyOn(servicesForKV.haloService, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
       vi.spyOn(servicesForKV.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
       vi.spyOn(envForKV.APP_DATA, "list").mockResolvedValue({ keys: [], list_complete: true, cacheStatus: null });
       const kvPutSpy = vi.spyOn(envForKV.APP_DATA, "put").mockRejectedValue(new Error("KV storage error"));

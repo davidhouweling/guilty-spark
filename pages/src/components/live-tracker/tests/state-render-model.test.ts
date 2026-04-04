@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sampleLiveTrackerStateMessage } from "@guilty-spark/contracts/live-tracker/fakes/data";
+import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { toLiveTrackerStateRenderModel } from "../state-render-model";
 
 describe("toLiveTrackerStateRenderModel", () => {

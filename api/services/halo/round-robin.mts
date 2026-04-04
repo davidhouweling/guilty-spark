@@ -1,4 +1,4 @@
-import { Preconditions } from "../../base/preconditions.mjs";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MapMode } from "./hcs.mjs";
 
 export interface RoundRobinArgs {

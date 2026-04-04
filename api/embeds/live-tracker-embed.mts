@@ -6,8 +6,8 @@ import type {
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import { addMinutes, compareAsc, isBefore } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DiscordService } from "../services/discord/discord.mjs";
-import { Preconditions } from "../base/preconditions.mjs";
 import type { LiveTrackerEmbedData } from "../live-tracker/types.mjs";
 import { BaseTableEmbed } from "./base-table-embed.mjs";
 import { EmbedColors } from "./colors.mjs";

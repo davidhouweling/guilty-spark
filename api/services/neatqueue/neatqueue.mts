@@ -12,19 +12,19 @@ import type {
 } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
-import type { TeamMapping } from "@guilty-spark/contracts/live-tracker/series-types";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DatabaseService } from "../database/database.mjs";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config.mjs";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config.mjs";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord.mjs";
 import type { HaloService, MatchPlayer } from "../halo/halo.mjs";
 import type { LiveTrackerService } from "../live-tracker/live-tracker.mjs";
-import { Preconditions } from "../../base/preconditions.mjs";
 import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed.mjs";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed.mjs";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { GuildConfigRow } from "../database/types/guild_config.mjs";
 import { MapsPostType, StatsReturnType } from "../database/types/guild_config.mjs";
 import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats.mjs";
@@ -1244,7 +1244,7 @@ export class NeatQueueService {
     }
 
     const playersEmbed = new NeatQueuePlayersEmbed(
-      { discordService, haloService },
+      { discordService },
       {
         players: sortedPlayers.map((player) => ({ id: player.id, name: player.name })),
         discordAssociations,

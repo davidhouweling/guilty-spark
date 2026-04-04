@@ -15,6 +15,7 @@ import {
   InteractionType,
   Locale,
 } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordService } from "../discord.mjs";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake.mjs";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error.mjs";
@@ -29,7 +30,6 @@ import {
 } from "../fakes/data.mjs";
 import { JsonResponse } from "../json-response.mjs";
 import { aTestCommandWith } from "../../../commands/base/fakes/test-command.fake.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { AssociationReason } from "../../database/types/discord_associations.mjs";
 import { aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake.mjs";
 import type { LogService } from "../../log/types.mjs";

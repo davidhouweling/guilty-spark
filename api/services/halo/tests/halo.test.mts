@@ -12,6 +12,8 @@ import type {
   UgcGameVariantAsset,
 } from "halo-infinite-api";
 import { sub } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { HaloService, FetchablePlaylist } from "../halo.mjs";
 import type { CachedUserInfo, MatchPlayer } from "../types.mjs";
 import type { generateRoundRobinMapsFn } from "../round-robin.mjs";
@@ -27,7 +29,6 @@ import {
   aFakeMapAssetWith,
 } from "../fakes/data.mjs";
 import { AssociationReason, GamesRetrievable } from "../../database/types/discord_associations.mjs";
-import { Preconditions } from "../../../base/preconditions.mjs";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake.mjs";
 import type { LogService } from "../../log/types.mjs";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake.mjs";
@@ -1940,16 +1941,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getPlayerXuid()", () => {
-    it("returns the xuid for the specified player", () => {
-      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const player = Preconditions.checkExists(match.Players[0]);
-
-      const result = haloService.getPlayerXuid(player);
-      expect(result).toBe("0100000000000000");
-    });
-  });
-
   describe("getPlayerXuidsToGametags()", () => {
     it("returns the xuids to gamertags map for the specified players", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
@@ -2507,14 +2498,14 @@ describe("Halo service", () => {
   describe("getDurationInSeconds()", () => {
     it("returns the duration in seconds", () => {
       const duration = "PT10M58.2413691S";
-      const result = haloService.getDurationInSeconds(duration);
+      const result = getDurationInSeconds(duration);
 
       expect(result).toBe(658.2);
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
-      const result = haloService.getDurationInSeconds(duration);
+      const result = getDurationInSeconds(duration);
 
       expect(result).toBe(275415.5);
     });
@@ -2523,21 +2514,21 @@ describe("Halo service", () => {
   describe("getReadableDuration()", () => {
     it("returns the duration in a readable format", () => {
       const duration = "PT10M58.2413691S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("10m 58s");
     });
 
     it("returns the duration in a readable format (including days and hours)", () => {
       const duration = "P3DT4H30M15.5S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("3d 4h 30m 15s");
     });
 
     it("returns '0s' when the duration is zero", () => {
       const duration = "PT0S";
-      const result = haloService.getReadableDuration(duration, "en-US");
+      const result = getReadableDuration(duration, "en-US");
 
       expect(result).toBe("0s");
     });
@@ -3062,58 +3053,6 @@ describe("Halo service", () => {
       infiniteClient.getUserServiceRecord.mockRejectedValue(new Error("API Error"));
 
       await expect(haloService.getServiceRecord(xuid)).rejects.toThrow("API Error");
-    });
-  });
-
-  describe("getRankTierFromCsr", () => {
-    it("returns Onyx for CSR >= 1500", () => {
-      expect(haloService.getRankTierFromCsr(1500)).toEqual({ rankTier: "Onyx", subTier: 0 });
-      expect(haloService.getRankTierFromCsr(2000)).toEqual({ rankTier: "Onyx", subTier: 0 });
-    });
-
-    it("returns Diamond tiers for CSR 1200-1499", () => {
-      expect(haloService.getRankTierFromCsr(1450)).toEqual({ rankTier: "Diamond", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(1400)).toEqual({ rankTier: "Diamond", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(1350)).toEqual({ rankTier: "Diamond", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(1300)).toEqual({ rankTier: "Diamond", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(1250)).toEqual({ rankTier: "Diamond", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(1200)).toEqual({ rankTier: "Diamond", subTier: 0 });
-    });
-
-    it("returns Platinum tiers for CSR 900-1199", () => {
-      expect(haloService.getRankTierFromCsr(1150)).toEqual({ rankTier: "Platinum", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(1100)).toEqual({ rankTier: "Platinum", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(1050)).toEqual({ rankTier: "Platinum", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(1000)).toEqual({ rankTier: "Platinum", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(950)).toEqual({ rankTier: "Platinum", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(900)).toEqual({ rankTier: "Platinum", subTier: 0 });
-    });
-
-    it("returns Gold tiers for CSR 600-899", () => {
-      expect(haloService.getRankTierFromCsr(850)).toEqual({ rankTier: "Gold", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(800)).toEqual({ rankTier: "Gold", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(750)).toEqual({ rankTier: "Gold", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(700)).toEqual({ rankTier: "Gold", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(650)).toEqual({ rankTier: "Gold", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(600)).toEqual({ rankTier: "Gold", subTier: 0 });
-    });
-
-    it("returns Silver tiers for CSR 300-599", () => {
-      expect(haloService.getRankTierFromCsr(550)).toEqual({ rankTier: "Silver", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(500)).toEqual({ rankTier: "Silver", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(450)).toEqual({ rankTier: "Silver", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(400)).toEqual({ rankTier: "Silver", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(350)).toEqual({ rankTier: "Silver", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(300)).toEqual({ rankTier: "Silver", subTier: 0 });
-    });
-
-    it("returns Bronze tiers for CSR 0-299", () => {
-      expect(haloService.getRankTierFromCsr(250)).toEqual({ rankTier: "Bronze", subTier: 5 });
-      expect(haloService.getRankTierFromCsr(200)).toEqual({ rankTier: "Bronze", subTier: 4 });
-      expect(haloService.getRankTierFromCsr(150)).toEqual({ rankTier: "Bronze", subTier: 3 });
-      expect(haloService.getRankTierFromCsr(100)).toEqual({ rankTier: "Bronze", subTier: 2 });
-      expect(haloService.getRankTierFromCsr(50)).toEqual({ rankTier: "Bronze", subTier: 1 });
-      expect(haloService.getRankTierFromCsr(0)).toEqual({ rankTier: "Bronze", subTier: 0 });
     });
   });
 

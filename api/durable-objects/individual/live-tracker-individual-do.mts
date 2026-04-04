@@ -12,6 +12,9 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   addMilliseconds,
   differenceInMilliseconds,
@@ -29,8 +32,9 @@ import type {
   LiveTrackerNeatQueueSeriesGroup,
   LiveTrackerManualMatchGroup,
   LiveTrackerSingleMatchGroup,
-} from "@guilty-spark/contracts/live-tracker/types";
-import type { SeriesData, SeriesId } from "@guilty-spark/contracts/live-tracker/series-types";
+} from "@guilty-spark/shared/live-tracker/types";
+import type { SeriesData, SeriesId } from "@guilty-spark/shared/live-tracker/series-types";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LogService } from "../../services/log/types.mjs";
 import type { DiscordService } from "../../services/discord/discord.mjs";
 import type { HaloService } from "../../services/halo/halo.mjs";
@@ -39,7 +43,6 @@ import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { DiscordError } from "../../services/discord/discord-error.mjs";
 import type { NeatQueueState } from "../../services/neatqueue/types.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type {
   LiveTrackerIndividualStartRequest,
   LiveTrackerIndividualWebStartRequest,
@@ -458,9 +461,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         for (const matchId of matchIds) {
           const match = rawMatches[matchId];
           if (match != null) {
-            const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) =>
-              this.haloService.getPlayerXuid(p),
-            );
+            const matchParticipants = match.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
             for (const participant of matchParticipants) {
               participantsSet.add(participant);
             }
@@ -1326,7 +1327,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         );
       }
 
-      const duration = this.haloService.getReadableDuration(match.MatchInfo.Duration, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
       const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
 
       let gameType = "*Unknown Game Type*";
@@ -1407,9 +1408,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
         continue;
       }
 
-      const participants = new Set(
-        match.Players.filter((p) => p.PlayerType === 1).map((p) => this.haloService.getPlayerXuid(p)),
-      );
+      const participants = new Set(match.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p)));
 
       // Check if same participants as current group
       if (
@@ -1833,7 +1832,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
   private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerIndividualStateData> {
     const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await getMedalMetadataFromMatches(rawMatches, async (medalId) =>
+      this.haloService.getMedal(medalId),
+    );
     const groups = await this.transformMatchGroupingsToGroups(state);
 
     return {
@@ -2005,39 +2006,6 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const dateRange = firstDateStr === lastDateStr ? firstDateStr : `${firstDateStr}-${lastDateStr}`;
 
     return `Custom Games • ${dateRange} • ${playerCount.toLocaleString()} players`;
-  }
-
-  private async getMedalMetadataFromMatches(
-    rawMatches: Record<string, MatchStats>,
-  ): Promise<Record<number, { name: string; sortingWeight: number }>> {
-    const medalIds = new Set<number>();
-    for (const match of Object.values(rawMatches)) {
-      for (const team of match.Teams) {
-        for (const medal of team.Stats.CoreStats.Medals) {
-          medalIds.add(medal.NameId);
-        }
-      }
-      for (const player of match.Players) {
-        for (const teamStats of player.PlayerTeamStats) {
-          for (const medal of teamStats.Stats.CoreStats.Medals) {
-            medalIds.add(medal.NameId);
-          }
-        }
-      }
-    }
-
-    const medalMetadata: Record<number, { name: string; sortingWeight: number }> = {};
-    for (const medalId of medalIds) {
-      const medal = await this.haloService.getMedal(medalId);
-      if (medal != null) {
-        medalMetadata[medalId] = {
-          name: medal.name,
-          sortingWeight: medal.sortingWeight,
-        };
-      }
-    }
-
-    return medalMetadata;
   }
 
   private async dispose(trackerState: LiveTrackerIndividualState | null, reason: string): Promise<void> {

@@ -13,11 +13,13 @@ import type {
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
-import { Preconditions } from "../../base/preconditions.mjs";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations.mjs";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations.mjs";
 import type { DatabaseService } from "../database/database.mjs";
-import { UnreachableError } from "../../base/unreachable-error.mjs";
 import type { LogService } from "../log/types.mjs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error.mjs";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config.mjs";
@@ -226,25 +228,21 @@ export class HaloService {
     return score;
   }
 
+  wrapPlayerXuid(xuid: string): string {
+    return `xuid(${xuid})`;
+  }
+
   getTeamName(teamId: number): string {
     const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
 
     return teams[teamId] ?? "Unknown";
   }
 
-  getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-    return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
-  }
-
-  wrapPlayerXuid(xuid: string): string {
-    return `xuid(${xuid})`;
-  }
-
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
       .filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning)
-      .map((player) => this.getPlayerXuid(player))
+      .map((player) => getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
 
     const uniqueXuids = new Set(xuidsToResolve);
@@ -518,44 +516,6 @@ export class HaloService {
     }
   }
 
-  getDurationInSeconds(duration: string): number {
-    const parsedDuration = tinyduration.parse(duration);
-    return parseFloat(
-      (
-        (parsedDuration.days ?? 0) * 86400 +
-        (parsedDuration.hours ?? 0) * 3600 +
-        (parsedDuration.minutes ?? 0) * 60 +
-        (parsedDuration.seconds ?? 0)
-      ).toFixed(1),
-    );
-  }
-
-  getDurationInIsoString(seconds: number): string {
-    return tinyduration.serialize({
-      seconds: parseFloat(seconds.toFixed(1)),
-    });
-  }
-
-  getReadableDuration(duration: string, locale: string): string {
-    const parsedDuration = tinyduration.parse(duration);
-    const { days, hours, minutes, seconds } = parsedDuration;
-    const output: string[] = [];
-    if (days != null && days > 0) {
-      output.push(`${days.toLocaleString(locale)}d`);
-    }
-    if (hours != null && hours > 0) {
-      output.push(`${hours.toLocaleString(locale)}h`);
-    }
-    if (minutes != null && minutes > 0) {
-      output.push(`${minutes.toLocaleString(locale)}m`);
-    }
-    if (seconds != null && seconds > 0) {
-      output.push(`${Math.floor(seconds).toLocaleString(locale)}s`);
-    }
-
-    return output.length ? output.join(" ") : "0s";
-  }
-
   async getMedal(medalId: number): Promise<Medal | undefined> {
     this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
       cf: {
@@ -666,7 +626,7 @@ export class HaloService {
         for (const player of matchDetail.Players) {
           if (player.PlayerType === 1) {
             // Human players only
-            const xuid = this.getPlayerXuid(player);
+            const xuid = getPlayerXuid(player);
             const playerGamertag = xuidToGamertagMap.get(xuid) ?? "*Unknown*";
             const teamId = player.LastTeamId;
 
@@ -704,7 +664,7 @@ export class HaloService {
         matchId: match.MatchId,
         startTime: dateTimeFormat.format(startDate),
         endTime: dateTimeFormat.format(endDate),
-        duration: this.getReadableDuration(match.MatchInfo.Duration, locale),
+        duration: getReadableDuration(match.MatchInfo.Duration, locale),
         mapName,
         modeName,
         outcome,
@@ -802,7 +762,7 @@ export class HaloService {
 
       for (const player of match.Players) {
         if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
-          const xuid = this.getPlayerXuid(player);
+          const xuid = getPlayerXuid(player);
           const teamId = player.LastTeamId;
 
           if (!rosters.has(teamId)) {
@@ -914,100 +874,6 @@ export class HaloService {
     });
   }
 
-  getRankTierFromCsr(csr: number): { rankTier: string; subTier: number } {
-    if (csr >= 1500) {
-      return { rankTier: "Onyx", subTier: 0 };
-    }
-    if (csr >= 1450) {
-      return { rankTier: "Diamond", subTier: 5 };
-    }
-    if (csr >= 1400) {
-      return { rankTier: "Diamond", subTier: 4 };
-    }
-    if (csr >= 1350) {
-      return { rankTier: "Diamond", subTier: 3 };
-    }
-    if (csr >= 1300) {
-      return { rankTier: "Diamond", subTier: 2 };
-    }
-    if (csr >= 1250) {
-      return { rankTier: "Diamond", subTier: 1 };
-    }
-    if (csr >= 1200) {
-      return { rankTier: "Diamond", subTier: 0 };
-    }
-    if (csr >= 1150) {
-      return { rankTier: "Platinum", subTier: 5 };
-    }
-    if (csr >= 1100) {
-      return { rankTier: "Platinum", subTier: 4 };
-    }
-    if (csr >= 1050) {
-      return { rankTier: "Platinum", subTier: 3 };
-    }
-    if (csr >= 1000) {
-      return { rankTier: "Platinum", subTier: 2 };
-    }
-    if (csr >= 950) {
-      return { rankTier: "Platinum", subTier: 1 };
-    }
-    if (csr >= 900) {
-      return { rankTier: "Platinum", subTier: 0 };
-    }
-    if (csr >= 850) {
-      return { rankTier: "Gold", subTier: 5 };
-    }
-    if (csr >= 800) {
-      return { rankTier: "Gold", subTier: 4 };
-    }
-    if (csr >= 750) {
-      return { rankTier: "Gold", subTier: 3 };
-    }
-    if (csr >= 700) {
-      return { rankTier: "Gold", subTier: 2 };
-    }
-    if (csr >= 650) {
-      return { rankTier: "Gold", subTier: 1 };
-    }
-    if (csr >= 600) {
-      return { rankTier: "Gold", subTier: 0 };
-    }
-    if (csr >= 550) {
-      return { rankTier: "Silver", subTier: 5 };
-    }
-    if (csr >= 500) {
-      return { rankTier: "Silver", subTier: 4 };
-    }
-    if (csr >= 450) {
-      return { rankTier: "Silver", subTier: 3 };
-    }
-    if (csr >= 400) {
-      return { rankTier: "Silver", subTier: 2 };
-    }
-    if (csr >= 350) {
-      return { rankTier: "Silver", subTier: 1 };
-    }
-    if (csr >= 300) {
-      return { rankTier: "Silver", subTier: 0 };
-    }
-    if (csr >= 250) {
-      return { rankTier: "Bronze", subTier: 5 };
-    }
-    if (csr >= 200) {
-      return { rankTier: "Bronze", subTier: 4 };
-    }
-    if (csr >= 150) {
-      return { rankTier: "Bronze", subTier: 3 };
-    }
-    if (csr >= 100) {
-      return { rankTier: "Bronze", subTier: 2 };
-    }
-    if (csr >= 50) {
-      return { rankTier: "Bronze", subTier: 1 };
-    }
-    return { rankTier: "Bronze", subTier: 0 };
-  }
-
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
     try {
       const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
@@ -1061,7 +927,7 @@ export class HaloService {
     const xuidsFromMatches = new Set(
       matches.flatMap((match) =>
         match.Players.filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning).map(
-          (player) => this.getPlayerXuid(player),
+          (player) => getPlayerXuid(player),
         ),
       ),
     );
@@ -1540,7 +1406,7 @@ export class HaloService {
     for (const player of match.Players) {
       if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
         const teamId = player.LastTeamId;
-        const xuid = this.getPlayerXuid(player);
+        const xuid = getPlayerXuid(player);
 
         if (!xboxPlayersByTeam.has(teamId)) {
           xboxPlayersByTeam.set(teamId, []);
