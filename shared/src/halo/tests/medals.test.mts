@@ -1,5 +1,96 @@
-import { describe, it, expect } from "vitest";
-import { aggregateTeamMedals } from "../medals.mjs";
+import { describe, it, expect, vi } from "vitest";
+import { aggregateTeamMedals, getMedalMetadataFromMatches } from "../medals.mjs";
+describe("getMedalMetadataFromMatches", () => {
+  it("collects unique medal metadata from team and player stats", async () => {
+    const rawMatches = {
+      first: {
+        Teams: [
+          {
+            Stats: {
+              CoreStats: {
+                Medals: [{ NameId: 1 }, { NameId: 2 }],
+              },
+            },
+          },
+        ],
+        Players: [
+          {
+            PlayerTeamStats: [
+              {
+                Stats: {
+                  CoreStats: {
+                    Medals: [{ NameId: 2 }, { NameId: 3 }],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      second: {
+        Teams: [
+          {
+            Stats: {
+              CoreStats: {
+                Medals: [{ NameId: 3 }, { NameId: 4 }],
+              },
+            },
+          },
+        ],
+        Players: [],
+      },
+    };
+
+    const getMedal = vi.fn(async (medalId: number) => ({
+      name: `Medal ${medalId}`,
+      sortingWeight: medalId * 10,
+    }));
+
+    const result = await getMedalMetadataFromMatches(rawMatches, getMedal);
+
+    expect(getMedal).toHaveBeenCalledTimes(4);
+    expect(result).toEqual({
+      1: { name: "Medal 1", sortingWeight: 10 },
+      2: { name: "Medal 2", sortingWeight: 20 },
+      3: { name: "Medal 3", sortingWeight: 30 },
+      4: { name: "Medal 4", sortingWeight: 40 },
+    });
+  });
+
+  it("skips medals that cannot be resolved", async () => {
+    const rawMatches = {
+      first: {
+        Teams: [
+          {
+            Stats: {
+              CoreStats: {
+                Medals: [{ NameId: 1 }, { NameId: 2 }],
+              },
+            },
+          },
+        ],
+        Players: [],
+      },
+    };
+
+    const getMedal = vi.fn(async (medalId: number) => {
+      if (medalId === 2) {
+        return undefined;
+      }
+
+      return {
+        name: `Medal ${medalId}`,
+        sortingWeight: medalId * 10,
+      };
+    });
+
+    const result = await getMedalMetadataFromMatches(rawMatches, getMedal);
+
+    expect(result).toEqual({
+      1: { name: "Medal 1", sortingWeight: 10 },
+    });
+  });
+});
 
 describe("aggregateTeamMedals", () => {
   it("aggregates medals from all players", () => {

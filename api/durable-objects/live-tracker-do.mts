@@ -6,6 +6,7 @@ import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinu
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import type { LogService } from "../services/log/types.mjs";
 import type { DiscordService } from "../services/discord/discord.mjs";
 import type { HaloService } from "../services/halo/halo.mjs";
@@ -1491,7 +1492,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
     const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await getMedalMetadataFromMatches(rawMatches, async (medalId) =>
+      this.haloService.getMedal(medalId),
+    );
 
     return {
       type: "neatqueue",
@@ -1520,39 +1523,6 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       playersAssociationData: state.playersAssociationData,
       rawMatches: rawMatches,
     };
-  }
-
-  private async getMedalMetadataFromMatches(
-    rawMatches: Record<string, MatchStats>,
-  ): Promise<Record<number, { name: string; sortingWeight: number }>> {
-    const medalIds = new Set<number>();
-    for (const match of Object.values(rawMatches)) {
-      for (const team of match.Teams) {
-        for (const medal of team.Stats.CoreStats.Medals) {
-          medalIds.add(medal.NameId);
-        }
-      }
-      for (const player of match.Players) {
-        for (const teamStats of player.PlayerTeamStats) {
-          for (const medal of teamStats.Stats.CoreStats.Medals) {
-            medalIds.add(medal.NameId);
-          }
-        }
-      }
-    }
-
-    const medalMetadata: Record<number, { name: string; sortingWeight: number }> = {};
-    for (const medalId of medalIds) {
-      const medal = await this.haloService.getMedal(medalId);
-      if (medal != null) {
-        medalMetadata[medalId] = {
-          name: medal.name,
-          sortingWeight: medal.sortingWeight,
-        };
-      }
-    }
-
-    return medalMetadata;
   }
 
   /**

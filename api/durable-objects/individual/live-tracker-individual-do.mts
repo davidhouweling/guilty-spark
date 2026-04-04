@@ -13,6 +13,7 @@ import * as Sentry from "@sentry/cloudflare";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchType } from "halo-infinite-api";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   addMilliseconds,
@@ -1831,7 +1832,9 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
 
   private async stateToContractData(state: LiveTrackerIndividualState): Promise<LiveTrackerIndividualStateData> {
     const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await this.getMedalMetadataFromMatches(rawMatches);
+    const medalMetadata = await getMedalMetadataFromMatches(rawMatches, async (medalId) =>
+      this.haloService.getMedal(medalId),
+    );
     const groups = await this.transformMatchGroupingsToGroups(state);
 
     return {
@@ -2003,39 +2006,6 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     const dateRange = firstDateStr === lastDateStr ? firstDateStr : `${firstDateStr}-${lastDateStr}`;
 
     return `Custom Games • ${dateRange} • ${playerCount.toLocaleString()} players`;
-  }
-
-  private async getMedalMetadataFromMatches(
-    rawMatches: Record<string, MatchStats>,
-  ): Promise<Record<number, { name: string; sortingWeight: number }>> {
-    const medalIds = new Set<number>();
-    for (const match of Object.values(rawMatches)) {
-      for (const team of match.Teams) {
-        for (const medal of team.Stats.CoreStats.Medals) {
-          medalIds.add(medal.NameId);
-        }
-      }
-      for (const player of match.Players) {
-        for (const teamStats of player.PlayerTeamStats) {
-          for (const medal of teamStats.Stats.CoreStats.Medals) {
-            medalIds.add(medal.NameId);
-          }
-        }
-      }
-    }
-
-    const medalMetadata: Record<number, { name: string; sortingWeight: number }> = {};
-    for (const medalId of medalIds) {
-      const medal = await this.haloService.getMedal(medalId);
-      if (medal != null) {
-        medalMetadata[medalId] = {
-          name: medal.name,
-          sortingWeight: medal.sortingWeight,
-        };
-      }
-    }
-
-    return medalMetadata;
   }
 
   private async dispose(trackerState: LiveTrackerIndividualState | null, reason: string): Promise<void> {
