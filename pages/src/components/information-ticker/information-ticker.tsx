@@ -150,7 +150,7 @@ function arePropsEqual(prevProps: InformationTickerProps, nextProps: Information
   }
 
   for (const [i, color] of prevProps.teamColors.entries()) {
-    if (color?.hex !== nextProps.teamColors[i]?.hex) {
+    if (color.hex !== nextProps.teamColors[i]?.hex) {
       return false;
     }
   }
