@@ -75,8 +75,7 @@ export function StreamerOverlay({
         }
         // For objective stats, check the toggle
         if (settings.global.ticker.showObjectiveStats) {
-          // TODO: Identify objective stats - for now include all non-slayer stats
-          return !settings.global.ticker.selectedSlayerStats.includes(stat.name);
+          return !(ALL_SLAYER_STATS as readonly string[]).includes(stat.name);
         }
         return false;
       });
