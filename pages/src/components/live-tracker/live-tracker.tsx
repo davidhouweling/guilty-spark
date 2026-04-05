@@ -108,7 +108,7 @@ export function LiveTrackerView(): React.ReactElement {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const urlSearchParams = new URLSearchParams(window.location.search);
     if (typeof window !== "undefined") {
-      return parseSettingsFromUrl(urlSearchParams).global.viewMode;
+      return parseSettingsFromUrl(urlSearchParams, settings).global.viewMode;
     }
     return "standard";
   });
@@ -118,10 +118,10 @@ export function LiveTrackerView(): React.ReactElement {
       return;
     }
 
-    const urlSettings = parseSettingsFromUrl(new URLSearchParams(window.location.search));
+    const urlSettings = parseSettingsFromUrl(new URLSearchParams(window.location.search), settings);
     setSettings(urlSettings);
     setViewMode(urlSettings.global.viewMode);
-  }, [setSettings]);
+  }, [setSettings]); // settings is intentionally omitted from deps: we only want to apply URL params once on mount using the initial localStorage value
 
   function updateUrl(currentViewMode: ViewMode): void {
     if (typeof window !== "undefined") {
