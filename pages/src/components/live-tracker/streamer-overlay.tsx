@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import TimeAgo from "javascript-time-ago";
+import { differenceInHours } from "date-fns";
 import type { TeamColor } from "../team-colors/team-colors";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
@@ -12,10 +14,11 @@ import { RankIcon } from "../icons/rank-icon";
 import discordLogo from "../../assets/discord-logo.png";
 import xboxLogo from "../../assets/xbox-logo.png";
 import { TeamIcon } from "../icons/team-icon";
-import type { AllStreamerSettings } from "./settings/types";
+import { ALL_SLAYER_STATS, type AllStreamerSettings } from "./settings/types";
 import styles from "./streamer-overlay.module.css";
 import { useTrackerState, useAllMatchStats, useSeriesStats, useTrackerInfo } from "./live-tracker-context";
 import type { LiveTrackerNeatQueueStateRenderModel, LiveTrackerTeamRenderModel } from "./types";
+import "javascript-time-ago/locale/en";
 
 export interface StreamerOverlayProps {
   readonly teamColors: TeamColor[];
@@ -34,6 +37,7 @@ export function StreamerOverlay({
   const state = useTrackerState();
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
+  const timeAgo = new TimeAgo("en");
 
   const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -124,14 +128,26 @@ export function StreamerOverlay({
           const playerName = playerData.gamertag ?? playerData.discordName;
           const playerStats: TickerStatRow["stats"] = [];
 
-          // Current Rank
-          if (playerData.currentRank !== null && playerData.currentRank >= 0) {
+          if (playerData.currentRank == null && playerData.esra == null && playerData.allTimePeakRank == null) {
+            playerStats.push({
+              name: "Player information",
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "No data",
+            });
+
+            continue;
+          }
+
+          if (playerData.currentRank !== null) {
+            // Current Rank
             playerStats.push({
               name: "Current rank",
               value: playerData.currentRank,
               bestInTeam: false,
               bestInMatch: false,
-              display: playerData.currentRank.toLocaleString(),
+              display: playerData.currentRank > 0 ? playerData.currentRank.toLocaleString() : "Unranked",
               icon: (
                 <RankIcon
                   rankTier={playerData.currentRankTier}
@@ -142,10 +158,18 @@ export function StreamerOverlay({
                 />
               ),
             });
+          } else {
+            playerStats.push({
+              name: "Current rank",
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "Unranked",
+            });
           }
 
           // Peak Rank
-          if (playerData.allTimePeakRank !== null && playerData.allTimePeakRank >= 0) {
+          if (playerData.allTimePeakRank !== null) {
             const { rankTier, subTier } = getRankTierFromCsr(playerData.allTimePeakRank);
             playerStats.push({
               name: `Peak rank`,
@@ -163,10 +187,18 @@ export function StreamerOverlay({
                 />
               ),
             });
+          } else {
+            playerStats.push({
+              name: `Peak rank`,
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "-",
+            });
           }
 
           // ESRA
-          if (playerData.esra !== null && playerData.esra >= 0) {
+          if (playerData.esra !== null) {
             const { rankTier, subTier } = getRankTierFromCsr(playerData.esra);
             playerStats.push({
               name: `ESRA`,
@@ -183,6 +215,35 @@ export function StreamerOverlay({
                   size="x-small"
                 />
               ),
+            });
+          } else {
+            playerStats.push({
+              name: `ESRA`,
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "-",
+            });
+          }
+
+          if (playerData.lastRankedGamePlayed != null) {
+            const ago = differenceInHours(new Date(), new Date(playerData.lastRankedGamePlayed));
+            const display =
+              ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(playerData.lastRankedGamePlayed));
+            playerStats.push({
+              name: "Last ranked match played",
+              value: new Date(playerData.lastRankedGamePlayed).getTime(),
+              bestInTeam: false,
+              bestInMatch: false,
+              display,
+            });
+          } else {
+            playerStats.push({
+              name: "Last ranked match played",
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "-",
             });
           }
 
