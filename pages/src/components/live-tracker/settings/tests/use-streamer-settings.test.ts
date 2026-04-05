@@ -69,9 +69,12 @@ describe("useStreamerSettings", () => {
     });
 
     const stored = localStorage.getItem(STORAGE_KEY_GLOBAL);
+    expect.assertions(2);
     expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!) as GlobalStreamerSettings;
-    expect(parsed.viewMode).toBe("wide");
+    if (stored != null) {
+      const parsed = JSON.parse(stored) as GlobalStreamerSettings;
+      expect(parsed.viewMode).toBe("wide");
+    }
   });
 
   it("merges partial updates from updateGlobalSettings with existing settings", () => {
@@ -109,9 +112,12 @@ describe("useStreamerSettings", () => {
     });
 
     const stored = localStorage.getItem(STORAGE_KEY_GLOBAL);
+    expect.assertions(2);
     expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!) as GlobalStreamerSettings;
-    expect(parsed.viewMode).toBe("streamer");
+    if (stored != null) {
+      const parsed = JSON.parse(stored) as GlobalStreamerSettings;
+      expect(parsed.viewMode).toBe("streamer");
+    }
   });
 
   it("does not save series settings to localStorage when setSettings is called", () => {
@@ -159,7 +165,7 @@ describe("useStreamerSettings", () => {
   it("gracefully handles invalid JSON in localStorage", () => {
     localStorage.setItem(STORAGE_KEY_GLOBAL, "not-valid-json");
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockReturnValue(undefined);
 
     const { result } = renderHook(() => useStreamerSettings());
 
