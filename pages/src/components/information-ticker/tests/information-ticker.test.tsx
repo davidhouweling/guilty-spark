@@ -291,6 +291,35 @@ describe("InformationTicker", () => {
     expect(screen.getByText("Match 2")).toBeInTheDocument();
   });
 
+  it("re-renders with updated team color when hex values change", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({
+      rows: [aFakeTickerStatRowWith({ teamId: 0 })],
+    });
+
+    const initialColors: TeamColor[] = [
+      { id: "eagle", name: "Eagle", hex: "#0066CC" },
+      { id: "cobra", name: "Cobra", hex: "#CC0000" },
+    ];
+    const updatedColors: TeamColor[] = [
+      { id: "jade", name: "Jade", hex: "#8AFFBE" },
+      { id: "cerise", name: "Cerise", hex: "#C43AAC" },
+    ];
+
+    const { container, rerender } = render(
+      <InformationTicker currentMatchGroup={matchGroup} teamColors={initialColors} onScrollComplete={vi.fn()} />,
+    );
+
+    const rowBefore = container.querySelector("[style*='--row-color']");
+    expect(rowBefore).toHaveAttribute("style", expect.stringContaining("#0066CC"));
+
+    rerender(
+      <InformationTicker currentMatchGroup={matchGroup} teamColors={updatedColors} onScrollComplete={vi.fn()} />,
+    );
+
+    const rowAfter = container.querySelector("[style*='--row-color']");
+    expect(rowAfter).toHaveAttribute("style", expect.stringContaining("#8AFFBE"));
+  });
+
   it("renders team icon with correct teamId", () => {
     const matchGroup = aFakeTickerMatchGroupWith({
       rows: [aFakeTickerStatRowWith({ teamId: 1 })],

@@ -106,7 +106,7 @@ export function createSampleScenario(): LiveTrackerScenario {
   }
 
   return {
-    intervalMs: 1200,
+    intervalMs: 60000,
     frames,
   };
 }
@@ -150,7 +150,7 @@ export function createSampleIndividualScenario(): LiveTrackerScenario {
   }
 
   return {
-    intervalMs: 1200,
+    intervalMs: 60000,
     frames,
   };
 }

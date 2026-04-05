@@ -144,7 +144,18 @@ const InformationTickerComponent = function InformationTicker({
 
 // Custom comparison function to prevent re-renders when content hasn't actually changed
 function arePropsEqual(prevProps: InformationTickerProps, nextProps: InformationTickerProps): boolean {
-  // If match group reference is the same, no need to re-render
+  // Check team colors first - a color change always requires a re-render
+  if (prevProps.teamColors.length !== nextProps.teamColors.length) {
+    return false;
+  }
+
+  for (const [i, color] of prevProps.teamColors.entries()) {
+    if (color.hex !== nextProps.teamColors[i]?.hex) {
+      return false;
+    }
+  }
+
+  // If match group reference is the same and colors haven't changed, no need to re-render
   if (prevProps.currentMatchGroup === nextProps.currentMatchGroup) {
     return true;
   }
@@ -197,11 +208,6 @@ function arePropsEqual(prevProps: InformationTickerProps, nextProps: Information
         return false;
       }
     }
-  }
-
-  // Check team colors array length
-  if (prevProps.teamColors.length !== nextProps.teamColors.length) {
-    return false;
   }
 
   // All checks passed - props are equal
