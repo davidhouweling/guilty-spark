@@ -121,7 +121,7 @@ export function LiveTrackerView(): React.ReactElement {
     const urlSettings = parseSettingsFromUrl(new URLSearchParams(window.location.search), settings);
     setSettings(urlSettings);
     setViewMode(urlSettings.global.viewMode);
-  }, [setSettings]); // eslint-disable-line react-hooks/exhaustive-deps -- settings is intentionally the initial value from localStorage
+  }, [setSettings]); // eslint-disable-line react-hooks/exhaustive-deps -- settings is intentionally omitted: we only want to apply URL params once on mount using the initial localStorage value, not re-run when settings change during the component lifecycle
 
   function updateUrl(currentViewMode: ViewMode): void {
     if (typeof window !== "undefined") {

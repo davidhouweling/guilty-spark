@@ -159,12 +159,12 @@ describe("useStreamerSettings", () => {
   it("gracefully handles invalid JSON in localStorage", () => {
     localStorage.setItem(STORAGE_KEY_GLOBAL, "not-valid-json");
 
-    const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const { result } = renderHook(() => useStreamerSettings());
 
     expect(result.current.settings).toEqual(DEFAULT_ALL_SETTINGS);
-    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   it("merges partial stored global settings with defaults for missing fields", () => {
