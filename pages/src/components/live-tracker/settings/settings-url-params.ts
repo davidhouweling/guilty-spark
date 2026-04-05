@@ -4,9 +4,12 @@ import { DEFAULT_ALL_SETTINGS } from "./types";
 
 /**
  * Parse streamer settings from URL parameters
- * Priority: URL params > provided defaults
+ * Priority: URL params > provided defaults > DEFAULT_ALL_SETTINGS
  */
-export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamerSettings {
+export function parseSettingsFromUrl(
+  searchParams: URLSearchParams,
+  defaults: AllStreamerSettings = DEFAULT_ALL_SETTINGS,
+): AllStreamerSettings {
   const parsed: {
     viewMode?: ViewMode;
     fontSizes?: Record<string, number>;
@@ -169,41 +172,41 @@ export function parseSettingsFromUrl(searchParams: URLSearchParams): AllStreamer
   // Build final settings object
   return {
     global: {
-      ...DEFAULT_ALL_SETTINGS.global,
-      viewMode: parsed.viewMode ?? DEFAULT_ALL_SETTINGS.global.viewMode,
+      ...defaults.global,
+      viewMode: parsed.viewMode ?? defaults.global.viewMode,
       ...(parsed.fontSizes && {
         fontSizes: {
-          ...DEFAULT_ALL_SETTINGS.global.fontSizes,
+          ...defaults.global.fontSizes,
           ...parsed.fontSizes,
         },
       }),
       colors: {
-        ...DEFAULT_ALL_SETTINGS.global.colors,
+        ...defaults.global.colors,
         ...(parsed.colorMode && { mode: parsed.colorMode }),
         playerView: {
-          ...DEFAULT_ALL_SETTINGS.global.colors.playerView,
+          ...defaults.global.colors.playerView,
           ...parsed.playerColors,
         },
         observerView: {
-          ...DEFAULT_ALL_SETTINGS.global.colors.observerView,
+          ...defaults.global.colors.observerView,
           ...parsed.observerColors,
         },
       },
       ...(parsed.display && {
         display: {
-          ...DEFAULT_ALL_SETTINGS.global.display,
+          ...defaults.global.display,
           ...parsed.display,
         },
       }),
       ...(parsed.ticker && {
         ticker: {
-          ...DEFAULT_ALL_SETTINGS.global.ticker,
+          ...defaults.global.ticker,
           ...parsed.ticker,
         },
       }),
     },
     series: {
-      ...DEFAULT_ALL_SETTINGS.series,
+      ...defaults.series,
       ...parsed.series,
     },
   };
