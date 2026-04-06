@@ -458,6 +458,7 @@ export function StreamerOverlay({
   };
 
   const teamRender = (team: LiveTrackerTeamRenderModel, teamName: string | null): React.ReactNode => {
+    const hasTeamName = teamName !== null && teamName !== "";
     const scrollingContent = (
       <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
         {team.players.map((player, idx) => (
@@ -468,19 +469,14 @@ export function StreamerOverlay({
         ))}
       </ScrollingContent>
     );
-
-    if (teamName == null || teamName === "") {
-      return scrollingContent;
-    }
-
-    if (settings.series.disableTeamPlayerNames === true) {
-      return <div className={styles.teamName}>{teamName}</div>;
-    }
+    const showPlayerNames = !hasTeamName || settings.series.disableTeamPlayerNames !== true;
 
     return (
-      <div className={styles.teamWithPlayers}>
-        <div className={styles.teamName}>{teamName}</div>
-        {scrollingContent}
+      <div
+        className={classNames(styles.teamWithPlayers, { [styles.animateTeamNames]: hasTeamName && showPlayerNames })}
+      >
+        {hasTeamName && <div className={styles.teamName}>{teamName}</div>}
+        {showPlayerNames ? scrollingContent : null}
       </div>
     );
   };

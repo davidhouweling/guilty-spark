@@ -124,6 +124,7 @@
   overflow: hidden;
   padding: var(--space-1) var(--space-3);
   position: relative;
+  width: 675px;
 
   > img {
     filter: drop-shadow(0 100px 0 var(--team-color));
@@ -151,20 +152,22 @@
 
 .teamWithPlayers {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   position: relative;
 }
 
 .teamWithPlayers .teamName,
 .teamWithPlayers .teamPlayersScroll {
   grid-area: 1 / 1;
+  justify-self: center;
 }
 
-.teamWithPlayers .teamName {
+.animateTeamNames .teamName {
   animation: fadeTeamName 40s infinite;
   z-index: 2;
 }
 
-.teamWithPlayers .teamPlayersScroll {
+.animateTeamNames .teamPlayersScroll {
   animation: fadePlayerNames 40s infinite;
   z-index: 1;
 }
@@ -218,13 +221,16 @@
   color: var(--halo-white);
   font-size: calc(var(--text-base) * var(--font-size-team-players, 1));
   font-weight: 700;
-  max-width: 600px;
-  overflow: hidden;
+  flex: 1 1 auto;
   position: relative;
   text-align: center;
   text-shadow:
     0 1px 2px rgb(0 0 0 / 80%),
     0 0 10px rgb(0 0 0 / 60%);
+}
+
+.teamPlayers {
+  overflow: hidden;
 }
 
 .playerIcon {
