@@ -194,9 +194,6 @@ export function SettingsDialog({
         <div className={styles.header}>
           <h2 id="settings-dialog-title" className={styles.title}>
             Overlay Settings
-            <span className={styles.subtitle}>
-              BETA: some things may not work as expected. Any issues, reach out to <code>soundmanD</code> on Discord.
-            </span>
           </h2>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close settings">
             <svg className={styles.closeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
