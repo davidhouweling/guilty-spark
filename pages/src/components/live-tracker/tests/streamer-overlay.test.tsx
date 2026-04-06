@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { StreamerOverlayProps } from "../streamer-overlay";
+import type { StreamerOverlayProps } from "../streamer-overlay/streamer-overlay";
 import { LiveTrackerProvider } from "../live-tracker-context";
 import type { LiveTrackerViewModel } from "../types";
 import { DEFAULT_ALL_SETTINGS } from "../settings/types";

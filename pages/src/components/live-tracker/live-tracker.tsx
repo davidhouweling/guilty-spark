@@ -25,7 +25,7 @@ import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
 import { IndividualModeMatches } from "./individual-mode-matches";
-import { StreamerOverlay } from "./streamer-overlay";
+import { StreamerOverlay } from "./streamer-overlay/streamer-overlay";
 import {
   useTrackerInfo,
   useTrackerState,
