@@ -2,47 +2,47 @@ import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import type { TeamColor } from "../../team-colors/team-colors";
+import type { TeamColor } from "../../../team-colors/team-colors";
 import type { StreamerOverlayProps } from "../streamer-overlay";
-import { LiveTrackerProvider } from "../live-tracker-context";
-import type { LiveTrackerViewModel } from "../types";
-import { DEFAULT_ALL_SETTINGS } from "../settings/types";
+import { LiveTrackerProvider } from "../../live-tracker-context";
+import type { LiveTrackerViewModel } from "../../types";
+import { DEFAULT_ALL_SETTINGS } from "../../settings/types";
 
-vi.mock("../live-tracker-context", async () => {
-  const actual = await vi.importActual("../live-tracker-context");
+vi.mock("../../live-tracker-context", async () => {
+  const actual = await vi.importActual("../../live-tracker-context");
   return {
     ...actual,
   };
 });
 
-vi.mock("../../stats/match-stats", () => ({
+vi.mock("../../../stats/match-stats", () => ({
   MatchStats: (): React.ReactNode => <div data-testid="match-stats">Match Stats</div>,
 }));
 
-vi.mock("../../stats/series-stats", () => ({
+vi.mock("../../../stats/series-stats", () => ({
   SeriesStats: (): React.ReactNode => <div data-testid="series-stats">Series Stats</div>,
 }));
 
-vi.mock("../../information-ticker/information-ticker", () => ({
+vi.mock("../../../information-ticker/information-ticker", () => ({
   InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,
 }));
 
-vi.mock("../../player-pre-series-info/player-pre-series-info", () => ({
+vi.mock("../../../player-pre-series-info/player-pre-series-info", () => ({
   PlayerPreSeriesInfo: (): React.ReactNode => <div data-testid="player-pre-series-info">Player Pre Series Info</div>,
 }));
 
-vi.mock("../../scrolling-content/scrolling-content", () => ({
+vi.mock("../../../scrolling-content/scrolling-content", () => ({
   ScrollingContent: ({ children }: { children: React.ReactNode }): React.ReactNode => (
     <div data-testid="scrolling-content">{children}</div>
   ),
 }));
 
-vi.mock("../../icons/rank-icon", () => ({
+vi.mock("../../../icons/rank-icon", () => ({
   RankIcon: (): React.ReactNode => <div data-testid="rank-icon">Rank</div>,
 }));
 
 // Mock TeamIcon to avoid PNG import issues in tests
-vi.mock("../../icons/team-icon", () => ({
+vi.mock("../../../icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
 }));
 
