@@ -81,10 +81,9 @@
 }
 
 .serverIconSlot {
-  align-self: stretch;
+  place-self: stretch center;
   aspect-ratio: 1;
   grid-area: serverIcon;
-  justify-self: center;
 }
 
 .serverIcon {
@@ -125,6 +124,7 @@
 .teamRight {
   --team-icon-size: calc(var(--text-base) * var(--font-size-teams, 1) * 1.25);
   --team-icon-shadow-offset: calc(var(--team-icon-size) * 3);
+
   align-items: center;
   align-self: stretch;
   background-color: color-mix(in srgb, var(--team-color, transparent) 40%, transparent);
@@ -233,9 +233,9 @@
 .teamName,
 .teamPlayers {
   color: var(--halo-white);
+  flex: 1 1 auto;
   font-size: calc(var(--text-base) * var(--font-size-teams, 1));
   font-weight: 700;
-  flex: 1 1 auto;
   position: relative;
   text-align: center;
   text-shadow:
