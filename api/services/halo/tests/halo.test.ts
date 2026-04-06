@@ -10,6 +10,7 @@ import type {
   Asset,
   MatchStats,
   UgcGameVariantAsset,
+  GameVariantCategory,
 } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -1851,11 +1852,11 @@ describe("Halo service", () => {
       expect(result).toBe("🦅 1:0 🐍");
     });
 
-    it("calculates series score from multiple matches", () => {
+    it("calculates series score from multiple matches regardless of input order", () => {
       const matches = [
-        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
-        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
-        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")), // Team 1 wins
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")), // Team 1 wins (latest)
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (earliest)
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (middle)
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
@@ -1863,24 +1864,29 @@ describe("Halo service", () => {
     });
 
     it("skips duplicate matches of same map and game type", () => {
-      const ctfMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-      const duplicateCtfMatch = {
+      const ctfMatch = Preconditions.checkExists(
+        getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"),
+      ) as MatchStats<GameVariantCategory.MultiplayerCtf>;
+      const duplicateCtfMatch: MatchStats<GameVariantCategory.MultiplayerCtf> = {
         ...ctfMatch,
         MatchId: "duplicate-ctf-match",
-        // Same map variant and game variant category
+        MatchInfo: {
+          ...ctfMatch.MatchInfo,
+          StartTime: new Date("2024-11-26T10:37:00.000Z").toISOString(), // 1 minute after CTF, sorts second
+        },
       };
 
-      const matches = [ctfMatch, duplicateCtfMatch];
+      const matches = [duplicateCtfMatch, ctfMatch]; // intentionally out of order
       const result = haloService.getSeriesScore(matches, "en-US");
 
-      // Should only count the first match, skip the duplicate
+      // Should only count the first match (by time), skip the duplicate
       expect(result).toBe("🦅 1:0 🐍");
     });
 
     it("counts separate matches of different maps or game types", () => {
       const matches = [
-        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (CTF)
-        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (KOTH)
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (KOTH, later)
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (CTF, earlier)
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
@@ -1889,8 +1895,8 @@ describe("Halo service", () => {
 
     it("formats score with locale", () => {
       const matches = [
-        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins
-        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")), // Team 0 wins (later)
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")), // Team 0 wins (earlier)
       ];
       const result = haloService.getSeriesScore(matches, "de-DE");
 

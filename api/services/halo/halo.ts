@@ -205,8 +205,11 @@ export class HaloService {
 
   getSeriesScore(matches: MatchStats[], locale: string): string {
     const teamScores: Record<number, number> = {};
-    for (const [index, match] of matches.entries()) {
-      const nextMatch = matches[index + 1];
+    const sortedMatches = [...matches].sort((a, b) =>
+      isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1,
+    );
+    for (const [index, match] of sortedMatches.entries()) {
+      const nextMatch = sortedMatches[index + 1];
       if (
         nextMatch?.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
         nextMatch.MatchInfo.MapVariant.VersionId === match.MatchInfo.MapVariant.VersionId &&
