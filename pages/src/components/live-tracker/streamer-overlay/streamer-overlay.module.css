@@ -81,9 +81,9 @@
 }
 
 .serverIconSlot {
-  place-self: stretch center;
   aspect-ratio: 1;
   grid-area: serverIcon;
+  place-self: stretch center;
 }
 
 .serverIcon {
