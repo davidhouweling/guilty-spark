@@ -1,5 +1,5 @@
 import { aFakeDurableObjectId, aFakeLiveTrackerDOWith } from "../../durable-objects/fakes/live-tracker-do.fake";
-import type { LiveTrackerDO, LiveTrackerIndividualDO } from "../../worker";
+import type { LiveTrackerDO } from "../../worker";
 
 const fakeNamespace = (): KVNamespace =>
   ({
@@ -82,14 +82,6 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
       get: () => liveTrackerGet,
       jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
     } as DurableObjectNamespace<LiveTrackerDO>,
-    LIVE_TRACKER_INDIVIDUAL_DO: {
-      idFromName: () => liveTrackerDOId,
-      idFromString: () => liveTrackerDOId,
-      newUniqueId: () => liveTrackerDOId,
-      getByName: () => liveTrackerGet,
-      get: () => liveTrackerGet,
-      jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerIndividualDO>,
-    } as DurableObjectNamespace<LiveTrackerIndividualDO>,
   };
 
   return {

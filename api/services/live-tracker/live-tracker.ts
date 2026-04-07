@@ -1,6 +1,5 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do";
 import type {
   LiveTrackerStartRequest,
@@ -18,16 +17,10 @@ import type {
   LiveTrackerRefreshCooldownErrorResponse,
   LiveTrackerRefreshRequest,
 } from "../../durable-objects/types";
-import type {
-  LiveTrackerIndividualStartRequest,
-  LiveTrackerIndividualStartResponse,
-} from "../../durable-objects/individual/types";
 import type { LogService } from "../log/types";
 import type { DiscordService } from "../discord/discord";
-import type { HaloService } from "../halo/halo";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
 import type { LiveTrackerEmbedData } from "../../live-tracker/types";
-import type { LiveTrackerIndividualDO } from "../../durable-objects/individual/live-tracker-individual-do";
 
 export interface LiveTrackerContext {
   userId: string;
@@ -40,7 +33,6 @@ export interface LiveTrackerServiceOpts {
   env: Env;
   logService: LogService;
   discordService: DiscordService;
-  haloService: HaloService;
 }
 
 interface StartTrackerOpts {
@@ -103,13 +95,11 @@ export class LiveTrackerService {
   private readonly env: Env;
   private readonly logService: LogService;
   private readonly discordService: DiscordService;
-  private readonly haloService: HaloService;
 
-  constructor({ env, logService, discordService, haloService }: LiveTrackerServiceOpts) {
+  constructor({ env, logService, discordService }: LiveTrackerServiceOpts) {
     this.env = env;
     this.logService = logService;
     this.discordService = discordService;
-    this.haloService = haloService;
   }
 
   /**
@@ -463,56 +453,6 @@ export class LiveTrackerService {
   }
 
   /**
-   * Starts a new live tracker for an individual player
-   */
-  async startTrackerIndividual(startRequest: LiveTrackerIndividualStartRequest): Promise<void> {
-    this.logService.info(
-      "LiveTrackerService: Starting individual tracker",
-      new Map([
-        ["xuid", startRequest.xuid],
-        ["gamertag", startRequest.gamertag],
-      ]),
-    );
-
-    const env = Preconditions.checkExists(
-      this.env.LIVE_TRACKER_INDIVIDUAL_DO,
-      "LIVE_TRACKER_INDIVIDUAL_DO binding not configured",
-    );
-
-    const doId = env.idFromName(`individual:${startRequest.xuid}`);
-    const doStub = env.get(doId);
-
-    const response = await doStub.fetch("http://do/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(startRequest),
-    });
-
-    if (!response.ok) {
-      const error = `Failed to start individual tracker: ${response.status.toString()}`;
-      this.logService.error(
-        error,
-        new Map([
-          ["xuid", startRequest.xuid],
-          ["gamertag", startRequest.gamertag],
-        ]),
-      );
-      throw new Error(error);
-    }
-
-    const result = await response.json<LiveTrackerIndividualStartResponse>();
-    if (!result.success) {
-      this.logService.warn(
-        "Individual tracker start request not fully successful",
-        new Map([
-          ["xuid", startRequest.xuid],
-          ["gamertag", startRequest.gamertag],
-        ]),
-      );
-    }
-  }
-
-  /**
    * Creates a fallback embed for error states
    */
   createErrorFallbackEmbed(context: LiveTrackerContext, status: "active" | "paused" | "stopped"): LiveTrackerEmbed {
@@ -613,25 +553,6 @@ export class LiveTrackerService {
     const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
 
     return this.env.LIVE_TRACKER_DO.get(doId);
-  }
-
-  /**
-   * Get Individual Tracker Durable Object stub by gamertag
-   * Resolves gamertag to XUID and returns the DO stub
-   */
-  async getIndividualTrackerDOStub(gamertag: string): Promise<DurableObjectStub<LiveTrackerIndividualDO>> {
-    const userInfo = await this.haloService.getUserByGamertag(gamertag);
-    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(userInfo.xuid);
-    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
-  }
-
-  /**
-   * Get Individual Tracker Durable Object stub by XUID
-   * Directly creates DO stub without gamertag resolution
-   */
-  getIndividualTrackerDOStubByXuid(xuid: string): DurableObjectStub<LiveTrackerIndividualDO> {
-    const doId = this.env.LIVE_TRACKER_INDIVIDUAL_DO.idFromName(xuid);
-    return this.env.LIVE_TRACKER_INDIVIDUAL_DO.get(doId);
   }
 
   private createLogParams(

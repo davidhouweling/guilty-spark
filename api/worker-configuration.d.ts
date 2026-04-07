@@ -4,7 +4,7 @@
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./worker");
-		durableNamespaces: "LiveTrackerDO" | "LiveTrackerIndividualDO";
+        durableNamespaces: "LiveTrackerDO";
 	}
 	interface StagingEnv {
 		APP_DATA: KVNamespace;
@@ -21,7 +21,6 @@ declare namespace Cloudflare {
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
-		LIVE_TRACKER_INDIVIDUAL_DO: DurableObjectNamespace<import("./worker").LiveTrackerIndividualDO>;
 	}
 	interface ProductionEnv {
 		APP_DATA: KVNamespace;
@@ -38,7 +37,6 @@ declare namespace Cloudflare {
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
-		LIVE_TRACKER_INDIVIDUAL_DO: DurableObjectNamespace<import("./worker").LiveTrackerIndividualDO>;
 	}
 	interface Env {
 		APP_DATA: KVNamespace;
@@ -55,7 +53,6 @@ declare namespace Cloudflare {
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
-		LIVE_TRACKER_INDIVIDUAL_DO: DurableObjectNamespace<import("./worker").LiveTrackerIndividualDO>;
 	}
 }
 interface Env extends Cloudflare.Env {}

@@ -6,7 +6,6 @@ import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracke
 import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker";
 import type { LogService } from "../../log/types";
 import type { DiscordService } from "../../discord/discord";
-import type { HaloService } from "../../halo/halo";
 import type {
   LiveTrackerStartResponse,
   LiveTrackerPauseResponse,
@@ -24,7 +23,6 @@ import { aFakeDurableObjectId } from "../../../durable-objects/fakes/live-tracke
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
-import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { apiMessage, discordNeatQueueData, fakeButtonClickInteraction } from "../../discord/fakes/data";
 import type { LiveTrackerEmbedData } from "../../../live-tracker/types";
 
@@ -33,7 +31,6 @@ describe("LiveTrackerService", () => {
   let env: Env;
   let logService: LogService;
   let discordService: DiscordService;
-  let haloService: HaloService;
   let doStub: DurableObjectStub<LiveTrackerDO>;
   let fetch: MockedFunction<DurableObjectStub<LiveTrackerDO>["fetch"]>;
   let errorSpy: MockInstance<LogService["error"]>;
@@ -169,12 +166,10 @@ describe("LiveTrackerService", () => {
     debugSpy = vi.spyOn(logService, "debug");
 
     discordService = aFakeDiscordServiceWith({});
-    haloService = aFakeHaloServiceWith();
     service = new LiveTrackerService({
       env: env,
       logService: logService,
       discordService: discordService,
-      haloService: haloService,
     });
   });
 

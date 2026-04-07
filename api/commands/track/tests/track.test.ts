@@ -5,10 +5,8 @@ import type {
   APIApplicationCommandInteractionDataBasicOption,
   APIInteractionResponse,
   APIMessageComponentButtonInteraction,
-  APIMessageComponentSelectMenuInteraction,
   APIGuildMember,
   RESTPostAPIChannelMessageJSONBody,
-  APIEmbed,
 } from "discord-api-types/v10";
 import {
   ButtonStyle,
@@ -29,14 +27,12 @@ import {
   fakeBaseAPIApplicationCommandInteraction,
   fakeButtonClickInteraction,
   discordNeatQueueData,
-  aWizardStringSelectWith,
 } from "../../../services/discord/fakes/data";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { DiscordService } from "../../../services/discord/discord";
 import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake";
 import type { LiveTrackerRefreshResponse } from "../../../durable-objects/types";
-import type { DiscordTarget } from "../../../durable-objects/individual/types";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -625,262 +621,6 @@ describe("TrackCommand", () => {
         expect(response.response).toEqual({
           type: InteractionResponseType.DeferredMessageUpdate,
         });
-      });
-    });
-  });
-
-  describe("execute(): subcommand individual xbox", () => {
-    const individualXboxInteraction: APIApplicationCommandInteraction = {
-      ...fakeBaseAPIApplicationCommandInteraction,
-      type: InteractionType.ApplicationCommand,
-      guild_id: "fake-guild-id",
-      data: {
-        id: "fake-command-id",
-        name: "track",
-        options: [
-          {
-            type: ApplicationCommandOptionType.SubcommandGroup,
-            name: "individual",
-            options: [
-              {
-                type: ApplicationCommandOptionType.Subcommand,
-                name: "xbox",
-                options: [
-                  {
-                    name: "gamertag",
-                    value: "TestPlayer",
-                    type: ApplicationCommandOptionType.String,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        type: ApplicationCommandType.ChatInput,
-      },
-    };
-
-    beforeEach(() => {
-      vi.spyOn(services.haloService, "getUserByGamertag").mockResolvedValue({
-        xuid: "fake-xuid",
-        gamertag: "TestPlayer",
-      });
-
-      vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([
-        {
-          MatchId: "match-1",
-          MatchInfo: {
-            StartTime: "2024-11-26T10:00:00.000Z",
-            EndTime: "2024-11-26T10:10:00.000Z",
-            Duration: "PT10M",
-            LifecycleMode: 1,
-            GameVariantCategory: 11,
-            LevelId: "level-1",
-            MapVariant: { AssetKind: 2, AssetId: "map-1", VersionId: "v1" },
-            UgcGameVariant: { AssetKind: 6, AssetId: "variant-1", VersionId: "v1" },
-            ClearanceId: "clearance-1",
-            Playlist: { AssetKind: 5, AssetId: "playlist-1", VersionId: "v1" },
-            PlaylistExperience: null,
-            PlaylistMapModePair: null,
-            SeasonId: "season-1",
-            PlayableDuration: "PT10M",
-            TeamsEnabled: true,
-            TeamScoringEnabled: true,
-          },
-          LastTeamId: 0,
-          Outcome: 1,
-          Rank: 1,
-          PresentAtEndOfMatch: true,
-        },
-      ]);
-
-      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Live Fire");
-      vi.spyOn(services.haloService, "getMatchOutcome").mockReturnValue("Win");
-      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:30", gameSubScore: null });
-    });
-
-    it("returns deferred channel message response", () => {
-      const { response } = trackCommand.execute(individualXboxInteraction);
-
-      expect(response).toEqual<APIInteractionResponse>({
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-      });
-    });
-
-    it("shows match selection embed in jobToComplete", async () => {
-      const { jobToComplete } = trackCommand.execute(individualXboxInteraction);
-
-      await jobToComplete?.();
-
-      expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-    });
-
-    it("handles no recent matches gracefully", async () => {
-      vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([]);
-
-      const { jobToComplete } = trackCommand.execute(individualXboxInteraction);
-
-      await jobToComplete?.();
-
-      expect(updateDeferredReplySpy).toHaveBeenCalled();
-      const callArgs = updateDeferredReplySpy.mock.lastCall;
-      expect(callArgs?.[1]).toEqual({
-        embeds: [
-          expect.objectContaining({
-            description: "No recent matches found for TestPlayer.",
-          }),
-        ],
-        components: [],
-      });
-    });
-  });
-
-  describe("component handlers: individual match select", () => {
-    let startTrackerIndividualSpy: MockInstance<LiveTrackerService["startTrackerIndividual"]>;
-
-    const selectMenuInteraction: APIMessageComponentSelectMenuInteraction = {
-      ...aWizardStringSelectWith({
-        customId: InteractionComponent.IndividualMatchSelect,
-        value: "match-1",
-        embedTitle: "Select matches for TestPlayer",
-        embedDescription: "Select 0-25 matches to seed tracking.",
-      }),
-      guild_id: "fake-guild-id",
-      channel: {
-        ...aWizardStringSelectWith({
-          customId: InteractionComponent.IndividualMatchSelect,
-          value: "match-1",
-        }).channel,
-        id: "fake-channel-id",
-      },
-      channel_id: "fake-channel-id",
-    };
-
-    const buttonInteraction: APIMessageComponentButtonInteraction = {
-      ...fakeButtonClickInteraction,
-      data: {
-        ...fakeButtonClickInteraction.data,
-        custom_id: InteractionComponent.IndividualStartWithoutGames,
-      },
-      message: {
-        ...fakeButtonClickInteraction.message,
-        embeds: [
-          {
-            title: "Select matches for TestPlayer",
-            color: 5793266,
-            description: "Select 0-25 matches to seed tracking.",
-            fields: [],
-          },
-        ],
-      },
-    };
-
-    beforeEach(() => {
-      startTrackerIndividualSpy = vi
-        .spyOn(services.liveTrackerService, "startTrackerIndividual")
-        .mockResolvedValue(undefined);
-
-      vi.spyOn(services.haloService, "getUserByGamertag").mockResolvedValue({
-        xuid: "fake-xuid",
-        gamertag: "TestPlayer",
-      });
-    });
-
-    describe("select menu interaction", () => {
-      it("starts individual tracker with selected game IDs", async () => {
-        const { jobToComplete } = trackCommand.execute(selectMenuInteraction);
-
-        await jobToComplete?.();
-
-        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            selectedGameIds: ["match-1"],
-            gamertag: "TestPlayer",
-            xuid: "fake-xuid",
-
-            initialTarget: expect.objectContaining({
-              type: "discord",
-
-              discord: expect.objectContaining({
-                userId: "discord_user_01",
-                guildId: "fake-guild-id",
-                channelId: "fake-channel-id",
-              }) as DiscordTarget,
-            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
-          }),
-        );
-      });
-
-      it("creates initial loading message via deferred reply", async () => {
-        const { jobToComplete } = trackCommand.execute(selectMenuInteraction);
-
-        await jobToComplete?.();
-
-        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplySpy).toHaveBeenCalledWith(
-          "fake-token",
-
-          expect.objectContaining({
-            embeds: expect.arrayContaining([
-              expect.objectContaining({
-                title: "🔄 Starting Live Tracker",
-              }) as Partial<APIEmbed>,
-            ]) as APIEmbed[],
-          }),
-        );
-      });
-    });
-
-    describe("button interaction (start without games)", () => {
-      it("starts individual tracker with empty selected game IDs", async () => {
-        const { jobToComplete } = trackCommand.execute(buttonInteraction);
-
-        await jobToComplete?.();
-
-        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            selectedGameIds: [],
-            gamertag: "TestPlayer",
-            xuid: "fake-xuid",
-
-            initialTarget: expect.objectContaining({
-              type: "discord",
-            }) as NonNullable<Parameters<LiveTrackerService["startTrackerIndividual"]>[0]["initialTarget"]>,
-          }),
-        );
-      });
-
-      it("extracts gamertag from match selection embed title", async () => {
-        const { jobToComplete } = trackCommand.execute(buttonInteraction);
-
-        await jobToComplete?.();
-
-        expect(startTrackerIndividualSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            gamertag: "TestPlayer",
-          }),
-        );
-      });
-
-      it("handles missing gamertag in embed title gracefully", async () => {
-        const invalidInteraction = {
-          ...buttonInteraction,
-          message: {
-            ...buttonInteraction.message,
-            embeds: [
-              {
-                title: "Invalid embed",
-              },
-            ],
-          },
-        };
-
-        const { jobToComplete } = trackCommand.execute(invalidInteraction);
-
-        await jobToComplete?.();
-
-        expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
     });
   });
