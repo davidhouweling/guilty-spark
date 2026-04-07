@@ -8,6 +8,7 @@ import { XboxService } from "./xbox/xbox";
 import { CustomSpartanTokenProvider } from "./halo/custom-spartan-token-provider";
 import { NeatQueueService } from "./neatqueue/neatqueue";
 import { LiveTrackerService } from "./live-tracker/live-tracker";
+import { AuthService } from "./auth/auth";
 import type { LogService } from "./log/types";
 import { AggregatorClient } from "./log/aggregator-client";
 import { ConsoleLogClient } from "./log/console-log-client";
@@ -18,6 +19,7 @@ import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 
 export interface Services {
   logService: LogService;
+  authService: AuthService;
   databaseService: DatabaseService;
   discordService: DiscordService;
   xboxService: XboxService;
@@ -43,6 +45,12 @@ function isValidUrl(url: string): boolean {
 export function installServices({ env }: InstallServicesOpts): Services {
   const sentryMode = env.MODE === "development" ? "development" : "production";
   const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
+  const authService = new AuthService({
+    microsoftClientId: env.MICROSOFT_CLIENT_ID,
+    microsoftClientSecret: env.MICROSOFT_CLIENT_SECRET,
+    microsoftRedirectUri: env.MICROSOFT_REDIRECT_URI,
+    sessionSecret: env.SESSION_SECRET,
+  });
   const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });
@@ -81,6 +89,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
 
   return {
     logService,
+    authService,
     databaseService,
     discordService,
     xboxService,

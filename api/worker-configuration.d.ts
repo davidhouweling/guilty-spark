@@ -20,6 +20,11 @@ declare namespace Cloudflare {
 		PROXY_WORKER_URL: string;
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
+		MICROSOFT_CLIENT_ID: string;
+		MICROSOFT_CLIENT_SECRET: string;
+		MICROSOFT_REDIRECT_URI: string;
+		SESSION_SECRET: string;
+		CSRF_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 	}
 	interface ProductionEnv {
@@ -36,6 +41,11 @@ declare namespace Cloudflare {
 		PROXY_WORKER_URL: string;
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
+		MICROSOFT_CLIENT_ID: string;
+		MICROSOFT_CLIENT_SECRET: string;
+		MICROSOFT_REDIRECT_URI: string;
+		SESSION_SECRET: string;
+		CSRF_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 	}
 	interface Env {
@@ -52,6 +62,11 @@ declare namespace Cloudflare {
 		PROXY_WORKER_URL: string;
 		PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
+		MICROSOFT_CLIENT_ID: string;
+		MICROSOFT_CLIENT_SECRET: string;
+		MICROSOFT_REDIRECT_URI: string;
+		SESSION_SECRET: string;
+		CSRF_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 	}
 }
@@ -60,7 +75,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_REDIRECT_URI" | "SESSION_SECRET" | "CSRF_SECRET">> {}
 }
 
 // Begin runtime types

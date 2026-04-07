@@ -74,6 +74,11 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     PROXY_WORKER_URL: "https://api.guilty-spark.app",
     PROXY_WORKER_TOKEN: "worker-token",
     SENTRY_AUTH_TOKEN: "sentry-auth-token",
+    MICROSOFT_CLIENT_ID: "test-client-id",
+    MICROSOFT_CLIENT_SECRET: "test-client-secret",
+    MICROSOFT_REDIRECT_URI: "http://localhost:8787/auth/microsoft/callback",
+    SESSION_SECRET: "a".repeat(64),
+    CSRF_SECRET: "b".repeat(64),
     LIVE_TRACKER_DO: {
       idFromName: () => liveTrackerDOId,
       idFromString: () => liveTrackerDOId,

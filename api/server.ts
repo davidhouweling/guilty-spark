@@ -34,6 +34,93 @@ export class Server {
       );
     });
 
+    this.router.get("/auth/microsoft/start", async (_request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const { url, state } = await authService.generateAuthorizationUrl();
+
+        // Return the auth URL + state for frontend to navigate to
+        return new Response(
+          JSON.stringify({
+            authUrl: url.toString(),
+            state,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      } catch (error) {
+        console.error("Auth start error:", error);
+        return new Response(
+          JSON.stringify({
+            error: "Failed to generate authorization URL",
+          }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+    });
+
+    this.router.get("/auth/microsoft/callback", async (request, env: Env) => {
+      try {
+        const url = new URL(request.url);
+        const code = url.searchParams.get("code");
+        const state = url.searchParams.get("state");
+
+        if (code == null || state == null) {
+          return new Response("Missing authorization code or state", { status: 400 });
+        }
+
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        // Exchange code for tokens and create session
+        const sessionPayload = await authService.handleCallback(code, state);
+        const sessionToken = await authService.createSessionToken(sessionPayload);
+
+        // Create response with Set-Cookie header
+        const response = new Response(
+          JSON.stringify({
+            success: true,
+            userId: sessionPayload.userId,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        // Set session cookie
+        authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
+
+        return response;
+      } catch (error) {
+        console.error("Auth callback error:", error);
+        return new Response(
+          JSON.stringify({
+            error: error instanceof Error ? error.message : "Authentication failed",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+    });
+
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
