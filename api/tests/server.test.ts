@@ -44,6 +44,39 @@ describe("Server", () => {
     });
   });
 
+  describe("POST /auth/logout", () => {
+    it("returns 200 and clears the session cookie", async () => {
+      const req = new Request("http://localhost/auth/logout", { method: "POST" });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(200);
+      const body = await res.json<{ success: boolean }>();
+      expect(body).toEqual({ success: true });
+      const setCookie = res.headers.get("Set-Cookie");
+      expect(setCookie).toContain("auth-session=");
+      expect(setCookie).toContain("Max-Age=0");
+    });
+
+    it("returns 500 with error message when clearSessionCookie throws", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "clearSessionCookie").mockImplementation(() => {
+          throw new Error("Cookie error");
+        });
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/auth/logout", { method: "POST" });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(500);
+      const body = await res.json<{ error: string }>();
+      expect(body).toEqual({ error: "Logout failed" });
+    });
+  });
+
   describe("POST /proxy/halo-infinite", () => {
     it("returns 401 if x-proxy-auth header is missing", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {
