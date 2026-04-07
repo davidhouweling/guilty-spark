@@ -39,13 +39,3 @@ export interface SeriesData {
   readonly startTime: string;
   readonly lastUpdateTime: string;
 }
-
-/**
- * Link between individual tracker and NeatQueue series.
- * Used by individual tracker to reference and fetch series data.
- */
-export interface SeriesLink {
-  readonly seriesId: SeriesId;
-  readonly linkedAt: string;
-  readonly lastFetchedAt: string;
-}

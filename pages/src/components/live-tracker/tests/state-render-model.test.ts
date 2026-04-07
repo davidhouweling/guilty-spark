@@ -9,17 +9,7 @@ describe("toLiveTrackerStateRenderModel", () => {
     const model = toLiveTrackerStateRenderModel(sampleLiveTrackerStateMessage);
 
     expect(model.type).toBe("neatqueue");
-
-    // Type guard to access NeatQueue-specific properties
-    if (model.type !== "neatqueue") {
-      throw new Error("Expected NeatQueue state");
-    }
-
-    expect(model.queueNumber).toBe(
-      sampleLiveTrackerStateMessage.data.type === "neatqueue"
-        ? sampleLiveTrackerStateMessage.data.queueNumber
-        : undefined,
-    );
+    expect(model.queueNumber).toBe(sampleLiveTrackerStateMessage.data.queueNumber);
     expect(model.status).toBe(sampleLiveTrackerStateMessage.data.status);
 
     expect(model.teams.length).toBe(2);

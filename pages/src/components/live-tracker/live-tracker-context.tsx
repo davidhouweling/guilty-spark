@@ -176,20 +176,10 @@ export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[
 export function useMatchCount(): number {
   const { model } = useLiveTrackerContext();
   return useMemo(() => {
-    if (model.state?.type === "neatqueue") {
-      return model.state.matches.length;
+    if (model.state == null) {
+      return 0;
     }
-    if (model.state?.type === "individual") {
-      // Count all matches across all groups
-      return model.state.groups.reduce((count, group) => {
-        if (group.type === "single-match") {
-          return count + 1;
-        }
-        // neatqueue-series or grouped-matches
-        return count + group.matches.length;
-      }, 0);
-    }
-    return 0;
+    return model.state.matches.length;
   }, [model.state]);
 }
 
@@ -199,13 +189,10 @@ export function useMatchCount(): number {
 export function useHasMatches(): boolean {
   const { model } = useLiveTrackerContext();
   return useMemo(() => {
-    if (model.state?.type === "neatqueue") {
-      return model.state.matches.length > 0;
+    if (model.state == null) {
+      return false;
     }
-    if (model.state?.type === "individual") {
-      return model.state.groups.length > 0;
-    }
-    return false;
+    return model.state.matches.length > 0;
   }, [model.state]);
 }
 

@@ -89,10 +89,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
    * @returns true if tracker exists, false if 404 (not found)
    */
   private async checkTrackerExists(identity: LiveTrackerIdentity): Promise<boolean> {
-    const statusUrl =
-      identity.type === "team"
-        ? `${this.config.apiHost}/tracker/${identity.guildId}/${identity.queueNumber}/status`
-        : `${this.config.apiHost}/tracker/individual/${identity.gamertag}/status`;
+    const statusUrl = `${this.config.apiHost}/tracker/${identity.guildId}/${identity.queueNumber}/status`;
 
     try {
       const response = await fetch(statusUrl);
@@ -107,10 +104,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
     // Parse the host from the HTTP(S) URL for WebSocket connection
     const apiUrl = new URL(this.config.apiHost);
     const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl =
-      identity.type === "team"
-        ? `${protocol}//${apiUrl.host}/ws/tracker/${identity.guildId}/${identity.queueNumber}`
-        : `${protocol}//${apiUrl.host}/ws/tracker/individual/${identity.gamertag}`;
+    const wsUrl = `${protocol}//${apiUrl.host}/ws/tracker/${identity.guildId}/${identity.queueNumber}`;
 
     // Preflight check to detect 404 before attempting WebSocket
     const trackerExists = await this.checkTrackerExists(identity);

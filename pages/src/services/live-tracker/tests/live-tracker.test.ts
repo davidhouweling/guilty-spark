@@ -392,30 +392,4 @@ describe("RealLiveTrackerService", () => {
     connection.disconnect();
     global.fetch = originalFetch;
   });
-
-  it("emits not_found status when server returns 404 for individual tracker", async () => {
-    // Mock fetch to return 404 for the status endpoint
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-    });
-
-    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
-    const identity: LiveTrackerIdentity = { type: "individual", gamertag: "TestPlayer" };
-
-    const statusListener = vi.fn();
-
-    const connection = await service.connect(identity);
-    connection.subscribeStatus(statusListener);
-
-    // Wait for async status update
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    // Should have received not_found status
-    expect(statusListener).toHaveBeenCalledWith("not_found", undefined);
-
-    connection.disconnect();
-    global.fetch = originalFetch;
-  });
 });

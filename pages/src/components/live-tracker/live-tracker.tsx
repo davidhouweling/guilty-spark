@@ -11,10 +11,6 @@ import slayerPng from "../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
-import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
-import type { MatchStatsData } from "../stats/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import type { ViewMode } from "../view-mode/view-mode-selector";
@@ -24,31 +20,21 @@ import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
-import { IndividualModeMatches } from "./individual-mode-matches";
 import { StreamerOverlay } from "./streamer-overlay/streamer-overlay";
 import {
   useTrackerInfo,
   useTrackerState,
-  useTrackerParams,
   useAllMatchStats,
   useSeriesStats,
   useHasMatches,
   useSubstitutions,
 } from "./live-tracker-context";
-import type {
-  LiveTrackerStateRenderModel,
-  LiveTrackerNeatQueueStateRenderModel,
-  LiveTrackerIndividualStateRenderModel,
-} from "./types";
+import type { LiveTrackerStateRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
 import { buildUrlWithSettings, parseSettingsFromUrl } from "./settings/settings-url-params";
 
-function isNeatQueueState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerNeatQueueStateRenderModel {
-  return state !== null && state.type === "neatqueue";
-}
-
-function isIndividualState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerIndividualStateRenderModel {
-  return state !== null && state.type === "individual";
+function hasState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerStateRenderModel {
+  return state !== null;
 }
 
 function gameModeIconUrl(gameMode: string): ImageMetadata {
@@ -92,13 +78,11 @@ export function LiveTrackerView(): React.ReactElement {
   // Use selector hooks to get data from context
   const trackerInfo = useTrackerInfo();
   const state = useTrackerState();
-  const params = useTrackerParams();
   const hasMatches = useHasMatches();
   const sortedSubstitutions = useSubstitutions();
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
 
-  const isIndividualMode = params.type === "individual";
   const { settings, setSettings } = useStreamerSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [team1Color, setTeam1Color] = useState(DEFAULT_TEAM_COLORS[0]);
@@ -135,7 +119,7 @@ export function LiveTrackerView(): React.ReactElement {
 
   // Sync team colors based on player/observer view settings
   useEffect(() => {
-    if (!isNeatQueueState(state)) {
+    if (!hasState(state)) {
       return;
     }
 
@@ -211,58 +195,10 @@ export function LiveTrackerView(): React.ReactElement {
     return [...sortedSubstitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
   }, [sortedSubstitutions]);
 
-  // For individual mode, compute stats for each group
-  const individualGroupStats = useMemo(() => {
-    if (!isIndividualState(state)) {
-      return null;
-    }
-
-    const statsMap = new Map<
-      string,
-      { teamData: MatchStatsData[]; playerData: MatchStatsData[]; metadata: SeriesMetadata | null }
-    >();
-
-    for (const group of state.groups) {
-      if (group.type === "single-match") {
-        continue;
-      }
-
-      const groupMatches = group.matches;
-      const rawMatchStats = groupMatches
-        .map((m) => m.rawMatchStats)
-        .filter((stats): stats is NonNullable<typeof stats> => stats != null);
-
-      if (!rawMatchStats.length) {
-        continue;
-      }
-
-      const allPlayerXuidToGametag = new Map<string, string>();
-      for (const match of groupMatches) {
-        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-          allPlayerXuidToGametag.set(xuid, gamertag);
-        }
-      }
-
-      const { seriesScore } = group;
-      const metadata = calculateSeriesMetadata(groupMatches, seriesScore);
-
-      const teamPresenter = new SeriesTeamStatsPresenter();
-      const playerPresenter = new SeriesPlayerStatsPresenter();
-
-      statsMap.set(group.groupId, {
-        teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
-        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata),
-        metadata,
-      });
-    }
-
-    return statsMap;
-  }, [state?.type, isIndividualState(state) ? state.groups : null, state?.medalMetadata]);
-
   // Memoize available players for settings dialog
   const availablePlayers = useMemo(
     () =>
-      isNeatQueueState(state)
+      hasState(state)
         ? state.teams.flatMap((team) =>
             team.players.map((player) => ({
               id: player.id,
@@ -287,9 +223,7 @@ export function LiveTrackerView(): React.ReactElement {
   }, [viewMode]);
 
   const title: string[] = [trackerInfo.title];
-  if (isIndividualMode) {
-    title.push("- Individual Tracker");
-  } else if (isNeatQueueState(state)) {
+  if (hasState(state)) {
     title.push(`#${state.queueNumber.toString()}`);
     title.push(`(${emojifySeriesScore(state.seriesScore)})`);
   }
@@ -310,10 +244,10 @@ export function LiveTrackerView(): React.ReactElement {
         settings={settings}
         viewMode={viewMode}
         availablePlayers={availablePlayers}
-        defaultTitle={state?.type === "neatqueue" ? state.guildName : undefined}
-        defaultSubtitle={state?.type === "neatqueue" ? `Queue #${state.queueNumber.toString()}` : undefined}
-        server={isNeatQueueState(state) ? state.guildId : undefined}
-        queue={isNeatQueueState(state) ? state.queueNumber : undefined}
+        defaultTitle={state?.guildName}
+        defaultSubtitle={state != null ? `Queue #${state.queueNumber.toString()}` : undefined}
+        server={state?.guildId}
+        queue={state?.queueNumber}
         onClose={(): void => {
           setIsSettingsOpen(false);
         }}
@@ -333,7 +267,7 @@ export function LiveTrackerView(): React.ReactElement {
   );
 
   // Render streamer overlay if in streamer mode
-  if (viewMode === "streamer" && state && isNeatQueueState(state)) {
+  if (viewMode === "streamer" && state) {
     return (
       <>
         <title>{title.join(" ")}</title>
@@ -355,11 +289,7 @@ export function LiveTrackerView(): React.ReactElement {
           <div className={styles.headerLeft}>
             <h1 className={styles.headerTitle}>{displayTitle}</h1>
             <div className={styles.headerSubtitle}>
-              {isIndividualMode
-                ? displaySubtitle
-                : isNeatQueueState(state)
-                  ? `Queue #${state.queueNumber.toString()}`
-                  : displaySubtitle}
+              {hasState(state) ? `Queue #${state.queueNumber.toString()}` : displaySubtitle}
             </div>
           </div>
 
@@ -390,7 +320,7 @@ export function LiveTrackerView(): React.ReactElement {
 
         {state ? (
           <>
-            {isNeatQueueState(state) && (
+            {hasState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 <h2 className={styles.sectionTitle}>Series overview</h2>
                 <div className={styles.seriesOverview}>
@@ -486,7 +416,7 @@ export function LiveTrackerView(): React.ReactElement {
                 </div>
               </Container>
             )}
-            {isNeatQueueState(state) && seriesStats && (
+            {hasState(state) && seriesStats && (
               <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
                 <SeriesStats
                   teamData={seriesStats.teamData}
@@ -497,7 +427,7 @@ export function LiveTrackerView(): React.ReactElement {
                 />
               </Container>
             )}
-            {isNeatQueueState(state) && hasMatches && (
+            {hasState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                   <h2 className={styles.sectionTitle}>Matches</h2>
@@ -585,30 +515,7 @@ export function LiveTrackerView(): React.ReactElement {
                 })()}
               </>
             )}
-            {isIndividualState(state) && hasMatches && individualGroupStats && (
-              <>
-                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <h2 className={styles.sectionTitle}>Matches</h2>
-                </Container>
-                <IndividualModeMatches
-                  groups={state.groups}
-                  groupStats={individualGroupStats}
-                  gameModeIconUrl={gameModeIconSrc}
-                  teamColors={teamColorsArray}
-                  viewMode={viewMode}
-                  guildName={trackerInfo.title}
-                  status={state.status}
-                />
-              </>
-            )}
-            {isIndividualState(state) && !hasMatches && (
-              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                <Alert variant="info" icon="⏳">
-                  Tracking <strong>{state.gamertag}</strong>. Waiting for first match to complete...
-                </Alert>
-              </Container>
-            )}
-            {isNeatQueueState(state) && !hasMatches && state.playersAssociationData && (
+            {hasState(state) && !hasMatches && state.playersAssociationData && (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
                 teams={state.teams}
@@ -616,7 +523,7 @@ export function LiveTrackerView(): React.ReactElement {
                 teamColors={teamColorsArray}
               />
             )}
-            {isNeatQueueState(state) && !hasMatches && sortedSubstitutionsList.length > 0 && (
+            {hasState(state) && !hasMatches && sortedSubstitutionsList.length > 0 && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
                 {sortedSubstitutionsList.map((substitution) => (
                   <Alert key={substitution.timestamp} variant="info" icon="↔️">
