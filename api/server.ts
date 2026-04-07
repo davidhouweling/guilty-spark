@@ -121,6 +121,32 @@ export class Server {
       }
     });
 
+    this.router.post("/auth/logout", (_request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const response = new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        authService.clearSessionCookie(response);
+
+        return response;
+      } catch (error) {
+        console.error("Auth logout error:", error);
+        return new Response(JSON.stringify({ error: "Logout failed" }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      }
+    });
+
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
