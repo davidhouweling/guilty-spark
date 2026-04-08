@@ -23,7 +23,7 @@ export class MicrosoftAuthService {
     this.clientSecret = Preconditions.checkExists(config.clientSecret, "clientSecret");
     this.redirectUri = Preconditions.checkExists(config.redirectUri, "redirectUri");
     this.tenant = config.tenant ?? "consumers";
-    this.scopes = config.scopes ?? "openid profile email offline_access";
+    this.scopes = config.scopes ?? "openid profile email offline_access XboxLive.signin XboxLive.offline_access";
   }
 
   /**

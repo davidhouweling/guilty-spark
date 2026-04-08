@@ -1,12 +1,22 @@
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
+import { HaloInfiniteClient } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import { Server } from "../server";
 import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+
+vi.mock("halo-infinite-api", async () => {
+  const actual = await import("halo-infinite-api");
+  return {
+    ...actual,
+    AutoTokenProvider: vi.fn(),
+    HaloInfiniteClient: vi.fn(),
+  };
+});
 
 describe("Server", () => {
   let env: Env;
@@ -180,6 +190,90 @@ describe("Server", () => {
       expect(res.status).toBe(401);
       const text = await res.text();
       expect(text).toBe("Unauthorized");
+    });
+
+    it("returns 401 with no authentication and no session cookie", async () => {
+      const req = new Request("http://localhost/proxy/halo-infinite", {
+        method: "POST",
+        body: JSON.stringify({ method: "getUser", args: [] }),
+        headers: { "content-type": "application/json" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(401);
+      const text = await res.text();
+      expect(text).toBe("Unauthorized");
+    });
+
+    it("returns 401 with expired session cookie", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        });
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/proxy/halo-infinite", {
+        method: "POST",
+        body: JSON.stringify({ method: "getUser", args: [] }),
+        headers: { "content-type": "application/json", cookie: "auth-session=expired-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(401);
+      const text = await res.text();
+      expect(text).toBe("Unauthorized");
+    });
+
+    it("returns 200 and result with valid session cookie", async () => {
+      const fakeClient = aFakeHaloInfiniteClient();
+      vi.mocked(HaloInfiniteClient).mockImplementation(function () {
+        return fakeClient;
+      });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/proxy/halo-infinite", {
+        method: "POST",
+        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({
+        result: {
+          xuid: "0000000000001",
+          gamerpic: {
+            small: "small01.png",
+            medium: "medium01.png",
+            large: "large01.png",
+            xlarge: "xlarge01.png",
+          },
+          gamertag: "gamertag01",
+        },
+      });
     });
 
     it("returns 400 with invalid JSON", async () => {

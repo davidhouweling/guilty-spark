@@ -1,4 +1,5 @@
 import type { AutoRouterType } from "itty-router";
+import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import { handleCorsPreflightRequest } from "./base/cors";
@@ -290,8 +291,18 @@ export class Server {
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
         const authHeader = request.headers.get("x-proxy-auth");
-        if (authHeader == null || authHeader !== env.PROXY_WORKER_TOKEN) {
-          return new Response("Unauthorized", { status: 401 });
+        const hasValidWorkerToken = authHeader != null && authHeader === env.PROXY_WORKER_TOKEN;
+
+        let services: ReturnType<typeof this.installServices> | null = null;
+        let sessionAccessToken: string | null = null;
+
+        if (!hasValidWorkerToken) {
+          services = this.installServices({ env });
+          const session = await services.authService.validateSession(request);
+          if (session === null || session.isExpired) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+          sessionAccessToken = session.accessToken;
         }
 
         let body: unknown;
@@ -311,8 +322,14 @@ export class Server {
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
-        const services = this.installServices({ env });
-        const { haloInfiniteClient } = services;
+
+        let haloInfiniteClient: HaloInfiniteClient;
+        if (sessionAccessToken !== null) {
+          const token = sessionAccessToken;
+          haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
+        } else {
+          ({ haloInfiniteClient } = services ?? this.installServices({ env }));
+        }
 
         const isFunctionProperty = <T>(
           obj: T,
