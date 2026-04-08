@@ -164,6 +164,202 @@ describe("Server", () => {
     });
   });
 
+  describe("/api/individual-tracker", () => {
+    it("GET /api/individual-tracker/profile returns 401 when session is missing", async () => {
+      const req = new Request("http://localhost/api/individual-tracker/profile", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(401);
+      expect(await res.text()).toBe("Unauthorized");
+    });
+
+    it("GET /api/individual-tracker/profile returns null profile when user has no profiles", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([]);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/profile", {
+        method: "GET",
+        headers: { cookie: "auth-session=valid-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({ profile: null, games: [] });
+    });
+
+    it("POST /api/individual-tracker/profile creates a profile for authenticated user", async () => {
+      vi.spyOn(crypto, "randomUUID").mockReturnValue("profile-uuid-1");
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "createIndividualTrackerProfile").mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/profile", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ name: "stream-profile" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(201);
+      const body = await res.json<{ profile: { ProfileId: string; UserId: string; Name: string } }>();
+      expect(body.profile.ProfileId).toBe("profile-uuid-1");
+      expect(body.profile.UserId).toBe("user-123");
+      expect(body.profile.Name).toBe("stream-profile");
+    });
+
+    it("PATCH /api/individual-tracker/profile returns 404 when profile is not owned by user", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "other-user",
+          ActiveIdentityId: null,
+          Name: "default",
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ profileId: "profile-1", name: "updated" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(404);
+      expect(await res.text()).toBe("Profile not found");
+    });
+
+    it("POST /api/individual-tracker/games:add appends game to profile", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerGames")
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([
+            {
+              ProfileId: "profile-1",
+              MatchId: "match-1",
+              Position: 1,
+              Included: 1,
+              AnnotationsJson: "{}",
+              CreatedAt: 1,
+              UpdatedAt: 1,
+            },
+          ]);
+        vi.spyOn(services.databaseService, "replaceIndividualTrackerGames").mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/games:add", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ profileId: "profile-1", matchId: "match-1" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      const body = await res.json<{ games: { MatchId: string }[] }>();
+      expect(body.games[0]?.MatchId).toBe("match-1");
+    });
+
+    it("POST /api/individual-tracker/games:reorder returns 400 for mismatched payload", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerGames").mockResolvedValue([
+          {
+            ProfileId: "profile-1",
+            MatchId: "match-1",
+            Position: 1,
+            Included: 1,
+            AnnotationsJson: "{}",
+            CreatedAt: 1,
+            UpdatedAt: 1,
+          },
+        ]);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/games:reorder", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ profileId: "profile-1", orderedMatchIds: ["match-1", "match-2"] }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      expect(await res.text()).toBe("orderedMatchIds must include all existing games");
+    });
+  });
+
   describe("POST /proxy/halo-infinite", () => {
     it("returns 401 if x-proxy-auth header is missing", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {

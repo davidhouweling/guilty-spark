@@ -155,15 +155,15 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 ### Individual tracker profile
 
-- [ ] `GET /api/individual-tracker/profile`
-- [ ] `POST /api/individual-tracker/profile`
-- [ ] `PATCH /api/individual-tracker/profile`
+- [x] `GET /api/individual-tracker/profile`
+- [x] `POST /api/individual-tracker/profile`
+- [x] `PATCH /api/individual-tracker/profile`
 
 ### Game selection controls
 
-- [ ] `POST /api/individual-tracker/games:add`
-- [ ] `POST /api/individual-tracker/games:remove`
-- [ ] `POST /api/individual-tracker/games:reorder`
+- [x] `POST /api/individual-tracker/games:add`
+- [x] `POST /api/individual-tracker/games:remove`
+- [x] `POST /api/individual-tracker/games:reorder`
 
 ### Streamer view controls
 
@@ -219,8 +219,8 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 - [x] `individual_tracker_profiles` D1 schema defined and ready for manual execution.
 - [x] `individual_tracker_games` D1 schema defined and ready for manual execution.
-- [ ] Create/read/update profile endpoints.
-- [ ] Persist selected/removed games.
+- [x] Create/read/update profile endpoints.
+- [x] Persist selected/removed games.
 - [ ] FE integration with optimistic updates.
 
 ### Phase 3 - Streamer controls

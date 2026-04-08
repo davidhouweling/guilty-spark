@@ -4,6 +4,7 @@ import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
 import { handleCorsPreflightRequest } from "./base/cors";
+import { ProfileNotFoundError, InvalidReorderError } from "./services/individual-tracker/errors";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -180,6 +181,220 @@ export class Server {
       } catch (error) {
         console.error("Auth session error:", error);
         return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.get("/api/individual-tracker/profile", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const response = await services.individualTrackerService.getProfile({ userId: session.userId });
+
+        return new Response(JSON.stringify(response), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual tracker profile get error:", error);
+        return new Response(JSON.stringify({ error: "Failed to fetch profile" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/individual-tracker/profile", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body: unknown = await request.json();
+        const createProfileRequest = { userId: session.userId };
+        const nameVal = (body as { name?: unknown }).name;
+        if (typeof nameVal === "string") {
+          Object.assign(createProfileRequest, { name: nameVal });
+        }
+        const activeIdentityIdVal = (body as { activeIdentityId?: unknown }).activeIdentityId;
+        if (Object.prototype.hasOwnProperty.call(body as object, "activeIdentityId")) {
+          Object.assign(createProfileRequest, {
+            activeIdentityId: typeof activeIdentityIdVal === "string" ? activeIdentityIdVal : null,
+          });
+        }
+
+        const response = await services.individualTrackerService.createProfile(
+          createProfileRequest as Parameters<typeof services.individualTrackerService.createProfile>[0],
+        );
+
+        return new Response(JSON.stringify(response), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual tracker profile create error:", error);
+        return new Response(JSON.stringify({ error: "Failed to create profile" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.patch("/api/individual-tracker/profile", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body: unknown = await request.json();
+        const { profileId } = body as { profileId?: unknown };
+        if (typeof profileId !== "string" || profileId === "") {
+          return new Response("Missing profileId", { status: 400 });
+        }
+
+        const updates: { name?: string; activeIdentityId?: string | null } = {};
+
+        const { name } = body as { name?: unknown };
+        if (typeof name === "string") {
+          updates.name = name;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body as object, "activeIdentityId")) {
+          const { activeIdentityId } = body as { activeIdentityId?: unknown };
+          updates.activeIdentityId = typeof activeIdentityId === "string" ? activeIdentityId : null;
+        }
+
+        try {
+          const response = await services.individualTrackerService.updateProfile({
+            userId: session.userId,
+            profileId,
+            updates,
+          });
+
+          return new Response(JSON.stringify(response), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          if (error instanceof ProfileNotFoundError) {
+            return new Response("Profile not found", { status: 404 });
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error("Individual tracker profile update error:", error);
+        return new Response(JSON.stringify({ error: "Failed to update profile" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/individual-tracker/:action", async (request, env: Env) => {
+      try {
+        const { action } = request.params as { action: string };
+        if (action !== "games:add" && action !== "games:remove" && action !== "games:reorder") {
+          return new Response("Not Found.", { status: 404 });
+        }
+
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body: unknown = await request.json();
+        const { profileId } = body as { profileId?: unknown };
+        if (typeof profileId !== "string" || profileId === "") {
+          return new Response("Missing profileId", { status: 400 });
+        }
+
+        try {
+          switch (action) {
+            case "games:add": {
+              const { matchId } = body as { matchId?: unknown };
+              if (typeof matchId !== "string" || matchId === "") {
+                return new Response("Missing matchId", { status: 400 });
+              }
+
+              const response = await services.individualTrackerService.addGame({
+                userId: session.userId,
+                profileId,
+                matchId,
+              });
+
+              return new Response(JSON.stringify(response), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            case "games:remove": {
+              const { matchId } = body as { matchId?: unknown };
+              if (typeof matchId !== "string" || matchId === "") {
+                return new Response("Missing matchId", { status: 400 });
+              }
+
+              const response = await services.individualTrackerService.removeGame({
+                userId: session.userId,
+                profileId,
+                matchId,
+              });
+
+              return new Response(JSON.stringify(response), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            case "games:reorder": {
+              const { orderedMatchIds } = body as { orderedMatchIds?: unknown };
+              if (!Array.isArray(orderedMatchIds) || orderedMatchIds.some((matchId) => typeof matchId !== "string")) {
+                return new Response("Invalid reorder payload", { status: 400 });
+              }
+
+              const response = await services.individualTrackerService.reorderGames({
+                userId: session.userId,
+                profileId,
+                orderedMatchIds: orderedMatchIds as string[],
+              });
+
+              return new Response(JSON.stringify(response), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            default: {
+              return new Response("Not Found.", { status: 404 });
+            }
+          }
+        } catch (error) {
+          if (error instanceof ProfileNotFoundError) {
+            return new Response("Profile not found", { status: 404 });
+          }
+          if (error instanceof InvalidReorderError) {
+            return new Response(error.message, { status: 400 });
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error("Individual tracker games action error:", error);
+        return new Response(JSON.stringify({ error: "Failed to process games action" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
