@@ -147,6 +147,43 @@ export class Server {
       }
     });
 
+    this.router.get("/auth/session", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const session = await authService.validateSession(request);
+
+        if (session == null) {
+          return new Response(JSON.stringify({ authenticated: false }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        if (session.isExpired) {
+          return new Response(JSON.stringify({ authenticated: false, expired: true }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Auth session error:", error);
+        return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
