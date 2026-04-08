@@ -54,7 +54,7 @@ npm run format:fix
 
 ## File Structure & Conventions
 
-- `api/` - Discord bot (`.ts` extensions); `pages/` - Website (Astro); `contracts/` - Shared types
+- `api/` - Discord bot and public api endpoint; `pages/` - Website (Astro); `contracts/` - Shared types
 - Tests in `tests/` folders, fakes in `fakes/` folders
 - Use extensionless imports for internal TypeScript modules
 - **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
@@ -62,6 +62,7 @@ npm run format:fix
 - **Fakes**: `<feature>/fakes/data.ts` for fixtures, separate files for behavior
 - **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
 - **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders
+- **Routes**: when adding routes to `api/server`, ensure to add it to `api/wrangler.jsonc`
 
 ## Code Style
 
