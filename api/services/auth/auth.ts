@@ -112,6 +112,26 @@ export class AuthService {
   }
 
   /**
+   * Refresh an expired session using the stored refresh token.
+   * Returns null when no refresh token is available.
+   */
+  public async refreshSession(session: AuthSession): Promise<SessionTokenPayload | null> {
+    if (session.refreshToken == null) {
+      return null;
+    }
+
+    const tokens = await this.microsoftAuth.refreshAccessToken(session.refreshToken);
+
+    return {
+      userId: session.userId,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? session.refreshToken,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
+      issuedAt: Date.now(),
+    };
+  }
+
+  /**
    * Set session cookie in response.
    */
   public setSessionCookie(response: Response, token: string, expiresAt: number): void {

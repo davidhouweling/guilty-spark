@@ -2,6 +2,7 @@ import type { AutoRouterType } from "itty-router";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
+import type { SessionTokenPayload } from "./services/auth/types";
 import { handleCorsPreflightRequest } from "./base/cors";
 
 interface ServerOpts {
@@ -291,18 +292,42 @@ export class Server {
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
         const authHeader = request.headers.get("x-proxy-auth");
-        const hasValidWorkerToken = authHeader != null && authHeader === env.PROXY_WORKER_TOKEN;
+        if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
 
         let services: ReturnType<typeof this.installServices> | null = null;
         let sessionAccessToken: string | null = null;
+        let refreshedSessionPayload: SessionTokenPayload | null = null;
 
         if (!hasValidWorkerToken) {
           services = this.installServices({ env });
           const session = await services.authService.validateSession(request);
-          if (session === null || session.isExpired) {
+          if (session === null) {
             return new Response("Unauthorized", { status: 401 });
           }
-          sessionAccessToken = session.accessToken;
+
+          if (session.isExpired) {
+            try {
+              refreshedSessionPayload = await services.authService.refreshSession(session);
+            } catch {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return response;
+            }
+
+            if (refreshedSessionPayload === null) {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return response;
+            }
+
+            sessionAccessToken = refreshedSessionPayload.accessToken;
+          } else {
+            sessionAccessToken = session.accessToken;
+          }
         }
 
         let body: unknown;
@@ -347,10 +372,18 @@ export class Server {
         const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
 
         const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
-        return new Response(JSON.stringify({ result }), {
+
+        const response = new Response(JSON.stringify({ result }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
+
+        if (refreshedSessionPayload !== null && services !== null) {
+          const refreshedToken = await services.authService.createSessionToken(refreshedSessionPayload);
+          services.authService.setSessionCookie(response, refreshedToken, refreshedSessionPayload.expiresAt);
+        }
+
+        return response;
       } catch (error) {
         let errorBody: Record<string, unknown> = {};
         if (error instanceof Error) {

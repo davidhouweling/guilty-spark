@@ -1,6 +1,6 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active proposal — Phase 1 in progress
+**Status**: Active proposal — Phase 1 implementation complete, schema pending execution
 **Date**: April 7, 2026
 
 ## Goal
@@ -20,9 +20,10 @@ Build a frontend-driven individual tracker where users sign in with Microsoft, c
 
 ### Long-term user flow (Twitch extension)
 
-1. Signed-in user links Twitch account.
-2. Extension reads the same tracker state and streamer view preferences.
-3. Streamer controls updates in one place; Twitch extension reflects updates.
+1. Signed-in user links Discord identity.
+2. Signed-in user links Twitch account.
+3. Extension reads the same tracker state and streamer view preferences.
+4. Streamer controls updates in one place; Twitch extension reflects updates.
 
 ## Architecture (v2)
 
@@ -43,7 +44,7 @@ Build a frontend-driven individual tracker where users sign in with Microsoft, c
 ### Data model (new)
 
 - `user_sessions` (session id, user id, expiry, auth metadata)
-- `linked_identities` (user id, xbox xuid/gamertag, optional twitch id)
+- `linked_identities` (user id, xbox xuid/gamertag, optional twitch id, optional discord id)
 - `individual_tracker_profiles` (profile id, user id, active identity, name)
 - `individual_tracker_games` (profile id, match id, position, included/excluded, annotations)
 - `streamer_view_settings` (profile id, layout options, visible sections, style flags)
@@ -79,8 +80,78 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 - [x] `GET /auth/microsoft/start`
 - [x] `GET /auth/microsoft/callback`
-- [ ] `POST /auth/logout`
-- [ ] `GET /auth/session`
+- [x] `POST /auth/logout`
+- [x] `GET /auth/session`
+- [ ] `GET /auth/discord/start`
+- [ ] `GET /auth/discord/callback`
+- [ ] `GET /auth/twitch/start`
+- [ ] `GET /auth/twitch/callback`
+
+### Identity linking
+
+- [ ] `GET /api/identities`
+- [ ] `POST /api/identities/link`
+- [ ] `POST /api/identities/unlink`
+
+#### Proposed payloads
+
+- `POST /api/identities/link` request:
+
+```json
+{
+  "provider": "discord",
+  "providerUserId": "123456789012345678",
+  "displayName": "player-discord-name",
+  "metadata": {
+    "guildId": "987654321098765432"
+  }
+}
+```
+
+- `POST /api/identities/link` response:
+
+```json
+{
+  "success": true,
+  "identity": {
+    "identityId": "idn_01H...",
+    "provider": "discord",
+    "providerUserId": "123456789012345678",
+    "isActive": true
+  }
+}
+```
+
+- `POST /api/identities/unlink` request:
+
+```json
+{
+  "identityId": "idn_01H..."
+}
+```
+
+- `GET /api/identities` response:
+
+```json
+{
+  "identities": [
+    {
+      "identityId": "idn_01H...",
+      "provider": "xbox",
+      "providerUserId": "2533274923456789",
+      "displayName": "ExampleGamertag",
+      "isActive": true
+    },
+    {
+      "identityId": "idn_01J...",
+      "provider": "discord",
+      "providerUserId": "123456789012345678",
+      "displayName": "player-discord-name",
+      "isActive": false
+    }
+  ]
+}
+```
 
 ### Individual tracker profile
 
@@ -101,7 +172,7 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 ### Halo proxy
 
-- [ ] `POST /proxy/halo-infinite` — session-authenticated for browser, token-authenticated for internal callers
+- [x] `POST /proxy/halo-infinite` — session-authenticated for browser, token-authenticated for internal callers
 
 ## UI plan
 
@@ -125,6 +196,7 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 ### Phase D: Twitch extension readiness
 
+- [ ] Add Discord link flow and ownership verification.
 - [ ] Add Twitch link flow and ownership verification.
 - [ ] Provide extension-safe read endpoint and short-lived viewer tokens.
 - [ ] Reuse existing streamer view profile without duplicating settings.
@@ -138,27 +210,28 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 - [x] Session signing with HMAC-SHA256 and secure HttpOnly cookie.
 - [x] `GET /auth/microsoft/start` endpoint (returns auth URL).
 - [x] `GET /auth/microsoft/callback` endpoint (exchanges code, sets session cookie).
-- [ ] `POST /auth/logout` endpoint (clears session cookie).
-- [ ] `GET /auth/session` endpoint (returns current session user).
-- [ ] Session-aware `/proxy/halo-infinite` (accept session cookie in addition to worker token).
-- [ ] Initial D1 schema migration (`user_sessions`, `linked_identities`).
+- [x] `POST /auth/logout` endpoint (clears session cookie).
+- [x] `GET /auth/session` endpoint (returns current session user).
+- [x] Session-aware `/proxy/halo-infinite` (accept session cookie in addition to worker token).
+- [x] Initial D1 schema defined (`user_sessions`, `linked_identities`) and ready for manual execution.
 
 ### Phase 2 - Tracker profile CRUD
 
-- [ ] `individual_tracker_profiles` D1 migration.
-- [ ] `individual_tracker_games` D1 migration.
+- [x] `individual_tracker_profiles` D1 schema defined and ready for manual execution.
+- [x] `individual_tracker_games` D1 schema defined and ready for manual execution.
 - [ ] Create/read/update profile endpoints.
 - [ ] Persist selected/removed games.
 - [ ] FE integration with optimistic updates.
 
 ### Phase 3 - Streamer controls
 
-- [ ] `streamer_view_settings` D1 migration.
+- [x] `streamer_view_settings` D1 schema defined and ready for manual execution.
 - [ ] Streamer-view settings API + UI.
 - [ ] URL/share behavior for live stream usage.
 
 ### Phase 4 - Twitch extension integration
 
+- [ ] Discord account linking.
 - [ ] Twitch account linking.
 - [ ] Extension read endpoints and access controls.
 - [ ] Operational monitoring and abuse protection.
@@ -180,15 +253,16 @@ Legacy individual-web-tracker cleanup is complete.
 
 ## Open decisions (to finalize before implementation)
 
-- [ ] Single profile per user vs multiple named profiles.
+- [x] Profile model: keep multiple named profiles (with one active/default selected in service logic).
 - [ ] Whether add/remove game actions are immediate writes or queued patches.
 - [ ] Share-link permissions model (public read vs private-only until Twitch linkage).
 - [ ] Twitch auth flow timing (Phase 3.5 vs Phase 4).
+- [x] Linked identities: enforce at most one active Xbox identity per user at DB level.
 
 ## Kickoff checklist
 
 - [ ] Confirm API contract naming for individual tracker endpoints.
-- [ ] Confirm first DB schema migration.
+- [x] Confirm first DB schema (defined, reviewed, and ready to execute manually).
 - [x] Confirm session cookie and CSRF strategy (HMAC-SHA256 signed payload, HttpOnly, Secure, SameSite=Strict).
 - [ ] Confirm frontend state ownership boundaries.
 - [x] Start implementation with Phase 1.

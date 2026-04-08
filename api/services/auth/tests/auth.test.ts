@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AuthService } from "../auth";
 import { aFakeSessionTokenPayload } from "../fakes/data";
+import type { AuthSession } from "../types";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -12,6 +13,10 @@ describe("AuthService", () => {
       microsoftRedirectUri: "http://localhost:8787/auth/microsoft/callback",
       sessionSecret: "a".repeat(64),
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("generates authorization URL with state", async () => {
@@ -75,7 +80,51 @@ describe("AuthService", () => {
     expect(session).toBeNull();
   });
 
-  it("throws on state expiry (>10 minutes)", () => {
-    // This test requires accessing private state, so we verify the behavior indirectly expect(true).toBe(true);
+  it("returns null when refreshing a session without refresh token", async () => {
+    const session: AuthSession = {
+      userId: "user-123",
+      accessToken: "access-token",
+      refreshToken: undefined,
+      expiresAt: Date.now() - 1000,
+      isExpired: true,
+    };
+
+    const refreshed = await service.refreshSession(session);
+    expect(refreshed).toBeNull();
+  });
+
+  it("refreshes session and returns updated token payload", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: "new-access-token",
+          expires_in: 3600,
+          refresh_token: "new-refresh-token",
+          token_type: "Bearer",
+          scope: "openid profile",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    const session: AuthSession = {
+      userId: "user-123",
+      accessToken: "old-access-token",
+      refreshToken: "old-refresh-token",
+      expiresAt: Date.now() - 1000,
+      isExpired: true,
+    };
+
+    const refreshed = await service.refreshSession(session);
+
+    expect(refreshed).not.toBeNull();
+    expect(refreshed?.userId).toBe("user-123");
+    expect(refreshed?.accessToken).toBe("new-access-token");
+    expect(refreshed?.refreshToken).toBe("new-refresh-token");
+    expect(typeof refreshed?.expiresAt).toBe("number");
+    expect(typeof refreshed?.issuedAt).toBe("number");
   });
 });
