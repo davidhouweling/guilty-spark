@@ -1,4 +1,5 @@
 import type { AutoRouterType } from "itty-router";
+import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import { handleCorsPreflightRequest } from "./base/cors";
@@ -293,6 +294,7 @@ export class Server {
         const hasValidWorkerToken = authHeader != null && authHeader === env.PROXY_WORKER_TOKEN;
 
         let services: ReturnType<typeof this.installServices> | null = null;
+        let sessionAccessToken: string | null = null;
 
         if (!hasValidWorkerToken) {
           services = this.installServices({ env });
@@ -300,6 +302,7 @@ export class Server {
           if (session === null || session.isExpired) {
             return new Response("Unauthorized", { status: 401 });
           }
+          sessionAccessToken = session.accessToken;
         }
 
         let body: unknown;
@@ -319,7 +322,14 @@ export class Server {
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
-        const { haloInfiniteClient } = services ?? this.installServices({ env });
+
+        let haloInfiniteClient: HaloInfiniteClient;
+        if (sessionAccessToken !== null) {
+          const token = sessionAccessToken;
+          haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
+        } else {
+          ({ haloInfiniteClient } = services ?? this.installServices({ env }));
+        }
 
         const isFunctionProperty = <T>(
           obj: T,

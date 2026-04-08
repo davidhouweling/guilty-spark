@@ -1,12 +1,22 @@
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
+import { HaloInfiniteClient } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import { Server } from "../server";
 import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+
+vi.mock("halo-infinite-api", async () => {
+  const actual = await import("halo-infinite-api");
+  return {
+    ...actual,
+    AutoTokenProvider: vi.fn(),
+    HaloInfiniteClient: vi.fn(),
+  };
+});
 
 describe("Server", () => {
   let env: Env;
@@ -223,6 +233,11 @@ describe("Server", () => {
     });
 
     it("returns 200 and result with valid session cookie", async () => {
+      const fakeClient = aFakeHaloInfiniteClient();
+      vi.mocked(HaloInfiniteClient).mockImplementation(function () {
+        return fakeClient;
+      });
+
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
