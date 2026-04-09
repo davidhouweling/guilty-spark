@@ -1,16 +1,22 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AuthService } from "../auth";
+import { MicrosoftAuthService } from "../microsoft-auth";
 import { aFakeSessionTokenPayload } from "../fakes/data";
 import type { AuthSession } from "../types";
 
 describe("AuthService", () => {
   let service: AuthService;
+  let microsoftAuthService: MicrosoftAuthService;
 
   beforeEach(() => {
+    microsoftAuthService = new MicrosoftAuthService({
+      clientId: "test-client-id",
+      clientSecret: "test-client-secret",
+      redirectUri: "http://localhost:8787/auth/microsoft/callback",
+    });
+
     service = new AuthService({
-      microsoftClientId: "test-client-id",
-      microsoftClientSecret: "test-client-secret",
-      microsoftRedirectUri: "http://localhost:8787/auth/microsoft/callback",
+      microsoftAuthService,
       sessionSecret: "a".repeat(64),
     });
   });
@@ -126,5 +132,60 @@ describe("AuthService", () => {
     expect(refreshed?.refreshToken).toBe("new-refresh-token");
     expect(typeof refreshed?.expiresAt).toBe("number");
     expect(typeof refreshed?.issuedAt).toBe("number");
+  });
+
+  it("returns callback redirect path from PKCE state", async () => {
+    vi.spyOn(microsoftAuthService, "generateState").mockReturnValue("known-state");
+    vi.spyOn(microsoftAuthService, "generatePKCE").mockResolvedValue({
+      codeVerifier: "verifier",
+      codeChallenge: "challenge",
+    });
+    vi.spyOn(microsoftAuthService, "exchangeCodeForTokens").mockResolvedValue({
+      access_token: "access-token",
+      expires_in: 3600,
+      refresh_token: "refresh-token",
+      id_token: "id-token",
+      token_type: "Bearer",
+      scope: "openid profile email",
+    });
+    vi.spyOn(microsoftAuthService, "parseIdToken").mockReturnValue({
+      sub: "user-123",
+      email: "user@example.com",
+      name: "Test User",
+      preferredUsername: "testuser",
+    });
+
+    await service.generateAuthorizationUrl("/individual-tracker?queue=3");
+    const result = await service.handleCallback("code", "known-state");
+
+    expect(result.redirectTo).toBe("/individual-tracker?queue=3");
+    expect(result.sessionPayload.userId).toBe("user-123");
+  });
+
+  it("normalizes unsafe redirect paths to root", async () => {
+    vi.spyOn(microsoftAuthService, "generateState").mockReturnValue("unsafe-state");
+    vi.spyOn(microsoftAuthService, "generatePKCE").mockResolvedValue({
+      codeVerifier: "verifier",
+      codeChallenge: "challenge",
+    });
+    vi.spyOn(microsoftAuthService, "exchangeCodeForTokens").mockResolvedValue({
+      access_token: "access-token",
+      expires_in: 3600,
+      refresh_token: "refresh-token",
+      id_token: "id-token",
+      token_type: "Bearer",
+      scope: "openid profile email",
+    });
+    vi.spyOn(microsoftAuthService, "parseIdToken").mockReturnValue({
+      sub: "user-123",
+      email: "user@example.com",
+      name: "Test User",
+      preferredUsername: "testuser",
+    });
+
+    await service.generateAuthorizationUrl("https://malicious.example.com/steal");
+    const result = await service.handleCallback("code", "unsafe-state");
+
+    expect(result.redirectTo).toBe("/");
   });
 });

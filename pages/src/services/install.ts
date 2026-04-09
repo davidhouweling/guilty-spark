@@ -1,3 +1,4 @@
+import { RealAuthService } from "./auth/auth";
 import { RealLiveTrackerService } from "./live-tracker/live-tracker";
 import type { Services } from "./types";
 
@@ -17,6 +18,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   }
 
   return {
+    authService: new RealAuthService({ apiHost }),
     liveTrackerService: new RealLiveTrackerService({ apiHost }),
   };
 }

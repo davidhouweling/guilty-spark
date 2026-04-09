@@ -8,6 +8,7 @@ import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+import type { SessionTokenPayload } from "../services/auth/types";
 
 vi.mock("halo-infinite-api", async () => {
   const actual = await import("halo-infinite-api");
@@ -51,6 +52,71 @@ describe("Server", () => {
       expect(res.status).toBe(404);
       const text = await res.text();
       expect(text).toBe("Not Found.");
+    });
+  });
+
+  describe("GET /auth/microsoft/start", () => {
+    it("passes redirect query to authorization url generation", async () => {
+      let capturedRedirect: string | undefined;
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "generateAuthorizationUrl").mockImplementation(async (redirectTo) => {
+          capturedRedirect = redirectTo;
+
+          return Promise.resolve({
+            url: new URL("https://login.microsoftonline.com/authorize"),
+            state: "state-123",
+            codeVerifier: "verifier-123",
+          });
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/auth/microsoft/start?redirect=%2Findividual-tracker%3Fqueue%3D3", {
+        method: "GET",
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      const body = await res.json<{ authUrl: string; state: string }>();
+      expect(body).toEqual({ authUrl: "https://login.microsoftonline.com/authorize", state: "state-123" });
+      expect(capturedRedirect).toBe("/individual-tracker?queue=3");
+    });
+  });
+
+  describe("GET /auth/microsoft/callback", () => {
+    it("sets cookie and redirects to pages url with callback redirect path", async () => {
+      const sessionPayload: SessionTokenPayload = {
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: Date.now() + 3600000,
+        issuedAt: Date.now(),
+      };
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
+          sessionPayload,
+          redirectTo: "/individual-tracker?queue=3",
+        });
+        vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("session-token");
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/auth/microsoft/callback?code=test-code&state=test-state", {
+        method: "GET",
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(302);
+      expect(res.headers.get("Location")).toBe("https://dev.guilty-spark.app/individual-tracker?queue=3");
+      expect(res.headers.get("Set-Cookie")).toContain("auth-session=");
     });
   });
 

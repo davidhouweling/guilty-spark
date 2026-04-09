@@ -1,0 +1,9 @@
+---
+import Layout from "../layouts/layout.astro";
+import { API_HOST } from "../constants";
+import { LoginPage } from "../components/login/create";
+---
+
+<Layout title="Login - Guilty Spark" description="Sign in to Guilty Spark web tools">
+  <LoginPage client:load apiHost={API_HOST} />
+</Layout>

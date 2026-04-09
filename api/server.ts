@@ -37,17 +37,19 @@ export class Server {
       );
     });
 
-    this.router.get("/auth/microsoft/start", async (_request, env: Env) => {
+    this.router.get("/auth/microsoft/start", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
         const { authService } = services;
+        const url = new URL(request.url);
+        const redirect = url.searchParams.get("redirect") ?? undefined;
 
-        const { url, state } = await authService.generateAuthorizationUrl();
+        const { url: authorizationUrl, state } = await authService.generateAuthorizationUrl(redirect);
 
         // Return the auth URL + state for frontend to navigate to
         return new Response(
           JSON.stringify({
-            authUrl: url.toString(),
+            authUrl: authorizationUrl.toString(),
             state,
           }),
           {
@@ -87,22 +89,17 @@ export class Server {
         const { authService } = services;
 
         // Exchange code for tokens and create session
-        const sessionPayload = await authService.handleCallback(code, state);
+        const { sessionPayload, redirectTo } = await authService.handleCallback(code, state);
         const sessionToken = await authService.createSessionToken(sessionPayload);
+        const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
 
-        // Create response with Set-Cookie header
-        const response = new Response(
-          JSON.stringify({
-            success: true,
-            userId: sessionPayload.userId,
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
+        // Create redirect response with Set-Cookie header
+        const response = new Response(null, {
+          status: 302,
+          headers: {
+            Location: pagesRedirectUrl.toString(),
           },
-        );
+        });
 
         // Set session cookie
         authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);

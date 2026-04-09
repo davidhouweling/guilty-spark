@@ -9,6 +9,7 @@ import { CustomSpartanTokenProvider } from "./halo/custom-spartan-token-provider
 import { NeatQueueService } from "./neatqueue/neatqueue";
 import { LiveTrackerService } from "./live-tracker/live-tracker";
 import { AuthService } from "./auth/auth";
+import { MicrosoftAuthService } from "./auth/microsoft-auth";
 import { IndividualTrackerService } from "./individual-tracker/individual-tracker";
 import type { LogService } from "./log/types";
 import { AggregatorClient } from "./log/aggregator-client";
@@ -47,10 +48,13 @@ function isValidUrl(url: string): boolean {
 export function installServices({ env }: InstallServicesOpts): Services {
   const sentryMode = env.MODE === "development" ? "development" : "production";
   const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
+  const microsoftAuthService = new MicrosoftAuthService({
+    clientId: env.MICROSOFT_CLIENT_ID,
+    clientSecret: env.MICROSOFT_CLIENT_SECRET,
+    redirectUri: env.MICROSOFT_REDIRECT_URI,
+  });
   const authService = new AuthService({
-    microsoftClientId: env.MICROSOFT_CLIENT_ID,
-    microsoftClientSecret: env.MICROSOFT_CLIENT_SECRET,
-    microsoftRedirectUri: env.MICROSOFT_REDIRECT_URI,
+    microsoftAuthService,
     sessionSecret: env.SESSION_SECRET,
   });
   const databaseService = new DatabaseService({ env });

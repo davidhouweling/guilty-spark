@@ -1,7 +1,25 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { MicrosoftAuthService } from "./microsoft-auth";
+import { addSeconds } from "date-fns";
+import type { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager } from "./session-manager";
-import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
+import type { PKCEState, SessionTokenPayload, AuthSession, AuthCallbackResult } from "./types";
+
+export interface AuthServiceOpts {
+  microsoftAuthService: MicrosoftAuthService;
+  sessionSecret: string;
+}
+
+function normalizeRedirectPath(redirectTo?: string): string {
+  if (redirectTo == null || redirectTo === "") {
+    return "/";
+  }
+
+  if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/";
+  }
+
+  return redirectTo;
+}
 
 /**
  * Main authentication orchestrator.
@@ -12,21 +30,10 @@ export class AuthService {
   private readonly sessionManager: SessionManager;
   private readonly pkceStateStore: Map<string, PKCEState>; // In-memory for local dev; use KV for production
 
-  public constructor(config: {
-    microsoftClientId: string;
-    microsoftClientSecret: string;
-    microsoftRedirectUri: string;
-    sessionSecret: string;
-    tenant?: string;
-  }) {
-    this.microsoftAuth = new MicrosoftAuthService({
-      clientId: Preconditions.checkExists(config.microsoftClientId, "microsoftClientId"),
-      clientSecret: Preconditions.checkExists(config.microsoftClientSecret, "microsoftClientSecret"),
-      redirectUri: Preconditions.checkExists(config.microsoftRedirectUri, "microsoftRedirectUri"),
-      tenant: config.tenant,
-    });
+  public constructor({ microsoftAuthService, sessionSecret }: AuthServiceOpts) {
+    this.microsoftAuth = Preconditions.checkExists(microsoftAuthService, "microsoftAuthService");
 
-    this.sessionManager = new SessionManager(Preconditions.checkExists(config.sessionSecret, "sessionSecret"));
+    this.sessionManager = new SessionManager(Preconditions.checkExists(sessionSecret, "sessionSecret"));
 
     this.pkceStateStore = new Map();
   }
@@ -35,9 +42,12 @@ export class AuthService {
    * Generate authorization URL for user login.
    * Returns the URL and a state parameter to verify in the callback.
    */
-  public async generateAuthorizationUrl(): Promise<{ url: URL; state: string; codeVerifier: string }> {
+  public async generateAuthorizationUrl(
+    redirectTo?: string,
+  ): Promise<{ url: URL; state: string; codeVerifier: string }> {
     const { codeVerifier, codeChallenge } = await this.microsoftAuth.generatePKCE();
     const state = this.microsoftAuth.generateState();
+    const safeRedirectTo = normalizeRedirectPath(redirectTo);
 
     // Store PKCE state for verification in callback
     const pkceState: PKCEState = {
@@ -45,6 +55,7 @@ export class AuthService {
       codeChallenge,
       state,
       issuedAt: Date.now(),
+      redirectTo: safeRedirectTo,
     };
 
     this.pkceStateStore.set(state, pkceState);
@@ -57,7 +68,7 @@ export class AuthService {
   /**
    * Handle OAuth callback: verify state, exchange code for tokens, create session.
    */
-  public async handleCallback(code: string, state: string): Promise<SessionTokenPayload> {
+  public async handleCallback(code: string, state: string): Promise<AuthCallbackResult> {
     // Verify state and retrieve PKCE verifier
     const pkceState = this.pkceStateStore.get(state);
     if (!pkceState) {
@@ -80,16 +91,20 @@ export class AuthService {
     const user = this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
 
     // Create session token
-    const expiresAt = Date.now() + tokens.expires_in * 1000;
+    const issuedAt = Date.now();
+    const expiresAt = addSeconds(new Date(issuedAt), tokens.expires_in).getTime();
     const sessionPayload: SessionTokenPayload = {
       userId: user.sub,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt,
-      issuedAt: Date.now(),
+      issuedAt,
     };
 
-    return sessionPayload;
+    return {
+      sessionPayload,
+      redirectTo: pkceState.redirectTo,
+    };
   }
 
   /**
@@ -122,12 +137,14 @@ export class AuthService {
 
     const tokens = await this.microsoftAuth.refreshAccessToken(session.refreshToken);
 
+    const issuedAt = Date.now();
+
     return {
       userId: session.userId,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token ?? session.refreshToken,
-      expiresAt: Date.now() + tokens.expires_in * 1000,
-      issuedAt: Date.now(),
+      expiresAt: addSeconds(new Date(issuedAt), tokens.expires_in).getTime(),
+      issuedAt,
     };
   }
 

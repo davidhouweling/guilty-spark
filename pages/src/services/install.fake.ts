@@ -1,7 +1,8 @@
 import type { Services } from "./types";
 
 export async function installFakeServices(): Promise<Services> {
-  const [{ FakeLiveTrackerService }, { createSampleScenario }] = await Promise.all([
+  const [{ aFakeAuthServiceWith }, { FakeLiveTrackerService }, { createSampleScenario }] = await Promise.all([
+    import("./auth/fakes/auth.fake"),
     import("./live-tracker/fakes/live-tracker.fake"),
     import("./live-tracker/fakes/scenario"),
   ]);
@@ -9,6 +10,7 @@ export async function installFakeServices(): Promise<Services> {
   const scenario = createSampleScenario();
 
   return {
+    authService: aFakeAuthServiceWith(),
     liveTrackerService: new FakeLiveTrackerService(scenario),
   };
 }
