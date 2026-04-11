@@ -1,0 +1,9 @@
+---
+import Layout from "../layouts/layout.astro";
+import { API_HOST } from "../constants";
+import { IndividualTracker as IndividualTrackerApp } from "../components/individual-tracker/create";
+---
+
+<Layout title="Individual Tracker - Guilty Spark" description="Manage your individual Halo tracker">
+  <IndividualTrackerApp client:load apiHost={API_HOST} />
+</Layout>

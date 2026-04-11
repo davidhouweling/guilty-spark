@@ -1,0 +1,104 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.title {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: 1fr;
+}
+
+.menu {
+  background: var(--halo-bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-2);
+}
+
+.menuItem {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 180px;
+  padding: var(--space-3);
+  text-align: left;
+  transition: border-color var(--transition-fast);
+}
+
+.menuItem:hover {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
+}
+
+.menuItemActive {
+  background: color-mix(in srgb, var(--halo-teal-primary) 12%, transparent);
+  border-color: var(--halo-teal-primary);
+}
+
+.menuLabel {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  line-height: 1.1;
+}
+
+.menuDescription {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.panel {
+  background: var(--halo-bg-card);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+@media (--tablet-viewport) {
+  .layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .menu {
+    flex-direction: column;
+    overflow-x: visible;
+    overflow-y: auto;
+  }
+
+  .menuItem {
+    min-width: 0;
+  }
+}
