@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { CSSTransition } from "react-transition-group";
+import classNames from "classnames";
 import styles from "./dropdown.module.css";
 
 interface DropdownProps {
@@ -9,6 +10,9 @@ interface DropdownProps {
   readonly dropdownWidth?: number;
   readonly dropdownHeight?: number;
   readonly scrollToSelected?: boolean;
+  readonly containerClassName?: string;
+  readonly triggerClassName?: string;
+  readonly dropdownClassName?: string;
 }
 
 export function Dropdown({
@@ -18,6 +22,9 @@ export function Dropdown({
   dropdownWidth = 200,
   dropdownHeight = 150,
   scrollToSelected = false,
+  containerClassName,
+  triggerClassName,
+  dropdownClassName,
 }: DropdownProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<{ right?: string; left?: string; top?: string; bottom?: string }>({});
@@ -112,11 +119,11 @@ export function Dropdown({
   }, [isOpen, scrollToSelected]);
 
   return (
-    <div className={styles.container} ref={dropdownRef}>
+    <div className={classNames(styles.container, containerClassName)} ref={dropdownRef}>
       <button
         ref={triggerRef}
         type="button"
-        className={styles.triggerButton}
+        className={classNames(styles.triggerButton, triggerClassName)}
         onClick={(): void => {
           setIsOpen(!isOpen);
         }}
@@ -140,7 +147,7 @@ export function Dropdown({
       >
         <div
           ref={dropdownContentRef}
-          className={styles.dropdown}
+          className={classNames(styles.dropdown, dropdownClassName)}
           style={{ ...position, width: `${dropdownWidth.toString()}px`, maxHeight: `${dropdownHeight.toString()}px` }}
         >
           {children}

@@ -14,4 +14,5 @@ export interface ProfileUser {
 export interface XboxUserInfo {
   xuid: string;
   gamertag: string;
+  avatarUrl?: string;
 }

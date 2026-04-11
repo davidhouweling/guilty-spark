@@ -104,6 +104,14 @@ describe("Server", () => {
           redirectTo: "/individual-tracker?queue=3",
         });
         vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("session-token");
+        vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockResolvedValue({
+          xuid: "2533274844642438",
+          gamertag: "TesterOne",
+          avatarUrl: "https://images.example.com/avatar.png",
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(null);
+        vi.spyOn(services.databaseService, "upsertLinkedIdentity").mockResolvedValue();
         return services;
       });
 
@@ -115,8 +123,68 @@ describe("Server", () => {
       const res = (await server.router.fetch(req, env)) as Response;
 
       expect(res.status).toBe(302);
-      expect(res.headers.get("Location")).toBe("https://dev.guilty-spark.app/individual-tracker?queue=3");
+      expect(res.headers.get("Location")).toBe("http://localhost:4321/individual-tracker?queue=3");
       expect(res.headers.get("Set-Cookie")).toContain("auth-session=");
+    });
+
+    it("auto-links xbox identity for the authenticated user", async () => {
+      vi.spyOn(crypto, "randomUUID").mockReturnValue("identity-uuid-1");
+      let capturedServices = installFakeServicesWith({ env });
+      let getUserFromMicrosoftAccessTokenSpy = vi.spyOn(
+        capturedServices.xboxService,
+        "getUserFromMicrosoftAccessToken",
+      );
+      let upsertLinkedIdentitySpy = vi.spyOn(capturedServices.databaseService, "upsertLinkedIdentity");
+
+      const sessionPayload: SessionTokenPayload = {
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: Date.now() + 3600000,
+        issuedAt: Date.now(),
+      };
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        capturedServices = services;
+        getUserFromMicrosoftAccessTokenSpy = vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken");
+        upsertLinkedIdentitySpy = vi.spyOn(services.databaseService, "upsertLinkedIdentity");
+        vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
+          sessionPayload,
+          redirectTo: "/individual-tracker",
+        });
+        vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("session-token");
+        getUserFromMicrosoftAccessTokenSpy.mockResolvedValue({
+          xuid: "2533274844642438",
+          gamertag: "TesterOne",
+          avatarUrl: "https://images.example.com/avatar.png",
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(null);
+        upsertLinkedIdentitySpy.mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/auth/microsoft/callback?code=test-code&state=test-state", {
+        method: "GET",
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(302);
+
+      expect(getUserFromMicrosoftAccessTokenSpy).toHaveBeenCalledWith("access-token");
+      expect(upsertLinkedIdentitySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          IdentityId: "identity-uuid-1",
+          UserId: "user-123",
+          Provider: "xbox",
+          ProviderUserId: "2533274844642438",
+          Gamertag: "TesterOne",
+          IsActive: 1,
+        }),
+      );
     });
   });
 
@@ -207,8 +275,58 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
-      const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number }>();
-      expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt });
+      const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number; avatarUrl: null }>();
+      expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt, avatarUrl: null });
+    });
+
+    it("returns avatarUrl when a linked xbox identity resolves a gamerpic", async () => {
+      const expiresAt = Date.now() + 3600000;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          {
+            IdentityId: "identity-1",
+            UserId: "user-123",
+            Provider: "xbox",
+            ProviderUserId: "2533274844642438",
+            Gamertag: "TesterOne",
+            TwitchId: null,
+            IsActive: 1,
+            CreatedAt: 1,
+            UpdatedAt: 2,
+          },
+        ]);
+        vi.spyOn(services.haloService, "getUserByGamertag").mockResolvedValue({
+          xuid: "2533274844642438",
+          gamertag: "TesterOne",
+          gamerpic: {
+            small: "https://images.example.com/small.png",
+            medium: "https://images.example.com/medium.png",
+            large: "https://images.example.com/large.png",
+            xlarge: "https://images.example.com/xlarge.png",
+          },
+        });
+        return services;
+      });
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/auth/session", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({
+        authenticated: true,
+        userId: "user-123",
+        expiresAt,
+        avatarUrl: "https://images.example.com/xlarge.png",
+      });
     });
 
     it("returns 500 with error message when validateSession throws", async () => {

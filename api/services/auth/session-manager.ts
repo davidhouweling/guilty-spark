@@ -89,6 +89,7 @@ export class SessionManager {
         refreshToken: payload.refreshToken,
         expiresAt: payload.expiresAt,
         isExpired,
+        ...(payload.avatarUrl != null ? { avatarUrl: payload.avatarUrl } : {}),
       };
     } catch {
       return null;

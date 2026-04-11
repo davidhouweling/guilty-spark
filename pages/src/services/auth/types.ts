@@ -3,6 +3,7 @@ export interface SessionResponse {
   userId?: string;
   expiresAt?: number;
   expired?: boolean;
+  avatarUrl?: string;
 }
 
 export interface MicrosoftStartResponse {

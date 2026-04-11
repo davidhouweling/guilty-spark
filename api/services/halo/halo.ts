@@ -273,7 +273,7 @@ export class HaloService {
       return kvCachedUser;
     }
 
-    const user = await this.fetchWithResilientFallback(
+    const user = await this.fetchWithResilientFallback<UserInfo>(
       async () =>
         this.infiniteClient.getUser(gamertag, {
           cf: {
@@ -314,7 +314,7 @@ export class HaloService {
       return freshUsers;
     }
 
-    const fetchedUsers = await this.fetchWithResilientFallback(
+    const fetchedUsers = await this.fetchWithResilientFallback<UserInfo[]>(
       async () =>
         this.infiniteClient.getUsers(missingXuids, {
           cf: {

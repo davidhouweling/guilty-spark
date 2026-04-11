@@ -187,6 +187,7 @@ export class AuthService {
       refreshToken: tokens.refresh_token ?? session.refreshToken,
       expiresAt: addSeconds(new Date(issuedAt), tokens.expires_in).getTime(),
       issuedAt,
+      ...(session.avatarUrl != null ? { avatarUrl: session.avatarUrl } : {}),
     };
   }
 

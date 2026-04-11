@@ -31,6 +31,7 @@ export interface SessionTokenPayload {
   readonly refreshToken: string | undefined;
   readonly expiresAt: number; // Unix timestamp in milliseconds
   readonly issuedAt: number; // Unix timestamp in milliseconds
+  readonly avatarUrl?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export interface AuthSession {
   readonly refreshToken: string | undefined;
   readonly expiresAt: number;
   readonly isExpired: boolean;
+  readonly avatarUrl?: string;
 }
 
 /**

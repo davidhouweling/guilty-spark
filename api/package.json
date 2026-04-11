@@ -12,6 +12,7 @@
   "main": "worker.ts",
   "scripts": {
     "start": "wrangler dev",
+    "d1:schema:local": "wrangler d1 execute DB --local --file=services/database/schema.sql",
     "register": "tsx --env-file=.dev.vars scripts/deploy-commands.ts",
     "build": "tsc --project tsconfig.build.json",
     "build:generate-types": "wrangler types",

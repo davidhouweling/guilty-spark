@@ -2,7 +2,8 @@
 // Header/Navigation component
 import Logo from "../logo/logo.astro";
 import Container from "../container/container.astro";
-import { SUPPORT_SERVER_URL, GITHUB_URL } from "../../constants";
+import { SUPPORT_SERVER_URL, GITHUB_URL, API_HOST } from "../../constants";
+import { ProfileMenu } from "./profile-menu";
 import styles from "./header.module.css";
 
 const navLinks = [
@@ -12,7 +13,7 @@ const navLinks = [
 ];
 ---
 
-<nav id="halo-nav" class={styles.haloNav} aria-label="Primary">
+<nav id="halo-nav" class={styles.haloNav} aria-label="Primary" data-api-host={API_HOST}>
   <Container class={styles.navContainer}>
     <Logo variant="nav" />
 
@@ -41,6 +42,10 @@ const navLinks = [
           </a>
         ))
       }
+
+      <div class={styles.profileRoot}>
+        <ProfileMenu client:load apiHost={API_HOST} />
+      </div>
     </div>
   </Container>
 </nav>
@@ -56,7 +61,7 @@ const navLinks = [
   const menu = nav.querySelector<HTMLDivElement>("#nav-links");
 
   if (!toggleButton || !menu) {
-    throw new Error("Navigation toggle or menu not found");
+    throw new Error("Navigation controls not found");
   }
 
   const tabletQuery = window.matchMedia("(min-width: 750px)");

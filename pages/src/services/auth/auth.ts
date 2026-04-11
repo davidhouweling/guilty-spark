@@ -32,6 +32,11 @@ function parseSessionResponse(value: unknown): SessionResponse {
     response.expired = expired;
   }
 
+  const { avatarUrl } = value;
+  if (isString(avatarUrl)) {
+    response.avatarUrl = avatarUrl;
+  }
+
   return response;
 }
 

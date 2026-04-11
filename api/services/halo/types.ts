@@ -1,7 +1,13 @@
 import type { UserInfo as HaloUserInfo } from "halo-infinite-api";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 
-export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
+export interface UserInfo {
+  xuid: string;
+  gamertag: string;
+  gamerpic?: HaloUserInfo["gamerpic"];
+  avatarUrl?: string;
+}
+
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
 
 export interface MatchPlayer {

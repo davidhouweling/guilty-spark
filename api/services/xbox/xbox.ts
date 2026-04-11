@@ -1,4 +1,4 @@
-import { XSAPIClient, type authenticate } from "@xboxreplay/xboxlive-auth";
+import { XSAPIClient, type authenticate, xnet } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
@@ -48,7 +48,7 @@ export class XboxService {
     const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
 
     const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
-      `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
+      `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
       {
         options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
       },
@@ -64,9 +64,12 @@ export class XboxService {
     }
 
     const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
+    const avatarSetting = profileUser.settings.find((s) => s.id === "GameDisplayPicRaw");
+
     return {
       xuid: profileUser.id,
       gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
+      ...(avatarSetting != null && avatarSetting.value !== "" ? { avatarUrl: avatarSetting.value } : {}),
     };
   }
 
@@ -83,7 +86,7 @@ export class XboxService {
     const response = await Promise.allSettled(
       xuids.map(async (xuid) =>
         XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
-          `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag`,
+          `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
           {
             options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
           },
@@ -102,12 +105,59 @@ export class XboxService {
         }
 
         const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
+        const avatarSetting = profileUser.settings.find((s) => s.id === "GameDisplayPicRaw");
         return {
           xuid: profileUser.id,
           gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
+          ...(avatarSetting != null && avatarSetting.value !== "" ? { avatarUrl: avatarSetting.value } : {}),
         };
       })
       .filter((user): user is XboxUserInfo => user !== null);
+  }
+
+  async getUserFromMicrosoftAccessToken(accessToken: string): Promise<XboxUserInfo> {
+    const userAuth = await xnet.exchangeRpsTicketForUserToken(accessToken, "d");
+    const xsts = await xnet.exchangeTokenForXSTSToken(userAuth.Token, {
+      sandboxId: "RETAIL",
+      XSTSRelyingParty: "http://xboxlive.com",
+    });
+
+    const [xui] = xsts.DisplayClaims.xui;
+    if (xui?.uhs == null || xui.uhs === "") {
+      throw new Error("Xbox XSTS response missing user hash");
+    }
+    if (xui.xid == null || xui.xid === "") {
+      throw new Error("Xbox XSTS response missing xuid");
+    }
+
+    const profileResponse = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
+      `https://profile.xboxlive.com/users/xuid(${xui.xid})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
+      {
+        options: {
+          contractVersion: 2,
+          userHash: xui.uhs,
+          XSTSToken: xsts.Token,
+        },
+      },
+    );
+
+    if (profileResponse.statusCode !== 200) {
+      throw new Error(`Xbox profile lookup failed (${profileResponse.statusCode.toString()})`);
+    }
+
+    const [profileUser] = profileResponse.data.profileUsers;
+    if (profileUser == null) {
+      throw new Error("Xbox profile response missing user");
+    }
+
+    const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
+    const avatarSetting = profileUser.settings.find((s) => s.id === "GameDisplayPicRaw");
+
+    return {
+      xuid: profileUser.id,
+      gamertag: gamertagSetting?.value ?? "Unknown",
+      ...(avatarSetting?.value != null && avatarSetting.value !== "" ? { avatarUrl: avatarSetting.value } : {}),
+    };
   }
 
   private async updateCredentials(): Promise<void> {

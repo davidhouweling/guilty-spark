@@ -72,6 +72,60 @@ function toObjectOrDefault(value: string | null, fallback: Record<string, unknow
   return fallback;
 }
 
+function getAvatarUrlFromGamerpic(gamerpic: unknown): string | null {
+  if (!isRecord(gamerpic)) {
+    return null;
+  }
+
+  const { ["xlarge"]: xlarge, ["large"]: large, ["medium"]: medium, ["small"]: small } = gamerpic;
+
+  if (typeof xlarge === "string" && xlarge !== "") {
+    return xlarge;
+  }
+
+  if (typeof large === "string" && large !== "") {
+    return large;
+  }
+
+  if (typeof medium === "string" && medium !== "") {
+    return medium;
+  }
+
+  if (typeof small === "string" && small !== "") {
+    return small;
+  }
+
+  return null;
+}
+
+function getAvatarUrlFromUser(user: unknown): string | null {
+  if (!isRecord(user)) {
+    return null;
+  }
+
+  const gamerpicAvatar = getAvatarUrlFromGamerpic(user["gamerpic"]);
+  if (gamerpicAvatar != null) {
+    return gamerpicAvatar;
+  }
+
+  const { ["avatarUrl"]: avatarUrl } = user;
+  if (typeof avatarUrl === "string" && avatarUrl !== "") {
+    return avatarUrl;
+  }
+
+  return null;
+}
+
+function normalizeXuid(value: string): string {
+  const trimmed = value.trim();
+  const match = /^xuid\((.+)\)$/i.exec(trimmed);
+  if (match?.[1] != null && match[1] !== "") {
+    return match[1];
+  }
+
+  return trimmed;
+}
+
 const ALLOWED_PROXY_METHODS = new Set([
   "getMatchSkill",
   "getMatchStats",
@@ -168,7 +222,46 @@ export class Server {
 
         // Exchange code for tokens and create session
         const { sessionPayload, redirectTo } = await authService.handleCallback(code, state);
-        const sessionToken = await authService.createSessionToken(sessionPayload);
+        let sessionPayloadWithAvatar: SessionTokenPayload = sessionPayload;
+
+        try {
+          const xboxUser = await services.xboxService.getUserFromMicrosoftAccessToken(sessionPayload.accessToken);
+          const nowEpoch = Math.floor(Date.now() / 1000);
+          sessionPayloadWithAvatar = {
+            ...sessionPayload,
+            ...(xboxUser.avatarUrl != null ? { avatarUrl: xboxUser.avatarUrl } : {}),
+          };
+
+          const allIdentities = await services.databaseService.findLinkedIdentitiesByUserId(sessionPayload.userId);
+          for (const identity of allIdentities) {
+            if (identity.Provider === "xbox" && identity.IsActive === 1 && identity.ProviderUserId !== xboxUser.xuid) {
+              await services.databaseService.upsertLinkedIdentity({
+                ...identity,
+                IsActive: 0,
+                UpdatedAt: nowEpoch,
+              });
+            }
+          }
+
+          const existingIdentity = await services.databaseService.getLinkedIdentityByProvider("xbox", xboxUser.xuid);
+          const linkedIdentity: LinkedIdentitiesRow = {
+            IdentityId: existingIdentity?.IdentityId ?? crypto.randomUUID(),
+            UserId: sessionPayload.userId,
+            Provider: "xbox",
+            ProviderUserId: xboxUser.xuid,
+            Gamertag: xboxUser.gamertag,
+            TwitchId: null,
+            IsActive: 1,
+            CreatedAt: existingIdentity?.CreatedAt ?? nowEpoch,
+            UpdatedAt: nowEpoch,
+          };
+
+          await services.databaseService.upsertLinkedIdentity(linkedIdentity);
+        } catch (error) {
+          console.warn("Auth callback auto-link xbox identity skipped:", error);
+        }
+
+        const sessionToken = await authService.createSessionToken(sessionPayloadWithAvatar);
         const pagesRedirectUrl = new URL(redirectTo, env.FRONTEND_URL);
 
         // Create redirect response with Set-Cookie header
@@ -180,7 +273,7 @@ export class Server {
         });
 
         // Set session cookie
-        authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
+        authService.setSessionCookie(response, sessionToken, sessionPayloadWithAvatar.expiresAt);
 
         return response;
       } catch (error) {
@@ -246,8 +339,66 @@ export class Server {
           });
         }
 
+        let avatarUrl: string | null = session.avatarUrl ?? null;
+
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+        const xboxIdentities = identities.filter((identity) => identity.Provider === "xbox");
+
+        const activeXboxIdentity = xboxIdentities.find(
+          (identity) => identity.Provider === "xbox" && identity.IsActive === 1,
+        );
+        const selectedXboxIdentity =
+          activeXboxIdentity ?? [...xboxIdentities].sort((a, b) => b.UpdatedAt - a.UpdatedAt)[0] ?? null;
+
+        if (avatarUrl == null && selectedXboxIdentity != null) {
+          const normalizedXuid = normalizeXuid(selectedXboxIdentity.ProviderUserId);
+
+          if (selectedXboxIdentity.Gamertag != null && selectedXboxIdentity.Gamertag !== "") {
+            try {
+              const userByGamertag = await services.haloService.getUserByGamertag(selectedXboxIdentity.Gamertag);
+              avatarUrl = getAvatarUrlFromUser(userByGamertag);
+            } catch {
+              avatarUrl = null;
+            }
+          }
+
+          if (avatarUrl == null) {
+            try {
+              const users = await services.haloService.getUsersByXuids([normalizedXuid]);
+              const [user] = users;
+              avatarUrl = getAvatarUrlFromUser(user);
+            } catch {
+              avatarUrl = null;
+            }
+          }
+
+          if (avatarUrl == null) {
+            try {
+              const xboxUsers = await services.xboxService.getUsersByXuids([normalizedXuid]);
+              const [xboxUser] = xboxUsers;
+              avatarUrl = getAvatarUrlFromUser(xboxUser);
+            } catch {
+              avatarUrl = null;
+            }
+          }
+
+          if (avatarUrl == null && selectedXboxIdentity.Gamertag != null && selectedXboxIdentity.Gamertag !== "") {
+            try {
+              const xboxUserByGamertag = await services.xboxService.getUserByGamertag(selectedXboxIdentity.Gamertag);
+              avatarUrl = getAvatarUrlFromUser(xboxUserByGamertag);
+            } catch {
+              avatarUrl = null;
+            }
+          }
+        }
+
         return new Response(
-          JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }),
+          JSON.stringify({
+            authenticated: true,
+            userId: session.userId,
+            expiresAt: session.expiresAt,
+            avatarUrl,
+          }),
           {
             status: 200,
             headers: { "Content-Type": "application/json" },
