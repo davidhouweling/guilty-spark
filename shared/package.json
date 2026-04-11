@@ -6,6 +6,7 @@
   "exports": {
     "./base/*": "./src/base/*.ts",
     "./halo/*": "./src/halo/*.ts",
+    "./individual-tracker/*": "./src/individual-tracker/*.ts",
     "./live-tracker/*": "./src/live-tracker/*.ts",
     "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.ts"
   },
