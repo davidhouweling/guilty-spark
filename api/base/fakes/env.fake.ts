@@ -64,6 +64,8 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const defaultOpts: Env = {
     HOST_URL: "https://dev-api.guilty-spark.app",
     PAGES_URL: "https://dev.guilty-spark.app",
+    FRONTEND_URL: "http://localhost:4321",
+    BACKEND_URL: "http://localhost:8787",
     MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",

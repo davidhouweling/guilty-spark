@@ -35,7 +35,7 @@ npm start
 
 **Prerequisites**:
 
-- API server running (configure via `PUBLIC_API_HOST` env var)
+- API server running (configure via `BACKEND_URL` env var)
 - WebSocket endpoint: `ws://[host]/ws/tracker/{guildId}/{queueNumber}`
 
 **Configuration**:
@@ -43,14 +43,14 @@ Edit `.env.development` to set the API host:
 
 ```bash
 # Local development
-PUBLIC_API_HOST=localhost:8787
+BACKEND_URL=http://localhost:8787
 
 # Or use production
-PUBLIC_API_HOST=api.guilty-spark.app
+BACKEND_URL=https://api.guilty-spark.app
 ```
 
 **How it works**:
 
 - Astro defaults to `MODE="development"`, which triggers real mode
 - `installServices()` returns `RealLiveTrackerService` that creates actual WebSocket connections
-- Connects to backend at configured `PUBLIC_API_HOST`
+- Connects to backend at configured `BACKEND_URL`

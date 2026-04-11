@@ -5,7 +5,8 @@ declare namespace App {
 }
 
 interface ImportMetaEnv {
-  readonly PUBLIC_API_HOST?: string;
+  readonly BACKEND_URL?: string;
+  readonly PUBLIC_BACKEND_URL?: string;
 }
 
 interface ImportMeta {

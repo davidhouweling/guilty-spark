@@ -3,6 +3,7 @@ import { AutoRouter } from "itty-router";
 import { installServices } from "./services/install";
 import { getCommands } from "./commands/commands";
 import { Server } from "./server";
+import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 
 // Export Durable Object classes
 export { LiveTrackerDO } from "./durable-objects/live-tracker-do";
@@ -43,6 +44,21 @@ export default Sentry.withSentry(
     },
   }),
   {
-    fetch: server.router.fetch,
+    fetch: async (request: Request, env: Env, context: ExecutionContext): Promise<Response> => {
+      const pathname = new URL(request.url).pathname;
+      const isCorsRoute = pathname.startsWith("/api/") || pathname.startsWith("/auth/") || pathname === "/api" || pathname === "/auth";
+
+      if (request.method === "OPTIONS" && isCorsRoute) {
+        return handleCorsPreflightRequest(request, env);
+      }
+
+      const response = await server.router.fetch(request, env, context);
+
+      if (!isCorsRoute) {
+        return response;
+      }
+
+      return addCorsHeaders(response, request, env);
+    },
   },
 );

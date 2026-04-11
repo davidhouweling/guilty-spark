@@ -11,6 +11,8 @@ declare namespace Cloudflare {
 		DB: D1Database;
 		HOST_URL: "https://staging-api.guilty-spark.app";
 		PAGES_URL: "https://staging.guilty-spark.app";
+        FRONTEND_URL: "https://staging.guilty-spark.app";
+        BACKEND_URL: "https://staging-api.guilty-spark.app";
 		MODE: "production";
 		DISCORD_APP_ID: string;
 		DISCORD_TOKEN: string;
@@ -33,6 +35,8 @@ declare namespace Cloudflare {
 		DB: D1Database;
 		HOST_URL: "https://api.guilty-spark.app";
 		PAGES_URL: "https://guilty-spark.app";
+        FRONTEND_URL: "https://guilty-spark.app";
+        BACKEND_URL: "https://api.guilty-spark.app";
 		MODE: "production";
 		DISCORD_APP_ID: string;
 		DISCORD_TOKEN: string;
@@ -55,6 +59,8 @@ declare namespace Cloudflare {
 		DB: D1Database;
 		HOST_URL: "https://staging-api.guilty-spark.app" | "https://api.guilty-spark.app" | "https://dev-api.guilty-spark.app";
 		PAGES_URL: "https://staging.guilty-spark.app" | "https://guilty-spark.app" | "https://dev.guilty-spark.app";
+        FRONTEND_URL: "https://staging.guilty-spark.app" | "https://guilty-spark.app" | "https://dev.guilty-spark.app" | "http://localhost:4321";
+        BACKEND_URL: "https://staging-api.guilty-spark.app" | "https://api.guilty-spark.app" | "https://dev-api.guilty-spark.app" | "http://localhost:8787";
 		MODE: "production" | "development";
 		DISCORD_APP_ID: string;
 		DISCORD_TOKEN: string;
@@ -78,7 +84,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_REDIRECT_URI" | "SESSION_SECRET" | "CSRF_SECRET">> {}
+    interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "FRONTEND_URL" | "BACKEND_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_REDIRECT_URI" | "SESSION_SECRET" | "CSRF_SECRET">> {}
 }
 
 // Begin runtime types

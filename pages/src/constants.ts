@@ -14,9 +14,11 @@ export const GITHUB_URL = "https://github.com/davidhouweling/guilty-spark";
 export const GITHUB_REPO_OWNER = "davidhouweling";
 export const GITHUB_REPO_NAME = "guilty-spark";
 
-// API base URL for HTTP and WebSocket connections (includes protocol)
+// Backend base URL for HTTP and WebSocket connections (includes protocol)
 // In development: http://localhost:8787
 // In production: https://api.guilty-spark.app
-export const API_HOST = import.meta.env.PUBLIC_API_HOST ?? "https://api.guilty-spark.app";
+// Prefer non-public BACKEND_URL so naming aligns with API env files.
+export const API_HOST =
+  import.meta.env.BACKEND_URL ?? import.meta.env.PUBLIC_BACKEND_URL ?? "https://api.guilty-spark.app";
 
 export const OBS_OVERLAY_PREVIEW = import.meta.env.OBS_OVERLAY_PREVIEW === "true";
