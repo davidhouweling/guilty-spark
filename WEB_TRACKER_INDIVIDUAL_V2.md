@@ -1,6 +1,6 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active proposal — Phase 2 complete (backend), Phase 3 architecture revised
+**Status**: Active proposal — Phase 3 in progress (backend complete, frontend shell in delivery)
 **Date**: April 7, 2026
 
 ## Goal
@@ -199,12 +199,12 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 > All control-plane routes require a valid session cookie. The session user ID must match the profile owner.
 
-- [ ] `POST /api/individual-live-tracker/start` — create a new active tracker for the signed-in user; resolves XUID from the linked identity; returns a `trackerId`
-- [ ] `POST /api/individual-live-tracker/:trackerId/stop` — stop a specific active tracker owned by the signed-in user
-- [ ] `GET /api/individual-live-tracker/status` — list all active tracker instances for the signed-in user
+- [x] `POST /api/individual-live-tracker/start` — create a new active tracker for the signed-in user; resolves XUID from the linked identity; returns a `trackerId`
+- [x] `POST /api/individual-live-tracker/:trackerId/stop` — stop a specific active tracker owned by the signed-in user
+- [x] `GET /api/individual-live-tracker/status` — list all active tracker instances for the signed-in user
 - [ ] `POST /api/individual-live-tracker/select-active` — mark one tracker as the current on-stream presenter
-- [ ] `POST /api/individual-live-tracker/:trackerId/games:add` — add a past match into the active tracker
-- [ ] `POST /api/individual-live-tracker/:trackerId/games:remove` — remove a match from the active tracker
+- [x] `POST /api/individual-live-tracker/:trackerId/games:add` — add a past match into the active tracker
+- [x] `POST /api/individual-live-tracker/:trackerId/games:remove` — remove a match from the active tracker
 
 #### Proposed start request
 
@@ -261,9 +261,9 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 > Viewer routes are public and require no authentication. The UI is statically rendered with client-side hydration. If no active tracker exists, the client displays an informational message.
 
-- [ ] `GET /ws/individual-tracker/:userId/:trackerId` — WebSocket for a specific active tracker
-- [ ] `GET /ws/individual-tracker/:userId/active` — WebSocket that resolves to the current on-stream tracker
-- [ ] `GET /api/individual-live-tracker/:userId/active` — REST status of the current on-stream tracker (for initial render before WebSocket upgrade)
+- [x] `GET /ws/individual-tracker/:userId/:trackerId` — WebSocket for a specific active tracker
+- [x] `GET /ws/individual-tracker/:userId/active` — WebSocket that resolves to the current on-stream tracker
+- [x] `GET /api/individual-live-tracker/:userId/active` — REST status of the current on-stream tracker (for initial render before WebSocket upgrade)
 
 ## UI plan
 
@@ -271,12 +271,10 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 - [x] Dedicated login page and session bootstrap.
 - [ ] Basic profile selector and gamertag binding.
-- [ ] Tracker page loads from saved profile.
-- [ ] Start tracker flow defaults to the linked gamertag but allows searching another gamertag.
-- [ ] Idle-timeout setting is visible in profile settings.
+- [x] Tracker page loads from saved profile.
+- [x] Start tracker flow defaults to the linked gamertag but allows searching another gamertag.
+- [x] Idle-timeout setting is visible in profile settings.
 - [ ] Logout warning is shown when active trackers exist and the profile is not configured to allow them to continue.
-
-> Note: Individual tracker page is currently a placeholder pending Phase 3 kickoff discussion.
 
 ### Phase B: editable game list
 
@@ -329,14 +327,14 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 ### Phase 3 - Individual live tracker architecture and UX alignment
 
 - [ ] Confirm auth/login page UX and post-login redirect behavior across routes.
-- [ ] Reintroduce a separate individual live tracker Durable Object.
-- [ ] Add authenticated start/stop/status routes for individual live trackers.
-- [ ] Ensure individual live trackers use the signed-in user's Halo credentials rather than the default shared live-tracker credentials.
-- [ ] Confirm active tracker routing model: per-tracker route plus stable follow-the-stream route.
-- [ ] Re-implement individual tracker page UI around active live tracker control and time-linear game augmentation.
-- [ ] Add idle-timeout settings with allowed values of 1h, 2h, 3h, 4h, 5h, and 6h, defaulting to 1h.
+- [x] Reintroduce a separate individual live tracker Durable Object.
+- [x] Add authenticated start/stop/status routes for individual live trackers.
+- [x] Ensure individual live trackers use the signed-in user's Halo credentials rather than the default shared live-tracker credentials.
+- [x] Confirm active tracker routing model: per-tracker route plus stable follow-the-stream route.
+- [x] Re-implement individual tracker page UI around active live tracker control and time-linear game augmentation.
+- [x] Add idle-timeout settings with allowed values of 1h, 2h, 3h, 4h, 5h, and 6h, defaulting to 1h.
 - [ ] Add logout behavior setting for whether active trackers may continue after logout.
-- [ ] Stop trackers automatically only when no new matches are discovered within the configured window.
+- [x] Stop trackers automatically only when no new matches are discovered within the configured window.
 - [ ] Integrate NeatQueue grouping metadata when the active tracker corresponds to a NeatQueue series.
 
 ### Phase 4 - Streamer controls
@@ -404,12 +402,12 @@ Legacy individual-web-tracker cleanup is complete.
 - [ ] Rate limiting per user/session is not implemented.
 - [ ] Audit logging for proxied calls and tracker mutations is not implemented.
 
-### Individual live tracker Durable Object — not started
+### Individual live tracker Durable Object — implemented
 
-- [ ] Dedicated individual Durable Object type is not implemented.
-- [ ] Authenticated individual start/stop/status routes are not wired.
-- [ ] Viewer routes for follow-the-stream and direct active tracker viewing are not wired.
-- [ ] Ownership checks between profile, tracker instance, and controlling user are not wired.
+- [x] Dedicated individual Durable Object type is implemented.
+- [x] Authenticated individual start/stop/status routes are wired.
+- [x] Viewer routes for follow-the-stream and direct active tracker viewing are wired.
+- [x] Ownership checks between profile, tracker instance, and controlling user are wired.
 
 ### Discord / Twitch auth flows — not started
 
@@ -417,6 +415,43 @@ Legacy individual-web-tracker cleanup is complete.
 - [ ] `GET /auth/discord/callback` — not wired.
 - [ ] `GET /auth/twitch/start` — not wired.
 - [ ] `GET /auth/twitch/callback` — not wired.
+
+## Phase 3 implementation decisions (April 11, 2026)
+
+### Frontend settings layout choice
+
+Approach A: Reuse modal-only `SettingsDialog` from team tracker.
+
+- Pros: fastest implementation.
+- Cons: poor fit for a persistent control plane, weak discoverability for grouped settings, less reusable for future profile pages.
+
+Approach B: Build a reusable split-pane settings shell (left menu, right controls) and compose individual tracker sections inside it.
+
+- Pros: aligns with requested UX, improves information architecture, reusable for streamer-view and identity-linking pages, clearer desktop workflow while still mobile-first.
+- Cons: slightly higher initial implementation cost.
+
+Decision: Approach B selected for long-term maintainability and better operator UX.
+
+### Runtime state sync choice
+
+Approach A: Poll-only for tracker status.
+
+- Pros: simple implementation.
+- Cons: stale state between polls and slower operator feedback.
+
+Approach B: REST bootstrap followed by WebSocket subscriptions to active tracker state.
+
+- Pros: immediate updates, consistent with existing live-tracker patterns, better resilience when status changes quickly.
+- Cons: requires connection-state handling.
+
+Decision: Approach B selected; individual tracker UI now boots from REST and streams updates via WebSocket.
+
+## Setup notes for David
+
+- Database: ensure new columns/table for individual tracker sessions are applied in D1 before validating start/stop behavior.
+- Routes: ensure deployed `wrangler.jsonc` includes `api/individual-live-tracker/*` and `ws/individual-tracker/*` entries in target environment.
+- Session data: verify local `.dev.vars` has Microsoft OAuth values and Halo proxy credentials configured.
+- Next manual validation: sign in, create/update profile, start tracker with idle timeout, verify live state updates, then stop tracker.
 
 ## Open decisions (to finalize before implementation)
 
