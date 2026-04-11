@@ -250,8 +250,8 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 ### Streamer view controls
 
-- [ ] `GET /api/individual-tracker/streamer-view`
-- [ ] `PATCH /api/individual-tracker/streamer-view`
+- [x] `GET /api/individual-tracker/streamer-view`
+- [x] `PATCH /api/individual-tracker/streamer-view`
 
 ### Halo proxy
 
@@ -389,12 +389,12 @@ Legacy individual-web-tracker cleanup is complete.
 
 > Uses existing D1 schema and `DatabaseService` linked-identity methods.
 
-### Streamer view API — not started
+### Streamer view API — implemented
 
-- [ ] `GET /api/individual-tracker/streamer-view` — not wired in server routes.
-- [ ] `PATCH /api/individual-tracker/streamer-view` — not wired in server routes.
+- [x] `GET /api/individual-tracker/streamer-view` — wired in server routes.
+- [x] `PATCH /api/individual-tracker/streamer-view` — wired in server routes.
 
-> D1 schema and `DatabaseService` methods for `StreamerViewSettings` exist. Service and route layer still needed.
+> Uses existing D1 schema and `DatabaseService` `StreamerViewSettings` methods with profile ownership checks.
 
 ### Proxy allowlist hardening — partial
 

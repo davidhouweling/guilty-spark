@@ -54,6 +54,23 @@ function mapIdentityResponse(row: LinkedIdentitiesRow): {
   };
 }
 
+function toObjectOrDefault(value: string | null, fallback: Record<string, unknown>): Record<string, unknown> {
+  if (value == null || value === "") {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed != null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
 export class Server {
   readonly router: AutoRouterType;
   private readonly installServices: typeof installServices;
@@ -353,6 +370,128 @@ export class Server {
       } catch (error) {
         console.error("Identity unlink error:", error);
         return new Response(JSON.stringify({ error: "Failed to unlink identity" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.get("/api/individual-tracker/streamer-view", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const url = new URL(request.url);
+        const profileId = url.searchParams.get("profileId");
+
+        if (profileId == null || profileId === "") {
+          return new Response("Missing profileId", { status: 400 });
+        }
+
+        const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
+        if (profile == null || profile.UserId !== session.userId) {
+          return new Response("Profile not found", { status: 404 });
+        }
+
+        const settings = await services.databaseService.getStreamerViewSettings(profileId);
+        return new Response(
+          JSON.stringify({
+            profileId,
+            layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
+            visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
+            styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
+            updatedAt: settings?.UpdatedAt ?? null,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Streamer view get error:", error);
+        return new Response(JSON.stringify({ error: "Failed to fetch streamer view settings" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.patch("/api/individual-tracker/streamer-view", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body = (await request.json()) as {
+          profileId?: unknown;
+          layoutOptions?: unknown;
+          visibleSections?: unknown;
+          styleFlags?: unknown;
+        };
+
+        if (typeof body.profileId !== "string" || body.profileId === "") {
+          return new Response("Missing profileId", { status: 400 });
+        }
+
+        const profile = await services.databaseService.getIndividualTrackerProfile(body.profileId);
+        if (profile == null || profile.UserId !== session.userId) {
+          return new Response("Profile not found", { status: 404 });
+        }
+
+        const current = await services.databaseService.getStreamerViewSettings(body.profileId);
+        const currentLayout = toObjectOrDefault(current?.LayoutOptionsJson ?? null, {});
+        const currentVisible = toObjectOrDefault(current?.VisibleSectionsJson ?? null, {});
+        const currentStyle = toObjectOrDefault(current?.StyleFlagsJson ?? null, {});
+
+        const layoutOptions =
+          body.layoutOptions != null && typeof body.layoutOptions === "object" && !Array.isArray(body.layoutOptions)
+            ? { ...currentLayout, ...(body.layoutOptions as Record<string, unknown>) }
+            : currentLayout;
+
+        const visibleSections =
+          body.visibleSections != null &&
+          typeof body.visibleSections === "object" &&
+          !Array.isArray(body.visibleSections)
+            ? { ...currentVisible, ...(body.visibleSections as Record<string, unknown>) }
+            : currentVisible;
+
+        const styleFlags =
+          body.styleFlags != null && typeof body.styleFlags === "object" && !Array.isArray(body.styleFlags)
+            ? { ...currentStyle, ...(body.styleFlags as Record<string, unknown>) }
+            : currentStyle;
+
+        const updatedAt = Math.floor(Date.now() / 1000);
+        await services.databaseService.upsertStreamerViewSettings({
+          ProfileId: body.profileId,
+          LayoutOptionsJson: JSON.stringify(layoutOptions),
+          VisibleSectionsJson: JSON.stringify(visibleSections),
+          StyleFlagsJson: JSON.stringify(styleFlags),
+          UpdatedAt: updatedAt,
+        });
+
+        return new Response(
+          JSON.stringify({
+            profileId: body.profileId,
+            layoutOptions,
+            visibleSections,
+            styleFlags,
+            updatedAt,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Streamer view update error:", error);
+        return new Response(JSON.stringify({ error: "Failed to update streamer view settings" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

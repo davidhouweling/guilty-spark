@@ -560,6 +560,119 @@ describe("Server", () => {
     });
   });
 
+  describe("/api/individual-tracker/streamer-view", () => {
+    it("GET /api/individual-tracker/streamer-view returns 200 with stored settings", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        vi.spyOn(services.databaseService, "getStreamerViewSettings").mockResolvedValue({
+          ProfileId: "profile-1",
+          LayoutOptionsJson: JSON.stringify({ viewMode: "streamer" }),
+          VisibleSectionsJson: JSON.stringify({ showTicker: true }),
+          StyleFlagsJson: JSON.stringify({ colorMode: "observer" }),
+          UpdatedAt: 123,
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view?profileId=profile-1", {
+        method: "GET",
+        headers: { cookie: "auth-session=valid-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({
+        profileId: "profile-1",
+        layoutOptions: { viewMode: "streamer" },
+        visibleSections: { showTicker: true },
+        styleFlags: { colorMode: "observer" },
+        updatedAt: 123,
+      });
+    });
+
+    it("PATCH /api/individual-tracker/streamer-view upserts merged settings", async () => {
+      const upsertStreamerViewSettingsSpy = vi.fn();
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        vi.spyOn(services.databaseService, "getStreamerViewSettings").mockResolvedValue({
+          ProfileId: "profile-1",
+          LayoutOptionsJson: JSON.stringify({ viewMode: "standard" }),
+          VisibleSectionsJson: JSON.stringify({ showTicker: true }),
+          StyleFlagsJson: JSON.stringify({ colorMode: "observer" }),
+          UpdatedAt: 111,
+        });
+        vi.spyOn(services.databaseService, "upsertStreamerViewSettings").mockImplementation(async (row) => {
+          upsertStreamerViewSettingsSpy(row);
+          return Promise.resolve();
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({
+          profileId: "profile-1",
+          layoutOptions: { viewMode: "streamer" },
+          visibleSections: { showTabs: false },
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      const body = await res.json<{
+        profileId: string;
+        layoutOptions: { viewMode: string };
+        visibleSections: { showTicker: boolean; showTabs: boolean };
+      }>();
+
+      expect(body.profileId).toBe("profile-1");
+      expect(body.layoutOptions.viewMode).toBe("streamer");
+      expect(body.visibleSections.showTicker).toBe(true);
+      expect(body.visibleSections.showTabs).toBe(false);
+      expect(upsertStreamerViewSettingsSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("POST /proxy/halo-infinite", () => {
     it("returns 401 if x-proxy-auth header is missing", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {
