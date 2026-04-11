@@ -30,6 +30,10 @@
         "name": "LIVE_TRACKER_DO",
         "class_name": "LiveTrackerDO",
       },
+      {
+        "name": "INDIVIDUAL_TRACKER_DO",
+        "class_name": "IndividualTrackerDO",
+      },
     ],
   },
 
@@ -38,6 +42,10 @@
     {
       "tag": "v1",
       "new_classes": ["LiveTrackerDO"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["IndividualTrackerDO"],
     },
   ],
 
@@ -70,7 +78,9 @@
         "api-staging.guilty-spark.app/auth/microsoft/callback",
         "api-staging.guilty-spark.app/api/tracker/*",
         "api-staging.guilty-spark.app/api/individual-tracker/*",
+        "api-staging.guilty-spark.app/api/individual-live-tracker/*",
         "api-staging.guilty-spark.app/ws/tracker/*",
+        "api-staging.guilty-spark.app/ws/individual-tracker/*",
       ],
       "kv_namespaces": [
         {
@@ -90,6 +100,10 @@
           {
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
+          },
+          {
+            "name": "INDIVIDUAL_TRACKER_DO",
+            "class_name": "IndividualTrackerDO",
           },
         ],
       },
@@ -114,7 +128,9 @@
         "api.guilty-spark.app/auth/microsoft/callback",
         "api.guilty-spark.app/api/tracker/*",
         "api.guilty-spark.app/api/individual-tracker/*",
+        "api.guilty-spark.app/api/individual-live-tracker/*",
         "api.guilty-spark.app/ws/tracker/*",
+        "api.guilty-spark.app/ws/individual-tracker/*",
       ],
       "kv_namespaces": [
         {
@@ -134,6 +150,10 @@
           {
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
+          },
+          {
+            "name": "INDIVIDUAL_TRACKER_DO",
+            "class_name": "IndividualTrackerDO",
           },
         ],
       },
