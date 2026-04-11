@@ -77,7 +77,9 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     SENTRY_AUTH_TOKEN: "sentry-auth-token",
     MICROSOFT_CLIENT_ID: "test-client-id",
     MICROSOFT_CLIENT_SECRET: "test-client-secret",
+    MICROSOFT_TENANT: "consumers",
     MICROSOFT_REDIRECT_URI: "http://localhost:8787/auth/microsoft/callback",
+    MICROSOFT_SCOPES: "openid profile email offline_access",
     SESSION_SECRET: "a".repeat(64),
     CSRF_SECRET: "b".repeat(64),
     LIVE_TRACKER_DO: {

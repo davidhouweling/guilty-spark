@@ -19,9 +19,7 @@ export interface FakeIndividualLiveTrackerServiceOpts {
   shouldThrowOnStart?: boolean;
 }
 
-export function aFakeIndividualTrackerStateWith(
-  opts: Partial<IndividualTrackerState> = {},
-): IndividualTrackerState {
+export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerState> = {}): IndividualTrackerState {
   const now = new Date().toISOString();
   return {
     userId: "fake-user-id",
@@ -97,7 +95,8 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     this.opts = opts;
   }
 
-  public async startTracker(_opts: StartTrackerRequest): Promise<StartTrackerResponse> {
+  public async startTracker(opts: StartTrackerRequest): Promise<StartTrackerResponse> {
+    void opts;
     if (this.opts.shouldThrowOnStart === true) {
       throw new Error("Fake start error");
     }
@@ -110,7 +109,8 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     return Promise.resolve({ success: true, state });
   }
 
-  public async stopTracker(_trackerId: string): Promise<StopTrackerResponse> {
+  public async stopTracker(trackerId: string): Promise<StopTrackerResponse> {
+    void trackerId;
     if (this.opts.stopResponse != null) {
       return Promise.resolve(this.opts.stopResponse);
     }
@@ -123,15 +123,19 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
   }
 
-  public connectToTracker(_userId: string, _trackerId: string): IndividualTrackerConnection {
+  public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {
+    void userId;
+    void trackerId;
     return new FakeIndividualTrackerConnection();
   }
 
-  public connectToActiveTracker(_userId: string): IndividualTrackerConnection {
+  public connectToActiveTracker(userId: string): IndividualTrackerConnection {
+    void userId;
     return new FakeIndividualTrackerConnection();
   }
 
-  public async getActiveTrackerState(_userId: string): Promise<TrackerStatusResponse> {
+  public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
+    void userId;
     return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
   }
 }

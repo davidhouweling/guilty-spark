@@ -59,6 +59,7 @@ npm run format:fix
 - Use extensionless imports for internal TypeScript modules
 - **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
 - **Types**: Colocate in `types.ts` files with implementation
+  - json casting: do not do `response.json() as ...`, instead do `response.json<...>()`
 - **Fakes**: `<feature>/fakes/data.ts` for fixtures, separate files for behavior
 - **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
 - **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders

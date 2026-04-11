@@ -1,4 +1,7 @@
-import type { IndividualTrackerState, IndividualTrackerStateMessage } from "@guilty-spark/shared/individual-tracker/types";
+import type {
+  IndividualTrackerState,
+  IndividualTrackerStateMessage,
+} from "@guilty-spark/shared/individual-tracker/types";
 
 export type { IndividualTrackerState, IndividualTrackerStateMessage };
 
@@ -42,10 +45,7 @@ export type IndividualTrackerConnectionStatus =
   | "disconnected"
   | "not_found";
 
-export type IndividualTrackerStatusListener = (
-  status: IndividualTrackerConnectionStatus,
-  detail?: string,
-) => void;
+export type IndividualTrackerStatusListener = (status: IndividualTrackerConnectionStatus, detail?: string) => void;
 
 export type IndividualTrackerStateListener = (state: IndividualTrackerState) => void;
 

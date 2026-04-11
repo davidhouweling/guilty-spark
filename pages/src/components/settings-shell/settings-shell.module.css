@@ -94,8 +94,7 @@
 
   .menu {
     flex-direction: column;
-    overflow-x: visible;
-    overflow-y: auto;
+    overflow: visible auto;
   }
 
   .menuItem {

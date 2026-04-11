@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
-import type { Services } from "../../services/types";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { Services } from "../../services/types";
 import { Button } from "../button/button";
 import { Input } from "../input/input";
 import { Container } from "../container/container";
@@ -78,7 +78,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
 
   const [profileNameInput, setProfileNameInput] = useState("");
   const [searchStartInput, setSearchStartInput] = useState("");
-  const [idleTimeoutHours, setIdleTimeoutHours] = useState<number>(1);
+  const [idleTimeoutHours, setIdleTimeoutHours] = useState(1);
   const [matchIdInput, setMatchIdInput] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -473,7 +473,9 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       ) : authState === "unauthenticated" ? (
         <section className={styles.authBox}>
           <h1 className={styles.authTitle}>Sign in required</h1>
-          <p className={styles.authSubtitle}>You need a Microsoft session before you can manage an individual tracker.</p>
+          <p className={styles.authSubtitle}>
+            You need a Microsoft session before you can manage an individual tracker.
+          </p>
           <Button onClick={(): void => void signIn()}>Sign in with Microsoft</Button>
           {errorMessage != null && <p className={styles.errorText}>{errorMessage}</p>}
         </section>

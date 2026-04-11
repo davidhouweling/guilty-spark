@@ -1,5 +1,6 @@
 import type { AutoRouterType } from "itty-router";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import { isRecord } from "@guilty-spark/shared/base/json-readers";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
@@ -460,40 +461,44 @@ export class Server {
 
         const body = await request.json();
 
-        if (typeof body.profileId !== "string" || body.profileId === "") {
+        if (!isRecord(body)) {
+          return new Response("Invalid request body", { status: 400 });
+        }
+
+        const {
+          ["profileId"]: profileId,
+          ["layoutOptions"]: layoutOptionsInput,
+          ["visibleSections"]: visibleSectionsInput,
+          ["styleFlags"]: styleFlagsInput,
+        } = body;
+
+        if (typeof profileId !== "string" || profileId === "") {
           return new Response("Missing profileId", { status: 400 });
         }
 
-        const profile = await services.databaseService.getIndividualTrackerProfile(body.profileId);
+        const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
         if (profile?.UserId !== session.userId) {
           return new Response("Profile not found", { status: 404 });
         }
 
-        const current = await services.databaseService.getStreamerViewSettings(body.profileId);
+        const current = await services.databaseService.getStreamerViewSettings(profileId);
         const currentLayout = toObjectOrDefault(current?.LayoutOptionsJson ?? null, {});
         const currentVisible = toObjectOrDefault(current?.VisibleSectionsJson ?? null, {});
         const currentStyle = toObjectOrDefault(current?.StyleFlagsJson ?? null, {});
 
-        const layoutOptions =
-          body.layoutOptions != null && typeof body.layoutOptions === "object" && !Array.isArray(body.layoutOptions)
-            ? { ...currentLayout, ...(body.layoutOptions as Record<string, unknown>) }
-            : currentLayout;
+        const layoutOptions = isRecord(layoutOptionsInput)
+          ? { ...currentLayout, ...layoutOptionsInput }
+          : currentLayout;
 
-        const visibleSections =
-          body.visibleSections != null &&
-          typeof body.visibleSections === "object" &&
-          !Array.isArray(body.visibleSections)
-            ? { ...currentVisible, ...(body.visibleSections as Record<string, unknown>) }
-            : currentVisible;
+        const visibleSections = isRecord(visibleSectionsInput)
+          ? { ...currentVisible, ...visibleSectionsInput }
+          : currentVisible;
 
-        const styleFlags =
-          body.styleFlags != null && typeof body.styleFlags === "object" && !Array.isArray(body.styleFlags)
-            ? { ...currentStyle, ...(body.styleFlags as Record<string, unknown>) }
-            : currentStyle;
+        const styleFlags = isRecord(styleFlagsInput) ? { ...currentStyle, ...styleFlagsInput } : currentStyle;
 
         const updatedAt = Math.floor(Date.now() / 1000);
         await services.databaseService.upsertStreamerViewSettings({
-          ProfileId: body.profileId,
+          ProfileId: profileId,
           LayoutOptionsJson: JSON.stringify(layoutOptions),
           VisibleSectionsJson: JSON.stringify(visibleSections),
           StyleFlagsJson: JSON.stringify(styleFlags),
@@ -502,7 +507,7 @@ export class Server {
 
         return new Response(
           JSON.stringify({
-            profileId: body.profileId,
+            profileId,
             layoutOptions,
             visibleSections,
             styleFlags,

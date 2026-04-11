@@ -45,14 +45,15 @@ export default Sentry.withSentry(
   }),
   {
     fetch: async (request: Request, env: Env, context: ExecutionContext): Promise<Response> => {
-      const pathname = new URL(request.url).pathname;
-      const isCorsRoute = pathname.startsWith("/api/") || pathname.startsWith("/auth/") || pathname === "/api" || pathname === "/auth";
+      const { pathname } = new URL(request.url);
+      const isCorsRoute =
+        pathname.startsWith("/api/") || pathname.startsWith("/auth/") || pathname === "/api" || pathname === "/auth";
 
       if (request.method === "OPTIONS" && isCorsRoute) {
         return handleCorsPreflightRequest(request, env);
       }
 
-      const response = await server.router.fetch(request, env, context);
+      const response = (await server.router.fetch(request, env, context)) as Response;
 
       if (!isCorsRoute) {
         return response;

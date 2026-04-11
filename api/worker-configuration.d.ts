@@ -17,6 +17,8 @@ declare namespace Cloudflare {
 		DISCORD_PUBLIC_KEY: string;
 		XBOX_USERNAME: string;
 		XBOX_PASSWORD: string;
+        PROXY_WORKER_URL: string;
+        PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		MICROSOFT_CLIENT_ID: string;
 		MICROSOFT_CLIENT_SECRET: string;
@@ -39,6 +41,8 @@ declare namespace Cloudflare {
 		DISCORD_PUBLIC_KEY: string;
 		XBOX_USERNAME: string;
 		XBOX_PASSWORD: string;
+        PROXY_WORKER_URL: string;
+        PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		MICROSOFT_CLIENT_ID: string;
 		MICROSOFT_CLIENT_SECRET: string;
@@ -61,6 +65,8 @@ declare namespace Cloudflare {
 		DISCORD_PUBLIC_KEY: string;
 		XBOX_USERNAME: string;
 		XBOX_PASSWORD: string;
+        PROXY_WORKER_URL: string;
+        PROXY_WORKER_TOKEN: string;
 		SENTRY_AUTH_TOKEN: string;
 		MICROSOFT_CLIENT_ID: string;
 		MICROSOFT_CLIENT_SECRET: string;
@@ -78,7 +84,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MODE" | "FRONTEND_URL" | "BACKEND_URL" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_TENANT" | "MICROSOFT_REDIRECT_URI" | "MICROSOFT_SCOPES" | "SESSION_SECRET" | "CSRF_SECRET">> {}
+    interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MODE" | "FRONTEND_URL" | "BACKEND_URL" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_TENANT" | "MICROSOFT_REDIRECT_URI" | "MICROSOFT_SCOPES" | "SESSION_SECRET" | "CSRF_SECRET">> {}
 }
 
 // Begin runtime types

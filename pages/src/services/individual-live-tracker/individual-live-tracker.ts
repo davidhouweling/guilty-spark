@@ -1,4 +1,7 @@
-import type { IndividualTrackerState, IndividualTrackerStateMessage } from "@guilty-spark/shared/individual-tracker/types";
+import type {
+  IndividualTrackerState,
+  IndividualTrackerStateMessage,
+} from "@guilty-spark/shared/individual-tracker/types";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,
@@ -131,7 +134,7 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
       body: JSON.stringify(opts),
     });
 
-    return response.json() as Promise<StartTrackerResponse>;
+    return response.json<StartTrackerResponse>();
   }
 
   public async stopTracker(trackerId: string): Promise<StopTrackerResponse> {
@@ -142,7 +145,7 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
       body: JSON.stringify({}),
     });
 
-    return response.json() as Promise<StopTrackerResponse>;
+    return response.json<StopTrackerResponse>();
   }
 
   public async getStatus(): Promise<TrackerStatusResponse> {
@@ -150,13 +153,11 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
       credentials: "include",
     });
 
-    return response.json() as Promise<TrackerStatusResponse>;
+    return response.json<TrackerStatusResponse>();
   }
 
   public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {
-    const wsHost = this.apiHost.replace(/^https?:\/\//, (match) =>
-      match.startsWith("https") ? "wss://" : "ws://",
-    );
+    const wsHost = this.apiHost.replace(/^https?:\/\//, (match) => (match.startsWith("https") ? "wss://" : "ws://"));
     const ws = new WebSocket(
       `${wsHost}/ws/individual-tracker/${encodeURIComponent(userId)}/${encodeURIComponent(trackerId)}`,
     );
@@ -167,9 +168,7 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
   }
 
   public connectToActiveTracker(userId: string): IndividualTrackerConnection {
-    const wsHost = this.apiHost.replace(/^https?:\/\//, (match) =>
-      match.startsWith("https") ? "wss://" : "ws://",
-    );
+    const wsHost = this.apiHost.replace(/^https?:\/\//, (match) => (match.startsWith("https") ? "wss://" : "ws://"));
     const ws = new WebSocket(`${wsHost}/ws/individual-tracker/${encodeURIComponent(userId)}/active`);
 
     const connection = new RealIndividualTrackerConnection(ws);
@@ -178,10 +177,8 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
   }
 
   public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
-    const response = await fetch(
-      `${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(userId)}/active`,
-    );
+    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(userId)}/active`);
 
-    return response.json() as Promise<TrackerStatusResponse>;
+    return response.json<TrackerStatusResponse>();
   }
 }
