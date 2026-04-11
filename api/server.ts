@@ -168,7 +168,7 @@ export class Server {
         // Exchange code for tokens and create session
         const { sessionPayload, redirectTo } = await authService.handleCallback(code, state);
         const sessionToken = await authService.createSessionToken(sessionPayload);
-        const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
+        const pagesRedirectUrl = new URL(redirectTo, env.FRONTEND_URL);
 
         // Create redirect response with Set-Cookie header
         const response = new Response(null, {
@@ -299,19 +299,30 @@ export class Server {
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const body = (await request.json()) as Partial<LinkIdentityRequest>;
+        const body = await request.json<Partial<LinkIdentityRequest>>();
 
-        if (!isIdentityProvider(body.provider) || typeof body.providerUserId !== "string" || body.providerUserId === "") {
+        if (
+          !isIdentityProvider(body.provider) ||
+          typeof body.providerUserId !== "string" ||
+          body.providerUserId === ""
+        ) {
           return new Response("Invalid link request", { status: 400 });
         }
 
         const nowEpoch = Math.floor(Date.now() / 1000);
-        const existingIdentity = await services.databaseService.getLinkedIdentityByProvider(body.provider, body.providerUserId);
+        const existingIdentity = await services.databaseService.getLinkedIdentityByProvider(
+          body.provider,
+          body.providerUserId,
+        );
 
         if (body.provider === "xbox") {
           const allIdentities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
           for (const identity of allIdentities) {
-            if (identity.Provider === "xbox" && identity.IsActive === 1 && identity.ProviderUserId !== body.providerUserId) {
+            if (
+              identity.Provider === "xbox" &&
+              identity.IsActive === 1 &&
+              identity.ProviderUserId !== body.providerUserId
+            ) {
               await services.databaseService.upsertLinkedIdentity({
                 ...identity,
                 IsActive: 0,
@@ -362,7 +373,7 @@ export class Server {
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const body = (await request.json()) as Partial<UnlinkIdentityRequest>;
+        const body = await request.json<Partial<UnlinkIdentityRequest>>();
 
         if (typeof body.identityId !== "string" || body.identityId === "") {
           return new Response("Invalid unlink request", { status: 400 });
@@ -411,7 +422,7 @@ export class Server {
         }
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
-        if (profile == null || profile.UserId !== session.userId) {
+        if (profile?.UserId !== session.userId) {
           return new Response("Profile not found", { status: 404 });
         }
 
@@ -447,19 +458,14 @@ export class Server {
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const body = (await request.json()) as {
-          profileId?: unknown;
-          layoutOptions?: unknown;
-          visibleSections?: unknown;
-          styleFlags?: unknown;
-        };
+        const body = await request.json();
 
         if (typeof body.profileId !== "string" || body.profileId === "") {
           return new Response("Missing profileId", { status: 400 });
         }
 
         const profile = await services.databaseService.getIndividualTrackerProfile(body.profileId);
-        if (profile == null || profile.UserId !== session.userId) {
+        if (profile?.UserId !== session.userId) {
           return new Response("Profile not found", { status: 404 });
         }
 

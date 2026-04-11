@@ -56,6 +56,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const authService = new AuthService({
     microsoftAuthService,
     sessionSecret: env.SESSION_SECRET,
+    pkceStore: env.APP_DATA,
   });
   const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });

@@ -457,7 +457,7 @@ export class LiveTrackerService {
    */
   createErrorFallbackEmbed(context: LiveTrackerContext, status: "active" | "paused" | "stopped"): LiveTrackerEmbed {
     return new LiveTrackerEmbed(
-      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
+      { discordService: this.discordService, pagesUrl: this.env.FRONTEND_URL },
       {
         userId: context.userId,
         guildId: context.guildId,
@@ -505,12 +505,12 @@ export class LiveTrackerService {
     additionalTime,
   }: CreateLiveTrackerEmbedFromResultOpts): LiveTrackerEmbed {
     if (embedData != null) {
-      return new LiveTrackerEmbed({ discordService: this.discordService, pagesUrl: this.env.PAGES_URL }, embedData);
+      return new LiveTrackerEmbed({ discordService: this.discordService, pagesUrl: this.env.FRONTEND_URL }, embedData);
     }
 
     const currentTime = new Date();
     return new LiveTrackerEmbed(
-      { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
+      { discordService: this.discordService, pagesUrl: this.env.FRONTEND_URL },
       {
         userId: context.userId,
         guildId: context.guildId,

@@ -7,6 +7,7 @@ import type { PKCEState, SessionTokenPayload, AuthSession, AuthCallbackResult } 
 export interface AuthServiceOpts {
   microsoftAuthService: MicrosoftAuthService;
   sessionSecret: string;
+  pkceStore?: KVNamespace;
 }
 
 function normalizeRedirectPath(redirectTo?: string): string {
@@ -28,14 +29,55 @@ function normalizeRedirectPath(redirectTo?: string): string {
 export class AuthService {
   private readonly microsoftAuth: MicrosoftAuthService;
   private readonly sessionManager: SessionManager;
+  private readonly pkceStore: KVNamespace | undefined;
   private readonly pkceStateStore: Map<string, PKCEState>; // In-memory for local dev; use KV for production
 
-  public constructor({ microsoftAuthService, sessionSecret }: AuthServiceOpts) {
+  public constructor({ microsoftAuthService, sessionSecret, pkceStore }: AuthServiceOpts) {
     this.microsoftAuth = Preconditions.checkExists(microsoftAuthService, "microsoftAuthService");
 
     this.sessionManager = new SessionManager(Preconditions.checkExists(sessionSecret, "sessionSecret"));
 
+    this.pkceStore = pkceStore;
+
     this.pkceStateStore = new Map();
+  }
+
+  private getPkceStateKey(state: string): string {
+    return `oauth:pkce:${state}`;
+  }
+
+  private async storePkceState(state: string, pkceState: PKCEState): Promise<void> {
+    if (this.pkceStore != null) {
+      await this.pkceStore.put(this.getPkceStateKey(state), JSON.stringify(pkceState), {
+        expirationTtl: 10 * 60,
+      });
+      return;
+    }
+
+    this.pkceStateStore.set(state, pkceState);
+  }
+
+  private async loadPkceState(state: string): Promise<PKCEState | null> {
+    if (this.pkceStore != null) {
+      const storedValue = await this.pkceStore.get(this.getPkceStateKey(state));
+      if (storedValue == null) {
+        return null;
+      }
+
+      const parsed = JSON.parse(storedValue) as PKCEState;
+      return parsed;
+    }
+
+    return this.pkceStateStore.get(state) ?? null;
+  }
+
+  private async deletePkceState(state: string): Promise<void> {
+    if (this.pkceStore != null) {
+      await this.pkceStore.delete(this.getPkceStateKey(state));
+      return;
+    }
+
+    this.pkceStateStore.delete(state);
   }
 
   /**
@@ -58,7 +100,7 @@ export class AuthService {
       redirectTo: safeRedirectTo,
     };
 
-    this.pkceStateStore.set(state, pkceState);
+    await this.storePkceState(state, pkceState);
 
     const url = this.microsoftAuth.getAuthorizationUrl(codeChallenge, state);
 
@@ -70,13 +112,13 @@ export class AuthService {
    */
   public async handleCallback(code: string, state: string): Promise<AuthCallbackResult> {
     // Verify state and retrieve PKCE verifier
-    const pkceState = this.pkceStateStore.get(state);
+    const pkceState = await this.loadPkceState(state);
     if (!pkceState) {
       throw new Error("Invalid or expired state parameter");
     }
 
     // Clean up state (use once)
-    this.pkceStateStore.delete(state);
+    await this.deletePkceState(state);
 
     // Check if state is still fresh (within 10 minutes)
     const stateAgeMs = Date.now() - pkceState.issuedAt;

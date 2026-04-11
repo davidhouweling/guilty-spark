@@ -15,11 +15,16 @@ const CORS_CONFIG: CorsConfig = {
 };
 
 function getConfiguredFrontendOrigins(env: Env): readonly string[] {
-  const configuredOrigins = [env.FRONTEND_URL, env.PAGES_URL, "http://localhost:4321", "https://guilty-spark.app", "https://www.guilty-spark.app"];
+  const configuredOrigins = [
+    env.FRONTEND_URL,
+    "http://localhost:4321",
+    "https://guilty-spark.app",
+    "https://www.guilty-spark.app",
+  ];
   const uniqueOrigins = new Set<string>();
 
   for (const origin of configuredOrigins) {
-    if (origin == null || origin === "") {
+    if (origin === "") {
       continue;
     }
 
