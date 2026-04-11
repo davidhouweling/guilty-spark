@@ -312,6 +312,8 @@ describe("Server", () => {
           UserId: "other-user",
           ActiveIdentityId: null,
           Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
           CreatedAt: 1,
           UpdatedAt: 1,
         });
@@ -346,6 +348,8 @@ describe("Server", () => {
           UserId: "user-123",
           ActiveIdentityId: null,
           Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
           CreatedAt: 1,
           UpdatedAt: 1,
         });
@@ -395,6 +399,8 @@ describe("Server", () => {
           UserId: "user-123",
           ActiveIdentityId: null,
           Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
           CreatedAt: 1,
           UpdatedAt: 1,
         });
