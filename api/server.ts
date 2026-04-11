@@ -7,11 +7,51 @@ import { handleCorsPreflightRequest } from "./base/cors";
 import { ProfileNotFoundError, InvalidReorderError } from "./services/individual-tracker/errors";
 import { DEFAULT_IDLE_TIMEOUT_HOURS, IDLE_TIMEOUT_HOURS } from "./durable-objects/individual-tracker/types";
 import type { IdleTimeoutHours, IndividualTrackerStartRequest } from "./durable-objects/individual-tracker/types";
+import type { IdentityProvider, LinkedIdentitiesRow } from "./services/database/types/linked_identities";
 
 interface ServerOpts {
   router: AutoRouterType;
   installServices: typeof installServices;
   getCommands: typeof getCommands;
+}
+
+interface LinkIdentityRequest {
+  readonly provider: IdentityProvider;
+  readonly providerUserId: string;
+  readonly gamertag?: string;
+  readonly twitchId?: string;
+}
+
+interface UnlinkIdentityRequest {
+  readonly identityId: string;
+}
+
+function isIdentityProvider(value: unknown): value is IdentityProvider {
+  return value === "xbox" || value === "discord" || value === "twitch";
+}
+
+function mapIdentityResponse(row: LinkedIdentitiesRow): {
+  identityId: string;
+  userId: string;
+  provider: IdentityProvider;
+  providerUserId: string;
+  gamertag: string | null;
+  twitchId: string | null;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+} {
+  return {
+    identityId: row.IdentityId,
+    userId: row.UserId,
+    provider: row.Provider,
+    providerUserId: row.ProviderUserId,
+    gamertag: row.Gamertag,
+    twitchId: row.TwitchId,
+    isActive: row.IsActive === 1,
+    createdAt: row.CreatedAt,
+    updatedAt: row.UpdatedAt,
+  };
 }
 
 export class Server {
@@ -180,6 +220,139 @@ export class Server {
       } catch (error) {
         console.error("Auth session error:", error);
         return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.get("/api/identities", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+
+        return new Response(
+          JSON.stringify({
+            identities: identities.map((identity) => mapIdentityResponse(identity)),
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Identities list error:", error);
+        return new Response(JSON.stringify({ error: "Failed to fetch identities" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/identities/link", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body = (await request.json()) as Partial<LinkIdentityRequest>;
+
+        if (!isIdentityProvider(body.provider) || typeof body.providerUserId !== "string" || body.providerUserId === "") {
+          return new Response("Invalid link request", { status: 400 });
+        }
+
+        const nowEpoch = Math.floor(Date.now() / 1000);
+        const existingIdentity = await services.databaseService.getLinkedIdentityByProvider(body.provider, body.providerUserId);
+
+        if (body.provider === "xbox") {
+          const allIdentities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+          for (const identity of allIdentities) {
+            if (identity.Provider === "xbox" && identity.IsActive === 1 && identity.ProviderUserId !== body.providerUserId) {
+              await services.databaseService.upsertLinkedIdentity({
+                ...identity,
+                IsActive: 0,
+                UpdatedAt: nowEpoch,
+              });
+            }
+          }
+        }
+
+        const linkedIdentity: LinkedIdentitiesRow = {
+          IdentityId: existingIdentity?.IdentityId ?? crypto.randomUUID(),
+          UserId: session.userId,
+          Provider: body.provider,
+          ProviderUserId: body.providerUserId,
+          Gamertag: typeof body.gamertag === "string" ? body.gamertag : null,
+          TwitchId: typeof body.twitchId === "string" ? body.twitchId : null,
+          IsActive: 1,
+          CreatedAt: existingIdentity?.CreatedAt ?? nowEpoch,
+          UpdatedAt: nowEpoch,
+        };
+
+        await services.databaseService.upsertLinkedIdentity(linkedIdentity);
+
+        return new Response(
+          JSON.stringify({
+            identity: mapIdentityResponse(linkedIdentity),
+          }),
+          {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Identity link error:", error);
+        return new Response(JSON.stringify({ error: "Failed to link identity" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/identities/unlink", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body = (await request.json()) as Partial<UnlinkIdentityRequest>;
+
+        if (typeof body.identityId !== "string" || body.identityId === "") {
+          return new Response("Invalid unlink request", { status: 400 });
+        }
+
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+        const targetIdentity = identities.find((identity) => identity.IdentityId === body.identityId);
+
+        if (targetIdentity == null) {
+          return new Response("Identity not found", { status: 404 });
+        }
+
+        await services.databaseService.upsertLinkedIdentity({
+          ...targetIdentity,
+          IsActive: 0,
+          UpdatedAt: Math.floor(Date.now() / 1000),
+        });
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Identity unlink error:", error);
+        return new Response(JSON.stringify({ error: "Failed to unlink identity" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

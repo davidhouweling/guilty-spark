@@ -432,6 +432,134 @@ describe("Server", () => {
     });
   });
 
+  describe("/api/identities", () => {
+    it("GET /api/identities returns mapped identities for authenticated user", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          {
+            IdentityId: "identity-1",
+            UserId: "user-123",
+            Provider: "xbox",
+            ProviderUserId: "xuid-1",
+            Gamertag: "TesterOne",
+            TwitchId: null,
+            IsActive: 1,
+            CreatedAt: 1,
+            UpdatedAt: 2,
+          },
+        ]);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities", {
+        method: "GET",
+        headers: { cookie: "auth-session=valid-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({
+        identities: [
+          {
+            identityId: "identity-1",
+            userId: "user-123",
+            provider: "xbox",
+            providerUserId: "xuid-1",
+            gamertag: "TesterOne",
+            twitchId: null,
+            isActive: true,
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+      });
+    });
+
+    it("POST /api/identities/link upserts active identity", async () => {
+      vi.spyOn(crypto, "randomUUID").mockReturnValue("identity-uuid-1");
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(null);
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+        vi.spyOn(services.databaseService, "upsertLinkedIdentity").mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities/link", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ provider: "xbox", providerUserId: "xuid-1", gamertag: "TesterOne" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(201);
+      const body = await res.json<{ identity: { identityId: string; provider: string; isActive: boolean } }>();
+      expect(body.identity.identityId).toBe("identity-uuid-1");
+      expect(body.identity.provider).toBe("xbox");
+      expect(body.identity.isActive).toBe(true);
+    });
+
+    it("POST /api/identities/unlink deactivates owned identity", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          {
+            IdentityId: "identity-1",
+            UserId: "user-123",
+            Provider: "xbox",
+            ProviderUserId: "xuid-1",
+            Gamertag: "TesterOne",
+            TwitchId: null,
+            IsActive: 1,
+            CreatedAt: 1,
+            UpdatedAt: 1,
+          },
+        ]);
+        vi.spyOn(services.databaseService, "upsertLinkedIdentity").mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities/unlink", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ identityId: "identity-1" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({ success: true });
+    });
+  });
+
   describe("POST /proxy/halo-infinite", () => {
     it("returns 401 if x-proxy-auth header is missing", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {

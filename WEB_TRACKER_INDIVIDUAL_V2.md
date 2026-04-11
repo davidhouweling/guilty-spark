@@ -125,9 +125,9 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 ### Identity linking
 
-- [ ] `GET /api/identities`
-- [ ] `POST /api/identities/link`
-- [ ] `POST /api/identities/unlink`
+- [x] `GET /api/identities`
+- [x] `POST /api/identities/link`
+- [x] `POST /api/identities/unlink`
 
 #### Proposed payloads
 
@@ -381,13 +381,13 @@ Legacy individual-web-tracker cleanup is complete.
 
 ## Gaps identified (implementation audit — April 9, 2026)
 
-### Identity linking API — not started
+### Identity linking API — implemented
 
-- [ ] `GET /api/identities` — not wired in server routes.
-- [ ] `POST /api/identities/link` — not wired in server routes.
-- [ ] `POST /api/identities/unlink` — not wired in server routes.
+- [x] `GET /api/identities` — wired in server routes.
+- [x] `POST /api/identities/link` — wired in server routes.
+- [x] `POST /api/identities/unlink` — wired in server routes.
 
-> D1 schema and `DatabaseService` methods for `LinkedIdentities` exist. Service and route layer still needed.
+> Uses existing D1 schema and `DatabaseService` linked-identity methods.
 
 ### Streamer view API — not started
 
