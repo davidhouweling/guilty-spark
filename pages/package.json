@@ -15,11 +15,11 @@
     "stylelint:fix": "stylelint 'src/**/*.css' 'src/**/*.astro' --fix"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.6.12",
-    "@astrojs/react": "^4.3.1",
+    "@astrojs/cloudflare": "^13.1.8",
+    "@astrojs/react": "^5.0.3",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^8.21.3",
-    "astro": "^5.18.0",
+    "astro": "^6.1.5",
     "classnames": "^2.5.1",
     "date-fns": "^4.1.0",
     "javascript-time-ago": "^2.6.4",
