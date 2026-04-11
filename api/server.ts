@@ -71,6 +71,20 @@ function toObjectOrDefault(value: string | null, fallback: Record<string, unknow
   return fallback;
 }
 
+const ALLOWED_PROXY_METHODS = new Set([
+  "getMatchSkill",
+  "getMatchStats",
+  "getMedalsMetadataFile",
+  "getPlayerMatchCount",
+  "getPlayerMatches",
+  "getPlaylist",
+  "getPlaylistCsr",
+  "getSpecificAssetVersion",
+  "getUser",
+  "getUserServiceRecord",
+  "getUsers",
+]);
+
 export class Server {
   readonly router: AutoRouterType;
   private readonly installServices: typeof installServices;
@@ -1199,6 +1213,10 @@ export class Server {
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
+
+        if (!ALLOWED_PROXY_METHODS.has(method)) {
+          return new Response(`Method not allowed: ${method}`, { status: 403 });
+        }
 
         let haloInfiniteClient: HaloInfiniteClient;
         if (sessionAccessToken !== null) {

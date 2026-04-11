@@ -398,7 +398,7 @@ Legacy individual-web-tracker cleanup is complete.
 
 ### Proxy allowlist hardening — partial
 
-- [ ] Halo proxy currently invokes any existing `HaloInfiniteClient` method by name dynamically. An explicit allowlist of permitted methods is not enforced.
+- [x] Halo proxy now enforces an explicit allowlist of permitted `HaloInfiniteClient` methods.
 - [ ] Rate limiting per user/session is not implemented.
 - [ ] Audit logging for proxied calls and tracker mutations is not implemented.
 

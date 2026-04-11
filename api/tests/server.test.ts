@@ -946,7 +946,7 @@ describe("Server", () => {
       expect(text).toBe("Invalid request format");
     });
 
-    it("returns 404 if method does not exist on client", async () => {
+    it("returns 403 if method is not in allowlist", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {
         method: "POST",
         body: JSON.stringify({ method: "notARealMethod", args: [] }),
@@ -956,9 +956,9 @@ describe("Server", () => {
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(403);
       const text = await res.text();
-      expect(text).toContain("Method not found");
+      expect(text).toContain("Method not allowed");
     });
 
     it("returns 200 and result for valid method", async () => {
