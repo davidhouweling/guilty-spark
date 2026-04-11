@@ -44,6 +44,8 @@ export class IndividualTrackerService {
       UserId: request.userId,
       ActiveIdentityId: request.activeIdentityId ?? null,
       Name: (request.name?.trim() ?? "") || "default",
+      IdleTimeoutHours: 1,
+      AllowContinueAfterLogout: 0,
       CreatedAt: nowEpoch,
       UpdatedAt: nowEpoch,
     };

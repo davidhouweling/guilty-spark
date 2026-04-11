@@ -11,6 +11,8 @@ export function aFakeIndividualTrackerProfilesWith(
     UserId: "user-1",
     ActiveIdentityId: "identity-1",
     Name: "default",
+    IdleTimeoutHours: 1,
+    AllowContinueAfterLogout: 0,
     CreatedAt: nowEpoch,
     UpdatedAt: nowEpoch,
   };

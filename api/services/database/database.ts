@@ -8,6 +8,7 @@ import type { UserSessionsRow } from "./types/user_sessions";
 import type { LinkedIdentitiesRow, IdentityProvider } from "./types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "./types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "./types/individual_tracker_games";
+import type { IndividualTrackerActiveSessionsRow } from "./types/individual_tracker_active_sessions";
 import type { StreamerViewSettingsRow } from "./types/streamer_view_settings";
 
 export interface DatabaseServiceOpts {
@@ -260,6 +261,27 @@ export class DatabaseService {
   async deleteExpiredUserSessions(nowEpochSeconds: number): Promise<void> {
     const query = "DELETE FROM UserSessions WHERE ExpiresAt <= ?";
     const stmt = this.DB.prepare(query).bind(nowEpochSeconds);
+    await stmt.run();
+  }
+
+  async findUserSessionByUserId(userId: string): Promise<UserSessionsRow | null> {
+    const query = "SELECT * FROM UserSessions WHERE UserId = ? ORDER BY LastRefreshedAt DESC LIMIT 1";
+    const stmt = this.DB.prepare(query).bind(userId);
+    return await stmt.first<UserSessionsRow>();
+  }
+
+  async findIndividualTrackerActiveSession(userId: string): Promise<IndividualTrackerActiveSessionsRow | null> {
+    const query = "SELECT * FROM IndividualTrackerActiveSessions WHERE UserId = ?";
+    const stmt = this.DB.prepare(query).bind(userId);
+    return await stmt.first<IndividualTrackerActiveSessionsRow>();
+  }
+
+  async upsertIndividualTrackerActiveSession(userId: string, trackerId: string): Promise<void> {
+    const query = `
+      INSERT INTO IndividualTrackerActiveSessions (UserId, TrackerId, UpdatedAt) VALUES (?, ?, unixepoch())
+      ON CONFLICT(UserId) DO UPDATE SET TrackerId=excluded.TrackerId, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(userId, trackerId);
     await stmt.run();
   }
 
