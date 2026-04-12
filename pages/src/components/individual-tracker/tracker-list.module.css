@@ -31,7 +31,9 @@
   letter-spacing: 0.06em;
   padding: var(--space-2) var(--space-3);
   text-transform: uppercase;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .addButton:hover {
@@ -44,7 +46,6 @@
 .list {
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .emptyList {
@@ -172,7 +173,9 @@
   min-height: 32px;
   min-width: 32px;
   padding: 0;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .ellipsisButton:hover {
@@ -209,7 +212,9 @@
   padding: var(--space-2) var(--space-4);
   text-align: left;
   text-transform: uppercase;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .menuItem:last-child {

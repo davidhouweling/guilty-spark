@@ -253,11 +253,13 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
     [xboxGamertag, activeTracker],
   );
 
+  const hasMultipleTrackers = trackerItems.length > 1;
+
   const getActions = useCallback(
     (item: TrackerListItem) => {
       const actions: { label: string; disabled?: boolean; destructive?: boolean; onClick: () => void }[] = [];
 
-      if (item.status === "not-started" || item.status === "stopped") {
+      if ((item.status === "not-started" || item.status === "stopped") && item.gamertag !== "") {
         actions.push({
           label: "Start tracker",
           disabled: busy,
@@ -267,16 +269,46 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         });
       }
 
-      if (item.status === "active" || item.status === "paused") {
-        if (item.trackerId != null) {
-          actions.push({
-            label: "View tracker",
-            onClick: (): void => {
-              window.location.assign(`/individual-tracker?tracker=${item.trackerId ?? ""}`);
-            },
-          });
-        }
+      if (hasMultipleTrackers && !item.isLive) {
+        actions.push({
+          label: "Set as live",
+          disabled: true,
+          onClick: (): void => {
+            // Phase 3: wire select-live endpoint.
+          },
+        });
+      }
 
+      if (item.trackerId != null) {
+        actions.push({
+          label: "View tracker",
+          onClick: (): void => {
+            window.location.assign(`/individual-tracker?tracker=${item.trackerId ?? ""}`);
+          },
+        });
+      }
+
+      if (item.status === "active") {
+        actions.push({
+          label: "Pause",
+          disabled: true,
+          onClick: (): void => {
+            // Phase 3: wire pause endpoint.
+          },
+        });
+      }
+
+      if (item.status === "paused") {
+        actions.push({
+          label: "Resume",
+          disabled: true,
+          onClick: (): void => {
+            // Phase 3: wire resume endpoint.
+          },
+        });
+      }
+
+      if (item.status === "active" || item.status === "paused") {
         actions.push({
           label: "Stop tracker",
           disabled: busy || item.trackerId == null,
@@ -288,9 +320,36 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         });
       }
 
+      actions.push({
+        label: "Game selection",
+        disabled: item.status !== "active",
+        onClick: (): void => {
+          // Phase 4: wire game-selection sync dialog.
+        },
+      });
+
+      actions.push({
+        label: "Streamer settings",
+        disabled: true,
+        onClick: (): void => {
+          // Phase 5: wire streamer settings overrides.
+        },
+      });
+
+      if (!item.isPinned) {
+        actions.push({
+          label: "Delete tracker",
+          destructive: true,
+          disabled: true,
+          onClick: (): void => {
+            // Phase 3: wire delete endpoint.
+          },
+        });
+      }
+
       return actions;
     },
-    [busy, startTracker, stopTracker, xboxGamertag],
+    [busy, hasMultipleTrackers, startTracker, stopTracker, xboxGamertag],
   );
 
   if (loading) {

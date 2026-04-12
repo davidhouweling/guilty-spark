@@ -150,9 +150,12 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
       </div>
 
       {!hasItems ? (
-        <div className={styles.emptyList}>
-          <p className={styles.emptyListText}>No trackers yet. Start with your linked gamertag above.</p>
-        </div>
+        <>
+          <div className={styles.emptyList}>
+            <p className={styles.emptyListText}>No trackers yet. Start with your linked gamertag above.</p>
+          </div>
+          <EmptyInfoPanel />
+        </>
       ) : (
         <div className={styles.list}>
           {items.map((item) => (
@@ -160,8 +163,6 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
           ))}
         </div>
       )}
-
-      <EmptyInfoPanel />
     </div>
   );
 }

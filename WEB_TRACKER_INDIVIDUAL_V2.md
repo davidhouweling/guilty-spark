@@ -551,6 +551,7 @@ Each phase is committed separately with the proposal document updated to reflect
 
 - [x] Phase 1 committed: introduced the new 3-section shell and live tracker list UI foundation, plus session payload support for linked `xboxGamertag`.
 - [x] Phase 2 committed: Add Tracker dialog with gamertag search (proxy-backed), service record preview, recent-match loading (25 + load more), optional selection, and start flow wiring.
+- [~] Phase 3 scaffold committed: row action availability and menu structure aligned to UX spec; backend endpoints pending for pause/resume/select-live/delete and game-selection sync dialog.
 
 ---
 
