@@ -10,6 +10,7 @@ export type { IndividualTrackerState, IndividualTrackerStateMessage };
 export interface StartTrackerRequest {
   idleTimeoutHours?: number;
   searchStartTime?: string;
+  gamertag?: string;
 }
 
 export interface StartTrackerSuccessResponse {
@@ -23,6 +24,23 @@ export interface StartTrackerFailureResponse {
 }
 
 export type StartTrackerResponse = StartTrackerSuccessResponse | StartTrackerFailureResponse;
+
+
+export interface TrackerSearchResult {
+  readonly gamertag: string;
+  readonly xuid: string;
+  readonly rankLabel: string | null;
+  readonly csrLabel: string | null;
+}
+
+export interface TrackerRecentMatch {
+  readonly matchId: string;
+  readonly startTime: string | null;
+  readonly endTime: string | null;
+  readonly outcome: string | null;
+  readonly mapAssetId: string | null;
+  readonly modeAssetId: string | null;
+}
 
 export interface StopTrackerSuccessResponse {
   success: true;
@@ -64,6 +82,9 @@ export interface IndividualTrackerConnection {
 export interface IndividualLiveTrackerService {
   startTracker(opts: StartTrackerRequest): Promise<StartTrackerResponse>;
   stopTracker(trackerId: string): Promise<StopTrackerResponse>;
+  searchGamertag(query: string): Promise<TrackerSearchResult | null>;
+  getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]>;
+  addMatchToTracker(trackerId: string, matchId: string): Promise<void>;
   getStatus(): Promise<TrackerStatusResponse>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
   connectToActiveTracker(userId: string): IndividualTrackerConnection;

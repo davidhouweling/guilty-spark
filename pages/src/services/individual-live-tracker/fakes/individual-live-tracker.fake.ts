@@ -10,6 +10,8 @@ import type {
   StartTrackerResponse,
   StopTrackerResponse,
   TrackerStatusResponse,
+  TrackerRecentMatch,
+  TrackerSearchResult,
 } from "../types";
 
 export interface FakeIndividualLiveTrackerServiceOpts {
@@ -121,6 +123,33 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
 
   public async getStatus(): Promise<TrackerStatusResponse> {
     return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
+  }
+
+  public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
+    const normalized = query.trim();
+    if (normalized === "") {
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve({
+      gamertag: normalized,
+      xuid: "fake-xuid",
+      rankLabel: null,
+      csrLabel: null,
+    });
+  }
+
+  public async getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]> {
+    void xuid;
+    void start;
+    void count;
+    return Promise.resolve([]);
+  }
+
+  public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {
+    void trackerId;
+    void matchId;
+    return Promise.resolve();
   }
 
   public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {

@@ -6,6 +6,7 @@ import { Container } from "../container/container";
 import { SettingsShell, type SettingsShellItem } from "../settings-shell/settings-shell";
 import type { TrackerListItem, TrackerDisplayStatus } from "./tracker-list";
 import { TrackerList } from "./tracker-list";
+import { AddTrackerDialog } from "./add-tracker-dialog";
 import styles from "./individual-tracker.module.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const menuItems: readonly SettingsShellItem[] = useMemo(
     () => [
@@ -191,7 +193,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
   }, [activeTracker?.trackerId, individualLiveTrackerService, userId]);
 
   const startTracker = useCallback(
-    async (gamertag?: string): Promise<void> => {
+    async (gamertag?: string): Promise<IndividualTrackerState | null> => {
       setBusy(true);
       setErrorMessage(null);
 
@@ -203,12 +205,14 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
 
         if (!result.success) {
           setErrorMessage(result.error);
-          return;
+          return null;
         }
 
         setActiveTracker(result.state);
+        return result.state;
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to start tracker.");
+        return null;
       } finally {
         setBusy(false);
       }
@@ -323,7 +327,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
             items={trackerItems}
             getActions={getActions}
             onAddTracker={(): void => {
-              // Phase 2: open Add Tracker dialog
+              setIsAddDialogOpen(true);
             }}
           />
         </>
@@ -344,18 +348,45 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
   }
 
   return (
-    <Container className={styles.pageContainer}>
-      <SettingsShell
-        title="Individual Tracker"
-        subtitle="Manage your live trackers, streamer integrations, and preferences."
-        items={menuItems}
-        activeItemId={activeSection}
-        onSelectItem={(id): void => {
-          setActiveSection(id as IndividualTrackerSectionId);
+    <>
+      <Container className={styles.pageContainer}>
+        <SettingsShell
+          title="Individual Tracker"
+          subtitle="Manage your live trackers, streamer integrations, and preferences."
+          items={menuItems}
+          activeItemId={activeSection}
+          onSelectItem={(id): void => {
+            setActiveSection(id as IndividualTrackerSectionId);
+          }}
+        >
+          {panelContent}
+        </SettingsShell>
+      </Container>
+
+      <AddTrackerDialog
+        isOpen={isAddDialogOpen}
+        busy={busy}
+        onClose={(): void => {
+          if (!busy) {
+            setIsAddDialogOpen(false);
+          }
         }}
-      >
-        {panelContent}
-      </SettingsShell>
-    </Container>
+        onSearchGamertag={async (query) => individualLiveTrackerService.searchGamertag(query)}
+        onLoadMatches={async (xuid, start, count) => individualLiveTrackerService.getRecentMatches(xuid, start, count)}
+        onStartTracker={async ({ gamertag, selectedMatchIds }): Promise<void> => {
+          const state = await startTracker(gamertag);
+          if (state == null) {
+            return;
+          }
+
+          for (const matchId of selectedMatchIds) {
+            await individualLiveTrackerService.addMatchToTracker(state.trackerId, matchId);
+          }
+
+          setIsAddDialogOpen(false);
+          await refresh();
+        }}
+      />
+    </>
   );
 }

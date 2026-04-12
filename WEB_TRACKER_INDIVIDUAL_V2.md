@@ -509,6 +509,7 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 - `POST /api/individual-live-tracker/:trackerId/resume` — resume a paused tracker.
 - `POST /api/individual-live-tracker/select-active` — mark one tracker as the on-stream live tracker (already listed, not yet implemented).
 - `GET /api/halo/gamertag-search?q=<query>` — gamertag autocomplete proxy (Xbox endpoint if available, exact match fallback).
+- Interim implementation note: current Add Tracker search uses `POST /proxy/halo-infinite` with `getUser` + `getUserServiceRecord`; dedicated autocomplete endpoint remains planned.
 
 ### Streamer connections section
 
@@ -549,7 +550,7 @@ Each phase is committed separately with the proposal document updated to reflect
 ### Phase progress log
 
 - [x] Phase 1 committed: introduced the new 3-section shell and live tracker list UI foundation, plus session payload support for linked `xboxGamertag`.
-- [ ] Phase 2 in progress: Add tracker dialog and gamertag search flow.
+- [x] Phase 2 committed: Add Tracker dialog with gamertag search (proxy-backed), service record preview, recent-match loading (25 + load more), optional selection, and start flow wiring.
 
 ---
 

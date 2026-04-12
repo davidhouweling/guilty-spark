@@ -920,15 +920,37 @@ export class Server {
             ? rawSearchStartTime
             : new Date().toISOString();
 
-        // Resolve the user's active Xbox identity for the XUID and gamertag.
-        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
-        const xboxIdentity = identities.find((id) => id.Provider === "xbox" && id.IsActive === 1);
+        const rawGamertag = (body as { gamertag?: unknown }).gamertag;
+        const overrideGamertag = typeof rawGamertag === "string" && rawGamertag.trim() !== "" ? rawGamertag.trim() : null;
 
-        if (xboxIdentity == null) {
-          return new Response(JSON.stringify({ error: "No active Xbox identity linked" }), {
-            status: 422,
-            headers: { "Content-Type": "application/json" },
-          });
+        // Resolve the tracker identity from either an explicit gamertag override or the active linked Xbox identity.
+        let resolvedXuid: string;
+        let resolvedGamertag: string;
+
+        if (overrideGamertag != null) {
+          try {
+            const resolvedUser = await services.haloService.getUserByGamertag(overrideGamertag);
+            resolvedXuid = normalizeXuid(resolvedUser.xuid);
+            resolvedGamertag = resolvedUser.gamertag;
+          } catch {
+            return new Response(JSON.stringify({ error: "Gamertag not found" }), {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        } else {
+          const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+          const xboxIdentity = identities.find((id) => id.Provider === "xbox" && id.IsActive === 1);
+
+          if (xboxIdentity == null) {
+            return new Response(JSON.stringify({ error: "No active Xbox identity linked" }), {
+              status: 422,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+
+          resolvedXuid = normalizeXuid(xboxIdentity.ProviderUserId);
+          resolvedGamertag = xboxIdentity.Gamertag ?? xboxIdentity.ProviderUserId;
         }
 
         const trackerId = crypto.randomUUID();
@@ -938,8 +960,8 @@ export class Server {
         const startPayload: IndividualTrackerStartRequest = {
           userId: session.userId,
           trackerId,
-          xuid: xboxIdentity.ProviderUserId,
-          gamertag: xboxIdentity.Gamertag ?? xboxIdentity.ProviderUserId,
+          xuid: resolvedXuid,
+          gamertag: resolvedGamertag,
           searchStartTime,
           idleTimeoutHours,
         };

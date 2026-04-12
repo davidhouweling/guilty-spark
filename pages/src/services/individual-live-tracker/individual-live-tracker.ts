@@ -1,3 +1,4 @@
+import { isRecord, isString } from "@guilty-spark/shared/base/json-readers";
 import type {
   IndividualTrackerState,
   IndividualTrackerStateMessage,
@@ -13,6 +14,8 @@ import type {
   StartTrackerResponse,
   StopTrackerResponse,
   TrackerStatusResponse,
+  TrackerSearchResult,
+  TrackerRecentMatch,
 } from "./types";
 
 interface Config {
@@ -119,11 +122,57 @@ class RealIndividualTrackerConnection implements IndividualTrackerConnection {
   }
 }
 
+function extractOptionalString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+function parseRecentMatch(value: unknown): TrackerRecentMatch | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const matchId = value.MatchId;
+  if (!isString(matchId)) {
+    return null;
+  }
+
+  const mapVariant = isRecord(value.MapVariant) ? value.MapVariant : null;
+  const gameVariant = isRecord(value.GameVariant) ? value.GameVariant : null;
+
+  const matchStartDate = isRecord(value.MatchStartDate) ? value.MatchStartDate : null;
+  const matchEndDate = isRecord(value.MatchEndDate) ? value.MatchEndDate : null;
+
+  return {
+    matchId,
+    startTime: matchStartDate != null ? extractOptionalString(matchStartDate.ISO8601Date) : null,
+    endTime: matchEndDate != null ? extractOptionalString(matchEndDate.ISO8601Date) : null,
+    outcome: typeof value.PlayerOutcome === "number" ? String(value.PlayerOutcome) : null,
+    mapAssetId: mapVariant != null ? extractOptionalString(mapVariant.AssetId) : null,
+    modeAssetId: gameVariant != null ? extractOptionalString(gameVariant.AssetId) : null,
+  };
+}
+
 export class RealIndividualLiveTrackerService implements IndividualLiveTrackerService {
   private readonly apiHost: string;
 
   public constructor({ apiHost }: Config) {
     this.apiHost = apiHost;
+  }
+
+  private async proxyHalo(method: string, args: unknown[]): Promise<unknown> {
+    const response = await fetch(`${this.apiHost}/proxy/halo-infinite`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, args }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const body = await response.json<{ result?: unknown }>();
+    return body.result;
   }
 
   public async startTracker(opts: StartTrackerRequest): Promise<StartTrackerResponse> {
@@ -146,6 +195,71 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
     });
 
     return response.json<StopTrackerResponse>();
+  }
+
+  public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
+    const normalized = query.trim();
+    if (normalized === "") {
+      return null;
+    }
+
+    const userResult = await this.proxyHalo("getUser", [normalized]);
+    if (!isRecord(userResult) || !isString(userResult.gamertag) || !isString(userResult.xuid)) {
+      return null;
+    }
+
+    let rankLabel: string | null = null;
+    let csrLabel: string | null = null;
+
+    try {
+      const serviceRecordResult = await this.proxyHalo("getUserServiceRecord", [`xuid(${userResult.xuid})`]);
+      if (isRecord(serviceRecordResult)) {
+        const ranked = isRecord(serviceRecordResult.RankedArenaStats) ? serviceRecordResult.RankedArenaStats : null;
+        if (ranked != null) {
+          if (typeof ranked.CurrentRank === "string") {
+            rankLabel = ranked.CurrentRank;
+          }
+          if (typeof ranked.CurrentCsr === "number") {
+            csrLabel = ranked.CurrentCsr.toString();
+          }
+        }
+      }
+    } catch {
+      // Service record preview is best-effort.
+    }
+
+    return {
+      gamertag: userResult.gamertag,
+      xuid: userResult.xuid,
+      rankLabel,
+      csrLabel,
+    };
+  }
+
+  public async getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]> {
+    const result = await this.proxyHalo("getPlayerMatches", [xuid, 0, count, start]);
+    if (!Array.isArray(result)) {
+      return [];
+    }
+
+    const mapped = result
+      .map((item) => parseRecentMatch(item))
+      .filter((match): match is TrackerRecentMatch => match !== null);
+
+    return mapped;
+  }
+
+  public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {
+    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/games:add`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
   }
 
   public async getStatus(): Promise<TrackerStatusResponse> {
