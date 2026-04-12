@@ -537,14 +537,19 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 
 Implementation will proceed in individual committed phases:
 
-1. **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
-2. **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
-3. **Row actions** — ellipsis menu with all actions wired to backend (add pause/resume endpoints as needed).
-4. **Game selection sync dialog** — sync-on-close behaviour.
-5. **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
-6. **Streamer connections + additional options** — Twitch linking UI, auto-start/stop config, additional toggles.
+1. [x] **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
+2. [ ] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
+3. [ ] **Row actions** — ellipsis menu with all actions wired to backend (add pause/resume endpoints as needed).
+4. [ ] **Game selection sync dialog** — sync-on-close behaviour.
+5. [ ] **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
+6. [ ] **Streamer connections + additional options** — Twitch linking UI, auto-start/stop config, additional toggles.
 
 Each phase is committed separately with the proposal document updated to reflect progress.
+
+### Phase progress log
+
+- [x] Phase 1 committed: introduced the new 3-section shell and live tracker list UI foundation, plus session payload support for linked `xboxGamertag`.
+- [ ] Phase 2 in progress: Add tracker dialog and gamertag search flow.
 
 ---
 

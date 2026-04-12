@@ -392,12 +392,15 @@ export class Server {
           }
         }
 
+        const xboxGamertag = selectedXboxIdentity?.Gamertag ?? null;
+
         return new Response(
           JSON.stringify({
             authenticated: true,
             userId: session.userId,
             expiresAt: session.expiresAt,
             avatarUrl,
+            xboxGamertag,
           }),
           {
             status: 200,

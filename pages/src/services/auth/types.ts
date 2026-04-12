@@ -4,6 +4,7 @@ export interface SessionResponse {
   expiresAt?: number;
   expired?: boolean;
   avatarUrl?: string;
+  xboxGamertag?: string;
 }
 
 export interface MicrosoftStartResponse {

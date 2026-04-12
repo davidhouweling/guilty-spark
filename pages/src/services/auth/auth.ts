@@ -37,6 +37,11 @@ function parseSessionResponse(value: unknown): SessionResponse {
     response.avatarUrl = avatarUrl;
   }
 
+  const { xboxGamertag } = value;
+  if (isString(xboxGamertag)) {
+    response.xboxGamertag = xboxGamertag;
+  }
+
   return response;
 }
 
