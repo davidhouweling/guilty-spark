@@ -1,11 +1,12 @@
 import { authenticate } from "@xboxreplay/xboxlive-auth";
-import { HaloInfiniteClient } from "halo-infinite-api";
+import { HaloInfiniteClient, type SpartanTokenProvider } from "halo-infinite-api";
 import { verifyKey } from "discord-interactions";
 import { DatabaseService } from "./database/database";
 import { DiscordService } from "./discord/discord";
 import { HaloService } from "./halo/halo";
 import { XboxService } from "./xbox/xbox";
 import { CustomSpartanTokenProvider } from "./halo/custom-spartan-token-provider";
+import { UserTokenProvider } from "./halo/user-token-provider";
 import { NeatQueueService } from "./neatqueue/neatqueue";
 import { LiveTrackerService } from "./live-tracker/live-tracker";
 import { AuthService } from "./auth/auth";
@@ -34,6 +35,10 @@ export interface Services {
 
 interface InstallServicesOpts {
   env: Env;
+  userTokens?: {
+    accessToken: string;
+    refreshToken?: string;
+  };
 }
 
 function isValidUrl(url: string): boolean {
@@ -45,7 +50,7 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-export function installServices({ env }: InstallServicesOpts): Services {
+export function installServices({ env, userTokens }: InstallServicesOpts): Services {
   const sentryMode = env.MODE === "development" ? "development" : "production";
   const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
   const microsoftAuthService = new MicrosoftAuthService({
@@ -63,12 +68,24 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const xboxService = new XboxService({ env, authenticate });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
+  // Create Spartan token provider: user-scoped if tokens provided, otherwise bot account
+  const spartanTokenProvider: SpartanTokenProvider = userTokens
+    ? new UserTokenProvider({
+        userMicrosoftAccessToken: userTokens.accessToken,
+        userMicrosoftRefreshToken: userTokens.refreshToken,
+        clientId: env.MICROSOFT_CLIENT_ID,
+        clientSecret: env.MICROSOFT_CLIENT_SECRET,
+        redirectUri: env.MICROSOFT_REDIRECT_URI,
+        logService,
+      })
+    : new CustomSpartanTokenProvider({ env, xboxService });
+
   // For development with JSON-RPC proxy, use the existing proxy implementation
   // Otherwise, use direct client with resilient fetch wrapper
   const haloInfiniteClient: HaloInfiniteClient = useProxy
     ? createHaloInfiniteClientProxy({ env })
     : new HaloInfiniteClient(
-        new CustomSpartanTokenProvider({ env, xboxService }),
+        spartanTokenProvider,
         createResilientFetch({
           env,
           logService,

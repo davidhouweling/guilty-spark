@@ -4,6 +4,7 @@ import { addMilliseconds, differenceInHours, differenceInMilliseconds } from "da
 import { installServices as installServicesImpl } from "../../services/install";
 import type { LogService } from "../../services/log/types";
 import type { DatabaseService } from "../../services/database/database";
+import { UserTokenProvider } from "../../services/halo/user-token-provider";
 import {
   type IndividualTrackerMatchSummary,
   type IndividualTrackerState,
@@ -29,11 +30,13 @@ const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
+  private readonly env: Env;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
 
   constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
+    this.env = env;
 
     const services = installServices({ env });
     this.logService = services.logService;
@@ -166,6 +169,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       lastMatchDiscoveredAt: now,
       checkCount: 0,
       idleTimeoutHours: body.idleTimeoutHours,
+      userMicrosoftTokens: {
+        accessToken: body.userMicrosoftAccessToken,
+        refreshToken: body.userMicrosoftRefreshToken,
+        expiresAt: undefined,
+      },
       discoveredMatches: {},
       matchIds: [],
       excludedMatchIds: [],
@@ -316,7 +324,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   // ─── Core update logic ────────────────────────────────────────────────────
 
   private async executeTrackerUpdate(trackerState: IndividualTrackerState): Promise<void> {
-    const haloClient = await this.buildHaloClientForUser(trackerState.userId);
+    const haloClient = await this.buildHaloClientForUser(trackerState);
 
     // Fetch the most recent 25 matches for this player.
     const matches = await haloClient.getPlayerMatches(trackerState.xuid, MatchType.All, 25);
@@ -361,11 +369,29 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
   }
 
-  private async buildHaloClientForUser(userId: string): Promise<HaloInfiniteClient> {
+  private async buildHaloClientForUser(trackerState: IndividualTrackerState): Promise<HaloInfiniteClient> {
+    // If user's Microsoft tokens are available in state, create a user-scoped client
+    if (
+      trackerState.userMicrosoftTokens != null &&
+      trackerState.userMicrosoftTokens.accessToken !== ""
+    ) {
+      const tokenProvider = new UserTokenProvider({
+        userMicrosoftAccessToken: trackerState.userMicrosoftTokens.accessToken,
+        userMicrosoftRefreshToken: trackerState.userMicrosoftTokens.refreshToken,
+        clientId: this.env.MICROSOFT_CLIENT_ID,
+        clientSecret: this.env.MICROSOFT_CLIENT_SECRET,
+        redirectUri: this.env.MICROSOFT_REDIRECT_URI,
+        logService: this.logService,
+      });
+
+      return new HaloInfiniteClient(tokenProvider);
+    }
+
+    // Fallback: use bot account (legacy behavior for existing trackers without user tokens)
     // Load the most recent session for this user to get their access token.
-    const session = await this.databaseService.findUserSessionByUserId(userId);
+    const session = await this.databaseService.findUserSessionByUserId(trackerState.userId);
     if (session == null) {
-      throw new Error(`No active session found for user ${userId}`);
+      throw new Error(`No active session found for user ${trackerState.userId}`);
     }
 
     const accessToken = session.AccessToken;

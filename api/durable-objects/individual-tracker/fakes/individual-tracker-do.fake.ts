@@ -36,6 +36,11 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     lastMatchDiscoveredAt: now,
     checkCount: 0,
     idleTimeoutHours: DEFAULT_IDLE_TIMEOUT_HOURS,
+    userMicrosoftTokens: {
+      accessToken: "fake-access-token",
+      refreshToken: undefined,
+      expiresAt: undefined,
+    },
     discoveredMatches: {},
     matchIds: [],
     excludedMatchIds: [],

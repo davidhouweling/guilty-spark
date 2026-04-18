@@ -964,6 +964,8 @@ export class Server {
           gamertag: resolvedGamertag,
           searchStartTime,
           idleTimeoutHours,
+          userMicrosoftAccessToken: session.accessToken,
+          userMicrosoftRefreshToken: session.refreshToken,
         };
 
         const doUrl = new URL(request.url);

@@ -17,6 +17,17 @@ export interface IndividualTrackerMatchSummary {
   readonly modeAssetId: string;
 }
 
+// ─── Token management ───────────────────────────────────────────────────────
+
+export interface UserMicrosoftTokens {
+  /** User's Microsoft OAuth access token (for Halo API calls). */
+  accessToken: string;
+  /** User's Microsoft OAuth refresh token (optional, for auto-refresh). */
+  refreshToken: string | undefined;
+  /** When the access token expires (milliseconds since epoch). */
+  expiresAt: number | undefined;
+}
+
 // ─── Inbound requests ────────────────────────────────────────────────────────
 
 export interface IndividualTrackerStartRequest {
@@ -32,6 +43,10 @@ export interface IndividualTrackerStartRequest {
   searchStartTime: string;
   /** How many hours of inactivity (no new matches) before auto-stopping. */
   idleTimeoutHours: IdleTimeoutHours;
+  /** User's Microsoft OAuth access token for making API calls as the authenticated user. */
+  userMicrosoftAccessToken: string;
+  /** Optional refresh token to auto-renew access token. */
+  userMicrosoftRefreshToken: string | undefined;
 }
 
 export interface IndividualTrackerGamesMutateRequest {
@@ -64,6 +79,9 @@ export interface IndividualTrackerState {
 
   checkCount: number;
   idleTimeoutHours: IdleTimeoutHours;
+
+  /** User's Microsoft OAuth tokens for Halo API calls (held for tracker session duration). */
+  userMicrosoftTokens: UserMicrosoftTokens | null;
 
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   matchIds: string[];
