@@ -1,5 +1,4 @@
-import type { ViewMode } from "../../view-mode/view-mode-selector";
-import type { AllStreamerSettings } from "./types";
+import type { AllStreamerSettings, ViewMode } from "./types";
 import { DEFAULT_ALL_SETTINGS } from "./types";
 
 /**

@@ -1,6 +1,5 @@
 import React from "react";
 import classNames from "classnames";
-import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { Checkbox } from "../../checkbox/checkbox";
 import type {
   AllStreamerSettings,
@@ -9,6 +8,7 @@ import type {
   DisplaySettings,
   TickerSettings,
   SeriesStreamerSettings,
+  ViewMode,
 } from "./types";
 import { FontSizeSlider } from "./font-size-slider";
 import { ColorSettingsSection } from "./color-settings-section";

@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../../button/button";
-import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { buildUrlWithSettings } from "./settings-url-params";
-import type { AllStreamerSettings } from "./types";
+import type { AllStreamerSettings, ViewMode } from "./types";
 
 interface CopyUrlButtonProps {
   readonly settings: AllStreamerSettings;

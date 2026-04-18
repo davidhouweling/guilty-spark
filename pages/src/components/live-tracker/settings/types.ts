@@ -2,7 +2,7 @@
  * Type definitions for streamer overlay settings
  */
 
-import type { ViewMode } from "../../view-mode/view-mode-selector";
+export type ViewMode = "standard" | "wide" | "streamer";
 
 export interface FontSizeSettings {
   readonly queueInfo: number;

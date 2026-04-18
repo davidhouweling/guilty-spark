@@ -13,7 +13,6 @@ import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
-import type { ViewMode } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { PlayerName } from "../player-name/player-name";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
@@ -32,6 +31,7 @@ import {
 import type { LiveTrackerStateRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
 import { buildUrlWithSettings, parseSettingsFromUrl } from "./settings/settings-url-params";
+import type { ViewMode } from "./settings/types";
 
 function hasState(state: LiveTrackerStateRenderModel | null): state is LiveTrackerStateRenderModel {
   return state !== null;
