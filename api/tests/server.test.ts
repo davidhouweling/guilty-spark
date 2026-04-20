@@ -275,8 +275,20 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
-      const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number; avatarUrl: null }>();
-      expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt, avatarUrl: null });
+      const body = await res.json<{
+        authenticated: boolean;
+        userId: string;
+        expiresAt: number;
+        avatarUrl: null;
+        xboxGamertag: string | null;
+      }>();
+      expect(body).toEqual({
+        authenticated: true,
+        userId: "user-123",
+        expiresAt,
+        avatarUrl: null,
+        xboxGamertag: null,
+      });
     });
 
     it("returns avatarUrl when a linked xbox identity resolves a gamerpic", async () => {
@@ -326,6 +338,7 @@ describe("Server", () => {
         userId: "user-123",
         expiresAt,
         avatarUrl: "https://images.example.com/xlarge.png",
+        xboxGamertag: "TesterOne",
       });
     });
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { Services } from "../../services/types";
 import { Button } from "../button/button";
@@ -18,6 +18,10 @@ interface IndividualTrackerViewProps {
   readonly services: Services;
 }
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const NON_LIVE_POLL_INTERVAL_MS = 30_000;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function derivedStatus(trackerState: IndividualTrackerState | null): TrackerDisplayStatus {
@@ -29,47 +33,45 @@ function derivedStatus(trackerState: IndividualTrackerState | null): TrackerDisp
 
 function buildTrackerList(
   xboxGamertag: string | null,
-  activeTracker: IndividualTrackerState | null,
+  activeTrackerId: string | null,
+  runningTrackers: readonly { trackerId: string; gamertag: string }[],
+  trackerStatuses: Readonly<Record<string, IndividualTrackerState | null>>,
 ): readonly TrackerListItem[] {
-  if (xboxGamertag === null) {
-    if (activeTracker === null) {
-      return [];
+  const rows: TrackerListItem[] = [];
+
+  const pinnedRuntimeTracker =
+    xboxGamertag == null
+      ? null
+      : (runningTrackers.find((tracker) => tracker.gamertag.toLowerCase() === xboxGamertag.toLowerCase()) ?? null);
+
+  if (xboxGamertag != null) {
+    const pinnedState = pinnedRuntimeTracker != null ? (trackerStatuses[pinnedRuntimeTracker.trackerId] ?? null) : null;
+    rows.push({
+      trackerId: pinnedRuntimeTracker?.trackerId ?? null,
+      gamertag: xboxGamertag,
+      status: pinnedState != null ? derivedStatus(pinnedState) : "not-started",
+      isLive:
+        pinnedRuntimeTracker != null ? pinnedRuntimeTracker.trackerId === activeTrackerId : activeTrackerId == null,
+      isPinned: true,
+    });
+  }
+
+  for (const tracker of runningTrackers) {
+    if (pinnedRuntimeTracker?.trackerId === tracker.trackerId) {
+      continue;
     }
-    return [
-      {
-        trackerId: activeTracker.trackerId,
-        gamertag: activeTracker.gamertag,
-        status: derivedStatus(activeTracker),
-        isLive: true,
-        isPinned: false,
-      },
-    ];
+
+    const trackerState = trackerStatuses[tracker.trackerId] ?? null;
+    rows.push({
+      trackerId: tracker.trackerId,
+      gamertag: tracker.gamertag,
+      status: trackerState != null ? derivedStatus(trackerState) : "stopped",
+      isLive: tracker.trackerId === activeTrackerId,
+      isPinned: false,
+    });
   }
 
-  const isTrackerForPinnedGamertag =
-    activeTracker !== null && activeTracker.gamertag.toLowerCase() === xboxGamertag.toLowerCase();
-
-  const pinnedItem: TrackerListItem = {
-    trackerId: isTrackerForPinnedGamertag ? activeTracker.trackerId : null,
-    gamertag: xboxGamertag,
-    status: isTrackerForPinnedGamertag ? derivedStatus(activeTracker) : "not-started",
-    isLive: true,
-    isPinned: true,
-  };
-
-  if (activeTracker === null || isTrackerForPinnedGamertag) {
-    return [pinnedItem];
-  }
-
-  const additionalItem: TrackerListItem = {
-    trackerId: activeTracker.trackerId,
-    gamertag: activeTracker.gamertag,
-    status: derivedStatus(activeTracker),
-    isLive: false,
-    isPinned: false,
-  };
-
-  return [pinnedItem, additionalItem];
+  return rows;
 }
 
 // ─── Placeholder panels ───────────────────────────────────────────────────────
@@ -79,8 +81,8 @@ function StreamerConnectionsPanel(): React.ReactElement {
     <div className={styles.placeholderPanel}>
       <h2 className={styles.sectionTitle}>Streamer Connections</h2>
       <p className={styles.sectionDescription}>
-        Connect your Twitch account to automate your stream — auto-start your tracker when you go live and pause it
-        when your stream ends.
+        Connect your Twitch account to automate your stream — auto-start your tracker when you go live and pause it when
+        your stream ends.
       </p>
       <p className={styles.comingSoon}>Twitch integration coming soon.</p>
     </div>
@@ -110,6 +112,18 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
   const [xboxGamertag, setXboxGamertag] = useState<string | null>(null);
 
   const [activeTracker, setActiveTracker] = useState<IndividualTrackerState | null>(null);
+  const [runningTrackers, setRunningTrackers] = useState<readonly { trackerId: string; gamertag: string }[]>([]);
+  const [trackerStatuses, setTrackerStatuses] = useState<Record<string, IndividualTrackerState | null>>({});
+
+  // Refs so polling callback always reads the latest values without restarting the interval
+  const runningTrackersRef = useRef(runningTrackers);
+  const activeTrackerIdRef = useRef(activeTracker?.trackerId ?? null);
+  useEffect(() => {
+    runningTrackersRef.current = runningTrackers;
+  }, [runningTrackers]);
+  useEffect(() => {
+    activeTrackerIdRef.current = activeTracker?.trackerId ?? null;
+  }, [activeTracker?.trackerId]);
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -148,6 +162,8 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setUserId(null);
         setXboxGamertag(null);
         setActiveTracker(null);
+        setRunningTrackers([]);
+        setTrackerStatuses({});
         return;
       }
 
@@ -155,8 +171,16 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setUserId(session.userId);
       setXboxGamertag(session.xboxGamertag ?? null);
 
-      const statusResponse = await individualLiveTrackerService.getStatus();
-      setActiveTracker(statusResponse.activeTracker);
+      const [trackerListResponse, activeStatusResponse] = await Promise.all([
+        individualLiveTrackerService.getTrackers(session.userId),
+        individualLiveTrackerService.getActiveTrackerState(session.userId),
+      ]);
+
+      setRunningTrackers(
+        trackerListResponse.trackers.map((tracker) => ({ trackerId: tracker.trackerId, gamertag: tracker.gamertag })),
+      );
+      setTrackerStatuses(trackerListResponse.statuses);
+      setActiveTracker(activeStatusResponse.activeTracker);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to load individual tracker.");
     } finally {
@@ -168,20 +192,31 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
     void refresh();
   }, [refresh]);
 
+  // WebSocket effect: subscribe to the live (active) tracker only
   useEffect(() => {
     if (userId == null || activeTracker == null) {
       return;
     }
 
-    const connection = individualLiveTrackerService.connectToTracker(userId, activeTracker.trackerId);
+    // Capture trackerId at setup time; effect reruns when it changes
+    const liveTrackerId = activeTracker.trackerId;
+    const connection = individualLiveTrackerService.connectToTracker(userId, liveTrackerId);
 
     const stateSubscription = connection.subscribe((state) => {
       setActiveTracker(state);
+      setTrackerStatuses((prev) => ({ ...prev, [state.trackerId]: state }));
     });
 
     const statusSubscription = connection.subscribeStatus((status) => {
       if (status === "stopped") {
         setActiveTracker((prev) => (prev === null ? null : { ...prev, status: "stopped" }));
+        setTrackerStatuses((prev) => {
+          const existing = prev[liveTrackerId];
+          if (existing == null) {
+            return prev;
+          }
+          return { ...prev, [liveTrackerId]: { ...existing, status: "stopped" } };
+        });
       }
     });
 
@@ -191,6 +226,32 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       connection.disconnect();
     };
   }, [activeTracker?.trackerId, individualLiveTrackerService, userId]);
+
+  // Polling effect: refresh non-live tracker statuses on a fixed interval
+  useEffect(() => {
+    if (userId == null) {
+      return;
+    }
+
+    const pollNonLiveTrackers = async (): Promise<void> => {
+      const activeId = activeTrackerIdRef.current;
+      const hasNonLive = runningTrackersRef.current.some((tracker) => tracker.trackerId !== activeId);
+
+      if (!hasNonLive) {
+        return;
+      }
+
+      const response = await individualLiveTrackerService.getTrackers(userId);
+      setRunningTrackers(response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })));
+      setTrackerStatuses((prev) => ({ ...prev, ...response.statuses }));
+    };
+
+    const intervalId = setInterval(() => void pollNonLiveTrackers(), NON_LIVE_POLL_INTERVAL_MS);
+
+    return (): void => {
+      clearInterval(intervalId);
+    };
+  }, [userId, individualLiveTrackerService]);
 
   const startTracker = useCallback(
     async (gamertag?: string): Promise<IndividualTrackerState | null> => {
@@ -209,6 +270,8 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         }
 
         setActiveTracker(result.state);
+        setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
+        await refresh();
         return result.state;
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to start tracker.");
@@ -217,7 +280,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [individualLiveTrackerService],
+    [individualLiveTrackerService, refresh],
   );
 
   const stopTracker = useCallback(
@@ -228,13 +291,15 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       try {
         const result = await individualLiveTrackerService.stopTracker(trackerId);
         setActiveTracker(result.state);
+        setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
+        await refresh();
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to stop tracker.");
       } finally {
         setBusy(false);
       }
     },
-    [individualLiveTrackerService],
+    [individualLiveTrackerService, refresh],
   );
 
   const signIn = useCallback(async (): Promise<void> => {
@@ -249,8 +314,8 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
   }, [authService]);
 
   const trackerItems = useMemo(
-    () => buildTrackerList(xboxGamertag, activeTracker),
-    [xboxGamertag, activeTracker],
+    () => buildTrackerList(xboxGamertag, activeTracker?.trackerId ?? null, runningTrackers, trackerStatuses),
+    [xboxGamertag, activeTracker?.trackerId, runningTrackers, trackerStatuses],
   );
 
   const hasMultipleTrackers = trackerItems.length > 1;

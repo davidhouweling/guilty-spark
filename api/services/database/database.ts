@@ -9,6 +9,7 @@ import type { LinkedIdentitiesRow, IdentityProvider } from "./types/linked_ident
 import type { IndividualTrackerProfilesRow } from "./types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "./types/individual_tracker_games";
 import type { IndividualTrackerActiveSessionsRow } from "./types/individual_tracker_active_sessions";
+import type { IndividualTrackerSessionsRow } from "./types/individual_tracker_sessions";
 import type { StreamerViewSettingsRow } from "./types/streamer_view_settings";
 
 export interface DatabaseServiceOpts {
@@ -281,6 +282,28 @@ export class DatabaseService {
       INSERT INTO IndividualTrackerActiveSessions (UserId, TrackerId, UpdatedAt) VALUES (?, ?, unixepoch())
       ON CONFLICT(UserId) DO UPDATE SET TrackerId=excluded.TrackerId, UpdatedAt=excluded.UpdatedAt
     `;
+    const stmt = this.DB.prepare(query).bind(userId, trackerId);
+    await stmt.run();
+  }
+
+  async findIndividualTrackerSessionsByUserId(userId: string): Promise<IndividualTrackerSessionsRow[]> {
+    const query = "SELECT * FROM IndividualTrackerSessions WHERE UserId = ? ORDER BY UpdatedAt DESC";
+    const stmt = this.DB.prepare(query).bind(userId);
+    const response = await stmt.all<IndividualTrackerSessionsRow>();
+    return response.results;
+  }
+
+  async upsertIndividualTrackerSession(userId: string, trackerId: string, gamertag: string): Promise<void> {
+    const query = `
+      INSERT INTO IndividualTrackerSessions (UserId, TrackerId, Gamertag, UpdatedAt) VALUES (?, ?, ?, unixepoch())
+      ON CONFLICT(UserId, TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(userId, trackerId, gamertag);
+    await stmt.run();
+  }
+
+  async deleteIndividualTrackerSession(userId: string, trackerId: string): Promise<void> {
+    const query = "DELETE FROM IndividualTrackerSessions WHERE UserId = ? AND TrackerId = ?";
     const stmt = this.DB.prepare(query).bind(userId, trackerId);
     await stmt.run();
   }

@@ -1,18 +1,36 @@
 # User Token Leverage in Individual Tracker Durable Object
 
+## Scope
+
+This document now covers two related scenarios:
+
+1. Interactive user-started trackers from the browser (current implementation direction).
+2. Unattended automation (future), such as Twitch live-event auto-start when the user is offline.
+
+The same Microsoft OAuth tokens are used in both scenarios, but lifecycle and storage expectations differ.
+
 ## Current State
 
-Currently, the individual tracker Durable Object uses **bot account** credentials for all Halo Infinite API calls:
+The interactive individual tracker flow now uses **user-scoped Microsoft tokens** passed from the authenticated session into the DO runtime.
+
+Implemented high-level flow:
 
 ```
 Frontend (authenticated user)
-    ↓
-Backend /api/individual-live-tracker/start (validates session, extracts user info)
-    ↓
-Durable Object (uses env.XBOX_USERNAME / XBOX_PASSWORD for all API calls)
+  ↓ includes session-backed token context on start
+Backend /api/individual-live-tracker/start (validates session, forwards user token context)
+  ↓
+Durable Object (stores token context in state for runtime)
+  ↓
+UserTokenProvider (MS access/refresh -> Xbox user token -> XSTS -> Spartan)
+  ↓
+Halo Infinite API as the authenticated user
 ```
 
-**Problem**: User's Halo stats are fetched as the bot account, not the authenticated user.
+Also implemented:
+
+- Sanitized client-facing tracker state so token data is never returned in REST or WebSocket payloads.
+- Explicit status/list routes for tracker runtime lookup (no implicit owner-only status bootstrap).
 
 ## Solution: Leverage User's Microsoft OAuth tokens
 
@@ -20,7 +38,7 @@ The solution is to **pass the user's OAuth tokens from the session cookie throug
 
 ---
 
-## Architecture Overview
+## Architecture Overview (Interactive Start)
 
 ```
 Frontend (Session: { accessToken, refreshToken })
@@ -36,7 +54,7 @@ Halo Infinite API
 
 ---
 
-## Technical Implementation Path
+## Technical Implementation Path (Interactive Start)
 
 ### 1. **Extend IndividualTrackerStartRequest to include tokens**
 
@@ -50,7 +68,7 @@ export interface IndividualTrackerStartRequest {
   gamertag: string;
   searchStartTime: string;
   idleTimeoutHours: IdleTimeoutHours;
-  
+
   // NEW: User's Microsoft OAuth tokens
   userMicrosoftAccessToken: string;
   userMicrosoftRefreshToken?: string;
@@ -79,7 +97,7 @@ const startPayload: IndividualTrackerStartRequest = {
   gamertag: resolvedGamertag,
   searchStartTime,
   idleTimeoutHours,
-  
+
   // NEW: Pass user's tokens
   userMicrosoftAccessToken: session.accessToken,
   userMicrosoftRefreshToken: session.refreshToken,
@@ -114,11 +132,7 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     expiresAt?: number;
   };
 
-  constructor({
-    userMicrosoftAccessToken,
-    userMicrosoftRefreshToken,
-    microsoftAuthService,
-  }: UserTokenProviderOpts) {
+  constructor({ userMicrosoftAccessToken, userMicrosoftRefreshToken, microsoftAuthService }: UserTokenProviderOpts) {
     // HaloAuthenticationClient handles the OAuth→XSTS→Spartan flow
     super(
       {
@@ -171,18 +185,15 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     // Need to refresh
     if (this.userTokenInfo.refreshToken) {
       // Call Microsoft OAuth refresh endpoint
-      const refreshResponse = await fetch(
-        "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            grant_type: "refresh_token",
-            refresh_token: this.userTokenInfo.refreshToken,
-            // ... client credentials from env ...
-          }).toString(),
-        }
-      );
+      const refreshResponse = await fetch("https://login.microsoftonline.com/consumers/oauth2/v2.0/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: this.userTokenInfo.refreshToken,
+          // ... client credentials from env ...
+        }).toString(),
+      });
 
       if (!refreshResponse.ok) {
         throw new Error(`Failed to refresh user token: ${refreshResponse.status}`);
@@ -281,9 +292,72 @@ export function installServices({ env, userTokens }: InstallServicesOpts): Servi
 
 ---
 
+## Future Scenario: Unattended Auto-Start (Twitch Live)
+
+### Requirements shift
+
+For unattended auto-start, the user may be offline for days or weeks. This requires server-side durable storage of credentials that can be refreshed without browser involvement.
+
+Key implications:
+
+- Do not depend on browser session cookies for automation triggers.
+- Treat refresh tokens as high-sensitivity delegated credentials.
+- Build explicit recovery path when refresh is revoked or expired.
+
+### Recommended architecture for unattended flow
+
+```
+Twitch EventSub webhook
+  ↓ (verified + deduplicated)
+Queue consumer / worker job
+  ↓
+Credential broker loads user's stored encrypted refresh token
+  ↓
+Refresh on demand if access token is stale
+  ↓
+Start tracker via trusted internal route/service
+  ↓
+Individual DO receives fresh token context
+```
+
+### Refresh strategy for unattended mode
+
+- Default: lazy refresh on demand (no cron required for correctness).
+- Optional: proactive refresh cron only for UX/operability improvements.
+
+Why lazy refresh is sufficient:
+
+- If the user does not stream for weeks, there is no need to refresh in between.
+- Access token can be refreshed when the next live event arrives.
+- If refresh fails (`invalid_grant`), mark integration as reconnect-required and skip auto-start safely.
+
+### Storage model guidance
+
+Use D1 (Cloudflare SQLite) naming and constraints aligned to current schema conventions.
+
+Suggested table for future phase:
+
+- `UserOAuthCredentials`
+  - `CredentialId` TEXT PRIMARY KEY
+  - `UserId` TEXT NOT NULL
+  - `Provider` TEXT NOT NULL CHECK (`Provider` IN ('microsoft', 'twitch'))
+  - `AccessTokenEncrypted` TEXT NOT NULL
+  - `RefreshTokenEncrypted` TEXT
+  - `ExpiresAt` INTEGER NOT NULL
+  - `LastRefreshedAt` INTEGER
+  - `Status` TEXT NOT NULL CHECK (`Status` IN ('active', 'reauth-required', 'revoked')) DEFAULT 'active'
+  - `CreatedAt` INTEGER NOT NULL DEFAULT (unixepoch())
+  - `UpdatedAt` INTEGER NOT NULL DEFAULT (unixepoch())
+
+Notes:
+
+- Encrypt tokens at rest before persisting.
+- Never log token values.
+- Keep decryption and refresh inside server-only worker paths.
+
 ## Token Storage Options & Trade-Offs
 
-### Option 1: Store in Durable Object State (RECOMMENDED for individual tracker)
+### Option 1: Store in Durable Object State (RECOMMENDED for interactive tracker runtime)
 
 **Approach**: Keep tokens in DO state memory for the session duration.
 
@@ -298,6 +372,7 @@ export interface IndividualTrackerState {
 ```
 
 **Pros:**
+
 - ✅ Tokens only held during active tracking (session-scoped)
 - ✅ Cloudflare Durable Objects have isolated state (not publicly accessible)
 - ✅ Automatic disposal when tracker stops
@@ -305,10 +380,12 @@ export interface IndividualTrackerState {
 - ✅ Simplest implementation
 
 **Cons:**
+
 - ❌ Tokens stored unencrypted in DO state (but same as session cookie)
 - ❌ If DO crashes, tokens lost (acceptable for ephemeral tracker)
 
 **Best For:**
+
 - Individual tracker use case (short-lived, session-scoped)
 - User-scoped workflow (tokens held only during active tracking)
 - Single DO per user session
@@ -330,17 +407,20 @@ const userTokens = decryptTokens(encrypted, env.TOKEN_ENCRYPTION_KEY);
 ```
 
 **Pros:**
+
 - ✅ Tokens encrypted at rest
 - ✅ Survives DO restarts
 - ✅ Easy to audit/revoke per-tracker
 - ✅ Explicit TTL prevents stale tokens
 
 **Cons:**
+
 - ❌ Extra latency (KV request per token refresh)
 - ❌ Complexity: encryption/decryption overhead
 - ❌ KV lookups during token refresh (every ~45 minutes)
 
 **Best For:**
+
 - Long-lived trackers (days/weeks)
 - Multi-tenant scenarios with audit requirements
 - Persistent token storage needed across restarts
@@ -352,27 +432,36 @@ const userTokens = decryptTokens(encrypted, env.TOKEN_ENCRYPTION_KEY);
 **Approach**: Store encrypted tokens in D1, keyed by userId:trackerId.
 
 ```typescript
-await db.prepare(`
+await db
+  .prepare(
+    `
   INSERT INTO user_tracker_tokens (user_id, tracker_id, encrypted_tokens, expires_at)
   VALUES (?1, ?2, ?3, ?4)
-`).bind(userId, trackerId, encryptedTokens, expiryTime).run();
+`,
+  )
+  .bind(userId, trackerId, encryptedTokens, expiryTime)
+  .run();
 ```
 
 **Pros:**
+
 - ✅ Tokens persisted and encrypted
 - ✅ Full audit trail (who accessed what token)
 - ✅ Can query/revoke by user or tracker
 - ✅ Native to existing DB schema
 
 **Cons:**
+
 - ❌ DB latency on every token refresh (~100-300ms)
 - ❌ Synchronization complexity if active in multiple DOs
 - ❌ Encryption key management
 
 **Best For:**
+
 - Enterprise scenarios with compliance requirements
 - Needing permanent audit trail
 - Cross-DO token sharing (multiple instances tracking same user)
+- Unattended automation such as Twitch auto-start
 
 ---
 
@@ -387,17 +476,20 @@ const newAccessToken = await microsoftAuthService.refreshToken(refreshToken);
 ```
 
 **Pros:**
+
 - ✅ Minimal data in DO state
 - ✅ Frontend manages token lifecycle
 - ✅ Natural separation of concerns
 - ✅ Can revoke from frontend easily
 
 **Cons:**
+
 - ❌ Extra roundtrip for every token refresh
 - ❌ Sync complexity between frontend/DO
 - ❌ Network latency during tracker updates
 
 **Best For:**
+
 - Rarely-updated trackers
 - Where frontend can serve as token keeper
 - Interactive workflows only
@@ -406,7 +498,15 @@ const newAccessToken = await microsoftAuthService.refreshToken(refreshToken);
 
 ## Recommended Approach for Guilty Spark
 
-**Use Option 1 (DO State) with the following reasoning:**
+Use a dual-mode approach:
+
+1. Interactive manual start: Option 1 (DO state) for runtime convenience.
+2. Future unattended auto-start: Option 3 (encrypted D1 credential store) as the durable source of truth.
+
+Rationale:
+
+- Current manual flow benefits from simplicity and low latency.
+- Future automation requires durable server-side refresh capability without a browser session.
 
 1. **Individual tracker is session-scoped**: Token only needed while tracker is active
 2. **Automatic cleanup**: When tracker stops, tokens are disposed
@@ -425,6 +525,7 @@ export interface IndividualTrackerState {
 ```
 
 **Security considerations:**
+
 - Tokens only held for active tracking session (typically 3-minute refresh cycle)
 - DO discards tokens when tracker stops (explicit disposal)
 - Even if compromised, token is temporary and scoped to Halo API
@@ -435,43 +536,65 @@ export interface IndividualTrackerState {
 ## Implementation Checklist
 
 ### Phase 1: Backend Token Passing (Frontend → DO)
-- [ ] Extend `IndividualTrackerStartRequest` with user tokens
-- [ ] Update `/api/individual-live-tracker/start` to extract tokens from session
-- [ ] Update DO `handleStart` to accept and store user tokens
+
+- [x] Extend `IndividualTrackerStartRequest` with user tokens
+- [x] Update `/api/individual-live-tracker/start` to extract tokens from session
+- [x] Update DO `handleStart` to accept and store user tokens
 
 ### Phase 2: Custom Token Provider
-- [ ] Create `UserTokenProvider` implementing `SpartanTokenProvider`
-- [ ] Handle Microsoft token refresh with proper error handling
-- [ ] Test token refresh flow (mock expired token scenario)
+
+- [x] Create `UserTokenProvider` implementing `SpartanTokenProvider`
+- [x] Handle Microsoft token refresh with proper error handling
+- [x] Test token refresh flow (mock expired token scenario)
 
 ### Phase 3: Service Layer Integration
-- [ ] Modify `installServices` to accept optional user tokens
-- [ ] Create user-scoped vs. bot-scoped client branches
-- [ ] Update DO to pass tokens to `installServices`
+
+- [x] Modify service wiring to support user-scoped token provider for individual tracker runtime
+- [x] Create user-scoped vs. bot-scoped client behavior in runtime client construction
+- [x] Update DO runtime path to build Halo client using user token context when available
 
 ### Phase 4: Testing & Validation
-- [ ] Test tracker with user's Xbox account (verify stats shown)
+
+- [~] Test tracker with user's Xbox account (verify stats shown)
 - [ ] Test token refresh during long-running tracker
 - [ ] Test fallback to bot account if tokens unavailable
 - [ ] Test with expired/invalid refresh token
 
-### Phase 5: Optional Enhancements
+### Phase 5: Auto-start readiness (future)
+
+- [ ] Add encrypted server-side credential storage for unattended starts.
+- [ ] Add credential broker service (`getValidAccessToken(userId, provider)`).
+- [ ] Add trusted internal auto-start path for Twitch live events.
+- [ ] Mark integration as reconnect-required when refresh is invalid/revoked.
+
+### Phase 6: Optional Enhancements
+
 - [ ] Add token refresh logging to diagnostic endpoints
 - [ ] Add UI indicator showing which account tracker is using
 - [ ] Implement token revocation endpoint (explicit cleanup)
 - [ ] Add metrics for token refresh success/failures
 
+## What I need from David to verify
+
+Please run these environment-level validations and share results so we can close remaining risk:
+
+1. Confirm interactive start on your account consistently loads your expected matches/stats (not bot-account data).
+2. Keep one tracker running long enough to cross a Microsoft access-token expiry boundary, then confirm tracking continues without manual re-auth.
+3. Stop a tracker and confirm follow-up status for that tracker returns not-found/null state and no token data appears in any client payload.
+4. If possible, test one invalid refresh-token case (or revoked consent) and share logs so we can validate failure handling path and user-facing behavior.
+5. Share any server log snippets that indicate token refresh or XSTS/Spartan exchange failures in your environment.
+
 ---
 
 ## Risk Mitigation
 
-| Risk | Mitigation |
-|------|-----------|
-| Tokens exposed in transit | Already HTTPS-only, session cookies validated |
-| Tokens stored in DO state unencrypted | Tokens limited to session duration; DO isolated |
-| Refresh token causes infinite loops | Implement max retry logic with exponential backoff |
-| User revokes consent mid-tracking | Graceful fallback to bot account for that session |
-| Multiple DO instances competing for refresh | Each DO manages its own token independently |
+| Risk                                        | Mitigation                                         |
+| ------------------------------------------- | -------------------------------------------------- |
+| Tokens exposed in transit                   | Already HTTPS-only, session cookies validated      |
+| Tokens stored in DO state unencrypted       | Tokens limited to session duration; DO isolated    |
+| Refresh token causes infinite loops         | Implement max retry logic with exponential backoff |
+| User revokes consent mid-tracking           | Graceful fallback to bot account for that session  |
+| Multiple DO instances competing for refresh | Each DO manages its own token independently        |
 
 ---
 

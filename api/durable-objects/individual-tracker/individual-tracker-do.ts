@@ -15,6 +15,7 @@ import {
   type IndividualTrackerGamesAddResponse,
   type IndividualTrackerGamesRemoveResponse,
   type IndividualTrackerGamesMutateRequest,
+  sanitizeTrackerState,
 } from "./types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
@@ -155,6 +156,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async handleStart(request: Request): Promise<Response> {
     const body = await request.json<IndividualTrackerStartRequest>();
 
+    this.logService.debug(
+      "IndividualTrackerDO: handleStart called",
+      new Map([
+        ["userId", body.userId],
+        ["trackerId", body.trackerId],
+        ["gamertag", body.gamertag],
+        ["hasUserTokens", Boolean(body.userMicrosoftAccessToken).valueOf().toString()],
+        ["hasRefreshToken", Boolean(body.userMicrosoftRefreshToken).valueOf().toString()],
+      ]),
+    );
+
     const now = new Date().toISOString();
     const trackerState: IndividualTrackerState = {
       userId: body.userId,
@@ -189,7 +201,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
-    const response: IndividualTrackerStartResponse = { success: true, state: trackerState };
+    const response: IndividualTrackerStartResponse = { success: true, state: sanitizeTrackerState(trackerState) };
     return Response.json(response, { status: 200 });
   }
 
@@ -207,7 +219,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.dispose("Explicitly stopped by owner");
 
-    const response: IndividualTrackerStopResponse = { success: true, state: { ...trackerState, status: "stopped" } };
+    const stoppedState = { ...trackerState, status: "stopped" as const };
+    const response: IndividualTrackerStopResponse = { success: true, state: sanitizeTrackerState(stoppedState) };
     return Response.json(response, { status: 200 });
   }
 
@@ -218,7 +231,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const response: IndividualTrackerStatusResponse = { state: trackerState };
+    const response: IndividualTrackerStatusResponse = { state: sanitizeTrackerState(trackerState) };
     return Response.json(response, { status: 200 });
   }
 
@@ -278,7 +291,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     try {
       this.state.acceptWebSocket(server);
 
-      server.send(JSON.stringify({ type: "state", data: trackerState, timestamp: new Date().toISOString() }));
+      server.send(
+        JSON.stringify({
+          type: "state",
+          data: sanitizeTrackerState(trackerState),
+          timestamp: new Date().toISOString(),
+        }),
+      );
 
       return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
@@ -371,10 +390,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async buildHaloClientForUser(trackerState: IndividualTrackerState): Promise<HaloInfiniteClient> {
     // If user's Microsoft tokens are available in state, create a user-scoped client
-    if (
-      trackerState.userMicrosoftTokens != null &&
-      trackerState.userMicrosoftTokens.accessToken !== ""
-    ) {
+    if (trackerState.userMicrosoftTokens != null && trackerState.userMicrosoftTokens.accessToken !== "") {
+      this.logService.debug(
+        "IndividualTrackerDO: Building Halo client with user-scoped tokens (UserTokenProvider)",
+        new Map([
+          ["userId", trackerState.userId],
+          ["gamertag", trackerState.gamertag],
+          ["hasRefreshToken", (trackerState.userMicrosoftTokens.refreshToken != null).toString()],
+        ]),
+      );
+
       const tokenProvider = new UserTokenProvider({
         userMicrosoftAccessToken: trackerState.userMicrosoftTokens.accessToken,
         userMicrosoftRefreshToken: trackerState.userMicrosoftTokens.refreshToken,
@@ -388,6 +413,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     // Fallback: use bot account (legacy behavior for existing trackers without user tokens)
+    this.logService.debug(
+      "IndividualTrackerDO: No user tokens found, falling back to bot account",
+      new Map([["userId", trackerState.userId]]),
+    );
+
     // Load the most recent session for this user to get their access token.
     const session = await this.databaseService.findUserSessionByUserId(trackerState.userId);
     if (session == null) {
@@ -416,7 +446,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return;
     }
 
-    const message = JSON.stringify({ type: "state", data: state, timestamp: new Date().toISOString() });
+    const message = JSON.stringify({
+      type: "state",
+      data: sanitizeTrackerState(state),
+      timestamp: new Date().toISOString(),
+    });
 
     for (const client of allWebSockets) {
       try {
@@ -473,7 +507,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     if (state != null) {
       const stoppedState = { ...state, status: "stopped" as const };
-      const message = JSON.stringify({ type: "state", data: stoppedState, timestamp: new Date().toISOString() });
+      const message = JSON.stringify({
+        type: "state",
+        data: sanitizeTrackerState(stoppedState),
+        timestamp: new Date().toISOString(),
+      });
       for (const ws of allWebSockets) {
         try {
           ws.send(message);

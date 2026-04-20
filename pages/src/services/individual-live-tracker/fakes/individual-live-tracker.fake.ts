@@ -9,6 +9,7 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  TrackerListResponse,
   TrackerStatusResponse,
   TrackerRecentMatch,
   TrackerSearchResult,
@@ -16,6 +17,8 @@ import type {
 
 export interface FakeIndividualLiveTrackerServiceOpts {
   activeState?: IndividualTrackerState | null;
+  trackerStates?: Record<string, IndividualTrackerState | null>;
+  trackerReferences?: Record<string, { gamertag: string; updatedAt?: number }>;
   startResponse?: StartTrackerResponse;
   stopResponse?: StopTrackerResponse;
   shouldThrowOnStart?: boolean;
@@ -121,10 +124,6 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     return Promise.resolve({ success: true, state });
   }
 
-  public async getStatus(): Promise<TrackerStatusResponse> {
-    return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
-  }
-
   public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
     const normalized = query.trim();
     if (normalized === "") {
@@ -150,6 +149,28 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     void trackerId;
     void matchId;
     return Promise.resolve();
+  }
+
+  public async getTrackers(userId: string): Promise<TrackerListResponse> {
+    void userId;
+
+    const references = this.opts.trackerReferences;
+    if (references == null) {
+      return Promise.resolve({ trackers: [], statuses: {} });
+    }
+
+    const trackers = Object.entries(references).map(([trackerId, data]) => ({
+      trackerId,
+      gamertag: data.gamertag,
+      updatedAt: data.updatedAt ?? Math.floor(Date.now() / 1000),
+    }));
+
+    const statuses: Record<string, IndividualTrackerState | null> = {};
+    for (const { trackerId } of trackers) {
+      statuses[trackerId] = this.opts.trackerStates?.[trackerId] ?? null;
+    }
+
+    return Promise.resolve({ trackers, statuses });
   }
 
   public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {

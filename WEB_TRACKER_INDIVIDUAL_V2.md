@@ -1,11 +1,20 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active proposal — Phase 3 UX rework approved, implementation starting
+**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 in progress
 **Date**: April 7, 2026 (UX decisions recorded: April 12, 2026)
 
 ## Goal
 
 Build an authenticated individual tracker where users sign in with Microsoft, start and control their own live tracker, and persist profile settings in D1 while a dedicated Durable Object owns active live-tracker runtime state. The same authenticated user model and viewer model should be reusable for a future Twitch extension.
+
+## Related Design Docs
+
+- [USER_TOKEN_DURABLE_OBJECT_ARCHITECTURE.md](USER_TOKEN_DURABLE_OBJECT_ARCHITECTURE.md) — token handling for both interactive tracker starts and future unattended Twitch auto-start.
+
+Token strategy summary used by this proposal:
+
+- Interactive/manual start: pass session-derived user tokens into the DO runtime.
+- Future unattended auto-start: use durable encrypted server-side token storage with refresh-on-demand.
 
 ## Product Direction
 
@@ -203,7 +212,10 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 - [x] `POST /api/individual-live-tracker/:trackerId/stop` — stop a specific active tracker owned by the signed-in user
 - [ ] `POST /api/individual-live-tracker/:trackerId/pause` — pause a specific active tracker (alarm suspended, DO remains resident)
 - [ ] `POST /api/individual-live-tracker/:trackerId/resume` — resume a paused tracker (re-enable alarm)
-- [x] `GET /api/individual-live-tracker/status` — list all active tracker instances for the signed-in user
+- [x] `GET /api/individual-live-tracker/:userId/trackers` — list running tracker references for a user (trackerId + gamertag + updatedAt)
+- [x] `GET /api/individual-live-tracker/:userId/statuses` — batch status lookup for explicit tracker IDs (currently internal/client-service utility)
+- [x] `GET /api/individual-live-tracker/:userId/active` — resolve the current active tracker for a given user without relying on an implicit session-scoped lookup
+- [x] `GET /api/individual-live-tracker/:userId/:trackerId/status` — resolve a specific tracker instance explicitly by identifier
 - [ ] `POST /api/individual-live-tracker/select-active` — mark one tracker as the current on-stream presenter
 - [x] `POST /api/individual-live-tracker/:trackerId/games:add` — add a past match into the active tracker
 - [x] `POST /api/individual-live-tracker/:trackerId/games:remove` — remove a match from the active tracker
@@ -360,6 +372,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [ ] Explore whether Discord activity or presence can be used as a reliable Halo Infinite signal.
 - [ ] Confirm how automated lifecycle events should interact with manual start and stop controls.
 - [ ] Keep this phase separate from the initial manual-control implementation.
+- [ ] Implement refresh-on-demand server-side token broker for unattended starts (cron optional for UX only, not required for correctness).
 
 ### Phase 7 - Viewer discovery and multi-tracker browsing
 
@@ -440,11 +453,11 @@ The individual tracker page is rebuilt around three left-nav sections (two-colum
 
 Three valid states stored per tracker in D1:
 
-| State | DO alive | Notes |
-|-------|----------|-------|
-| `active` | Yes | Alarm fires normally. DO polls Halo Infinite. |
-| `paused` | Yes | Alarm does **not** re-execute while paused. DO stays resident. A WebSocket message is broadcast to clients on pause. UI shows auto-stop countdown (max 6h). |
-| `stopped` | No | DO is hard-deleted. Tracker entity and configuration remain in D1 so the user can restart with default empty runtime. |
+| State     | DO alive | Notes                                                                                                                                                       |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `active`  | Yes      | Alarm fires normally. DO polls Halo Infinite.                                                                                                               |
+| `paused`  | Yes      | Alarm does **not** re-execute while paused. DO stays resident. A WebSocket message is broadcast to clients on pause. UI shows auto-stop countdown (max 6h). |
+| `stopped` | No       | DO is hard-deleted. Tracker entity and configuration remain in D1 so the user can restart with default empty runtime.                                       |
 
 - The tracker list in D1 (`individual_tracker_profiles`) is the persistent source of truth for tracker metadata; the DO holds only active runtime state.
 - Stopped trackers are hidden from the list by default. An **Additional Options** toggle ("Show stopped trackers", default: off) reveals them.
@@ -468,16 +481,16 @@ Three valid states stored per tracker in D1:
 
 Each row shows: gamertag being tracked, status badge (active / paused / stopped), Live badge (if live), and an ellipsis menu.
 
-| Action | Availability | Behaviour |
-|--------|-------------|-----------|
-| Set as live | Only when >1 tracker exists and this tracker is not live | Marks this tracker as the on-stream presenter |
-| View | Always | Routes to `/individual-tracker?tracker=<trackerId>` in viewer mode |
-| Pause | Active only | Pauses alarm execution; broadcasts paused state via WebSocket. Paused auto-stops after 6h (configurable). |
-| Resume | Paused only | Re-enables alarm; broadcasts active state |
-| Stop | Active or paused | Hard-stops DO, clears runtime state. Configuration survives in D1. |
-| Delete | Always | Removes tracker from D1 entirely. Confirmation required. Pinned gamertag tracker cannot be deleted. |
-| Game selection | Active only | Opens game-selection dialog (see below) |
-| Streamer settings | Always | Opens streamer settings dialog scoped to this tracker (inherits global, allows overrides) |
+| Action            | Availability                                             | Behaviour                                                                                                 |
+| ----------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Set as live       | Only when >1 tracker exists and this tracker is not live | Marks this tracker as the on-stream presenter                                                             |
+| View              | Always                                                   | Routes to `/individual-tracker?tracker=<trackerId>` in viewer mode                                        |
+| Pause             | Active only                                              | Pauses alarm execution; broadcasts paused state via WebSocket. Paused auto-stops after 6h (configurable). |
+| Resume            | Paused only                                              | Re-enables alarm; broadcasts active state                                                                 |
+| Stop              | Active or paused                                         | Hard-stops DO, clears runtime state. Configuration survives in D1.                                        |
+| Delete            | Always                                                   | Removes tracker from D1 entirely. Confirmation required. Pinned gamertag tracker cannot be deleted.       |
+| Game selection    | Active only                                              | Opens game-selection dialog (see below)                                                                   |
+| Streamer settings | Always                                                   | Opens streamer settings dialog scoped to this tracker (inherits global, allows overrides)                 |
 
 ### Game selection dialog (active trackers only)
 
@@ -539,7 +552,7 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 Implementation will proceed in individual committed phases:
 
 1. [x] **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
-2. [ ] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
+2. [x] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
 3. [ ] **Row actions** — ellipsis menu with all actions wired to backend (add pause/resume endpoints as needed).
 4. [ ] **Game selection sync dialog** — sync-on-close behaviour.
 5. [ ] **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
@@ -552,10 +565,16 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Phase 1 committed: introduced the new 3-section shell and live tracker list UI foundation, plus session payload support for linked `xboxGamertag`.
 - [x] Phase 2 committed: Add Tracker dialog with gamertag search (proxy-backed), service record preview, recent-match loading (25 + load more), optional selection, and start flow wiring.
 - [~] Phase 3 scaffold committed: row action availability and menu structure aligned to UX spec; backend endpoints pending for pause/resume/select-live/delete and game-selection sync dialog.
+- [x] Runtime list hydration update: tracker list now resolves from explicit runtime references plus status hydration, with one service call for list + statuses.
+- [x] Explicit status model update: removed implicit owner-only status bootstrap in favor of explicit user/tracker routes.
+
+### Current operator note - View tracker behavior
+
+Current behavior is expected for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>`, but there is not yet a distinct viewer-mode panel/state switch wired to that query param. In practice, this means navigation occurs but does not yet present a meaningfully different tracker-view experience.
+
+This is part of ongoing Phase 3/Phase 4 work (viewer-mode UX and row-action wiring beyond route navigation).
 
 ---
-
-
 
 ### Frontend settings layout choice
 
@@ -591,6 +610,17 @@ Decision: Approach B selected; individual tracker UI now boots from REST and str
 - Routes: ensure deployed `wrangler.jsonc` includes `api/individual-live-tracker/*` and `ws/individual-tracker/*` entries in target environment.
 - Session data: verify local `.dev.vars` has Microsoft OAuth values and Halo proxy credentials configured.
 - Next manual validation: sign in, create/update profile, start tracker with idle timeout, verify live state updates, then stop tracker.
+
+## What I need from David to verify
+
+Please run this quick checklist and share outcomes (pass/fail plus any response payload or console/server log snippet for failures):
+
+1. Start tracker from pinned gamertag and from an alternate searched gamertag.
+2. Confirm tracker list updates immediately and shows expected status badges.
+3. Confirm stop sets status to stopped and tracker runtime entry is removed from running list.
+4. Confirm refresh/reload preserves running trackers via `/api/individual-live-tracker/:userId/trackers`.
+5. Confirm "View" currently only changes URL query (`?tracker=`) with no richer viewer mode yet (expected current-stage behavior).
+6. Optional but useful: share one server log block from start flow and one from a stop flow so we can confirm route/DO pathing in your environment.
 
 ## Open decisions (to finalize before implementation)
 

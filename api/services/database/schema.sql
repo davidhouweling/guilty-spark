@@ -83,7 +83,17 @@ CREATE TABLE IF NOT EXISTS IndividualTrackerActiveSessions (
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+-- Tracks currently running tracker instances for a user. A user can have multiple running trackers.
+CREATE TABLE IF NOT EXISTS IndividualTrackerSessions (
+    UserId TEXT NOT NULL,
+    TrackerId TEXT NOT NULL,
+    Gamertag TEXT NOT NULL,
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (UserId, TrackerId)
+);
+
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserId ON IndividualTrackerProfiles (UserId);
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackerSessionsUserId ON IndividualTrackerSessions (UserId);
 
 CREATE TABLE IF NOT EXISTS IndividualTrackerGames (
     ProfileId TEXT NOT NULL,

@@ -13,6 +13,7 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  TrackerListResponse,
   TrackerStatusResponse,
   TrackerSearchResult,
   TrackerRecentMatch,
@@ -250,24 +251,48 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/games:add`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ matchId }),
-    });
+    const response = await fetch(
+      `${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/games:add`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId }),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(await response.text());
     }
   }
 
-  public async getStatus(): Promise<TrackerStatusResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/status`, {
-      credentials: "include",
-    });
+  public async getTrackers(userId: string): Promise<TrackerListResponse> {
+    const listResponse = await fetch(
+      `${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(userId)}/trackers`,
+    );
+    const list = await listResponse.json<{ trackers: TrackerListResponse["trackers"] }>();
 
-    return response.json<TrackerStatusResponse>();
+    const trackerIds = list.trackers.map((t) => t.trackerId);
+    const statuses = await this.getTrackerStatuses(userId, trackerIds);
+
+    return { trackers: list.trackers, statuses };
+  }
+
+  private async getTrackerStatuses(
+    userId: string,
+    trackerIds: readonly string[],
+  ): Promise<Record<string, IndividualTrackerState | null>> {
+    if (trackerIds.length === 0) {
+      return {};
+    }
+
+    const params = new URLSearchParams({ trackerIds: trackerIds.join(",") });
+    const response = await fetch(
+      `${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(userId)}/statuses?${params.toString()}`,
+    );
+
+    const data = await response.json<{ statuses: Record<string, IndividualTrackerState | null> }>();
+    return data.statuses;
   }
 
   public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {

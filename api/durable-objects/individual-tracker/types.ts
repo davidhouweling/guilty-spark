@@ -101,9 +101,24 @@ export interface IndividualTrackerState {
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
+/**
+ * Sanitized state for client-facing responses (excludes sensitive token data).
+ * All fields are identical to IndividualTrackerState except userMicrosoftTokens is never included.
+ */
+export type IndividualTrackerStateSanitized = Omit<IndividualTrackerState, "userMicrosoftTokens">;
+
+/**
+ * Sanitize tracker state for client-facing responses by removing sensitive token information.
+ */
+export function sanitizeTrackerState(state: IndividualTrackerState): IndividualTrackerStateSanitized {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { userMicrosoftTokens, ...sanitized } = state;
+  return sanitized;
+}
+
 export interface IndividualTrackerStartSuccessResponse {
   success: true;
-  state: IndividualTrackerState;
+  state: IndividualTrackerStateSanitized;
 }
 
 export interface IndividualTrackerStartFailureResponse {
@@ -117,13 +132,13 @@ export type IndividualTrackerStartResponse =
 
 export interface IndividualTrackerStopSuccessResponse {
   success: true;
-  state: IndividualTrackerState;
+  state: IndividualTrackerStateSanitized;
 }
 
 export type IndividualTrackerStopResponse = IndividualTrackerStopSuccessResponse;
 
 export interface IndividualTrackerStatusSuccessResponse {
-  state: IndividualTrackerState;
+  state: IndividualTrackerStateSanitized;
 }
 
 export type IndividualTrackerStatusResponse = IndividualTrackerStatusSuccessResponse;

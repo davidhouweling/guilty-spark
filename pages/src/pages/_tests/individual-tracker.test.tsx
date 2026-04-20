@@ -31,8 +31,8 @@ describe("/individual-tracker page wiring", () => {
       expect(screen.getByRole("heading", { name: /individual tracker/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /tracker runtime/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /profile/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /game curation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /live trackers/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /streamer connections/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /additional options/i })).toBeInTheDocument();
   });
 });

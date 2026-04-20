@@ -11,6 +11,8 @@ export interface StartTrackerRequest {
   idleTimeoutHours?: number;
   searchStartTime?: string;
   gamertag?: string;
+  userMicrosoftAccessToken?: string;
+  userMicrosoftRefreshToken?: string;
 }
 
 export interface StartTrackerSuccessResponse {
@@ -24,7 +26,6 @@ export interface StartTrackerFailureResponse {
 }
 
 export type StartTrackerResponse = StartTrackerSuccessResponse | StartTrackerFailureResponse;
-
 
 export interface TrackerSearchResult {
   readonly gamertag: string;
@@ -51,6 +52,17 @@ export type StopTrackerResponse = StopTrackerSuccessResponse;
 
 export interface TrackerStatusResponse {
   activeTracker: IndividualTrackerState | null;
+}
+
+export interface TrackerReference {
+  trackerId: string;
+  gamertag: string;
+  updatedAt: number;
+}
+
+export interface TrackerListResponse {
+  trackers: readonly TrackerReference[];
+  statuses: Record<string, IndividualTrackerState | null>;
 }
 
 // ─── WebSocket viewer ───────────────────────────────────────────────────────
@@ -85,7 +97,7 @@ export interface IndividualLiveTrackerService {
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
   getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]>;
   addMatchToTracker(trackerId: string, matchId: string): Promise<void>;
-  getStatus(): Promise<TrackerStatusResponse>;
+  getTrackers(userId: string): Promise<TrackerListResponse>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
   connectToActiveTracker(userId: string): IndividualTrackerConnection;
   getActiveTrackerState(userId: string): Promise<TrackerStatusResponse>;

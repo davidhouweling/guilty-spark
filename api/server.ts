@@ -921,7 +921,8 @@ export class Server {
             : new Date().toISOString();
 
         const rawGamertag = (body as { gamertag?: unknown }).gamertag;
-        const overrideGamertag = typeof rawGamertag === "string" && rawGamertag.trim() !== "" ? rawGamertag.trim() : null;
+        const overrideGamertag =
+          typeof rawGamertag === "string" && rawGamertag.trim() !== "" ? rawGamertag.trim() : null;
 
         // Resolve the tracker identity from either an explicit gamertag override or the active linked Xbox identity.
         let resolvedXuid: string;
@@ -980,6 +981,7 @@ export class Server {
 
         if (doResponse.ok) {
           await services.databaseService.upsertIndividualTrackerActiveSession(session.userId, trackerId);
+          await services.databaseService.upsertIndividualTrackerSession(session.userId, trackerId, resolvedGamertag);
         }
 
         return new Response(doResponse.body, {
@@ -1018,6 +1020,10 @@ export class Server {
           }),
         );
 
+        if (doResponse.ok) {
+          await services.databaseService.deleteIndividualTrackerSession(session.userId, trackerId);
+        }
+
         return new Response(doResponse.body, {
           status: doResponse.status,
           headers: { "Content-Type": "application/json" },
@@ -1025,50 +1031,6 @@ export class Server {
       } catch (error) {
         console.error("Individual live tracker stop error:", error);
         return new Response(JSON.stringify({ error: "Failed to stop tracker" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    });
-
-    this.router.get("/api/individual-live-tracker/status", async (request, env: Env) => {
-      try {
-        const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
-
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-
-        const activeSession = await services.databaseService.findIndividualTrackerActiveSession(session.userId);
-        if (activeSession == null) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-
-        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${activeSession.TrackerId}`);
-        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-
-        const doUrl = new URL(request.url);
-        doUrl.pathname = "/status";
-        const doResponse = await stub.fetch(new Request(doUrl.toString()));
-
-        if (doResponse.status === 404) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        console.error("Individual live tracker status error:", error);
-        return new Response(JSON.stringify({ error: "Failed to get tracker status" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
@@ -1161,6 +1123,155 @@ export class Server {
 
     // ─── Individual live tracker viewer routes (no auth required) ──────────────
 
+    this.router.get("/api/individual-live-tracker/:userId/trackers", async (request, env: Env) => {
+      try {
+        const { userId } = request.params as { userId: string };
+        if (userId === "") {
+          return new Response(JSON.stringify({ trackers: [] }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const services = this.installServices({ env });
+        const sessions = await services.databaseService.findIndividualTrackerSessionsByUserId(userId);
+
+        const trackers = sessions.map((session) => ({
+          trackerId: session.TrackerId,
+          gamertag: session.Gamertag,
+          updatedAt: session.UpdatedAt,
+        }));
+
+        return new Response(JSON.stringify({ trackers }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual live tracker list error:", error);
+        return new Response(JSON.stringify({ error: "Failed to list trackers" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.get("/api/individual-live-tracker/:userId/:trackerId/status", async (request, env: Env) => {
+      try {
+        const { userId, trackerId } = request.params as { userId: string; trackerId: string };
+
+        if (userId === "" || trackerId === "") {
+          return new Response(JSON.stringify({ activeTracker: null }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/status";
+        const doResponse = await stub.fetch(new Request(doUrl.toString()));
+
+        if (doResponse.status === 404) {
+          const services = this.installServices({ env });
+          await services.databaseService.deleteIndividualTrackerSession(userId, trackerId);
+
+          return new Response(JSON.stringify({ activeTracker: null }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const doData = await doResponse.json<{ state: unknown }>();
+        return new Response(JSON.stringify({ activeTracker: doData.state }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual live tracker explicit status error:", error);
+        return new Response(JSON.stringify({ error: "Failed to get tracker status" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.get("/api/individual-live-tracker/:userId/statuses", async (request, env: Env) => {
+      try {
+        const { userId } = request.params as { userId: string };
+        if (userId === "") {
+          return new Response(JSON.stringify({ error: "Missing userId" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const url = new URL(request.url);
+        const csvTrackerIds = (url.searchParams.get("trackerIds") ?? "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id !== "");
+        const repeatedTrackerIds = url.searchParams
+          .getAll("trackerId")
+          .map((id) => id.trim())
+          .filter((id) => id !== "");
+
+        const trackerIds = Array.from(new Set([...csvTrackerIds, ...repeatedTrackerIds]));
+
+        if (trackerIds.length === 0) {
+          return new Response(JSON.stringify({ error: "Provide trackerIds query parameter" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        if (trackerIds.length > 50) {
+          return new Response(JSON.stringify({ error: "Maximum 50 trackerIds per request" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const entries = await Promise.all(
+          trackerIds.map(async (trackerId) => {
+            const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
+            const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+            const doUrl = new URL(request.url);
+            doUrl.pathname = "/status";
+            doUrl.search = "";
+
+            const doResponse = await stub.fetch(new Request(doUrl.toString()));
+
+            if (doResponse.status === 404) {
+              const services = this.installServices({ env });
+              await services.databaseService.deleteIndividualTrackerSession(userId, trackerId);
+              return [trackerId, null] as const;
+            }
+
+            if (!doResponse.ok) {
+              throw new Error(`Failed to fetch tracker status (${doResponse.status.toString()})`);
+            }
+
+            const doData = await doResponse.json<{ state: unknown }>();
+            return [trackerId, doData.state] as const;
+          }),
+        );
+
+        return new Response(JSON.stringify({ statuses: Object.fromEntries(entries) }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual live tracker batch status error:", error);
+        return new Response(JSON.stringify({ error: "Failed to get tracker statuses" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.get("/api/individual-live-tracker/:userId/active", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
@@ -1188,8 +1299,9 @@ export class Server {
           });
         }
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
+        const doData = await doResponse.json<{ state: unknown }>();
+        return new Response(JSON.stringify({ activeTracker: doData.state }), {
+          status: 200,
           headers: { "Content-Type": "application/json" },
         });
       } catch (error) {

@@ -10,10 +10,7 @@ interface AddTrackerDialogProps {
   readonly onClose: () => void;
   readonly onSearchGamertag: (query: string) => Promise<TrackerSearchResult | null>;
   readonly onLoadMatches: (xuid: string, start: number, count: number) => Promise<readonly TrackerRecentMatch[]>;
-  readonly onStartTracker: (payload: {
-    gamertag: string;
-    selectedMatchIds: readonly string[];
-  }) => Promise<void>;
+  readonly onStartTracker: (payload: { gamertag: string; selectedMatchIds: readonly string[] }) => Promise<void>;
 }
 
 function formatMatchLabel(match: TrackerRecentMatch): string {
@@ -108,7 +105,13 @@ export function AddTrackerDialog({
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="add-tracker-title">
+    <div
+      className={styles.overlay}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-tracker-title"
+    >
       <div
         className={styles.dialog}
         onClick={(event): void => {
@@ -160,7 +163,9 @@ export function AddTrackerDialog({
 
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>2. Game history selection</h3>
-            <p className={styles.sectionDescription}>Optional — you can skip this section and start with an empty state.</p>
+            <p className={styles.sectionDescription}>
+              Optional — you can skip this section and start with an empty state.
+            </p>
 
             {result == null ? (
               <p className={styles.mutedText}>Search for a gamertag first to load recent matches.</p>

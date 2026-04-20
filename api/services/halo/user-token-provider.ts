@@ -1,3 +1,4 @@
+import { xnet } from "@xboxreplay/xboxlive-auth";
 import { HaloAuthenticationClient, type SpartanTokenProvider } from "halo-infinite-api";
 import type { DateTime } from "luxon";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -23,6 +24,8 @@ interface UserTokenProviderOpts {
 export class UserTokenProvider extends HaloAuthenticationClient implements SpartanTokenProvider {
   private currentSpartanToken: string | null = null;
   private spartanTokenExpiresAt: DateTime | null = null;
+  private currentXstsToken: string | null = null;
+  private xstsTokenExpiresAt: number | undefined;
   private readonly userTokenInfo: {
     accessToken: string;
     refreshToken: string | undefined;
@@ -46,39 +49,36 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
       {
         // Callback to get XSTS token using the user's Microsoft access token
         fetchToken: async () => {
-          const validAccessToken = await this.ensureValidMicrosoftToken();
-          return validAccessToken;
+          const validXstsToken = await this.ensureValidXstsToken();
+          return validXstsToken;
         },
         clearXstsToken: async () => {
-          // No-op: we don't clear during normal operation
+          this.currentXstsToken = null;
+          this.xstsTokenExpiresAt = undefined;
+          return Promise.resolve();
         },
       },
       {
         // Store Spartan tokens in-memory within DO state
-        // eslint-disable-next-line @typescript-eslint/require-await
-        loadToken: async () =>
-          this.currentSpartanToken != null && this.spartanTokenExpiresAt != null
-            ? {
-                token: this.currentSpartanToken,
-                expiresAt: this.spartanTokenExpiresAt,
-              }
-            : null,
-        // eslint-disable-next-line @typescript-eslint/require-await
+        loadToken: async () => {
+          if (this.currentSpartanToken != null && this.spartanTokenExpiresAt != null) {
+            return Promise.resolve({
+              token: this.currentSpartanToken,
+              expiresAt: this.spartanTokenExpiresAt,
+            });
+          }
+          return Promise.resolve(null);
+        },
         saveToken: async (token) => {
           this.currentSpartanToken = token.token;
           // token.expiresAt is a DateTime from HaloAuthenticationClient, store directly
           this.spartanTokenExpiresAt = token.expiresAt as unknown as DateTime;
-          this.logService.debug(
-            "UserTokenProvider: Cached Spartan token",
-            new Map([
-              ["expiresAt", this.spartanTokenExpiresAt.toISO()],
-            ]),
-          );
+          return Promise.resolve();
         },
-        // eslint-disable-next-line @typescript-eslint/require-await
         clearToken: async () => {
           this.currentSpartanToken = null;
           this.spartanTokenExpiresAt = null;
+          return Promise.resolve();
         },
       },
     );
@@ -95,9 +95,33 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     };
   }
 
+  private async ensureValidXstsToken(): Promise<string> {
+    const now = Date.now();
+    const tokenExpiryTime = this.xstsTokenExpiresAt ?? 0;
+    const bufferMs = 5 * 60 * 1000;
+
+    if (this.currentXstsToken != null && tokenExpiryTime > now + bufferMs) {
+      return this.currentXstsToken;
+    }
+
+    const validAccessToken = await this.ensureValidMicrosoftToken();
+    const userAuth = await xnet.exchangeRpsTicketForUserToken(validAccessToken, "d");
+
+    const xsts = await xnet.exchangeTokenForXSTSToken(userAuth.Token, {
+      sandboxId: "RETAIL",
+      XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+    });
+
+    this.currentXstsToken = xsts.Token;
+    const parsedExpiry = Date.parse(xsts.NotAfter);
+    this.xstsTokenExpiresAt = Number.isNaN(parsedExpiry) ? undefined : parsedExpiry;
+
+    return this.currentXstsToken;
+  }
+
   /**
    * Ensure the user's Microsoft access token is valid, refreshing if needed.
-   * Returns the valid access token to be exchanged for XSTS token.
+   * Returns the valid access token to be exchanged for Xbox user/XSTS tokens.
    *
    * Refreshes if:
    * - expiresAt is not set (assume expired)
@@ -118,27 +142,23 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     const hasRefreshToken = refreshTokenValue != null && refreshTokenValue !== "";
     if (hasRefreshToken) {
       try {
-        const refreshResponse = await fetch(
-          "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              grant_type: "refresh_token",
-              refresh_token: refreshTokenValue,
-              client_id: this.clientId,
-              client_secret: this.clientSecret,
-              redirect_uri: this.redirectUri,
-              scope: "openid profile email offline_access XboxLive.signin XboxLive.offline_access",
-            }).toString(),
-          },
-        );
+        const refreshResponse = await fetch("https://login.microsoftonline.com/consumers/oauth2/v2.0/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: refreshTokenValue,
+            client_id: this.clientId,
+            client_secret: this.clientSecret,
+            redirect_uri: this.redirectUri,
+            scope: "openid profile email offline_access XboxLive.signin XboxLive.offline_access",
+          }).toString(),
+        });
 
         if (!refreshResponse.ok) {
           const errorText = await refreshResponse.text();
-          throw new Error(
-            `Microsoft token refresh failed: ${refreshResponse.status.toString()} - ${errorText}`,
-          );
+          const errorMsg = `Microsoft token refresh failed: ${refreshResponse.status.toString()} - ${errorText}`;
+          throw new Error(errorMsg);
         }
 
         const refreshData = await refreshResponse.json<{
@@ -153,13 +173,6 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
         }
         this.userTokenInfo.expiresAt = now + refreshData.expires_in * 1000;
 
-        this.logService.debug(
-          "UserTokenProvider: Refreshed Microsoft access token",
-          new Map([
-            ["expiresInSeconds", refreshData.expires_in.toString()],
-          ]),
-        );
-
         return this.userTokenInfo.accessToken;
       } catch (error) {
         this.logService.error(
@@ -171,8 +184,6 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     }
 
     // No refresh token available; token is expired and cannot be renewed
-    throw new Error(
-      "User token expired and no refresh token available. User must re-authenticate.",
-    );
+    throw new Error("User token expired and no refresh token available. User must re-authenticate.");
   }
 }

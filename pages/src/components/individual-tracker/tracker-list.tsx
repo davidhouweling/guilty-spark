@@ -37,13 +37,7 @@ interface TrackerListProps {
 
 function StatusBadge({ status }: { status: TrackerDisplayStatus }): React.ReactElement {
   const label =
-    status === "active"
-      ? "Active"
-      : status === "paused"
-        ? "Paused"
-        : status === "stopped"
-          ? "Stopped"
-          : "Not started";
+    status === "active" ? "Active" : status === "paused" ? "Paused" : status === "stopped" ? "Stopped" : "Not started";
 
   return (
     <span
@@ -159,7 +153,7 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
       ) : (
         <div className={styles.list}>
           {items.map((item) => (
-            <TrackerRow key={item.gamertag} item={item} actions={getActions(item)} />
+            <TrackerRow key={item.trackerId ?? `pinned-${item.gamertag}`} item={item} actions={getActions(item)} />
           ))}
         </div>
       )}
