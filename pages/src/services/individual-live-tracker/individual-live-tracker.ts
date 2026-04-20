@@ -13,6 +13,8 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  PauseTrackerResponse,
+  ResumeTrackerResponse,
   TrackerListResponse,
   TrackerStatusResponse,
   TrackerSearchResult,
@@ -196,6 +198,47 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
     });
 
     return response.json<StopTrackerResponse>();
+  }
+
+  public async pauseTracker(trackerId: string): Promise<PauseTrackerResponse> {
+    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/pause`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    return response.json<PauseTrackerResponse>();
+  }
+
+  public async resumeTracker(trackerId: string): Promise<ResumeTrackerResponse> {
+    const response = await fetch(
+      `${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/resume`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+
+    return response.json<ResumeTrackerResponse>();
+  }
+
+  public async selectLiveTracker(trackerId: string): Promise<void> {
+    await fetch(`${this.apiHost}/api/individual-live-tracker/select-active`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackerId }),
+    });
+  }
+
+  public async deleteTracker(trackerId: string): Promise<void> {
+    await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
   }
 
   public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {

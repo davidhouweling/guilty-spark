@@ -50,6 +50,20 @@ export interface StopTrackerSuccessResponse {
 
 export type StopTrackerResponse = StopTrackerSuccessResponse;
 
+export interface PauseTrackerSuccessResponse {
+  success: true;
+  state: IndividualTrackerState;
+}
+
+export type PauseTrackerResponse = PauseTrackerSuccessResponse;
+
+export interface ResumeTrackerSuccessResponse {
+  success: true;
+  state: IndividualTrackerState;
+}
+
+export type ResumeTrackerResponse = ResumeTrackerSuccessResponse;
+
 export interface TrackerStatusResponse {
   activeTracker: IndividualTrackerState | null;
 }
@@ -94,6 +108,10 @@ export interface IndividualTrackerConnection {
 export interface IndividualLiveTrackerService {
   startTracker(opts: StartTrackerRequest): Promise<StartTrackerResponse>;
   stopTracker(trackerId: string): Promise<StopTrackerResponse>;
+  pauseTracker(trackerId: string): Promise<PauseTrackerResponse>;
+  resumeTracker(trackerId: string): Promise<ResumeTrackerResponse>;
+  selectLiveTracker(trackerId: string): Promise<void>;
+  deleteTracker(trackerId: string): Promise<void>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
   getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]>;
   addMatchToTracker(trackerId: string, matchId: string): Promise<void>;

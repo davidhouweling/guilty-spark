@@ -9,6 +9,8 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  PauseTrackerResponse,
+  ResumeTrackerResponse,
   TrackerListResponse,
   TrackerStatusResponse,
   TrackerRecentMatch,
@@ -122,6 +124,28 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
 
     const state = aFakeIndividualTrackerStateWith({ status: "stopped" });
     return Promise.resolve({ success: true, state });
+  }
+
+  public async pauseTracker(trackerId: string): Promise<PauseTrackerResponse> {
+    void trackerId;
+    const state = aFakeIndividualTrackerStateWith({ status: "paused" });
+    return Promise.resolve({ success: true, state });
+  }
+
+  public async resumeTracker(trackerId: string): Promise<ResumeTrackerResponse> {
+    void trackerId;
+    const state = aFakeIndividualTrackerStateWith({ status: "active" });
+    return Promise.resolve({ success: true, state });
+  }
+
+  public async selectLiveTracker(trackerId: string): Promise<void> {
+    void trackerId;
+    return Promise.resolve();
+  }
+
+  public async deleteTracker(trackerId: string): Promise<void> {
+    void trackerId;
+    return Promise.resolve();
   }
 
   public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {

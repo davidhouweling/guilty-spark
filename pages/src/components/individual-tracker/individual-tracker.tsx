@@ -302,6 +302,87 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
     [individualLiveTrackerService, refresh],
   );
 
+  const pauseTracker = useCallback(
+    async (trackerId: string): Promise<void> => {
+      setBusy(true);
+      setErrorMessage(null);
+
+      try {
+        const result = await individualLiveTrackerService.pauseTracker(trackerId);
+        setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
+        if (activeTracker?.trackerId === trackerId) {
+          setActiveTracker(result.state);
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to pause tracker.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeTracker?.trackerId, individualLiveTrackerService],
+  );
+
+  const resumeTracker = useCallback(
+    async (trackerId: string): Promise<void> => {
+      setBusy(true);
+      setErrorMessage(null);
+
+      try {
+        const result = await individualLiveTrackerService.resumeTracker(trackerId);
+        setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
+        if (activeTracker?.trackerId === trackerId) {
+          setActiveTracker(result.state);
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to resume tracker.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeTracker?.trackerId, individualLiveTrackerService],
+  );
+
+  const selectLiveTracker = useCallback(
+    async (trackerId: string): Promise<void> => {
+      setBusy(true);
+      setErrorMessage(null);
+
+      try {
+        await individualLiveTrackerService.selectLiveTracker(trackerId);
+        await refresh();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to set live tracker.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [individualLiveTrackerService, refresh],
+  );
+
+  const deleteTracker = useCallback(
+    async (trackerId: string): Promise<void> => {
+      if (!window.confirm("Delete this tracker? This cannot be undone.")) {
+        return;
+      }
+
+      setBusy(true);
+      setErrorMessage(null);
+
+      try {
+        await individualLiveTrackerService.deleteTracker(trackerId);
+        if (activeTracker?.trackerId === trackerId) {
+          setActiveTracker(null);
+        }
+        await refresh();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to delete tracker.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeTracker?.trackerId, individualLiveTrackerService, refresh],
+  );
+
   const signIn = useCallback(async (): Promise<void> => {
     setErrorMessage(null);
 
@@ -337,9 +418,11 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       if (hasMultipleTrackers && !item.isLive) {
         actions.push({
           label: "Set as live",
-          disabled: true,
+          disabled: busy || item.trackerId == null,
           onClick: (): void => {
-            // Phase 3: wire select-live endpoint.
+            if (item.trackerId != null) {
+              void selectLiveTracker(item.trackerId);
+            }
           },
         });
       }
@@ -356,9 +439,11 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       if (item.status === "active") {
         actions.push({
           label: "Pause",
-          disabled: true,
+          disabled: busy || item.trackerId == null,
           onClick: (): void => {
-            // Phase 3: wire pause endpoint.
+            if (item.trackerId != null) {
+              void pauseTracker(item.trackerId);
+            }
           },
         });
       }
@@ -366,9 +451,11 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       if (item.status === "paused") {
         actions.push({
           label: "Resume",
-          disabled: true,
+          disabled: busy || item.trackerId == null,
           onClick: (): void => {
-            // Phase 3: wire resume endpoint.
+            if (item.trackerId != null) {
+              void resumeTracker(item.trackerId);
+            }
           },
         });
       }
@@ -405,16 +492,28 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         actions.push({
           label: "Delete tracker",
           destructive: true,
-          disabled: true,
+          disabled: busy || item.trackerId == null,
           onClick: (): void => {
-            // Phase 3: wire delete endpoint.
+            if (item.trackerId != null) {
+              void deleteTracker(item.trackerId);
+            }
           },
         });
       }
 
       return actions;
     },
-    [busy, hasMultipleTrackers, startTracker, stopTracker, xboxGamertag],
+    [
+      busy,
+      deleteTracker,
+      hasMultipleTrackers,
+      pauseTracker,
+      resumeTracker,
+      selectLiveTracker,
+      startTracker,
+      stopTracker,
+      xboxGamertag,
+    ],
   );
 
   if (loading) {

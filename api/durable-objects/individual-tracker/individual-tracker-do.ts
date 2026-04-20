@@ -11,6 +11,8 @@ import {
   type IndividualTrackerStartRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
+  type IndividualTrackerPauseResponse,
+  type IndividualTrackerResumeResponse,
   type IndividualTrackerStatusResponse,
   type IndividualTrackerGamesAddResponse,
   type IndividualTrackerGamesRemoveResponse,
@@ -59,6 +61,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "stop": {
             return await this.handleStop(request);
+          }
+          case "pause": {
+            return await this.handlePause(request);
+          }
+          case "resume": {
+            return await this.handleResume(request);
           }
           case "status": {
             return await this.handleStatus();
@@ -221,6 +229,66 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const stoppedState = { ...trackerState, status: "stopped" as const };
     const response: IndividualTrackerStopResponse = { success: true, state: sanitizeTrackerState(stoppedState) };
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handlePause(request: Request): Promise<Response> {
+    const body = await request.json<{ userId: string }>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    if (trackerState.status !== "active") {
+      return new Response(JSON.stringify({ error: "Tracker is not active" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const pausedState: IndividualTrackerState = { ...trackerState, status: "paused", isPaused: true };
+    await this.setState(pausedState);
+    await this.state.storage.deleteAlarm();
+
+    const response: IndividualTrackerPauseResponse = { success: true, state: sanitizeTrackerState(pausedState) };
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handleResume(request: Request): Promise<Response> {
+    const body = await request.json<{ userId: string }>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    if (trackerState.status !== "paused") {
+      return new Response(JSON.stringify({ error: "Tracker is not paused" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const resumedState: IndividualTrackerState = {
+      ...trackerState,
+      status: "active",
+      isPaused: false,
+      // Reset idle clock so a freshly-resumed tracker doesn't immediately hit the idle timeout.
+      lastMatchDiscoveredAt: new Date().toISOString(),
+    };
+    await this.setState(resumedState);
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+
+    const response: IndividualTrackerResumeResponse = { success: true, state: sanitizeTrackerState(resumedState) };
     return Response.json(response, { status: 200 });
   }
 

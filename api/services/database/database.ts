@@ -308,6 +308,12 @@ export class DatabaseService {
     await stmt.run();
   }
 
+  async deleteIndividualTrackerActiveSession(userId: string): Promise<void> {
+    const query = "DELETE FROM IndividualTrackerActiveSessions WHERE UserId = ?";
+    const stmt = this.DB.prepare(query).bind(userId);
+    await stmt.run();
+  }
+
   async findLinkedIdentitiesByUserId(userId: string): Promise<LinkedIdentitiesRow[]> {
     const query = "SELECT * FROM LinkedIdentities WHERE UserId = ? ORDER BY CreatedAt DESC";
     const stmt = this.DB.prepare(query).bind(userId);

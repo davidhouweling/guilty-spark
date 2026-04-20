@@ -137,6 +137,20 @@ export interface IndividualTrackerStopSuccessResponse {
 
 export type IndividualTrackerStopResponse = IndividualTrackerStopSuccessResponse;
 
+export interface IndividualTrackerPauseSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerPauseResponse = IndividualTrackerPauseSuccessResponse;
+
+export interface IndividualTrackerResumeSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerResumeResponse = IndividualTrackerResumeSuccessResponse;
+
 export interface IndividualTrackerStatusSuccessResponse {
   state: IndividualTrackerStateSanitized;
 }
