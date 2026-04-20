@@ -8,7 +8,6 @@ import { FakeAuthService } from "../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerScenarioWith } from "../../services/live-tracker/fakes/scenario";
 import { FakeIndividualTrackerService } from "../../services/individual-tracker/fakes/individual-tracker.fake";
-import { FakeIndividualLiveTrackerService } from "../../services/individual-live-tracker/fakes/individual-live-tracker.fake";
 import { IndividualTrackerFactory } from "../../components/individual-tracker/create";
 
 describe("/individual-tracker page wiring", () => {
@@ -22,7 +21,6 @@ describe("/individual-tracker page wiring", () => {
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
       individualTrackerService: new FakeIndividualTrackerService(),
-      individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
     };
 
     render(<IndividualTrackerFactory services={services} />);

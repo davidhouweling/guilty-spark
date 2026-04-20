@@ -18,7 +18,7 @@ Implemented high-level flow:
 ```
 Frontend (authenticated user)
   ↓ includes session-backed token context on start
-Backend /api/individual-live-tracker/start (validates session, forwards user token context)
+Backend /api/individual-tracker/manage/start (validates session, forwards user token context)
   ↓
 Durable Object (stores token context in state for runtime)
   ↓
@@ -77,7 +77,7 @@ export interface IndividualTrackerStartRequest {
 
 ### 2. **Backend extracts tokens from session and includes in start payload**
 
-[api/server.ts](api/server.ts#L950-L980) (in `/api/individual-live-tracker/start` handler):
+[api/server.ts](api/server.ts#L950-L980) (in `/api/individual-tracker/manage/start` handler):
 
 ```typescript
 const session = await services.authService.validateSession(request);
@@ -538,7 +538,7 @@ export interface IndividualTrackerState {
 ### Phase 1: Backend Token Passing (Frontend → DO)
 
 - [x] Extend `IndividualTrackerStartRequest` with user tokens
-- [x] Update `/api/individual-live-tracker/start` to extract tokens from session
+- [x] Update `/api/individual-tracker/manage/start` to extract tokens from session
 - [x] Update DO `handleStart` to accept and store user tokens
 
 ### Phase 2: Custom Token Provider

@@ -1,6 +1,6 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 in progress
+**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 in progress
 **Date**: April 7, 2026 (UX decisions recorded: April 12, 2026)
 
 ## Goal
@@ -208,17 +208,17 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 
 > All control-plane routes require a valid session cookie. The session user ID must match the profile owner.
 
-- [x] `POST /api/individual-live-tracker/start` — create a new active tracker for the signed-in user; resolves XUID from the linked identity; returns a `trackerId`
-- [x] `POST /api/individual-live-tracker/:trackerId/stop` — stop a specific active tracker owned by the signed-in user
-- [ ] `POST /api/individual-live-tracker/:trackerId/pause` — pause a specific active tracker (alarm suspended, DO remains resident)
-- [ ] `POST /api/individual-live-tracker/:trackerId/resume` — resume a paused tracker (re-enable alarm)
-- [x] `GET /api/individual-live-tracker/:userId/trackers` — list running tracker references for a user (trackerId + gamertag + updatedAt)
-- [x] `GET /api/individual-live-tracker/:userId/statuses` — batch status lookup for explicit tracker IDs (currently internal/client-service utility)
-- [x] `GET /api/individual-live-tracker/:userId/active` — resolve the current active tracker for a given user without relying on an implicit session-scoped lookup
-- [x] `GET /api/individual-live-tracker/:userId/:trackerId/status` — resolve a specific tracker instance explicitly by identifier
-- [ ] `POST /api/individual-live-tracker/select-active` — mark one tracker as the current on-stream presenter
-- [x] `POST /api/individual-live-tracker/:trackerId/games:add` — add a past match into the active tracker
-- [x] `POST /api/individual-live-tracker/:trackerId/games:remove` — remove a match from the active tracker
+- [x] `POST /api/individual-tracker/manage/start` — create a new active tracker for the signed-in user; resolves XUID from the linked identity; returns a `trackerId`
+- [x] `POST /api/individual-tracker/:trackerId/stop` — stop a specific active tracker owned by the signed-in user
+- [x] `POST /api/individual-tracker/:trackerId/pause` — pause a specific active tracker (alarm suspended, DO remains resident)
+- [x] `POST /api/individual-tracker/:trackerId/resume` — resume a paused tracker (re-enable alarm)
+- [x] `GET /api/individual-tracker/manage/:userId/trackers` — list running tracker references for a user (trackerId + gamertag + updatedAt)
+- [x] `GET /api/individual-tracker/manage/:userId/statuses` — batch status lookup for explicit tracker IDs (currently internal/client-service utility)
+- [x] `GET /api/individual-tracker/manage/:userId/active` — resolve the current active tracker for a given user without relying on an implicit session-scoped lookup
+- [x] `GET /api/individual-tracker/manage/:userId/:trackerId/status` — resolve a specific tracker instance explicitly by identifier
+- [x] `POST /api/individual-tracker/manage/select-active` — mark one tracker as the current on-stream presenter
+- [x] `POST /api/individual-tracker/:trackerId/games:add` — add a past match into the active tracker
+- [x] `POST /api/individual-tracker/:trackerId/games:remove` — remove a match from the active tracker
 - [ ] `GET /api/halo/gamertag-search?q=<query>` — gamertag autocomplete (Xbox endpoint if available, exact match fallback)
 
 #### Proposed start request
@@ -278,7 +278,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 - [x] `GET /ws/individual-tracker/:userId/:trackerId` — WebSocket for a specific active tracker
 - [x] `GET /ws/individual-tracker/:userId/active` — WebSocket that resolves to the current on-stream tracker
-- [x] `GET /api/individual-live-tracker/:userId/active` — REST status of the current on-stream tracker (for initial render before WebSocket upgrade)
+- [x] `GET /api/individual-tracker/manage/:userId/active` — REST status of the current on-stream tracker (for initial render before WebSocket upgrade)
 
 ## UI plan
 
@@ -337,7 +337,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] `individual_tracker_games` D1 schema defined and ready for manual execution.
 - [x] Create/read/update profile endpoints.
 - [x] Persist selected/removed games.
-- [ ] FE integration with optimistic updates — removed; pending Phase 3 kickoff.
+- [x] FE integration for core tracker control delivered; optimistic updates were intentionally not adopted for this phase.
 
 ### Phase 3 - Individual live tracker architecture and UX alignment
 
@@ -518,9 +518,9 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 
 ### Backend API additions needed
 
-- `POST /api/individual-live-tracker/:trackerId/pause` — pause a specific tracker.
-- `POST /api/individual-live-tracker/:trackerId/resume` — resume a paused tracker.
-- `POST /api/individual-live-tracker/select-active` — mark one tracker as the on-stream live tracker (already listed, not yet implemented).
+- `POST /api/individual-tracker/:trackerId/pause` — pause a specific tracker.
+- `POST /api/individual-tracker/:trackerId/resume` — resume a paused tracker.
+- `POST /api/individual-tracker/manage/select-active` — mark one tracker as the on-stream live tracker.
 - `GET /api/halo/gamertag-search?q=<query>` — gamertag autocomplete proxy (Xbox endpoint if available, exact match fallback).
 - Interim implementation note: current Add Tracker search uses `POST /proxy/halo-infinite` with `getUser` + `getUserServiceRecord`; dedicated autocomplete endpoint remains planned.
 
@@ -553,7 +553,7 @@ Implementation will proceed in individual committed phases:
 
 1. [x] **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
 2. [x] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
-3. [ ] **Row actions** — ellipsis menu with all actions wired to backend (add pause/resume endpoints as needed).
+3. [x] **Row actions** — ellipsis menu with all actions wired to backend (pause, resume, set live, delete).
 4. [ ] **Game selection sync dialog** — sync-on-close behaviour.
 5. [ ] **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
 6. [ ] **Streamer connections + additional options** — Twitch linking UI, auto-start/stop config, additional toggles.
@@ -564,15 +564,16 @@ Each phase is committed separately with the proposal document updated to reflect
 
 - [x] Phase 1 committed: introduced the new 3-section shell and live tracker list UI foundation, plus session payload support for linked `xboxGamertag`.
 - [x] Phase 2 committed: Add Tracker dialog with gamertag search (proxy-backed), service record preview, recent-match loading (25 + load more), optional selection, and start flow wiring.
-- [~] Phase 3 scaffold committed: row action availability and menu structure aligned to UX spec; backend endpoints pending for pause/resume/select-live/delete and game-selection sync dialog.
+- [x] Phase 3 completed: row actions wired end-to-end (pause, resume, set live, delete) against consolidated individual tracker routes.
 - [x] Runtime list hydration update: tracker list now resolves from explicit runtime references plus status hydration, with one service call for list + statuses.
 - [x] Explicit status model update: removed implicit owner-only status bootstrap in favor of explicit user/tracker routes.
+- [x] Frontend service consolidation: individual tracker profile + runtime APIs now use a single consolidated service interface and fake implementation.
 
 ### Current operator note - View tracker behavior
 
 Current behavior is expected for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>`, but there is not yet a distinct viewer-mode panel/state switch wired to that query param. In practice, this means navigation occurs but does not yet present a meaningfully different tracker-view experience.
 
-This is part of ongoing Phase 3/Phase 4 work (viewer-mode UX and row-action wiring beyond route navigation).
+This is part of ongoing Phase 4 work (viewer-mode UX beyond route navigation).
 
 ---
 
@@ -607,7 +608,7 @@ Decision: Approach B selected; individual tracker UI now boots from REST and str
 ## Setup notes for David
 
 - Database: ensure new columns/table for individual tracker sessions are applied in D1 before validating start/stop behavior.
-- Routes: ensure deployed `wrangler.jsonc` includes `api/individual-live-tracker/*` and `ws/individual-tracker/*` entries in target environment.
+- Routes: ensure deployed `wrangler.jsonc` includes `api/individual-tracker/*` and `ws/individual-tracker/*` entries in target environment.
 - Session data: verify local `.dev.vars` has Microsoft OAuth values and Halo proxy credentials configured.
 - Next manual validation: sign in, create/update profile, start tracker with idle timeout, verify live state updates, then stop tracker.
 
@@ -618,7 +619,7 @@ Please run this quick checklist and share outcomes (pass/fail plus any response 
 1. Start tracker from pinned gamertag and from an alternate searched gamertag.
 2. Confirm tracker list updates immediately and shows expected status badges.
 3. Confirm stop sets status to stopped and tracker runtime entry is removed from running list.
-4. Confirm refresh/reload preserves running trackers via `/api/individual-live-tracker/:userId/trackers`.
+4. Confirm refresh/reload preserves running trackers via `/api/individual-tracker/manage/:userId/trackers`.
 5. Confirm "View" currently only changes URL query (`?tracker=`) with no richer viewer mode yet (expected current-stage behavior).
 6. Optional but useful: share one server log block from start flow and one from a stop flow so we can confirm route/DO pathing in your environment.
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "../button/button";
 import { Input } from "../input/input";
-import type { TrackerRecentMatch, TrackerSearchResult } from "../../services/individual-live-tracker/types";
+import type { TrackerRecentMatch, TrackerSearchResult } from "../../services/individual-tracker/types";
 import styles from "./add-tracker-dialog.module.css";
 
 interface AddTrackerDialogProps {

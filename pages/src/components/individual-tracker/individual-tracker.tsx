@@ -104,7 +104,7 @@ function AdditionalOptionsPanel(): React.ReactElement {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IndividualTrackerView({ services }: IndividualTrackerViewProps): React.ReactElement {
-  const { authService, individualLiveTrackerService } = services;
+  const { authService, individualTrackerService } = services;
 
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [activeSection, setActiveSection] = useState<IndividualTrackerSectionId>("live-trackers");
@@ -172,8 +172,8 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setXboxGamertag(session.xboxGamertag ?? null);
 
       const [trackerListResponse, activeStatusResponse] = await Promise.all([
-        individualLiveTrackerService.getTrackers(session.userId),
-        individualLiveTrackerService.getActiveTrackerState(session.userId),
+        individualTrackerService.getTrackers(session.userId),
+        individualTrackerService.getActiveTrackerState(session.userId),
       ]);
 
       setRunningTrackers(
@@ -186,7 +186,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
     } finally {
       setLoading(false);
     }
-  }, [authService, individualLiveTrackerService]);
+  }, [authService, individualTrackerService]);
 
   useEffect(() => {
     void refresh();
@@ -200,7 +200,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
 
     // Capture trackerId at setup time; effect reruns when it changes
     const liveTrackerId = activeTracker.trackerId;
-    const connection = individualLiveTrackerService.connectToTracker(userId, liveTrackerId);
+    const connection = individualTrackerService.connectToTracker(userId, liveTrackerId);
 
     const stateSubscription = connection.subscribe((state) => {
       setActiveTracker(state);
@@ -225,7 +225,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       statusSubscription.unsubscribe();
       connection.disconnect();
     };
-  }, [activeTracker?.trackerId, individualLiveTrackerService, userId]);
+  }, [activeTracker?.trackerId, individualTrackerService, userId]);
 
   // Polling effect: refresh non-live tracker statuses on a fixed interval
   useEffect(() => {
@@ -241,7 +241,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         return;
       }
 
-      const response = await individualLiveTrackerService.getTrackers(userId);
+      const response = await individualTrackerService.getTrackers(userId);
       setRunningTrackers(response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })));
       setTrackerStatuses((prev) => ({ ...prev, ...response.statuses }));
     };
@@ -251,7 +251,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
     return (): void => {
       clearInterval(intervalId);
     };
-  }, [userId, individualLiveTrackerService]);
+  }, [userId, individualTrackerService]);
 
   const startTracker = useCallback(
     async (gamertag?: string): Promise<IndividualTrackerState | null> => {
@@ -259,7 +259,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        const result = await individualLiveTrackerService.startTracker({
+        const result = await individualTrackerService.startTracker({
           idleTimeoutHours: 1,
           ...(gamertag != null ? { gamertag } : {}),
         });
@@ -280,7 +280,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [individualLiveTrackerService, refresh],
+    [individualTrackerService, refresh],
   );
 
   const stopTracker = useCallback(
@@ -289,7 +289,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        const result = await individualLiveTrackerService.stopTracker(trackerId);
+        const result = await individualTrackerService.stopTracker(trackerId);
         setActiveTracker(result.state);
         setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
         await refresh();
@@ -299,7 +299,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [individualLiveTrackerService, refresh],
+    [individualTrackerService, refresh],
   );
 
   const pauseTracker = useCallback(
@@ -308,7 +308,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        const result = await individualLiveTrackerService.pauseTracker(trackerId);
+        const result = await individualTrackerService.pauseTracker(trackerId);
         setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
         if (activeTracker?.trackerId === trackerId) {
           setActiveTracker(result.state);
@@ -319,7 +319,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [activeTracker?.trackerId, individualLiveTrackerService],
+    [activeTracker?.trackerId, individualTrackerService],
   );
 
   const resumeTracker = useCallback(
@@ -328,7 +328,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        const result = await individualLiveTrackerService.resumeTracker(trackerId);
+        const result = await individualTrackerService.resumeTracker(trackerId);
         setTrackerStatuses((prev) => ({ ...prev, [result.state.trackerId]: result.state }));
         if (activeTracker?.trackerId === trackerId) {
           setActiveTracker(result.state);
@@ -339,7 +339,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [activeTracker?.trackerId, individualLiveTrackerService],
+    [activeTracker?.trackerId, individualTrackerService],
   );
 
   const selectLiveTracker = useCallback(
@@ -348,7 +348,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        await individualLiveTrackerService.selectLiveTracker(trackerId);
+        await individualTrackerService.selectLiveTracker(trackerId);
         await refresh();
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Failed to set live tracker.");
@@ -356,7 +356,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [individualLiveTrackerService, refresh],
+    [individualTrackerService, refresh],
   );
 
   const deleteTracker = useCallback(
@@ -369,7 +369,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
       setErrorMessage(null);
 
       try {
-        await individualLiveTrackerService.deleteTracker(trackerId);
+        await individualTrackerService.deleteTracker(trackerId);
         if (activeTracker?.trackerId === trackerId) {
           setActiveTracker(null);
         }
@@ -380,7 +380,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
         setBusy(false);
       }
     },
-    [activeTracker?.trackerId, individualLiveTrackerService, refresh],
+    [activeTracker?.trackerId, individualTrackerService, refresh],
   );
 
   const signIn = useCallback(async (): Promise<void> => {
@@ -594,8 +594,8 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
             setIsAddDialogOpen(false);
           }
         }}
-        onSearchGamertag={async (query) => individualLiveTrackerService.searchGamertag(query)}
-        onLoadMatches={async (xuid, start, count) => individualLiveTrackerService.getRecentMatches(xuid, start, count)}
+        onSearchGamertag={async (query) => individualTrackerService.searchGamertag(query)}
+        onLoadMatches={async (xuid, start, count) => individualTrackerService.getRecentMatches(xuid, start, count)}
         onStartTracker={async ({ gamertag, selectedMatchIds }): Promise<void> => {
           const state = await startTracker(gamertag);
           if (state == null) {
@@ -603,7 +603,7 @@ export function IndividualTrackerView({ services }: IndividualTrackerViewProps):
           }
 
           for (const matchId of selectedMatchIds) {
-            await individualLiveTrackerService.addMatchToTracker(state.trackerId, matchId);
+            await individualTrackerService.addMatchToTracker(state.trackerId, matchId);
           }
 
           setIsAddDialogOpen(false);

@@ -897,7 +897,7 @@ export class Server {
 
     // ─── Individual live tracker control routes ────────────────────────────────
 
-    this.router.post("/api/individual-live-tracker/start", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/manage/start", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
@@ -997,7 +997,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/:trackerId/stop", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/:trackerId/stop", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1037,7 +1037,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/:trackerId/pause", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/:trackerId/pause", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1073,7 +1073,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/:trackerId/resume", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/:trackerId/resume", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1109,7 +1109,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/select-active", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/manage/select-active", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
@@ -1150,7 +1150,7 @@ export class Server {
       }
     });
 
-    this.router.delete("/api/individual-live-tracker/:trackerId", async (request, env: Env) => {
+    this.router.delete("/api/individual-tracker/:trackerId", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1184,7 +1184,7 @@ export class Server {
         if (activeSession?.TrackerId === trackerId) {
           // Pick the next available running tracker as the new active, or clear.
           const remaining = await services.databaseService.findIndividualTrackerSessionsByUserId(session.userId);
-          const next = remaining[0];
+          const [next] = remaining;
           if (next != null) {
             await services.databaseService.upsertIndividualTrackerActiveSession(session.userId, next.TrackerId);
           } else {
@@ -1205,7 +1205,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/:trackerId/games:add", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/:trackerId/games:add", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1247,7 +1247,7 @@ export class Server {
       }
     });
 
-    this.router.post("/api/individual-live-tracker/:trackerId/games:remove", async (request, env: Env) => {
+    this.router.post("/api/individual-tracker/:trackerId/games:remove", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
@@ -1291,7 +1291,7 @@ export class Server {
 
     // ─── Individual live tracker viewer routes (no auth required) ──────────────
 
-    this.router.get("/api/individual-live-tracker/:userId/trackers", async (request, env: Env) => {
+    this.router.get("/api/individual-tracker/manage/:userId/trackers", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
         if (userId === "") {
@@ -1323,7 +1323,7 @@ export class Server {
       }
     });
 
-    this.router.get("/api/individual-live-tracker/:userId/:trackerId/status", async (request, env: Env) => {
+    this.router.get("/api/individual-tracker/manage/:userId/:trackerId/status", async (request, env: Env) => {
       try {
         const { userId, trackerId } = request.params as { userId: string; trackerId: string };
 
@@ -1365,7 +1365,7 @@ export class Server {
       }
     });
 
-    this.router.get("/api/individual-live-tracker/:userId/statuses", async (request, env: Env) => {
+    this.router.get("/api/individual-tracker/manage/:userId/statuses", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
         if (userId === "") {
@@ -1440,7 +1440,7 @@ export class Server {
       }
     });
 
-    this.router.get("/api/individual-live-tracker/:userId/active", async (request, env: Env) => {
+    this.router.get("/api/individual-tracker/manage/:userId/active", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
         const services = this.installServices({ env });

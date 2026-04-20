@@ -13,7 +13,6 @@ import type { LiveTrackerSnapshot, LiveTrackerStore } from "../live-tracker-stor
 import type { Services } from "../../../services/types";
 import { FakeAuthService } from "../../../services/auth/fakes/auth.fake";
 import { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
-import { FakeIndividualLiveTrackerService } from "../../../services/individual-live-tracker/fakes/individual-live-tracker.fake";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
@@ -130,7 +129,6 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
         authService: new FakeAuthService(),
         liveTrackerService: mockService,
         individualTrackerService: new FakeIndividualTrackerService(),
-        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       } as Services,
       store: mockStore as unknown as LiveTrackerStore,
     });
@@ -205,7 +203,6 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
         authService: new FakeAuthService(),
         liveTrackerService: mockService,
         individualTrackerService: new FakeIndividualTrackerService(),
-        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       } as Services,
       store: mockStore as unknown as LiveTrackerStore,
     });
@@ -258,7 +255,6 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
         authService: new FakeAuthService(),
         liveTrackerService: mockService,
         individualTrackerService: new FakeIndividualTrackerService(),
-        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       } as Services,
       store: mockStore as unknown as LiveTrackerStore,
     });
