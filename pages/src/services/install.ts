@@ -1,3 +1,4 @@
+import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { RealAuthService } from "./auth/auth";
 import { RealLiveTrackerService } from "./live-tracker/live-tracker";
 import { RealIndividualTrackerService } from "./individual-tracker/individual-tracker";
@@ -18,9 +19,32 @@ export async function installServices(apiHost: string): Promise<Services> {
     return import("./install.fake").then(async ({ installFakeServices }) => installFakeServices());
   }
 
+  let latestSpartanToken: string | null = null;
+
+  const authService = new RealAuthService({
+    apiHost,
+    onSessionResolved: (session): void => {
+      latestSpartanToken = session.spartanToken ?? null;
+    },
+  });
+
+  const haloInfiniteClient = createHaloInfiniteClientProxy({
+    proxyBaseUrl: apiHost,
+    credentials: "include",
+    additionalHeaders: () => {
+      const headers = new Headers();
+      if (latestSpartanToken == null || latestSpartanToken === "") {
+        return headers;
+      }
+
+      headers.set("x-343-authorization-spartan", latestSpartanToken);
+      return headers;
+    },
+  });
+
   return {
-    authService: new RealAuthService({ apiHost }),
+    authService,
     liveTrackerService: new RealLiveTrackerService({ apiHost }),
-    individualTrackerService: new RealIndividualTrackerService({ apiHost }),
+    individualTrackerService: new RealIndividualTrackerService({ apiHost, haloInfiniteClient }),
   };
 }

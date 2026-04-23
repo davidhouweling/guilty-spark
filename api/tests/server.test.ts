@@ -281,6 +281,7 @@ describe("Server", () => {
         expiresAt: number;
         avatarUrl: null;
         xboxGamertag: string | null;
+        spartanToken: string | null;
       }>();
       expect(body).toEqual({
         authenticated: true,
@@ -288,6 +289,7 @@ describe("Server", () => {
         expiresAt,
         avatarUrl: null,
         xboxGamertag: null,
+        spartanToken: null,
       });
     });
 
@@ -339,6 +341,7 @@ describe("Server", () => {
         expiresAt,
         avatarUrl: "https://images.example.com/xlarge.png",
         xboxGamertag: "TesterOne",
+        spartanToken: null,
       });
     });
 

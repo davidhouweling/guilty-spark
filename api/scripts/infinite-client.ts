@@ -2,9 +2,9 @@ import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
+import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { createFileBackedKVNamespace } from "../base/fakes/namespace-to-file";
-import { createHaloInfiniteClientProxy } from "../services/halo/halo-infinite-client-proxy";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +16,10 @@ const env = aFakeEnvWith({
   PROXY_WORKER_TOKEN: process.env.PROXY_WORKER_TOKEN,
 });
 
-const client = createHaloInfiniteClientProxy({ env });
+const client = createHaloInfiniteClientProxy({
+  proxyBaseUrl: env.PROXY_WORKER_URL,
+  authToken: env.PROXY_WORKER_TOKEN,
+});
 
 const user = await client.getUser("soundmanD");
 await writeFile(path.join(__dirname, "user.json"), JSON.stringify(user, null, 2));

@@ -1,6 +1,8 @@
 import type { AutoRouterType } from "itty-router";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import type { SpartanTokenProvider } from "halo-infinite-api";
 import { isRecord } from "@guilty-spark/shared/base/json-readers";
+import { UserTokenProvider } from "./services/halo/user-token-provider";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
@@ -394,6 +396,28 @@ export class Server {
 
         const xboxGamertag = selectedXboxIdentity?.Gamertag ?? null;
 
+        let spartanToken: string | null = null;
+        const includeSpartanToken = request.headers.get("x-include-spartan-token") === "true";
+
+        if (includeSpartanToken) {
+          try {
+            const userTokenProvider = new UserTokenProvider({
+              userMicrosoftAccessToken: session.accessToken,
+              userMicrosoftRefreshToken: session.refreshToken,
+              userMicrosoftAccessTokenExpiresAt: session.expiresAt,
+              clientId: env.MICROSOFT_CLIENT_ID,
+              clientSecret: env.MICROSOFT_CLIENT_SECRET,
+              redirectUri: env.MICROSOFT_REDIRECT_URI,
+              logService: services.logService,
+            });
+
+            spartanToken = await userTokenProvider.getSpartanToken();
+          } catch {
+            // Best-effort for frontend proxy pass-through; session remains valid without this.
+            spartanToken = null;
+          }
+        }
+
         return new Response(
           JSON.stringify({
             authenticated: true,
@@ -401,6 +425,7 @@ export class Server {
             expiresAt: session.expiresAt,
             avatarUrl,
             xboxGamertag,
+            spartanToken,
           }),
           {
             status: 200,
@@ -1691,8 +1716,17 @@ export class Server {
           return new Response(`Method not allowed: ${method}`, { status: 403 });
         }
 
+        const spartanHeader = request.headers.get("x-343-authorization-spartan");
+
         let haloInfiniteClient: HaloInfiniteClient;
-        if (sessionAccessToken !== null) {
+        if (spartanHeader != null && spartanHeader !== "") {
+          const spartanTokenProvider: SpartanTokenProvider = {
+            getSpartanToken: async () => Promise.resolve(spartanHeader),
+            getCurrentExpiration: async () => Promise.resolve(null),
+            clearSpartanToken: async () => Promise.resolve(),
+          };
+          haloInfiniteClient = new HaloInfiniteClient(spartanTokenProvider);
+        } else if (sessionAccessToken !== null) {
           const token = sessionAccessToken;
           haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
         } else {

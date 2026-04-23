@@ -2,7 +2,8 @@ import { isRecord, isString, isNumber, isBoolean } from "@guilty-spark/shared/ba
 import type { AuthService, MicrosoftStartResponse, SessionResponse } from "./types";
 
 interface AuthServiceOpts {
-  apiHost: string;
+  readonly apiHost: string;
+  readonly onSessionResolved?: (session: SessionResponse) => void;
 }
 
 function parseSessionResponse(value: unknown): SessionResponse {
@@ -42,6 +43,11 @@ function parseSessionResponse(value: unknown): SessionResponse {
     response.xboxGamertag = xboxGamertag;
   }
 
+  const { spartanToken } = value;
+  if (isString(spartanToken)) {
+    response.spartanToken = spartanToken;
+  }
+
   return response;
 }
 
@@ -62,9 +68,11 @@ function parseMicrosoftStartResponse(value: unknown): MicrosoftStartResponse {
 
 export class RealAuthService implements AuthService {
   private readonly apiHost: string;
+  private readonly onSessionResolved: ((session: SessionResponse) => void) | undefined;
 
-  public constructor({ apiHost }: AuthServiceOpts) {
+  public constructor({ apiHost, onSessionResolved }: AuthServiceOpts) {
     this.apiHost = apiHost;
+    this.onSessionResolved = onSessionResolved;
   }
 
   private buildUrl(path: string): string {
@@ -97,10 +105,15 @@ export class RealAuthService implements AuthService {
     const response = await fetch(this.buildUrl("/auth/session"), {
       credentials: "include",
       method: "GET",
+      headers: {
+        "x-include-spartan-token": "true",
+      },
     });
 
     if (response.status === 401) {
-      return { authenticated: false };
+      const unauthenticated: SessionResponse = { authenticated: false };
+      this.onSessionResolved?.(unauthenticated);
+      return unauthenticated;
     }
 
     if (!response.ok) {
@@ -109,7 +122,9 @@ export class RealAuthService implements AuthService {
     }
 
     const payload = await response.json();
-    return parseSessionResponse(payload);
+    const session = parseSessionResponse(payload);
+    this.onSessionResolved?.(session);
+    return session;
   }
 
   public async startMicrosoftAuth(redirectTo?: string): Promise<MicrosoftStartResponse> {

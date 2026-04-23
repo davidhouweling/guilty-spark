@@ -1,5 +1,5 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
-import { createHaloInfiniteClientProxy } from "../halo-infinite-client-proxy";
+import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 
 function createMockResponse(data: unknown, options: { ok?: boolean; status?: number; url?: string } = {}): Response {
@@ -32,7 +32,10 @@ describe("createHaloInfiniteClientProxy", () => {
   it("calls the proxy endpoint with the correct method and arguments", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({ result: "proxy-result" }));
 
-    const proxy = createHaloInfiniteClientProxy({ env });
+    const proxy = createHaloInfiniteClientProxy({
+      proxyBaseUrl: env.PROXY_WORKER_URL,
+      authToken: env.PROXY_WORKER_TOKEN,
+    });
 
     const result = await proxy.getUser("foo");
 
@@ -41,10 +44,9 @@ describe("createHaloInfiniteClientProxy", () => {
     const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(`${env.PROXY_WORKER_URL}/proxy/halo-infinite`);
     expect(options.method).toBe("POST");
-    expect(options.headers).toMatchObject({
-      "content-type": "application/json",
-      "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-    });
+    const sentHeaders = new Headers(options.headers);
+    expect(sentHeaders.get("content-type")).toBe("application/json");
+    expect(sentHeaders.get("x-proxy-auth")).toBe(env.PROXY_WORKER_TOKEN);
     expect(JSON.parse(options.body as string)).toEqual({
       method: "getUser",
       args: ["foo"],
@@ -65,7 +67,10 @@ describe("createHaloInfiniteClientProxy", () => {
       ),
     );
 
-    const proxy = createHaloInfiniteClientProxy({ env });
+    const proxy = createHaloInfiniteClientProxy({
+      proxyBaseUrl: env.PROXY_WORKER_URL,
+      authToken: env.PROXY_WORKER_TOKEN,
+    });
 
     let thrown: Error | undefined;
 
@@ -86,7 +91,10 @@ describe("createHaloInfiniteClientProxy", () => {
       createMockResponse({ error: "Some proxy error" }, { ok: false, url: "https://example.com/halo-infinite" }),
     );
 
-    const proxy = createHaloInfiniteClientProxy({ env });
+    const proxy = createHaloInfiniteClientProxy({
+      proxyBaseUrl: env.PROXY_WORKER_URL,
+      authToken: env.PROXY_WORKER_TOKEN,
+    });
 
     let thrown: Error | undefined;
 
@@ -104,7 +112,10 @@ describe("createHaloInfiniteClientProxy", () => {
   it("throws a generic error if the proxy response is malformed", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({}));
 
-    const proxy = createHaloInfiniteClientProxy({ env });
+    const proxy = createHaloInfiniteClientProxy({
+      proxyBaseUrl: env.PROXY_WORKER_URL,
+      authToken: env.PROXY_WORKER_TOKEN,
+    });
 
     let thrown: Error | undefined;
 

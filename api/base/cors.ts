@@ -10,7 +10,7 @@ interface CorsConfig {
 
 const CORS_CONFIG: CorsConfig = {
   allowedMethods: "GET, POST, PATCH, OPTIONS",
-  allowedHeaders: "Content-Type, x-proxy-auth",
+  allowedHeaders: "Content-Type, x-proxy-auth, x-343-authorization-spartan, x-include-spartan-token",
   maxAge: 86400, // 24 hours
 };
 

@@ -1,6 +1,7 @@
 import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { HaloInfiniteClient, type SpartanTokenProvider } from "halo-infinite-api";
 import { verifyKey } from "discord-interactions";
+import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { DatabaseService } from "./database/database";
 import { DiscordService } from "./discord/discord";
 import { HaloService } from "./halo/halo";
@@ -16,7 +17,6 @@ import type { LogService } from "./log/types";
 import { AggregatorClient } from "./log/aggregator-client";
 import { ConsoleLogClient } from "./log/console-log-client";
 import { SentryLogClient } from "./log/sentry-log-client";
-import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy";
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 
@@ -83,7 +83,10 @@ export function installServices({ env, userTokens }: InstallServicesOpts): Servi
   // For development with JSON-RPC proxy, use the existing proxy implementation
   // Otherwise, use direct client with resilient fetch wrapper
   const haloInfiniteClient: HaloInfiniteClient = useProxy
-    ? createHaloInfiniteClientProxy({ env })
+    ? createHaloInfiniteClientProxy({
+        proxyBaseUrl: env.PROXY_WORKER_URL,
+        authToken: env.PROXY_WORKER_TOKEN,
+      })
     : new HaloInfiniteClient(
         spartanTokenProvider,
         createResilientFetch({

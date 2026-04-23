@@ -7,6 +7,7 @@ import type { LogService } from "../log/types";
 interface UserTokenProviderOpts {
   userMicrosoftAccessToken: string;
   userMicrosoftRefreshToken: string | undefined;
+  userMicrosoftAccessTokenExpiresAt?: number;
   clientId: string;
   clientSecret: string;
   redirectUri: string;
@@ -39,6 +40,7 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
   constructor({
     userMicrosoftAccessToken,
     userMicrosoftRefreshToken,
+    userMicrosoftAccessTokenExpiresAt,
     clientId,
     clientSecret,
     redirectUri,
@@ -91,7 +93,7 @@ export class UserTokenProvider extends HaloAuthenticationClient implements Spart
     this.userTokenInfo = {
       accessToken: userMicrosoftAccessToken,
       refreshToken: userMicrosoftRefreshToken,
-      expiresAt: undefined,
+      expiresAt: userMicrosoftAccessTokenExpiresAt,
     };
   }
 
