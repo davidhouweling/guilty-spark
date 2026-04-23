@@ -37,10 +37,10 @@ export interface MatchHistoryEntry {
   duration: string;
   mapName: string;
   modeName: string;
-  outcome: "Win" | "Loss" | "Tie" | "DNF";
+  outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
   resultString: string;
   isMatchmaking: boolean;
-  teams: string[][];
+  teams: readonly (readonly string[])[];
   mapThumbnailUrl: string;
 }
 

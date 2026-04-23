@@ -1811,19 +1811,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getMatchOutcome()", () => {
-    it.each([
-      [MatchOutcome.Tie, "Tie"],
-      [MatchOutcome.Win, "Win"],
-      [MatchOutcome.Loss, "Loss"],
-      [MatchOutcome.DidNotFinish, "DNF"],
-    ])("returns the outcome for outcome %s", (outcome, expectedOutcome) => {
-      const result = haloService.getMatchOutcome(outcome);
-
-      expect(result).toBe(expectedOutcome);
-    });
-  });
-
   describe("getMatchScore()", () => {
     it.each([
       { matchId: "d81554d7-ddfe-44da-a6cb-000000000ctf", matchScore: { gameScore: "3:0", gameSubScore: null } },

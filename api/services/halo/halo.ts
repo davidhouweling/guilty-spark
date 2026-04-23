@@ -12,6 +12,14 @@ import type {
   ServiceRecord,
 } from "halo-infinite-api";
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
+import {
+  sanitizeMapName,
+  normalizeModeName,
+  getMatchOutcomeLabel,
+  buildMatchResultString,
+  buildTeams,
+  analyzeMatchGroupings,
+} from "@guilty-spark/shared/halo/match-enrichment";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
@@ -170,21 +178,6 @@ export class HaloService {
     const gameType = gameTypeResult.status === "fulfilled" ? gameTypeResult.value : "*Unknown Game Type*";
 
     return `${gameType}: ${mapName}`;
-  }
-
-  getMatchOutcome(outcome: MatchOutcome): "Win" | "Loss" | "Tie" | "DNF" {
-    switch (outcome) {
-      case MatchOutcome.Tie:
-        return "Tie";
-      case MatchOutcome.Win:
-        return "Win";
-      case MatchOutcome.Loss:
-        return "Loss";
-      case MatchOutcome.DidNotFinish:
-        return "DNF";
-      default:
-        throw new UnreachableError(outcome);
-    }
   }
 
   getMatchScore(match: MatchStats, locale: string): { gameScore: string; gameSubScore: string | null } {
@@ -585,7 +578,7 @@ export class HaloService {
     gamertag: string;
     xuid: string;
     matches: MatchHistoryEntry[];
-    suggestedGroupings: string[][];
+    suggestedGroupings: readonly (readonly string[])[];
   }> {
     const user = await this.getUserByGamertag(gamertag);
     const matches = await this.getRecentMatchHistory(gamertag, matchType, count);
@@ -610,38 +603,9 @@ export class HaloService {
       const modeName = modeNameResult.status === "fulfilled" ? modeNameResult.value : "Unknown Mode";
       const mapThumbnailUrl =
         mapThumbnailResult.status === "fulfilled" ? (mapThumbnailResult.value ?? "data:,") : "data:,";
-      const outcome = this.getMatchOutcome(match.Outcome);
-
-      let resultString: string = outcome;
-      if (matchDetail) {
-        const { gameScore, gameSubScore } = this.getMatchScore(matchDetail, locale);
-        resultString = `${outcome} - ${gameScore}${gameSubScore != null ? ` (${gameSubScore})` : ""}`;
-      }
-
-      const teams: string[][] = [];
-      if (matchDetail) {
-        const playersByTeam = new Map<number, string[]>();
-        for (const player of matchDetail.Players) {
-          if (player.PlayerType === 1) {
-            const xuid = getPlayerXuid(player);
-            const playerGamertag = xuidToGamertagMap.get(xuid) ?? "*Unknown*";
-            const teamId = player.LastTeamId;
-
-            if (!playersByTeam.has(teamId)) {
-              playersByTeam.set(teamId, []);
-            }
-            playersByTeam.get(teamId)?.push(playerGamertag);
-          }
-        }
-
-        const sortedTeamIds = Array.from(playersByTeam.keys()).sort((a, b) => a - b);
-        for (const teamId of sortedTeamIds) {
-          const teamPlayers = playersByTeam.get(teamId);
-          if (teamPlayers) {
-            teams.push(teamPlayers);
-          }
-        }
-      }
+      const outcome = getMatchOutcomeLabel(match.Outcome);
+      const resultString = buildMatchResultString(outcome, matchDetail ?? null, locale);
+      const teams = buildTeams(matchDetail ?? null, xuidToGamertagMap);
 
       const startDate = new Date(match.MatchInfo.StartTime);
       const endDate = new Date(match.MatchInfo.EndTime);
@@ -670,7 +634,7 @@ export class HaloService {
       });
     }
 
-    const suggestedGroupings = this.analyzeMatchGroupings(matchesWithNames, matchDetailsById);
+    const suggestedGroupings = analyzeMatchGroupings(matchesWithNames, matchDetailsById);
 
     return {
       gamertag: user.gamertag,
@@ -678,115 +642,6 @@ export class HaloService {
       matches: matchesWithNames,
       suggestedGroupings,
     };
-  }
-
-  private analyzeMatchGroupings(matches: MatchHistoryEntry[], matchDetailsById: Map<string, MatchStats>): string[][] {
-    const groupings: string[][] = [];
-    let currentGroup: string[] = [];
-
-    for (let i = 0; i < matches.length; i++) {
-      const currentMatch = matches[i];
-      if (!currentMatch) {
-        continue;
-      }
-
-      if (currentMatch.isMatchmaking) {
-        if (currentGroup.length > 1) {
-          groupings.push([...currentGroup]);
-        }
-        currentGroup = [];
-        continue;
-      }
-
-      const currentMatchDetail = matchDetailsById.get(currentMatch.matchId);
-
-      if (!currentMatchDetail) {
-        if (currentGroup.length > 0) {
-          groupings.push([...currentGroup]);
-          currentGroup = [];
-        }
-        continue;
-      }
-
-      currentGroup.push(currentMatch.matchId);
-
-      if (i < matches.length - 1) {
-        const nextMatch = matches[i + 1];
-        if (!nextMatch) {
-          continue;
-        }
-
-        if (nextMatch.isMatchmaking) {
-          if (currentGroup.length > 1) {
-            groupings.push([...currentGroup]);
-          }
-          currentGroup = [];
-          continue;
-        }
-
-        const nextMatchDetail = matchDetailsById.get(nextMatch.matchId);
-
-        if (!nextMatchDetail || !this.haveSameTeamRosters(currentMatchDetail, nextMatchDetail)) {
-          if (currentGroup.length > 1) {
-            groupings.push([...currentGroup]);
-          }
-          currentGroup = [];
-        }
-      }
-    }
-
-    if (currentGroup.length > 1) {
-      groupings.push([...currentGroup]);
-    }
-
-    return groupings;
-  }
-
-  private haveSameTeamRosters(match1: MatchStats, match2: MatchStats): boolean {
-    const getTeamRosters = (match: MatchStats): Map<number, Set<string>> => {
-      const rosters = new Map<number, Set<string>>();
-
-      for (const player of match.Players) {
-        if (player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning) {
-          const xuid = getPlayerXuid(player);
-          const teamId = player.LastTeamId;
-
-          if (!rosters.has(teamId)) {
-            rosters.set(teamId, new Set<string>());
-          }
-          rosters.get(teamId)?.add(xuid);
-        }
-      }
-
-      return rosters;
-    };
-
-    const rosters1 = getTeamRosters(match1);
-    const rosters2 = getTeamRosters(match2);
-
-    if (rosters1.size !== rosters2.size) {
-      return false;
-    }
-
-    for (const [teamId, team1Players] of rosters1.entries()) {
-      const team2Players = rosters2.get(teamId);
-
-      if (!team2Players) {
-        return false;
-      }
-
-      if (team1Players.size !== team2Players.size) {
-        return false;
-      }
-
-      for (const xuid of team1Players) {
-        if (!team2Players.has(xuid)) {
-          return false;
-        }
-      }
-    }
-
-    return true;
   }
 
   async getRankedArenaCsrs(xuids: string[]): Promise<Map<string, PlaylistCsrContainer>> {
@@ -1341,7 +1196,7 @@ export class HaloService {
       const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
         cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
       });
-      this.mapNameCache.set(cacheKey, this.sanitizeMapName(mapData.PublicName));
+      this.mapNameCache.set(cacheKey, sanitizeMapName(mapData.PublicName));
     }
 
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
@@ -1358,7 +1213,7 @@ export class HaloService {
           cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
         },
       );
-      this.gameTypeCache.set(cacheKey, this.ucgMapNameToMapMode(mapModeData.PublicName));
+      this.gameTypeCache.set(cacheKey, normalizeModeName(mapModeData.PublicName) as MapMode);
     }
     return Preconditions.checkExists(this.gameTypeCache.get(cacheKey));
   }
@@ -1886,14 +1741,14 @@ export class HaloService {
 
     const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
       (accumulator, entry) => {
-        const mapMode = this.ucgMapNameToMapMode(entry.UgcGameVariantLink.PublicName);
+        const mapMode = normalizeModeName(entry.UgcGameVariantLink.PublicName) as MapMode;
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (accumulator[mapMode] == null) {
           this.logService.warn(`Unknown map mode encountered: ${mapMode}`, new Map([["data", JSON.stringify(entry)]]));
           accumulator[mapMode] = [];
         }
 
-        accumulator[mapMode].push(this.sanitizeMapName(entry.MapLink.PublicName));
+        accumulator[mapMode].push(sanitizeMapName(entry.MapLink.PublicName));
         return accumulator;
       },
       {
@@ -1911,10 +1766,6 @@ export class HaloService {
     });
 
     return playlistMapModes;
-  }
-
-  private sanitizeMapName(mapName: string): string {
-    return mapName.replace("- Ranked", "").trim();
   }
 
   private async getPlaylistGameVariantKeys(playlistId: FetchablePlaylist): Promise<string[]> {
@@ -1991,31 +1842,6 @@ export class HaloService {
       }
       default: {
         throw new UnreachableError(format);
-      }
-    }
-  }
-
-  private ucgMapNameToMapMode(ucgMapName: string): MapMode {
-    const trimmedName = ucgMapName.replace("Ranked:", "").replace("Squad Ranked", "").replace("Squad ", "").trim();
-    switch (trimmedName) {
-      case "CTF 3 Captures":
-      case "CTF 5 Captures":
-      case "Squad Multi-Flag CTF": {
-        return "Capture the Flag";
-      }
-      case "Assault:Neutral Bomb Ranked":
-      case "Assault:Neutral Bomb Squad Ranked": {
-        return "Neutral Bomb";
-      }
-      case "Team Snipers":
-      case "Tactical Slayer":
-      case "Doubles Slayer":
-      case "FFA Slayer":
-      case "Squad Slayer": {
-        return "Slayer";
-      }
-      default: {
-        return trimmedName as MapMode;
       }
     }
   }
