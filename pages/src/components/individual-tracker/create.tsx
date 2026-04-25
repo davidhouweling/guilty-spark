@@ -1,9 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
+import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
+import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerView } from "./individual-tracker";
 
 interface IndividualTrackerProps {
@@ -15,7 +17,29 @@ interface IndividualTrackerFactoryProps {
 }
 
 export function IndividualTrackerFactory({ services }: IndividualTrackerFactoryProps): React.ReactElement {
-  return <IndividualTrackerView services={services} />;
+  const store = useMemo(() => new IndividualTrackerStore(), []);
+
+  const presenter = useMemo(
+    () =>
+      new IndividualTrackerPresenter({
+        services,
+        store,
+        assignLocation: (url): void => {
+          window.location.assign(url);
+        },
+      }),
+    [services, store],
+  );
+
+  useEffect(() => {
+    presenter.start();
+
+    return (): void => {
+      presenter.dispose();
+    };
+  }, [presenter]);
+
+  return <IndividualTrackerView presenter={presenter} />;
 }
 
 export function IndividualTracker({ apiHost }: IndividualTrackerProps): React.ReactElement {

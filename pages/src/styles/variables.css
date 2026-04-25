@@ -76,4 +76,14 @@
   --color-warning: #ffc107;
   --color-error: #f44336;
   --color-winner: #10b981;
+
+  /* Semantic Component Colors */
+  --color-text-primary: var(--halo-white);
+  --color-text-secondary: var(--halo-gray);
+  --color-background-secondary: var(--halo-bg-secondary);
+  --color-surface: var(--halo-bg-card);
+  --color-surface-hover: var(--halo-bg-secondary);
+  --color-surface-secondary: var(--halo-bg-secondary);
+  --color-surface-tertiary: var(--halo-teal-dark);
+  --color-border: color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
 }

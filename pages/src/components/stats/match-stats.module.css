@@ -64,12 +64,6 @@
   font-weight: 600;
 }
 
-.matchMetaSeparator {
-  color: var(--halo-gray, #9ca3af);
-  margin: 0 var(--space-2);
-  opacity: 0.5;
-}
-
 /* Team Stats */
 .teamStats {
   background: var(--halo-bg-secondary, #0a0e14);

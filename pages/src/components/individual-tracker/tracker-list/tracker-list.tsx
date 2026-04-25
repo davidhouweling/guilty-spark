@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
-import { Dropdown } from "../dropdown/dropdown";
+import { Alert } from "../../alert/alert";
+import { Dropdown } from "../../dropdown/dropdown";
 import styles from "./tracker-list.module.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export interface TrackerListItem {
   readonly isPinned: boolean;
 }
 
-interface TrackerRowAction {
+export interface TrackerRowAction {
   readonly label: string;
   readonly destructive?: boolean;
   readonly disabled?: boolean;
@@ -146,7 +147,7 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
       {!hasItems ? (
         <>
           <div className={styles.emptyList}>
-            <p className={styles.emptyListText}>No trackers yet. Start with your linked gamertag above.</p>
+            <Alert variant="info">No trackers yet. Start with your linked gamertag above.</Alert>
           </div>
           <EmptyInfoPanel />
         </>

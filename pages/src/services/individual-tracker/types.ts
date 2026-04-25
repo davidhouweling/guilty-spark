@@ -71,8 +71,9 @@ export interface IndividualTrackerService {
   selectLiveTracker(trackerId: string): Promise<void>;
   deleteTracker(trackerId: string): Promise<void>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
-  getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]>;
+  getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
   addMatchToTracker(trackerId: string, matchId: string): Promise<void>;
+  removeMatchFromTracker(trackerId: string, matchId: string): Promise<void>;
   getTrackers(userId: string): Promise<TrackerListResponse>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
   connectToActiveTracker(userId: string): IndividualTrackerConnection;
@@ -109,15 +110,39 @@ export interface TrackerSearchResult {
   readonly xuid: string;
   readonly rankLabel: string | null;
   readonly csrLabel: string | null;
+  readonly currentRankTier: string | null;
+  readonly currentRankSubTier: number | null;
+  readonly currentRankMeasurementMatchesRemaining: number | null;
+  readonly currentRankInitialMeasurementMatches: number | null;
+  readonly allTimePeakRankLabel: string | null;
+  readonly allTimePeakCsrLabel: string | null;
+  readonly allTimePeakRankTier: string | null;
+  readonly allTimePeakRankSubTier: number | null;
+  readonly seasonPeakCsrLabel: string | null;
+  readonly seasonPeakRankTier: string | null;
+  readonly seasonPeakRankSubTier: number | null;
+  readonly matchmadeMatchCount: number | null;
+  readonly customMatchCount: number | null;
 }
 
-export interface TrackerRecentMatch {
+export interface TrackerMatchHistoryEntry {
   readonly matchId: string;
-  readonly startTime: string | null;
-  readonly endTime: string | null;
-  readonly outcome: string | null;
-  readonly mapAssetId: string | null;
-  readonly modeAssetId: string | null;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly duration: string;
+  readonly mapName: string;
+  readonly modeName: string;
+  readonly outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
+  readonly resultString: string;
+  readonly isMatchmaking: boolean;
+  readonly category: "matchmaking" | "custom" | "local" | "unknown";
+  readonly teams: readonly (readonly string[])[];
+  readonly mapThumbnailUrl: string;
+}
+
+export interface TrackerMatchHistoryResponse {
+  readonly matches: readonly TrackerMatchHistoryEntry[];
+  readonly suggestedGroupings: readonly (readonly string[])[];
 }
 
 export interface StopTrackerSuccessResponse {
@@ -177,4 +202,3 @@ export interface IndividualTrackerConnection {
   subscribeStatus(listener: IndividualTrackerStatusListener): IndividualTrackerSubscription;
   disconnect(): void;
 }
-

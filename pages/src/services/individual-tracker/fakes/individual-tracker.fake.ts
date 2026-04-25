@@ -20,8 +20,8 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  TrackerMatchHistoryResponse,
   TrackerListResponse,
-  TrackerRecentMatch,
   TrackerSearchResult,
   TrackerStatusResponse,
 } from "../types";
@@ -245,17 +245,40 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       xuid: "fake-xuid",
       rankLabel: null,
       csrLabel: null,
+      currentRankTier: null,
+      currentRankSubTier: null,
+      currentRankMeasurementMatchesRemaining: null,
+      currentRankInitialMeasurementMatches: null,
+      allTimePeakRankLabel: null,
+      allTimePeakCsrLabel: null,
+      allTimePeakRankTier: null,
+      allTimePeakRankSubTier: null,
+      seasonPeakCsrLabel: null,
+      seasonPeakRankTier: null,
+      seasonPeakRankSubTier: null,
+      matchmadeMatchCount: null,
+      customMatchCount: null,
     });
   }
 
-  public async getRecentMatches(xuid: string, start: number, count: number): Promise<readonly TrackerRecentMatch[]> {
+  public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
     void xuid;
     void start;
     void count;
-    return Promise.resolve([]);
+
+    return Promise.resolve({
+      matches: [],
+      suggestedGroupings: [],
+    });
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {
+    void trackerId;
+    void matchId;
+    return Promise.resolve();
+  }
+
+  public async removeMatchFromTracker(trackerId: string, matchId: string): Promise<void> {
     void trackerId;
     void matchId;
     return Promise.resolve();

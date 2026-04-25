@@ -1,0 +1,76 @@
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.line {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-secondary) 0%,
+    var(--color-surface-tertiary) 50%,
+    var(--color-surface-secondary) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 0.25rem;
+  height: var(--placeholder-height, 1rem);
+}
+
+.placeholder[data-width="half"] .line {
+  width: 50%;
+}
+
+.placeholder[data-width="short"] .line {
+  width: 30%;
+}
+
+.placeholder[data-height="small"] {
+  --placeholder-height: 0.75rem;
+}
+
+.placeholder[data-height="medium"] {
+  --placeholder-height: 1rem;
+}
+
+.placeholder[data-height="large"] {
+  --placeholder-height: 1.5rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.cardHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cardFooter {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}

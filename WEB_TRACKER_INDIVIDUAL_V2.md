@@ -554,7 +554,7 @@ Implementation will proceed in individual committed phases:
 1. [x] **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
 2. [x] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
 3. [x] **Row actions** — ellipsis menu with all actions wired to backend (pause, resume, set live, delete).
-4. [ ] **Game selection sync dialog** — sync-on-close behaviour.
+4. [x] **Game selection sync dialog** — sync-on-close behaviour.
 5. [ ] **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
 6. [ ] **Streamer connections + additional options** — Twitch linking UI, auto-start/stop config, additional toggles.
 
@@ -568,12 +568,39 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Runtime list hydration update: tracker list now resolves from explicit runtime references plus status hydration, with one service call for list + statuses.
 - [x] Explicit status model update: removed implicit owner-only status bootstrap in favor of explicit user/tracker routes.
 - [x] Frontend service consolidation: individual tracker profile + runtime APIs now use a single consolidated service interface and fake implementation.
+- [x] Phase 4 step 4 delivered: active-row "Game selection" action now opens a sync-on-close dialog with category filters and add/remove reconciliation.
+- [ ] Phase 4 follow-up: replace the temporary flat recent-match list with a reusable `match-history` component shared by the game-selection dialog and tracker creation flow.
 
 ### Current operator note - View tracker behavior
 
 Current behavior is expected for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>`, but there is not yet a distinct viewer-mode panel/state switch wired to that query param. In practice, this means navigation occurs but does not yet present a meaningfully different tracker-view experience.
 
 This is part of ongoing Phase 4 work (viewer-mode UX beyond route navigation).
+
+## Match history follow-up requirement (April 23, 2026)
+
+The temporary game-selection list delivered in Phase 4 is now superseded by a richer reusable `match-history` component.
+
+### Product requirement
+
+- Reintroduce the richer V1-style match history presentation as a shared `match-history` component.
+- Reuse the same component in both the active tracker game-selection dialog and the tracker creation dialog.
+- Default to a flat list, but expose prop-driven capabilities so parent surfaces can selectively enable behaviors such as suggested series grouping, manual merge controls, split/break controls, selection state, and top-level action buttons.
+
+### Data and enrichment requirement
+
+- Match enrichment must be frontend-driven rather than built in `api/services/halo`.
+- The pages app should fetch recent matches first, then progressively enrich those matches client-side using Halo proxy methods.
+- Enrichment should reconstruct the V1 display model, including human-readable map and mode labels, thumbnails/backgrounds, result strings, team rosters, and suggested groupings.
+- Suggested grouping behavior should match the V1 heuristic: consecutive non-matchmaking matches are grouped when their starting team rosters match.
+- Manual merge/split controls remain available to cover substitute and roster-swap edge cases.
+
+### Performance and loading requirement
+
+- Use browser caching where available, but also introduce an in-memory cache in the pages layer for repeated match, asset, and metadata lookups during a session.
+- Progressive loading is acceptable, but the UI should render intentional placeholder states while enrichment is pending.
+- Placeholder work should include lightweight text-placeholder components rather than abrupt empty gaps.
+- Match background imagery and enriched card content should transition in smoothly rather than appearing instantly.
 
 ---
 

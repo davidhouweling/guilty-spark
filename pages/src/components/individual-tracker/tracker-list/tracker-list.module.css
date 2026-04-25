@@ -55,13 +55,6 @@
   text-align: center;
 }
 
-.emptyListText {
-  color: var(--halo-gray);
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  margin: 0;
-}
-
 /* ─── Row ────────────────────────────────────────────────────────────────── */
 
 .row {
