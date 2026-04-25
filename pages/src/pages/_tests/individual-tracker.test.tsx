@@ -8,7 +8,7 @@ import { FakeAuthService } from "../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerScenarioWith } from "../../services/live-tracker/fakes/scenario";
 import { FakeIndividualTrackerService } from "../../services/individual-tracker/fakes/individual-tracker.fake";
-import { IndividualTrackerFactory } from "../../components/individual-tracker/create";
+import { IndividualTrackerFactory } from "../../apps/individual-tracker-app";
 
 describe("/individual-tracker page wiring", () => {
   it("renders individual tracker settings shell for authenticated users", async () => {

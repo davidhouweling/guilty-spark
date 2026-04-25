@@ -14,11 +14,11 @@ vi.mock("../../../services/install", () => ({
   installServices: installServicesMock,
 }));
 
-vi.mock("../individual-tracker", () => ({
+vi.mock("../../../components/individual-tracker/individual-tracker", () => ({
   IndividualTrackerView: (): React.ReactElement => <div>Individual tracker view</div>,
 }));
 
-import { IndividualTracker, IndividualTrackerFactory } from "../create";
+import { IndividualTrackerApp, IndividualTrackerFactory } from "../../../apps/individual-tracker-app";
 
 afterEach(() => {
   cleanup();
@@ -37,7 +37,7 @@ describe("IndividualTracker create", () => {
     const services = await installFakeServices();
     installServicesMock.mockResolvedValue(services);
 
-    render(<IndividualTracker apiHost="https://api.example.com" />);
+    render(<IndividualTrackerApp apiHost="https://api.example.com" />);
 
     expect(screen.getByText("Loading individual tracker...")).toBeInTheDocument();
 

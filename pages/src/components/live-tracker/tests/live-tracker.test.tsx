@@ -10,7 +10,7 @@ import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fak
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { FakeAuthService } from "../../../services/auth/fakes/auth.fake";
 import { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
-import { LiveTrackerFactory } from "../create";
+import { LiveTrackerFactory } from "../../../apps/live-tracker-app";
 
 function isSteppableLiveTrackerConnection(
   connection: LiveTrackerConnection,

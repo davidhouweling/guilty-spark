@@ -4,10 +4,8 @@ import type { Services } from "../../../services/types";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
-import {
-  aFakeIndividualTrackerServiceWith,
-  aFakeIndividualTrackerStateWith,
-} from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakeIndividualTrackerServiceWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import type { LiveTrackersController } from "../live-trackers/types";
 import { IndividualTrackerPresenter } from "../individual-tracker-presenter";
 import { IndividualTrackerStore } from "../individual-tracker-store";
 
@@ -16,20 +14,31 @@ interface Harness {
   readonly presenter: IndividualTrackerPresenter;
   readonly services: Services;
   readonly assignLocation: ReturnType<typeof vi.fn<(url: string) => void>>;
+  readonly liveTrackersController: LiveTrackersController;
 }
 
-function aHarnessWith(services: Services): Harness {
+function aLiveTrackersControllerMock(): LiveTrackersController {
+  return {
+    start: vi.fn<LiveTrackersController["start"]>(),
+    dispose: vi.fn<LiveTrackersController["dispose"]>(),
+    setSessionContext: vi.fn<LiveTrackersController["setSessionContext"]>(),
+    resetForUnauthenticated: vi.fn<LiveTrackersController["resetForUnauthenticated"]>(),
+    refresh: vi.fn<LiveTrackersController["refresh"]>(async () => Promise.resolve()),
+  };
+}
+
+function aHarnessWith(services: Services, controller: LiveTrackersController = aLiveTrackersControllerMock()): Harness {
   const store = new IndividualTrackerStore();
   const assignLocation = vi.fn<(url: string) => void>();
 
   const presenter = new IndividualTrackerPresenter({
     services,
     store,
+    liveTrackersController: controller,
     assignLocation,
-    confirmDelete: (): boolean => true,
   });
 
-  return { store, presenter, services, assignLocation };
+  return { store, presenter, services, assignLocation, liveTrackersController: controller };
 }
 
 afterEach(() => {
@@ -37,132 +46,7 @@ afterEach(() => {
 });
 
 describe("IndividualTrackerPresenter", () => {
-  it("loads authenticated tracker state and builds pinned/live tracker rows", async () => {
-    const activeTracker = aFakeIndividualTrackerStateWith({
-      trackerId: "tracker-2",
-      gamertag: "Other",
-      xuid: "xuid-2",
-      status: "active",
-      matchIds: ["m1", "m2"],
-    });
-
-    const pinnedTracker = aFakeIndividualTrackerStateWith({
-      trackerId: "tracker-1",
-      gamertag: "Chief",
-      xuid: "xuid-1",
-      status: "paused",
-    });
-
-    const services: Services = {
-      authService: aFakeAuthServiceWith({
-        session: {
-          authenticated: true,
-          userId: "user-1",
-          xboxGamertag: "Chief",
-        },
-      }),
-      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
-      individualTrackerService: aFakeIndividualTrackerServiceWith({
-        activeState: activeTracker,
-        trackerReferences: {
-          "tracker-1": { gamertag: "Chief" },
-          "tracker-2": { gamertag: "Other" },
-        },
-        trackerStates: {
-          "tracker-1": pinnedTracker,
-          "tracker-2": activeTracker,
-        },
-      }),
-    };
-
-    const harness = aHarnessWith(services);
-
-    harness.presenter.start();
-
-    await waitFor(() => {
-      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
-    });
-
-    const rows = harness.presenter.getTrackerItems();
-
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({
-      trackerId: "tracker-1",
-      gamertag: "Chief",
-      status: "paused",
-      isLive: false,
-      isPinned: true,
-    });
-    expect(rows[1]).toMatchObject({
-      trackerId: "tracker-2",
-      gamertag: "Other",
-      status: "active",
-      isLive: true,
-      isPinned: false,
-    });
-
-    harness.presenter.dispose();
-  });
-
-  it("opens game selection from row action with current tracker state", async () => {
-    const activeTracker = aFakeIndividualTrackerStateWith({
-      trackerId: "tracker-2",
-      gamertag: "Other",
-      xuid: "xuid-2",
-      status: "active",
-      matchIds: ["m10", "m11"],
-    });
-
-    const services: Services = {
-      authService: aFakeAuthServiceWith({
-        session: {
-          authenticated: true,
-          userId: "user-1",
-          xboxGamertag: "Chief",
-        },
-      }),
-      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
-      individualTrackerService: aFakeIndividualTrackerServiceWith({
-        activeState: activeTracker,
-        trackerReferences: {
-          "tracker-2": { gamertag: "Other" },
-        },
-        trackerStates: {
-          "tracker-2": activeTracker,
-        },
-      }),
-    };
-
-    const harness = aHarnessWith(services);
-    harness.presenter.start();
-
-    await waitFor(() => {
-      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
-    });
-
-    const row = harness.presenter.getTrackerItems().find((item) => item.trackerId === "tracker-2");
-    expect(row).toBeDefined();
-    if (row == null) {
-      throw new Error("Expected tracker row to exist");
-    }
-
-    const gameSelectionAction = harness.presenter.getActions(row).find((action) => action.label === "Game selection");
-
-    expect(gameSelectionAction).toBeDefined();
-
-    gameSelectionAction?.onClick();
-
-    expect(harness.presenter.getSnapshot().gameSelectionDialogState).toEqual({
-      trackerId: "tracker-2",
-      trackerLabel: "Other",
-      xuid: "xuid-2",
-      initialSelectedMatchIds: ["m10", "m11"],
-    });
-
-    harness.presenter.dispose();
-  });
-
-  it("adds selected matches when adding tracker", async () => {
+  it("loads authenticated session and coordinates child controller", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith({
         session: {
@@ -175,66 +59,46 @@ describe("IndividualTrackerPresenter", () => {
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
     };
 
-    const addMatchSpy = vi.spyOn(services.individualTrackerService, "addMatchToTracker");
-    const harness = aHarnessWith(services);
+    const liveTrackersController = aLiveTrackersControllerMock();
+    const harness = aHarnessWith(services, liveTrackersController);
+
     harness.presenter.start();
 
     await waitFor(() => {
       expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
     });
 
-    harness.presenter.openAddDialog();
-
-    await harness.presenter.addTracker({ gamertag: "NewTag", selectedMatchIds: ["m1", "m2"] });
-
-    expect(addMatchSpy).toHaveBeenNthCalledWith(1, "fake-tracker-id", "m1");
-    expect(addMatchSpy).toHaveBeenNthCalledWith(2, "fake-tracker-id", "m2");
-    expect(harness.presenter.getSnapshot().isAddDialogOpen).toBe(false);
+    expect(liveTrackersController.start).toHaveBeenCalledOnce();
+    expect(liveTrackersController.setSessionContext).toHaveBeenCalledWith("user-1", "Chief");
+    expect(liveTrackersController.refresh).toHaveBeenCalledOnce();
 
     harness.presenter.dispose();
+
+    expect(liveTrackersController.dispose).toHaveBeenCalledOnce();
   });
 
-  it("syncs game selection by adding and removing only changed matches", async () => {
+  it("resets child controller when session is unauthenticated", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith({
         session: {
-          authenticated: true,
-          userId: "user-1",
-          xboxGamertag: "Chief",
+          authenticated: false,
         },
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
     };
 
-    const addMatchSpy = vi.spyOn(services.individualTrackerService, "addMatchToTracker");
-    const removeMatchSpy = vi.spyOn(services.individualTrackerService, "removeMatchFromTracker");
+    const liveTrackersController = aLiveTrackersControllerMock();
+    const harness = aHarnessWith(services, liveTrackersController);
 
-    const harness = aHarnessWith(services);
     harness.presenter.start();
 
     await waitFor(() => {
-      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
+      expect(harness.presenter.getSnapshot().authState).toBe("unauthenticated");
     });
 
-    harness.store.snapshot = {
-      ...harness.store.snapshot,
-      gameSelectionDialogState: {
-        trackerId: "tracker-1",
-        trackerLabel: "Chief",
-        xuid: "xuid-1",
-        initialSelectedMatchIds: ["m1", "m2"],
-      },
-    };
-
-    await harness.presenter.syncGameSelection({
-      trackerId: "tracker-1",
-      selectedMatchIds: ["m2", "m3"],
-    });
-
-    expect(addMatchSpy).toHaveBeenCalledWith("tracker-1", "m3");
-    expect(removeMatchSpy).toHaveBeenCalledWith("tracker-1", "m1");
-    expect(harness.presenter.getSnapshot().busy).toBe(false);
+    expect(liveTrackersController.resetForUnauthenticated).toHaveBeenCalledOnce();
+    expect(liveTrackersController.refresh).not.toHaveBeenCalled();
 
     harness.presenter.dispose();
   });

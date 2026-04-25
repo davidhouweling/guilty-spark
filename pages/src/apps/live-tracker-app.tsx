@@ -1,21 +1,21 @@
-import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useSyncExternalStore, useState } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
-import { installServices } from "../../services/install";
-import type { Services } from "../../services/types";
-import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
-import { ErrorState } from "../error-state/error-state";
-import { LoadingState } from "../loading-state/loading-state";
-import { createMatchStatsPresenter } from "../stats/create";
-import type { MatchStatsData } from "../stats/types";
-import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
-import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
-import { LiveTrackerPresenter } from "./live-tracker-presenter";
-import { LiveTrackerStore } from "./live-tracker-store";
-import { LiveTrackerView } from "./live-tracker";
-import type { LiveTrackerViewModel } from "./types";
-import { LiveTrackerProvider } from "./live-tracker-context";
+import type { Services } from "../services/types";
+import { ErrorState } from "../components/error-state/error-state";
+import { LoadingState } from "../components/loading-state/loading-state";
+import { createMatchStatsPresenter } from "../components/stats/create";
+import type { MatchStatsData } from "../components/stats/types";
+import { SeriesTeamStatsPresenter } from "../components/stats/series-team-stats-presenter";
+import { SeriesPlayerStatsPresenter } from "../components/stats/series-player-stats-presenter";
+import { calculateSeriesMetadata, type SeriesMetadata } from "../components/stats/series-metadata";
+import { ComponentLoader, ComponentLoaderStatus } from "../components/component-loader/component-loader";
+import { LiveTrackerPresenter } from "../components/live-tracker/live-tracker-presenter";
+import { LiveTrackerStore } from "../components/live-tracker/live-tracker-store";
+import { LiveTrackerView } from "../components/live-tracker/live-tracker";
+import type { LiveTrackerViewModel } from "../components/live-tracker/types";
+import { LiveTrackerProvider } from "../components/live-tracker/live-tracker-context";
+import { BaseApp } from "./base-app";
 
 interface LiveTrackerAppProps {
   readonly apiHost: string;
@@ -58,13 +58,10 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
       ? ComponentLoaderStatus.ERROR
       : ComponentLoaderStatus.LOADING;
 
-  // Memoize model creation to prevent unnecessary re-renders when WebSocket
-  // sends identical data (e.g., heartbeat messages every 3 minutes)
   const modelRef = useRef<LiveTrackerViewModel | null>(null);
   const snapshotRef = useRef<typeof snapshot | null>(null);
 
   const model = useMemo((): LiveTrackerViewModel => {
-    // If this is the first render, create the model
     if (modelRef.current === null || snapshotRef.current === null) {
       const newModel = LiveTrackerPresenter.present(snapshot);
       modelRef.current = newModel;
@@ -75,34 +72,28 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
     const prev = snapshotRef.current;
     const curr = snapshot;
 
-    // Quick reference equality check
     if (prev === curr) {
       return modelRef.current;
     }
 
-    // Check if any meaningful data has changed
     const hasChanged =
       prev.connectionState !== curr.connectionState ||
       prev.statusText !== curr.statusText ||
       !LiveTrackerPresenter.areParamsEqual(prev.params, curr.params) ||
       prev.hasConnection !== curr.hasConnection ||
       prev.hasReceivedInitialData !== curr.hasReceivedInitialData ||
-      // Deep check the state message data
       !LiveTrackerPresenter.isStateMessageEqual(prev.lastStateMessage, curr.lastStateMessage);
 
     if (!hasChanged) {
-      // Data is the same, return the previous model to prevent re-renders
       return modelRef.current;
     }
 
-    // Data has changed, create a new model
     const newModel = LiveTrackerPresenter.present(snapshot);
     modelRef.current = newModel;
     snapshotRef.current = snapshot;
     return newModel;
   }, [snapshot]);
 
-  // Compute match stats from model state (NeatQueue only)
   const allMatchStats = useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
     if (model.state?.type !== "neatqueue") {
       return [];
@@ -128,9 +119,8 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
         return { matchId: match.matchId, data: null };
       }
     });
-  }, [model.state]); // Depend on entire state to catch type changes
+  }, [model.state]);
 
-  // Compute series stats from model state (NeatQueue only)
   const seriesStats = useMemo((): {
     teamData: MatchStatsData[];
     playerData: MatchStatsData[];
@@ -170,7 +160,7 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
       console.error("Error processing series stats:", error);
       return null;
     }
-  }, [model.state]); // Depend on entire state to catch type changes
+  }, [model.state]);
 
   return (
     <ComponentLoader
@@ -202,73 +192,33 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
   );
 }
 
-export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
-  const [loadingServices, setLoadingServices] = React.useState(ComponentLoaderStatus.PENDING);
-  const [services, setServices] = React.useState<Services | null>(null);
-  const [shouldConnectToTracker, setShouldConnectToTracker] = React.useState(false);
+export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): React.ReactElement {
+  const [shouldConnectToTracker, setShouldConnectToTracker] = useState(false);
 
-  // Check URL params to determine if we need to connect to a tracker
-  // Use useEffect to avoid hydration mismatch (server has no window)
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
+
     const url = new URL(window.location.href);
     const server = url.searchParams.get("server");
     const queue = url.searchParams.get("queue");
 
-    // Team mode: needs both server and queue
     if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
       setShouldConnectToTracker(true);
     }
   }, []);
 
-  // Load services when we have tracker params
-  useEffect(() => {
-    if (!shouldConnectToTracker) {
-      return;
-    }
-
-    let isCancelled = false;
-
-    setServices(null);
-    setLoadingServices(ComponentLoaderStatus.PENDING);
-
-    installServices(apiHost)
-      .then((installedServices) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setServices(installedServices);
-        setLoadingServices(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
-        if (isCancelled) {
-          return;
-        }
-        setLoadingServices(ComponentLoaderStatus.ERROR);
-      });
-
-    return (): void => {
-      isCancelled = true;
-    };
-  }, [apiHost, shouldConnectToTracker]);
-
   if (!shouldConnectToTracker) {
     return <ErrorState message={LiveTrackerPresenter.usageText} />;
   }
 
-  if (!services) {
-    return <LoadingState />;
-  }
-
   return (
-    <ComponentLoader
-      status={loadingServices}
+    <BaseApp
+      apiHost={apiHost}
       loading={<LoadingState />}
       error={<ErrorState />}
-      loaded={<LiveTrackerFactory services={services} />}
+      loaded={(services) => <LiveTrackerFactory services={services} />}
     />
   );
 }

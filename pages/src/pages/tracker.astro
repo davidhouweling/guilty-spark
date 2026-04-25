@@ -1,9 +1,9 @@
 ---
 import Layout from "../layouts/layout.astro";
 import { API_HOST } from "../constants";
-import { LiveTracker } from "../components/live-tracker/create";
+import { LiveTrackerApp } from "../apps/live-tracker-app";
 ---
 
 <Layout title="Live Tracker - Guilty Spark" description="Real-time live tracker">
-  <LiveTracker client:load apiHost={API_HOST} />
+  <LiveTrackerApp client:load apiHost={API_HOST} />
 </Layout>

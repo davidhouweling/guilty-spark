@@ -6,18 +6,19 @@ import { Container } from "../container/container";
 import { SettingsShell, type SettingsShellItem } from "../settings-shell/settings-shell";
 import { LoadingState } from "../loading-state/loading-state";
 import { AdditionalOptionsSectionView } from "./additional-options/additional-options";
-import { AddTrackerDialog } from "./add-tracker-dialog/add-tracker-dialog";
 import type { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import type { IndividualTrackerSectionId } from "./types";
-import { GameSelectionDialog } from "./game-selection-dialog/game-selection-dialog";
-import { LiveTrackersSectionView } from "./live-trackers/live-trackers";
 import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
 import styles from "./individual-tracker.module.css";
 
 interface IndividualTrackerViewProps {
   readonly presenter: IndividualTrackerPresenter;
+  readonly LiveTrackersSection: () => React.ReactElement;
 }
-export function IndividualTrackerView({ presenter }: IndividualTrackerViewProps): React.ReactElement {
+export function IndividualTrackerView({
+  presenter,
+  LiveTrackersSection,
+}: IndividualTrackerViewProps): React.ReactElement {
   const snapshot = useSyncExternalStore(
     (listener) => presenter.subscribe(listener),
     () => presenter.getSnapshot(),
@@ -44,7 +45,6 @@ export function IndividualTrackerView({ presenter }: IndividualTrackerViewProps)
     ],
     [],
   );
-  const trackerItems = presenter.getTrackerItems();
 
   if (snapshot.loading) {
     return <LoadingState text="Loading individual tracker..." />;
@@ -70,44 +70,7 @@ export function IndividualTrackerView({ presenter }: IndividualTrackerViewProps)
   const { activeSection } = snapshot;
   switch (activeSection) {
     case "live-trackers": {
-      panelContent = (
-        <LiveTrackersSectionView
-          errorMessage={snapshot.errorMessage}
-          trackerItems={trackerItems}
-          getActions={(item) => presenter.getActions(item)}
-          onAddTracker={(): void => {
-            presenter.openAddDialog();
-          }}
-          dialogs={
-            <>
-              <AddTrackerDialog
-                isOpen={snapshot.isAddDialogOpen}
-                busy={snapshot.busy}
-                onClose={(): void => {
-                  presenter.closeAddDialog();
-                }}
-                onSearchGamertag={async (query) => presenter.searchGamertag(query)}
-                onLoadMatches={async (xuid, start, count) => presenter.loadMatches(xuid, start, count)}
-                onStartTracker={async (payload) => presenter.addTracker(payload)}
-              />
-
-              <GameSelectionDialog
-                isOpen={snapshot.gameSelectionDialogState != null}
-                busy={snapshot.busy}
-                trackerLabel={snapshot.gameSelectionDialogState?.trackerLabel ?? ""}
-                trackerId={snapshot.gameSelectionDialogState?.trackerId ?? ""}
-                xuid={snapshot.gameSelectionDialogState?.xuid ?? ""}
-                initialSelectedMatchIds={snapshot.gameSelectionDialogState?.initialSelectedMatchIds ?? []}
-                onClose={(): void => {
-                  presenter.closeGameSelectionDialog();
-                }}
-                onLoadEnrichedMatches={async (xuid, start, count) => presenter.loadMatches(xuid, start, count)}
-                onSync={async (payload) => presenter.syncGameSelection(payload)}
-              />
-            </>
-          }
-        />
-      );
+      panelContent = <LiveTrackersSection />;
       break;
     }
     case "streamer-connections": {
