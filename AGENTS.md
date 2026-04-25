@@ -58,12 +58,71 @@ npm run format:fix
 - Tests in `tests/` folders, fakes in `fakes/` folders
 - Use extensionless imports for internal TypeScript modules
 - **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
-- **Types**: Colocate in `types.ts` files with implementation
+- **Types**: Colocate in `types.ts` files with implementation; `types.ts` must contain only interfaces and type aliases — no functions, classes, or runtime code
   - json casting: do not do `response.json() as ...`, instead do `response.json<...>()`
 - **Fakes**: `<feature>/fakes/data.ts` for fixtures, separate files for behavior
 - **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
 - **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders
 - **Routes**: when adding routes to `api/server`, ensure to add it to `api/wrangler.jsonc`
+
+## Pages Architecture (React Frontend)
+
+The pages project follows a strict three-layer architecture. Each layer has a single, narrow responsibility.
+
+### Layers
+
+```
+pages/src/pages/      ← Astro route adapters (no logic — imports and mounts an app)
+pages/src/apps/       ← App bootstrap (service wiring, auth, loading gates)
+pages/src/components/ ← Feature UI (presenter/store/view per feature)
+```
+
+**Route adapter** (`pages/*.astro`): No logic. Renders a single app component from `apps/`.
+
+**App** (`apps/*.tsx`): Installs services, gates on auth/loading, constructs presenter and store, and passes the resulting component tree to the view. `BaseApp` handles the service-loading lifecycle; feature apps extend it. One app per route.
+
+**Component** (`components/<feature>/`): Pure UI and local state. No direct service calls. Receives props and callbacks only.
+
+### Presenter / Store Pattern
+
+Each feature that needs state uses:
+
+- `<feature>-store.ts` — state container only: holds the snapshot object and a subscriber set. No logic.
+- `<feature>-presenter.ts` — all orchestration: reads/writes to the store, calls services, triggers side effects.
+- `<feature>.tsx` — view: subscribes via `useSyncExternalStore`, renders from snapshot.
+
+The view is a pure function of snapshot + callbacks. It contains no business logic.
+
+### Section / Sub-component Factories (`create.tsx`)
+
+A `create.tsx` file is only justified when a section needs its own presenter/store, or when it must wire child components to be passed into a parent. Do not create a `create.tsx` just to wrap a single stateless component.
+
+When a feature section is self-contained with its own state (e.g. `live-trackers/`), expose a **controller interface** rather than the presenter class directly. The parent receives the interface and a pre-wired `Component`; it does not import the child's presenter.
+
+```ts
+// create.tsx returns:
+{ controller: LiveTrackersController, Component: () => React.ReactElement }
+```
+
+The controller interface lives in `types.ts`, not in `create.tsx`.
+
+### Component Hierarchy and Duplication
+
+- Sub-components are the right place to start. Keep them co-located inside their feature folder.
+- When a sub-component needs to be shared by two features, lift it to a shared `components/` folder at the appropriate level — don't duplicate it.
+- If the same UI pattern appears more than once, extract a shared component rather than copying markup.
+- Prefer extending existing shared components (`Alert`, `Container`, `ErrorState`, `LoadingState`) over creating new ones for the same purpose.
+
+### Alert Component
+
+Use `Alert` for all user-facing error, warning, and informational messages. Do not write bespoke error/info styled divs. `Alert` accepts a `variant` (`error` | `warning` | `info`) and optional `icon`.
+
+### CSS Co-location
+
+- Every component has its own `.module.css` file in the same folder.
+- Do not put component styles in a shared or parent CSS file.
+- If a style is only used by one component, it belongs in that component's module.
+- Only use the `style` attribute to pass a value through a CSS variable; all other styling goes in the CSS module.
 
 ## Code Style
 
@@ -85,7 +144,6 @@ npm run format:fix
   - `@media (--ultrawide-viewport)` - min-width: 1200px
 - **Organization**: Group media queries at bottom with section headers; never use `max-width` queries
 - **Design Tokens**: Use `pages/src/styles/variables.css` tokens (e.g. font size, spacing, colors, border radius)
-- **Classes and styles**: We use CSS modules, all styling is to be done via CSS modules. Only use `style` attribute to pass a value via a CSS variable.
 - **Conditional classes**: do not use template literals to do conditional classes, instead use `classnames` package
 
 ## Type Safety
@@ -94,7 +152,7 @@ npm run format:fix
 - Define explicit interfaces for all API interactions
 - Use discriminated unions with `isSuccessResponse()` patterns
 - **Exhaustive Switch Statements**: For discriminated unions, use switch statements with exhaustive case coverage rather than if-else chains. Always include a `default: throw new UnreachableError(value)` case to ensure compile-time detection of unhandled types
-- Keep types in `types.ts` files alongside implementation
+- Keep types in `types.ts` files alongside implementation; `types.ts` must contain only interfaces and type aliases — no functions, classes, or runtime code
 - Add `import type` for framework types (e.g., `ImageMetadata`)
 - Prefer compile-time errors over runtime failures
 - You are forbidden to modify eslint config and tsconfig files. In situations where it is required, you must tell prompter, explain the need and what it solves, and ask the prompter to manually do this.
