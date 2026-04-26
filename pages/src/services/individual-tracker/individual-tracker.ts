@@ -30,10 +30,12 @@ import type {
   IndividualTrackerCreateProfileResponse,
   IndividualTrackerGame,
   IndividualTrackerGamesResponse,
+  IndividualTrackerStreamerViewSettings,
   IndividualTrackerStateListener,
   IndividualTrackerStatusListener,
   IndividualTrackerSubscription,
   IndividualTrackerMutateGamesRequest,
+  IndividualTrackerUpdateStreamerViewSettingsRequest,
   PauseTrackerResponse,
   ResumeTrackerResponse,
   StartTrackerRequest,
@@ -124,6 +126,26 @@ function getMapThumbnailUrl(asset: MapAsset): string {
   }
 
   return "data:,";
+}
+
+function buildPlayerXuidToGamertag(
+  matchStats: MatchStats | null,
+  xuidToGamertag: ReadonlyMap<string, string>,
+): Record<string, string> {
+  const playerMap: Record<string, string> = {};
+  if (matchStats == null) {
+    return playerMap;
+  }
+
+  for (const player of matchStats.Players) {
+    const xuid = getPlayerXuid(player);
+    const gamertag = xuidToGamertag.get(xuid);
+    if (gamertag != null) {
+      playerMap[xuid] = gamertag;
+    }
+  }
+
+  return playerMap;
 }
 
 function parseProfile(value: unknown): IndividualTrackerProfile | null {
@@ -248,6 +270,34 @@ function parseGamesResponse(value: unknown): IndividualTrackerGamesResponse {
 
   return {
     games: parseGames(value.games),
+  };
+}
+
+function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerViewSettings {
+  if (!isRecord(value)) {
+    throw new Error("Invalid streamer view settings response");
+  }
+
+  const profileId = value.profileId;
+  const layoutOptions = value.layoutOptions;
+  const visibleSections = value.visibleSections;
+  const styleFlags = value.styleFlags;
+  const updatedAt = value.updatedAt;
+
+  if (!isString(profileId) || !isRecord(layoutOptions) || !isRecord(visibleSections) || !isRecord(styleFlags)) {
+    throw new Error("Invalid streamer view settings response");
+  }
+
+  if (updatedAt !== null && !isNumber(updatedAt)) {
+    throw new Error("Invalid streamer view settings response");
+  }
+
+  return {
+    profileId,
+    layoutOptions,
+    visibleSections,
+    styleFlags,
+    updatedAt,
   };
 }
 
@@ -411,6 +461,28 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     });
 
     return parseUpdateProfileResponse(payload);
+  }
+
+  async getStreamerViewSettings(profileId: string): Promise<IndividualTrackerStreamerViewSettings> {
+    const payload = await this.fetchJson(
+      `/api/individual-tracker/streamer-view?profileId=${encodeURIComponent(profileId)}`,
+      {
+        method: "GET",
+      },
+    );
+
+    return parseStreamerViewSettings(payload);
+  }
+
+  async updateStreamerViewSettings(
+    request: IndividualTrackerUpdateStreamerViewSettingsRequest,
+  ): Promise<IndividualTrackerStreamerViewSettings> {
+    const payload = await this.fetchJson("/api/individual-tracker/streamer-view", {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    });
+
+    return parseStreamerViewSettings(payload);
   }
 
   async addGame(request: IndividualTrackerMutateGamesRequest): Promise<IndividualTrackerGamesResponse> {
@@ -627,14 +699,21 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           matchId: match.MatchId,
           startTime: formatDisplayDateTime(match.MatchInfo.StartTime),
           endTime: formatDisplayDateTime(match.MatchInfo.EndTime),
+          startTimeIso: match.MatchInfo.StartTime,
+          endTimeIso: match.MatchInfo.EndTime,
           duration: getReadableDuration(match.MatchInfo.Duration),
           mapName: mapDetails.name,
           modeName,
+          gameType: modeName,
+          gameMap: mapDetails.name,
+          gameTypeAndMap: `${modeName}: ${mapDetails.name}`,
           outcome,
           resultString: buildMatchResultString(outcome, matchStats),
           isMatchmaking,
           category,
           teams: buildTeams(matchStats, xuidToGamertag),
+          rawMatchStats: matchStats,
+          playerXuidToGametag: buildPlayerXuidToGamertag(matchStats, xuidToGamertag),
           mapThumbnailUrl: mapDetails.thumbnailUrl,
         } satisfies TrackerMatchHistoryEntry;
       }),
@@ -830,6 +909,14 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
   public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
     const response = await fetch(`${this.apiHost}/api/individual-tracker/manage/${encodeURIComponent(userId)}/active`);
+
+    return response.json<TrackerStatusResponse>();
+  }
+
+  public async getTrackerState(userId: string, trackerId: string): Promise<TrackerStatusResponse> {
+    const response = await fetch(
+      `${this.apiHost}/api/individual-tracker/manage/${encodeURIComponent(userId)}/${encodeURIComponent(trackerId)}/status`,
+    );
 
     return response.json<TrackerStatusResponse>();
   }

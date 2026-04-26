@@ -9,12 +9,14 @@ import type {
   IndividualTrackerProfile,
   IndividualTrackerProfileResponse,
   IndividualTrackerReorderGamesRequest,
+  IndividualTrackerStreamerViewSettings,
   IndividualTrackerService,
   IndividualTrackerStateListener,
   IndividualTrackerStatusListener,
   IndividualTrackerSubscription,
   IndividualTrackerUpdateProfileRequest,
   IndividualTrackerUpdateProfileResponse,
+  IndividualTrackerUpdateStreamerViewSettingsRequest,
   PauseTrackerResponse,
   ResumeTrackerResponse,
   StartTrackerRequest,
@@ -28,6 +30,7 @@ import type {
 
 interface FakeIndividualTrackerServiceOptions {
   readonly profileResponse: IndividualTrackerProfileResponse;
+  readonly streamerViewSettings: IndividualTrackerStreamerViewSettings;
   readonly activeState?: IndividualTrackerState | null;
   readonly trackerStates?: Record<string, IndividualTrackerState | null>;
   readonly trackerReferences?: Record<string, { gamertag: string; updatedAt?: number }>;
@@ -64,6 +67,8 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     trackerId: "fake-tracker-id",
     xuid: "fake-xuid",
     gamertag: "FakeGamertag",
+    teamColor: "salmon",
+    enemyColor: "cerulean",
     status: "active",
     isPaused: false,
     startTime: now,
@@ -128,6 +133,7 @@ class FakeIndividualTrackerConnection implements IndividualTrackerConnection {
 
 export class FakeIndividualTrackerService implements IndividualTrackerService {
   private readonly options: FakeIndividualTrackerServiceOptions;
+  private streamerViewSettings: IndividualTrackerStreamerViewSettings;
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
     this.options = {
@@ -135,8 +141,40 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
         profile: null,
         games: [],
       },
+      streamerViewSettings: {
+        profileId: "profile-1",
+        layoutOptions: {},
+        visibleSections: {},
+        styleFlags: {},
+        updatedAt: null,
+      },
       ...options,
     };
+    this.streamerViewSettings = this.options.streamerViewSettings;
+  }
+
+  public async getStreamerViewSettings(profileId: string): Promise<IndividualTrackerStreamerViewSettings> {
+    return Promise.resolve({
+      ...this.streamerViewSettings,
+      profileId,
+    });
+  }
+
+  public async updateStreamerViewSettings(
+    request: IndividualTrackerUpdateStreamerViewSettingsRequest,
+  ): Promise<IndividualTrackerStreamerViewSettings> {
+    this.streamerViewSettings = {
+      profileId: request.profileId,
+      layoutOptions: request.layoutOptions ?? this.streamerViewSettings.layoutOptions,
+      visibleSections: request.visibleSections ?? this.streamerViewSettings.visibleSections,
+      styleFlags: {
+        ...this.streamerViewSettings.styleFlags,
+        ...(request.styleFlags ?? {}),
+      },
+      updatedAt: Math.floor(Date.now() / 1000),
+    };
+
+    return Promise.resolve(this.streamerViewSettings);
   }
 
   public async getProfile(): Promise<IndividualTrackerProfileResponse> {
@@ -320,6 +358,12 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
     void userId;
     return Promise.resolve({ activeTracker: this.options.activeState ?? null });
+  }
+
+  public async getTrackerState(userId: string, trackerId: string): Promise<TrackerStatusResponse> {
+    void userId;
+    const state = this.options.trackerStates?.[trackerId] ?? null;
+    return Promise.resolve({ activeTracker: state });
   }
 }
 

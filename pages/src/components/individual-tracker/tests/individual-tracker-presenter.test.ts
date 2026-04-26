@@ -4,7 +4,10 @@ import type { Services } from "../../../services/types";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
-import { aFakeIndividualTrackerServiceWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import {
+  aFakeIndividualTrackerServiceWith,
+  aFakeIndividualTrackerStateWith,
+} from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { LiveTrackersController } from "../live-trackers/types";
 import { IndividualTrackerPresenter } from "../individual-tracker-presenter";
 import { IndividualTrackerStore } from "../individual-tracker-store";
@@ -46,6 +49,99 @@ afterEach(() => {
 });
 
 describe("IndividualTrackerPresenter", () => {
+  it("enters follow-active viewer mode when mode=active query param is present", async () => {
+    window.history.pushState({}, "", "/individual-tracker?mode=active");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith({
+        activeState: aFakeIndividualTrackerStateWith({
+          userId: "user-1",
+          trackerId: "active-1",
+          gamertag: "Chief",
+        }),
+      }),
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      const snapshot = harness.presenter.getSnapshot();
+      expect(snapshot.authState).toBe("authenticated");
+      expect(snapshot.mode).toBe("view");
+      expect(snapshot.viewSource).toBe("active");
+      expect(snapshot.viewTrackerId).toBe("active-1");
+      expect(snapshot.viewedTracker?.trackerId).toBe("active-1");
+    });
+
+    window.history.pushState({}, "", "/individual-tracker");
+  });
+
+  it("enters viewer mode when tracker query param is present", async () => {
+    window.history.pushState({}, "", "/individual-tracker?tracker=tracker-123");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith({
+        trackerStates: {
+          "tracker-123": {
+            userId: "user-1",
+            trackerId: "tracker-123",
+            xuid: "xuid-1",
+            gamertag: "Chief",
+            status: "active",
+            isPaused: false,
+            startTime: "2026-01-01T00:00:00.000Z",
+            lastUpdateTime: "2026-01-01T00:05:00.000Z",
+            searchStartTime: "2026-01-01T00:00:00.000Z",
+            lastMatchDiscoveredAt: "2026-01-01T00:05:00.000Z",
+            checkCount: 2,
+            idleTimeoutHours: 1,
+            discoveredMatches: {},
+            matchIds: [],
+            excludedMatchIds: [],
+            errorState: {
+              consecutiveErrors: 0,
+              backoffMinutes: 3,
+              lastSuccessTime: "2026-01-01T00:05:00.000Z",
+            },
+            refreshInProgress: undefined,
+            refreshStartedAt: undefined,
+          },
+        },
+      }),
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      const snapshot = harness.presenter.getSnapshot();
+      expect(snapshot.authState).toBe("authenticated");
+      expect(snapshot.mode).toBe("view");
+      expect(snapshot.viewSource).toBe("tracker");
+      expect(snapshot.viewTrackerId).toBe("tracker-123");
+      expect(snapshot.viewedTracker?.trackerId).toBe("tracker-123");
+    });
+
+    window.history.pushState({}, "", "/individual-tracker");
+  });
+
   it("loads authenticated session and coordinates child controller", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith({
@@ -117,5 +213,55 @@ describe("IndividualTrackerPresenter", () => {
     expect(harness.assignLocation).toHaveBeenCalledWith(
       "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     );
+  });
+
+  it("updates and persists viewer team colors", async () => {
+    const individualTrackerService = aFakeIndividualTrackerServiceWith({
+      profile: {
+        ProfileId: "profile-1",
+        UserId: "user-1",
+        ActiveIdentityId: null,
+        Name: "default",
+        CreatedAt: 1,
+        UpdatedAt: 1,
+      },
+    });
+
+    const updateSettingsSpy = vi.spyOn(individualTrackerService, "updateStreamerViewSettings");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService,
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
+    });
+
+    await harness.presenter.updateViewerColors("jade", "tangelo");
+
+    expect(updateSettingsSpy).toHaveBeenCalledWith({
+      profileId: "profile-1",
+      styleFlags: {
+        teamColor: "jade",
+        enemyColor: "tangelo",
+      },
+    });
+
+    const snapshot = harness.presenter.getSnapshot();
+    expect(snapshot.viewerTeamColor).toBe("jade");
+    expect(snapshot.viewerEnemyColor).toBe("tangelo");
+    expect(snapshot.viewerSettingsErrorMessage).toBeNull();
+    expect(snapshot.viewerSettingsSaving).toBe(false);
   });
 });

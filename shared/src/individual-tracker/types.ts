@@ -21,6 +21,8 @@ export interface IndividualTrackerState {
   readonly trackerId: string;
   readonly xuid: string;
   readonly gamertag: string;
+  readonly teamColor?: string;
+  readonly enemyColor?: string;
 
   readonly status: IndividualTrackerStatus;
   readonly isPaused: boolean;

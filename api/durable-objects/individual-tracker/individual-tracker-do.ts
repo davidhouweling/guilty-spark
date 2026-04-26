@@ -9,6 +9,7 @@ import {
   type IndividualTrackerMatchSummary,
   type IndividualTrackerState,
   type IndividualTrackerStartRequest,
+  type IndividualTrackerViewerStyleUpdateRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
   type IndividualTrackerPauseResponse,
@@ -29,6 +30,22 @@ const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 
 const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
+const DEFAULT_TEAM_COLOR = "salmon";
+const DEFAULT_ENEMY_COLOR = "cerulean";
+const TEAM_COLOR_ID_REGEX = /^[a-z0-9-]{2,32}$/;
+
+function toValidColorId(value: unknown, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim().toLowerCase();
+  if (!TEAM_COLOR_ID_REGEX.test(trimmed)) {
+    return fallback;
+  }
+
+  return trimmed;
+}
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -76,6 +93,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "games-remove": {
             return await this.handleGamesRemove(request);
+          }
+          case "viewer-style": {
+            return await this.handleViewerStyle(request);
           }
           case "websocket": {
             return await this.handleWebSocket();
@@ -181,6 +201,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerId: body.trackerId,
       xuid: body.xuid,
       gamertag: body.gamertag,
+      teamColor: toValidColorId(body.teamColor, DEFAULT_TEAM_COLOR),
+      enemyColor: toValidColorId(body.enemyColor, DEFAULT_ENEMY_COLOR),
       status: "active",
       isPaused: false,
       startTime: now,
@@ -343,6 +365,28 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const response: IndividualTrackerGamesRemoveResponse = { success: true, matchId: body.matchId };
     return Response.json(response, { status: 200 });
+  }
+
+  private async handleViewerStyle(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerViewerStyleUpdateRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const nextState: IndividualTrackerState = {
+      ...trackerState,
+      teamColor: toValidColorId(body.teamColor, trackerState.teamColor),
+      enemyColor: toValidColorId(body.enemyColor, trackerState.enemyColor),
+    };
+
+    await this.setState(nextState);
+    return Response.json({ success: true, state: sanitizeTrackerState(nextState) }, { status: 200 });
   }
 
   private async handleWebSocket(): Promise<Response> {

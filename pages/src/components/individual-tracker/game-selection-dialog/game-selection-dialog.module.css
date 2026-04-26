@@ -14,7 +14,5 @@
 .matchesContainer {
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
   border-radius: var(--radius-sm);
-  max-height: 420px;
-  overflow: auto;
   padding: var(--space-3);
 }

@@ -128,6 +128,36 @@ function normalizeXuid(value: string): string {
   return trimmed;
 }
 
+const TEAM_COLOR_ID_REGEX = /^[a-z0-9-]{2,32}$/;
+
+function parseColorId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim().toLowerCase();
+  if (!TEAM_COLOR_ID_REGEX.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function extractViewerColors(styleFlags: Record<string, unknown>): { teamColor?: string; enemyColor?: string } {
+  const maybeTeamColor = parseColorId(styleFlags["teamColor"]);
+  const maybeEnemyColor = parseColorId(styleFlags["enemyColor"]);
+
+  const next: { teamColor?: string; enemyColor?: string } = {};
+  if (maybeTeamColor != null) {
+    next.teamColor = maybeTeamColor;
+  }
+  if (maybeEnemyColor != null) {
+    next.enemyColor = maybeEnemyColor;
+  }
+
+  return next;
+}
+
 const ALLOWED_PROXY_METHODS = new Set([
   "getMatchSkill",
   "getMatchStats",
@@ -674,6 +704,7 @@ export class Server {
           : currentVisible;
 
         const styleFlags = isRecord(styleFlagsInput) ? { ...currentStyle, ...styleFlagsInput } : currentStyle;
+        const viewerColors = extractViewerColors(styleFlags);
 
         const updatedAt = Math.floor(Date.now() / 1000);
         await services.databaseService.upsertStreamerViewSettings({
@@ -683,6 +714,31 @@ export class Server {
           StyleFlagsJson: JSON.stringify(styleFlags),
           UpdatedAt: updatedAt,
         });
+
+        const activeSession = await services.databaseService.findIndividualTrackerActiveSession(session.userId);
+        if (activeSession != null) {
+          const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${activeSession.TrackerId}`);
+          const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+          const doUrl = new URL(request.url);
+          doUrl.pathname = "/viewer-style";
+
+          try {
+            await stub.fetch(
+              new Request(doUrl.toString(), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: session.userId,
+                  teamColor: viewerColors.teamColor,
+                  enemyColor: viewerColors.enemyColor,
+                }),
+              }),
+            );
+          } catch (error) {
+            console.warn("Failed to propagate streamer colors to active tracker", error);
+          }
+        }
 
         return new Response(
           JSON.stringify({
@@ -979,6 +1035,19 @@ export class Server {
           resolvedGamertag = xboxIdentity.Gamertag ?? xboxIdentity.ProviderUserId;
         }
 
+        const profiles = await services.databaseService.findIndividualTrackerProfilesByUserId(session.userId);
+        const defaultProfile = profiles[0] ?? null;
+        let viewerTeamColor: string | undefined;
+        let viewerEnemyColor: string | undefined;
+
+        if (defaultProfile != null) {
+          const settings = await services.databaseService.getStreamerViewSettings(defaultProfile.ProfileId);
+          const styleFlags = toObjectOrDefault(settings?.StyleFlagsJson ?? null, {});
+          const parsedColors = extractViewerColors(styleFlags);
+          viewerTeamColor = parsedColors.teamColor;
+          viewerEnemyColor = parsedColors.enemyColor;
+        }
+
         const trackerId = crypto.randomUUID();
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -993,6 +1062,13 @@ export class Server {
           userMicrosoftAccessToken: session.accessToken,
           userMicrosoftRefreshToken: session.refreshToken,
         };
+
+        if (viewerTeamColor != null) {
+          startPayload.teamColor = viewerTeamColor;
+        }
+        if (viewerEnemyColor != null) {
+          startPayload.enemyColor = viewerEnemyColor;
+        }
 
         const doUrl = new URL(request.url);
         doUrl.pathname = "/start";

@@ -1,4 +1,5 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { MatchStats } from "halo-infinite-api";
 
 export interface IndividualTrackerProfile {
   ProfileId: string;
@@ -43,6 +44,21 @@ export interface IndividualTrackerUpdateProfileResponse {
   profile: IndividualTrackerProfile;
 }
 
+export interface IndividualTrackerStreamerViewSettings {
+  readonly profileId: string;
+  readonly layoutOptions: Readonly<Record<string, unknown>>;
+  readonly visibleSections: Readonly<Record<string, unknown>>;
+  readonly styleFlags: Readonly<Record<string, unknown>>;
+  readonly updatedAt: number | null;
+}
+
+export interface IndividualTrackerUpdateStreamerViewSettingsRequest {
+  readonly profileId: string;
+  readonly layoutOptions?: Readonly<Record<string, unknown>>;
+  readonly visibleSections?: Readonly<Record<string, unknown>>;
+  readonly styleFlags?: Readonly<Record<string, unknown>>;
+}
+
 export interface IndividualTrackerMutateGamesRequest {
   profileId: string;
   matchId: string;
@@ -61,6 +77,10 @@ export interface IndividualTrackerService {
   getProfile(): Promise<IndividualTrackerProfileResponse>;
   createProfile(request: IndividualTrackerCreateProfileRequest): Promise<IndividualTrackerCreateProfileResponse>;
   updateProfile(request: IndividualTrackerUpdateProfileRequest): Promise<IndividualTrackerUpdateProfileResponse>;
+  getStreamerViewSettings(profileId: string): Promise<IndividualTrackerStreamerViewSettings>;
+  updateStreamerViewSettings(
+    request: IndividualTrackerUpdateStreamerViewSettingsRequest,
+  ): Promise<IndividualTrackerStreamerViewSettings>;
   addGame(request: IndividualTrackerMutateGamesRequest): Promise<IndividualTrackerGamesResponse>;
   removeGame(request: IndividualTrackerMutateGamesRequest): Promise<IndividualTrackerGamesResponse>;
   reorderGames(request: IndividualTrackerReorderGamesRequest): Promise<IndividualTrackerGamesResponse>;
@@ -78,6 +98,7 @@ export interface IndividualTrackerService {
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
   connectToActiveTracker(userId: string): IndividualTrackerConnection;
   getActiveTrackerState(userId: string): Promise<TrackerStatusResponse>;
+  getTrackerState(userId: string, trackerId: string): Promise<TrackerStatusResponse>;
 }
 
 export type {
@@ -129,14 +150,21 @@ export interface TrackerMatchHistoryEntry {
   readonly matchId: string;
   readonly startTime: string;
   readonly endTime: string;
+  readonly startTimeIso?: string;
+  readonly endTimeIso?: string;
   readonly duration: string;
   readonly mapName: string;
   readonly modeName: string;
+  readonly gameType?: string;
+  readonly gameMap?: string;
+  readonly gameTypeAndMap?: string;
   readonly outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
   readonly resultString: string;
   readonly isMatchmaking: boolean;
   readonly category: "matchmaking" | "custom" | "local" | "unknown";
   readonly teams: readonly (readonly string[])[];
+  readonly rawMatchStats?: MatchStats | null;
+  readonly playerXuidToGametag?: Readonly<Record<string, string>>;
   readonly mapThumbnailUrl: string;
 }
 

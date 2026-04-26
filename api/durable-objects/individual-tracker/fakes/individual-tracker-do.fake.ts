@@ -28,6 +28,8 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     trackerId: "fake-tracker-id",
     xuid: "fake-xuid",
     gamertag: "FakeGamertag",
+    teamColor: "salmon",
+    enemyColor: "cerulean",
     status: "active",
     isPaused: false,
     startTime: now,
@@ -111,6 +113,10 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
       }
       case "/games-remove": {
         responseBody = JSON.stringify(gamesRemoveResponse);
+        break;
+      }
+      case "/viewer-style": {
+        responseBody = JSON.stringify({ success: true, state: defaultState });
         break;
       }
       case "/websocket": {

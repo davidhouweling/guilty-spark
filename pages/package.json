@@ -9,6 +9,7 @@
     "preview": "astro build && wrangler pages dev",
     "astro": "astro",
     "deploy": "astro build && wrangler pages deploy",
+    "test": "vitest run --root .. --config vitest.config.ts --project pages",
     "typecheck": "astro check",
     "cf-typegen": "wrangler types",
     "stylelint": "stylelint 'src/**/*.css' 'src/**/*.astro'",

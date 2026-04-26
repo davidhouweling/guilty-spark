@@ -1,7 +1,17 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 in progress
-**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026)
+**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 advanced and still in progress
+**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: April 26, 2026)
+
+## Current implementation snapshot (April 26, 2026)
+
+- Shared `match-history` component is implemented and reused by both Add Tracker and Game Selection flows.
+- Live tracker row actions are wired end-to-end for pause, resume, stop, delete, set-live, and game-selection sync.
+- Streamer Connections and Additional Options sections are present in the shell but still placeholder panels.
+- Per-tracker Streamer Settings action is present but intentionally disabled pending Phase 5 integration.
+- Viewer-mode behavior is now wired for tracker-specific viewing and follow-active viewing: `?tracker=` and `?mode=active` routes render a dedicated read-only tracker panel backed by explicit status fetch + WebSocket updates.
+- Shared series-overview UI is now extracted into a reusable component and consumed by both team live-tracker and individual tracker viewer surfaces.
+- Individual tracker grouped-series presentation now supports dropping inner borders around score/team blocks for closer visual parity with the target viewer UX.
 
 ## Goal
 
@@ -293,16 +303,16 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 ### Phase B: editable game list
 
-- [ ] Add previous games into the active tracker by search result or match id.
-- [ ] Remove games from the active tracked timeline.
-- [ ] Keep games in time-linear order.
+- [x] Add previous games into the active tracker by search result or match id.
+- [x] Remove games from the active tracked timeline.
+- [x] Keep games in time-linear order.
 
 ### Phase C: streamer controls
 
 - [ ] Toggle sections (scoreboard, medals, timeline, player cards).
 - [ ] Save layout preferences.
 - [ ] Add a stable `follow the stream` URL that resolves to the user's currently active on-stream tracker.
-- [ ] Allow the owner to switch which active tracker is currently presented on stream.
+- [x] Allow the owner to switch which active tracker is currently presented on stream.
 
 ### Phase D: Twitch extension readiness
 
@@ -316,6 +326,8 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [ ] Add an `active tracker` viewer page that follows the current on-stream tracker automatically.
 - [ ] Add a way for viewers to explore other active trackers for the streamer.
 - [ ] Keep this separate from the first viewer-mode implementation.
+
+> Current state: direct tracker viewer mode (`/individual-tracker?tracker=<trackerId>`) and owner follow-active mode (`/individual-tracker?mode=active`) are implemented for read-only viewing. Public follow-the-stream UX and viewer discovery remain pending.
 
 ## Delivery phases
 
@@ -357,7 +369,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] `streamer_view_settings` D1 schema defined and ready to execute manually.
 - [ ] Streamer-view settings API + UI.
 - [ ] URL/share behavior for live stream usage.
-- [ ] Allow the owner to select which active tracker is presented on stream.
+- [x] Allow the owner to select which active tracker is presented on stream.
 
 ### Phase 5 - Twitch extension integration
 
@@ -569,13 +581,15 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Explicit status model update: removed implicit owner-only status bootstrap in favor of explicit user/tracker routes.
 - [x] Frontend service consolidation: individual tracker profile + runtime APIs now use a single consolidated service interface and fake implementation.
 - [x] Phase 4 step 4 delivered: active-row "Game selection" action now opens a sync-on-close dialog with category filters and add/remove reconciliation.
-- [ ] Phase 4 follow-up: replace the temporary flat recent-match list with a reusable `match-history` component shared by the game-selection dialog and tracker creation flow.
+- [x] Phase 4 follow-up delivered: replaced the temporary flat recent-match list with a reusable `match-history` component shared by the game-selection dialog and tracker creation flow.
+- [x] Viewer UI parity follow-up delivered: extracted shared `series-overview` component from team live tracker and reused it in individual tracker grouped-series rendering.
+- [x] Viewer styling follow-up delivered: individual tracker grouped-series view now supports borderless inner parts to better match intended presentation.
 
 ### Current operator note - View tracker behavior
 
-Current behavior is expected for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>`, but there is not yet a distinct viewer-mode panel/state switch wired to that query param. In practice, this means navigation occurs but does not yet present a meaningfully different tracker-view experience.
+Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and now opens a distinct, read-only viewer panel for that tracker. The panel subscribes to tracker state updates and reflects status changes live.
 
-This is part of ongoing Phase 4 work (viewer-mode UX beyond route navigation).
+Still pending: a broader public viewer experience (follow-the-stream route UX, streamer discovery, and non-owner browsing flows).
 
 ## Match history follow-up requirement (April 23, 2026)
 

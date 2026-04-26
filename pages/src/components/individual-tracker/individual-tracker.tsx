@@ -9,6 +9,7 @@ import { AdditionalOptionsSectionView } from "./additional-options/additional-op
 import type { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import type { IndividualTrackerSectionId } from "./types";
 import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
+import { IndividualTrackerViewer } from "./viewer/individual-tracker-viewer";
 import styles from "./individual-tracker.module.css";
 
 interface IndividualTrackerViewProps {
@@ -65,6 +66,27 @@ export function IndividualTrackerView({
     );
   }
 
+  if (snapshot.mode === "view") {
+    return (
+      <Container className={styles.pageContainer}>
+        <IndividualTrackerViewer
+          trackerId={snapshot.viewTrackerId}
+          viewSource={snapshot.viewSource}
+          connectionStatus={snapshot.viewConnectionStatus}
+          errorMessage={snapshot.viewErrorMessage}
+          state={snapshot.viewedTracker}
+          matchHistory={snapshot.viewedMatchHistory}
+          matchHistoryLoading={snapshot.viewedMatchHistoryLoading}
+          defaultTeamColor={snapshot.viewerTeamColor}
+          defaultEnemyColor={snapshot.viewerEnemyColor}
+          onBackToManage={(): void => {
+            presenter.exitViewerMode();
+          }}
+        />
+      </Container>
+    );
+  }
+
   let panelContent: React.ReactNode;
 
   const { activeSection } = snapshot;
@@ -78,7 +100,20 @@ export function IndividualTrackerView({
       break;
     }
     case "additional-options": {
-      panelContent = <AdditionalOptionsSectionView />;
+      panelContent = (
+        <AdditionalOptionsSectionView
+          teamColor={snapshot.viewerTeamColor}
+          enemyColor={snapshot.viewerEnemyColor}
+          saving={snapshot.viewerSettingsSaving}
+          errorMessage={snapshot.viewerSettingsErrorMessage}
+          onTeamColorChange={(nextColor): void => {
+            void presenter.updateViewerColors(nextColor, snapshot.viewerEnemyColor);
+          }}
+          onEnemyColorChange={(nextColor): void => {
+            void presenter.updateViewerColors(snapshot.viewerTeamColor, nextColor);
+          }}
+        />
+      );
       break;
     }
     default: {

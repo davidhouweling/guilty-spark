@@ -47,6 +47,17 @@ export interface IndividualTrackerStartRequest {
   userMicrosoftAccessToken: string;
   /** Optional refresh token to auto-renew access token. */
   userMicrosoftRefreshToken: string | undefined;
+  /** Optional observer-style color for tracked team. */
+  teamColor?: string;
+  /** Optional observer-style color for opposing team. */
+  enemyColor?: string;
+}
+
+export interface IndividualTrackerViewerStyleUpdateRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+  teamColor?: string;
+  enemyColor?: string;
 }
 
 export interface IndividualTrackerGamesMutateRequest {
@@ -67,6 +78,8 @@ export interface IndividualTrackerState {
   trackerId: string;
   xuid: string;
   gamertag: string;
+  teamColor: string;
+  enemyColor: string;
 
   status: LiveTrackerStatus;
   isPaused: boolean;
