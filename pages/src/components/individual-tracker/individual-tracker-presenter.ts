@@ -7,6 +7,7 @@ import type {
 import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./types";
 import type { IndividualTrackerStore } from "./individual-tracker-store";
 import type { LiveTrackersController } from "./live-trackers/types";
+import { buildIndividualTrackerViewerRenderModel } from "./viewer/viewer-render-model";
 
 interface Config {
   readonly services: Services;
@@ -121,8 +122,20 @@ export class IndividualTrackerPresenter {
       return;
     }
 
-    this.config.store.snapshot = updater(this.config.store.snapshot);
+    this.config.store.snapshot = this.deriveSnapshot(updater(this.config.store.snapshot));
     this.notifySubscribers();
+  }
+
+  private deriveSnapshot(snapshot: IndividualTrackerSnapshot): IndividualTrackerSnapshot {
+    return {
+      ...snapshot,
+      viewerRenderModel: buildIndividualTrackerViewerRenderModel({
+        state: snapshot.viewedTracker,
+        matchHistory: snapshot.viewedMatchHistory,
+        defaultTeamColor: snapshot.viewerTeamColor,
+        defaultEnemyColor: snapshot.viewerEnemyColor,
+      }),
+    };
   }
 
   private notifySubscribers(): void {

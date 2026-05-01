@@ -12,6 +12,7 @@ export class IndividualTrackerStore {
     viewedTracker: null,
     viewedMatchHistory: null,
     viewedMatchHistoryLoading: false,
+    viewerRenderModel: null,
     activeSection: "live-trackers",
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",

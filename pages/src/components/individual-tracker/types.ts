@@ -1,5 +1,8 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { TrackerMatchHistoryResponse } from "../../services/individual-tracker/types";
+import type { SeriesMetadata } from "../stats/series-metadata";
+import type { MatchStatsData } from "../stats/types";
+import type { TeamColor } from "../team-colors/team-colors";
 
 export type IndividualTrackerSectionId = "live-trackers" | "streamer-connections" | "additional-options";
 
@@ -13,6 +16,86 @@ export interface GameSelectionDialogState {
   readonly trackerLabel: string;
   readonly xuid: string;
   readonly initialSelectedMatchIds: readonly string[];
+}
+
+export interface IndividualTrackerViewerAccumulatedStats {
+  readonly total: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly ties: number;
+  readonly customOrLocal: number;
+  readonly matchmaking: number;
+  readonly groupedSeries: number;
+  readonly standalone: number;
+}
+
+export interface IndividualTrackerViewerOverviewMatch {
+  readonly id: string;
+  readonly gameMode: string;
+  readonly score: string;
+  readonly mapName: string;
+  readonly mapThumbnailUrl: string;
+}
+
+export interface IndividualTrackerViewerOverviewPlayer {
+  readonly id: string;
+  readonly content: string;
+}
+
+export interface IndividualTrackerViewerOverviewTeam {
+  readonly id: string;
+  readonly name: string;
+  readonly colorHex: string | undefined;
+  readonly players: readonly IndividualTrackerViewerOverviewPlayer[];
+}
+
+export interface IndividualTrackerViewerMatchCard {
+  readonly id: string;
+  readonly matchStats: MatchStatsData[] | null;
+  readonly backgroundImageUrl: string;
+  readonly gameMode: string;
+  readonly matchNumber: number;
+  readonly gameTypeAndMap: string;
+  readonly duration: string;
+  readonly score: string;
+  readonly startTime: string;
+  readonly endTime: string;
+}
+
+export interface IndividualTrackerViewerSeriesTotals {
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
+  readonly metadata: SeriesMetadata | null;
+}
+
+export interface IndividualTrackerViewerTrackedPlayerTotals extends IndividualTrackerViewerSeriesTotals {
+  readonly title: string;
+}
+
+export type IndividualTrackerViewerTimelineItem =
+  | {
+      readonly type: "group";
+      readonly id: string;
+      readonly title: string;
+      readonly subtitle: string;
+      readonly seriesScore: string;
+      readonly overviewMatches: readonly IndividualTrackerViewerOverviewMatch[];
+      readonly teams: readonly IndividualTrackerViewerOverviewTeam[];
+      readonly seriesTotals: IndividualTrackerViewerSeriesTotals | null;
+      readonly matches: readonly IndividualTrackerViewerMatchCard[];
+    }
+  | {
+      readonly type: "match";
+      readonly id: string;
+      readonly match: IndividualTrackerViewerMatchCard;
+    };
+
+export interface IndividualTrackerViewerRenderModel {
+  readonly accumulatedStats: IndividualTrackerViewerAccumulatedStats;
+  readonly teamColors: readonly TeamColor[];
+  readonly trackedPlayerTotals: IndividualTrackerViewerTrackedPlayerTotals | null;
+  readonly gameplayTimeline: readonly IndividualTrackerViewerTimelineItem[];
+  readonly trackedEntriesCount: number;
 }
 
 export interface IndividualTrackerSnapshot {
@@ -33,6 +116,7 @@ export interface IndividualTrackerSnapshot {
   readonly viewedTracker: IndividualTrackerState | null;
   readonly viewedMatchHistory: TrackerMatchHistoryResponse | null;
   readonly viewedMatchHistoryLoading: boolean;
+  readonly viewerRenderModel: IndividualTrackerViewerRenderModel | null;
   readonly activeSection: IndividualTrackerSectionId;
   readonly viewerTeamColor: string;
   readonly viewerEnemyColor: string;

@@ -75,10 +75,8 @@ export function IndividualTrackerView({
           connectionStatus={snapshot.viewConnectionStatus}
           errorMessage={snapshot.viewErrorMessage}
           state={snapshot.viewedTracker}
-          matchHistory={snapshot.viewedMatchHistory}
+          renderModel={snapshot.viewerRenderModel}
           matchHistoryLoading={snapshot.viewedMatchHistoryLoading}
-          defaultTeamColor={snapshot.viewerTeamColor}
-          defaultEnemyColor={snapshot.viewerEnemyColor}
           onBackToManage={(): void => {
             presenter.exitViewerMode();
           }}
