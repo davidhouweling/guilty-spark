@@ -22,6 +22,7 @@ import { SeriesPlayerStatsPresenter } from "../../stats/series-player-stats-pres
 import type { SeriesMetadata } from "../../stats/series-metadata";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import liveStyles from "../../live-tracker/live-tracker.module.css";
+import { LoadingState } from "../../loading-state/loading-state";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
@@ -92,7 +93,7 @@ function getSeriesSubtitle(entries: readonly TrackerMatchHistoryEntry[]): string
     return "No matches";
   }
 
-  const first = entries[0];
+  const [first] = entries;
   return `${entries.length.toString()} games • ${first.modeName} on ${first.mapName}`;
 }
 
@@ -158,12 +159,8 @@ function computeSeriesMetadata(
     return null;
   }
 
-  const first = entries[0];
+  const [first] = entries;
   const last = entries[entries.length - 1];
-  if (first == null || last == null) {
-    return null;
-  }
-
   const firstTime = first.startTimeIso ?? first.startTime;
   const lastTime = last.endTimeIso ?? last.endTime;
   const startMs = new Date(firstTime).getTime();
@@ -419,7 +416,7 @@ export function IndividualTrackerViewer({
 
         {state == null ? (
           <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
-            <p className={styles.placeholderText}>Waiting for tracker state...</p>
+            <Alert variant="info">Waiting for tracker state...</Alert>
           </Container>
         ) : (
           <>
@@ -466,6 +463,7 @@ export function IndividualTrackerViewer({
                     title={trackedPlayerTotals.title}
                     metadata={trackedPlayerTotals.metadata}
                     teamColors={teamColorsArray}
+                    omitStatKeys={["team", "gamertag"]}
                   />
                 </div>
               </Container>
@@ -474,13 +472,13 @@ export function IndividualTrackerViewer({
             <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
               <h2 className={styles.matchesTitle}>Tracked Gameplay</h2>
 
-              {matchHistoryLoading && <p className={styles.placeholderText}>Loading enriched match history...</p>}
+              {matchHistoryLoading && <LoadingState text="Loading enriched match history..." />}
 
               {seriesGroups.length > 0 && (
                 <section className={styles.seriesSection}>
                   <h3 className={styles.sectionTitle}>Series</h3>
                   {seriesGroups.map((group, index) => {
-                    const firstMatch = group.entries[0] ?? null;
+                    const [firstMatch] = group.entries;
 
                     return (
                       <details className={styles.seriesGroup} key={group.id} open={index === 0}>
@@ -492,30 +490,28 @@ export function IndividualTrackerViewer({
                           <span className={styles.seriesScore}>{group.seriesScore}</span>
                         </summary>
 
-                        {firstMatch != null && (
-                          <SeriesOverview
-                            className={styles.groupSeriesOverview}
-                            hidePartBorders={true}
-                            seriesScore={group.seriesScore}
-                            matches={group.entries.map((entry) => ({
-                              id: entry.matchId,
-                              gameMode: entry.modeName,
-                              score: toCompactSeriesResult(entry.resultString),
-                              mapName: entry.mapName,
-                              mapThumbnailUrl: entry.mapThumbnailUrl,
-                            }))}
-                            teams={firstMatch.teams.slice(0, 2).map((team, teamIndex) => ({
-                              id: `${group.id}-team-${teamIndex.toString()}`,
-                              name: `Team ${teamIndex + 1}`,
-                              colorHex: teamColorsArray[teamIndex]?.hex,
-                              players: team.map((player) => ({
-                                id: `${group.id}-team-${teamIndex.toString()}-${player}`,
-                                content: player,
-                              })),
-                            }))}
-                            gameModeIconSrc={gameModeIconSrc}
-                          />
-                        )}
+                        <SeriesOverview
+                          className={styles.groupSeriesOverview}
+                          hidePartBorders={true}
+                          seriesScore={group.seriesScore}
+                          matches={group.entries.map((entry) => ({
+                            id: entry.matchId,
+                            gameMode: entry.modeName,
+                            score: toCompactSeriesResult(entry.resultString),
+                            mapName: entry.mapName,
+                            mapThumbnailUrl: entry.mapThumbnailUrl,
+                          }))}
+                          teams={firstMatch.teams.slice(0, 2).map((team, teamIndex) => ({
+                            id: `${group.id}-team-${teamIndex.toString()}`,
+                            name: `Team ${(teamIndex + 1).toLocaleString()}`,
+                            colorHex: teamColorsArray[teamIndex]?.hex,
+                            players: team.map((player) => ({
+                              id: `${group.id}-team-${teamIndex.toString()}-${player}`,
+                              content: player,
+                            })),
+                          }))}
+                          gameModeIconSrc={gameModeIconSrc}
+                        />
 
                         {((): React.ReactElement => {
                           const groupStats = seriesStatsByGroup.get(group.id);

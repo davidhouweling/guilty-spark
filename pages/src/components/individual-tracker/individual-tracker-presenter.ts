@@ -55,7 +55,7 @@ export class IndividualTrackerPresenter {
   }
 
   public async updateViewerColors(teamColor: string, enemyColor: string): Promise<void> {
-    const profileId = this.getSnapshot().profileId;
+    const { profileId } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
@@ -295,7 +295,7 @@ export class IndividualTrackerPresenter {
         return;
       }
 
-      const activeTracker = statusResponse.activeTracker;
+      const { activeTracker } = statusResponse;
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,

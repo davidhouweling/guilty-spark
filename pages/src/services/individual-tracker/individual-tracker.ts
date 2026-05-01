@@ -278,11 +278,11 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
     throw new Error("Invalid streamer view settings response");
   }
 
-  const profileId = value.profileId;
-  const layoutOptions = value.layoutOptions;
-  const visibleSections = value.visibleSections;
-  const styleFlags = value.styleFlags;
-  const updatedAt = value.updatedAt;
+  const { profileId } = value;
+  const { layoutOptions } = value;
+  const { visibleSections } = value;
+  const { styleFlags } = value;
+  const { updatedAt } = value;
 
   if (!isString(profileId) || !isRecord(layoutOptions) || !isRecord(visibleSections) || !isRecord(styleFlags)) {
     throw new Error("Invalid streamer view settings response");

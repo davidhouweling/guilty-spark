@@ -16,6 +16,7 @@ interface SeriesStatsProps {
   readonly title: string;
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
+  readonly omitStatKeys?: readonly string[];
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -26,6 +27,7 @@ export function SeriesStats({
   title,
   metadata,
   teamColors,
+  omitStatKeys,
 }: SeriesStatsProps): React.ReactElement {
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
@@ -95,7 +97,7 @@ export function SeriesStats({
     }
 
     const statColumns = playerData[0].players[0].values;
-    return [
+    const columns: SortableTableColumn<MatchStatsRow>[] = [
       {
         id: "team",
         header: "Team",
@@ -113,27 +115,29 @@ export function SeriesStats({
         cellClassName: tableStyles.labelCell,
         sortingFn: "alphanumeric",
       },
-      ...statColumns.map((stat) => ({
-        id: stat.name,
-        header: stat.name,
-        accessorFn: (row: MatchStatsRow): number => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.value ?? 0;
-        },
-        cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.display ?? String(value);
-        },
-        headerClassName: undefined,
-        cellClassName: (row: MatchStatsRow): string => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return classNames(tableStyles.statCell, {
-            [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
-            [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,
-          });
-        },
-        sortingFn: "basic" as const,
-      })),
+      ...statColumns.map(
+        (stat): SortableTableColumn<MatchStatsRow> => ({
+          id: stat.name,
+          header: stat.name,
+          accessorFn: (row: MatchStatsRow): number => {
+            const playerStat = row.player.values.find((s) => s.name === stat.name);
+            return playerStat?.value ?? 0;
+          },
+          cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
+            const playerStat = row.player.values.find((s) => s.name === stat.name);
+            return playerStat?.display ?? String(value);
+          },
+          headerClassName: undefined,
+          cellClassName: (row: MatchStatsRow): string => {
+            const playerStat = row.player.values.find((s) => s.name === stat.name);
+            return classNames(tableStyles.statCell, {
+              [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
+              [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,
+            });
+          },
+          sortingFn: "basic",
+        }),
+      ),
       {
         id: "medals",
         header: "Medals",
@@ -153,6 +157,8 @@ export function SeriesStats({
         sortingFn: sortByMedals,
       },
     ];
+
+    return columns.filter((column) => !(omitStatKeys?.includes(column.id) ?? false));
   }, [playerData, hasPlayerStats]);
 
   // Flatten player data for table
