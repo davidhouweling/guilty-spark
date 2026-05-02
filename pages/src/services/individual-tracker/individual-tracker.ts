@@ -41,6 +41,7 @@ import type {
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
+  TrackerSyncMatchesRequest,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerListResponse,
@@ -699,6 +700,8 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           matchId: match.MatchId,
           startTime: formatDisplayDateTime(match.MatchInfo.StartTime),
           endTime: formatDisplayDateTime(match.MatchInfo.EndTime),
+          mapAssetId: match.MatchInfo.MapVariant.AssetId,
+          modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
           startTimeIso: match.MatchInfo.StartTime,
           endTimeIso: match.MatchInfo.EndTime,
           duration: getReadableDuration(match.MatchInfo.Duration),
@@ -723,6 +726,41 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       matches,
       suggestedGroupings: analyzeMatchGroupings(matches, matchDetailsById),
     };
+  }
+
+  public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
+    const selectedMatchIdSet = new Set(request.selectedMatchIds);
+    const filteredGroupings = request.matchGroupings
+      .map((group) => group.filter((matchId) => selectedMatchIdSet.has(matchId)))
+      .filter((group) => group.length >= 2);
+
+    const matchSummaries = request.matches
+      .filter((match) => selectedMatchIdSet.has(match.matchId))
+      .map((match) => ({
+        matchId: match.matchId,
+        startTime: match.startTimeIso ?? match.startTime,
+        endTime: match.endTimeIso ?? match.endTime,
+        mapAssetId: match.mapAssetId,
+        modeAssetId: match.modeAssetId,
+      }));
+
+    const response = await fetch(
+      `${this.apiHost}/api/individual-tracker/${encodeURIComponent(request.trackerId)}/games-sync`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedMatchIds: request.selectedMatchIds,
+          matchGroupings: filteredGroupings,
+          matchSummaries,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {

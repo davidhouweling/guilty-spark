@@ -114,6 +114,7 @@ describe("IndividualTrackerPresenter", () => {
             idleTimeoutHours: 1,
             discoveredMatches: {},
             matchIds: [],
+            matchGroupings: [],
             excludedMatchIds: [],
             errorState: {
               consecutiveErrors: 0,

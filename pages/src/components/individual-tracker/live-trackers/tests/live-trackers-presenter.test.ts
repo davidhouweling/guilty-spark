@@ -141,19 +141,20 @@ describe("LiveTrackersPresenter", () => {
       trackerLabel: "Other",
       xuid: "xuid-2",
       initialSelectedMatchIds: ["m10", "m11"],
+      initialGroupings: [],
     });
 
     harness.presenter.dispose();
   });
 
-  it("adds selected matches when adding tracker", async () => {
+  it("syncs selected matches in bulk when adding tracker", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith(),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
     };
 
-    const addMatchSpy = vi.spyOn(services.individualTrackerService, "addMatchToTracker");
+    const syncMatchesSpy = vi.spyOn(services.individualTrackerService, "syncMatchesToTracker");
     const harness = aHarnessWith(services);
     harness.presenter.start();
     harness.presenter.setSessionContext("user-1", "Chief");
@@ -162,24 +163,65 @@ describe("LiveTrackersPresenter", () => {
 
     harness.presenter.openAddDialog();
 
-    await harness.presenter.addTracker({ gamertag: "NewTag", selectedMatchIds: ["m1", "m2"] });
+    await harness.presenter.addTracker({
+      gamertag: "NewTag",
+      selectedMatchIds: ["m1", "m2"],
+      matchGroupings: [["m1", "m2"]],
+      matches: [
+        {
+          matchId: "m1",
+          startTime: "Jan 1, 2026, 12:00:00 AM",
+          endTime: "Jan 1, 2026, 12:10:00 AM",
+          mapAssetId: "map-1",
+          modeAssetId: "mode-1",
+          duration: "10m 0s",
+          mapName: "Aquarius",
+          modeName: "Slayer",
+          outcome: "Win",
+          resultString: "Win - 50:40",
+          isMatchmaking: false,
+          category: "custom",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+        {
+          matchId: "m2",
+          startTime: "Jan 1, 2026, 12:15:00 AM",
+          endTime: "Jan 1, 2026, 12:25:00 AM",
+          mapAssetId: "map-2",
+          modeAssetId: "mode-2",
+          duration: "10m 0s",
+          mapName: "Bazaar",
+          modeName: "Capture the Flag",
+          outcome: "Loss",
+          resultString: "Loss - 3:5",
+          isMatchmaking: true,
+          category: "matchmaking",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+      ],
+    });
 
-    expect(addMatchSpy).toHaveBeenNthCalledWith(1, "fake-tracker-id", "m1");
-    expect(addMatchSpy).toHaveBeenNthCalledWith(2, "fake-tracker-id", "m2");
+    expect(syncMatchesSpy).toHaveBeenCalledWith({
+      trackerId: "fake-tracker-id",
+      selectedMatchIds: ["m1", "m2"],
+      matchGroupings: [["m1", "m2"]],
+      matches: [expect.objectContaining({ matchId: "m1" }), expect.objectContaining({ matchId: "m2" })],
+    });
     expect(harness.presenter.getSnapshot().isAddDialogOpen).toBe(false);
 
     harness.presenter.dispose();
   });
 
-  it("syncs game selection by adding and removing only changed matches", async () => {
+  it("syncs game selection with a single bulk request", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith(),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
     };
 
-    const addMatchSpy = vi.spyOn(services.individualTrackerService, "addMatchToTracker");
-    const removeMatchSpy = vi.spyOn(services.individualTrackerService, "removeMatchFromTracker");
+    const syncMatchesSpy = vi.spyOn(services.individualTrackerService, "syncMatchesToTracker");
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
@@ -194,16 +236,56 @@ describe("LiveTrackersPresenter", () => {
         trackerLabel: "Chief",
         xuid: "xuid-1",
         initialSelectedMatchIds: ["m1", "m2"],
+        initialGroupings: [["m1", "m2"]],
       },
     };
 
     await harness.presenter.syncGameSelection({
       trackerId: "tracker-1",
       selectedMatchIds: ["m2", "m3"],
+      matchGroupings: [["m2", "m3"]],
+      matches: [
+        {
+          matchId: "m2",
+          startTime: "Jan 1, 2026, 12:00:00 AM",
+          endTime: "Jan 1, 2026, 12:10:00 AM",
+          mapAssetId: "map-2",
+          modeAssetId: "mode-2",
+          duration: "10m 0s",
+          mapName: "Aquarius",
+          modeName: "Slayer",
+          outcome: "Win",
+          resultString: "Win - 50:40",
+          isMatchmaking: false,
+          category: "custom",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+        {
+          matchId: "m3",
+          startTime: "Jan 1, 2026, 12:15:00 AM",
+          endTime: "Jan 1, 2026, 12:25:00 AM",
+          mapAssetId: "map-3",
+          modeAssetId: "mode-3",
+          duration: "10m 0s",
+          mapName: "Bazaar",
+          modeName: "Capture the Flag",
+          outcome: "Loss",
+          resultString: "Loss - 3:5",
+          isMatchmaking: true,
+          category: "matchmaking",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+      ],
     });
 
-    expect(addMatchSpy).toHaveBeenCalledWith("tracker-1", "m3");
-    expect(removeMatchSpy).toHaveBeenCalledWith("tracker-1", "m1");
+    expect(syncMatchesSpy).toHaveBeenCalledWith({
+      trackerId: "tracker-1",
+      selectedMatchIds: ["m2", "m3"],
+      matchGroupings: [["m2", "m3"]],
+      matches: [expect.objectContaining({ matchId: "m2" }), expect.objectContaining({ matchId: "m3" })],
+    });
     expect(harness.presenter.getSnapshot().busy).toBe(false);
 
     harness.presenter.dispose();

@@ -18,6 +18,8 @@ describe("GameSelectionDialog", () => {
           matchId: "match-1",
           startTime: "Jan 1, 2026, 12:00:00 AM",
           endTime: "Jan 1, 2026, 12:10:00 AM",
+          mapAssetId: "map-1",
+          modeAssetId: "mode-1",
           duration: "10m 0s",
           mapName: "Aquarius",
           modeName: "Slayer",
@@ -32,6 +34,8 @@ describe("GameSelectionDialog", () => {
           matchId: "match-2",
           startTime: "Jan 2, 2026, 12:00:00 AM",
           endTime: "Jan 2, 2026, 12:10:00 AM",
+          mapAssetId: "map-2",
+          modeAssetId: "mode-2",
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Capture the Flag",
@@ -58,6 +62,7 @@ describe("GameSelectionDialog", () => {
         trackerId="tracker-1"
         xuid="xuid-1"
         initialSelectedMatchIds={["match-1"]}
+        initialGroupings={[]}
         onClose={onClose}
         onLoadEnrichedMatches={onLoadEnrichedMatches}
         onSync={onSync}
@@ -80,6 +85,8 @@ describe("GameSelectionDialog", () => {
       expect(onSync).toHaveBeenCalledWith({
         trackerId: "tracker-1",
         selectedMatchIds: ["match-2"],
+        matchGroupings: [],
+        matches: enrichedResponse.matches,
       });
     });
 

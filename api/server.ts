@@ -9,7 +9,12 @@ import type { SessionTokenPayload } from "./services/auth/types";
 import { handleCorsPreflightRequest } from "./base/cors";
 import { ProfileNotFoundError, InvalidReorderError } from "./services/individual-tracker/errors";
 import { DEFAULT_IDLE_TIMEOUT_HOURS, IDLE_TIMEOUT_HOURS } from "./durable-objects/individual-tracker/types";
-import type { IdleTimeoutHours, IndividualTrackerStartRequest } from "./durable-objects/individual-tracker/types";
+import type {
+  IdleTimeoutHours,
+  IndividualTrackerGamesSyncRequest,
+  IndividualTrackerMatchSummary,
+  IndividualTrackerStartRequest,
+} from "./durable-objects/individual-tracker/types";
 import type { IdentityProvider, LinkedIdentitiesRow } from "./services/database/types/linked_identities";
 
 interface ServerOpts {
@@ -31,6 +36,21 @@ interface UnlinkIdentityRequest {
 
 function isIdentityProvider(value: unknown): value is IdentityProvider {
   return value === "xbox" || value === "discord" || value === "twitch";
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isIndividualTrackerMatchSummary(value: unknown): value is IndividualTrackerMatchSummary {
+  return (
+    isRecord(value) &&
+    typeof value["matchId"] === "string" &&
+    typeof value["startTime"] === "string" &&
+    typeof value["endTime"] === "string" &&
+    typeof value["mapAssetId"] === "string" &&
+    typeof value["modeAssetId"] === "string"
+  );
 }
 
 function mapIdentityResponse(row: LinkedIdentitiesRow): {
@@ -1300,6 +1320,81 @@ export class Server {
       } catch (error) {
         console.error("Individual live tracker delete error:", error);
         return new Response(JSON.stringify({ error: "Failed to delete tracker" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/individual-tracker/:trackerId/games-sync", async (request, env: Env) => {
+      try {
+        const { trackerId } = request.params as { trackerId: string };
+        const services = this.installServices({ env });
+        const session = await services.authService.validateSession(request);
+
+        if (session === null || session.isExpired) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const body: unknown = await request.json();
+        if (!isRecord(body)) {
+          return new Response("Invalid request body", { status: 400 });
+        }
+
+        const { selectedMatchIds } = body;
+        const { matchGroupings } = body;
+        const { matchSummaries } = body;
+
+        if (!isStringArray(selectedMatchIds)) {
+          return new Response("selectedMatchIds must be an array of strings", { status: 400 });
+        }
+
+        if (!Array.isArray(matchGroupings) || !matchGroupings.every((group) => isStringArray(group))) {
+          return new Response("matchGroupings must be an array of string arrays", { status: 400 });
+        }
+
+        if (
+          !Array.isArray(matchSummaries) ||
+          !matchSummaries.every((summary) => isIndividualTrackerMatchSummary(summary))
+        ) {
+          return new Response("matchSummaries must be valid match summary objects", { status: 400 });
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+        const validatedSelectedMatchIds: string[] = selectedMatchIds.slice();
+        const validatedMatchGroupings: string[][] = matchGroupings.map((group): string[] => group.slice());
+        const validatedMatchSummaries: IndividualTrackerMatchSummary[] = matchSummaries.map((summary) => ({
+          matchId: summary.matchId,
+          startTime: summary.startTime,
+          endTime: summary.endTime,
+          mapAssetId: summary.mapAssetId,
+          modeAssetId: summary.modeAssetId,
+        }));
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/games-sync";
+        const doPayload: IndividualTrackerGamesSyncRequest = {
+          userId: session.userId,
+          selectedMatchIds: validatedSelectedMatchIds,
+          matchGroupings: validatedMatchGroupings,
+          matchSummaries: validatedMatchSummaries,
+        };
+        const doResponse = await stub.fetch(
+          new Request(doUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(doPayload),
+          }),
+        );
+
+        return new Response(doResponse.body, {
+          status: doResponse.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Individual live tracker games:sync error:", error);
+        return new Response(JSON.stringify({ error: "Failed to sync games" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

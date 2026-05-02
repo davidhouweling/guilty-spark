@@ -13,6 +13,8 @@ function aHistoryEntryWith(
     matchId: overrides.matchId,
     startTime: overrides.startTime ?? "Jan 1, 2026, 12:00:00 AM",
     endTime: overrides.endTime ?? "Jan 1, 2026, 12:10:00 AM",
+    mapAssetId: overrides.mapAssetId ?? `map-${overrides.matchId}`,
+    modeAssetId: overrides.modeAssetId ?? `mode-${overrides.matchId}`,
     startTimeIso: overrides.startTimeIso ?? "2026-01-01T00:00:00.000Z",
     endTimeIso: overrides.endTimeIso ?? "2026-01-01T00:10:00.000Z",
     duration: overrides.duration ?? "10m 0s",
@@ -44,7 +46,7 @@ function aHistoryResponseWith(
 }
 
 describe("buildIndividualTrackerViewerRenderModel", () => {
-  it("keeps grouped and standalone items in historical order", () => {
+  it("flips reverse-chronological tracker history into chronological viewer order", () => {
     const matches = [
       aHistoryEntryWith({
         matchId: "m1",
@@ -72,7 +74,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
 
     const state = aFakeIndividualTrackerStateWith({
       gamertag: "TrackedPlayer",
-      matchIds: ["m1", "m2", "m3", "m4"],
+      matchIds: ["m4", "m3", "m2", "m1"],
     });
 
     const renderModel = buildIndividualTrackerViewerRenderModel({
@@ -90,7 +92,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     ]);
   });
 
-  it("preserves match order inside grouped series based on tracked history order", () => {
+  it("preserves chronological match order inside grouped series", () => {
     const matches = [
       aHistoryEntryWith({ matchId: "m1" }),
       aHistoryEntryWith({ matchId: "m2", resultString: "Loss - 48:50", outcome: "Loss" }),
@@ -100,7 +102,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
 
     const state = aFakeIndividualTrackerStateWith({
       gamertag: "TrackedPlayer",
-      matchIds: ["m1", "m2", "m3", "m4"],
+      matchIds: ["m4", "m3", "m2", "m1"],
     });
 
     const renderModel = buildIndividualTrackerViewerRenderModel({
@@ -119,5 +121,31 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
       expect(groupedItem.matches.map((match) => match.id)).toEqual(["m2", "m3"]);
       expect(groupedItem.overviewMatches.map((match) => match.id)).toEqual(["m2", "m3"]);
     }
+  });
+
+  it("prefers persisted tracker match groupings over heuristic suggested groupings", () => {
+    const matches = [
+      aHistoryEntryWith({ matchId: "m1" }),
+      aHistoryEntryWith({ matchId: "m2" }),
+      aHistoryEntryWith({ matchId: "m3" }),
+    ] as const;
+
+    const state = aFakeIndividualTrackerStateWith({
+      gamertag: "TrackedPlayer",
+      matchIds: ["m3", "m2", "m1"],
+      matchGroupings: [["m1", "m2"]],
+    });
+
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state,
+      matchHistory: aHistoryResponseWith(matches, [["m2", "m3"]]),
+      defaultTeamColor: "salmon",
+      defaultEnemyColor: "cerulean",
+    });
+
+    expect(renderModel?.gameplayTimeline.map((item) => ({ type: item.type, id: item.id }))).toEqual([
+      { type: "group", id: "series-1" },
+      { type: "match", id: "m3" },
+    ]);
   });
 });

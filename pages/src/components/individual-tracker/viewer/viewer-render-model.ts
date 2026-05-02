@@ -1,4 +1,5 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import { compareAsc, parseISO } from "date-fns";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { createMatchStatsPresenter } from "../../stats/create";
 import type { MatchStatsData } from "../../stats/types";
@@ -52,6 +53,34 @@ function buildEntryByIdMap(entries: readonly TrackerMatchHistoryEntry[]): Map<st
   return map;
 }
 
+function getEntryStartDate(entry: TrackerMatchHistoryEntry): Date {
+  return parseISO(entry.startTimeIso ?? entry.startTime);
+}
+
+function buildChronologicalTrackedEntries(
+  trackedMatchIds: readonly string[],
+  entryById: ReadonlyMap<string, TrackerMatchHistoryEntry>,
+): readonly TrackerMatchHistoryEntry[] {
+  return trackedMatchIds
+    .map((matchId, index) => {
+      const entry = entryById.get(matchId);
+      return entry == null ? null : { entry, index };
+    })
+    .filter((value): value is { entry: TrackerMatchHistoryEntry; index: number } => value != null)
+    .sort((left, right) => {
+      const leftStartDate = getEntryStartDate(left.entry);
+      const rightStartDate = getEntryStartDate(right.entry);
+
+      const dateComparison = compareAsc(leftStartDate, rightStartDate);
+      if (dateComparison === 0) {
+        return right.index - left.index;
+      }
+
+      return dateComparison;
+    })
+    .map(({ entry }) => entry);
+}
+
 function computeSeriesScore(entries: readonly TrackerMatchHistoryEntry[]): string {
   let wins = 0;
   let losses = 0;
@@ -79,18 +108,20 @@ function getSeriesSubtitle(entries: readonly TrackerMatchHistoryEntry[]): string
 
 function buildSeriesGroups(
   trackedMatchIds: readonly string[],
+  stateMatchGroupings: readonly (readonly string[])[],
   matchHistory: TrackerMatchHistoryResponse | null,
 ): { groups: readonly SeriesGroupViewModel[]; groupedMatchIds: Set<string> } {
   if (matchHistory == null) {
     return { groups: [], groupedMatchIds: new Set<string>() };
   }
 
+  const groupingSource = stateMatchGroupings.length > 0 ? stateMatchGroupings : matchHistory.suggestedGroupings;
   const trackedIdSet = new Set(trackedMatchIds);
   const groupedMatchIds = new Set<string>();
   const entryById = buildEntryByIdMap(matchHistory.matches);
   const groups: SeriesGroupViewModel[] = [];
 
-  for (const suggestedGroup of matchHistory.suggestedGroupings) {
+  for (const suggestedGroup of groupingSource) {
     const filteredIds = suggestedGroup.filter((matchId) => trackedIdSet.has(matchId));
     if (filteredIds.length < 2) {
       continue;
@@ -356,11 +387,14 @@ export function buildIndividualTrackerViewerRenderModel({
   }
 
   const entryById = buildEntryByIdMap(matchHistory?.matches ?? []);
-  const trackedEntries = state.matchIds
-    .map((matchId) => entryById.get(matchId))
-    .filter((entry): entry is TrackerMatchHistoryEntry => entry != null);
+  const trackedEntries = buildChronologicalTrackedEntries(state.matchIds, entryById);
+  const chronologicalTrackedMatchIds = trackedEntries.map((entry) => entry.matchId);
 
-  const { groups: seriesGroups, groupedMatchIds } = buildSeriesGroups(state.matchIds, matchHistory);
+  const { groups: seriesGroups, groupedMatchIds } = buildSeriesGroups(
+    chronologicalTrackedMatchIds,
+    state.matchGroupings,
+    matchHistory,
+  );
   const standaloneMatches = trackedEntries.filter((entry) => !groupedMatchIds.has(entry.matchId));
   const accumulatedStats = buildAccumulatedStats(trackedEntries, seriesGroups.length, standaloneMatches.length);
   const overallScore = `${accumulatedStats.wins.toString()}:${accumulatedStats.losses.toString()}`;

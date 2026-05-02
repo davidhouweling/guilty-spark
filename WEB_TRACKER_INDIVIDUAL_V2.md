@@ -15,6 +15,7 @@
 - Individual tracker viewer derivation now lives in a presenter-side render-model builder so the viewer component is primarily presentational.
 - Raw viewed-tracker and viewed-match-history data are now presenter-private implementation details; the public snapshot exposes only loading/connection state plus the derived viewer render model.
 - Historical gameplay ordering is covered by focused render-model tests to keep grouped series and standalone matches in chronological order.
+- Active tracker game selection now syncs through a single bulk request that updates tracker membership atomically and persists manual match groupings into DO state for viewer mode.
 
 ## Goal
 
@@ -590,6 +591,7 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Viewer UI parity follow-up delivered: extracted shared `series-overview` component from team live tracker and reused it in individual tracker grouped-series rendering.
 - [x] Viewer styling follow-up delivered: individual tracker grouped-series view now supports borderless inner parts to better match intended presentation.
 - [x] Viewer architecture follow-up delivered: moved grouped timeline/stat derivation into a presenter-side render model and added focused unit coverage for chronological ordering.
+- [x] Game selection sync follow-up delivered: replaced per-match add/remove requests with a single bulk tracker sync and persisted manual match groupings for viewer rendering.
 
 ### Current operator note - View tracker behavior
 

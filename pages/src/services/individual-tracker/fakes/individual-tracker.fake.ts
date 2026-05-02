@@ -79,6 +79,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     idleTimeoutHours: 1,
     discoveredMatches: {},
     matchIds: [],
+    matchGroupings: [],
     excludedMatchIds: [],
     errorState: {
       consecutiveErrors: 0,
@@ -308,6 +309,10 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       matches: [],
       suggestedGroupings: [],
     });
+  }
+
+  public async syncMatchesToTracker(): Promise<void> {
+    return Promise.resolve();
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {

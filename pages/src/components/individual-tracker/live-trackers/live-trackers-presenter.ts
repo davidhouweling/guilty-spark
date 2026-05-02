@@ -263,14 +263,21 @@ export class LiveTrackersPresenter {
   public async addTracker(payload: {
     readonly gamertag: string;
     readonly selectedMatchIds: readonly string[];
+    readonly matchGroupings: readonly (readonly string[])[];
+    readonly matches: TrackerMatchHistoryResponse["matches"];
   }): Promise<void> {
     const state = await this.startTracker(payload.gamertag);
     if (state == null) {
       return;
     }
 
-    for (const matchId of payload.selectedMatchIds) {
-      await this.config.services.individualTrackerService.addMatchToTracker(state.trackerId, matchId);
+    if (payload.selectedMatchIds.length > 0) {
+      await this.config.services.individualTrackerService.syncMatchesToTracker({
+        trackerId: state.trackerId,
+        selectedMatchIds: payload.selectedMatchIds,
+        matchGroupings: payload.matchGroupings,
+        matches: payload.matches,
+      });
     }
 
     this.updateSnapshot((snapshot) => ({ ...snapshot, isAddDialogOpen: false }));
@@ -280,28 +287,32 @@ export class LiveTrackersPresenter {
   public async syncGameSelection(payload: {
     readonly trackerId: string;
     readonly selectedMatchIds: readonly string[];
+    readonly matchGroupings: readonly (readonly string[])[];
+    readonly matches: TrackerMatchHistoryResponse["matches"];
   }): Promise<void> {
-    const baseline = new Set(this.getSnapshot().gameSelectionDialogState?.initialSelectedMatchIds ?? []);
-    const next = new Set(payload.selectedMatchIds);
+    const dialogState = this.getSnapshot().gameSelectionDialogState;
+    const baselineIds = dialogState?.initialSelectedMatchIds ?? [];
+    const baselineGroupings = dialogState?.initialGroupings ?? [];
+    const selectedMatchIds = [...payload.selectedMatchIds];
+    const hasSelectionChanged =
+      baselineIds.length !== selectedMatchIds.length ||
+      baselineIds.some((matchId, index) => selectedMatchIds[index] !== matchId);
+    const hasGroupingChanged =
+      baselineGroupings.length !== payload.matchGroupings.length ||
+      baselineGroupings.some(
+        (group, groupIndex) =>
+          group.length !== (payload.matchGroupings[groupIndex]?.length ?? -1) ||
+          group.some((matchId, matchIndex) => payload.matchGroupings[groupIndex]?.[matchIndex] !== matchId),
+      );
 
-    const toAdd = [...next].filter((matchId) => !baseline.has(matchId));
-    const toRemove = [...baseline].filter((matchId) => !next.has(matchId));
-
-    if (toAdd.length === 0 && toRemove.length === 0) {
+    if (!hasSelectionChanged && !hasGroupingChanged) {
       return;
     }
 
     this.updateSnapshot((snapshot) => ({ ...snapshot, busy: true, errorMessage: null }));
 
     try {
-      await Promise.all([
-        ...toAdd.map(async (matchId) =>
-          this.config.services.individualTrackerService.addMatchToTracker(payload.trackerId, matchId),
-        ),
-        ...toRemove.map(async (matchId) =>
-          this.config.services.individualTrackerService.removeMatchFromTracker(payload.trackerId, matchId),
-        ),
-      ]);
+      await this.config.services.individualTrackerService.syncMatchesToTracker(payload);
 
       await this.refresh();
     } catch (error) {
@@ -634,6 +645,7 @@ export class LiveTrackersPresenter {
       trackerLabel: item.gamertag,
       xuid: trackerState.xuid,
       initialSelectedMatchIds: [...trackerState.matchIds],
+      initialGroupings: trackerState.matchGroupings,
     };
 
     this.updateSnapshot((current) => ({ ...current, gameSelectionDialogState }));

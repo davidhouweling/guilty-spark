@@ -1,6 +1,7 @@
 import type {
   IndividualTrackerGamesAddResponse,
   IndividualTrackerGamesRemoveResponse,
+  IndividualTrackerGamesSyncResponse,
   IndividualTrackerStartResponse,
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
@@ -15,6 +16,7 @@ export interface FakeIndividualTrackerDOOpts {
   statusResponse?: IndividualTrackerStatusResponse;
   gamesAddResponse?: IndividualTrackerGamesAddResponse;
   gamesRemoveResponse?: IndividualTrackerGamesRemoveResponse;
+  gamesSyncResponse?: IndividualTrackerGamesSyncResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
@@ -45,6 +47,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     },
     discoveredMatches: {},
     matchIds: [],
+    matchGroupings: [],
     excludedMatchIds: [],
     errorState: {
       consecutiveErrors: 0,
@@ -73,6 +76,10 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
   const gamesRemoveResponse: IndividualTrackerGamesRemoveResponse = opts.gamesRemoveResponse ?? {
     success: true,
     matchId: "fake-match-id",
+  };
+  const gamesSyncResponse: IndividualTrackerGamesSyncResponse = opts.gamesSyncResponse ?? {
+    success: true,
+    state: defaultState,
   };
   const { shouldThrowError = false, errorMessage = "Fake IndividualTrackerDO error" } = opts;
 
@@ -113,6 +120,10 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
       }
       case "/games-remove": {
         responseBody = JSON.stringify(gamesRemoveResponse);
+        break;
+      }
+      case "/games-sync": {
+        responseBody = JSON.stringify(gamesSyncResponse);
         break;
       }
       case "/viewer-style": {

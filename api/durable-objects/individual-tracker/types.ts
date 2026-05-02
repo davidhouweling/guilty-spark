@@ -66,6 +66,14 @@ export interface IndividualTrackerGamesMutateRequest {
   matchId: string;
 }
 
+export interface IndividualTrackerGamesSyncRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+  selectedMatchIds: string[];
+  matchGroupings: string[][];
+  matchSummaries: IndividualTrackerMatchSummary[];
+}
+
 export interface IndividualTrackerSelectActiveRequest {
   /** Must match the tracker's owning userId. */
   userId: string;
@@ -98,6 +106,7 @@ export interface IndividualTrackerState {
 
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   matchIds: string[];
+  matchGroupings: string[][];
   /** Set of matchIds explicitly excluded by the owner while the tracker is active. */
   excludedMatchIds: string[];
 
@@ -190,6 +199,13 @@ export interface IndividualTrackerGamesRemoveSuccessResponse {
 }
 
 export type IndividualTrackerGamesRemoveResponse = IndividualTrackerGamesRemoveSuccessResponse;
+
+export interface IndividualTrackerGamesSyncSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerGamesSyncResponse = IndividualTrackerGamesSyncSuccessResponse;
 
 // ─── Type guards ─────────────────────────────────────────────────────────────
 

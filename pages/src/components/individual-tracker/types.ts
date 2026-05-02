@@ -15,6 +15,7 @@ export interface GameSelectionDialogState {
   readonly trackerLabel: string;
   readonly xuid: string;
   readonly initialSelectedMatchIds: readonly string[];
+  readonly initialGroupings: readonly (readonly string[])[];
 }
 
 export interface IndividualTrackerViewerAccumulatedStats {

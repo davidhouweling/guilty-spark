@@ -3,7 +3,7 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { MatchHistory } from "../../match-history/match-history";
-import type { TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
+import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import styles from "./game-selection-dialog.module.css";
 
@@ -14,9 +14,15 @@ interface GameSelectionDialogProps {
   readonly trackerId: string;
   readonly xuid: string;
   readonly initialSelectedMatchIds: readonly string[];
+  readonly initialGroupings: readonly (readonly string[])[];
   readonly onClose: () => void;
   readonly onLoadEnrichedMatches: (xuid: string, start: number, count: number) => Promise<TrackerMatchHistoryResponse>;
-  readonly onSync: (payload: { trackerId: string; selectedMatchIds: readonly string[] }) => Promise<void>;
+  readonly onSync: (payload: {
+    trackerId: string;
+    selectedMatchIds: readonly string[];
+    matchGroupings: readonly (readonly string[])[];
+    matches: readonly TrackerMatchHistoryEntry[];
+  }) => Promise<void>;
 }
 
 export function GameSelectionDialog({
@@ -26,6 +32,7 @@ export function GameSelectionDialog({
   trackerId,
   xuid,
   initialSelectedMatchIds,
+  initialGroupings,
   onClose,
   onLoadEnrichedMatches,
   onSync,
@@ -51,12 +58,13 @@ export function GameSelectionDialog({
     }
 
     setSelectedMatchIds(new Set(initialSelectedMatchIds));
+    setActiveGroupings(initialGroupings.map((group) => [...group]));
     setErrorMessage(null);
 
     void onLoadEnrichedMatches(xuid, 0, 25)
       .then((response) => {
         setEnrichedMatches(response);
-        setActiveGroupings([...response.suggestedGroupings]);
+        setActiveGroupings((current) => (current.length > 0 ? current : [...response.suggestedGroupings]));
         setHasMore(response.matches.length >= 25);
       })
       .catch((error: unknown) => {
@@ -73,7 +81,12 @@ export function GameSelectionDialog({
     setErrorMessage(null);
 
     try {
-      await onSync({ trackerId, selectedMatchIds: Array.from(selectedMatchIds) });
+      await onSync({
+        trackerId,
+        selectedMatchIds: Array.from(selectedMatchIds),
+        matchGroupings: activeGroupings,
+        matches: enrichedMatches?.matches ?? [],
+      });
       onClose();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to sync game selection.");

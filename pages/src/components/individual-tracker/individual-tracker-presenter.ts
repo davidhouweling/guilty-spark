@@ -1,5 +1,5 @@
-import type { Services } from "../../services/types";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { Services } from "../../services/types";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,

@@ -38,6 +38,7 @@ export interface IndividualTrackerState {
 
   readonly discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   readonly matchIds: readonly string[];
+  readonly matchGroupings: readonly (readonly string[])[];
   /** Match IDs explicitly excluded by the owner during active tracking. */
   readonly excludedMatchIds: readonly string[];
 

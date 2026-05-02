@@ -19,7 +19,12 @@ interface AddTrackerDialogProps {
   readonly onClose: () => void;
   readonly onSearchGamertag: (query: string) => Promise<TrackerSearchResult | null>;
   readonly onLoadMatches: (xuid: string, start: number, count: number) => Promise<TrackerMatchHistoryResponse>;
-  readonly onStartTracker: (payload: { gamertag: string; selectedMatchIds: readonly string[] }) => Promise<void>;
+  readonly onStartTracker: (payload: {
+    gamertag: string;
+    selectedMatchIds: readonly string[];
+    matchGroupings: readonly (readonly string[])[];
+    matches: readonly TrackerMatchHistoryEntry[];
+  }) => Promise<void>;
 }
 
 function formatCsr(value: string | null): string {
@@ -146,7 +151,12 @@ export function AddTrackerDialog({
           <Button
             onClick={(): void => {
               if (result != null) {
-                void onStartTracker({ gamertag: result.gamertag, selectedMatchIds });
+                void onStartTracker({
+                  gamertag: result.gamertag,
+                  selectedMatchIds,
+                  matchGroupings: activeGroupings,
+                  matches,
+                });
               }
             }}
             disabled={!canStart}

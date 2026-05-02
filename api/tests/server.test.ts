@@ -9,6 +9,7 @@ import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
 import type { SessionTokenPayload } from "../services/auth/types";
+import type { IndividualTrackerDO } from "../worker";
 
 vi.mock("halo-infinite-api", async () => {
   const actual = await import("halo-infinite-api");
@@ -563,6 +564,101 @@ describe("Server", () => {
 
       expect(res.status).toBe(400);
       expect(await res.text()).toBe("orderedMatchIds must include all existing games");
+    });
+
+    it("POST /api/individual-tracker/:trackerId/games-sync forwards a single bulk payload to the DO", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        return services;
+      });
+
+      let forwardedBody: unknown = null;
+      const doFetch = vi.fn(async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+        forwardedBody = await request.json();
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      });
+
+      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
+      const individualTrackerNamespace = Object.assign(
+        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
+        env.INDIVIDUAL_TRACKER_DO,
+        {
+          get: () =>
+            ({
+              __DURABLE_OBJECT_BRAND: undefined as never,
+              fetch: doFetch,
+              id: env.INDIVIDUAL_TRACKER_DO.idFromName("sync-stub"),
+              connect: vi.fn(),
+            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
+        },
+      );
+
+      const envWithSyncStub = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/tracker-1/games-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({
+          selectedMatchIds: ["match-2", "match-3"],
+          matchGroupings: [["match-2", "match-3"]],
+          matchSummaries: [
+            {
+              matchId: "match-2",
+              startTime: "2026-01-01T00:00:00.000Z",
+              endTime: "2026-01-01T00:10:00.000Z",
+              mapAssetId: "map-2",
+              modeAssetId: "mode-2",
+            },
+            {
+              matchId: "match-3",
+              startTime: "2026-01-01T00:15:00.000Z",
+              endTime: "2026-01-01T00:25:00.000Z",
+              mapAssetId: "map-3",
+              modeAssetId: "mode-3",
+            },
+          ],
+        }),
+      });
+      const res = (await server.router.fetch(req, envWithSyncStub)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(doFetch).toHaveBeenCalledOnce();
+      expect(forwardedBody).toEqual({
+        userId: "user-123",
+        selectedMatchIds: ["match-2", "match-3"],
+        matchGroupings: [["match-2", "match-3"]],
+        matchSummaries: [
+          {
+            matchId: "match-2",
+            startTime: "2026-01-01T00:00:00.000Z",
+            endTime: "2026-01-01T00:10:00.000Z",
+            mapAssetId: "map-2",
+            modeAssetId: "mode-2",
+          },
+          {
+            matchId: "match-3",
+            startTime: "2026-01-01T00:15:00.000Z",
+            endTime: "2026-01-01T00:25:00.000Z",
+            mapAssetId: "map-3",
+            modeAssetId: "mode-3",
+          },
+        ],
+      });
     });
   });
 

@@ -18,6 +18,8 @@ import {
   type IndividualTrackerGamesAddResponse,
   type IndividualTrackerGamesRemoveResponse,
   type IndividualTrackerGamesMutateRequest,
+  type IndividualTrackerGamesSyncRequest,
+  type IndividualTrackerGamesSyncResponse,
   sanitizeTrackerState,
 } from "./types";
 
@@ -93,6 +95,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "games-remove": {
             return await this.handleGamesRemove(request);
+          }
+          case "games-sync": {
+            return await this.handleGamesSync(request);
           }
           case "viewer-style": {
             return await this.handleViewerStyle(request);
@@ -218,6 +223,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       },
       discoveredMatches: {},
       matchIds: [],
+      matchGroupings: [],
       excludedMatchIds: [],
       errorState: {
         consecutiveErrors: 0,
@@ -364,6 +370,60 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const response: IndividualTrackerGamesRemoveResponse = { success: true, matchId: body.matchId };
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handleGamesSync(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerGamesSyncRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const selectedMatchIds = body.selectedMatchIds.filter((matchId, index, array) => array.indexOf(matchId) === index);
+    const selectedMatchIdSet = new Set(selectedMatchIds);
+    const existingDiscoveredMatches = new Map(Object.entries(trackerState.discoveredMatches));
+    const providedSummaries = new Map(body.matchSummaries.map((summary) => [summary.matchId, summary]));
+    const nextDiscoveredMatches: Record<string, IndividualTrackerMatchSummary> = {};
+
+    for (const matchId of selectedMatchIds) {
+      const summary = providedSummaries.get(matchId) ?? existingDiscoveredMatches.get(matchId) ?? null;
+      if (summary != null) {
+        nextDiscoveredMatches[matchId] = summary;
+      }
+    }
+
+    const removedMatchIds = trackerState.matchIds.filter((matchId) => !selectedMatchIdSet.has(matchId));
+    const nextExcludedMatchIds = Array.from(
+      new Set([
+        ...trackerState.excludedMatchIds.filter((matchId) => !selectedMatchIdSet.has(matchId)),
+        ...removedMatchIds,
+      ]),
+    );
+
+    const nextMatchGroupings = body.matchGroupings
+      .map((group) =>
+        group.filter((matchId, index, array) => selectedMatchIdSet.has(matchId) && array.indexOf(matchId) === index),
+      )
+      .filter((group) => group.length >= 2);
+
+    const nextState: IndividualTrackerState = {
+      ...trackerState,
+      discoveredMatches: nextDiscoveredMatches,
+      matchIds: Object.keys(nextDiscoveredMatches),
+      matchGroupings: nextMatchGroupings,
+      excludedMatchIds: nextExcludedMatchIds,
+      lastUpdateTime: new Date().toISOString(),
+    };
+
+    await this.setState(nextState);
+
+    const response: IndividualTrackerGamesSyncResponse = { success: true, state: sanitizeTrackerState(nextState) };
     return Response.json(response, { status: 200 });
   }
 

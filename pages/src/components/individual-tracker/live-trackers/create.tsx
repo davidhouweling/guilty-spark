@@ -46,6 +46,7 @@ function LiveTrackersSectionInternal({ controller }: LiveTrackersSectionInternal
             trackerId={snapshot.gameSelectionDialogState?.trackerId ?? ""}
             xuid={snapshot.gameSelectionDialogState?.xuid ?? ""}
             initialSelectedMatchIds={snapshot.gameSelectionDialogState?.initialSelectedMatchIds ?? []}
+            initialGroupings={snapshot.gameSelectionDialogState?.initialGroupings ?? []}
             onClose={(): void => {
               controller.closeGameSelectionDialog();
             }}

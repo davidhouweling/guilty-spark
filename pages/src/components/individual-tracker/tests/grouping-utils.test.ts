@@ -7,6 +7,8 @@ function aMatchWith(matchId: string, category: TrackerMatchHistoryEntry["categor
     matchId,
     startTime: "Jan 1, 2026, 12:00:00 AM",
     endTime: "Jan 1, 2026, 12:10:00 AM",
+    mapAssetId: `map-${matchId}`,
+    modeAssetId: `mode-${matchId}`,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",
