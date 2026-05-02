@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "../../button/button";
+import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
 import { RankIcon } from "../../icons/rank-icon";
 import { MatchHistory } from "../../match-history/match-history";
@@ -11,6 +12,7 @@ import type {
 } from "../../../services/individual-tracker/types";
 import { Alert } from "../../alert/alert";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
+import { shouldHideShortDurationMatch } from "../match-duration-filter";
 import styles from "./add-tracker-dialog.module.css";
 
 interface AddTrackerDialogProps {
@@ -66,6 +68,7 @@ export function AddTrackerDialog({
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [selectedMatchIds, setSelectedMatchIds] = useState<string[]>([]);
+  const [hideShortGames, setHideShortGames] = useState(true);
 
   useEffect(() => {
     if (!isOpen) {
@@ -78,11 +81,16 @@ export function AddTrackerDialog({
       setLoadingMatches(false);
       setHasMore(false);
       setSelectedMatchIds([]);
+      setHideShortGames(true);
     }
   }, [isOpen]);
 
   const canStart = useMemo(() => result != null && !busy, [busy, result]);
   const selectedMatchIdSet = useMemo(() => new Set(selectedMatchIds), [selectedMatchIds]);
+  const visibleMatches = useMemo(
+    () => (hideShortGames ? matches.filter((entry) => !shouldHideShortDurationMatch(entry)) : matches),
+    [hideShortGames, matches],
+  );
 
   const search = async (): Promise<void> => {
     const normalized = query.trim();
@@ -241,13 +249,19 @@ export function AddTrackerDialog({
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>2. Add past games</h3>
-        <p className={styles.sectionDescription}>Optional — you can skip this section if you want a clean start.</p>
+        <div className={styles.controlsRow}>
+          <p className={styles.sectionDescription}>Optional — you can skip this section if you want a clean start.</p>
+
+          {result != null && (
+            <Checkbox checked={hideShortGames} onChange={setHideShortGames} label="Hide games < 2m duration" />
+          )}
+        </div>
 
         {result == null ? (
           <p className={styles.mutedText}>Search for a gamertag first to load recent matches.</p>
         ) : (
           <MatchHistory
-            entries={loadingMatches && matches.length === 0 ? null : matches}
+            entries={loadingMatches && matches.length === 0 ? null : visibleMatches}
             loadingCount={3}
             showGroupings={true}
             allowManualGrouping={true}

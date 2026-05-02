@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
+import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
 import { MatchHistory } from "../../match-history/match-history";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
+import { shouldHideShortDurationMatch } from "../match-duration-filter";
 import styles from "./game-selection-dialog.module.css";
 
 interface GameSelectionDialogProps {
@@ -44,6 +46,7 @@ export function GameSelectionDialog({
   const [selectedMatchIds, setSelectedMatchIds] = useState<ReadonlySet<string>>(new Set(initialSelectedMatchIds));
   const [syncing, setSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hideShortGames, setHideShortGames] = useState(true);
 
   useEffect(() => {
     if (!isOpen) {
@@ -54,6 +57,7 @@ export function GameSelectionDialog({
       setSelectedMatchIds(new Set());
       setSyncing(false);
       setErrorMessage(null);
+      setHideShortGames(true);
       return;
     }
 
@@ -99,6 +103,13 @@ export function GameSelectionDialog({
     return null;
   }
 
+  const visibleMatches =
+    enrichedMatches == null
+      ? null
+      : hideShortGames
+        ? enrichedMatches.matches.filter((entry) => !shouldHideShortDurationMatch(entry))
+        : enrichedMatches.matches;
+
   const loadMore = async (): Promise<void> => {
     if (loadingMore || enrichedMatches == null) {
       return;
@@ -133,15 +144,19 @@ export function GameSelectionDialog({
         </Button>
       }
     >
-      <p className={styles.summaryText}>
-        {trackerLabel} | {selectedMatchIds.size} selected
-      </p>
+      <div className={styles.controlsRow}>
+        <p className={styles.summaryText}>
+          {trackerLabel} | {selectedMatchIds.size} selected
+        </p>
+
+        <Checkbox checked={hideShortGames} onChange={setHideShortGames} label="Hide games < 2m duration" />
+      </div>
 
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
 
       <div className={styles.matchesContainer}>
         <MatchHistory
-          entries={enrichedMatches?.matches ?? null}
+          entries={visibleMatches}
           loadingCount={5}
           showGroupings={true}
           allowManualGrouping={true}

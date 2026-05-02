@@ -1,13 +1,16 @@
 .summaryText {
   color: var(--halo-gray);
+  flex: 1 1 auto;
   font-family: var(--font-body);
   font-size: var(--text-sm);
   margin: 0;
+  min-width: 0;
 }
 
-.filterRow {
+.controlsRow {
+  align-items: flex-start;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-2);
 }
 
@@ -15,4 +18,12 @@
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
+}
+
+@media (--tablet-viewport) {
+  .controlsRow {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }

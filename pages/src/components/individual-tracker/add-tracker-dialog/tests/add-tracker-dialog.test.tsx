@@ -191,7 +191,8 @@ describe("AddTrackerDialog", () => {
       expect(onLoadMatches).toHaveBeenCalledWith("xuid-1", 0, 25);
     });
 
-    const [match1Checkbox] = screen.getAllByRole("checkbox");
+    const matchCheckboxes = screen.getAllByRole("checkbox").filter((element) => element.id.startsWith("match-"));
+    const [match1Checkbox] = matchCheckboxes;
     fireEvent.click(match1Checkbox);
     fireEvent.click(screen.getByRole("button", { name: "Start tracker" }));
 
@@ -205,5 +206,99 @@ describe("AddTrackerDialog", () => {
         }),
       );
     });
+  });
+
+  it("hides short matches by default and reveals them when the filter is disabled", async () => {
+    const searchResult: TrackerSearchResult = {
+      gamertag: "Chief",
+      xuid: "xuid-1",
+      rankLabel: "Gold 5",
+      csrLabel: "1200",
+      currentRankTier: "Gold",
+      currentRankSubTier: 5,
+      currentRankMeasurementMatchesRemaining: null,
+      currentRankInitialMeasurementMatches: null,
+      allTimePeakRankLabel: "Platinum 1",
+      allTimePeakCsrLabel: "1300",
+      allTimePeakRankTier: "Platinum",
+      allTimePeakRankSubTier: 1,
+      seasonPeakCsrLabel: "1250",
+      seasonPeakRankTier: "Gold",
+      seasonPeakRankSubTier: 6,
+      matchmadeMatchCount: 20,
+      customMatchCount: 8,
+    };
+
+    const matches: TrackerMatchHistoryResponse = {
+      matches: [
+        {
+          matchId: "match-short",
+          startTime: "Jan 1, 2026, 12:00:00 AM",
+          endTime: "Jan 1, 2026, 12:01:30 AM",
+          mapAssetId: "map-short",
+          modeAssetId: "mode-short",
+          duration: "1m 30s",
+          mapName: "Aquarius",
+          modeName: "Slayer",
+          outcome: "Win",
+          resultString: "Win - 50:40",
+          isMatchmaking: false,
+          category: "custom",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+        {
+          matchId: "match-long",
+          startTime: "Jan 1, 2026, 12:15:00 AM",
+          endTime: "Jan 1, 2026, 12:25:00 AM",
+          mapAssetId: "map-long",
+          modeAssetId: "mode-long",
+          duration: "10m 0s",
+          mapName: "Bazaar",
+          modeName: "Slayer",
+          outcome: "Win",
+          resultString: "Win - 50:40",
+          isMatchmaking: false,
+          category: "custom",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+      ],
+      suggestedGroupings: [],
+    };
+
+    render(
+      <AddTrackerDialog
+        isOpen={true}
+        busy={false}
+        onClose={vi.fn<() => void>()}
+        onSearchGamertag={vi.fn<(query: string) => Promise<TrackerSearchResult | null>>(async () =>
+          Promise.resolve(searchResult),
+        )}
+        onLoadMatches={vi.fn<(xuid: string, start: number, count: number) => Promise<TrackerMatchHistoryResponse>>(
+          async () => Promise.resolve(matches),
+        )}
+        onStartTracker={vi.fn<
+          (payload: {
+            gamertag: string;
+            selectedMatchIds: readonly string[];
+            matchGroupings: readonly (readonly string[])[];
+            matches: readonly TrackerMatchHistoryEntry[];
+          }) => Promise<void>
+        >()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Gamertag"), { target: { value: "Chief" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Slayer: Aquarius")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Slayer: Bazaar")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Hide games < 2m duration"));
+
+    expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
   });
 });
