@@ -1,4 +1,5 @@
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import type { MockInstance } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
@@ -8,6 +9,7 @@ import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+import type { AuthService } from "../services/auth/auth";
 import type { SessionTokenPayload } from "../services/auth/types";
 import type { IndividualTrackerDO } from "../worker";
 
@@ -223,6 +225,10 @@ describe("Server", () => {
   });
 
   describe("GET /auth/session", () => {
+    let refreshSessionSpy: MockInstance<AuthService["refreshSession"]>;
+    let createSessionTokenSpy: MockInstance<AuthService["createSessionToken"]>;
+    let setSessionCookieSpy: MockInstance<AuthService["setSessionCookie"]>;
+
     it("returns 401 with authenticated false when no session cookie is present", async () => {
       const req = new Request("http://localhost/auth/session", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
@@ -231,7 +237,7 @@ describe("Server", () => {
       expect(body).toEqual({ authenticated: false });
     });
 
-    it("returns 401 with expired flag when session is expired", async () => {
+    it("returns 401 with expired flag when session is expired and cannot be refreshed", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
@@ -253,6 +259,84 @@ describe("Server", () => {
       expect(res.status).toBe(401);
       const body = await res.json<{ authenticated: boolean; expired: boolean }>();
       expect(body).toEqual({ authenticated: false, expired: true });
+    });
+
+    it("refreshes an expired session and reissues the session cookie", async () => {
+      const refreshedExpiresAt = Date.now() + 7200000;
+      const refreshedPayload: SessionTokenPayload = {
+        userId: "user-123",
+        accessToken: "refreshed-access-token",
+        refreshToken: "refreshed-refresh-token",
+        expiresAt: refreshedExpiresAt,
+        issuedAt: Date.now(),
+      };
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        });
+        refreshSessionSpy = vi.spyOn(services.authService, "refreshSession").mockResolvedValue(refreshedPayload);
+        createSessionTokenSpy = vi
+          .spyOn(services.authService, "createSessionToken")
+          .mockResolvedValue("refreshed-session-token");
+        setSessionCookieSpy = vi.spyOn(services.authService, "setSessionCookie");
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+
+      const req = new Request("http://localhost/auth/session", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({
+        authenticated: true,
+        userId: "user-123",
+        expiresAt: refreshedExpiresAt,
+        avatarUrl: null,
+        xboxGamertag: null,
+        spartanToken: null,
+      });
+
+      expect(refreshSessionSpy).toHaveBeenCalled();
+      expect(createSessionTokenSpy).toHaveBeenCalledWith(refreshedPayload);
+      expect(setSessionCookieSpy).toHaveBeenCalled();
+      expect(res.headers.get("Set-Cookie")).toContain("auth-session=refreshed-session-token");
+    });
+
+    it("clears the session cookie when refresh fails", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        });
+        vi.spyOn(services.authService, "refreshSession").mockRejectedValue(new Error("refresh failed"));
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+
+      const req = new Request("http://localhost/auth/session", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(401);
+      await expect(res.json()).resolves.toEqual({ authenticated: false, expired: true });
+      expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
     });
 
     it("returns 200 with user info when session is valid", async () => {
@@ -398,6 +482,43 @@ describe("Server", () => {
 
       expect(res.status).toBe(200);
       await expect(res.json()).resolves.toEqual({ profile: null, games: [] });
+    });
+
+    it("GET /api/individual-tracker/profile refreshes an expired session and rotates the cookie", async () => {
+      const refreshedPayload: SessionTokenPayload = {
+        userId: "user-123",
+        accessToken: "fresh-access-token",
+        refreshToken: "fresh-refresh-token",
+        expiresAt: Date.now() + 3600000,
+        issuedAt: Date.now(),
+      };
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        });
+        vi.spyOn(services.authService, "refreshSession").mockResolvedValue(refreshedPayload);
+        vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("rotated-session-token");
+        vi.spyOn(services.databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([]);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/profile", {
+        method: "GET",
+        headers: { cookie: "auth-session=expired-token" },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({ profile: null, games: [] });
+      expect(res.headers.get("Set-Cookie")).toContain("auth-session=rotated-session-token");
     });
 
     it("POST /api/individual-tracker/profile creates a profile for authenticated user", async () => {

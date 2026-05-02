@@ -5,7 +5,7 @@ import { isRecord } from "@guilty-spark/shared/base/json-readers";
 import { UserTokenProvider } from "./services/halo/user-token-provider";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
-import type { SessionTokenPayload } from "./services/auth/types";
+import type { AuthSession, SessionTokenPayload } from "./services/auth/types";
 import { handleCorsPreflightRequest } from "./base/cors";
 import { ProfileNotFoundError, InvalidReorderError } from "./services/individual-tracker/errors";
 import { DEFAULT_IDLE_TIMEOUT_HOURS, IDLE_TIMEOUT_HOURS } from "./durable-objects/individual-tracker/types";
@@ -33,6 +33,17 @@ interface LinkIdentityRequest {
 interface UnlinkIdentityRequest {
   readonly identityId: string;
 }
+
+type AuthenticatedRouteSessionResult =
+  | {
+      readonly isAuthenticated: false;
+      readonly response: Response;
+    }
+  | {
+      readonly isAuthenticated: true;
+      readonly session: AuthSession;
+      readonly refreshedSessionPayload: SessionTokenPayload | null;
+    };
 
 function isIdentityProvider(value: unknown): value is IdentityProvider {
   return value === "xbox" || value === "discord" || value === "twitch";
@@ -203,6 +214,76 @@ export class Server {
     this.getCommands = getCommands;
 
     this.addRoutes();
+  }
+
+  private async resolveAuthenticatedSession(
+    request: Request,
+    authService: ReturnType<typeof installServices>["authService"],
+  ): Promise<AuthenticatedRouteSessionResult> {
+    const session = await authService.validateSession(request);
+
+    if (session === null) {
+      return {
+        isAuthenticated: false,
+        response: new Response("Unauthorized", { status: 401 }),
+      };
+    }
+
+    if (!session.isExpired) {
+      return {
+        isAuthenticated: true,
+        session,
+        refreshedSessionPayload: null,
+      };
+    }
+
+    let refreshedSessionPayload: SessionTokenPayload | null;
+    try {
+      refreshedSessionPayload = await authService.refreshSession(session);
+    } catch {
+      const response = new Response("Unauthorized", { status: 401 });
+      authService.clearSessionCookie(response);
+      return {
+        isAuthenticated: false,
+        response,
+      };
+    }
+
+    if (refreshedSessionPayload === null) {
+      const response = new Response("Unauthorized", { status: 401 });
+      authService.clearSessionCookie(response);
+      return {
+        isAuthenticated: false,
+        response,
+      };
+    }
+
+    return {
+      isAuthenticated: true,
+      session: {
+        userId: refreshedSessionPayload.userId,
+        accessToken: refreshedSessionPayload.accessToken,
+        refreshToken: refreshedSessionPayload.refreshToken,
+        expiresAt: refreshedSessionPayload.expiresAt,
+        isExpired: false,
+        ...(refreshedSessionPayload.avatarUrl != null ? { avatarUrl: refreshedSessionPayload.avatarUrl } : {}),
+      },
+      refreshedSessionPayload,
+    };
+  }
+
+  private async withRefreshedSessionCookie(
+    response: Response,
+    authService: ReturnType<typeof installServices>["authService"],
+    refreshedSessionPayload: SessionTokenPayload | null,
+  ): Promise<Response> {
+    if (refreshedSessionPayload == null) {
+      return response;
+    }
+
+    const refreshedToken = await authService.createSessionToken(refreshedSessionPayload);
+    authService.setSessionCookie(response, refreshedToken, refreshedSessionPayload.expiresAt);
+    return response;
   }
 
   private addRoutes(): void {
@@ -384,16 +465,43 @@ export class Server {
           });
         }
 
+        let effectiveSession = session;
+        let refreshedSessionPayload: SessionTokenPayload | null = null;
+
         if (session.isExpired) {
-          return new Response(JSON.stringify({ authenticated: false, expired: true }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
+          try {
+            refreshedSessionPayload = await authService.refreshSession(session);
+          } catch {
+            const response = new Response(JSON.stringify({ authenticated: false, expired: true }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            });
+            authService.clearSessionCookie(response);
+            return response;
+          }
+
+          if (refreshedSessionPayload === null) {
+            const response = new Response(JSON.stringify({ authenticated: false, expired: true }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            });
+            authService.clearSessionCookie(response);
+            return response;
+          }
+
+          effectiveSession = {
+            userId: refreshedSessionPayload.userId,
+            accessToken: refreshedSessionPayload.accessToken,
+            refreshToken: refreshedSessionPayload.refreshToken,
+            expiresAt: refreshedSessionPayload.expiresAt,
+            isExpired: false,
+            ...(refreshedSessionPayload.avatarUrl != null ? { avatarUrl: refreshedSessionPayload.avatarUrl } : {}),
+          };
         }
 
-        let avatarUrl: string | null = session.avatarUrl ?? null;
+        let avatarUrl: string | null = effectiveSession.avatarUrl ?? null;
 
-        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(effectiveSession.userId);
         const xboxIdentities = identities.filter((identity) => identity.Provider === "xbox");
 
         const activeXboxIdentity = xboxIdentities.find(
@@ -452,9 +560,9 @@ export class Server {
         if (includeSpartanToken) {
           try {
             const userTokenProvider = new UserTokenProvider({
-              userMicrosoftAccessToken: session.accessToken,
-              userMicrosoftRefreshToken: session.refreshToken,
-              userMicrosoftAccessTokenExpiresAt: session.expiresAt,
+              userMicrosoftAccessToken: effectiveSession.accessToken,
+              userMicrosoftRefreshToken: effectiveSession.refreshToken,
+              userMicrosoftAccessTokenExpiresAt: effectiveSession.expiresAt,
               clientId: env.MICROSOFT_CLIENT_ID,
               clientSecret: env.MICROSOFT_CLIENT_SECRET,
               redirectUri: env.MICROSOFT_REDIRECT_URI,
@@ -468,11 +576,11 @@ export class Server {
           }
         }
 
-        return new Response(
+        const response = new Response(
           JSON.stringify({
             authenticated: true,
-            userId: session.userId,
-            expiresAt: session.expiresAt,
+            userId: effectiveSession.userId,
+            expiresAt: effectiveSession.expiresAt,
             avatarUrl,
             xboxGamertag,
             spartanToken,
@@ -482,6 +590,13 @@ export class Server {
             headers: { "Content-Type": "application/json" },
           },
         );
+
+        if (refreshedSessionPayload != null) {
+          const refreshedToken = await authService.createSessionToken(refreshedSessionPayload);
+          authService.setSessionCookie(response, refreshedToken, refreshedSessionPayload.expiresAt);
+        }
+
+        return response;
       } catch (error) {
         console.error("Auth session error:", error);
         return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
@@ -494,22 +609,28 @@ export class Server {
     this.router.get("/api/identities", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
 
-        return new Response(
-          JSON.stringify({
-            identities: identities.map((identity) => mapIdentityResponse(identity)),
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+        return await this.withRefreshedSessionCookie(
+          new Response(
+            JSON.stringify({
+              identities: identities.map((identity) => mapIdentityResponse(identity)),
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+          services.authService,
+          refreshedSessionPayload,
         );
       } catch (error) {
         console.error("Identities list error:", error);
@@ -523,11 +644,13 @@ export class Server {
     this.router.post("/api/identities/link", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body = await request.json<Partial<LinkIdentityRequest>>();
 
@@ -576,14 +699,18 @@ export class Server {
 
         await services.databaseService.upsertLinkedIdentity(linkedIdentity);
 
-        return new Response(
-          JSON.stringify({
-            identity: mapIdentityResponse(linkedIdentity),
-          }),
-          {
-            status: 201,
-            headers: { "Content-Type": "application/json" },
-          },
+        return await this.withRefreshedSessionCookie(
+          new Response(
+            JSON.stringify({
+              identity: mapIdentityResponse(linkedIdentity),
+            }),
+            {
+              status: 201,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+          services.authService,
+          refreshedSessionPayload,
         );
       } catch (error) {
         console.error("Identity link error:", error);
@@ -597,11 +724,13 @@ export class Server {
     this.router.post("/api/identities/unlink", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body = await request.json<Partial<UnlinkIdentityRequest>>();
 
@@ -622,10 +751,14 @@ export class Server {
           UpdatedAt: Math.floor(Date.now() / 1000),
         });
 
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Identity unlink error:", error);
         return new Response(JSON.stringify({ error: "Failed to unlink identity" }), {
@@ -638,11 +771,13 @@ export class Server {
     this.router.get("/api/individual-tracker/streamer-view", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const url = new URL(request.url);
         const profileId = url.searchParams.get("profileId");
@@ -657,18 +792,22 @@ export class Server {
         }
 
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
-        return new Response(
-          JSON.stringify({
-            profileId,
-            layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
-            visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
-            styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
-            updatedAt: settings?.UpdatedAt ?? null,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+        return await this.withRefreshedSessionCookie(
+          new Response(
+            JSON.stringify({
+              profileId,
+              layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
+              visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
+              styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
+              updatedAt: settings?.UpdatedAt ?? null,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+          services.authService,
+          refreshedSessionPayload,
         );
       } catch (error) {
         console.error("Streamer view get error:", error);
@@ -682,11 +821,13 @@ export class Server {
     this.router.patch("/api/individual-tracker/streamer-view", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body = await request.json();
 
@@ -702,7 +843,7 @@ export class Server {
         } = body;
 
         if (typeof profileId !== "string" || profileId === "") {
-          return new Response("Missing profileId", { status: 400 });
+          return new Response("profileId must be a non-empty string", { status: 400 });
         }
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
@@ -760,18 +901,22 @@ export class Server {
           }
         }
 
-        return new Response(
-          JSON.stringify({
-            profileId,
-            layoutOptions,
-            visibleSections,
-            styleFlags,
-            updatedAt,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+        return await this.withRefreshedSessionCookie(
+          new Response(
+            JSON.stringify({
+              profileId,
+              layoutOptions,
+              visibleSections,
+              styleFlags,
+              updatedAt,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+          services.authService,
+          refreshedSessionPayload,
         );
       } catch (error) {
         console.error("Streamer view update error:", error);
@@ -785,18 +930,24 @@ export class Server {
     this.router.get("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
 
-        const response = await services.individualTrackerService.getProfile({ userId: session.userId });
+        const { session, refreshedSessionPayload } = authentication;
 
-        return new Response(JSON.stringify(response), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        const profileResponse = await services.individualTrackerService.getProfile({ userId: session.userId });
+
+        return await this.withRefreshedSessionCookie(
+          new Response(JSON.stringify(profileResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual tracker profile get error:", error);
         return new Response(JSON.stringify({ error: "Failed to fetch profile" }), {
@@ -809,11 +960,13 @@ export class Server {
     this.router.post("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const createProfileRequest = { userId: session.userId };
@@ -828,14 +981,18 @@ export class Server {
           });
         }
 
-        const response = await services.individualTrackerService.createProfile(
+        const profileResponse = await services.individualTrackerService.createProfile(
           createProfileRequest as Parameters<typeof services.individualTrackerService.createProfile>[0],
         );
 
-        return new Response(JSON.stringify(response), {
-          status: 201,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(JSON.stringify(profileResponse), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual tracker profile create error:", error);
         return new Response(JSON.stringify({ error: "Failed to create profile" }), {
@@ -848,11 +1005,13 @@ export class Server {
     this.router.patch("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const { profileId } = body as { profileId?: unknown };
@@ -873,16 +1032,20 @@ export class Server {
         }
 
         try {
-          const response = await services.individualTrackerService.updateProfile({
+          const profileResponse = await services.individualTrackerService.updateProfile({
             userId: session.userId,
             profileId,
             updates,
           });
 
-          return new Response(JSON.stringify(response), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return await this.withRefreshedSessionCookie(
+            new Response(JSON.stringify(profileResponse), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+            services.authService,
+            refreshedSessionPayload,
+          );
         } catch (error) {
           if (error instanceof ProfileNotFoundError) {
             return new Response("Profile not found", { status: 404 });
@@ -906,11 +1069,13 @@ export class Server {
         }
 
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const { profileId } = body as { profileId?: unknown };
@@ -932,10 +1097,14 @@ export class Server {
                 matchId,
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return await this.withRefreshedSessionCookie(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+                services.authService,
+                refreshedSessionPayload,
+              );
             }
 
             case "games:remove": {
@@ -950,10 +1119,14 @@ export class Server {
                 matchId,
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return await this.withRefreshedSessionCookie(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+                services.authService,
+                refreshedSessionPayload,
+              );
             }
 
             case "games:reorder": {
@@ -968,10 +1141,14 @@ export class Server {
                 orderedMatchIds: orderedMatchIds as string[],
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return await this.withRefreshedSessionCookie(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+                services.authService,
+                refreshedSessionPayload,
+              );
             }
 
             default: {
@@ -1001,11 +1178,13 @@ export class Server {
     this.router.post("/api/individual-tracker/manage/start", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const rawIdleTimeout = (body as { idleTimeoutHours?: unknown }).idleTimeoutHours;
@@ -1105,10 +1284,14 @@ export class Server {
           await services.databaseService.upsertIndividualTrackerSession(session.userId, trackerId, resolvedGamertag);
         }
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker start error:", error);
         return new Response(JSON.stringify({ error: "Failed to start tracker" }), {
@@ -1122,11 +1305,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -1145,10 +1330,14 @@ export class Server {
           await services.databaseService.deleteIndividualTrackerSession(session.userId, trackerId);
         }
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker stop error:", error);
         return new Response(JSON.stringify({ error: "Failed to stop tracker" }), {
@@ -1162,11 +1351,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -1181,10 +1372,14 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker pause error:", error);
         return new Response(JSON.stringify({ error: "Failed to pause tracker" }), {
@@ -1198,11 +1393,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -1217,10 +1414,14 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker resume error:", error);
         return new Response(JSON.stringify({ error: "Failed to resume tracker" }), {
@@ -1233,11 +1434,13 @@ export class Server {
     this.router.post("/api/individual-tracker/manage/select-active", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body = await request.json<{ trackerId?: unknown }>();
         if (typeof body.trackerId !== "string" || body.trackerId === "") {
@@ -1258,10 +1461,14 @@ export class Server {
 
         await services.databaseService.upsertIndividualTrackerActiveSession(session.userId, body.trackerId);
 
-        return new Response(JSON.stringify({ success: true, activeTrackerId: body.trackerId }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(JSON.stringify({ success: true, activeTrackerId: body.trackerId }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker select-active error:", error);
         return new Response(JSON.stringify({ error: "Failed to select active tracker" }), {
@@ -1275,11 +1482,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         // Attempt to stop the DO if it is running — fire-and-forget, do not fail the delete if DO is gone.
         try {
@@ -1313,10 +1522,14 @@ export class Server {
           }
         }
 
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker delete error:", error);
         return new Response(JSON.stringify({ error: "Failed to delete tracker" }), {
@@ -1330,11 +1543,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         if (!isRecord(body)) {
@@ -1388,10 +1603,14 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker games:sync error:", error);
         return new Response(JSON.stringify({ error: "Failed to sync games" }), {
@@ -1405,11 +1624,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const { matchId } = body as { matchId?: unknown };
@@ -1430,10 +1651,14 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker games:add error:", error);
         return new Response(JSON.stringify({ error: "Failed to add game" }), {
@@ -1447,11 +1672,13 @@ export class Server {
       try {
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
-        const session = await services.authService.validateSession(request);
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
 
-        if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
         }
+
+        const { session, refreshedSessionPayload } = authentication;
 
         const body: unknown = await request.json();
         const { matchId } = body as { matchId?: unknown };
@@ -1472,10 +1699,14 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
       } catch (error) {
         console.error("Individual live tracker games:remove error:", error);
         return new Response(JSON.stringify({ error: "Failed to remove game" }), {
