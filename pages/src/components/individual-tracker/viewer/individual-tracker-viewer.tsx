@@ -1,7 +1,6 @@
 import React from "react";
 import classNames from "classnames";
 import type { ImageMetadata } from "astro";
-import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import assaultPng from "../../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../../assets/game-modes/capture-the-flag.png";
 import kingOfTheHillPng from "../../../assets/game-modes/king-of-the-hill.png";
@@ -24,7 +23,6 @@ interface IndividualTrackerViewerProps {
   readonly viewSource: "tracker" | "active" | null;
   readonly connectionStatus: "idle" | "connecting" | "connected" | "stopped" | "error" | "disconnected" | "not_found";
   readonly errorMessage: string | null;
-  readonly state: IndividualTrackerState | null;
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
   readonly matchHistoryLoading: boolean;
   readonly onBackToManage: () => void;
@@ -43,7 +41,11 @@ function gameModeIconSrc(gameMode: string): string {
   return (GAME_MODE_ICONS[gameMode] ?? GAME_MODE_ICONS.Slayer).src;
 }
 
-function formatDateTime(value: string): string {
+function formatDateTime(value: unknown): string {
+  if (typeof value !== "string") {
+    return "Unknown";
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "Unknown";
@@ -57,11 +59,13 @@ export function IndividualTrackerViewer({
   viewSource,
   connectionStatus,
   errorMessage,
-  state,
   renderModel,
   matchHistoryLoading,
   onBackToManage,
 }: IndividualTrackerViewerProps): React.ReactElement {
+  const lastUpdatedTime = renderModel?.lastUpdatedTime ?? null;
+  const trackerStatus = renderModel?.trackerStatus ?? null;
+
   return (
     <>
       <Container>
@@ -81,19 +85,19 @@ export function IndividualTrackerViewer({
             <div className={liveStyles.headerMetaRow}>
               <span className={liveStyles.headerMetaLabel}>Last updated</span>
               <span className={liveStyles.headerMetaValue}>
-                {state != null ? formatDateTime(state.lastUpdateTime) : "-"}
+                {lastUpdatedTime != null ? formatDateTime(lastUpdatedTime) : "-"}
               </span>
             </div>
             <div className={liveStyles.headerMetaRow}>
               <span className={liveStyles.headerMetaLabel}>Status</span>
               <span
                 className={classNames(liveStyles.headerMetaValue, {
-                  [styles.statusActiveText]: state?.status === "active",
-                  [styles.statusPausedText]: state?.status === "paused",
-                  [styles.statusStoppedText]: state?.status === "stopped",
+                  [styles.statusActiveText]: trackerStatus === "active",
+                  [styles.statusPausedText]: trackerStatus === "paused",
+                  [styles.statusStoppedText]: trackerStatus === "stopped",
                 })}
               >
-                {state?.status ?? connectionStatus}
+                {trackerStatus ?? connectionStatus}
               </span>
             </div>
             <div className={styles.inlineControls}>
@@ -119,7 +123,7 @@ export function IndividualTrackerViewer({
           </Container>
         )}
 
-        {state == null || renderModel == null ? (
+        {renderModel == null ? (
           <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
             <Alert variant="info">Waiting for tracker state...</Alert>
           </Container>

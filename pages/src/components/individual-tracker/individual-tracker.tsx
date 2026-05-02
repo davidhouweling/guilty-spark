@@ -74,7 +74,6 @@ export function IndividualTrackerView({
           viewSource={snapshot.viewSource}
           connectionStatus={snapshot.viewConnectionStatus}
           errorMessage={snapshot.viewErrorMessage}
-          state={snapshot.viewedTracker}
           renderModel={snapshot.viewerRenderModel}
           matchHistoryLoading={snapshot.viewedMatchHistoryLoading}
           onBackToManage={(): void => {

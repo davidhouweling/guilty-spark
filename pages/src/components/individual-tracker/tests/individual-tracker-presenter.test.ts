@@ -79,7 +79,7 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.mode).toBe("view");
       expect(snapshot.viewSource).toBe("active");
       expect(snapshot.viewTrackerId).toBe("active-1");
-      expect(snapshot.viewedTracker?.trackerId).toBe("active-1");
+      expect(snapshot.viewerRenderModel).not.toBeNull();
     });
 
     window.history.pushState({}, "", "/individual-tracker");
@@ -136,7 +136,7 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.mode).toBe("view");
       expect(snapshot.viewSource).toBe("tracker");
       expect(snapshot.viewTrackerId).toBe("tracker-123");
-      expect(snapshot.viewedTracker?.trackerId).toBe("tracker-123");
+      expect(snapshot.viewerRenderModel).not.toBeNull();
     });
 
     window.history.pushState({}, "", "/individual-tracker");

@@ -74,8 +74,7 @@ function getSeriesSubtitle(entries: readonly TrackerMatchHistoryEntry[]): string
     return "No matches";
   }
 
-  const [first] = entries;
-  return `${entries.length.toString()} games • ${first.modeName} on ${first.mapName}`;
+  return `${entries.length.toString()} games`;
 }
 
 function buildSeriesGroups(
@@ -418,6 +417,8 @@ export function buildIndividualTrackerViewerRenderModel({
   });
 
   return {
+    lastUpdatedTime: state.lastUpdateTime,
+    trackerStatus: state.status,
     accumulatedStats,
     teamColors,
     trackedPlayerTotals,

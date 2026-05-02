@@ -1,8 +1,10 @@
 import type { Services } from "../../services/types";
+import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,
   IndividualTrackerSubscription,
+  TrackerMatchHistoryResponse,
 } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./types";
 import type { IndividualTrackerStore } from "./individual-tracker-store";
@@ -23,6 +25,8 @@ export class IndividualTrackerPresenter {
   private viewerStateSubscription: IndividualTrackerSubscription | null = null;
   private viewerStatusSubscription: IndividualTrackerSubscription | null = null;
   private lastViewerMatchHistoryKey: string | null = null;
+  private viewedTracker: IndividualTrackerState | null = null;
+  private viewedMatchHistory: TrackerMatchHistoryResponse | null = null;
 
   public constructor(config: Config) {
     this.config = config;
@@ -130,8 +134,8 @@ export class IndividualTrackerPresenter {
     return {
       ...snapshot,
       viewerRenderModel: buildIndividualTrackerViewerRenderModel({
-        state: snapshot.viewedTracker,
-        matchHistory: snapshot.viewedMatchHistory,
+        state: this.viewedTracker,
+        matchHistory: this.viewedMatchHistory,
         defaultTeamColor: snapshot.viewerTeamColor,
         defaultEnemyColor: snapshot.viewerEnemyColor,
       }),
@@ -185,6 +189,8 @@ export class IndividualTrackerPresenter {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("mode");
     if (mode === "active") {
+      this.viewedTracker = null;
+      this.viewedMatchHistory = null;
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         mode: "view",
@@ -192,8 +198,6 @@ export class IndividualTrackerPresenter {
         viewTrackerId: null,
         viewConnectionStatus: "connecting",
         viewErrorMessage: null,
-        viewedTracker: null,
-        viewedMatchHistory: null,
         viewedMatchHistoryLoading: false,
       }));
       return;
@@ -204,6 +208,8 @@ export class IndividualTrackerPresenter {
       return;
     }
 
+    this.viewedTracker = null;
+    this.viewedMatchHistory = null;
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       mode: "view",
@@ -211,8 +217,6 @@ export class IndividualTrackerPresenter {
       viewTrackerId: trackerId,
       viewConnectionStatus: "connecting",
       viewErrorMessage: null,
-      viewedTracker: null,
-      viewedMatchHistory: null,
       viewedMatchHistoryLoading: false,
     }));
   }
@@ -225,6 +229,8 @@ export class IndividualTrackerPresenter {
     this.viewerConnection?.disconnect();
     this.viewerConnection = null;
     this.lastViewerMatchHistoryKey = null;
+    this.viewedTracker = null;
+    this.viewedMatchHistory = null;
   }
 
   private getViewerMatchHistoryKey(trackerId: string, matchIds: readonly string[]): string {
@@ -238,31 +244,32 @@ export class IndividualTrackerPresenter {
     }
 
     this.lastViewerMatchHistoryKey = key;
+    this.viewedMatchHistory = null;
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       viewedMatchHistoryLoading: true,
-      viewedMatchHistory: null,
     }));
 
     try {
       const history = await this.config.services.individualTrackerService.getMatchHistory(xuid, 0, 100);
 
       this.updateSnapshot((snapshot) => {
-        if (snapshot.viewedTracker?.trackerId !== trackerId) {
+        if (this.viewedTracker?.trackerId !== trackerId) {
           return snapshot;
         }
 
+        this.viewedMatchHistory = history;
+
         return {
           ...snapshot,
-          viewedMatchHistory: history,
           viewedMatchHistoryLoading: false,
         };
       });
     } catch (error) {
+      this.viewedMatchHistory = null;
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewedMatchHistoryLoading: false,
-        viewedMatchHistory: null,
         viewErrorMessage: error instanceof Error ? error.message : "Failed to load tracker matches.",
       }));
     }
@@ -292,8 +299,6 @@ export class IndividualTrackerPresenter {
       ...snapshot,
       viewConnectionStatus: "connecting",
       viewErrorMessage: null,
-      viewedTracker: null,
-      viewedMatchHistory: null,
       viewedMatchHistoryLoading: false,
     }));
 
@@ -309,12 +314,12 @@ export class IndividualTrackerPresenter {
       }
 
       const { activeTracker } = statusResponse;
+      this.viewedTracker = activeTracker;
+      this.viewedMatchHistory = null;
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
-        viewedTracker: activeTracker,
         viewTrackerId: activeTracker.trackerId,
-        viewedMatchHistory: null,
         viewedMatchHistoryLoading: false,
       }));
 
@@ -324,9 +329,9 @@ export class IndividualTrackerPresenter {
       this.viewerConnection = connection;
 
       this.viewerStateSubscription = connection.subscribe((state) => {
+        this.viewedTracker = state;
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
-          viewedTracker: state,
           viewTrackerId: state.trackerId,
         }));
         void this.refreshViewerMatchHistory(state.trackerId, state.xuid, state.matchIds);
@@ -351,20 +356,19 @@ export class IndividualTrackerPresenter {
       ...snapshot,
       viewConnectionStatus: "connecting",
       viewErrorMessage: null,
-      viewedTracker: null,
       viewTrackerId: null,
     }));
 
     try {
       const statusResponse = await this.config.services.individualTrackerService.getActiveTrackerState(userId);
+      this.viewedTracker = statusResponse.activeTracker;
+      this.viewedMatchHistory = null;
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
-        viewedTracker: statusResponse.activeTracker,
         viewTrackerId: statusResponse.activeTracker?.trackerId ?? null,
         viewConnectionStatus: statusResponse.activeTracker == null ? "not_found" : snapshot.viewConnectionStatus,
         viewErrorMessage:
           statusResponse.activeTracker == null ? "No active tracker is currently selected." : snapshot.viewErrorMessage,
-        viewedMatchHistory: null,
         viewedMatchHistoryLoading: false,
       }));
 
@@ -380,9 +384,9 @@ export class IndividualTrackerPresenter {
       this.viewerConnection = connection;
 
       this.viewerStateSubscription = connection.subscribe((state) => {
+        this.viewedTracker = state;
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
-          viewedTracker: state,
           viewTrackerId: state.trackerId,
         }));
         void this.refreshViewerMatchHistory(state.trackerId, state.xuid, state.matchIds);
@@ -414,8 +418,6 @@ export class IndividualTrackerPresenter {
           ...snapshot,
           authState: "unauthenticated",
           profileId: null,
-          viewedTracker: null,
-          viewedMatchHistory: null,
           viewedMatchHistoryLoading: false,
         }));
         return;

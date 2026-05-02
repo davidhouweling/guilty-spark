@@ -9,8 +9,6 @@ export class IndividualTrackerStore {
     viewTrackerId: null,
     viewConnectionStatus: "idle",
     viewErrorMessage: null,
-    viewedTracker: null,
-    viewedMatchHistory: null,
     viewedMatchHistoryLoading: false,
     viewerRenderModel: null,
     activeSection: "live-trackers",
