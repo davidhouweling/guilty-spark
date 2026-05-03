@@ -1207,6 +1207,8 @@ describe("NeatQueueService", () => {
 
         // Mock getSeriesData to return raw matches
         vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+          discoveredMatches: {},
+          matchIds: Object.keys(rawMatches),
           rawMatches,
         });
 

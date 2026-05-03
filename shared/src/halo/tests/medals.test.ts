@@ -1,5 +1,28 @@
 import { describe, it, expect, vi } from "vitest";
-import { aggregateTeamMedals, getMedalMetadataFromMatches } from "../medals";
+import { getMedalsMetadata } from "../../../../api/services/halo/fakes/data";
+import { aggregateTeamMedals, createMedalLookup, getMedalFromLookup, getMedalMetadataFromMatches } from "../medals";
+
+describe("createMedalLookup", () => {
+  it("returns the resolved medal for the specified medalId", () => {
+    const lookup = createMedalLookup(getMedalsMetadata());
+    const result = getMedalFromLookup(lookup, 3334154676);
+
+    expect(result).toEqual({
+      difficulty: "normal",
+      name: "Guardian Angel",
+      sortingWeight: 50,
+      type: "skill",
+    });
+  });
+
+  it("returns undefined when the medalId is not present", () => {
+    const lookup = createMedalLookup(getMedalsMetadata());
+    const result = getMedalFromLookup(lookup, 0);
+
+    expect(result).toBeUndefined();
+  });
+});
+
 describe("getMedalMetadataFromMatches", () => {
   it("collects unique medal metadata from team and player stats", async () => {
     const rawMatches = {

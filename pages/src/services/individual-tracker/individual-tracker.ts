@@ -11,6 +11,13 @@ import {
 } from "halo-infinite-api";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import {
+  createMedalLookup,
+  getMedalFromLookup,
+  getMedalMetadataFromMatches,
+  type MedalLookup,
+  type MedalMetadata,
+} from "@guilty-spark/shared/halo/medals";
+import {
   sanitizeMapName,
   normalizeModeName,
   getMatchOutcomeLabel,
@@ -410,6 +417,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
   private readonly modeAssetCache = new Map<string, Promise<UgcGameVariantAsset | null>>();
   private readonly matchStatsCache = new Map<string, Promise<MatchStats | null>>();
   private readonly gamertagCache = new Map<string, string>();
+  private medalLookupCache: Promise<MedalLookup> | null = null;
 
   constructor({ apiHost, haloInfiniteClient }: IndividualTrackerServiceOpts) {
     this.apiHost = apiHost;
@@ -732,6 +740,27 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     };
   }
 
+  public async getMedalMetadata(matches: readonly MatchStats[]): Promise<MedalMetadata> {
+    if (matches.length === 0) {
+      return {};
+    }
+
+    const medalLookup = await this.getMedalLookup();
+    const rawMatches = Object.fromEntries(matches.map((match) => [match.MatchId, match]));
+
+    return getMedalMetadataFromMatches(rawMatches, async (medalId) => {
+      const medal = getMedalFromLookup(medalLookup, medalId);
+      if (medal == null) {
+        return Promise.resolve(undefined);
+      }
+
+      return Promise.resolve({
+        name: medal.name,
+        sortingWeight: medal.sortingWeight,
+      });
+    });
+  }
+
   public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
     const selectedMatchIdSet = new Set(request.selectedMatchIds);
     const filteredGroupings = request.matchGroupings
@@ -860,6 +889,13 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         return null;
       }
     });
+  }
+
+  private async getMedalLookup(): Promise<MedalLookup> {
+    this.medalLookupCache ??= this.haloInfiniteClient
+      .getMedalsMetadataFile()
+      .then((metadata) => createMedalLookup(metadata));
+    return this.medalLookupCache;
   }
 
   private async getMapDetails(

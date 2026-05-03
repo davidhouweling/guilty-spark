@@ -1,8 +1,8 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
-import type { APIGuild } from "discord-api-types/v10";
 import type {
+  APIGuild,
   RESTPostAPIChannelThreadsResult,
   APIEmbed,
   APIMessage,
@@ -21,8 +21,7 @@ import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
 import type { HaloService, MatchPlayer } from "../halo/halo";
-import type { LiveTrackerService } from "../live-tracker/live-tracker";
-import type { LiveTrackerSeriesDataResponse } from "../live-tracker/live-tracker";
+import type { LiveTrackerService, LiveTrackerSeriesDataResponse } from "../live-tracker/live-tracker";
 import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";

@@ -1,4 +1,6 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { MatchStats } from "halo-infinite-api";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,
@@ -311,6 +313,11 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       matches: [],
       suggestedGroupings: [],
     });
+  }
+
+  public async getMedalMetadata(matches: readonly MatchStats[]): Promise<MedalMetadata> {
+    void matches;
+    return Promise.resolve({});
   }
 
   public async syncMatchesToTracker(): Promise<void> {

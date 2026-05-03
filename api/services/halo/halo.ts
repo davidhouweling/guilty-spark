@@ -23,6 +23,7 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { createMedalLookup, getMedalFromLookup, type MedalLookup } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -80,7 +81,7 @@ export class HaloService {
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
-  private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
+  private medalLookupCache: Promise<MedalLookup> | undefined;
 
   constructor({
     env,
@@ -519,25 +520,20 @@ export class HaloService {
   }
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
-    this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-      },
-    });
-    const metadata = await this.metadataJsonCache;
-    const medal = metadata.medals.find(({ nameId }) => nameId === medalId);
+    const lookup = await this.getMedalLookup();
+    return getMedalFromLookup(lookup, medalId);
+  }
 
-    if (medal == null) {
-      // TODO: work out the medals that are currently unknown, such as the VIP ones
-      return undefined;
-    }
+  private async getMedalLookup(): Promise<MedalLookup> {
+    this.medalLookupCache ??= this.infiniteClient
+      .getMedalsMetadataFile({
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      })
+      .then((metadata) => createMedalLookup(metadata));
 
-    return {
-      name: medal.name.value,
-      sortingWeight: medal.sortingWeight,
-      difficulty: Preconditions.checkExists(metadata.difficulties[medal.difficultyIndex]),
-      type: Preconditions.checkExists(metadata.types[medal.typeIndex]),
-    };
+    return this.medalLookupCache;
   }
 
   async getRecentMatchHistory(

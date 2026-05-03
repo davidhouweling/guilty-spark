@@ -766,6 +766,8 @@ describe("NeatQueueService Live Tracker Integration", () => {
 
       // Mock getSeriesData to return raw matches
       const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+        discoveredMatches: {},
+        matchIds: Object.keys(mockRawMatches),
         rawMatches: mockRawMatches,
       });
       void _getSeriesDataSpy;
@@ -819,6 +821,8 @@ describe("NeatQueueService Live Tracker Integration", () => {
 
       // Mock getSeriesData to return raw matches
       const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+        discoveredMatches: {},
+        matchIds: Object.keys(mockRawMatches),
         rawMatches: mockRawMatches,
       });
       void _getSeriesDataSpy;

@@ -21,6 +21,22 @@ interface Config {
 
 const NON_LIVE_POLL_INTERVAL_MS = 30_000;
 
+function getSyncableSeriesGroups(
+  selectedMatchIds: readonly string[],
+  matchGroupings: readonly (readonly string[])[],
+  seriesGroups: NonNullable<IndividualTrackerState["seriesGroups"]>,
+): readonly NonNullable<IndividualTrackerState["seriesGroups"]>[number][] {
+  const selectedMatchIdSet = new Set(selectedMatchIds);
+  const syncableGroupingKeys = new Set(
+    matchGroupings
+      .map((group) => group.filter((matchId) => selectedMatchIdSet.has(matchId)))
+      .filter((group) => group.length >= 2)
+      .map((group) => buildSeriesGroupKey(group)),
+  );
+
+  return seriesGroups.filter((seriesGroup) => syncableGroupingKeys.has(buildSeriesGroupKey(seriesGroup.matchIds)));
+}
+
 function derivedStatus(trackerState: IndividualTrackerState | null): TrackerDisplayStatus {
   if (trackerState === null) {
     return "not-started";
@@ -273,7 +289,11 @@ export class LiveTrackersPresenter {
       return;
     }
 
-    const seriesGroups = payload.seriesGroups ?? [];
+    const seriesGroups = getSyncableSeriesGroups(
+      payload.selectedMatchIds,
+      payload.matchGroupings,
+      payload.seriesGroups ?? [],
+    );
 
     if (payload.selectedMatchIds.length > 0) {
       await this.config.services.individualTrackerService.syncMatchesToTracker({
@@ -313,7 +333,11 @@ export class LiveTrackersPresenter {
     const baselineGroupings = dialogState?.initialGroupings ?? [];
     const baselineSeriesGroups = dialogState?.initialSeriesGroups ?? [];
     const selectedMatchIds = [...payload.selectedMatchIds];
-    const seriesGroups = payload.seriesGroups ?? [];
+    const seriesGroups = getSyncableSeriesGroups(
+      payload.selectedMatchIds,
+      payload.matchGroupings,
+      payload.seriesGroups ?? [],
+    );
     const hasSelectionChanged =
       baselineIds.length !== selectedMatchIds.length ||
       baselineIds.some((matchId, index) => selectedMatchIds[index] !== matchId);

@@ -1,5 +1,6 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { compareAsc, parseISO } from "date-fns";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { createMatchStatsPresenter } from "../../stats/create";
@@ -43,6 +44,7 @@ type GameplayTimelineItem =
 interface BuildViewerRenderModelOptions {
   readonly state: IndividualTrackerState | null;
   readonly matchHistory: TrackerMatchHistoryResponse | null;
+  readonly medalMetadata: MedalMetadata;
   readonly defaultTeamColor: string;
   readonly defaultEnemyColor: string;
 }
@@ -231,7 +233,10 @@ function computeSeriesMetadata(
   };
 }
 
-function buildAllMatchStats(trackedEntries: readonly TrackerMatchHistoryEntry[]): Map<string, MatchStatsData[] | null> {
+function buildAllMatchStats(
+  trackedEntries: readonly TrackerMatchHistoryEntry[],
+  medalMetadata: MedalMetadata,
+): Map<string, MatchStatsData[] | null> {
   const statsByMatchId = new Map<string, MatchStatsData[] | null>();
 
   for (const entry of trackedEntries) {
@@ -243,7 +248,7 @@ function buildAllMatchStats(trackedEntries: readonly TrackerMatchHistoryEntry[])
     try {
       const matchStatsPresenter = createMatchStatsPresenter(entry.rawMatchStats.MatchInfo.GameVariantCategory);
       const playerMap = new Map(Object.entries(entry.playerXuidToGametag ?? {}));
-      statsByMatchId.set(entry.matchId, matchStatsPresenter.getData(entry.rawMatchStats, playerMap, {}));
+      statsByMatchId.set(entry.matchId, matchStatsPresenter.getData(entry.rawMatchStats, playerMap, medalMetadata));
     } catch {
       statsByMatchId.set(entry.matchId, null);
     }
@@ -254,6 +259,7 @@ function buildAllMatchStats(trackedEntries: readonly TrackerMatchHistoryEntry[])
 
 function buildSeriesStatsByGroup(
   seriesGroups: readonly SeriesGroupViewModel[],
+  medalMetadata: MedalMetadata,
 ): Map<string, IndividualTrackerViewerSeriesTotals> {
   const groupStats = new Map<string, IndividualTrackerViewerSeriesTotals>();
 
@@ -277,8 +283,8 @@ function buildSeriesStatsByGroup(
     }
 
     groupStats.set(group.id, {
-      teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, {}),
-      playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, {}),
+      teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, medalMetadata),
+      playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, medalMetadata),
       metadata: computeSeriesMetadata(group.entries, group.seriesScore),
     });
   }
@@ -290,6 +296,7 @@ function buildTrackedPlayerTotals(
   state: IndividualTrackerState,
   trackedEntries: readonly TrackerMatchHistoryEntry[],
   overallScore: string,
+  medalMetadata: MedalMetadata,
 ): IndividualTrackerViewerTrackedPlayerTotals | null {
   const rawMatchStats = trackedEntries
     .map((entry) => entry.rawMatchStats)
@@ -307,7 +314,7 @@ function buildTrackedPlayerTotals(
   }
 
   const playerPresenter = new SeriesPlayerStatsPresenter();
-  const allPlayerData = playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, {});
+  const allPlayerData = playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, medalMetadata);
   const trackedGamertag = state.gamertag.trim().toLowerCase();
 
   const filteredPlayerData = allPlayerData
@@ -391,6 +398,7 @@ function buildMatchCard(
 export function buildIndividualTrackerViewerRenderModel({
   state,
   matchHistory,
+  medalMetadata,
   defaultTeamColor,
   defaultEnemyColor,
 }: BuildViewerRenderModelOptions): IndividualTrackerViewerRenderModel | null {
@@ -416,9 +424,9 @@ export function buildIndividualTrackerViewerRenderModel({
     getTeamColorOrDefault(state.enemyColor ?? defaultEnemyColor, 1),
   ] as const;
 
-  const allMatchStats = buildAllMatchStats(trackedEntries);
-  const seriesStatsByGroup = buildSeriesStatsByGroup(seriesGroups);
-  const trackedPlayerTotals = buildTrackedPlayerTotals(state, trackedEntries, overallScore);
+  const allMatchStats = buildAllMatchStats(trackedEntries, medalMetadata);
+  const seriesStatsByGroup = buildSeriesStatsByGroup(seriesGroups, medalMetadata);
+  const trackedPlayerTotals = buildTrackedPlayerTotals(state, trackedEntries, overallScore, medalMetadata);
   const gameplayTimeline = buildGameplayTimeline(trackedEntries, seriesGroups);
 
   const timelineItems: IndividualTrackerViewerTimelineItem[] = gameplayTimeline.map((item, timelineIndex) => {

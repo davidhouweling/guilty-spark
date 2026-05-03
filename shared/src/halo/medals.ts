@@ -1,4 +1,7 @@
-import type { Stats } from "halo-infinite-api";
+import type { HaloInfiniteClient, Stats } from "halo-infinite-api";
+import { Preconditions } from "../base/preconditions";
+
+type MedalsMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
 
 interface MedalSourceEntry {
   NameId: number;
@@ -29,7 +32,34 @@ export interface MedalEntry {
   sortingWeight: number;
 }
 
+export interface ResolvedMedal {
+  name: string;
+  sortingWeight: number;
+  difficulty: string;
+  type: string;
+}
+
 export type MedalMetadata = Record<number, { name: string; sortingWeight: number }>;
+export type MedalLookup = ReadonlyMap<number, ResolvedMedal>;
+
+export function createMedalLookup(metadata: MedalsMetadataFile): MedalLookup {
+  const medals = new Map<number, ResolvedMedal>();
+
+  for (const medal of metadata.medals) {
+    medals.set(medal.nameId, {
+      name: medal.name.value,
+      sortingWeight: medal.sortingWeight,
+      difficulty: Preconditions.checkExists(metadata.difficulties[medal.difficultyIndex]),
+      type: Preconditions.checkExists(metadata.types[medal.typeIndex]),
+    });
+  }
+
+  return medals;
+}
+
+export function getMedalFromLookup(lookup: MedalLookup, medalId: number): ResolvedMedal | undefined {
+  return lookup.get(medalId);
+}
 
 export function extractMedals(coreStats: Stats["CoreStats"], medalMetadata?: MedalMetadata): MedalEntry[] {
   return coreStats.Medals.map((medal) => {

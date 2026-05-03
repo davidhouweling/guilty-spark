@@ -1,4 +1,5 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStats } from "halo-infinite-api";
 
 export interface IndividualTrackerProfile {
@@ -92,6 +93,7 @@ export interface IndividualTrackerService {
   deleteTracker(trackerId: string): Promise<void>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
   getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
+  getMedalMetadata(matches: readonly MatchStats[]): Promise<MedalMetadata>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
   updateSeriesGroup(request: TrackerSeriesGroupUpdateRequest): Promise<IndividualTrackerState>;
   addMatchToTracker(trackerId: string, matchId: string): Promise<void>;

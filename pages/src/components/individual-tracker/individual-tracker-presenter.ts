@@ -1,4 +1,5 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { Services } from "../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -27,6 +28,7 @@ export class IndividualTrackerPresenter {
   private lastViewerMatchHistoryKey: string | null = null;
   private viewedTracker: IndividualTrackerState | null = null;
   private viewedMatchHistory: TrackerMatchHistoryResponse | null = null;
+  private viewedMedalMetadata: MedalMetadata = {};
 
   public constructor(config: Config) {
     this.config = config;
@@ -136,6 +138,7 @@ export class IndividualTrackerPresenter {
       viewerRenderModel: buildIndividualTrackerViewerRenderModel({
         state: this.viewedTracker,
         matchHistory: this.viewedMatchHistory,
+        medalMetadata: this.viewedMedalMetadata,
         defaultTeamColor: snapshot.viewerTeamColor,
         defaultEnemyColor: snapshot.viewerEnemyColor,
       }),
@@ -231,6 +234,7 @@ export class IndividualTrackerPresenter {
     this.lastViewerMatchHistoryKey = null;
     this.viewedTracker = null;
     this.viewedMatchHistory = null;
+    this.viewedMedalMetadata = {};
   }
 
   private getViewerMatchHistoryKey(trackerId: string, matchIds: readonly string[]): string {
@@ -245,6 +249,7 @@ export class IndividualTrackerPresenter {
 
     this.lastViewerMatchHistoryKey = key;
     this.viewedMatchHistory = null;
+    this.viewedMedalMetadata = {};
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       viewedMatchHistoryLoading: true,
@@ -252,6 +257,10 @@ export class IndividualTrackerPresenter {
 
     try {
       const history = await this.config.services.individualTrackerService.getMatchHistory(xuid, 0, 100);
+      const rawMatches = history.matches
+        .map((match) => match.rawMatchStats)
+        .filter((match): match is NonNullable<typeof match> => match != null);
+      const medalMetadata = await this.config.services.individualTrackerService.getMedalMetadata(rawMatches);
 
       this.updateSnapshot((snapshot) => {
         if (this.viewedTracker?.trackerId !== trackerId) {
@@ -259,6 +268,7 @@ export class IndividualTrackerPresenter {
         }
 
         this.viewedMatchHistory = history;
+        this.viewedMedalMetadata = medalMetadata;
 
         return {
           ...snapshot,
@@ -267,6 +277,7 @@ export class IndividualTrackerPresenter {
       });
     } catch (error) {
       this.viewedMatchHistory = null;
+      this.viewedMedalMetadata = {};
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewedMatchHistoryLoading: false,
@@ -316,6 +327,7 @@ export class IndividualTrackerPresenter {
       const { activeTracker } = statusResponse;
       this.viewedTracker = activeTracker;
       this.viewedMatchHistory = null;
+      this.viewedMedalMetadata = {};
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
@@ -363,6 +375,7 @@ export class IndividualTrackerPresenter {
       const statusResponse = await this.config.services.individualTrackerService.getActiveTrackerState(userId);
       this.viewedTracker = statusResponse.activeTracker;
       this.viewedMatchHistory = null;
+      this.viewedMedalMetadata = {};
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewTrackerId: statusResponse.activeTracker?.trackerId ?? null,

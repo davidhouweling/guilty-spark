@@ -524,6 +524,95 @@ describe("LiveTrackersPresenter", () => {
     harness.presenter.dispose();
   });
 
+  it("skips stale series-group label updates when selected matches no longer form a grouped series", async () => {
+    const services: Services = {
+      authService: aFakeAuthServiceWith(),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith({
+        trackerStates: {
+          "tracker-1": aFakeIndividualTrackerStateWith({
+            trackerId: "tracker-1",
+            matchGroupings: [["m1", "m2"]],
+            seriesGroups: [
+              {
+                matchIds: ["m1", "m2"],
+                titleOverride: "Old Label",
+                subtitleOverride: null,
+              },
+            ],
+          }),
+        },
+      }),
+    };
+
+    const syncMatchesSpy = vi.spyOn(services.individualTrackerService, "syncMatchesToTracker");
+    const updateSeriesGroupSpy = vi.spyOn(services.individualTrackerService, "updateSeriesGroup");
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+    harness.presenter.setSessionContext("user-1", "Chief");
+
+    await harness.presenter.refresh();
+
+    harness.store.snapshot = {
+      ...harness.store.snapshot,
+      gameSelectionDialogState: {
+        trackerId: "tracker-1",
+        trackerLabel: "Chief",
+        xuid: "xuid-1",
+        initialSelectedMatchIds: ["m1", "m2"],
+        initialGroupings: [["m1", "m2"]],
+        initialSeriesGroups: [
+          {
+            matchIds: ["m1", "m2"],
+            titleOverride: "Old Label",
+            subtitleOverride: null,
+          },
+        ],
+      },
+    };
+
+    await harness.presenter.syncGameSelection({
+      trackerId: "tracker-1",
+      selectedMatchIds: ["m1"],
+      matchGroupings: [["m1", "m2"]],
+      seriesGroups: [
+        {
+          matchIds: ["m1", "m2"],
+          titleOverride: "Dog Crew",
+          subtitleOverride: "Queue #777",
+        },
+      ],
+      matches: [
+        {
+          matchId: "m1",
+          startTime: "Jan 1, 2026, 12:00:00 AM",
+          endTime: "Jan 1, 2026, 12:10:00 AM",
+          mapAssetId: "map-1",
+          mapVersionId: "map-version-1",
+          modeAssetId: "mode-1",
+          modeVersionId: "mode-version-1",
+          gameVariantCategory: 6,
+          duration: "10m 0s",
+          mapName: "Aquarius",
+          modeName: "Slayer",
+          outcome: "Win",
+          resultString: "Win - 50:40",
+          isMatchmaking: false,
+          category: "custom",
+          teams: [],
+          mapThumbnailUrl: "data:,",
+        },
+      ],
+    });
+
+    expect(syncMatchesSpy).toHaveBeenCalledOnce();
+    expect(updateSeriesGroupSpy).not.toHaveBeenCalled();
+    expect(harness.presenter.getSnapshot().busy).toBe(false);
+
+    harness.presenter.dispose();
+  });
+
   it("resets all section state for unauthenticated users", () => {
     const services: Services = {
       authService: aFakeAuthServiceWith(),

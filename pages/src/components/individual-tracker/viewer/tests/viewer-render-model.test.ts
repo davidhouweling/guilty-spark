@@ -1,4 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { createMedalLookup, getMedalFromLookup } from "@guilty-spark/shared/halo/medals";
+import {
+  getMatchStats,
+  getMedalsMetadata,
+  getPlayerXuidsToGametags,
+} from "../../../../../../api/services/halo/fakes/data";
 import { aFakeIndividualTrackerStateWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type {
   TrackerMatchHistoryEntry,
@@ -83,6 +90,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, [["m2", "m3"]]),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -111,6 +119,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, [["m3", "m2"]]),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -142,6 +151,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, [["m2", "m3"]]),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -175,6 +185,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, []),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -204,6 +215,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, []),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -245,6 +257,7 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     const renderModel = buildIndividualTrackerViewerRenderModel({
       state,
       matchHistory: aHistoryResponseWith(matches, []),
+      medalMetadata: {},
       defaultTeamColor: "salmon",
       defaultEnemyColor: "cerulean",
     });
@@ -255,6 +268,55 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     if (groupedItem?.type === "group") {
       expect(groupedItem.subtitle).toBe("Best of 1");
       expect(groupedItem.seriesScore).toBe("1:0");
+    }
+  });
+
+  it("uses medal metadata to resolve medal names in match stats", () => {
+    const rawMatchStats = Preconditions.checkExists(getMatchStats("32b4cddf-5451-4d83-bcf6-000land-grab"));
+    const medalId = Preconditions.checkExists(
+      rawMatchStats.Players.flatMap((player) =>
+        player.PlayerTeamStats.flatMap((teamStats) => teamStats.Stats.CoreStats.Medals.map((medal) => medal.NameId)),
+      )[0],
+    );
+    const medalLookup = createMedalLookup(getMedalsMetadata());
+    const medal = Preconditions.checkExists(getMedalFromLookup(medalLookup, medalId));
+    const playerXuidToGametag = Object.fromEntries(getPlayerXuidsToGametags());
+    const trackedGamertag = Object.values(playerXuidToGametag)[0] ?? "TrackedPlayer";
+
+    const state = aFakeIndividualTrackerStateWith({
+      gamertag: trackedGamertag,
+      matchIds: [rawMatchStats.MatchId],
+    });
+
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state,
+      matchHistory: aHistoryResponseWith(
+        [
+          aHistoryEntryWith({
+            matchId: rawMatchStats.MatchId,
+            rawMatchStats,
+            playerXuidToGametag,
+          }),
+        ],
+        [],
+      ),
+      medalMetadata: {
+        [medalId]: {
+          name: medal.name,
+          sortingWeight: medal.sortingWeight,
+        },
+      },
+      defaultTeamColor: "salmon",
+      defaultEnemyColor: "cerulean",
+    });
+
+    expect(renderModel?.gameplayTimeline[0]?.type).toBe("match");
+    if (renderModel?.gameplayTimeline[0]?.type === "match") {
+      const playerMedals = renderModel.gameplayTimeline[0].match.matchStats?.flatMap((team) =>
+        team.players.flatMap((player) => player.medals.map((medalEntry) => medalEntry.name)),
+      );
+
+      expect(playerMedals).toContain(medal.name);
     }
   });
 });
