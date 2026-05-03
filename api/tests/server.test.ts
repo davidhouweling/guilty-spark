@@ -924,7 +924,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/api/identities/link", {
         method: "POST",
         headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
-        body: JSON.stringify({ provider: "xbox", providerUserId: "xuid-1", gamertag: "TesterOne" }),
+        body: JSON.stringify({ provider: "xbox", providerUserId: "2533274844642438", gamertag: "TesterOne" }),
       });
       const res = (await server.router.fetch(req, env)) as Response;
 
@@ -933,6 +933,32 @@ describe("Server", () => {
       expect(body.identity.identityId).toBe("identity-uuid-1");
       expect(body.identity.provider).toBe("xbox");
       expect(body.identity.isActive).toBe(true);
+    });
+
+    it("POST /api/identities/link rejects xbox identities without a valid xuid", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities/link", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({ provider: "xbox", providerUserId: "xuid-1", gamertag: "TesterOne" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      await expect(res.text()).resolves.toBe("Invalid Xbox identity request");
     });
 
     it("POST /api/identities/unlink deactivates owned identity", async () => {

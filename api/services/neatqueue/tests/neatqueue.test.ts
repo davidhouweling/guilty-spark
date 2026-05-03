@@ -12,12 +12,17 @@ import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import {
+  aFakeIndividualTrackerDOWith,
+  aFakeIndividualTrackerStateWith,
+} from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
 import {
   aFakeDatabaseServiceWith,
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeIndividualTrackerSessionsRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -1232,6 +1237,197 @@ describe("NeatQueueService", () => {
         const [, , passedMap] = callArgs;
         expect(passedMap).toBeInstanceOf(Map);
         expect(passedMap.get("xuid-1")).toBe("Gamertag1");
+      });
+
+      it("fans out default series labels to matching individual trackers by xuid", async () => {
+        const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+        const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+        const rawMatches: Record<string, MatchStats> = {
+          [match1.MatchId]: match1,
+          [match2.MatchId]: match2,
+        };
+
+        const discoveredMatches: Record<string, LiveTrackerMatchSummary> = {
+          [match1.MatchId]: {
+            matchId: match1.MatchId,
+            gameMap: "Live Fire",
+            gameType: "Slayer",
+            gameTypeAndMap: "Slayer on Live Fire",
+            gameMapThumbnailUrl: "http://example.com/thumb.jpg",
+            duration: "10:00",
+            gameScore: "50-48",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: { "2533274844642438": "Gamertag1" },
+          },
+          [match2.MatchId]: {
+            matchId: match2.MatchId,
+            gameMap: "Recharge",
+            gameType: "Oddball",
+            gameTypeAndMap: "Oddball on Recharge",
+            gameMapThumbnailUrl: "http://example.com/thumb-2.jpg",
+            duration: "12:00",
+            gameScore: "2-1",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: { "2533274844642438": "Gamertag1" },
+          },
+        };
+
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            matchIds: [match1.MatchId, match2.MatchId],
+            discoveredMatches,
+          }),
+        });
+        vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+          rawMatches,
+          matchIds: [match1.MatchId, match2.MatchId],
+          discoveredMatches,
+        });
+
+        const findSessionsSpy = vi.spyOn(databaseService, "findIndividualTrackerSessionsByXuids").mockResolvedValue([
+          aFakeIndividualTrackerSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+            Xuid: "2533274844642438",
+          }),
+        ]);
+        vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+
+        const individualTrackerDo = aFakeIndividualTrackerDOWith({
+          statusResponse: {
+            state: aFakeIndividualTrackerStateWith({
+              userId: "user-123",
+              trackerId: "tracker-123",
+              matchGroupings: [[match1.MatchId, match2.MatchId]],
+              seriesGroups: [],
+            }),
+          },
+        });
+        const individualTrackerFetchSpy = vi.spyOn(individualTrackerDo, "fetch");
+        vi.spyOn(env.INDIVIDUAL_TRACKER_DO, "get").mockReturnValue(individualTrackerDo);
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        expect(findSessionsSpy).toHaveBeenCalledWith(["2533274844642438"]);
+        expect(individualTrackerFetchSpy).toHaveBeenCalledWith("http://do/status", { method: "GET" });
+        expect(individualTrackerFetchSpy).toHaveBeenCalledWith(
+          "http://do/series-groups-update",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              userId: "user-123",
+              matchIds: [match1.MatchId, match2.MatchId],
+              titleOverride: guild.name,
+              subtitleOverride: `Queue #${Preconditions.checkExists(getFakeNeatQueueData("matchCompleted").match_number).toString()}`,
+            }),
+          }),
+        );
+      });
+
+      it("keeps updating an existing series group when the grouped match ids are the same", async () => {
+        const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+        const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+        const discoveredMatches: Record<string, LiveTrackerMatchSummary> = {
+          [match1.MatchId]: {
+            matchId: match1.MatchId,
+            gameMap: "Live Fire",
+            gameType: "Slayer",
+            gameTypeAndMap: "Slayer on Live Fire",
+            gameMapThumbnailUrl: "http://example.com/thumb.jpg",
+            duration: "10:00",
+            gameScore: "50-48",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: { "2533274844642438": "Gamertag1" },
+          },
+          [match2.MatchId]: {
+            matchId: match2.MatchId,
+            gameMap: "Recharge",
+            gameType: "Oddball",
+            gameTypeAndMap: "Oddball on Recharge",
+            gameMapThumbnailUrl: "http://example.com/thumb-2.jpg",
+            duration: "12:00",
+            gameScore: "2-1",
+            gameSubScore: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            playerXuidToGametag: { "2533274844642438": "Gamertag1" },
+          },
+        };
+
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: true,
+          state: aFakeLiveTrackerStateWith({
+            status: "active",
+            matchIds: [match1.MatchId, match2.MatchId],
+            discoveredMatches,
+          }),
+        });
+        vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+          rawMatches: {
+            [match1.MatchId]: match1,
+            [match2.MatchId]: match2,
+          },
+          matchIds: [match1.MatchId, match2.MatchId],
+          discoveredMatches,
+        });
+        vi.spyOn(databaseService, "findIndividualTrackerSessionsByXuids").mockResolvedValue([
+          aFakeIndividualTrackerSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+            Xuid: "2533274844642438",
+          }),
+        ]);
+        vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+
+        const individualTrackerDo = aFakeIndividualTrackerDOWith({
+          statusResponse: {
+            state: aFakeIndividualTrackerStateWith({
+              userId: "user-123",
+              trackerId: "tracker-123",
+              matchGroupings: [[match1.MatchId, match2.MatchId]],
+              seriesGroups: [
+                {
+                  matchIds: [match1.MatchId, match2.MatchId],
+                  titleOverride: "Old Title",
+                  subtitleOverride: "Old Subtitle",
+                },
+              ],
+            }),
+          },
+        });
+        const individualTrackerFetchSpy = vi.spyOn(individualTrackerDo, "fetch");
+        vi.spyOn(env.INDIVIDUAL_TRACKER_DO, "get").mockReturnValue(individualTrackerDo);
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        expect(individualTrackerFetchSpy).toHaveBeenCalledWith(
+          "http://do/series-groups-update",
+          expect.objectContaining({ method: "POST" }),
+        );
       });
     });
 

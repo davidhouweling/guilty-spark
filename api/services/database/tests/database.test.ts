@@ -5,7 +5,9 @@ import {
   aFakeDiscordAssociationsRow,
   aFakeUserSessionsRow,
   aFakeLinkedIdentitiesRow,
+  aFakeIndividualTrackerActiveSessionsRow,
   aFakeIndividualTrackerProfilesRow,
+  aFakeIndividualTrackerSessionsRow,
   aFakeIndividualTrackerGamesRow,
   aFakeStreamerViewSettingsRow,
 } from "../fakes/database.fake";
@@ -17,6 +19,8 @@ import type { UserSessionsRow } from "../types/user_sessions";
 import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
+import type { IndividualTrackerActiveSessionsRow } from "../types/individual_tracker_active_sessions";
+import type { IndividualTrackerSessionsRow } from "../types/individual_tracker_sessions";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 
 describe("Database Service", () => {
@@ -507,6 +511,138 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE ExpiresAt <= ?");
       expect(bindSpy).toHaveBeenCalledWith(12345);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("findIndividualTrackerActiveSession()", () => {
+    it("returns the active tracker session for a user", async () => {
+      const session: IndividualTrackerActiveSessionsRow = aFakeIndividualTrackerActiveSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerActiveSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(session);
+
+      const result = await databaseService.findIndividualTrackerActiveSession(session.UserId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM IndividualTrackerActiveSessions WHERE UserId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId);
+      expect(result).toEqual(session);
+    });
+  });
+
+  describe("findIndividualTrackerSessionsByUserId()", () => {
+    it("returns tracker sessions for a user", async () => {
+      const session: IndividualTrackerSessionsRow = aFakeIndividualTrackerSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [session] });
+
+      const result = await databaseService.findIndividualTrackerSessionsByUserId(session.UserId);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM IndividualTrackerSessions WHERE UserId = ? ORDER BY UpdatedAt DESC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId);
+      expect(result).toEqual([session]);
+    });
+  });
+
+  describe("findIndividualTrackerSessionsByXuids()", () => {
+    it("returns tracker sessions for matching xuids", async () => {
+      const session: IndividualTrackerSessionsRow = aFakeIndividualTrackerSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [session] });
+
+      const result = await databaseService.findIndividualTrackerSessionsByXuids([session.Xuid]);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM IndividualTrackerSessions WHERE Xuid IN (?) ORDER BY UpdatedAt DESC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(session.Xuid);
+      expect(result).toEqual([session]);
+    });
+
+    it("returns an empty array when no xuids are provided", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      const result = await databaseService.findIndividualTrackerSessionsByXuids([]);
+
+      expect(prepareSpy).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("upsertIndividualTrackerActiveSession()", () => {
+    it("upserts the active tracker session for a user", async () => {
+      const session = aFakeIndividualTrackerActiveSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertIndividualTrackerActiveSession(session.UserId, session.TrackerId);
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId, session.TrackerId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("upsertIndividualTrackerSession()", () => {
+    it("upserts tracker session metadata including xuid", async () => {
+      const session = aFakeIndividualTrackerSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertIndividualTrackerSession(
+        session.UserId,
+        session.TrackerId,
+        session.Xuid,
+        session.Gamertag,
+      );
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId, session.TrackerId, session.Xuid, session.Gamertag);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteIndividualTrackerSession()", () => {
+    it("deletes tracker session metadata", async () => {
+      const session = aFakeIndividualTrackerSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteIndividualTrackerSession(session.UserId, session.TrackerId);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "DELETE FROM IndividualTrackerSessions WHERE UserId = ? AND TrackerId = ?",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId, session.TrackerId);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteIndividualTrackerActiveSession()", () => {
+    it("deletes the active tracker session for a user", async () => {
+      const session = aFakeIndividualTrackerActiveSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteIndividualTrackerActiveSession(session.UserId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM IndividualTrackerActiveSessions WHERE UserId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(session.UserId);
       expect(runSpy).toHaveBeenCalled();
     });
   });

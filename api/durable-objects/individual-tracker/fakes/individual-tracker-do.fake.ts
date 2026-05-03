@@ -2,6 +2,7 @@ import type {
   IndividualTrackerGamesAddResponse,
   IndividualTrackerGamesRemoveResponse,
   IndividualTrackerGamesSyncResponse,
+  IndividualTrackerSeriesGroupUpdateResponse,
   IndividualTrackerStartResponse,
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
@@ -17,6 +18,7 @@ export interface FakeIndividualTrackerDOOpts {
   gamesAddResponse?: IndividualTrackerGamesAddResponse;
   gamesRemoveResponse?: IndividualTrackerGamesRemoveResponse;
   gamesSyncResponse?: IndividualTrackerGamesSyncResponse;
+  seriesGroupsUpdateResponse?: IndividualTrackerSeriesGroupUpdateResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
@@ -82,6 +84,10 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
     success: true,
     state: defaultState,
   };
+  const seriesGroupsUpdateResponse: IndividualTrackerSeriesGroupUpdateResponse = opts.seriesGroupsUpdateResponse ?? {
+    success: true,
+    state: defaultState,
+  };
   const { shouldThrowError = false, errorMessage = "Fake IndividualTrackerDO error" } = opts;
 
   const fetchMock: FakeIndividualTrackerDO["fetch"] = async (input) => {
@@ -129,6 +135,10 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
       }
       case "/viewer-style": {
         responseBody = JSON.stringify({ success: true, state: defaultState });
+        break;
+      }
+      case "/series-groups-update": {
+        responseBody = JSON.stringify(seriesGroupsUpdateResponse);
         break;
       }
       case "/websocket": {

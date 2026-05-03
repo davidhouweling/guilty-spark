@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS IndividualTrackerActiveSessions (
 CREATE TABLE IF NOT EXISTS IndividualTrackerSessions (
     UserId TEXT NOT NULL,
     TrackerId TEXT NOT NULL,
+    Xuid TEXT NOT NULL,
     Gamertag TEXT NOT NULL,
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     PRIMARY KEY (UserId, TrackerId)
@@ -94,6 +95,7 @@ CREATE TABLE IF NOT EXISTS IndividualTrackerSessions (
 
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserId ON IndividualTrackerProfiles (UserId);
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackerSessionsUserId ON IndividualTrackerSessions (UserId);
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackerSessionsXuid ON IndividualTrackerSessions (Xuid);
 
 CREATE TABLE IF NOT EXISTS IndividualTrackerGames (
     ProfileId TEXT NOT NULL,

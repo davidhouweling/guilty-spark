@@ -159,6 +159,10 @@ function normalizeXuid(value: string): string {
   return trimmed;
 }
 
+function isValidXuid(value: string): boolean {
+  return /^\d+$/.test(normalizeXuid(value));
+}
+
 const TEAM_COLOR_ID_REGEX = /^[a-z0-9-]{2,32}$/;
 
 function parseColorId(value: unknown): string | null {
@@ -660,6 +664,10 @@ export class Server {
           body.providerUserId === ""
         ) {
           return new Response("Invalid link request", { status: 400 });
+        }
+
+        if (body.provider === "xbox" && !isValidXuid(body.providerUserId)) {
+          return new Response("Invalid Xbox identity request", { status: 400 });
         }
 
         const nowEpoch = Math.floor(Date.now() / 1000);
@@ -1281,7 +1289,12 @@ export class Server {
 
         if (doResponse.ok) {
           await services.databaseService.upsertIndividualTrackerActiveSession(session.userId, trackerId);
-          await services.databaseService.upsertIndividualTrackerSession(session.userId, trackerId, resolvedGamertag);
+          await services.databaseService.upsertIndividualTrackerSession(
+            session.userId,
+            trackerId,
+            resolvedXuid,
+            resolvedGamertag,
+          );
         }
 
         return await this.withRefreshedSessionCookie(

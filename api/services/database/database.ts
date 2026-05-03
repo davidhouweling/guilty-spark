@@ -293,12 +293,29 @@ export class DatabaseService {
     return response.results;
   }
 
-  async upsertIndividualTrackerSession(userId: string, trackerId: string, gamertag: string): Promise<void> {
+  async findIndividualTrackerSessionsByXuids(xuids: readonly string[]): Promise<IndividualTrackerSessionsRow[]> {
+    if (xuids.length === 0) {
+      return [];
+    }
+
+    const placeholders = xuids.map(() => "?").join(", ");
+    const query = `SELECT * FROM IndividualTrackerSessions WHERE Xuid IN (${placeholders}) ORDER BY UpdatedAt DESC`;
+    const stmt = this.DB.prepare(query).bind(...xuids);
+    const response = await stmt.all<IndividualTrackerSessionsRow>();
+    return response.results;
+  }
+
+  async upsertIndividualTrackerSession(
+    userId: string,
+    trackerId: string,
+    xuid: string,
+    gamertag: string,
+  ): Promise<void> {
     const query = `
-      INSERT INTO IndividualTrackerSessions (UserId, TrackerId, Gamertag, UpdatedAt) VALUES (?, ?, ?, unixepoch())
-      ON CONFLICT(UserId, TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, UpdatedAt=excluded.UpdatedAt
+      INSERT INTO IndividualTrackerSessions (UserId, TrackerId, Xuid, Gamertag, UpdatedAt) VALUES (?, ?, ?, ?, unixepoch())
+      ON CONFLICT(UserId, TrackerId) DO UPDATE SET Xuid=excluded.Xuid, Gamertag=excluded.Gamertag, UpdatedAt=excluded.UpdatedAt
     `;
-    const stmt = this.DB.prepare(query).bind(userId, trackerId, gamertag);
+    const stmt = this.DB.prepare(query).bind(userId, trackerId, xuid, gamertag);
     await stmt.run();
   }
 

@@ -12,6 +12,7 @@ import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { IndividualTrackerActiveSessionsRow } from "../types/individual_tracker_active_sessions";
+import type { IndividualTrackerSessionsRow } from "../types/individual_tracker_sessions";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
@@ -138,6 +139,24 @@ export function aFakeIndividualTrackerActiveSessionsRow(
   const defaultOpts: IndividualTrackerActiveSessionsRow = {
     UserId: "user-1",
     TrackerId: "fake-tracker-id",
+    UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeIndividualTrackerSessionsRow(
+  opts: Partial<IndividualTrackerSessionsRow> = {},
+): IndividualTrackerSessionsRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: IndividualTrackerSessionsRow = {
+    UserId: "user-1",
+    TrackerId: "fake-tracker-id",
+    Xuid: "2533274844642438",
+    Gamertag: "FakeGamertag",
     UpdatedAt: nowEpoch,
   };
 

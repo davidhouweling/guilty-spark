@@ -1,5 +1,5 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
-import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import type { LiveTrackerMatchSummary, PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do";
 import type {
   LiveTrackerStartRequest,
@@ -57,6 +57,12 @@ interface RecordSubstitutionOpts {
 interface RepostTrackerOpts {
   context: LiveTrackerContext;
   newMessageId: string;
+}
+
+export interface LiveTrackerSeriesDataResponse {
+  rawMatches: Record<string, unknown>;
+  matchIds: readonly string[];
+  discoveredMatches: Record<string, LiveTrackerMatchSummary>;
 }
 
 interface DiscoverActiveTrackerOpts {
@@ -530,7 +536,7 @@ export class LiveTrackerService {
   /**
    * Gets series data including rawMatches loaded from KV
    */
-  async getSeriesData(context: LiveTrackerContext): Promise<{ rawMatches: Record<string, unknown> } | null> {
+  async getSeriesData(context: LiveTrackerContext): Promise<LiveTrackerSeriesDataResponse | null> {
     this.logService.debug("LiveTrackerService: Getting series data", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
@@ -546,7 +552,7 @@ export class LiveTrackerService {
       return null;
     }
 
-    return response.json<{ rawMatches: Record<string, unknown> }>();
+    return response.json<LiveTrackerSeriesDataResponse>();
   }
 
   private getDurableObjectStub(context: LiveTrackerContext): DurableObjectStub<LiveTrackerDO> {

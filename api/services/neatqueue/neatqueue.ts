@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
+import type { APIGuild } from "discord-api-types/v10";
 import type {
   RESTPostAPIChannelThreadsResult,
   APIEmbed,
@@ -21,6 +22,7 @@ import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_con
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
 import type { HaloService, MatchPlayer } from "../halo/halo";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
+import type { LiveTrackerSeriesDataResponse } from "../live-tracker/live-tracker";
 import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
@@ -36,6 +38,7 @@ import { AssociationReason, GamesRetrievable } from "../database/types/discord_a
 import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { isSuccessResponse } from "../../durable-objects/types";
+import type { IndividualTrackerStatusResponse } from "../../durable-objects/individual-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
 import type {
   VerifyNeatQueueResponse,
@@ -92,6 +95,10 @@ export class NeatQueueService {
     const hmac = createHmac("sha256", guildId);
     hmac.update(key);
     return hmac.digest("hex");
+  }
+
+  private buildSeriesGroupKey(matchIds: readonly string[]): string {
+    return Array.from(new Set(matchIds)).sort().join(":");
   }
 
   async verifyRequest(request: Request): Promise<VerifyNeatQueueResponse> {
@@ -906,6 +913,8 @@ export class NeatQueueService {
 
           series = Object.values(seriesData.rawMatches) as MatchStats[];
 
+          await this.fanOutSeriesDefaultsToIndividualTrackers(request, seriesData);
+
           if (series.length > 0) {
             const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
               team.playerIds.map((playerId) => {
@@ -965,6 +974,83 @@ export class NeatQueueService {
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
+  }
+
+  private async fanOutSeriesDefaultsToIndividualTrackers(
+    request: NeatQueueMatchCompletedRequest,
+    seriesData: LiveTrackerSeriesDataResponse,
+  ): Promise<void> {
+    const targetMatchIds = Array.from(new Set(seriesData.matchIds));
+    if (targetMatchIds.length < 2) {
+      return;
+    }
+
+    const playerXuids = Array.from(
+      new Set(Object.values(seriesData.discoveredMatches).flatMap((match) => Object.keys(match.playerXuidToGametag))),
+    );
+
+    if (playerXuids.length === 0) {
+      return;
+    }
+
+    const trackerSessions = await this.databaseService.findIndividualTrackerSessionsByXuids(playerXuids);
+    if (trackerSessions.length === 0) {
+      return;
+    }
+
+    let guildData: APIGuild | null = null;
+    try {
+      guildData = await this.discordService.getGuild(request.guild);
+    } catch (error) {
+      this.logService.warn(
+        error as Error,
+        new Map([
+          ["reason", "Failed to resolve guild name for individual tracker fanout"],
+          ["guildId", request.guild],
+        ]),
+      );
+    }
+
+    const titleOverride = guildData?.name ?? null;
+    const subtitleOverride = `Queue #${request.match_number.toString()}`;
+    const targetKey = this.buildSeriesGroupKey(targetMatchIds);
+
+    await Promise.all(
+      trackerSessions.map(async (trackerSession) => {
+        const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${trackerSession.UserId}:${trackerSession.TrackerId}`);
+        const stub = this.env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const statusResponse = await stub.fetch("http://do/status", { method: "GET" });
+        if (statusResponse.status === 404) {
+          await this.databaseService.deleteIndividualTrackerSession(trackerSession.UserId, trackerSession.TrackerId);
+          return;
+        }
+
+        if (!statusResponse.ok) {
+          return;
+        }
+
+        const trackerStatus = await statusResponse.json<IndividualTrackerStatusResponse>();
+        const matchingGroup = trackerStatus.state.matchGroupings.find(
+          (group) => this.buildSeriesGroupKey(group) === targetKey,
+        );
+
+        if (matchingGroup == null) {
+          return;
+        }
+
+        await stub.fetch("http://do/series-groups-update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: trackerSession.UserId,
+            matchIds: matchingGroup,
+            titleOverride,
+            subtitleOverride,
+          }),
+        });
+      }),
+    );
   }
 
   private async handlePostSeriesError(
