@@ -63,6 +63,7 @@
   flex-shrink: 0;
   height: 18px;
   margin-right: var(--space-2);
+  margin-top: -3px; /* Align with text */
   transition: all var(--transition-base);
   width: 18px;
 }
