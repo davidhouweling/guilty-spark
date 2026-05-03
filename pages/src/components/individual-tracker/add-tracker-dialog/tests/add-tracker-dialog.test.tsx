@@ -28,6 +28,7 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
+            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}
@@ -81,6 +82,7 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
+            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}
@@ -127,7 +129,10 @@ describe("AddTrackerDialog", () => {
           startTime: "Jan 1, 2026, 12:00:00 AM",
           endTime: "Jan 1, 2026, 12:10:00 AM",
           mapAssetId: "map-1",
+          mapVersionId: "map-version-1",
           modeAssetId: "mode-1",
+          modeVersionId: "mode-version-1",
+          gameVariantCategory: 6,
           duration: "10m 0s",
           mapName: "Aquarius",
           modeName: "Slayer",
@@ -143,7 +148,10 @@ describe("AddTrackerDialog", () => {
           startTime: "Jan 1, 2026, 12:15:00 AM",
           endTime: "Jan 1, 2026, 12:25:00 AM",
           mapAssetId: "map-2",
+          mapVersionId: "map-version-2",
           modeAssetId: "mode-2",
+          modeVersionId: "mode-version-2",
+          gameVariantCategory: 6,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Slayer",
@@ -169,6 +177,7 @@ describe("AddTrackerDialog", () => {
         gamertag: string;
         selectedMatchIds: readonly string[];
         matchGroupings: readonly (readonly string[])[];
+        seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
         matches: readonly TrackerMatchHistoryEntry[];
       }) => Promise<void>
     >(async () => Promise.resolve());
@@ -202,6 +211,13 @@ describe("AddTrackerDialog", () => {
           gamertag: "Chief",
           selectedMatchIds: expect.arrayContaining(["match-1"]),
           matchGroupings: [["match-1", "match-2"]],
+          seriesGroups: [
+            {
+              matchIds: ["match-1", "match-2"],
+              titleOverride: null,
+              subtitleOverride: null,
+            },
+          ],
           matches: matches.matches,
         }),
       );
@@ -235,8 +251,13 @@ describe("AddTrackerDialog", () => {
           matchId: "match-short",
           startTime: "Jan 1, 2026, 12:00:00 AM",
           endTime: "Jan 1, 2026, 12:01:30 AM",
+          startTimeIso: "2026-01-01T00:00:00.000Z",
+          endTimeIso: "2026-01-01T00:01:30.000Z",
           mapAssetId: "map-short",
+          mapVersionId: "map-version-short",
           modeAssetId: "mode-short",
+          modeVersionId: "mode-version-short",
+          gameVariantCategory: 6,
           duration: "1m 30s",
           mapName: "Aquarius",
           modeName: "Slayer",
@@ -251,8 +272,13 @@ describe("AddTrackerDialog", () => {
           matchId: "match-long",
           startTime: "Jan 1, 2026, 12:15:00 AM",
           endTime: "Jan 1, 2026, 12:25:00 AM",
+          startTimeIso: "2026-01-01T00:15:00.000Z",
+          endTimeIso: "2026-01-01T00:25:00.000Z",
           mapAssetId: "map-long",
+          mapVersionId: "map-version-long",
           modeAssetId: "mode-long",
+          modeVersionId: "mode-version-long",
+          gameVariantCategory: 6,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Slayer",
@@ -283,6 +309,7 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
+            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}

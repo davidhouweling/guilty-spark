@@ -93,6 +93,7 @@ export interface IndividualTrackerService {
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
   getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
+  updateSeriesGroup(request: TrackerSeriesGroupUpdateRequest): Promise<IndividualTrackerState>;
   addMatchToTracker(trackerId: string, matchId: string): Promise<void>;
   removeMatchFromTracker(trackerId: string, matchId: string): Promise<void>;
   getTrackers(userId: string): Promise<TrackerListResponse>;
@@ -152,7 +153,10 @@ export interface TrackerMatchHistoryEntry {
   readonly startTime: string;
   readonly endTime: string;
   readonly mapAssetId: string;
+  readonly mapVersionId: string;
   readonly modeAssetId: string;
+  readonly modeVersionId: string;
+  readonly gameVariantCategory: number;
   readonly startTimeIso?: string;
   readonly endTimeIso?: string;
   readonly duration: string;
@@ -181,6 +185,13 @@ export interface TrackerSyncMatchesRequest {
   readonly selectedMatchIds: readonly string[];
   readonly matchGroupings: readonly (readonly string[])[];
   readonly matches: readonly TrackerMatchHistoryEntry[];
+}
+
+export interface TrackerSeriesGroupUpdateRequest {
+  readonly trackerId: string;
+  readonly matchIds: readonly string[];
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
 }
 
 export interface StopTrackerSuccessResponse {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
@@ -13,6 +14,7 @@ import type {
 import { Alert } from "../../alert/alert";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
+import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import styles from "./add-tracker-dialog.module.css";
 
 interface AddTrackerDialogProps {
@@ -25,6 +27,7 @@ interface AddTrackerDialogProps {
     gamertag: string;
     selectedMatchIds: readonly string[];
     matchGroupings: readonly (readonly string[])[];
+    seriesGroups: readonly IndividualTrackerSeriesGroup[];
     matches: readonly TrackerMatchHistoryEntry[];
   }) => Promise<void>;
 }
@@ -68,6 +71,7 @@ export function AddTrackerDialog({
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [selectedMatchIds, setSelectedMatchIds] = useState<string[]>([]);
+  const [seriesGroups, setSeriesGroups] = useState<readonly IndividualTrackerSeriesGroup[]>([]);
   const [hideShortGames, setHideShortGames] = useState(true);
 
   useEffect(() => {
@@ -81,9 +85,14 @@ export function AddTrackerDialog({
       setLoadingMatches(false);
       setHasMore(false);
       setSelectedMatchIds([]);
+      setSeriesGroups([]);
       setHideShortGames(true);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    setSeriesGroups((current) => alignSeriesGroupsToGroupings(activeGroupings, current));
+  }, [activeGroupings]);
 
   const canStart = useMemo(() => result != null && !busy, [busy, result]);
   const selectedMatchIdSet = useMemo(() => new Set(selectedMatchIds), [selectedMatchIds]);
@@ -163,6 +172,7 @@ export function AddTrackerDialog({
                   gamertag: result.gamertag,
                   selectedMatchIds,
                   matchGroupings: activeGroupings,
+                  seriesGroups,
                   matches,
                 });
               }
@@ -260,31 +270,44 @@ export function AddTrackerDialog({
         {result == null ? (
           <p className={styles.mutedText}>Search for a gamertag first to load recent matches.</p>
         ) : (
-          <MatchHistory
-            entries={loadingMatches && matches.length === 0 ? null : visibleMatches}
-            loadingCount={3}
-            showGroupings={true}
-            allowManualGrouping={true}
-            groupings={activeGroupings}
-            allowSelection={true}
-            selectedMatchIds={selectedMatchIdSet}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            onMatchToggle={(matchId): void => {
-              setSelectedMatchIds((prev) =>
-                prev.includes(matchId) ? prev.filter((id) => id !== matchId) : [...prev, matchId],
-              );
-            }}
-            onBreakFromGroup={(matchId): void => {
-              setActiveGroupings((prev) => applyBreakFromGroup(prev, matches, matchId));
-            }}
-            onAddToAboveGroup={(matchId): void => {
-              setActiveGroupings((prev) => applyAddToAdjacentGroup(prev, matches, matchId, "above"));
-            }}
-            onAddToBelowGroup={(matchId): void => {
-              setActiveGroupings((prev) => applyAddToAdjacentGroup(prev, matches, matchId, "below"));
-            }}
-          />
+          <>
+            <MatchHistory
+              entries={loadingMatches && matches.length === 0 ? null : visibleMatches}
+              loadingCount={3}
+              showGroupings={true}
+              allowManualGrouping={true}
+              groupings={activeGroupings}
+              allowSelection={true}
+              selectedMatchIds={selectedMatchIdSet}
+              seriesGroups={seriesGroups}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              onMatchToggle={(matchId): void => {
+                setSelectedMatchIds((prev) =>
+                  prev.includes(matchId) ? prev.filter((id) => id !== matchId) : [...prev, matchId],
+                );
+              }}
+              onBreakFromGroup={(matchId): void => {
+                setActiveGroupings((prev) => applyBreakFromGroup(prev, matches, matchId));
+              }}
+              onAddToAboveGroup={(matchId): void => {
+                setActiveGroupings((prev) => applyAddToAdjacentGroup(prev, matches, matchId, "above"));
+              }}
+              onAddToBelowGroup={(matchId): void => {
+                setActiveGroupings((prev) => applyAddToAdjacentGroup(prev, matches, matchId, "below"));
+              }}
+              onSeriesGroupTitleChange={(groupIndex, value): void => {
+                setSeriesGroups((current) =>
+                  current.map((group, index) => (index === groupIndex ? { ...group, titleOverride: value } : group)),
+                );
+              }}
+              onSeriesGroupSubtitleChange={(groupIndex, value): void => {
+                setSeriesGroups((current) =>
+                  current.map((group, index) => (index === groupIndex ? { ...group, subtitleOverride: value } : group)),
+                );
+              }}
+            />
+          </>
         )}
       </section>
     </Dialog>

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { MatchHistory } from "../match-history";
+import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 
 afterEach(() => {
   cleanup();
@@ -20,7 +21,10 @@ function aMatchWith(
     startTime: "Jan 1, 2026, 12:00:00 AM",
     endTime: "Jan 1, 2026, 12:10:00 AM",
     mapAssetId: `map-${matchId}`,
+    mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
+    modeVersionId: `mode-version-${matchId}`,
+    gameVariantCategory: 6,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName,
@@ -75,5 +79,25 @@ describe("MatchHistory", () => {
     expect(screen.queryByTitle("Add to group above")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Add to group below")).not.toBeInTheDocument();
     expect(screen.getAllByTitle("Break from group")).toHaveLength(3);
+  });
+
+  it("rotates series colors by visible series order", () => {
+    const { container } = render(
+      <MatchHistory
+        entries={[
+          aMatchWith("m1", "custom", "Slayer"),
+          aMatchWith("m2", "custom", "Oddball"),
+          aMatchWith("m3", "custom", "Strongholds"),
+          aMatchWith("m4", "custom", "Capture the Flag"),
+        ]}
+        showGroupings={true}
+        groupings={[["m1", "m2"], ["m3", "m4"]]}
+      />,
+    );
+
+    const seriesBlocks = Array.from(container.querySelectorAll("section"));
+
+    expect(seriesBlocks[0]).toHaveAttribute("style", expect.stringContaining(HALO_TEAM_COLORS[0].hex));
+    expect(seriesBlocks[1]).toHaveAttribute("style", expect.stringContaining(HALO_TEAM_COLORS[1].hex));
   });
 });

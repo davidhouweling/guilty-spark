@@ -35,6 +35,11 @@ export interface MatchHistoryEntry {
   startTime: string;
   endTime: string;
   duration: string;
+  mapAssetId: string;
+  mapVersionId: string;
+  modeAssetId: string;
+  modeVersionId: string;
+  gameVariantCategory: number;
   mapName: string;
   modeName: string;
   outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";

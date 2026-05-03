@@ -1,3 +1,4 @@
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 import type { LiveTrackerStatus } from "@guilty-spark/shared/live-tracker/types";
 
 export const IDLE_TIMEOUT_HOURS = [1, 2, 3, 4, 5, 6] as const;
@@ -74,6 +75,14 @@ export interface IndividualTrackerGamesSyncRequest {
   matchSummaries: IndividualTrackerMatchSummary[];
 }
 
+export interface IndividualTrackerSeriesGroupUpdateRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+  matchIds: string[];
+  titleOverride: string | null;
+  subtitleOverride: string | null;
+}
+
 export interface IndividualTrackerSelectActiveRequest {
   /** Must match the tracker's owning userId. */
   userId: string;
@@ -107,6 +116,7 @@ export interface IndividualTrackerState {
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   matchIds: string[];
   matchGroupings: string[][];
+  seriesGroups: IndividualTrackerSeriesGroup[];
   /** Set of matchIds explicitly excluded by the owner while the tracker is active. */
   excludedMatchIds: string[];
 
@@ -206,6 +216,13 @@ export interface IndividualTrackerGamesSyncSuccessResponse {
 }
 
 export type IndividualTrackerGamesSyncResponse = IndividualTrackerGamesSyncSuccessResponse;
+
+export interface IndividualTrackerSeriesGroupUpdateSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerSeriesGroupUpdateResponse = IndividualTrackerSeriesGroupUpdateSuccessResponse;
 
 // ─── Type guards ─────────────────────────────────────────────────────────────
 

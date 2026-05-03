@@ -12,6 +12,12 @@ export interface IndividualTrackerMatchSummary {
   readonly modeAssetId: string;
 }
 
+export interface IndividualTrackerSeriesGroup {
+  readonly matchIds: readonly string[];
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
+}
+
 /**
  * Full state of an individual tracker Durable Object.
  * Transmitted to viewer clients via WebSocket.
@@ -39,6 +45,7 @@ export interface IndividualTrackerState {
   readonly discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   readonly matchIds: readonly string[];
   readonly matchGroupings: readonly (readonly string[])[];
+  readonly seriesGroups: readonly IndividualTrackerSeriesGroup[];
   /** Match IDs explicitly excluded by the owner during active tracking. */
   readonly excludedMatchIds: readonly string[];
 

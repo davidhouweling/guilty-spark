@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ImageMetadata } from "astro";
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import assaultPng from "../../assets/game-modes/assault.png";
@@ -12,7 +13,10 @@ import { Alert } from "../alert/alert";
 import { Button } from "../button/button";
 import { Checkbox } from "../checkbox/checkbox";
 import { TeamIcon } from "../icons/team-icon";
+import { Input } from "../input/input";
 import { CardPlaceholder } from "../placeholder/placeholder";
+import { HALO_TEAM_COLORS } from "../team-colors/team-colors";
+import { getDefaultSeriesGroupSubtitle, getDefaultSeriesGroupTitle } from "../individual-tracker/series-group-metadata";
 import styles from "./match-history.module.css";
 
 const GAME_MODE_ICONS: Record<string, ImageMetadata> = {
@@ -24,8 +28,6 @@ const GAME_MODE_ICONS: Record<string, ImageMetadata> = {
   "Neutral Bomb": assaultPng,
 };
 
-const GROUP_COLORS = ["--halo-teal-primary", "--halo-gold", "--halo-red", "--halo-blue", "--halo-green"];
-
 interface GroupSegmentEntry {
   readonly entry: TrackerMatchHistoryEntry;
 }
@@ -35,6 +37,7 @@ interface GroupSegmentBlock {
   readonly groupIndex: number;
   readonly color: string;
   readonly entries: readonly GroupSegmentEntry[];
+  readonly seriesGroup: IndividualTrackerSeriesGroup | undefined;
 }
 
 interface SingleSegmentBlock {
@@ -60,6 +63,9 @@ interface MatchHistoryProps {
   readonly onAddToBelowGroup?: (matchId: string) => void;
   readonly onBreakFromGroup?: (matchId: string) => void;
   readonly onStartTracker?: () => void;
+  readonly seriesGroups?: readonly IndividualTrackerSeriesGroup[];
+  readonly onSeriesGroupTitleChange?: (groupIndex: number, value: string | null) => void;
+  readonly onSeriesGroupSubtitleChange?: (groupIndex: number, value: string | null) => void;
 }
 
 interface MatchCardProps {
@@ -243,6 +249,9 @@ export function MatchHistory({
   onAddToBelowGroup,
   onBreakFromGroup,
   onStartTracker,
+  seriesGroups,
+  onSeriesGroupTitleChange,
+  onSeriesGroupSubtitleChange,
 }: MatchHistoryProps): React.JSX.Element {
   const isGroupableGame = (entry: TrackerMatchHistoryEntry): boolean =>
     entry.category === "custom" || entry.category === "local";
@@ -277,6 +286,7 @@ export function MatchHistory({
 
     const result: SegmentBlock[] = [];
     let i = 0;
+    let visibleSeriesIndex = 0;
 
     while (i < entries.length) {
       const entry = entries[i];
@@ -291,9 +301,11 @@ export function MatchHistory({
         result.push({
           type: "group",
           groupIndex,
-          color: GROUP_COLORS[groupIndex % GROUP_COLORS.length],
+          color: HALO_TEAM_COLORS[visibleSeriesIndex % HALO_TEAM_COLORS.length]?.hex ?? HALO_TEAM_COLORS[0].hex,
           entries: groupEntries,
+          seriesGroup: seriesGroups?.[groupIndex],
         });
+        visibleSeriesIndex += 1;
       } else {
         result.push({ type: "single", entry });
         i++;
@@ -402,13 +414,7 @@ export function MatchHistory({
                   const groupMatchIds = segment.entries.map(({ entry }) => entry.matchId);
                   const isSeriesSelected =
                     allowSelection && selectedMatchIds != null && groupMatchIds.every((id) => selectedMatchIds.has(id));
-                  const seriesSelectorClassName = [
-                    styles.seriesSelectorColumn,
-                    isSeriesSelected ? styles.seriesSelectorColumnSelected : null,
-                  ]
-                    .filter((className): className is string => className != null)
-                    .join(" ");
-                  const columnStyle = { "--group-color": `var(${segment.color})` } as React.CSSProperties;
+                  const groupStyle = { "--group-color": segment.color } as React.CSSProperties;
 
                   const handleSeriesToggle = (): void => {
                     if (onMatchToggle == null) {
@@ -424,20 +430,46 @@ export function MatchHistory({
                   };
 
                   return (
-                    <div key={`group-${String(segment.groupIndex)}`} className={styles.seriesBlock}>
-                      {allowSelection ? (
-                        <label className={seriesSelectorClassName} style={columnStyle}>
-                          <input
-                            type="checkbox"
-                            className={styles.seriesSelectorInput}
-                            checked={isSeriesSelected}
-                            onChange={handleSeriesToggle}
+                    <section key={`group-${String(segment.groupIndex)}`} className={styles.seriesBlock} style={groupStyle}>
+                      <div className={styles.seriesHeader}>
+                        <div className={styles.seriesHeaderTopRow}>
+                          <h3 className={styles.seriesTitle}>
+                            {segment.seriesGroup?.titleOverride ?? getDefaultSeriesGroupTitle()}
+                          </h3>
+                          <p className={styles.seriesGameCount}>{groupMatchIds.length} games</p>
+                        </div>
+                        <div className={styles.seriesLabelOptions}>
+                          <Input
+                            label={`Series ${segment.groupIndex + 1} title`}
+                            value={segment.seriesGroup?.titleOverride ?? ""}
+                            placeholder={getDefaultSeriesGroupTitle()}
+                            onChange={(event): void => {
+                              onSeriesGroupTitleChange?.(
+                                segment.groupIndex,
+                                event.currentTarget.value === "" ? null : event.currentTarget.value,
+                              );
+                            }}
                           />
-                          <span className={styles.seriesSelectorText}>Select series</span>
-                        </label>
-                      ) : (
-                        <div className={styles.seriesSelectorColumn} style={columnStyle} />
-                      )}
+                          <Input
+                            label={`Series ${segment.groupIndex + 1} subtitle`}
+                            value={segment.seriesGroup?.subtitleOverride ?? ""}
+                            placeholder={getDefaultSeriesGroupSubtitle(segment.entries.map(({ entry }) => entry))}
+                            onChange={(event): void => {
+                              onSeriesGroupSubtitleChange?.(
+                                segment.groupIndex,
+                                event.currentTarget.value === "" ? null : event.currentTarget.value,
+                              );
+                            }}
+                          />
+                        </div>
+                        {allowSelection && onMatchToggle != null && (
+                          <div className={styles.seriesActionRow}>
+                            <Button variant="secondary" size="small" onClick={handleSeriesToggle}>
+                              {isSeriesSelected ? "Deselect matches in series" : "Select all matches in series"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                       <div className={styles.seriesCards}>
                         {segment.entries.map(({ entry }, segmentIndex) => {
                           const isGroupStart = segmentIndex === 0;
@@ -483,7 +515,7 @@ export function MatchHistory({
                           );
                         })}
                       </div>
-                    </div>
+                    </section>
                   );
                 }
 

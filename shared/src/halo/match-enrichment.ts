@@ -164,6 +164,44 @@ interface MatchGroupingEntry {
   readonly isMatchmaking: boolean;
 }
 
+export interface SequentialSeriesEntry {
+  readonly startTime: string;
+  readonly mapAssetId: string;
+  readonly mapVersionId: string;
+  readonly gameVariantCategory: number;
+}
+
+function haveSameSequentialSeriesSignature(
+  firstEntry: SequentialSeriesEntry,
+  secondEntry: SequentialSeriesEntry,
+): boolean {
+  return (
+    firstEntry.mapAssetId === secondEntry.mapAssetId &&
+    firstEntry.mapVersionId === secondEntry.mapVersionId &&
+    firstEntry.gameVariantCategory === secondEntry.gameVariantCategory
+  );
+}
+
+export function collapseSequentialSeriesEntries<T extends SequentialSeriesEntry>(entries: readonly T[]): T[] {
+  const sortedEntries = [...entries].sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime());
+  const collapsedEntries: T[] = [];
+
+  for (const [index, entry] of sortedEntries.entries()) {
+    const nextEntry = sortedEntries[index + 1];
+    if (nextEntry != null && haveSameSequentialSeriesSignature(entry, nextEntry)) {
+      continue;
+    }
+
+    collapsedEntries.push(entry);
+  }
+
+  return collapsedEntries;
+}
+
+export function countSequentialSeriesGames(entries: readonly SequentialSeriesEntry[]): number {
+  return collapseSequentialSeriesEntries(entries).length;
+}
+
 export function analyzeMatchGroupings(
   matches: readonly MatchGroupingEntry[],
   matchDetailsById: ReadonlyMap<string, MatchStats>,

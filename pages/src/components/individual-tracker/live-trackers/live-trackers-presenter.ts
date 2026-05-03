@@ -8,6 +8,7 @@ import type {
   TrackerSearchResult,
 } from "../../../services/individual-tracker/types";
 import type { GameSelectionDialogState } from "../types";
+import { buildSeriesGroupKey } from "../series-group-metadata";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
 
@@ -264,12 +265,15 @@ export class LiveTrackersPresenter {
     readonly gamertag: string;
     readonly selectedMatchIds: readonly string[];
     readonly matchGroupings: readonly (readonly string[])[];
+    readonly seriesGroups?: IndividualTrackerState["seriesGroups"];
     readonly matches: TrackerMatchHistoryResponse["matches"];
   }): Promise<void> {
     const state = await this.startTracker(payload.gamertag);
     if (state == null) {
       return;
     }
+
+    const seriesGroups = payload.seriesGroups ?? [];
 
     if (payload.selectedMatchIds.length > 0) {
       await this.config.services.individualTrackerService.syncMatchesToTracker({
@@ -278,6 +282,19 @@ export class LiveTrackersPresenter {
         matchGroupings: payload.matchGroupings,
         matches: payload.matches,
       });
+
+      for (const seriesGroup of seriesGroups) {
+        if (seriesGroup.matchIds.length < 2) {
+          continue;
+        }
+
+        await this.config.services.individualTrackerService.updateSeriesGroup({
+          trackerId: state.trackerId,
+          matchIds: seriesGroup.matchIds,
+          titleOverride: seriesGroup.titleOverride,
+          subtitleOverride: seriesGroup.subtitleOverride,
+        });
+      }
     }
 
     this.updateSnapshot((snapshot) => ({ ...snapshot, isAddDialogOpen: false }));
@@ -288,12 +305,15 @@ export class LiveTrackersPresenter {
     readonly trackerId: string;
     readonly selectedMatchIds: readonly string[];
     readonly matchGroupings: readonly (readonly string[])[];
+    readonly seriesGroups?: IndividualTrackerState["seriesGroups"];
     readonly matches: TrackerMatchHistoryResponse["matches"];
   }): Promise<void> {
     const dialogState = this.getSnapshot().gameSelectionDialogState;
     const baselineIds = dialogState?.initialSelectedMatchIds ?? [];
     const baselineGroupings = dialogState?.initialGroupings ?? [];
+    const baselineSeriesGroups = dialogState?.initialSeriesGroups ?? [];
     const selectedMatchIds = [...payload.selectedMatchIds];
+    const seriesGroups = payload.seriesGroups ?? [];
     const hasSelectionChanged =
       baselineIds.length !== selectedMatchIds.length ||
       baselineIds.some((matchId, index) => selectedMatchIds[index] !== matchId);
@@ -304,15 +324,43 @@ export class LiveTrackersPresenter {
           group.length !== (payload.matchGroupings[groupIndex]?.length ?? -1) ||
           group.some((matchId, matchIndex) => payload.matchGroupings[groupIndex]?.[matchIndex] !== matchId),
       );
+    const baselineSeriesGroupsByKey = new Map(
+      baselineSeriesGroups.map((group) => [buildSeriesGroupKey(group.matchIds), group]),
+    );
+    const hasSeriesGroupsChanged = seriesGroups.some((group) => {
+      const baselineGroup = baselineSeriesGroupsByKey.get(buildSeriesGroupKey(group.matchIds));
+      return (
+        (baselineGroup?.titleOverride ?? null) !== group.titleOverride ||
+        (baselineGroup?.subtitleOverride ?? null) !== group.subtitleOverride
+      );
+    });
 
-    if (!hasSelectionChanged && !hasGroupingChanged) {
+    if (!hasSelectionChanged && !hasGroupingChanged && !hasSeriesGroupsChanged) {
       return;
     }
 
     this.updateSnapshot((snapshot) => ({ ...snapshot, busy: true, errorMessage: null }));
 
     try {
-      await this.config.services.individualTrackerService.syncMatchesToTracker(payload);
+      if (hasSelectionChanged || hasGroupingChanged) {
+        await this.config.services.individualTrackerService.syncMatchesToTracker({
+          trackerId: payload.trackerId,
+          selectedMatchIds: payload.selectedMatchIds,
+          matchGroupings: payload.matchGroupings,
+          matches: payload.matches,
+        });
+      }
+
+      if (hasSeriesGroupsChanged || hasGroupingChanged) {
+        for (const seriesGroup of seriesGroups) {
+          await this.config.services.individualTrackerService.updateSeriesGroup({
+            trackerId: payload.trackerId,
+            matchIds: seriesGroup.matchIds,
+            titleOverride: seriesGroup.titleOverride,
+            subtitleOverride: seriesGroup.subtitleOverride,
+          });
+        }
+      }
 
       await this.refresh();
     } catch (error) {
@@ -646,6 +694,7 @@ export class LiveTrackersPresenter {
       xuid: trackerState.xuid,
       initialSelectedMatchIds: [...trackerState.matchIds],
       initialGroupings: trackerState.matchGroupings,
+      initialSeriesGroups: trackerState.seriesGroups,
     };
 
     this.updateSnapshot((current) => ({ ...current, gameSelectionDialogState }));

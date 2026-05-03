@@ -781,6 +781,71 @@ describe("Server", () => {
         ],
       });
     });
+
+    it("POST /api/individual-tracker/:trackerId/series-groups-update forwards grouped-series labels to the DO", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        return services;
+      });
+
+      let forwardedBody: unknown = null;
+      const doFetch = vi.fn(async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+        forwardedBody = await request.json();
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      });
+
+      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
+      const individualTrackerNamespace = Object.assign(
+        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
+        env.INDIVIDUAL_TRACKER_DO,
+        {
+          get: () =>
+            ({
+              __DURABLE_OBJECT_BRAND: undefined as never,
+              fetch: doFetch,
+              id: env.INDIVIDUAL_TRACKER_DO.idFromName("series-group-stub"),
+              connect: vi.fn(),
+            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
+        },
+      );
+
+      const envWithSeriesGroupStub = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/tracker-1/series-groups-update", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({
+          matchIds: ["match-2", "match-3"],
+          titleOverride: "Dog Crew",
+          subtitleOverride: "Queue #777",
+        }),
+      });
+      const res = (await server.router.fetch(req, envWithSeriesGroupStub)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(doFetch).toHaveBeenCalledOnce();
+      expect(forwardedBody).toEqual({
+        userId: "user-123",
+        matchIds: ["match-2", "match-3"],
+        titleOverride: "Dog Crew",
+        subtitleOverride: "Queue #777",
+      });
+    });
   });
 
   describe("/api/identities", () => {

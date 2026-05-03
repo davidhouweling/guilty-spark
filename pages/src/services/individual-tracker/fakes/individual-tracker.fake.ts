@@ -23,6 +23,7 @@ import type {
   StartTrackerResponse,
   StopTrackerResponse,
   TrackerMatchHistoryResponse,
+  TrackerSeriesGroupUpdateRequest,
   TrackerListResponse,
   TrackerSearchResult,
   TrackerStatusResponse,
@@ -80,6 +81,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     discoveredMatches: {},
     matchIds: [],
     matchGroupings: [],
+    seriesGroups: [],
     excludedMatchIds: [],
     errorState: {
       consecutiveErrors: 0,
@@ -313,6 +315,35 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   public async syncMatchesToTracker(): Promise<void> {
     return Promise.resolve();
+  }
+
+  public async updateSeriesGroup(request: TrackerSeriesGroupUpdateRequest): Promise<IndividualTrackerState> {
+    const currentState =
+      this.options.trackerStates?.[request.trackerId] ?? this.options.activeState ?? aFakeIndividualTrackerStateWith();
+    const requestKey = [...request.matchIds].sort((left, right) => left.localeCompare(right)).join(":");
+    const nextSeriesGroups = currentState.seriesGroups.filter((group) => {
+      const groupKey = [...group.matchIds].sort((left, right) => left.localeCompare(right)).join(":");
+      return groupKey !== requestKey;
+    });
+
+    if (request.titleOverride != null || request.subtitleOverride != null) {
+      nextSeriesGroups.push({
+        matchIds: [...request.matchIds],
+        titleOverride: request.titleOverride,
+        subtitleOverride: request.subtitleOverride,
+      });
+    }
+
+    const nextState: IndividualTrackerState = {
+      ...currentState,
+      seriesGroups: nextSeriesGroups,
+    };
+
+    if (this.options.trackerStates != null) {
+      this.options.trackerStates[request.trackerId] = nextState;
+    }
+
+    return Promise.resolve(nextState);
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {

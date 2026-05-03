@@ -1,9 +1,9 @@
 # Web Individual Tracker v2 Proposal
 
 **Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 advanced and still in progress
-**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 2, 2026)
+**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 3, 2026)
 
-## Current implementation snapshot (May 2, 2026)
+## Current implementation snapshot (May 3, 2026)
 
 - Shared `match-history` component is implemented and reused by both Add Tracker and Game Selection flows.
 - Live tracker row actions are wired end-to-end for pause, resume, stop, delete, set-live, and game-selection sync.
@@ -54,7 +54,8 @@ Token strategy summary used by this proposal:
 
 - The existing Durable Object should remain focused on NeatQueue-orchestrated tracking and should be treated as the NeatQueue live tracker.
 - Individual live tracking should be reintroduced as a separate Durable Object type with separate routes, state, and authorization rules.
-- If an individual tracker is following a NeatQueue series, it should be able to augment its presentation using NeatQueue grouping data.
+- If an individual tracker is following a NeatQueue series, it should be able to augment its presentation using NeatQueue grouping data, teams, player rosters, substitutions, and default series labels.
+- NeatQueue-to-individual tracker coordination should be worker-mediated: the worker fans out normalized NeatQueue series lifecycle updates to matching individual tracker DOs based on XUID overlap.
 - Longer term, tournament-style tracking can reuse the same grouping concepts without forcing the individual tracker to share the NeatQueue Durable Object.
 
 ## Architecture (v2)
@@ -73,6 +74,7 @@ Token strategy summary used by this proposal:
 - Authorize browser control-plane requests using session cookies.
 - Persist per-user profiles, linked identities, idle-timeout settings, and streamer settings in D1.
 - Resolve which active tracker is the current on-stream tracker for viewer routes.
+- Route NeatQueue series lifecycle updates to matching active individual tracker DOs based on player XUID overlap.
 - Expose authenticated control endpoints and read-only viewer endpoints.
 - Ensure any new routes are also added to the Wrangler route configuration.
 
@@ -80,7 +82,7 @@ Token strategy summary used by this proposal:
 
 - Own the active live tracker for one individual tracker instance.
 - Poll Halo Infinite using the signed-in user's stored credentials.
-- Maintain active runtime state, match discovery state, and viewer websocket broadcast state.
+- Maintain active runtime state, match discovery state, grouped-series runtime metadata, and viewer websocket broadcast state.
 - Enforce tracker ownership for control-plane mutations.
 - Stop on explicit user request or when no new matches are discovered inside the configured idle-timeout window.
 
@@ -93,6 +95,7 @@ Token strategy summary used by this proposal:
 
 - D1 is the persisted source of truth for profile information and settings that should survive tracker restarts.
 - The individual Durable Object is the source of truth for active live tracker runtime state.
+- Grouped-series labels and NeatQueue-derived series context are runtime-only DO state for the current tracker session and are intentionally discarded when the DO is stopped.
 - Viewer clients are read-only consumers of the Durable Object state.
 - Editor mutations flow through authenticated worker routes and then into the owning Durable Object.
 
@@ -103,6 +106,8 @@ Token strategy summary used by this proposal:
 - `individual_tracker_profiles` (profile id, user id, active identity, name, idle timeout preference, logout behavior preference)
 - `individual_tracker_games` (profile id, match id, position, included/excluded, annotations)
 - `streamer_view_settings` (profile id, layout options, visible sections, style flags)
+
+Runtime-only DO data for grouped series is intentionally out of scope for D1 persistence in this phase. That runtime data includes series membership, manual label overrides, NeatQueue-derived defaults, teams, players, and substitutions.
 
 Use D1 for persistent relational data. Keep tokens and session secrets server-only. Use the individual Durable Object's own storage only for active tracker runtime data that should remain colocated with the object.
 
@@ -366,7 +371,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] Add idle-timeout settings with allowed values of 1h, 2h, 3h, 4h, 5h, and 6h, defaulting to 1h.
 - [ ] Add logout behavior setting for whether active trackers may continue after logout.
 - [x] Stop trackers automatically only when no new matches are discovered within the configured window.
-- [ ] Integrate NeatQueue grouping metadata when the active tracker corresponds to a NeatQueue series.
+- [ ] Integrate NeatQueue series metadata when the active tracker corresponds to a NeatQueue series, including grouped-series defaults, teams, pre-series player info, and substitutions.
 
 ### Phase 4 - Streamer controls
 
@@ -517,12 +522,24 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 - Games already in the tracker state are **pre-checked**; games not in state are unchecked.
 - On dialog close, the selection is **synced** as a 1:1 mapping: newly checked games are added to state, unchecked games that were previously checked are removed. This is applied as a single atomic mutation.
 
+### Grouped series metadata
+
+- Each grouped series inside an active individual tracker can have its own **title** and **subtitle**.
+- These labels are attached to the grouped-series runtime object, not the tracker as a whole.
+- Labels persist only for the lifetime of the current individual tracker DO session. If the DO stops, the grouped-series labels are discarded.
+- Default labels depend on the source of the grouped series:
+  - Manual / heuristic grouped series default to `Eagle vs Cobra` and `Best of X`, where `X` is `matchIds.length`.
+  - NeatQueue-backed grouped series default to NeatQueue-derived metadata when available.
+- Users can edit the labels inline from the viewer surface; the edit affordance is an icon that turns the title/subtitle strings into text inputs.
+- Label identity is tied to the grouped-series object. If grouping changes materially, the label follows the resulting grouped-series object rather than acting as a tracker-global setting.
+
 ### Streamer settings
 
 - A **global** streamer settings profile is accessible from the profile dropdown menu in the header (not page-specific).
 - Each tracker inherits the global settings by default.
-- The per-tracker streamer settings dialog allows specific overrides, stored against that tracker's profile entry.
-- The default overlay text/labels currently tied to NeatQueue context must be reviewed to be neutral or gamertag-centric for individual tracking.
+- The per-tracker streamer settings dialog allows persisted viewer overrides for tracker-level presentation settings that belong in D1.
+- Grouped-series title and subtitle labels are **not** part of the persisted streamer settings profile in this phase; they are runtime-only DO metadata for the active tracker session.
+- The default overlay text/labels currently tied to NeatQueue context must be reviewed so manual grouped-series defaults remain neutral while NeatQueue-backed grouped series can still display NeatQueue-derived labels.
 
 ### Viewer routing
 
@@ -592,6 +609,7 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Viewer styling follow-up delivered: individual tracker grouped-series view now supports borderless inner parts to better match intended presentation.
 - [x] Viewer architecture follow-up delivered: moved grouped timeline/stat derivation into a presenter-side render model and added focused unit coverage for chronological ordering.
 - [x] Game selection sync follow-up delivered: replaced per-match add/remove requests with a single bulk tracker sync and persisted manual match groupings for viewer rendering.
+- [ ] Next viewer follow-up planned: grouped-series runtime labels plus NeatQueue-backed series context fanout into active individual trackers.
 
 ### Current operator note - View tracker behavior
 
@@ -690,6 +708,11 @@ Please run this quick checklist and share outcomes (pass/fail plus any response 
 - [x] Pause semantics: DO remains resident, alarm is suspended. Auto-stop after configurable idle window (max 6h). WebSocket broadcasts paused state. No DO restart needed on resume.
 - [x] Game selection sync: 1:1 sync on dialog close. Newly checked → added to state; newly unchecked → removed from state. Applied as a single atomic mutation.
 - [x] Streamer settings scope: global settings live in profile dropdown (not page-specific). Per-tracker dialog allows overrides, inheriting from global.
+- [x] Grouped-series label scope: title and subtitle are runtime-only metadata attached to one grouped-series object within the active individual tracker DO. They are not tracker-global and are not persisted to D1 in this phase.
+- [x] Grouped-series default labels: manual / heuristic groups default to `Eagle vs Cobra` and `Best of X`, where `X` is the grouped series `matchIds.length`; users can override both inline.
+- [x] Label identity: custom labels stay attached to the grouped-series object rather than acting as tracker-level settings.
+- [x] NeatQueue linkage: use XUID overlap to associate NeatQueue series metadata with active individual trackers; if a new NeatQueue series starts for the same player, it supersedes the previous series for future updates.
+- [x] NeatQueue coordination transport: use worker-mediated fanout from NeatQueue lifecycle updates into matching individual tracker DOs rather than DO-to-DO subscriptions or WebSocket coupling.
 - [x] Twitch stream-end behavior: pause tracker (not stop). Configurable auto-stop delay (1–6h) after stream end, so intermittent stream drops don't lose state.
 - [x] Tracker viewer routing: `/individual-tracker?tracker=<trackerId>` with query param, not unique per-tracker route.
 - [x] Gamertag search: use Xbox search endpoint if available (autocomplete with lightweight service record preview). Exact match fallback if not.

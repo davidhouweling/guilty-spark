@@ -48,6 +48,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     discoveredMatches: {},
     matchIds: [],
     matchGroupings: [],
+    seriesGroups: [],
     excludedMatchIds: [],
     errorState: {
       consecutiveErrors: 0,

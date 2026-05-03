@@ -9,6 +9,8 @@ import {
   type IndividualTrackerMatchSummary,
   type IndividualTrackerState,
   type IndividualTrackerStartRequest,
+  type IndividualTrackerSeriesGroupUpdateRequest,
+  type IndividualTrackerSeriesGroupUpdateResponse,
   type IndividualTrackerViewerStyleUpdateRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
@@ -22,6 +24,7 @@ import {
   type IndividualTrackerGamesSyncResponse,
   sanitizeTrackerState,
 } from "./types";
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -47,6 +50,14 @@ function toValidColorId(value: unknown, fallback: string): string {
   }
 
   return trimmed;
+}
+
+function normalizeSeriesGroupMatchIds(matchIds: readonly string[]): string[] {
+  return Array.from(new Set(matchIds)).sort((left, right) => left.localeCompare(right));
+}
+
+function buildSeriesGroupKey(matchIds: readonly string[]): string {
+  return normalizeSeriesGroupMatchIds(matchIds).join(":");
 }
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
@@ -101,6 +112,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "viewer-style": {
             return await this.handleViewerStyle(request);
+          }
+          case "series-groups-update": {
+            return await this.handleSeriesGroupsUpdate(request);
           }
           case "websocket": {
             return await this.handleWebSocket();
@@ -224,6 +238,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       discoveredMatches: {},
       matchIds: [],
       matchGroupings: [],
+      seriesGroups: [],
       excludedMatchIds: [],
       errorState: {
         consecutiveErrors: 0,
@@ -411,12 +426,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         group.filter((matchId, index, array) => selectedMatchIdSet.has(matchId) && array.indexOf(matchId) === index),
       )
       .filter((group) => group.length >= 2);
+    const nextGroupingKeys = new Set(nextMatchGroupings.map((group) => buildSeriesGroupKey(group)));
+    const nextSeriesGroups = trackerState.seriesGroups.filter((group) => nextGroupingKeys.has(buildSeriesGroupKey(group.matchIds)));
 
     const nextState: IndividualTrackerState = {
       ...trackerState,
       discoveredMatches: nextDiscoveredMatches,
       matchIds: Object.keys(nextDiscoveredMatches),
       matchGroupings: nextMatchGroupings,
+      seriesGroups: nextSeriesGroups,
       excludedMatchIds: nextExcludedMatchIds,
       lastUpdateTime: new Date().toISOString(),
     };
@@ -447,6 +465,56 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(nextState);
     return Response.json({ success: true, state: sanitizeTrackerState(nextState) }, { status: 200 });
+  }
+
+  private async handleSeriesGroupsUpdate(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerSeriesGroupUpdateRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const normalizedMatchIds = normalizeSeriesGroupMatchIds(body.matchIds);
+    if (normalizedMatchIds.length < 2) {
+      return new Response("matchIds must contain at least 2 unique items", { status: 400 });
+    }
+
+    const existingGroupingKeys = new Set(trackerState.matchGroupings.map((group) => buildSeriesGroupKey(group)));
+    const targetKey = buildSeriesGroupKey(normalizedMatchIds);
+    if (!existingGroupingKeys.has(targetKey)) {
+      return new Response("Series group not found", { status: 404 });
+    }
+
+    const titleOverride = body.titleOverride?.trim() === "" ? null : body.titleOverride;
+    const subtitleOverride = body.subtitleOverride?.trim() === "" ? null : body.subtitleOverride;
+    const nextSeriesGroups = trackerState.seriesGroups.filter((group) => buildSeriesGroupKey(group.matchIds) !== targetKey);
+
+    if (titleOverride != null || subtitleOverride != null) {
+      nextSeriesGroups.push({
+        matchIds: normalizedMatchIds,
+        titleOverride,
+        subtitleOverride,
+      } satisfies IndividualTrackerSeriesGroup);
+    }
+
+    const nextState: IndividualTrackerState = {
+      ...trackerState,
+      seriesGroups: nextSeriesGroups,
+      lastUpdateTime: new Date().toISOString(),
+    };
+
+    await this.setState(nextState);
+
+    const response: IndividualTrackerSeriesGroupUpdateResponse = {
+      success: true,
+      state: sanitizeTrackerState(nextState),
+    };
+    return Response.json(response, { status: 200 });
   }
 
   private async handleWebSocket(): Promise<Response> {

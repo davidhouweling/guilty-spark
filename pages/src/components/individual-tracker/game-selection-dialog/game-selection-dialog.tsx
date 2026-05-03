@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
@@ -7,6 +8,7 @@ import { MatchHistory } from "../../match-history/match-history";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
+import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import styles from "./game-selection-dialog.module.css";
 
 interface GameSelectionDialogProps {
@@ -17,12 +19,14 @@ interface GameSelectionDialogProps {
   readonly xuid: string;
   readonly initialSelectedMatchIds: readonly string[];
   readonly initialGroupings: readonly (readonly string[])[];
+  readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly onClose: () => void;
   readonly onLoadEnrichedMatches: (xuid: string, start: number, count: number) => Promise<TrackerMatchHistoryResponse>;
   readonly onSync: (payload: {
     trackerId: string;
     selectedMatchIds: readonly string[];
     matchGroupings: readonly (readonly string[])[];
+    seriesGroups: readonly IndividualTrackerSeriesGroup[];
     matches: readonly TrackerMatchHistoryEntry[];
   }) => Promise<void>;
 }
@@ -35,6 +39,7 @@ export function GameSelectionDialog({
   xuid,
   initialSelectedMatchIds,
   initialGroupings,
+  initialSeriesGroups,
   onClose,
   onLoadEnrichedMatches,
   onSync,
@@ -44,6 +49,7 @@ export function GameSelectionDialog({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [selectedMatchIds, setSelectedMatchIds] = useState<ReadonlySet<string>>(new Set(initialSelectedMatchIds));
+  const [seriesGroups, setSeriesGroups] = useState<readonly IndividualTrackerSeriesGroup[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hideShortGames, setHideShortGames] = useState(true);
@@ -55,6 +61,7 @@ export function GameSelectionDialog({
       setLoadingMore(false);
       setHasMore(false);
       setSelectedMatchIds(new Set());
+      setSeriesGroups([]);
       setSyncing(false);
       setErrorMessage(null);
       setHideShortGames(true);
@@ -63,6 +70,7 @@ export function GameSelectionDialog({
 
     setSelectedMatchIds(new Set(initialSelectedMatchIds));
     setActiveGroupings(initialGroupings.map((group) => [...group]));
+    setSeriesGroups(initialSeriesGroups.map((group) => ({ ...group, matchIds: [...group.matchIds] })));
     setErrorMessage(null);
 
     void onLoadEnrichedMatches(xuid, 0, 25)
@@ -74,7 +82,11 @@ export function GameSelectionDialog({
       .catch((error: unknown) => {
         setErrorMessage(error instanceof Error ? error.message : "Failed to load matches.");
       });
-  }, [initialSelectedMatchIds, isOpen, onLoadEnrichedMatches, xuid]);
+  }, [initialGroupings, initialSelectedMatchIds, initialSeriesGroups, isOpen, onLoadEnrichedMatches, xuid]);
+
+  useEffect(() => {
+    setSeriesGroups((current) => alignSeriesGroupsToGroupings(activeGroupings, current));
+  }, [activeGroupings]);
 
   const closeAndSync = async (): Promise<void> => {
     if (syncing || busy) {
@@ -89,6 +101,7 @@ export function GameSelectionDialog({
         trackerId,
         selectedMatchIds: Array.from(selectedMatchIds),
         matchGroupings: activeGroupings,
+        seriesGroups,
         matches: enrichedMatches?.matches ?? [],
       });
       onClose();
@@ -163,6 +176,7 @@ export function GameSelectionDialog({
           groupings={activeGroupings}
           allowSelection={true}
           selectedMatchIds={selectedMatchIds}
+          seriesGroups={seriesGroups}
           hasMore={hasMore}
           onLoadMore={loadMore}
           onMatchToggle={(matchId): void => {
@@ -187,6 +201,16 @@ export function GameSelectionDialog({
           onAddToBelowGroup={(matchId): void => {
             const entries = enrichedMatches?.matches ?? [];
             setActiveGroupings((prev) => applyAddToAdjacentGroup(prev, entries, matchId, "below"));
+          }}
+          onSeriesGroupTitleChange={(groupIndex, value): void => {
+            setSeriesGroups((current) =>
+              current.map((group, index) => (index === groupIndex ? { ...group, titleOverride: value } : group)),
+            );
+          }}
+          onSeriesGroupSubtitleChange={(groupIndex, value): void => {
+            setSeriesGroups((current) =>
+              current.map((group, index) => (index === groupIndex ? { ...group, subtitleOverride: value } : group)),
+            );
           }}
         />
       </div>

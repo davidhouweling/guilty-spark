@@ -19,6 +19,7 @@ import {
   buildMatchResultString,
   buildTeams,
   analyzeMatchGroupings,
+  collapseSequentialSeriesEntries,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
@@ -198,19 +199,17 @@ export class HaloService {
 
   getSeriesScore(matches: MatchStats[], locale: string): string {
     const teamScores: Record<number, number> = {};
-    const sortedMatches = [...matches].sort((a, b) =>
-      isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1,
-    );
-    for (const [index, match] of sortedMatches.entries()) {
-      const nextMatch = sortedMatches[index + 1];
-      if (
-        nextMatch?.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
-        nextMatch.MatchInfo.MapVariant.VersionId === match.MatchInfo.MapVariant.VersionId &&
-        nextMatch.MatchInfo.GameVariantCategory === match.MatchInfo.GameVariantCategory
-      ) {
-        // we only want the final game of the same map + game type
-        continue;
-      }
+    const countedMatches = collapseSequentialSeriesEntries(
+      matches.map((match) => ({
+        ...match,
+        startTime: match.MatchInfo.StartTime,
+        mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        mapVersionId: match.MatchInfo.MapVariant.VersionId,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
+      })),
+    ).map(({ startTime: _startTime, mapAssetId: _mapAssetId, mapVersionId: _mapVersionId, gameVariantCategory: _gameVariantCategory, ...match }) => match);
+
+    for (const match of countedMatches) {
       for (const [teamIndex, team] of match.Teams.entries()) {
         teamScores[teamIndex] = (teamScores[teamIndex] ?? 0) + (team.Outcome === MatchOutcome.Win.valueOf() ? 1 : 0);
       }
@@ -624,6 +623,11 @@ export class HaloService {
         startTime: dateTimeFormat.format(startDate),
         endTime: dateTimeFormat.format(endDate),
         duration: getReadableDuration(match.MatchInfo.Duration, locale),
+        mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        mapVersionId: match.MatchInfo.MapVariant.VersionId,
+        modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+        modeVersionId: match.MatchInfo.UgcGameVariant.VersionId,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
         mapName,
         modeName,
         outcome,

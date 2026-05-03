@@ -42,6 +42,7 @@ import type {
   StartTrackerResponse,
   StopTrackerResponse,
   TrackerSyncMatchesRequest,
+  TrackerSeriesGroupUpdateRequest,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerListResponse,
@@ -701,7 +702,10 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           startTime: formatDisplayDateTime(match.MatchInfo.StartTime),
           endTime: formatDisplayDateTime(match.MatchInfo.EndTime),
           mapAssetId: match.MatchInfo.MapVariant.AssetId,
+          mapVersionId: match.MatchInfo.MapVariant.VersionId,
           modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+          modeVersionId: match.MatchInfo.UgcGameVariant.VersionId,
+          gameVariantCategory: match.MatchInfo.GameVariantCategory,
           startTimeIso: match.MatchInfo.StartTime,
           endTimeIso: match.MatchInfo.EndTime,
           duration: getReadableDuration(match.MatchInfo.Duration),
@@ -741,7 +745,10 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         startTime: match.startTimeIso ?? match.startTime,
         endTime: match.endTimeIso ?? match.endTime,
         mapAssetId: match.mapAssetId,
+        mapVersionId: match.mapVersionId,
         modeAssetId: match.modeAssetId,
+        modeVersionId: match.modeVersionId,
+        gameVariantCategory: match.gameVariantCategory,
       }));
 
     const response = await fetch(
@@ -761,6 +768,29 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     if (!response.ok) {
       throw new Error(await response.text());
     }
+  }
+
+  public async updateSeriesGroup(request: TrackerSeriesGroupUpdateRequest): Promise<IndividualTrackerState> {
+    const response = await fetch(
+      `${this.apiHost}/api/individual-tracker/${encodeURIComponent(request.trackerId)}/series-groups-update`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchIds: request.matchIds,
+          titleOverride: request.titleOverride,
+          subtitleOverride: request.subtitleOverride,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const data = await response.json<{ success: true; state: IndividualTrackerState }>();
+    return data.state;
   }
 
   public async addMatchToTracker(trackerId: string, matchId: string): Promise<void> {

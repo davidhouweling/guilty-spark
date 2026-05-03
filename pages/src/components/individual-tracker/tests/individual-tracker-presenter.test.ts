@@ -115,6 +115,7 @@ describe("IndividualTrackerPresenter", () => {
             discoveredMatches: {},
             matchIds: [],
             matchGroupings: [],
+            seriesGroups: [],
             excludedMatchIds: [],
             errorState: {
               consecutiveErrors: 0,
