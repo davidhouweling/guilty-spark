@@ -430,7 +430,11 @@ export function MatchHistory({
                   };
 
                   return (
-                    <section key={`group-${String(segment.groupIndex)}`} className={styles.seriesBlock} style={groupStyle}>
+                    <section
+                      key={`group-${String(segment.groupIndex)}`}
+                      className={styles.seriesBlock}
+                      style={groupStyle}
+                    >
                       <div className={styles.seriesHeader}>
                         <div className={styles.seriesHeaderTopRow}>
                           <h3 className={styles.seriesTitle}>
@@ -440,7 +444,7 @@ export function MatchHistory({
                         </div>
                         <div className={styles.seriesLabelOptions}>
                           <Input
-                            label={`Series ${segment.groupIndex + 1} title`}
+                            label={`Series ${(segment.groupIndex + 1).toString()} title`}
                             value={segment.seriesGroup?.titleOverride ?? ""}
                             placeholder={getDefaultSeriesGroupTitle()}
                             onChange={(event): void => {
@@ -451,7 +455,7 @@ export function MatchHistory({
                             }}
                           />
                           <Input
-                            label={`Series ${segment.groupIndex + 1} subtitle`}
+                            label={`Series ${(segment.groupIndex + 1).toString()} subtitle`}
                             value={segment.seriesGroup?.subtitleOverride ?? ""}
                             placeholder={getDefaultSeriesGroupSubtitle(segment.entries.map(({ entry }) => entry))}
                             onChange={(event): void => {

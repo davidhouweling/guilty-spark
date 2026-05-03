@@ -17,6 +17,9 @@ interface SeriesStatsProps {
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
   readonly omitStatKeys?: readonly string[];
+  readonly showHeader?: boolean;
+  readonly showSectionHeaders?: boolean;
+  readonly highlightBestStats?: boolean;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -28,6 +31,9 @@ export function SeriesStats({
   metadata,
   teamColors,
   omitStatKeys,
+  showHeader = true,
+  showSectionHeaders = true,
+  highlightBestStats = true,
 }: SeriesStatsProps): React.ReactElement {
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
@@ -64,7 +70,7 @@ export function SeriesStats({
         cellClassName: (row: MatchStatsData): string => {
           const teamStat = row.teamStats.find((s) => s.name === stat.name);
           return classNames(tableStyles.statCell, {
-            [tableStyles.bestInMatch]: teamStat?.bestInMatch ?? false,
+            [tableStyles.bestInMatch]: highlightBestStats && (teamStat?.bestInMatch ?? false),
           });
         },
         sortingFn: "basic" as const,
@@ -131,8 +137,8 @@ export function SeriesStats({
           cellClassName: (row: MatchStatsRow): string => {
             const playerStat = row.player.values.find((s) => s.name === stat.name);
             return classNames(tableStyles.statCell, {
-              [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
-              [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,
+              [tableStyles.bestInTeam]: highlightBestStats && (playerStat?.bestInTeam ?? false),
+              [tableStyles.bestInMatch]: highlightBestStats && (playerStat?.bestInMatch ?? false),
             });
           },
           sortingFn: "basic",
@@ -175,38 +181,40 @@ export function SeriesStats({
 
   return (
     <div className={styles.matchStatsContainer}>
-      <div
-        className={styles.matchHeader}
-        style={{ "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties}
-      >
-        <div className={styles.matchHeaderContent}>
-          <h3 className={styles.matchTitle}>{title}</h3>
-          {metadata != null && (
-            <ul className={styles.matchMetadata}>
-              <li>
-                <span className={styles.matchMetaLabel}>Score:</span>{" "}
-                <span className={styles.matchMetaValue}>{metadata.score}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-                <span className={styles.matchMetaValue}>{metadata.duration}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>Start time:</span>{" "}
-                <span className={styles.matchMetaValue}>{new Date(metadata.startTime).toLocaleString()}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>End time:</span>{" "}
-                <span className={styles.matchMetaValue}>{new Date(metadata.endTime).toLocaleString()}</span>
-              </li>
-            </ul>
-          )}
+      {showHeader ? (
+        <div
+          className={styles.matchHeader}
+          style={{ "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties}
+        >
+          <div className={styles.matchHeaderContent}>
+            <h3 className={styles.matchTitle}>{title}</h3>
+            {metadata != null && (
+              <ul className={styles.matchMetadata}>
+                <li>
+                  <span className={styles.matchMetaLabel}>Score:</span>{" "}
+                  <span className={styles.matchMetaValue}>{metadata.score}</span>
+                </li>
+                <li>
+                  <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+                  <span className={styles.matchMetaValue}>{metadata.duration}</span>
+                </li>
+                <li>
+                  <span className={styles.matchMetaLabel}>Start time:</span>{" "}
+                  <span className={styles.matchMetaValue}>{new Date(metadata.startTime).toLocaleString()}</span>
+                </li>
+                <li>
+                  <span className={styles.matchMetaLabel}>End time:</span>{" "}
+                  <span className={styles.matchMetaValue}>{new Date(metadata.endTime).toLocaleString()}</span>
+                </li>
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {hasTeamStats && (
         <div className={styles.teamTotals}>
-          <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3>
+          {showSectionHeaders ? <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3> : null}
           <SortableTable
             data={teamData}
             columns={teamColumns}
@@ -226,7 +234,7 @@ export function SeriesStats({
 
       {hasPlayerStats && (
         <div className={styles.playerStats}>
-          <h3 className={styles.subsectionHeader}>Accumulated Player Stats</h3>
+          {showSectionHeaders ? <h3 className={styles.subsectionHeader}>Accumulated Player Stats</h3> : null}
           <SortableTable
             data={flattenedPlayerData}
             columns={playerColumns}

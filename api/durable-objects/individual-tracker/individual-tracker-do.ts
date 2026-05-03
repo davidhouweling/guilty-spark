@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { AutoTokenProvider, HaloInfiniteClient, MatchType } from "halo-infinite-api";
 import { addMilliseconds, differenceInHours, differenceInMilliseconds } from "date-fns";
+import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 import { installServices as installServicesImpl } from "../../services/install";
 import type { LogService } from "../../services/log/types";
 import type { DatabaseService } from "../../services/database/database";
@@ -24,7 +25,6 @@ import {
   type IndividualTrackerGamesSyncResponse,
   sanitizeTrackerState,
 } from "./types";
-import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -427,7 +427,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       )
       .filter((group) => group.length >= 2);
     const nextGroupingKeys = new Set(nextMatchGroupings.map((group) => buildSeriesGroupKey(group)));
-    const nextSeriesGroups = trackerState.seriesGroups.filter((group) => nextGroupingKeys.has(buildSeriesGroupKey(group.matchIds)));
+    const nextSeriesGroups = trackerState.seriesGroups.filter((group) =>
+      nextGroupingKeys.has(buildSeriesGroupKey(group.matchIds)),
+    );
 
     const nextState: IndividualTrackerState = {
       ...trackerState,
@@ -492,7 +494,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const titleOverride = body.titleOverride?.trim() === "" ? null : body.titleOverride;
     const subtitleOverride = body.subtitleOverride?.trim() === "" ? null : body.subtitleOverride;
-    const nextSeriesGroups = trackerState.seriesGroups.filter((group) => buildSeriesGroupKey(group.matchIds) !== targetKey);
+    const nextSeriesGroups = trackerState.seriesGroups.filter(
+      (group) => buildSeriesGroupKey(group.matchIds) !== targetKey,
+    );
 
     if (titleOverride != null || subtitleOverride != null) {
       nextSeriesGroups.push({

@@ -207,7 +207,14 @@ export class HaloService {
         mapVersionId: match.MatchInfo.MapVariant.VersionId,
         gameVariantCategory: match.MatchInfo.GameVariantCategory,
       })),
-    ).map(({ startTime: _startTime, mapAssetId: _mapAssetId, mapVersionId: _mapVersionId, gameVariantCategory: _gameVariantCategory, ...match }) => match);
+    ).map((entry) => {
+      const { startTime, mapAssetId, mapVersionId, gameVariantCategory, ...match } = entry;
+      void startTime;
+      void mapAssetId;
+      void mapVersionId;
+      void gameVariantCategory;
+      return match;
+    });
 
     for (const match of countedMatches) {
       for (const [teamIndex, team] of match.Teams.entries()) {

@@ -23,17 +23,21 @@ export function getDefaultSeriesGroupTitle(): string {
   return "Eagle vs Cobra";
 }
 
-export function getDefaultSeriesGroupSubtitle(entries: readonly Pick<
-  TrackerMatchHistoryEntry,
-  "startTimeIso" | "startTime" | "mapAssetId" | "mapVersionId" | "gameVariantCategory" | "outcome"
->[]): string {
-  const logicalEntries = collapseSequentialSeriesEntries(entries.map((entry) => ({
+export function getDefaultSeriesGroupSubtitle(
+  entries: readonly Pick<
+    TrackerMatchHistoryEntry,
+    "startTimeIso" | "startTime" | "mapAssetId" | "mapVersionId" | "gameVariantCategory" | "outcome"
+  >[],
+): string {
+  const logicalEntries = collapseSequentialSeriesEntries(
+    entries.map((entry) => ({
       startTime: entry.startTimeIso ?? entry.startTime,
       mapAssetId: entry.mapAssetId,
       mapVersionId: entry.mapVersionId,
       gameVariantCategory: entry.gameVariantCategory,
       outcome: entry.outcome,
-    })));
+    })),
+  );
   const logicalGameCount = logicalEntries.length;
   let wins = 0;
   let losses = 0;

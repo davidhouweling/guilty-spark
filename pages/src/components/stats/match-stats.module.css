@@ -11,6 +11,10 @@
   scroll-margin-top: 90px;
 }
 
+.matchStatsContainerSeamlessTop {
+  border-top: none;
+}
+
 .matchHeader {
   align-items: flex-start;
   background-image:
@@ -22,6 +26,10 @@
   gap: var(--space-3);
   justify-content: space-between;
   padding: var(--space-4);
+}
+
+.matchHeaderNoFade {
+  background-image: linear-gradient(to bottom, rgb(10 14 20 / 50%), rgb(10 14 20 / 0%)), var(--match-bg);
 }
 
 .matchHeaderContent {
@@ -63,22 +71,6 @@
   font-weight: 600;
 }
 
-/* Team Stats */
-.teamStats {
-  background: var(--halo-bg-secondary, #0a0e14);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-}
-
-.teamHeader {
-  color: var(--halo-white, #fff);
-  font-family: var(--font-heading, "Orbitron", sans-serif);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  margin: 0 0 var(--space-3);
-}
-
 .subsectionHeader {
   color: var(--halo-gray, #9ca3af);
   font-family: var(--font-body, "Inter", sans-serif);
@@ -100,79 +92,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-/* Table Styles */
-.tableWrapper {
-  margin-top: var(--space-2);
-  overflow-x: auto;
-}
-
-.statsTable {
-  background: var(--halo-bg-primary, #000);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  border-collapse: collapse;
-  font-family: var(--font-body, "Inter", sans-serif);
-  width: 100%;
-}
-
-.statsTable thead {
-  background: var(--halo-bg-secondary, #0a0e14);
-}
-
-.statsTable th {
-  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  color: var(--halo-gray, #9ca3af);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  padding: var(--space-4);
-  text-align: left;
-  text-transform: uppercase;
-  vertical-align: bottom;
-  white-space: pre-line;
-}
-
-.statsTable tbody tr {
-  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
-  transition: background-color var(--transition-fast) ease;
-}
-
-.statsTable tbody tr:hover {
-  background: color-mix(in srgb, var(--halo-teal-primary) 5%, transparent);
-}
-
-.statsTable tbody tr:last-child {
-  border-bottom: none;
-}
-
-.statsTable td {
-  color: var(--halo-white, #fff);
-  font-size: var(--text-sm);
-  padding: var(--space-2) var(--space-4);
-  white-space: nowrap;
-}
-
-.labelCell {
-  color: var(--halo-white, #fff);
-  font-weight: 500;
-}
-
-.statCell {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.statCell.bestInTeam {
-  font-weight: 700;
-  text-shadow: 0 0 8px rgb(16 185 129 / 60%);
-}
-
-.statCell.bestInMatch {
-  text-decoration: underline;
-  text-decoration-color: var(--color-winner);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
 }
 
 .medalsContainer {
@@ -209,21 +128,7 @@
 
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
-  .matchStatsContainer {
-    border-left: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-    border-right: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  }
-
   .subsectionHeader {
     padding: 0 var(--gutter-desktop, 32px);
-  }
-
-  .teamStats {
-    padding: var(--space-5);
-  }
-
-  .statsTable th,
-  .statsTable td {
-    font-size: var(--text-sm);
   }
 }

@@ -1,0 +1,33 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle {
+  align-items: stretch;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.content {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height var(--transition-smooth),
+    opacity var(--transition-fast) ease;
+}
+
+.expanded {
+  opacity: 1;
+}
+
+.contentInner {
+  min-height: 0;
+}

@@ -1,4 +1,7 @@
-import type { IndividualTrackerSeriesGroup, IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type {
+  IndividualTrackerSeriesGroup,
+  IndividualTrackerState,
+} from "@guilty-spark/shared/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";

@@ -9,13 +9,15 @@ import slayerPng from "../../../assets/game-modes/slayer.png";
 import strongholdsPng from "../../../assets/game-modes/strongholds.png";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
+import { CollapsiblePanel } from "../../collapsible-panel/collapsible-panel";
 import { Container } from "../../container/container";
-import { MatchStats as MatchStatsView } from "../../stats/match-stats";
+import { MatchStats as MatchStatsView, MatchStatsHeader } from "../../stats/match-stats";
 import { SeriesStats } from "../../stats/series-stats";
 import { SeriesOverview } from "../../stats/series-overview/series-overview";
 import liveStyles from "../../live-tracker/live-tracker.module.css";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerViewerRenderModel } from "../types";
+import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
@@ -54,6 +56,40 @@ function formatDateTime(value: unknown): string {
   return date.toLocaleString();
 }
 
+function ExpandWidthIcon(): React.ReactElement {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={styles.inlineIcon}>
+      <path
+        d="M3 9V4h5M21 9V4h-5M3 15v5h5M21 15v5h-5M9 4 4 9M15 4l5 5M9 20l-5-5M15 20l5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }): React.ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={classNames(styles.chevronIcon, { [styles.chevronExpanded]: expanded })}
+    >
+      <path
+        d="M6 9l6 6 6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 export function IndividualTrackerViewer({
   trackerId,
   viewSource,
@@ -65,6 +101,27 @@ export function IndividualTrackerViewer({
 }: IndividualTrackerViewerProps): React.ReactElement {
   const lastUpdatedTime = renderModel?.lastUpdatedTime ?? null;
   const trackerStatus = renderModel?.trackerStatus ?? null;
+  const [isWideView, setIsWideView] = React.useState(false);
+
+  const groupColorById = React.useMemo(() => {
+    const next = new Map<string, string>();
+    if (renderModel == null) {
+      return next;
+    }
+
+    let visibleSeriesIndex = 0;
+    for (const item of renderModel.gameplayTimeline) {
+      if (item.type !== "group") {
+        continue;
+      }
+
+      const color = HALO_TEAM_COLORS[visibleSeriesIndex % HALO_TEAM_COLORS.length]?.hex ?? HALO_TEAM_COLORS[0].hex;
+      next.set(item.id, color);
+      visibleSeriesIndex += 1;
+    }
+
+    return next;
+  }, [renderModel]);
 
   return (
     <>
@@ -109,7 +166,12 @@ export function IndividualTrackerViewer({
 
       <Container
         mobileDown="0"
-        className={classNames(liveStyles.dataContainer, liveStyles.contentContainer, styles.viewerDataContainer)}
+        tabletUp={isWideView ? "0" : undefined}
+        desktopUp={isWideView ? "0" : undefined}
+        ultrawideUp={isWideView ? "0" : undefined}
+        className={classNames(liveStyles.dataContainer, liveStyles.contentContainer, styles.viewerDataContainer, {
+          [liveStyles.wide]: isWideView,
+        })}
       >
         {connectionStatus === "not_found" && (
           <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
@@ -129,8 +191,24 @@ export function IndividualTrackerViewer({
           </Container>
         ) : (
           <>
-            <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
-              <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
+            <Container
+              className={classNames(liveStyles.contentContainer, styles.viewerSection, {
+                [liveStyles.wide]: isWideView,
+              })}
+            >
+              <div className={styles.sectionHeaderRow}>
+                <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  icon={<ExpandWidthIcon />}
+                  onClick={(): void => {
+                    setIsWideView((current) => !current);
+                  }}
+                >
+                  {isWideView ? "Standard width" : "Wide view"}
+                </Button>
+              </div>
               <ul className={styles.accumulatedGrid}>
                 <li className={styles.statCard}>
                   <span className={styles.statLabel}>Total Games</span>
@@ -160,101 +238,150 @@ export function IndividualTrackerViewer({
                   <span className={styles.statValue}>{renderModel.accumulatedStats.customOrLocal.toString()}</span>
                 </li>
               </ul>
-            </Container>
-
-            {renderModel.trackedPlayerTotals != null && (
-              <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
-                <h2 className={styles.sectionTitle}>Tracked Player Totals</h2>
-                <div className={styles.matchStatsCard}>
+              {renderModel.trackedPlayerTotals != null ? (
+                <div className={classNames(styles.matchStatsCard, styles.accumulatedTableCard)}>
                   <SeriesStats
                     teamData={renderModel.trackedPlayerTotals.teamData}
                     playerData={renderModel.trackedPlayerTotals.playerData}
                     title={renderModel.trackedPlayerTotals.title}
                     metadata={renderModel.trackedPlayerTotals.metadata}
                     teamColors={renderModel.teamColors}
+                    showHeader={false}
+                    showSectionHeaders={false}
+                    highlightBestStats={false}
                     omitStatKeys={["team", "gamertag"]}
                   />
                 </div>
-              </Container>
-            )}
+              ) : null}
+            </Container>
 
-            <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
+            <Container
+              className={classNames(liveStyles.contentContainer, styles.viewerSection, {
+                [liveStyles.wide]: isWideView,
+              })}
+            >
               <h2 className={styles.matchesTitle}>Tracked Gameplay</h2>
 
               {matchHistoryLoading && <LoadingState text="Loading enriched match history..." />}
 
-              {renderModel.gameplayTimeline.map((item, timelineIndex) => {
+              {renderModel.gameplayTimeline.map((item) => {
                 if (item.type === "group") {
+                  const groupColor = groupColorById.get(item.id) ?? HALO_TEAM_COLORS[0].hex;
                   return (
-                    <section className={styles.seriesSection} key={item.id}>
-                      <details className={styles.seriesGroup} open={timelineIndex === 0}>
-                        <summary className={styles.seriesSummary}>
-                          <div className={styles.seriesHeading}>
-                            <span className={styles.seriesTitle}>{item.title}</span>
-                            <span className={styles.seriesSubtitle}>{item.subtitle}</span>
-                          </div>
-                          <span className={styles.seriesScore}>{item.seriesScore}</span>
-                        </summary>
-
-                        <SeriesOverview
-                          className={styles.groupSeriesOverview}
-                          hidePartBorders={true}
-                          seriesScore={item.seriesScore}
-                          matches={item.overviewMatches}
-                          teams={item.teams}
-                          gameModeIconSrc={gameModeIconSrc}
-                        />
-
-                        <div className={styles.seriesMatches}>
-                          {item.seriesTotals != null && (
-                            <div className={styles.matchStatsCard}>
-                              <SeriesStats
-                                teamData={item.seriesTotals.teamData}
-                                playerData={item.seriesTotals.playerData}
-                                title="Series Totals"
-                                metadata={item.seriesTotals.metadata}
-                                teamColors={renderModel.teamColors}
-                              />
+                    <section
+                      className={styles.seriesSection}
+                      key={item.id}
+                      style={{ "--group-color": groupColor } as React.CSSProperties}
+                    >
+                      <CollapsiblePanel
+                        id={item.id}
+                        defaultExpanded={true}
+                        className={styles.seriesGroup}
+                        toggleClassName={styles.seriesSummary}
+                        contentClassName={styles.collapsibleBody}
+                        contentInnerClassName={styles.collapsibleBody}
+                        header={(expanded) => (
+                          <>
+                            <div className={styles.seriesHeading}>
+                              <div className={styles.seriesTitleRow}>
+                                <span className={styles.seriesTitle}>{item.title}</span>
+                                <span className={styles.seriesSubtitle}>{item.subtitle}</span>
+                              </div>
                             </div>
-                          )}
+                            <div className={styles.seriesSummaryRight}>
+                              <span className={styles.seriesScore}>{item.seriesScore}</span>
+                              <ChevronIcon expanded={expanded} />
+                            </div>
+                          </>
+                        )}
+                      >
+                        <>
+                          <SeriesOverview
+                            className={styles.groupSeriesOverview}
+                            hidePartBorders={true}
+                            seriesScore={item.seriesScore}
+                            matches={item.overviewMatches}
+                            teams={item.teams}
+                            gameModeIconSrc={gameModeIconSrc}
+                          />
 
-                          {item.matches.map((match) => {
-                            if (match.matchStats == null) {
-                              return (
-                                <Alert key={match.id} variant="warning">
-                                  Match stats unavailable for {match.id}
-                                </Alert>
-                              );
-                            }
-
-                            return (
-                              <div className={styles.matchStatsCard} key={match.id}>
-                                <MatchStatsView
-                                  data={match.matchStats}
-                                  id={match.id}
-                                  backgroundImageUrl={match.backgroundImageUrl}
-                                  gameModeIconUrl={gameModeIconSrc(match.gameMode)}
-                                  gameModeAlt={match.gameMode}
-                                  matchNumber={match.matchNumber}
-                                  gameTypeAndMap={match.gameTypeAndMap}
-                                  duration={match.duration}
-                                  score={match.score}
-                                  startTime={match.startTime}
-                                  endTime={match.endTime}
+                          <div className={styles.seriesMatches}>
+                            {item.seriesTotals != null ? (
+                              <div className={styles.matchStatsCard}>
+                                <SeriesStats
+                                  teamData={item.seriesTotals.teamData}
+                                  playerData={item.seriesTotals.playerData}
+                                  title="Series Totals"
+                                  metadata={item.seriesTotals.metadata}
                                   teamColors={renderModel.teamColors}
                                 />
                               </div>
-                            );
-                          })}
-                        </div>
-                      </details>
+                            ) : null}
+
+                            {item.matches.map((match) => {
+                              if (match.matchStats == null) {
+                                return (
+                                  <Alert key={match.id} variant="warning">
+                                    Match stats unavailable for {match.id}
+                                  </Alert>
+                                );
+                              }
+
+                              return (
+                                <div className={styles.matchStatsCard} key={match.id}>
+                                  <MatchStatsView
+                                    data={match.matchStats}
+                                    id={match.id}
+                                    backgroundImageUrl={match.backgroundImageUrl}
+                                    gameModeIconUrl={gameModeIconSrc(match.gameMode)}
+                                    gameModeAlt={match.gameMode}
+                                    matchNumber={match.matchNumber}
+                                    gameTypeAndMap={match.gameTypeAndMap}
+                                    duration={match.duration}
+                                    score={match.score}
+                                    startTime={match.startTime}
+                                    endTime={match.endTime}
+                                    teamColors={renderModel.teamColors}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      </CollapsiblePanel>
                     </section>
                   );
                 }
 
                 return (
                   <section className={styles.standaloneSection} key={item.id}>
-                    <div className={styles.standaloneMatch}>
+                    <CollapsiblePanel
+                      id={item.id}
+                      defaultExpanded={true}
+                      className={styles.standaloneMatch}
+                      toggleClassName={styles.matchToggle}
+                      contentClassName={styles.collapsibleBody}
+                      contentInnerClassName={styles.collapsibleBody}
+                      header={(expanded) => (
+                        <div className={styles.matchToggleHeader}>
+                          <MatchStatsHeader
+                            className={styles.standaloneMatchHeader}
+                            title={`Match ${item.match.matchNumber.toString()}: ${item.match.gameTypeAndMap}`}
+                            backgroundImageUrl={item.match.backgroundImageUrl}
+                            gameModeIconUrl={gameModeIconSrc(item.match.gameMode)}
+                            gameModeAlt={item.match.gameMode}
+                            duration={item.match.duration}
+                            score={item.match.score}
+                            startTime={item.match.startTime}
+                            endTime={item.match.endTime}
+                            showFade={expanded}
+                          />
+                          <span className={styles.matchToggleIndicator}>
+                            <ChevronIcon expanded={expanded} />
+                          </span>
+                        </div>
+                      )}
+                    >
                       {item.match.matchStats == null ? (
                         <Alert variant="warning">Match stats unavailable for {item.match.id}</Alert>
                       ) : (
@@ -271,9 +398,11 @@ export function IndividualTrackerViewer({
                           startTime={item.match.startTime}
                           endTime={item.match.endTime}
                           teamColors={renderModel.teamColors}
+                          showHeader={false}
+                          seamlessTop={true}
                         />
                       )}
-                    </div>
+                    </CollapsiblePanel>
                   </section>
                 );
               })}

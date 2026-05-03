@@ -4,9 +4,14 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
 import { SeriesStats } from "../series-stats";
-import { aFakeMatchStatsDataWith, aFakeMatchStatsPlayerDataWith } from "../fakes/component-data";
+import {
+  aFakeMatchStatsDataWith,
+  aFakeMatchStatsPlayerDataWith,
+  aFakeMatchStatsValuesWith,
+} from "../fakes/component-data";
 import type { SeriesMetadata } from "../series-metadata";
 import type { TeamColor } from "../../team-colors/team-colors";
+import tableStyles from "../../table/table.module.css";
 
 afterEach(() => {
   cleanup();
@@ -184,5 +189,36 @@ describe("SeriesStats", () => {
     expect(teamStatsElements).toHaveLength(0);
     const playerStatsElements = screen.queryAllByText("Accumulated Player Stats");
     expect(playerStatsElements).toHaveLength(0);
+  });
+
+  it("supports plain accumulated rendering without headers or highlight classes", () => {
+    const playerData = [
+      aFakeMatchStatsDataWith({
+        teamId: 0,
+        players: [
+          aFakeMatchStatsPlayerDataWith({
+            name: "TrackedPlayer",
+            values: [aFakeMatchStatsValuesWith({ name: "Kills", value: 10, bestInTeam: true, bestInMatch: true })],
+          }),
+        ],
+      }),
+    ];
+
+    const { container } = render(
+      <SeriesStats
+        teamData={[]}
+        playerData={playerData}
+        title="Tracked Player Totals"
+        metadata={seriesMetadata}
+        showHeader={false}
+        showSectionHeaders={false}
+        highlightBestStats={false}
+      />,
+    );
+
+    expect(screen.queryByText("Tracked Player Totals")).not.toBeInTheDocument();
+    expect(screen.queryByText("Accumulated Player Stats")).not.toBeInTheDocument();
+    expect(container.querySelector(`.${tableStyles.bestInTeam}`)).toBeNull();
+    expect(container.querySelector(`.${tableStyles.bestInMatch}`)).toBeNull();
   });
 });

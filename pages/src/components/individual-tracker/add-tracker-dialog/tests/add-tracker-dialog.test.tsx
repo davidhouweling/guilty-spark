@@ -28,7 +28,11 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
-            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
+            seriesGroups: readonly {
+              matchIds: readonly string[];
+              titleOverride: string | null;
+              subtitleOverride: string | null;
+            }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}
@@ -82,7 +86,11 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
-            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
+            seriesGroups: readonly {
+              matchIds: readonly string[];
+              titleOverride: string | null;
+              subtitleOverride: string | null;
+            }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}
@@ -177,7 +185,11 @@ describe("AddTrackerDialog", () => {
         gamertag: string;
         selectedMatchIds: readonly string[];
         matchGroupings: readonly (readonly string[])[];
-        seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
+        seriesGroups: readonly {
+          matchIds: readonly string[];
+          titleOverride: string | null;
+          subtitleOverride: string | null;
+        }[];
         matches: readonly TrackerMatchHistoryEntry[];
       }) => Promise<void>
     >(async () => Promise.resolve());
@@ -309,7 +321,11 @@ describe("AddTrackerDialog", () => {
             gamertag: string;
             selectedMatchIds: readonly string[];
             matchGroupings: readonly (readonly string[])[];
-            seriesGroups: readonly { matchIds: readonly string[]; titleOverride: string | null; subtitleOverride: string | null }[];
+            seriesGroups: readonly {
+              matchIds: readonly string[];
+              titleOverride: string | null;
+              subtitleOverride: string | null;
+            }[];
             matches: readonly TrackerMatchHistoryEntry[];
           }) => Promise<void>
         >()}

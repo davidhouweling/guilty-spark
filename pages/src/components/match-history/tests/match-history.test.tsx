@@ -91,7 +91,10 @@ describe("MatchHistory", () => {
           aMatchWith("m4", "custom", "Capture the Flag"),
         ]}
         showGroupings={true}
-        groupings={[["m1", "m2"], ["m3", "m4"]]}
+        groupings={[
+          ["m1", "m2"],
+          ["m3", "m4"],
+        ]}
       />,
     );
 

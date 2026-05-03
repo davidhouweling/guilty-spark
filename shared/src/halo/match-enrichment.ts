@@ -183,7 +183,9 @@ function haveSameSequentialSeriesSignature(
 }
 
 export function collapseSequentialSeriesEntries<T extends SequentialSeriesEntry>(entries: readonly T[]): T[] {
-  const sortedEntries = [...entries].sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime());
+  const sortedEntries = [...entries].sort(
+    (left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime(),
+  );
   const collapsedEntries: T[] = [];
 
   for (const [index, entry] of sortedEntries.entries()) {

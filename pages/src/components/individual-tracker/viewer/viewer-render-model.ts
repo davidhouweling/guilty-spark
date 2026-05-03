@@ -7,7 +7,11 @@ import type { MatchStatsData } from "../../stats/types";
 import { SeriesTeamStatsPresenter } from "../../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../../stats/series-player-stats-presenter";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
-import { buildSeriesGroupKey, getDefaultSeriesGroupSubtitle, getDefaultSeriesGroupTitle } from "../series-group-metadata";
+import {
+  buildSeriesGroupKey,
+  getDefaultSeriesGroupSubtitle,
+  getDefaultSeriesGroupTitle,
+} from "../series-group-metadata";
 import type {
   IndividualTrackerViewerAccumulatedStats,
   IndividualTrackerViewerMatchCard,
@@ -123,7 +127,9 @@ function buildSeriesGroups(
   const trackedIdSet = new Set(trackedMatchIds);
   const groupedMatchIds = new Set<string>();
   const entryById = buildEntryByIdMap(matchHistory.matches);
-  const stateSeriesGroupsByKey = new Map(stateSeriesGroups.map((group) => [buildSeriesGroupKey(group.matchIds), group]));
+  const stateSeriesGroupsByKey = new Map(
+    stateSeriesGroups.map((group) => [buildSeriesGroupKey(group.matchIds), group]),
+  );
   const groups: SeriesGroupViewModel[] = [];
 
   for (const suggestedGroup of groupingSource) {

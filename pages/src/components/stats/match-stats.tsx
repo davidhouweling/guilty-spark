@@ -23,9 +23,72 @@ interface MatchStatsProps {
   readonly startTime: string;
   readonly endTime: string;
   readonly teamColors?: readonly TeamColor[];
+  readonly showHeader?: boolean;
+  readonly seamlessTop?: boolean;
+}
+
+interface MatchStatsHeaderProps {
+  readonly title: string;
+  readonly backgroundImageUrl: string;
+  readonly gameModeIconUrl: string;
+  readonly gameModeAlt: string;
+  readonly score: string;
+  readonly duration: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly showFade?: boolean;
+  readonly className?: string;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
+
+export function MatchStatsHeader({
+  title,
+  backgroundImageUrl,
+  gameModeIconUrl,
+  gameModeAlt,
+  score,
+  duration,
+  startTime,
+  endTime,
+  showFade = true,
+  className,
+}: MatchStatsHeaderProps): React.ReactElement {
+  return (
+    <div
+      className={classNames(
+        styles.matchHeader,
+        {
+          [styles.matchHeaderNoFade]: !showFade,
+        },
+        className,
+      )}
+      style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
+    >
+      <div className={styles.matchHeaderContent}>
+        <h3 className={styles.matchTitle}>{title}</h3>
+        <ul className={styles.matchMetadata}>
+          <li>
+            <span className={styles.matchMetaLabel}>Score:</span> <span className={styles.matchMetaValue}>{score}</span>
+          </li>
+          <li>
+            <span className={styles.matchMetaLabel}>Duration:</span>{" "}
+            <span className={styles.matchMetaValue}>{duration}</span>
+          </li>
+          <li>
+            <span className={styles.matchMetaLabel}>Start time:</span>{" "}
+            <span className={styles.matchMetaValue}>{new Date(startTime).toLocaleString()}</span>
+          </li>
+          <li>
+            <span className={styles.matchMetaLabel}>End time:</span>{" "}
+            <span className={styles.matchMetaValue}>{new Date(endTime).toLocaleString()}</span>
+          </li>
+        </ul>
+      </div>
+      <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
+    </div>
+  );
+}
 
 export function MatchStats({
   data,
@@ -40,6 +103,8 @@ export function MatchStats({
   startTime,
   endTime,
   teamColors,
+  showHeader = true,
+  seamlessTop = false,
 }: MatchStatsProps): React.ReactElement {
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
@@ -177,33 +242,24 @@ export function MatchStats({
   );
 
   return (
-    <div className={styles.matchStatsContainer} id={id}>
-      <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
-        <div className={styles.matchHeaderContent}>
-          <h3 className={styles.matchTitle}>
-            Match {matchNumber}: {gameTypeAndMap}
-          </h3>
-          <ul className={styles.matchMetadata}>
-            <li>
-              <span className={styles.matchMetaLabel}>Score:</span>{" "}
-              <span className={styles.matchMetaValue}>{score}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-              <span className={styles.matchMetaValue}>{duration}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>Start time:</span>{" "}
-              <span className={styles.matchMetaValue}>{new Date(startTime).toLocaleString()}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>End time:</span>{" "}
-              <span className={styles.matchMetaValue}>{new Date(endTime).toLocaleString()}</span>
-            </li>
-          </ul>
-        </div>
-        <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      </div>
+    <div
+      className={classNames(styles.matchStatsContainer, {
+        [styles.matchStatsContainerSeamlessTop]: seamlessTop,
+      })}
+      id={id}
+    >
+      {showHeader ? (
+        <MatchStatsHeader
+          title={`Match ${matchNumber.toString()}: ${gameTypeAndMap}`}
+          backgroundImageUrl={backgroundImageUrl}
+          gameModeIconUrl={gameModeIconUrl}
+          gameModeAlt={gameModeAlt}
+          score={score}
+          duration={duration}
+          startTime={startTime}
+          endTime={endTime}
+        />
+      ) : null}
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <h3 className={styles.subsectionHeader}>Team Totals</h3>
