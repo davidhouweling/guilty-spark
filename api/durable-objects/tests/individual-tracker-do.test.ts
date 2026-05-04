@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
+import type { IndividualTrackerNeatQueueSeriesData } from "@guilty-spark/shared/individual-tracker/types";
 import { IndividualTrackerDO } from "../individual-tracker/individual-tracker-do";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../services/fakes/services";
@@ -165,5 +166,71 @@ describe("IndividualTrackerDO", () => {
     const finalState = storagePutSpy.mock.calls.at(-1)?.[1] as IndividualTrackerState | undefined;
     expect(finalState?.refreshInProgress).toBe(false);
     expect(finalState?.refreshStartedAt).toBeUndefined();
+  });
+
+  it("stores NeatQueue series metadata on a grouped series update", async () => {
+    trackerState = aFakeIndividualTrackerStateWith({
+      userId: "user-1",
+      matchGroupings: [["match-1", "match-2"]],
+    });
+    storageGetSpy.mockResolvedValue(trackerState);
+
+    const neatQueueSeriesData: IndividualTrackerNeatQueueSeriesData = {
+      seriesId: {
+        guildId: "guild-1",
+        queueNumber: 7,
+      },
+      teams: [
+        { name: "Eagle", playerIds: ["player-1", "player-2"] },
+        { name: "Cobra", playerIds: ["player-3", "player-4"] },
+      ],
+      seriesScore: "2:1",
+      matchIds: ["match-1", "match-2"],
+      playersAssociationData: {
+        "player-1": {
+          discordId: "discord-1",
+          discordName: "Player One",
+          xboxId: "xuid-1",
+          gamertag: "PlayerOne",
+          currentRank: null,
+          currentRankTier: null,
+          currentRankSubTier: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: null,
+          esra: null,
+          lastRankedGamePlayed: null,
+        },
+      },
+      substitutions: [],
+      startTime: new Date().toISOString(),
+      lastUpdateTime: new Date().toISOString(),
+    };
+
+    const response = await individualTrackerDO.fetch(
+      new Request("https://example.com/series-groups-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "user-1",
+          matchIds: ["match-1", "match-2"],
+          titleOverride: "Guild Name",
+          subtitleOverride: "Queue #7",
+          neatQueueSeriesData,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+
+    const finalState = storagePutSpy.mock.calls.at(-1)?.[1] as IndividualTrackerState | undefined;
+    expect(finalState?.seriesGroups).toEqual([
+      {
+        matchIds: ["match-1", "match-2"],
+        titleOverride: "Guild Name",
+        subtitleOverride: "Queue #7",
+        neatQueueSeriesData,
+      },
+    ]);
   });
 });

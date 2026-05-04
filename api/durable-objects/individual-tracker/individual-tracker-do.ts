@@ -582,15 +582,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const titleOverride = body.titleOverride?.trim() === "" ? null : body.titleOverride;
     const subtitleOverride = body.subtitleOverride?.trim() === "" ? null : body.subtitleOverride;
+    const neatQueueSeriesData =
+      body.neatQueueSeriesData == null
+        ? undefined
+        : {
+            ...body.neatQueueSeriesData,
+            matchIds: normalizedMatchIds,
+          };
     const nextSeriesGroups = trackerState.seriesGroups.filter(
       (group) => buildSeriesGroupKey(group.matchIds) !== targetKey,
     );
 
-    if (titleOverride != null || subtitleOverride != null) {
+    if (titleOverride != null || subtitleOverride != null || neatQueueSeriesData != null) {
       nextSeriesGroups.push({
         matchIds: normalizedMatchIds,
         titleOverride,
         subtitleOverride,
+        neatQueueSeriesData,
       } satisfies IndividualTrackerSeriesGroup);
     }
 

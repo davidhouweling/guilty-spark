@@ -36,6 +36,7 @@ import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
+import type { IndividualTrackerNeatQueueSeriesData } from "@guilty-spark/shared/individual-tracker/types";
 import { isSuccessResponse } from "../../durable-objects/types";
 import type { IndividualTrackerStatusResponse } from "../../durable-objects/individual-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
@@ -912,7 +913,7 @@ export class NeatQueueService {
 
           series = Object.values(seriesData.rawMatches) as MatchStats[];
 
-          await this.fanOutSeriesDefaultsToIndividualTrackers(request, seriesData);
+          await this.fanOutSeriesDefaultsToIndividualTrackers(request, seriesData, liveTrackerStatus);
 
           if (series.length > 0) {
             const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
@@ -978,6 +979,24 @@ export class NeatQueueService {
   private async fanOutSeriesDefaultsToIndividualTrackers(
     request: NeatQueueMatchCompletedRequest,
     seriesData: LiveTrackerSeriesDataResponse,
+    liveTrackerStatus:
+      | IndividualTrackerStatusResponse
+      | {
+          state: {
+            teams: TeamMapping[];
+            seriesScore: string;
+            playersAssociationData: Record<string, PlayerAssociationData>;
+            substitutions: {
+              playerOutId: string;
+              playerInId: string;
+              teamIndex: number;
+              teamName: string;
+              timestamp: string;
+            }[];
+            startTime: string;
+            lastUpdateTime: string;
+          };
+        },
   ): Promise<void> {
     const targetMatchIds = Array.from(new Set(seriesData.matchIds));
     if (targetMatchIds.length < 2) {
@@ -1013,6 +1032,19 @@ export class NeatQueueService {
     const titleOverride = guildData?.name ?? null;
     const subtitleOverride = `Queue #${request.match_number.toString()}`;
     const targetKey = this.buildSeriesGroupKey(targetMatchIds);
+    const neatQueueSeriesData: IndividualTrackerNeatQueueSeriesData = {
+      seriesId: {
+        guildId: request.guild,
+        queueNumber: request.match_number,
+      },
+      teams: liveTrackerStatus.state.teams,
+      seriesScore: liveTrackerStatus.state.seriesScore,
+      matchIds: targetMatchIds,
+      playersAssociationData: liveTrackerStatus.state.playersAssociationData,
+      substitutions: liveTrackerStatus.state.substitutions,
+      startTime: liveTrackerStatus.state.startTime,
+      lastUpdateTime: liveTrackerStatus.state.lastUpdateTime,
+    };
 
     await Promise.all(
       trackerSessions.map(async (trackerSession) => {
@@ -1046,6 +1078,7 @@ export class NeatQueueService {
             matchIds: matchingGroup,
             titleOverride,
             subtitleOverride,
+            neatQueueSeriesData,
           }),
         });
       }),

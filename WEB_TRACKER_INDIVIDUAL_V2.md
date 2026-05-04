@@ -1,9 +1,9 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 advanced and still in progress
-**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 3, 2026)
+**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 advanced, viewer/runtime follow-ups still in progress
+**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 4, 2026)
 
-## Current implementation snapshot (May 3, 2026)
+## Current implementation snapshot (May 4, 2026)
 
 - Shared `match-history` component is implemented and reused by both Add Tracker and Game Selection flows.
 - Live tracker row actions are wired end-to-end for pause, resume, stop, delete, set-live, and game-selection sync.
@@ -16,6 +16,9 @@
 - Raw viewed-tracker and viewed-match-history data are now presenter-private implementation details; the public snapshot exposes only loading/connection state plus the derived viewer render model.
 - Historical gameplay ordering is covered by focused render-model tests to keep grouped series and standalone matches in chronological order.
 - Active tracker game selection now syncs through a single bulk request that updates tracker membership atomically and persists manual match groupings into DO state for viewer mode.
+- Viewer header metadata now reuses the same rank / peak / game-count summary UI as the Add Tracker search flow rather than showing a low-value tracker ID.
+- Grouped-series score derivation now follows Halo team-index ordering and uses raw match stats when available, with focused regression coverage for the previously mismatched `1:2` style cases.
+- Individual tracker DO alarm handling now has focused test coverage and follows the same lock-clearing / rescheduling pattern as the NeatQueue live tracker more closely.
 
 ## Goal
 
@@ -362,7 +365,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 ### Phase 3 - Individual live tracker architecture and UX alignment
 
-- [ ] Confirm auth/login page UX and post-login redirect behavior across routes.
+- [x] Confirm auth/login page UX and post-login redirect behavior across routes.
 - [x] Reintroduce a separate individual live tracker Durable Object.
 - [x] Add authenticated start/stop/status routes for individual live trackers.
 - [x] Ensure individual live trackers use the signed-in user's Halo credentials rather than the default shared live-tracker credentials.
@@ -373,6 +376,8 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] Stop trackers automatically only when no new matches are discovered within the configured window.
 - [ ] Integrate NeatQueue series metadata when the active tracker corresponds to a NeatQueue series, including grouped-series defaults, teams, pre-series player info, and substitutions.
 
+> Current Phase 3 state: the core individual tracker runtime and owner-facing manage/view experience are delivered. The remaining Phase 3 backlog is limited to auth/logout UX polish and NeatQueue-driven grouped-series context fanout.
+
 ### Phase 4 - Streamer controls
 
 - [x] `streamer_view_settings` D1 schema defined and ready to execute manually.
@@ -381,6 +386,8 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [ ] Broader streamer-view layout/preferences UI.
 - [ ] URL/share behavior for live stream usage.
 - [x] Allow the owner to select which active tracker is presented on stream.
+
+> Current Phase 4 state: the required backend schema/API work and owner-side live-tracker selection are in place. The remaining Phase 4 backlog is primarily broader settings UX and stream-facing share/discovery behaviour.
 
 ### Phase 5 - Twitch extension integration
 
@@ -584,16 +591,16 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 
 ## Phase 3 UX implementation phases
 
-Implementation will proceed in individual committed phases:
+Core owner workflow delivery is complete. The remaining implementation slices below are the outstanding follow-up backlog:
 
 1. [x] **Shell + tracker list** — new 3-section shell, tracker list with pinned row, status badges, Live badge, empty state info panel, "Add tracker" button.
 2. [x] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
 3. [x] **Row actions** — ellipsis menu with all actions wired to backend (pause, resume, set live, delete).
 4. [x] **Game selection sync dialog** — sync-on-close behaviour.
-5. [ ] **Streamer settings integration** — global settings in profile dropdown, per-tracker override dialog.
-6. [ ] **Streamer connections + additional options** — Twitch linking UI, auto-start/stop config, additional toggles.
+5. [ ] **Streamer settings integration** — move from the current Additional Options baseline to the broader global settings + per-tracker override UX.
+6. [ ] **Streamer connections + additional options** — add Twitch linking UI, auto-start/stop config, and the remaining operator toggles.
 
-Each phase is committed separately with the proposal document updated to reflect progress.
+Each backlog item should still land in a separate commit with this document updated alongside it.
 
 ### Phase progress log
 
@@ -609,11 +616,14 @@ Each phase is committed separately with the proposal document updated to reflect
 - [x] Viewer styling follow-up delivered: individual tracker grouped-series view now supports borderless inner parts to better match intended presentation.
 - [x] Viewer architecture follow-up delivered: moved grouped timeline/stat derivation into a presenter-side render model and added focused unit coverage for chronological ordering.
 - [x] Game selection sync follow-up delivered: replaced per-match add/remove requests with a single bulk tracker sync and persisted manual match groupings for viewer rendering.
+- [x] Viewer metadata follow-up delivered: replaced viewer tracker-ID copy with the same reusable rank / peak / game-count summary used by Add Tracker.
+- [x] Viewer score follow-up delivered: grouped-series score now derives from Halo team-order data instead of tracked-player win/loss orientation.
+- [x] Runtime reliability follow-up delivered: individual tracker DO alarm flow now has focused coverage for initial scheduling, periodic polling, rescheduling, and stale refresh-lock cleanup.
 - [ ] Next viewer follow-up planned: grouped-series runtime labels plus NeatQueue-backed series context fanout into active individual trackers.
 
 ### Current operator note - View tracker behavior
 
-Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker?mode=active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling.
+Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker?mode=active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling, team-order-correct grouped-series scoring, and the shared rank / peak / game-count summary block in the header.
 
 Still pending: a broader public viewer experience (follow-the-stream route UX, streamer discovery, and non-owner browsing flows).
 
@@ -677,7 +687,7 @@ Decision: Approach B selected; individual tracker UI now boots from REST and str
 - Database: ensure new columns/table for individual tracker sessions are applied in D1 before validating start/stop behavior.
 - Routes: ensure deployed `wrangler.jsonc` includes `api/individual-tracker/*` and `ws/individual-tracker/*` entries in target environment.
 - Session data: verify local `.dev.vars` has Microsoft OAuth values and Halo proxy credentials configured.
-- Next manual validation: sign in, create/update profile, start tracker with idle timeout, verify live state updates, then stop tracker.
+- Next manual validation: sign in, create/update profile, start tracker with idle timeout, verify live state updates, verify grouped-series score stays aligned with visible match scores, then stop tracker.
 
 ## What I need from David to verify
 
@@ -688,7 +698,9 @@ Please run this quick checklist and share outcomes (pass/fail plus any response 
 3. Confirm stop sets status to stopped and tracker runtime entry is removed from running list.
 4. Confirm refresh/reload preserves running trackers via `/api/individual-tracker/manage/:userId/trackers`.
 5. Confirm "View" opens the richer read-only viewer mode for `?tracker=` and that `?mode=active` follows the currently active tracker for the signed-in owner.
-6. Optional but useful: share one server log block from start flow and one from a stop flow so we can confirm route/DO pathing in your environment.
+6. Confirm the viewer header shows the shared rank / peak / game-count summary instead of tracker ID copy.
+7. Confirm one grouped series with at least 2-3 visible games has a banner score that matches the visible per-game score ordering.
+8. Optional but useful: share one server log block from start flow, one from a stop flow, and one snippet showing periodic individual-tracker polling/alarm activity so we can confirm route/DO pathing in your environment.
 
 ## Open decisions (to finalize before implementation)
 

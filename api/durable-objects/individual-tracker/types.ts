@@ -1,4 +1,7 @@
-import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individual-tracker/types";
+import type {
+  IndividualTrackerNeatQueueSeriesData,
+  IndividualTrackerSeriesGroup,
+} from "@guilty-spark/shared/individual-tracker/types";
 import type { LiveTrackerStatus } from "@guilty-spark/shared/live-tracker/types";
 
 export const IDLE_TIMEOUT_HOURS = [1, 2, 3, 4, 5, 6] as const;
@@ -81,6 +84,7 @@ export interface IndividualTrackerSeriesGroupUpdateRequest {
   matchIds: string[];
   titleOverride: string | null;
   subtitleOverride: string | null;
+  neatQueueSeriesData?: IndividualTrackerNeatQueueSeriesData;
 }
 
 export interface IndividualTrackerSelectActiveRequest {

@@ -30,6 +30,7 @@ interface SeriesGroupViewModel {
   readonly subtitle: string;
   readonly seriesScore: string;
   readonly entries: readonly TrackerMatchHistoryEntry[];
+  readonly neatQueueSeriesData?: NonNullable<IndividualTrackerState["seriesGroups"][number]["neatQueueSeriesData"]>;
 }
 
 type GameplayTimelineItem =
@@ -206,6 +207,14 @@ function computeSeriesScore(entries: readonly TrackerMatchHistoryEntry[]): strin
   return `${firstTeamWins.toString()}:${secondTeamWins.toString()}`;
 }
 
+function getNeatQueuePlayerDisplayName(
+  playerId: string,
+  playersAssociationData: NonNullable<SeriesGroupViewModel["neatQueueSeriesData"]>["playersAssociationData"],
+): string {
+  const playerData = playersAssociationData[playerId];
+  return playerData?.gamertag ?? playerData?.discordName ?? playerId;
+}
+
 function buildSeriesGroups(
   trackedMatchIds: readonly string[],
   stateSeriesGroups: IndividualTrackerState["seriesGroups"],
@@ -252,6 +261,7 @@ function buildSeriesGroups(
       subtitle: stateSeriesGroup?.subtitleOverride ?? getDefaultSeriesGroupSubtitle(entries),
       seriesScore: computeSeriesScore(entries),
       entries,
+      neatQueueSeriesData: stateSeriesGroup?.neatQueueSeriesData,
     });
   }
 
@@ -526,6 +536,8 @@ export function buildIndividualTrackerViewerRenderModel({
       const [firstMatch] = group.entries;
       const seriesTotals = seriesStatsByGroup.get(group.id) ?? null;
       const canonicalTeams = firstMatch.teams.slice(0, 2);
+      const neatQueueTeams = group.neatQueueSeriesData?.teams;
+      const neatQueuePlayersAssociationData = group.neatQueueSeriesData?.playersAssociationData;
 
       return {
         type: "group",
@@ -541,15 +553,24 @@ export function buildIndividualTrackerViewerRenderModel({
           mapThumbnailUrl: entry.mapThumbnailUrl,
           winningTeamIndex: getWinningTeamIndex(entry, canonicalTeams) ?? undefined,
         })),
-        teams: firstMatch.teams.slice(0, 2).map((team, teamIndex) => ({
-          id: `${group.id}-team-${teamIndex.toString()}`,
-          name: `Team ${(teamIndex + 1).toLocaleString()}`,
-          colorHex: teamColors[teamIndex]?.hex,
-          players: team.map((player) => ({
-            id: `${group.id}-team-${teamIndex.toString()}-${player}`,
-            content: player,
-          })),
-        })),
+        teams: firstMatch.teams.slice(0, 2).map((team, teamIndex) => {
+          const neatQueueTeam = neatQueueTeams?.[teamIndex];
+          return {
+            id: `${group.id}-team-${teamIndex.toString()}`,
+            name: neatQueueTeam?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+            colorHex: teamColors[teamIndex]?.hex,
+            players:
+              neatQueueTeam != null && neatQueuePlayersAssociationData != null
+                ? neatQueueTeam.playerIds.map((playerId) => ({
+                    id: `${group.id}-team-${teamIndex.toString()}-${playerId}`,
+                    content: getNeatQueuePlayerDisplayName(playerId, neatQueuePlayersAssociationData),
+                  }))
+                : team.map((player) => ({
+                    id: `${group.id}-team-${teamIndex.toString()}-${player}`,
+                    content: player,
+                  })),
+          };
+        }),
         seriesTotals,
         matches: group.entries.map((entry, entryIndex) =>
           buildMatchCard(entry, allMatchStats.get(entry.matchId) ?? null, entryIndex + 1),

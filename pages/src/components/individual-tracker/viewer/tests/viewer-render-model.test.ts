@@ -199,6 +199,128 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     }
   });
 
+  it("uses NeatQueue series metadata for grouped-series team names and players", () => {
+    const matches = [
+      aHistoryEntryWith({
+        matchId: "m1",
+        teams: [
+          ["TrackedPlayer", "Teammate"],
+          ["Enemy1", "Enemy2"],
+        ],
+      }),
+      aHistoryEntryWith({
+        matchId: "m2",
+        teams: [
+          ["TrackedPlayer", "Teammate"],
+          ["Enemy1", "Enemy2"],
+        ],
+      }),
+    ] as const;
+
+    const state = aFakeIndividualTrackerStateWith({
+      gamertag: "TrackedPlayer",
+      matchIds: ["m2", "m1"],
+      matchGroupings: [["m1", "m2"]],
+      seriesGroups: [
+        {
+          matchIds: ["m1", "m2"],
+          titleOverride: "Clutch Academy",
+          subtitleOverride: "Queue #12",
+          neatQueueSeriesData: {
+            seriesId: {
+              guildId: "guild-1",
+              queueNumber: 12,
+            },
+            teams: [
+              { name: "Eagles", playerIds: ["discord-1", "discord-2"] },
+              { name: "Cobras", playerIds: ["discord-3", "discord-4"] },
+            ],
+            seriesScore: "1:1",
+            matchIds: ["m1", "m2"],
+            playersAssociationData: {
+              "discord-1": {
+                discordId: "discord-1",
+                discordName: "Tracked Discord",
+                xboxId: "xuid-1",
+                gamertag: "TrackedPlayer",
+                currentRank: null,
+                currentRankTier: null,
+                currentRankSubTier: null,
+                currentRankMeasurementMatchesRemaining: null,
+                currentRankInitialMeasurementMatches: null,
+                allTimePeakRank: null,
+                esra: null,
+                lastRankedGamePlayed: null,
+              },
+              "discord-2": {
+                discordId: "discord-2",
+                discordName: "Team Mate",
+                xboxId: "xuid-2",
+                gamertag: "Teammate",
+                currentRank: null,
+                currentRankTier: null,
+                currentRankSubTier: null,
+                currentRankMeasurementMatchesRemaining: null,
+                currentRankInitialMeasurementMatches: null,
+                allTimePeakRank: null,
+                esra: null,
+                lastRankedGamePlayed: null,
+              },
+              "discord-3": {
+                discordId: "discord-3",
+                discordName: "Enemy One",
+                xboxId: "xuid-3",
+                gamertag: "Enemy1",
+                currentRank: null,
+                currentRankTier: null,
+                currentRankSubTier: null,
+                currentRankMeasurementMatchesRemaining: null,
+                currentRankInitialMeasurementMatches: null,
+                allTimePeakRank: null,
+                esra: null,
+                lastRankedGamePlayed: null,
+              },
+              "discord-4": {
+                discordId: "discord-4",
+                discordName: "Enemy Two",
+                xboxId: "xuid-4",
+                gamertag: "Enemy2",
+                currentRank: null,
+                currentRankTier: null,
+                currentRankSubTier: null,
+                currentRankMeasurementMatchesRemaining: null,
+                currentRankInitialMeasurementMatches: null,
+                allTimePeakRank: null,
+                esra: null,
+                lastRankedGamePlayed: null,
+              },
+            },
+            substitutions: [],
+            startTime: "2026-01-01T00:00:00.000Z",
+            lastUpdateTime: "2026-01-01T00:30:00.000Z",
+          },
+        },
+      ],
+    });
+
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state,
+      matchHistory: aHistoryResponseWith(matches, []),
+      medalMetadata: {},
+      defaultTeamColor: "salmon",
+      defaultEnemyColor: "cerulean",
+    });
+
+    expect(renderModel).not.toBeNull();
+    const groupedItem = renderModel?.gameplayTimeline[0];
+    expect(groupedItem?.type).toBe("group");
+    if (groupedItem?.type === "group") {
+      expect(groupedItem.teams.map((team) => team.name)).toEqual(["Eagles", "Cobras"]);
+      expect(groupedItem.teams[0]?.players.map((player) => player.content)).toEqual(["TrackedPlayer", "Teammate"]);
+      expect(groupedItem.teams[1]?.players.map((player) => player.content)).toEqual(["Enemy1", "Enemy2"]);
+    }
+  });
+
   it("infers Best of 5 from a grouped 3-0 series", () => {
     const matches = [
       aHistoryEntryWith({ matchId: "m1", outcome: "Win", startTimeIso: "2026-01-01T00:00:00.000Z" }),

@@ -1244,6 +1244,7 @@ describe("NeatQueueService", () => {
       it("fans out default series labels to matching individual trackers by xuid", async () => {
         const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
         const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+        const liveTrackerState = aFakeLiveTrackerStateWith({ status: "active" });
         const rawMatches: Record<string, MatchStats> = {
           [match1.MatchId]: match1,
           [match2.MatchId]: match2,
@@ -1278,9 +1279,7 @@ describe("NeatQueueService", () => {
           },
         };
 
-        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
-          state: aFakeLiveTrackerStateWith({ status: "active" }),
-        });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({ state: liveTrackerState });
         vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
           success: true,
           state: aFakeLiveTrackerStateWith({
@@ -1335,6 +1334,19 @@ describe("NeatQueueService", () => {
               matchIds: [match1.MatchId, match2.MatchId],
               titleOverride: guild.name,
               subtitleOverride: `Queue #${Preconditions.checkExists(getFakeNeatQueueData("matchCompleted").match_number).toString()}`,
+              neatQueueSeriesData: {
+                seriesId: {
+                  guildId: getFakeNeatQueueData("matchCompleted").guild,
+                  queueNumber: Preconditions.checkExists(getFakeNeatQueueData("matchCompleted").match_number),
+                },
+                teams: liveTrackerState.teams,
+                seriesScore: liveTrackerState.seriesScore,
+                matchIds: [match1.MatchId, match2.MatchId],
+                playersAssociationData: liveTrackerState.playersAssociationData,
+                substitutions: liveTrackerState.substitutions,
+                startTime: liveTrackerState.startTime,
+                lastUpdateTime: liveTrackerState.lastUpdateTime,
+              },
             }),
           }),
         );

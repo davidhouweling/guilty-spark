@@ -1,3 +1,6 @@
+import type { SeriesId, TeamMapping } from "../live-tracker/series-types";
+import type { PlayerAssociationData } from "../live-tracker/types";
+
 export type IndividualTrackerStatus = "active" | "paused" | "stopped";
 
 /**
@@ -16,6 +19,24 @@ export interface IndividualTrackerSeriesGroup {
   readonly matchIds: readonly string[];
   readonly titleOverride: string | null;
   readonly subtitleOverride: string | null;
+  readonly neatQueueSeriesData?: IndividualTrackerNeatQueueSeriesData;
+}
+
+export interface IndividualTrackerNeatQueueSeriesData {
+  readonly seriesId: SeriesId;
+  readonly teams: readonly TeamMapping[];
+  readonly seriesScore: string;
+  readonly matchIds: readonly string[];
+  readonly playersAssociationData: Record<string, PlayerAssociationData>;
+  readonly substitutions: readonly {
+    playerOutId: string;
+    playerInId: string;
+    teamIndex: number;
+    teamName: string;
+    timestamp: string;
+  }[];
+  readonly startTime: string;
+  readonly lastUpdateTime: string;
 }
 
 /**
