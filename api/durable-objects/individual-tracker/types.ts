@@ -183,6 +183,21 @@ export interface IndividualTrackerResumeSuccessResponse {
 
 export type IndividualTrackerResumeResponse = IndividualTrackerResumeSuccessResponse;
 
+export interface IndividualTrackerRefreshSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export interface IndividualTrackerRefreshFailureResponse {
+  success: false;
+  error?: string;
+  message?: string;
+}
+
+export type IndividualTrackerRefreshResponse =
+  | IndividualTrackerRefreshSuccessResponse
+  | IndividualTrackerRefreshFailureResponse;
+
 export interface IndividualTrackerStatusSuccessResponse {
   state: IndividualTrackerStateSanitized;
 }

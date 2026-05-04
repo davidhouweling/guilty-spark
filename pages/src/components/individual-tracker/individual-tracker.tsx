@@ -70,14 +70,22 @@ export function IndividualTrackerView({
     return (
       <Container className={styles.pageContainer}>
         <IndividualTrackerViewer
-          trackerId={snapshot.viewTrackerId}
-          viewSource={snapshot.viewSource}
+          trackerGamertag={snapshot.viewTrackerGamertag}
           connectionStatus={snapshot.viewConnectionStatus}
           errorMessage={snapshot.viewErrorMessage}
+          canManage={snapshot.viewerCanManage}
+          refreshInProgress={snapshot.viewerRefreshInProgress}
+          refreshStartedAt={snapshot.viewerRefreshStartedAt}
+          refreshPending={snapshot.viewerRefreshPending}
+          refreshMessage={snapshot.viewerRefreshMessage}
+          trackerSummary={snapshot.viewerTrackerSummary}
           renderModel={snapshot.viewerRenderModel}
           matchHistoryLoading={snapshot.viewedMatchHistoryLoading}
           onBackToManage={(): void => {
             presenter.exitViewerMode();
+          }}
+          onRefresh={(): void => {
+            void presenter.refreshViewerTracker();
           }}
         />
       </Container>

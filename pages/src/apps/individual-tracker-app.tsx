@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo } from "react";
+import TimeAgo from "javascript-time-ago";
+import en from "javascript-time-ago/locale/en";
 import type { Services } from "../services/types";
 import { ErrorState } from "../components/error-state/error-state";
 import { LoadingState } from "../components/loading-state/loading-state";
@@ -7,6 +9,8 @@ import { IndividualTrackerStore } from "../components/individual-tracker/individ
 import { createLiveTrackersSection } from "../components/individual-tracker/live-trackers/create";
 import { IndividualTrackerView } from "../components/individual-tracker/individual-tracker";
 import { BaseApp } from "./base-app";
+
+TimeAgo.addDefaultLocale(en);
 
 interface IndividualTrackerAppProps {
   readonly apiHost: string;

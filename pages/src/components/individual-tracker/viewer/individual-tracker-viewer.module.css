@@ -2,6 +2,37 @@
   padding: var(--space-6) 0;
 }
 
+.viewerActionBar {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.backButton {
+  align-self: flex-start;
+  opacity: 0.78;
+}
+
+.backButton:hover,
+.backButton:focus-visible {
+  opacity: 1;
+}
+
+.viewerActionRight {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.refreshHint {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
 .viewerSection {
   display: flex;
   flex-direction: column;
@@ -43,19 +74,11 @@
   align-items: flex-start;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-.viewerTitle {
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  margin: 0;
-}
-
-.viewerSubtitle {
-  color: var(--halo-gray);
-  font-size: var(--text-base);
-  margin: 0;
+.viewerSummary {
+  width: 100%;
 }
 
 .statusRow {
@@ -365,12 +388,18 @@
   margin: 0;
 }
 
-.inlineControls {
-  display: flex;
-  gap: var(--space-2);
-}
-
 @media (--tablet-viewport) {
+  .viewerActionBar {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .viewerActionRight {
+    align-items: center;
+    flex-direction: row;
+  }
+
   .viewerSection {
     margin-bottom: var(--space-6);
   }

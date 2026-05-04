@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 import type { IndividualTrackerViewerRenderModel } from "../../types";
+import type { TrackerSearchResult } from "../../../../services/individual-tracker/types";
 
 vi.mock("../../../stats/match-stats", () => ({
   MatchStats: ({ id }: { id: string }): React.ReactNode => <div>match-stats-body-{id}</div>,
@@ -17,6 +18,14 @@ vi.mock("../../../stats/series-stats", () => ({
 
 vi.mock("../../../stats/series-overview/series-overview", () => ({
   SeriesOverview: (): React.ReactNode => <div>series-overview-body</div>,
+}));
+
+vi.mock("react-time-ago", () => ({
+  default: ({ date }: { date: Date }): React.ReactNode => <span>{date.toISOString()}</span>,
+}));
+
+vi.mock("../../../icons/rank-icon", () => ({
+  RankIcon: (): React.ReactNode => <span>rank-icon</span>,
 }));
 
 afterEach(() => {
@@ -97,17 +106,45 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
   };
 }
 
+function aTrackerSummaryWith(): TrackerSearchResult {
+  return {
+    gamertag: "Chief",
+    xuid: "xuid-1",
+    rankLabel: "Onyx",
+    csrLabel: "1500",
+    currentRankTier: "Onyx",
+    currentRankSubTier: 0,
+    currentRankMeasurementMatchesRemaining: null,
+    currentRankInitialMeasurementMatches: null,
+    allTimePeakRankLabel: "Onyx",
+    allTimePeakCsrLabel: "1600",
+    allTimePeakRankTier: "Onyx",
+    allTimePeakRankSubTier: 0,
+    seasonPeakCsrLabel: "1550",
+    seasonPeakRankTier: "Onyx",
+    seasonPeakRankSubTier: 0,
+    matchmadeMatchCount: 1234,
+    customMatchCount: 456,
+  };
+}
+
 describe("IndividualTrackerViewer", () => {
   it("expands series and standalone matches by default and allows toggling them", () => {
     render(
       <IndividualTrackerViewer
-        trackerId="tracker-1"
-        viewSource="tracker"
+        trackerGamertag="Chief"
         connectionStatus="connected"
         errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
       />,
     );
 
@@ -127,13 +164,19 @@ describe("IndividualTrackerViewer", () => {
   it("toggles wide view from the accumulated stats header", () => {
     render(
       <IndividualTrackerViewer
-        trackerId="tracker-1"
-        viewSource="tracker"
+        trackerGamertag="Chief"
         connectionStatus="connected"
         errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
       />,
     );
 
@@ -146,13 +189,19 @@ describe("IndividualTrackerViewer", () => {
   it("preserves collapsed series state across rerenders", () => {
     const { rerender } = render(
       <IndividualTrackerViewer
-        trackerId="tracker-1"
-        viewSource="tracker"
+        trackerGamertag="Chief"
         connectionStatus="connected"
         errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
       />,
     );
 
@@ -163,16 +212,77 @@ describe("IndividualTrackerViewer", () => {
 
     rerender(
       <IndividualTrackerViewer
-        trackerId="tracker-1"
-        viewSource="tracker"
+        trackerGamertag="Chief"
         connectionStatus="connected"
         errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("button", { name: /Dog Crew/i })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows owner-only manage actions above the header and removes the old tracker copy", () => {
+    render(
+      <IndividualTrackerViewer
+        trackerGamertag="Chief"
+        connectionStatus="connected"
+        errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
+        renderModel={aRenderModelWith()}
+        matchHistoryLoading={false}
+        onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Back to manager/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Refresh/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Chief Tracker/i })).toBeInTheDocument();
+    expect(screen.getByText(/Current rank:/i)).toBeInTheDocument();
+    expect(screen.getByText("1,500")).toBeInTheDocument();
+    expect(screen.getByText("1,550")).toBeInTheDocument();
+    expect(screen.getByText("1,600")).toBeInTheDocument();
+    expect(screen.queryByText(/Tracker ID/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Viewing Tracker/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Live view for tracker/i)).not.toBeInTheDocument();
+    expect(screen.getByText("2026-01-01T00:00:00.000Z")).toBeInTheDocument();
+  });
+
+  it("hides manage actions for non-owners", () => {
+    render(
+      <IndividualTrackerViewer
+        trackerGamertag="Chief"
+        connectionStatus="connected"
+        errorMessage={null}
+        canManage={false}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
+        renderModel={aRenderModelWith()}
+        matchHistoryLoading={false}
+        onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Back to manager/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Refresh/i })).not.toBeInTheDocument();
   });
 });

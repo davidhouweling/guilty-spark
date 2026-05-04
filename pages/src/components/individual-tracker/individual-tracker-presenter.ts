@@ -5,6 +5,7 @@ import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,
   IndividualTrackerSubscription,
+  TrackerSearchResult,
   TrackerMatchHistoryResponse,
 } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./types";
@@ -22,11 +23,14 @@ interface Config {
 export class IndividualTrackerPresenter {
   private readonly config: Config;
   private isDisposed = false;
+  private authenticatedUserId: string | null = null;
   private viewerConnection: IndividualTrackerConnection | null = null;
   private viewerStateSubscription: IndividualTrackerSubscription | null = null;
   private viewerStatusSubscription: IndividualTrackerSubscription | null = null;
   private lastViewerMatchHistoryKey: string | null = null;
+  private lastViewerSummaryGamertagKey: string | null = null;
   private viewedTracker: IndividualTrackerState | null = null;
+  private viewedTrackerSummary: TrackerSearchResult | null = null;
   private viewedMatchHistory: TrackerMatchHistoryResponse | null = null;
   private viewedMedalMetadata: MedalMetadata = {};
 
@@ -109,6 +113,49 @@ export class IndividualTrackerPresenter {
     this.assignLocation("/individual-tracker");
   }
 
+  public async refreshViewerTracker(): Promise<void> {
+    const snapshot = this.getSnapshot();
+    if (!snapshot.viewerCanManage || snapshot.viewTrackerId == null) {
+      return;
+    }
+
+    this.updateSnapshot((current) => ({
+      ...current,
+      viewerRefreshPending: true,
+      viewerRefreshMessage: null,
+    }));
+
+    try {
+      const response = await this.config.services.individualTrackerService.refreshTracker(snapshot.viewTrackerId);
+
+      if (!response.success) {
+        this.updateSnapshot((current) => ({
+          ...current,
+          viewerRefreshPending: false,
+          viewerRefreshMessage: response.message ?? "Refresh is temporarily unavailable.",
+        }));
+        return;
+      }
+
+      this.viewedTracker = response.state;
+      this.updateSnapshot((current) => ({
+        ...current,
+        viewTrackerId: response.state.trackerId,
+        viewTrackerGamertag: response.state.gamertag,
+        viewerRefreshPending: false,
+        viewerRefreshMessage: null,
+      }));
+      void this.refreshViewerTrackerSummary(response.state.gamertag);
+      void this.refreshViewerMatchHistory(response.state.trackerId, response.state.xuid, response.state.matchIds);
+    } catch (error) {
+      this.updateSnapshot((current) => ({
+        ...current,
+        viewerRefreshPending: false,
+        viewerRefreshMessage: error instanceof Error ? error.message : "Failed to refresh tracker.",
+      }));
+    }
+  }
+
   public async signIn(): Promise<void> {
     this.updateSnapshot((snapshot) => ({ ...snapshot, errorMessage: null }));
 
@@ -135,6 +182,14 @@ export class IndividualTrackerPresenter {
   private deriveSnapshot(snapshot: IndividualTrackerSnapshot): IndividualTrackerSnapshot {
     return {
       ...snapshot,
+      viewTrackerGamertag: this.viewedTracker?.gamertag ?? snapshot.viewTrackerGamertag,
+      viewerCanManage:
+        this.authenticatedUserId != null &&
+        this.viewedTracker != null &&
+        this.viewedTracker.userId === this.authenticatedUserId,
+      viewerRefreshInProgress: this.viewedTracker?.refreshInProgress === true,
+      viewerRefreshStartedAt: this.viewedTracker?.refreshStartedAt ?? null,
+      viewerTrackerSummary: this.viewedTrackerSummary,
       viewerRenderModel: buildIndividualTrackerViewerRenderModel({
         state: this.viewedTracker,
         matchHistory: this.viewedMatchHistory,
@@ -199,9 +254,12 @@ export class IndividualTrackerPresenter {
         mode: "view",
         viewSource: "active",
         viewTrackerId: null,
+        viewTrackerGamertag: null,
         viewConnectionStatus: "connecting",
         viewErrorMessage: null,
         viewedMatchHistoryLoading: false,
+        viewerRefreshPending: false,
+        viewerRefreshMessage: null,
       }));
       return;
     }
@@ -218,9 +276,12 @@ export class IndividualTrackerPresenter {
       mode: "view",
       viewSource: "tracker",
       viewTrackerId: trackerId,
+      viewTrackerGamertag: null,
       viewConnectionStatus: "connecting",
       viewErrorMessage: null,
       viewedMatchHistoryLoading: false,
+      viewerRefreshPending: false,
+      viewerRefreshMessage: null,
     }));
   }
 
@@ -232,9 +293,43 @@ export class IndividualTrackerPresenter {
     this.viewerConnection?.disconnect();
     this.viewerConnection = null;
     this.lastViewerMatchHistoryKey = null;
+    this.lastViewerSummaryGamertagKey = null;
     this.viewedTracker = null;
+    this.viewedTrackerSummary = null;
     this.viewedMatchHistory = null;
     this.viewedMedalMetadata = {};
+  }
+
+  private async refreshViewerTrackerSummary(gamertag: string): Promise<void> {
+    const key = gamertag.trim().toLowerCase();
+    if (key === "" || key === this.lastViewerSummaryGamertagKey) {
+      return;
+    }
+
+    this.lastViewerSummaryGamertagKey = key;
+    this.viewedTrackerSummary = null;
+    this.updateSnapshot((snapshot) => ({ ...snapshot }));
+
+    try {
+      const summary = await this.config.services.individualTrackerService.searchGamertag(gamertag);
+      this.updateSnapshot((snapshot) => {
+        if (this.viewedTracker?.gamertag !== gamertag) {
+          return snapshot;
+        }
+
+        this.viewedTrackerSummary = summary;
+        return { ...snapshot };
+      });
+    } catch {
+      this.updateSnapshot((snapshot) => {
+        if (this.viewedTracker?.gamertag !== gamertag) {
+          return snapshot;
+        }
+
+        this.viewedTrackerSummary = null;
+        return { ...snapshot };
+      });
+    }
   }
 
   private getViewerMatchHistoryKey(trackerId: string, matchIds: readonly string[]): string {
@@ -332,9 +427,11 @@ export class IndividualTrackerPresenter {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewTrackerId: activeTracker.trackerId,
+        viewTrackerGamertag: activeTracker.gamertag,
         viewedMatchHistoryLoading: false,
       }));
 
+      void this.refreshViewerTrackerSummary(activeTracker.gamertag);
       void this.refreshViewerMatchHistory(activeTracker.trackerId, activeTracker.xuid, activeTracker.matchIds);
 
       const connection = this.config.services.individualTrackerService.connectToTracker(userId, trackerId);
@@ -345,7 +442,9 @@ export class IndividualTrackerPresenter {
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           viewTrackerId: state.trackerId,
+          viewTrackerGamertag: state.gamertag,
         }));
+        void this.refreshViewerTrackerSummary(state.gamertag);
         void this.refreshViewerMatchHistory(state.trackerId, state.xuid, state.matchIds);
       });
 
@@ -369,6 +468,7 @@ export class IndividualTrackerPresenter {
       viewConnectionStatus: "connecting",
       viewErrorMessage: null,
       viewTrackerId: null,
+      viewTrackerGamertag: null,
     }));
 
     try {
@@ -379,6 +479,7 @@ export class IndividualTrackerPresenter {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewTrackerId: statusResponse.activeTracker?.trackerId ?? null,
+        viewTrackerGamertag: statusResponse.activeTracker?.gamertag ?? null,
         viewConnectionStatus: statusResponse.activeTracker == null ? "not_found" : snapshot.viewConnectionStatus,
         viewErrorMessage:
           statusResponse.activeTracker == null ? "No active tracker is currently selected." : snapshot.viewErrorMessage,
@@ -386,6 +487,7 @@ export class IndividualTrackerPresenter {
       }));
 
       if (statusResponse.activeTracker != null) {
+        void this.refreshViewerTrackerSummary(statusResponse.activeTracker.gamertag);
         void this.refreshViewerMatchHistory(
           statusResponse.activeTracker.trackerId,
           statusResponse.activeTracker.xuid,
@@ -401,7 +503,9 @@ export class IndividualTrackerPresenter {
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           viewTrackerId: state.trackerId,
+          viewTrackerGamertag: state.gamertag,
         }));
+        void this.refreshViewerTrackerSummary(state.gamertag);
         void this.refreshViewerMatchHistory(state.trackerId, state.xuid, state.matchIds);
       });
 
@@ -427,14 +531,19 @@ export class IndividualTrackerPresenter {
       if (!session.authenticated || userId == null) {
         this.disposeViewerConnection();
         this.config.liveTrackersController.resetForUnauthenticated();
+        this.authenticatedUserId = null;
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           authState: "unauthenticated",
           profileId: null,
           viewedMatchHistoryLoading: false,
+          viewerRefreshPending: false,
+          viewerRefreshMessage: null,
         }));
         return;
       }
+
+      this.authenticatedUserId = userId;
 
       const profileResponse = await this.config.services.individualTrackerService.getProfile();
       const profileId = profileResponse.profile?.ProfileId ?? null;

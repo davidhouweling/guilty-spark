@@ -1444,6 +1444,48 @@ export class Server {
       }
     });
 
+    this.router.post("/api/individual-tracker/:trackerId/refresh", async (request, env: Env) => {
+      try {
+        const { trackerId } = request.params as { trackerId: string };
+        const services = this.installServices({ env });
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
+
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
+        }
+
+        const { session, refreshedSessionPayload } = authentication;
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/refresh";
+        const doResponse = await stub.fetch(
+          new Request(doUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: session.userId }),
+          }),
+        );
+
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
+      } catch (error) {
+        console.error("Individual live tracker refresh error:", error);
+        return new Response(JSON.stringify({ error: "Failed to refresh tracker" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.post("/api/individual-tracker/manage/select-active", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
@@ -1987,27 +2029,6 @@ export class Server {
       }
     });
 
-    this.router.get("/ws/individual-tracker/:userId/:trackerId", async (request, env: Env) => {
-      try {
-        const { userId, trackerId } = request.params as { userId: string; trackerId: string };
-
-        if (userId === "" || trackerId === "") {
-          return new Response("Missing required parameters: userId, trackerId", { status: 400 });
-        }
-
-        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
-        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-
-        const doUrl = new URL(request.url);
-        doUrl.pathname = "/websocket";
-
-        return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
-      } catch (error) {
-        console.error("Individual tracker WebSocket route error:", error);
-        return new Response("Internal Server Error", { status: 500 });
-      }
-    });
-
     this.router.get("/ws/individual-tracker/:userId/active", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
@@ -2027,6 +2048,27 @@ export class Server {
         return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
       } catch (error) {
         console.error("Individual tracker active WebSocket route error:", error);
+        return new Response("Internal Server Error", { status: 500 });
+      }
+    });
+
+    this.router.get("/ws/individual-tracker/:userId/:trackerId", async (request, env: Env) => {
+      try {
+        const { userId, trackerId } = request.params as { userId: string; trackerId: string };
+
+        if (userId === "" || trackerId === "") {
+          return new Response("Missing required parameters: userId, trackerId", { status: 400 });
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/websocket";
+
+        return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
+      } catch (error) {
+        console.error("Individual tracker WebSocket route error:", error);
         return new Response("Internal Server Error", { status: 500 });
       }
     });

@@ -85,4 +85,45 @@ describe("RealIndividualTrackerService", () => {
     });
     expect(getMedalsMetadataFileSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("posts manual refresh requests to the tracker refresh endpoint", async () => {
+    const state = {
+      trackerId: "tracker-1",
+      gamertag: "Chief",
+      userId: "user-1",
+      xuid: "xuid-1",
+      status: "active",
+      isPaused: false,
+      startTime: "2026-01-01T00:00:00.000Z",
+      lastUpdateTime: "2026-01-01T00:03:00.000Z",
+      searchStartTime: "2026-01-01T00:00:00.000Z",
+      lastMatchDiscoveredAt: "2026-01-01T00:03:00.000Z",
+      checkCount: 1,
+      idleTimeoutHours: 1,
+      discoveredMatches: {},
+      matchIds: [],
+      matchGroupings: [],
+      seriesGroups: [],
+      excludedMatchIds: [],
+      errorState: {
+        consecutiveErrors: 0,
+        backoffMinutes: 3,
+        lastSuccessTime: "2026-01-01T00:00:00.000Z",
+      },
+      refreshInProgress: undefined,
+      refreshStartedAt: undefined,
+    } as IndividualTrackerState;
+
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true, state }));
+
+    const response = await service.refreshTracker("tracker-1");
+
+    expect(response).toEqual({ success: true, state });
+    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/api/individual-tracker/tracker-1/refresh", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  });
 });

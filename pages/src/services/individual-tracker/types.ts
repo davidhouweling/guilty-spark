@@ -89,6 +89,7 @@ export interface IndividualTrackerService {
   stopTracker(trackerId: string): Promise<StopTrackerResponse>;
   pauseTracker(trackerId: string): Promise<PauseTrackerResponse>;
   resumeTracker(trackerId: string): Promise<ResumeTrackerResponse>;
+  refreshTracker(trackerId: string): Promise<RefreshTrackerResponse>;
   selectLiveTracker(trackerId: string): Promise<void>;
   deleteTracker(trackerId: string): Promise<void>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
@@ -216,6 +217,19 @@ export interface ResumeTrackerSuccessResponse {
 }
 
 export type ResumeTrackerResponse = ResumeTrackerSuccessResponse;
+
+export interface RefreshTrackerSuccessResponse {
+  success: true;
+  state: IndividualTrackerState;
+}
+
+export interface RefreshTrackerFailureResponse {
+  success: false;
+  error?: string;
+  message?: string;
+}
+
+export type RefreshTrackerResponse = RefreshTrackerSuccessResponse | RefreshTrackerFailureResponse;
 
 export interface TrackerStatusResponse {
   activeTracker: IndividualTrackerState | null;

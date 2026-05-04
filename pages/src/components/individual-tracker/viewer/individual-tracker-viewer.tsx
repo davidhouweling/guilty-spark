@@ -1,4 +1,6 @@
 import React from "react";
+import { addMinutes } from "date-fns";
+import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import type { ImageMetadata } from "astro";
 import assaultPng from "../../../assets/game-modes/assault.png";
@@ -16,18 +18,26 @@ import { SeriesStats } from "../../stats/series-stats";
 import { SeriesOverview } from "../../stats/series-overview/series-overview";
 import liveStyles from "../../live-tracker/live-tracker.module.css";
 import { LoadingState } from "../../loading-state/loading-state";
+import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
+import { TrackerSummary } from "../tracker-summary/tracker-summary";
 import type { IndividualTrackerViewerRenderModel } from "../types";
 import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
-  readonly trackerId: string | null;
-  readonly viewSource: "tracker" | "active" | null;
+  readonly trackerGamertag: string | null;
   readonly connectionStatus: "idle" | "connecting" | "connected" | "stopped" | "error" | "disconnected" | "not_found";
   readonly errorMessage: string | null;
+  readonly canManage: boolean;
+  readonly refreshInProgress: boolean;
+  readonly refreshStartedAt: string | null;
+  readonly refreshPending: boolean;
+  readonly refreshMessage: string | null;
+  readonly trackerSummary: TrackerSearchResult | null;
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
   readonly matchHistoryLoading: boolean;
   readonly onBackToManage: () => void;
+  readonly onRefresh: () => void;
 }
 
 const GAME_MODE_ICONS: Record<string, ImageMetadata> = {
@@ -43,17 +53,13 @@ function gameModeIconSrc(gameMode: string): string {
   return (GAME_MODE_ICONS[gameMode] ?? GAME_MODE_ICONS.Slayer).src;
 }
 
-function formatDateTime(value: unknown): string {
-  if (typeof value !== "string") {
-    return "Unknown";
+function parseDate(value: string | null): Date | null {
+  if (value == null) {
+    return null;
   }
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function ExpandWidthIcon(): React.ReactElement {
@@ -91,17 +97,28 @@ function ChevronIcon({ expanded }: { expanded: boolean }): React.ReactElement {
 }
 
 export function IndividualTrackerViewer({
-  trackerId,
-  viewSource,
+  trackerGamertag,
   connectionStatus,
   errorMessage,
+  canManage,
+  refreshInProgress,
+  refreshStartedAt,
+  refreshPending,
+  refreshMessage,
+  trackerSummary,
   renderModel,
   matchHistoryLoading,
   onBackToManage,
+  onRefresh,
 }: IndividualTrackerViewerProps): React.ReactElement {
   const lastUpdatedTime = renderModel?.lastUpdatedTime ?? null;
   const trackerStatus = renderModel?.trackerStatus ?? null;
   const [isWideView, setIsWideView] = React.useState(false);
+  const headerTitle = trackerGamertag != null && trackerGamertag !== "" ? `${trackerGamertag} Tracker` : "Tracker";
+  const lastUpdatedDate = parseDate(lastUpdatedTime);
+  const refreshStartedDate = parseDate(refreshStartedAt);
+  const nextAutomaticRefreshDate =
+    trackerStatus === "active" && lastUpdatedDate != null ? addMinutes(lastUpdatedDate, 3) : null;
 
   const groupColorById = React.useMemo(() => {
     const next = new Map<string, string>();
@@ -125,16 +142,56 @@ export function IndividualTrackerViewer({
 
   return (
     <>
+      {canManage && (
+        <Container>
+          <div className={styles.viewerActionBar}>
+            <Button variant="secondary" size="small" className={styles.backButton} onClick={onBackToManage}>
+              Back to manager
+            </Button>
+
+            <div className={styles.viewerActionRight}>
+              <p className={styles.refreshHint}>
+                {refreshInProgress ? (
+                  refreshStartedDate != null ? (
+                    <>
+                      Refresh started <ReactTimeAgo date={refreshStartedDate} locale="en" />
+                    </>
+                  ) : (
+                    "Refreshing now."
+                  )
+                ) : trackerStatus === "paused" ? (
+                  "Automatic refresh paused."
+                ) : trackerStatus === "stopped" ? (
+                  "Automatic refresh stopped."
+                ) : nextAutomaticRefreshDate != null ? (
+                  <>
+                    Next automatic refresh <ReactTimeAgo date={nextAutomaticRefreshDate} locale="en" />
+                  </>
+                ) : (
+                  "Automatic refresh schedule unavailable."
+                )}
+              </p>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={onRefresh}
+                disabled={refreshPending || refreshInProgress || trackerStatus !== "active"}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </Container>
+      )}
+
       <Container>
         <div className={liveStyles.headerBar}>
           <div className={liveStyles.headerLeft}>
-            <h1 className={liveStyles.headerTitle}>Viewing Tracker</h1>
-            <div className={liveStyles.headerSubtitle}>
-              {viewSource === "active"
-                ? "Following your currently active on-stream tracker"
-                : trackerId != null
-                  ? `Live view for tracker ${trackerId}`
-                  : "Live tracker view"}
+            <div className={styles.viewerHeader}>
+              <h1 className={liveStyles.headerTitle}>{headerTitle}</h1>
+              {trackerSummary != null ? (
+                <TrackerSummary tracker={trackerSummary} className={styles.viewerSummary} />
+              ) : null}
             </div>
           </div>
 
@@ -142,7 +199,7 @@ export function IndividualTrackerViewer({
             <div className={liveStyles.headerMetaRow}>
               <span className={liveStyles.headerMetaLabel}>Last updated</span>
               <span className={liveStyles.headerMetaValue}>
-                {lastUpdatedTime != null ? formatDateTime(lastUpdatedTime) : "-"}
+                {lastUpdatedDate != null ? <ReactTimeAgo date={lastUpdatedDate} locale="en" /> : "-"}
               </span>
             </div>
             <div className={liveStyles.headerMetaRow}>
@@ -156,9 +213,6 @@ export function IndividualTrackerViewer({
               >
                 {trackerStatus ?? connectionStatus}
               </span>
-            </div>
-            <div className={styles.inlineControls}>
-              <Button onClick={onBackToManage}>Back to manager</Button>
             </div>
           </div>
         </div>
@@ -182,6 +236,12 @@ export function IndividualTrackerViewer({
         {connectionStatus === "error" && (
           <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
             <Alert variant="error">{errorMessage ?? "Tracker connection failed."}</Alert>
+          </Container>
+        )}
+
+        {refreshMessage != null && canManage && (
+          <Container className={classNames(liveStyles.contentContainer, styles.viewerSection)}>
+            <Alert variant="info">{refreshMessage}</Alert>
           </Container>
         )}
 

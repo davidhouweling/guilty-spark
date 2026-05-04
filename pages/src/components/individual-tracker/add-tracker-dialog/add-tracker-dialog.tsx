@@ -3,9 +3,9 @@ import type { IndividualTrackerSeriesGroup } from "@guilty-spark/shared/individu
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
-import { RankIcon } from "../../icons/rank-icon";
 import { MatchHistory } from "../../match-history/match-history";
 import { Dialog } from "../../dialog/dialog";
+import { TrackerSummary } from "../tracker-summary/tracker-summary";
 import type {
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
@@ -30,27 +30,6 @@ interface AddTrackerDialogProps {
     seriesGroups: readonly IndividualTrackerSeriesGroup[];
     matches: readonly TrackerMatchHistoryEntry[];
   }) => Promise<void>;
-}
-
-function formatCsr(value: string | null): string {
-  if (value === null || value === "-") {
-    return "-";
-  }
-
-  const numValue = parseInt(value, 10);
-  if (Number.isNaN(numValue)) {
-    return value;
-  }
-
-  return new Intl.NumberFormat().format(numValue);
-}
-
-function formatMatchCount(value: number | null): string {
-  if (value === null) {
-    return "-";
-  }
-
-  return new Intl.NumberFormat().format(value);
 }
 
 export function AddTrackerDialog({
@@ -202,59 +181,7 @@ export function AddTrackerDialog({
 
         {searchError != null && <Alert variant="error">{searchError}</Alert>}
 
-        {result != null && (
-          <div className={styles.previewCard}>
-            <p className={styles.previewMeta}>
-              <span className={styles.statLine}>
-                <span className={styles.statItem}>
-                  <span className={styles.statLabel}>Current rank:</span>
-                  <RankIcon
-                    rankTier={result.currentRankTier}
-                    subTier={result.currentRankSubTier}
-                    measurementMatchesRemaining={result.currentRankMeasurementMatchesRemaining}
-                    initialMeasurementMatches={result.currentRankInitialMeasurementMatches}
-                    size="small"
-                  />
-                  <span className={styles.statValue}>{formatCsr(result.csrLabel)}</span>
-                </span>
-                <span className={styles.statItem}>
-                  <span className={styles.statLabel}>Season peak:</span>
-                  <RankIcon
-                    rankTier={result.seasonPeakRankTier}
-                    subTier={result.seasonPeakRankSubTier}
-                    measurementMatchesRemaining={null}
-                    initialMeasurementMatches={null}
-                    size="small"
-                  />
-                  <span className={styles.statValue}>{formatCsr(result.seasonPeakCsrLabel)}</span>
-                  <span className={styles.statItem}>
-                    <span className={styles.statLabel}>All time peak:</span>
-                    <RankIcon
-                      rankTier={result.allTimePeakRankTier}
-                      subTier={result.allTimePeakRankSubTier}
-                      measurementMatchesRemaining={null}
-                      initialMeasurementMatches={null}
-                      size="small"
-                    />
-                    <span className={styles.statValue}>{formatCsr(result.allTimePeakCsrLabel)}</span>
-                  </span>
-                </span>
-              </span>
-            </p>
-            <p className={styles.previewMeta}>
-              <span className={styles.statLine}>
-                <span className={styles.statItem}>
-                  <span className={styles.statLabel}>Matchmaking games:</span>
-                  <span className={styles.statValue}>{formatMatchCount(result.matchmadeMatchCount)}</span>
-                </span>
-                <span className={styles.statItem}>
-                  <span className={styles.statLabel}>Custom games:</span>
-                  <span className={styles.statValue}>{formatMatchCount(result.customMatchCount)}</span>
-                </span>
-              </span>
-            </p>
-          </div>
-        )}
+        {result != null && <TrackerSummary tracker={result} className={styles.previewCard} />}
       </section>
 
       <section className={styles.section}>

@@ -9,6 +9,7 @@ import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+import { aFakeIndividualTrackerActiveSessionsRow } from "../services/database/fakes/database.fake";
 import type { AuthService } from "../services/auth/auth";
 import type { SessionTokenPayload } from "../services/auth/types";
 import type { IndividualTrackerDO } from "../worker";
@@ -780,6 +781,62 @@ describe("Server", () => {
           },
         ],
       });
+    });
+
+    it("POST /api/individual-tracker/:trackerId/refresh forwards owner refreshes to the DO", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        return services;
+      });
+
+      let forwardedBody: unknown = null;
+      const doFetch = vi.fn(async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+        forwardedBody = await request.json();
+        return new Response(JSON.stringify({ success: true, state: { trackerId: "tracker-1" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      });
+
+      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
+      const individualTrackerNamespace = Object.assign(
+        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
+        env.INDIVIDUAL_TRACKER_DO,
+        {
+          get: () =>
+            ({
+              __DURABLE_OBJECT_BRAND: undefined as never,
+              fetch: doFetch,
+              id: env.INDIVIDUAL_TRACKER_DO.idFromName("refresh-stub"),
+              connect: vi.fn(),
+            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
+        },
+      );
+
+      const envWithRefreshStub = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/tracker-1/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({}),
+      });
+      const res = (await server.router.fetch(req, envWithRefreshStub)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(doFetch).toHaveBeenCalledOnce();
+      expect(forwardedBody).toEqual({ userId: "user-123" });
     });
 
     it("POST /api/individual-tracker/:trackerId/series-groups-update forwards grouped-series labels to the DO", async () => {
@@ -1708,6 +1765,54 @@ describe("Server", () => {
       expect(res.status).toBe(500);
       const text = await res.text();
       expect(text).toBe("Internal Server Error");
+    });
+  });
+
+  describe("GET /ws/individual-tracker/:userId/active", () => {
+    it("forwards to the active tracker durable object instead of treating active as a trackerId", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSession").mockResolvedValue(
+          aFakeIndividualTrackerActiveSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+          }),
+        );
+        return services;
+      });
+
+      const doFetch = vi.fn(async () => new Response(null, { status: 200 }));
+      const idFromNameSpy = vi.fn(() => env.INDIVIDUAL_TRACKER_DO.idFromName("active-websocket-stub"));
+
+      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
+      const individualTrackerNamespace = Object.assign(
+        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
+        env.INDIVIDUAL_TRACKER_DO,
+        {
+          idFromName: idFromNameSpy,
+          get: () =>
+            ({
+              __DURABLE_OBJECT_BRAND: undefined as never,
+              fetch: doFetch,
+              id: env.INDIVIDUAL_TRACKER_DO.idFromName("active-websocket-stub"),
+              connect: vi.fn(),
+            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
+        },
+      );
+
+      const envWithActiveTrackerStub = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/ws/individual-tracker/user-123/active", { method: "GET" });
+      const res = (await server.router.fetch(req, envWithActiveTrackerStub)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(idFromNameSpy).toHaveBeenCalledWith("user-123:tracker-123");
+      expect(idFromNameSpy).not.toHaveBeenCalledWith("user-123:active");
+      expect(doFetch).toHaveBeenCalledOnce();
     });
   });
 });

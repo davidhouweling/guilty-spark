@@ -86,9 +86,6 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
         <a href="/individual-tracker" className={styles.profileMenuItem}>
           Individual Tracker
         </a>
-        <a href="/tracker" className={styles.profileMenuItem}>
-          Team Tracker
-        </a>
         <button
           type="button"
           className={styles.profileMenuItem}

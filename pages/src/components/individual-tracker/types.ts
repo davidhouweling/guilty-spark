@@ -2,6 +2,7 @@ import type {
   IndividualTrackerSeriesGroup,
   IndividualTrackerState,
 } from "@guilty-spark/shared/individual-tracker/types";
+import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
@@ -110,6 +111,7 @@ export interface IndividualTrackerSnapshot {
   readonly mode: IndividualTrackerPageMode;
   readonly viewSource: IndividualTrackerViewSource;
   readonly viewTrackerId: string | null;
+  readonly viewTrackerGamertag: string | null;
   readonly viewConnectionStatus:
     | "idle"
     | "connecting"
@@ -120,6 +122,12 @@ export interface IndividualTrackerSnapshot {
     | "not_found";
   readonly viewErrorMessage: string | null;
   readonly viewedMatchHistoryLoading: boolean;
+  readonly viewerCanManage: boolean;
+  readonly viewerRefreshInProgress: boolean;
+  readonly viewerRefreshStartedAt: string | null;
+  readonly viewerRefreshPending: boolean;
+  readonly viewerRefreshMessage: string | null;
+  readonly viewerTrackerSummary: TrackerSearchResult | null;
   readonly viewerRenderModel: IndividualTrackerViewerRenderModel | null;
   readonly activeSection: IndividualTrackerSectionId;
   readonly viewerTeamColor: string;

@@ -44,6 +44,7 @@ import type {
   IndividualTrackerMutateGamesRequest,
   IndividualTrackerUpdateStreamerViewSettingsRequest,
   PauseTrackerResponse,
+  RefreshTrackerResponse,
   ResumeTrackerResponse,
   StartTrackerRequest,
   StartTrackerResponse,
@@ -564,6 +565,17 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     });
 
     return response.json<ResumeTrackerResponse>();
+  }
+
+  public async refreshTracker(trackerId: string): Promise<RefreshTrackerResponse> {
+    const response = await fetch(`${this.apiHost}/api/individual-tracker/${encodeURIComponent(trackerId)}/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    return response.json<RefreshTrackerResponse>();
   }
 
   public async selectLiveTracker(trackerId: string): Promise<void> {

@@ -9,6 +9,7 @@ import { UserTokenProvider } from "../../services/halo/user-token-provider";
 import {
   type IndividualTrackerMatchSummary,
   type IndividualTrackerState,
+  type IndividualTrackerRefreshResponse,
   type IndividualTrackerStartRequest,
   type IndividualTrackerSeriesGroupUpdateRequest,
   type IndividualTrackerSeriesGroupUpdateResponse,
@@ -34,6 +35,7 @@ const NORMAL_INTERVAL_MINUTES = 3;
 const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 
+const REFRESH_COOLDOWN_MS = 30 * 1000;
 const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
 const DEFAULT_TEAM_COLOR = "salmon";
 const DEFAULT_ENEMY_COLOR = "cerulean";
@@ -97,6 +99,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "resume": {
             return await this.handleResume(request);
+          }
+          case "refresh": {
+            return await this.handleRefresh(request);
           }
           case "status": {
             return await this.handleStatus();
@@ -333,6 +338,80 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const response: IndividualTrackerResumeResponse = { success: true, state: sanitizeTrackerState(resumedState) };
     return Response.json(response, { status: 200 });
+  }
+
+  private async handleRefresh(request: Request): Promise<Response> {
+    const body = await request.json<{ userId: string }>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    if (trackerState.status !== "active" || trackerState.isPaused) {
+      return new Response(JSON.stringify({ error: "Tracker is not active" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (this.checkAndHandleStaleLock(trackerState)) {
+      const response: IndividualTrackerRefreshResponse = {
+        success: false,
+        error: "in_progress",
+        message: "A refresh is already in progress, please wait.",
+      };
+      return Response.json(response, { status: 409 });
+    }
+
+    const lastManualRefreshAt = await this.state.storage.get<string>("lastManualRefreshAt");
+    if (lastManualRefreshAt != null && lastManualRefreshAt !== "") {
+      const currentTime = new Date();
+      const timeSinceLastAttempt = differenceInMilliseconds(currentTime, new Date(lastManualRefreshAt));
+
+      if (timeSinceLastAttempt < REFRESH_COOLDOWN_MS) {
+        const nextRefreshAt = addMilliseconds(currentTime, REFRESH_COOLDOWN_MS - timeSinceLastAttempt).toISOString();
+        const response: IndividualTrackerRefreshResponse = {
+          success: false,
+          error: "cooldown",
+          message: `Refresh cooldown active, next refresh available at ${nextRefreshAt}`,
+        };
+        return Response.json(response, { status: 429 });
+      }
+    }
+
+    trackerState.refreshInProgress = true;
+    trackerState.refreshStartedAt = new Date().toISOString();
+    await this.setState(trackerState);
+    await this.state.storage.put("lastManualRefreshAt", new Date().toISOString());
+
+    try {
+      await this.executeTrackerUpdate(trackerState);
+      await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+
+      const response: IndividualTrackerRefreshResponse = {
+        success: true,
+        state: sanitizeTrackerState(trackerState),
+      };
+      return Response.json(response, { status: 200 });
+    } catch (error) {
+      this.logService.error("IndividualTracker: manual refresh failed", new Map([["error", String(error)]]));
+      this.handleError(trackerState, `Refresh failed: ${String(error)}`);
+      await this.setState(trackerState);
+      return new Response("Internal Server Error", { status: 500 });
+    } finally {
+      await this.setState({
+        ...trackerState,
+        refreshInProgress: false,
+        refreshStartedAt: undefined,
+      }).catch((error: unknown) => {
+        this.logService.error("Failed to clear refresh lock", new Map([["error", String(error)]]));
+      });
+    }
   }
 
   private async handleStatus(): Promise<Response> {

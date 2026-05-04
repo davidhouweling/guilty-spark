@@ -20,6 +20,7 @@ import type {
   IndividualTrackerUpdateProfileResponse,
   IndividualTrackerUpdateStreamerViewSettingsRequest,
   PauseTrackerResponse,
+  RefreshTrackerResponse,
   ResumeTrackerResponse,
   StartTrackerRequest,
   StartTrackerResponse,
@@ -264,6 +265,12 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async resumeTracker(trackerId: string): Promise<ResumeTrackerResponse> {
     void trackerId;
     const state = aFakeIndividualTrackerStateWith({ status: "active" });
+    return Promise.resolve({ success: true, state });
+  }
+
+  public async refreshTracker(trackerId: string): Promise<RefreshTrackerResponse> {
+    void trackerId;
+    const state = aFakeIndividualTrackerStateWith({ lastUpdateTime: new Date().toISOString() });
     return Promise.resolve({ success: true, state });
   }
 
