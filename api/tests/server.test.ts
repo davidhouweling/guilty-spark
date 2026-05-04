@@ -1781,7 +1781,7 @@ describe("Server", () => {
         return services;
       });
 
-      const doFetch = vi.fn(async () => new Response(null, { status: 200 }));
+      const doFetch = vi.fn(async () => Promise.resolve(new Response(null, { status: 200 })));
       const idFromNameSpy = vi.fn(() => env.INDIVIDUAL_TRACKER_DO.idFromName("active-websocket-stub"));
 
       const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;

@@ -271,6 +271,63 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     }
   });
 
+  it("computes series score from displayed team-side results instead of tracked-player outcomes", () => {
+    const matches = [
+      aHistoryEntryWith({
+        matchId: "m1",
+        outcome: "Win",
+        resultString: "Win - 2:3",
+        teams: [
+          ["being03", "OthyYEHx"],
+          ["CAP0 CRIMINI", "Looneyy"],
+        ],
+        startTimeIso: "2026-01-01T00:00:00.000Z",
+      }),
+      aHistoryEntryWith({
+        matchId: "m2",
+        outcome: "Win",
+        resultString: "Win - 4:3",
+        teams: [
+          ["being03", "OthyYEHx"],
+          ["CAP0 CRIMINI", "Looneyy"],
+        ],
+        startTimeIso: "2026-01-01T00:15:00.000Z",
+      }),
+      aHistoryEntryWith({
+        matchId: "m3",
+        outcome: "Unknown",
+        resultString: "Unknown - 1:2 (247:261)",
+        teams: [
+          ["being03", "OthyYEHx"],
+          ["CAP0 CRIMINI", "Looneyy"],
+        ],
+        startTimeIso: "2026-01-01T00:30:00.000Z",
+      }),
+    ] as const;
+
+    const state = aFakeIndividualTrackerStateWith({
+      gamertag: "CAP0 CRIMINI",
+      matchIds: ["m3", "m2", "m1"],
+      matchGroupings: [["m1", "m2", "m3"]],
+    });
+
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state,
+      matchHistory: aHistoryResponseWith(matches, []),
+      medalMetadata: {},
+      defaultTeamColor: "salmon",
+      defaultEnemyColor: "cerulean",
+    });
+
+    expect(renderModel).not.toBeNull();
+    const groupedItem = renderModel?.gameplayTimeline[0];
+    expect(groupedItem?.type).toBe("group");
+    if (groupedItem?.type === "group") {
+      expect(groupedItem.seriesScore).toBe("1:2");
+      expect(groupedItem.overviewMatches.map((match) => match.winningTeamIndex)).toEqual([1, 0, 1]);
+    }
+  });
+
   it("uses medal metadata to resolve medal names in match stats", () => {
     const rawMatchStats = Preconditions.checkExists(getMatchStats("32b4cddf-5451-4d83-bcf6-000land-grab"));
     const medalId = Preconditions.checkExists(

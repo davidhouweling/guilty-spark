@@ -183,10 +183,7 @@ export class IndividualTrackerPresenter {
     return {
       ...snapshot,
       viewTrackerGamertag: this.viewedTracker?.gamertag ?? snapshot.viewTrackerGamertag,
-      viewerCanManage:
-        this.authenticatedUserId != null &&
-        this.viewedTracker != null &&
-        this.viewedTracker.userId === this.authenticatedUserId,
+      viewerCanManage: this.authenticatedUserId != null && this.viewedTracker?.userId === this.authenticatedUserId,
       viewerRefreshInProgress: this.viewedTracker?.refreshInProgress === true,
       viewerRefreshStartedAt: this.viewedTracker?.refreshStartedAt ?? null,
       viewerTrackerSummary: this.viewedTrackerSummary,

@@ -2,6 +2,7 @@ import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tra
 import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { compareAsc, parseISO } from "date-fns";
+import { GameVariantCategory } from "halo-infinite-api";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
 import { createMatchStatsPresenter } from "../../stats/create";
 import type { MatchStatsData } from "../../stats/types";
@@ -89,30 +90,120 @@ function buildChronologicalTrackedEntries(
     .map(({ entry }) => entry);
 }
 
-function computeSeriesScore(entries: readonly TrackerMatchHistoryEntry[]): string {
-  const logicalEntries = collapseSequentialSeriesEntries(
-    entries.map((entry) => ({
-      startTime: entry.startTimeIso ?? entry.startTime,
-      mapAssetId: entry.mapAssetId,
-      mapVersionId: entry.mapVersionId,
-      gameVariantCategory: entry.gameVariantCategory,
-      outcome: entry.outcome,
-    })),
-  );
-  let wins = 0;
-  let losses = 0;
+function parseDisplayedTeamScore(resultString: string): { left: number; right: number } | null {
+  const compactResult = toCompactSeriesResult(resultString);
+  const match = /^(\d+):(\d+)/.exec(compactResult);
+  if (match == null) {
+    return null;
+  }
 
-  for (const entry of logicalEntries) {
-    if (entry.outcome === "Win") {
-      wins += 1;
+  const left = parseInt(match[1], 10);
+  const right = parseInt(match[2], 10);
+  if (Number.isNaN(left) || Number.isNaN(right)) {
+    return null;
+  }
+
+  return { left, right };
+}
+
+function getTeamOrderedScore(entry: TrackerMatchHistoryEntry): { left: number; right: number } | null {
+  const matchStats = entry.rawMatchStats;
+  if (matchStats == null) {
+    return parseDisplayedTeamScore(entry.resultString);
+  }
+
+  const [leftTeam, rightTeam] = matchStats.Teams;
+  if (matchStats.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
+    return {
+      left: leftTeam.Stats.CoreStats.RoundsWon,
+      right: rightTeam.Stats.CoreStats.RoundsWon,
+    };
+  }
+
+  return {
+    left: leftTeam.Stats.CoreStats.Score,
+    right: rightTeam.Stats.CoreStats.Score,
+  };
+}
+
+function normalizeTeamPlayers(players: readonly string[]): readonly string[] {
+  return [...players].map((player) => player.trim().toLowerCase()).sort((left, right) => left.localeCompare(right));
+}
+
+function getCanonicalTeamIndex(
+  entryTeam: readonly string[],
+  canonicalTeams: readonly (readonly string[])[],
+): number | null {
+  const normalizedEntryTeam = normalizeTeamPlayers(entryTeam);
+  let bestIndex: number | null = null;
+  let bestOverlap = 0;
+
+  for (const [teamIndex, canonicalTeam] of canonicalTeams.entries()) {
+    const normalizedCanonicalTeam = normalizeTeamPlayers(canonicalTeam);
+    if (normalizedEntryTeam.length === normalizedCanonicalTeam.length) {
+      const isExactMatch = normalizedEntryTeam.every(
+        (player, playerIndex) => player === normalizedCanonicalTeam[playerIndex],
+      );
+      if (isExactMatch) {
+        return teamIndex;
+      }
     }
 
-    if (entry.outcome === "Loss") {
-      losses += 1;
+    const canonicalPlayerSet = new Set(normalizedCanonicalTeam);
+    let overlap = 0;
+    for (const player of normalizedEntryTeam) {
+      if (canonicalPlayerSet.has(player)) {
+        overlap += 1;
+      }
+    }
+
+    if (overlap > bestOverlap) {
+      bestIndex = teamIndex;
+      bestOverlap = overlap;
     }
   }
 
-  return `${wins.toString()}:${losses.toString()}`;
+  return bestOverlap > 0 ? bestIndex : null;
+}
+
+function getWinningTeamIndex(
+  entry: TrackerMatchHistoryEntry,
+  canonicalTeams: readonly (readonly string[])[],
+): number | null {
+  const parsedScore = getTeamOrderedScore(entry);
+  if (parsedScore == null || parsedScore.left === parsedScore.right) {
+    return null;
+  }
+
+  const localWinningTeamIndex = parsedScore.left > parsedScore.right ? 0 : 1;
+  const winningTeam = entry.teams[localWinningTeamIndex];
+
+  return getCanonicalTeamIndex(winningTeam, canonicalTeams);
+}
+
+function computeSeriesScore(entries: readonly TrackerMatchHistoryEntry[]): string {
+  const logicalEntries = collapseSequentialSeriesEntries(
+    entries.map((entry) => ({
+      ...entry,
+      startTime: entry.startTimeIso ?? entry.startTime,
+    })),
+  );
+  const canonicalTeams = entries[0]?.teams.slice(0, 2) ?? [];
+  let firstTeamWins = 0;
+  let secondTeamWins = 0;
+
+  for (const entry of logicalEntries) {
+    const winningTeamIndex = getWinningTeamIndex(entry, canonicalTeams);
+    if (winningTeamIndex === 0) {
+      firstTeamWins += 1;
+    }
+
+    if (winningTeamIndex === 1) {
+      secondTeamWins += 1;
+    }
+  }
+
+  return `${firstTeamWins.toString()}:${secondTeamWins.toString()}`;
 }
 
 function buildSeriesGroups(
@@ -434,6 +525,7 @@ export function buildIndividualTrackerViewerRenderModel({
       const { group } = item;
       const [firstMatch] = group.entries;
       const seriesTotals = seriesStatsByGroup.get(group.id) ?? null;
+      const canonicalTeams = firstMatch.teams.slice(0, 2);
 
       return {
         type: "group",
@@ -447,6 +539,7 @@ export function buildIndividualTrackerViewerRenderModel({
           score: toCompactSeriesResult(entry.resultString),
           mapName: entry.mapName,
           mapThumbnailUrl: entry.mapThumbnailUrl,
+          winningTeamIndex: getWinningTeamIndex(entry, canonicalTeams) ?? undefined,
         })),
         teams: firstMatch.teams.slice(0, 2).map((team, teamIndex) => ({
           id: `${group.id}-team-${teamIndex.toString()}`,

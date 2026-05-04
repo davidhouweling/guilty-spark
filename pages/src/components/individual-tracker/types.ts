@@ -40,6 +40,7 @@ export interface IndividualTrackerViewerOverviewMatch {
   readonly score: string;
   readonly mapName: string;
   readonly mapThumbnailUrl: string;
+  readonly winningTeamIndex?: number;
 }
 
 export interface IndividualTrackerViewerOverviewPlayer {

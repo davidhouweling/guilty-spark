@@ -37,9 +37,6 @@
   grid-template-columns: 1fr;
 }
 
-.previewCard {
-}
-
 .footer {
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   display: flex;
