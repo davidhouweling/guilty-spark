@@ -20,6 +20,10 @@ vi.mock("../../../stats/series-overview/series-overview", () => ({
   SeriesOverview: (): React.ReactNode => <div>series-overview-body</div>,
 }));
 
+vi.mock("../../../player-pre-series-info/player-pre-series-info", () => ({
+  PlayerPreSeriesInfo: (): React.ReactNode => <div>player-pre-series-info-body</div>,
+}));
+
 vi.mock("react-time-ago", () => ({
   default: ({ date }: { date: Date }): React.ReactNode => <span>{date.toISOString()}</span>,
 }));
@@ -50,6 +54,7 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
       { id: "salmon", name: "Salmon", hex: "#ff6b6b" },
       { id: "cerulean", name: "Cerulean", hex: "#3b82f6" },
     ],
+    activeNeatQueueSeries: null,
     trackedPlayerTotals: {
       teamData: [],
       playerData: [],
@@ -284,5 +289,63 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByRole("button", { name: /Back to manager/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Refresh/i })).not.toBeInTheDocument();
+  });
+
+  it("renders active NeatQueue pre-series info when available", () => {
+    render(
+      <IndividualTrackerViewer
+        trackerGamertag="Chief"
+        connectionStatus="connected"
+        errorMessage={null}
+        canManage={false}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
+        renderModel={{
+          ...aRenderModelWith(),
+          activeNeatQueueSeries: {
+            title: "Clutch Academy",
+            subtitle: "Queue #12",
+            seriesScore: "0:0",
+            teams: [
+              {
+                name: "Eagles",
+                players: [
+                  { id: "player-1", displayName: "TrackedPlayer" },
+                  { id: "player-2", displayName: "Teammate" },
+                ],
+              },
+              {
+                name: "Cobras",
+                players: [
+                  { id: "player-3", displayName: "Enemy1" },
+                  { id: "player-4", displayName: "Enemy2" },
+                ],
+              },
+            ],
+            playersAssociationData: {},
+            substitutions: [
+              {
+                id: "sub-1",
+                playerOutDisplayName: "Enemy1",
+                playerInDisplayName: "SubPlayer",
+                teamName: "Cobras",
+                timestamp: "2026-01-01T00:05:00.000Z",
+              },
+            ],
+          },
+        }}
+        matchHistoryLoading={false}
+        onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("series-overview-body")).toHaveLength(2);
+    expect(screen.getByText("player-pre-series-info-body")).toBeInTheDocument();
+    expect(screen.getByText(/SubPlayer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Queue #12/i)).toBeInTheDocument();
   });
 });

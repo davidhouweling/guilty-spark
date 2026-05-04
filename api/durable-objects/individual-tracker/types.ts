@@ -1,4 +1,5 @@
 import type {
+  IndividualTrackerActiveNeatQueueSeries,
   IndividualTrackerNeatQueueSeriesData,
   IndividualTrackerSeriesGroup,
 } from "@guilty-spark/shared/individual-tracker/types";
@@ -87,6 +88,12 @@ export interface IndividualTrackerSeriesGroupUpdateRequest {
   neatQueueSeriesData?: IndividualTrackerNeatQueueSeriesData;
 }
 
+export interface IndividualTrackerActiveNeatQueueSeriesUpdateRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+  activeNeatQueueSeries: IndividualTrackerActiveNeatQueueSeries | null;
+}
+
 export interface IndividualTrackerSelectActiveRequest {
   /** Must match the tracker's owning userId. */
   userId: string;
@@ -121,6 +128,7 @@ export interface IndividualTrackerState {
   matchIds: string[];
   matchGroupings: string[][];
   seriesGroups: IndividualTrackerSeriesGroup[];
+  activeNeatQueueSeries?: IndividualTrackerActiveNeatQueueSeries;
   /** Set of matchIds explicitly excluded by the owner while the tracker is active. */
   excludedMatchIds: string[];
 
@@ -242,6 +250,14 @@ export interface IndividualTrackerSeriesGroupUpdateSuccessResponse {
 }
 
 export type IndividualTrackerSeriesGroupUpdateResponse = IndividualTrackerSeriesGroupUpdateSuccessResponse;
+
+export interface IndividualTrackerActiveNeatQueueSeriesUpdateSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerActiveNeatQueueSeriesUpdateResponse =
+  IndividualTrackerActiveNeatQueueSeriesUpdateSuccessResponse;
 
 // ─── Type guards ─────────────────────────────────────────────────────────────
 

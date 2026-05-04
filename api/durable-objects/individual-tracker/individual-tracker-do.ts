@@ -13,6 +13,8 @@ import {
   type IndividualTrackerStartRequest,
   type IndividualTrackerSeriesGroupUpdateRequest,
   type IndividualTrackerSeriesGroupUpdateResponse,
+  type IndividualTrackerActiveNeatQueueSeriesUpdateRequest,
+  type IndividualTrackerActiveNeatQueueSeriesUpdateResponse,
   type IndividualTrackerViewerStyleUpdateRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
@@ -120,6 +122,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "series-groups-update": {
             return await this.handleSeriesGroupsUpdate(request);
+          }
+          case "neatqueue-series-update": {
+            return await this.handleActiveNeatQueueSeriesUpdate(request);
           }
           case "websocket": {
             return await this.handleWebSocket();
@@ -594,12 +599,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
 
     if (titleOverride != null || subtitleOverride != null || neatQueueSeriesData != null) {
-      nextSeriesGroups.push({
+      const nextGroupBase = {
         matchIds: normalizedMatchIds,
         titleOverride,
         subtitleOverride,
-        neatQueueSeriesData,
-      } satisfies IndividualTrackerSeriesGroup);
+      };
+
+      if (neatQueueSeriesData != null) {
+        nextSeriesGroups.push({
+          ...nextGroupBase,
+          neatQueueSeriesData,
+        } satisfies IndividualTrackerSeriesGroup);
+      } else {
+        nextSeriesGroups.push(nextGroupBase satisfies IndividualTrackerSeriesGroup);
+      }
     }
 
     const nextState: IndividualTrackerState = {
@@ -611,6 +624,40 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(nextState);
 
     const response: IndividualTrackerSeriesGroupUpdateResponse = {
+      success: true,
+      state: sanitizeTrackerState(nextState),
+    };
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handleActiveNeatQueueSeriesUpdate(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerActiveNeatQueueSeriesUpdateRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const nextStateBase = {
+      ...trackerState,
+      lastUpdateTime: new Date().toISOString(),
+    };
+
+    const nextState: IndividualTrackerState =
+      body.activeNeatQueueSeries == null
+        ? nextStateBase
+        : {
+            ...nextStateBase,
+            activeNeatQueueSeries: body.activeNeatQueueSeries,
+          };
+
+    await this.setState(nextState);
+
+    const response: IndividualTrackerActiveNeatQueueSeriesUpdateResponse = {
       success: true,
       state: sanitizeTrackerState(nextState),
     };

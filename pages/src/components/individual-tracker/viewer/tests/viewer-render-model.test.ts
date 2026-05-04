@@ -321,6 +321,115 @@ describe("buildIndividualTrackerViewerRenderModel", () => {
     }
   });
 
+  it("builds active NeatQueue pre-series data when the tracker has an active queue", () => {
+    const state = aFakeIndividualTrackerStateWith({
+      gamertag: "TrackedPlayer",
+      activeNeatQueueSeries: {
+        titleOverride: "Clutch Academy",
+        subtitleOverride: "Queue #12",
+        neatQueueSeriesData: {
+          seriesId: {
+            guildId: "guild-1",
+            queueNumber: 12,
+          },
+          teams: [
+            { name: "Eagles", playerIds: ["discord-1", "discord-2"] },
+            { name: "Cobras", playerIds: ["discord-3", "discord-4"] },
+          ],
+          seriesScore: "0:0",
+          matchIds: [],
+          playersAssociationData: {
+            "discord-1": {
+              discordId: "discord-1",
+              discordName: "Tracked Discord",
+              xboxId: "xuid-1",
+              gamertag: "TrackedPlayer",
+              currentRank: null,
+              currentRankTier: null,
+              currentRankSubTier: null,
+              currentRankMeasurementMatchesRemaining: null,
+              currentRankInitialMeasurementMatches: null,
+              allTimePeakRank: null,
+              esra: null,
+              lastRankedGamePlayed: null,
+            },
+            "discord-2": {
+              discordId: "discord-2",
+              discordName: "Team Mate",
+              xboxId: "xuid-2",
+              gamertag: "Teammate",
+              currentRank: null,
+              currentRankTier: null,
+              currentRankSubTier: null,
+              currentRankMeasurementMatchesRemaining: null,
+              currentRankInitialMeasurementMatches: null,
+              allTimePeakRank: null,
+              esra: null,
+              lastRankedGamePlayed: null,
+            },
+            "discord-3": {
+              discordId: "discord-3",
+              discordName: "Enemy One",
+              xboxId: "xuid-3",
+              gamertag: "Enemy1",
+              currentRank: null,
+              currentRankTier: null,
+              currentRankSubTier: null,
+              currentRankMeasurementMatchesRemaining: null,
+              currentRankInitialMeasurementMatches: null,
+              allTimePeakRank: null,
+              esra: null,
+              lastRankedGamePlayed: null,
+            },
+            "discord-4": {
+              discordId: "discord-4",
+              discordName: "Enemy Two",
+              xboxId: "xuid-4",
+              gamertag: "Enemy2",
+              currentRank: null,
+              currentRankTier: null,
+              currentRankSubTier: null,
+              currentRankMeasurementMatchesRemaining: null,
+              currentRankInitialMeasurementMatches: null,
+              allTimePeakRank: null,
+              esra: null,
+              lastRankedGamePlayed: null,
+            },
+          },
+          substitutions: [
+            {
+              playerOutId: "discord-3",
+              playerInId: "discord-5",
+              teamIndex: 1,
+              teamName: "Cobras",
+              timestamp: "2026-01-01T00:05:00.000Z",
+            },
+          ],
+          startTime: "2026-01-01T00:00:00.000Z",
+          lastUpdateTime: "2026-01-01T00:05:00.000Z",
+        },
+      },
+    });
+
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state,
+      matchHistory: aHistoryResponseWith([], []),
+      medalMetadata: {},
+      defaultTeamColor: "salmon",
+      defaultEnemyColor: "cerulean",
+    });
+
+    expect(renderModel?.activeNeatQueueSeries).not.toBeNull();
+    expect(renderModel?.activeNeatQueueSeries?.title).toBe("Clutch Academy");
+    expect(renderModel?.activeNeatQueueSeries?.teams.map((team) => team.name)).toEqual(["Eagles", "Cobras"]);
+    expect(renderModel?.activeNeatQueueSeries?.teams[0]?.players.map((player) => player.displayName)).toEqual([
+      "TrackedPlayer",
+      "Teammate",
+    ]);
+    expect(renderModel?.activeNeatQueueSeries?.substitutions[0]?.playerOutDisplayName).toBe("Enemy1");
+    expect(renderModel?.activeNeatQueueSeries?.substitutions[0]?.playerInDisplayName).toBe("discord-5");
+  });
+
   it("infers Best of 5 from a grouped 3-0 series", () => {
     const matches = [
       aHistoryEntryWith({ matchId: "m1", outcome: "Win", startTimeIso: "2026-01-01T00:00:00.000Z" }),

@@ -38,7 +38,7 @@ import type { LiveTrackerService } from "../../live-tracker/live-tracker";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config";
 import { getFakeNeatQueueData, aFakeNeatQueueStateWith, neatQueueStateFromTimeline } from "../fakes/data";
-import type { NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types";
+import type { FetchedPlayersData, NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types";
 import { getRankedArenaCsrsData, getMatchStats } from "../../halo/fakes/data";
 import {
   aGuildMemberWith,
@@ -1445,6 +1445,109 @@ describe("NeatQueueService", () => {
       });
     });
 
+    describe("TEAMS_CREATED", () => {
+      it("fans out active NeatQueue series metadata to matching individual trackers", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const liveTrackerState = aFakeLiveTrackerStateWith({
+          status: "active",
+          queueNumber: teamsCreatedRequest.match_number,
+          teams: [
+            { name: "Eagles", playerIds: ["discord_user_01", "discord_user_02"] },
+            { name: "Cobras", playerIds: ["discord_user_03", "discord_user_04"] },
+          ],
+          seriesScore: "0:0",
+          matchIds: [],
+          playersAssociationData: {
+            discord_user_01: {
+              discordId: "discord_user_01",
+              discordName: "soundmanD",
+              xboxId: "2533274844642438",
+              gamertag: "soundmanD",
+              currentRank: null,
+              currentRankTier: null,
+              currentRankSubTier: null,
+              currentRankMeasurementMatchesRemaining: null,
+              currentRankInitialMeasurementMatches: null,
+              allTimePeakRank: null,
+              esra: null,
+              lastRankedGamePlayed: null,
+            },
+          },
+          substitutions: [],
+        });
+
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({
+            NeatQueueInformerLiveTracking: "Y",
+          }),
+        );
+        vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+        vi.spyOn(discordService, "getChannel").mockResolvedValue(textChannel);
+        vi.spyOn(discordService, "getGuildMember").mockResolvedValue(guildMember);
+        vi.spyOn(discordService, "hasPermissions").mockReturnValue({ hasAll: true, missing: [] });
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([
+          aGuildMemberWith({ user: { ...guildMember.user, id: "discord_user_01", username: "soundmanD" } }),
+        ]);
+        const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+        appDataGetSpy.mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData: liveTrackerState.playersAssociationData,
+          }),
+        );
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(liveTrackerService, "startTracker").mockResolvedValue({ success: true, state: liveTrackerState });
+        const findSessionsSpy = vi.spyOn(databaseService, "findIndividualTrackerSessionsByXuids").mockResolvedValue([
+          aFakeIndividualTrackerSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+            Xuid: "2533274844642438",
+          }),
+        ]);
+
+        const individualTrackerDo = aFakeIndividualTrackerDOWith({
+          statusResponse: {
+            state: aFakeIndividualTrackerStateWith({
+              userId: "user-123",
+              trackerId: "tracker-123",
+            }),
+          },
+        });
+        const individualTrackerFetchSpy = vi.spyOn(individualTrackerDo, "fetch");
+        vi.spyOn(env.INDIVIDUAL_TRACKER_DO, "get").mockReturnValue(individualTrackerDo);
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(findSessionsSpy).toHaveBeenCalledWith(["2533274844642438"]);
+        expect(individualTrackerFetchSpy).toHaveBeenCalledWith(
+          "http://do/neatqueue-series-update",
+          expect.objectContaining({
+            method: "POST",
+            body: JSON.stringify({
+              userId: "user-123",
+              activeNeatQueueSeries: {
+                titleOverride: guild.name,
+                subtitleOverride: `Queue #${teamsCreatedRequest.match_number.toString()}`,
+                neatQueueSeriesData: {
+                  seriesId: {
+                    guildId: teamsCreatedRequest.guild,
+                    queueNumber: teamsCreatedRequest.match_number,
+                  },
+                  teams: liveTrackerState.teams,
+                  seriesScore: liveTrackerState.seriesScore,
+                  matchIds: liveTrackerState.matchIds,
+                  playersAssociationData: liveTrackerState.playersAssociationData,
+                  substitutions: liveTrackerState.substitutions,
+                  startTime: liveTrackerState.startTime,
+                  lastUpdateTime: liveTrackerState.lastUpdateTime,
+                },
+              },
+            }),
+          }),
+        );
+      });
+    });
+
     it("returns OK response for unknown action", () => {
       const unknownRequest = {
         ...getFakeNeatQueueData("joinQueue"),
@@ -2066,6 +2169,139 @@ describe("NeatQueueService", () => {
 
       expect(messageString).toContain("new-player-2");
       expect(messageString).not.toContain(substitution1.player_subbed_out.id);
+    });
+
+    it("fans out updated active series metadata to matching individual trackers", async () => {
+      const substitutionRequest = getFakeNeatQueueData("substitution");
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+      const updatedAssociationData = {
+        [substitutionRequest.player_subbed_in.id]: {
+          discordId: substitutionRequest.player_subbed_in.id,
+          discordName: substitutionRequest.player_subbed_in.name,
+          xboxId: "2533274844642438",
+          gamertag: "SubPlayer",
+          currentRank: null,
+          currentRankTier: null,
+          currentRankSubTier: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: null,
+          esra: null,
+          lastRankedGamePlayed: null,
+        },
+      };
+      const initialTrackerState = aFakeLiveTrackerStateWith({
+        status: "active",
+        queueNumber: Preconditions.checkExists(substitutionRequest.match_number),
+      });
+      const updatedTrackerState = aFakeLiveTrackerStateWith({
+        status: "active",
+        queueNumber: Preconditions.checkExists(substitutionRequest.match_number),
+        teams: [
+          { name: "Eagles", playerIds: [substitutionRequest.player_subbed_in.id] },
+          { name: "Cobras", playerIds: ["discord_user_03"] },
+        ],
+        seriesScore: "0:0",
+        matchIds: [],
+        playersAssociationData: updatedAssociationData,
+        substitutions: [
+          {
+            playerOutId: substitutionRequest.player_subbed_out.id,
+            playerInId: substitutionRequest.player_subbed_in.id,
+            teamIndex: 0,
+            teamName: "Eagles",
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      });
+
+      getGuildConfigSpy.mockResolvedValue(aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }));
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline: [
+            { timestamp: new Date().toISOString(), event: matchStartedRequest },
+            { timestamp: new Date().toISOString(), event: substitutionRequest },
+          ],
+          playersAssociationData: {},
+        }),
+      );
+      appDataPutSpy.mockResolvedValue(undefined);
+      const fetchPlayersAssociationDataSpy = vi.spyOn(
+        neatQueueService as unknown as {
+          fetchPlayersAssociationData: (...args: unknown[]) => Promise<FetchedPlayersData>;
+        },
+        "fetchPlayersAssociationData",
+      );
+      fetchPlayersAssociationDataSpy.mockResolvedValue({
+        associationData: updatedAssociationData,
+        embedData: {
+          discordAssociations: [],
+          haloPlayersMap: new Map(),
+          rankedArenaCsrs: new Map(),
+          esras: new Map(),
+        },
+      });
+      vi.spyOn(liveTrackerService, "getTrackerStatus")
+        .mockResolvedValueOnce({ state: initialTrackerState })
+        .mockResolvedValueOnce({ state: updatedTrackerState });
+      vi.spyOn(liveTrackerService, "recordSubstitution").mockResolvedValue({
+        success: true,
+        substitution: {
+          playerOutId: substitutionRequest.player_subbed_out.id,
+          playerInId: substitutionRequest.player_subbed_in.id,
+          teamIndex: 0,
+        },
+      });
+      const findSessionsSpy = vi.spyOn(databaseService, "findIndividualTrackerSessionsByXuids").mockResolvedValue([
+        aFakeIndividualTrackerSessionsRow({
+          UserId: "user-123",
+          TrackerId: "tracker-123",
+          Xuid: "2533274844642438",
+        }),
+      ]);
+      vi.spyOn(discordService, "getGuild").mockResolvedValue(guild);
+
+      const individualTrackerDo = aFakeIndividualTrackerDOWith({
+        statusResponse: {
+          state: aFakeIndividualTrackerStateWith({
+            userId: "user-123",
+            trackerId: "tracker-123",
+          }),
+        },
+      });
+      const individualTrackerFetchSpy = vi.spyOn(individualTrackerDo, "fetch");
+      vi.spyOn(env.INDIVIDUAL_TRACKER_DO, "get").mockReturnValue(individualTrackerDo);
+
+      const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(findSessionsSpy).toHaveBeenCalledWith(["2533274844642438"]);
+      expect(individualTrackerFetchSpy).toHaveBeenCalledWith(
+        "http://do/neatqueue-series-update",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            userId: "user-123",
+            activeNeatQueueSeries: {
+              titleOverride: guild.name,
+              subtitleOverride: `Queue #${Preconditions.checkExists(substitutionRequest.match_number).toString()}`,
+              neatQueueSeriesData: {
+                seriesId: {
+                  guildId: substitutionRequest.guild,
+                  queueNumber: Preconditions.checkExists(substitutionRequest.match_number),
+                },
+                teams: updatedTrackerState.teams,
+                seriesScore: updatedTrackerState.seriesScore,
+                matchIds: updatedTrackerState.matchIds,
+                playersAssociationData: updatedTrackerState.playersAssociationData,
+                substitutions: updatedTrackerState.substitutions,
+                startTime: updatedTrackerState.startTime,
+                lastUpdateTime: updatedTrackerState.lastUpdateTime,
+              },
+            },
+          }),
+        }),
+      );
     });
 
     it("disables feature when Discord returns missing access error", async () => {

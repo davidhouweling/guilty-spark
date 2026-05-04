@@ -2,6 +2,7 @@ import type {
   IndividualTrackerSeriesGroup,
   IndividualTrackerState,
 } from "@guilty-spark/shared/individual-tracker/types";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
@@ -78,6 +79,26 @@ export interface IndividualTrackerViewerTrackedPlayerTotals extends IndividualTr
   readonly title: string;
 }
 
+export interface IndividualTrackerViewerSubstitution {
+  readonly id: string;
+  readonly playerOutDisplayName: string;
+  readonly playerInDisplayName: string;
+  readonly teamName: string;
+  readonly timestamp: string;
+}
+
+export interface IndividualTrackerViewerActiveNeatQueueSeries {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly seriesScore: string;
+  readonly teams: readonly {
+    readonly name: string;
+    readonly players: readonly { id: string; displayName: string }[];
+  }[];
+  readonly playersAssociationData: Record<string, PlayerAssociationData>;
+  readonly substitutions: readonly IndividualTrackerViewerSubstitution[];
+}
+
 export type IndividualTrackerViewerTimelineItem =
   | {
       readonly type: "group";
@@ -101,6 +122,7 @@ export interface IndividualTrackerViewerRenderModel {
   readonly trackerStatus: IndividualTrackerState["status"];
   readonly accumulatedStats: IndividualTrackerViewerAccumulatedStats;
   readonly teamColors: readonly TeamColor[];
+  readonly activeNeatQueueSeries: IndividualTrackerViewerActiveNeatQueueSeries | null;
   readonly trackedPlayerTotals: IndividualTrackerViewerTrackedPlayerTotals | null;
   readonly gameplayTimeline: readonly IndividualTrackerViewerTimelineItem[];
   readonly trackedEntriesCount: number;

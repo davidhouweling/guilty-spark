@@ -1,6 +1,6 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered; Phase 4 advanced, viewer/runtime follow-ups still in progress
+**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered including NeatQueue pre-series fanout; Phase 4 advanced, streamer/discovery follow-ups still in progress
 **Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 4, 2026)
 
 ## Current implementation snapshot (May 4, 2026)
@@ -19,6 +19,8 @@
 - Viewer header metadata now reuses the same rank / peak / game-count summary UI as the Add Tracker search flow rather than showing a low-value tracker ID.
 - Grouped-series score derivation now follows Halo team-index ordering and uses raw match stats when available, with focused regression coverage for the previously mismatched `1:2` style cases.
 - Individual tracker DO alarm handling now has focused test coverage and follows the same lock-clearing / rescheduling pattern as the NeatQueue live tracker more closely.
+- NeatQueue integration now fans out active-series metadata to matching individual tracker DOs on `TEAMS_CREATED` and `SUBSTITUTION` events using XUID overlap.
+- Individual tracker viewer now renders an active pre-series section (shared series overview, pre-series player info, substitutions) before grouped matches exist, and clears active-series state on series completion.
 
 ## Goal
 
@@ -374,9 +376,9 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] Add idle-timeout settings with allowed values of 1h, 2h, 3h, 4h, 5h, and 6h, defaulting to 1h.
 - [ ] Add logout behavior setting for whether active trackers may continue after logout.
 - [x] Stop trackers automatically only when no new matches are discovered within the configured window.
-- [ ] Integrate NeatQueue series metadata when the active tracker corresponds to a NeatQueue series, including grouped-series defaults, teams, pre-series player info, and substitutions.
+- [x] Integrate NeatQueue series metadata when the active tracker corresponds to a NeatQueue series, including grouped-series defaults, teams, pre-series player info, and substitutions.
 
-> Current Phase 3 state: the core individual tracker runtime and owner-facing manage/view experience are delivered. The remaining Phase 3 backlog is limited to auth/logout UX polish and NeatQueue-driven grouped-series context fanout.
+> Current Phase 3 state: the core individual tracker runtime and owner-facing manage/view experience are delivered, including NeatQueue grouped-series and active pre-series metadata fanout. The remaining Phase 3 backlog is limited to auth/logout UX polish.
 
 ### Phase 4 - Streamer controls
 
@@ -619,11 +621,11 @@ Each backlog item should still land in a separate commit with this document upda
 - [x] Viewer metadata follow-up delivered: replaced viewer tracker-ID copy with the same reusable rank / peak / game-count summary used by Add Tracker.
 - [x] Viewer score follow-up delivered: grouped-series score now derives from Halo team-order data instead of tracked-player win/loss orientation.
 - [x] Runtime reliability follow-up delivered: individual tracker DO alarm flow now has focused coverage for initial scheduling, periodic polling, rescheduling, and stale refresh-lock cleanup.
-- [ ] Next viewer follow-up planned: grouped-series runtime labels plus NeatQueue-backed series context fanout into active individual trackers.
+- [x] Viewer + NeatQueue lifecycle follow-up delivered: worker now fans out active NeatQueue series updates on teams-created/substitution events, individual tracker DO stores active pre-series context, viewer renders pre-series roster/substitution info, and match-completed fanout clears active pre-series state.
 
 ### Current operator note - View tracker behavior
 
-Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker?mode=active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling, team-order-correct grouped-series scoring, and the shared rank / peak / game-count summary block in the header.
+Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker?mode=active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling, team-order-correct grouped-series scoring, shared rank / peak / game-count summary in the header, and active NeatQueue pre-series context (teams, player pre-series info, substitutions) when available.
 
 Still pending: a broader public viewer experience (follow-the-stream route UX, streamer discovery, and non-owner browsing flows).
 

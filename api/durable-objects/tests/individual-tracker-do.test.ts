@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import type { IndividualTrackerNeatQueueSeriesData } from "@guilty-spark/shared/individual-tracker/types";
+import type {
+  IndividualTrackerActiveNeatQueueSeries,
+  IndividualTrackerNeatQueueSeriesData,
+} from "@guilty-spark/shared/individual-tracker/types";
 import { IndividualTrackerDO } from "../individual-tracker/individual-tracker-do";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../services/fakes/services";
@@ -232,5 +235,49 @@ describe("IndividualTrackerDO", () => {
         neatQueueSeriesData,
       },
     ]);
+  });
+
+  it("stores active NeatQueue series metadata", async () => {
+    trackerState = aFakeIndividualTrackerStateWith({
+      userId: "user-1",
+    });
+    storageGetSpy.mockResolvedValue(trackerState);
+
+    const activeNeatQueueSeries: IndividualTrackerActiveNeatQueueSeries = {
+      titleOverride: "Guild Name",
+      subtitleOverride: "Queue #7",
+      neatQueueSeriesData: {
+        seriesId: {
+          guildId: "guild-1",
+          queueNumber: 7,
+        },
+        teams: [
+          { name: "Eagle", playerIds: ["player-1", "player-2"] },
+          { name: "Cobra", playerIds: ["player-3", "player-4"] },
+        ],
+        seriesScore: "0:0",
+        matchIds: [],
+        playersAssociationData: {},
+        substitutions: [],
+        startTime: new Date().toISOString(),
+        lastUpdateTime: new Date().toISOString(),
+      },
+    };
+
+    const response = await individualTrackerDO.fetch(
+      new Request("https://example.com/neatqueue-series-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "user-1",
+          activeNeatQueueSeries,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+
+    const finalState = storagePutSpy.mock.calls.at(-1)?.[1] as IndividualTrackerState | undefined;
+    expect(finalState?.activeNeatQueueSeries).toEqual(activeNeatQueueSeries);
   });
 });

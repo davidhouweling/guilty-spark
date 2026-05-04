@@ -16,6 +16,7 @@ import { Container } from "../../container/container";
 import { MatchStats as MatchStatsView, MatchStatsHeader } from "../../stats/match-stats";
 import { SeriesStats } from "../../stats/series-stats";
 import { SeriesOverview } from "../../stats/series-overview/series-overview";
+import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import liveStyles from "../../live-tracker/live-tracker.module.css";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
@@ -323,6 +324,64 @@ export function IndividualTrackerViewer({
               <h2 className={styles.matchesTitle}>Tracked Gameplay</h2>
 
               {matchHistoryLoading && <LoadingState text="Loading enriched match history..." />}
+
+              {renderModel.activeNeatQueueSeries != null && (
+                <section className={styles.seriesSection}>
+                  <div className={styles.seriesGroup}>
+                    <div className={styles.seriesSummary}>
+                      <div className={styles.seriesHeading}>
+                        <div className={styles.seriesTitleRow}>
+                          <span className={styles.seriesTitle}>{renderModel.activeNeatQueueSeries.title}</span>
+                          <span className={styles.seriesSubtitle}>{renderModel.activeNeatQueueSeries.subtitle}</span>
+                        </div>
+                      </div>
+                      <div className={styles.seriesSummaryRight}>
+                        <span className={styles.seriesScore}>{renderModel.activeNeatQueueSeries.seriesScore}</span>
+                      </div>
+                    </div>
+
+                    <SeriesOverview
+                      className={styles.groupSeriesOverview}
+                      hidePartBorders={true}
+                      seriesScore={renderModel.activeNeatQueueSeries.seriesScore}
+                      matches={[]}
+                      teams={renderModel.activeNeatQueueSeries.teams.map((team, teamIndex) => ({
+                        id: `active-neatqueue-team-${teamIndex.toString()}`,
+                        name: team.name,
+                        colorHex: renderModel.teamColors[teamIndex]?.hex,
+                        players: team.players.map((player) => ({
+                          id: player.id,
+                          content: player.displayName,
+                        })),
+                      }))}
+                      gameModeIconSrc={gameModeIconSrc}
+                      emptyState={
+                        <Alert variant="info" icon="⏳">
+                          Waiting for first match to complete...
+                        </Alert>
+                      }
+                    />
+
+                    <PlayerPreSeriesInfo
+                      className={styles.viewerSection}
+                      teams={renderModel.activeNeatQueueSeries.teams}
+                      playersAssociationData={renderModel.activeNeatQueueSeries.playersAssociationData}
+                      teamColors={renderModel.teamColors}
+                    />
+
+                    {renderModel.activeNeatQueueSeries.substitutions.length > 0 ? (
+                      <div className={styles.seriesMatches}>
+                        {renderModel.activeNeatQueueSeries.substitutions.map((substitution) => (
+                          <Alert key={substitution.id} variant="info" icon="↔️">
+                            <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                            <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                          </Alert>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              )}
 
               {renderModel.gameplayTimeline.map((item) => {
                 if (item.type === "group") {

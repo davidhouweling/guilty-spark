@@ -1,6 +1,7 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { compareAsc, parseISO } from "date-fns";
 import { GameVariantCategory } from "halo-infinite-api";
 import type { TrackerMatchHistoryEntry, TrackerMatchHistoryResponse } from "../../../services/individual-tracker/types";
@@ -15,10 +16,12 @@ import {
   getDefaultSeriesGroupTitle,
 } from "../series-group-metadata";
 import type {
+  IndividualTrackerViewerActiveNeatQueueSeries,
   IndividualTrackerViewerAccumulatedStats,
   IndividualTrackerViewerMatchCard,
   IndividualTrackerViewerRenderModel,
   IndividualTrackerViewerSeriesTotals,
+  IndividualTrackerViewerSubstitution,
   IndividualTrackerViewerTimelineItem,
   IndividualTrackerViewerTrackedPlayerTotals,
 } from "../types";
@@ -209,10 +212,47 @@ function computeSeriesScore(entries: readonly TrackerMatchHistoryEntry[]): strin
 
 function getNeatQueuePlayerDisplayName(
   playerId: string,
-  playersAssociationData: NonNullable<SeriesGroupViewModel["neatQueueSeriesData"]>["playersAssociationData"],
+  playersAssociationData: Readonly<Record<string, PlayerAssociationData | undefined>>,
 ): string {
   const playerData = playersAssociationData[playerId];
   return playerData?.gamertag ?? playerData?.discordName ?? playerId;
+}
+
+function buildActiveNeatQueueSeries(
+  state: IndividualTrackerState,
+): IndividualTrackerViewerActiveNeatQueueSeries | null {
+  const activeSeries = state.activeNeatQueueSeries;
+  if (activeSeries == null) {
+    return null;
+  }
+
+  const { playersAssociationData } = activeSeries.neatQueueSeriesData;
+
+  const substitutions: IndividualTrackerViewerSubstitution[] = activeSeries.neatQueueSeriesData.substitutions.map(
+    (substitution, index) => ({
+      id: `active-neatqueue-substitution-${index.toString()}`,
+      playerOutDisplayName: getNeatQueuePlayerDisplayName(substitution.playerOutId, playersAssociationData),
+      playerInDisplayName: getNeatQueuePlayerDisplayName(substitution.playerInId, playersAssociationData),
+      teamName: substitution.teamName,
+      timestamp: substitution.timestamp,
+    }),
+  );
+
+  return {
+    title: activeSeries.titleOverride ?? getDefaultSeriesGroupTitle(),
+    subtitle:
+      activeSeries.subtitleOverride ?? `Queue #${activeSeries.neatQueueSeriesData.seriesId.queueNumber.toString()}`,
+    seriesScore: activeSeries.neatQueueSeriesData.seriesScore,
+    teams: activeSeries.neatQueueSeriesData.teams.map((team) => ({
+      name: team.name,
+      players: team.playerIds.map((playerId) => ({
+        id: playerId,
+        displayName: getNeatQueuePlayerDisplayName(playerId, playersAssociationData),
+      })),
+    })),
+    playersAssociationData,
+    substitutions,
+  };
 }
 
 function buildSeriesGroups(
@@ -527,6 +567,7 @@ export function buildIndividualTrackerViewerRenderModel({
 
   const allMatchStats = buildAllMatchStats(trackedEntries, medalMetadata);
   const seriesStatsByGroup = buildSeriesStatsByGroup(seriesGroups, medalMetadata);
+  const activeNeatQueueSeries = buildActiveNeatQueueSeries(state);
   const trackedPlayerTotals = buildTrackedPlayerTotals(state, trackedEntries, overallScore, medalMetadata);
   const gameplayTimeline = buildGameplayTimeline(trackedEntries, seriesGroups);
 
@@ -590,6 +631,7 @@ export function buildIndividualTrackerViewerRenderModel({
     trackerStatus: state.status,
     accumulatedStats,
     teamColors,
+    activeNeatQueueSeries,
     trackedPlayerTotals,
     gameplayTimeline: timelineItems,
     trackedEntriesCount: trackedEntries.length,

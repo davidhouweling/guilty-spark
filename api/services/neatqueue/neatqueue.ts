@@ -2,7 +2,6 @@ import { createHmac } from "crypto";
 import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import type {
-  APIGuild,
   RESTPostAPIChannelThreadsResult,
   APIEmbed,
   APIMessage,
@@ -16,6 +15,10 @@ import { sub, isAfter } from "date-fns";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import type {
+  IndividualTrackerActiveNeatQueueSeries,
+  IndividualTrackerNeatQueueSeriesData,
+} from "@guilty-spark/shared/individual-tracker/types";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -36,9 +39,9 @@ import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
-import type { IndividualTrackerNeatQueueSeriesData } from "@guilty-spark/shared/individual-tracker/types";
 import { isSuccessResponse } from "../../durable-objects/types";
 import type { IndividualTrackerStatusResponse } from "../../durable-objects/individual-tracker/types";
+import type { LiveTrackerState } from "../../durable-objects/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
 import type {
   VerifyNeatQueueResponse,
@@ -99,6 +102,92 @@ export class NeatQueueService {
 
   private buildSeriesGroupKey(matchIds: readonly string[]): string {
     return Array.from(new Set(matchIds)).sort().join(":");
+  }
+
+  private async getIndividualTrackerFanoutTitle(guildId: string): Promise<string | null> {
+    try {
+      const guildData = await this.discordService.getGuild(guildId);
+      return guildData.name;
+    } catch (error) {
+      this.logService.warn(
+        error as Error,
+        new Map([
+          ["reason", "Failed to resolve guild name for individual tracker fanout"],
+          ["guildId", guildId],
+        ]),
+      );
+      return null;
+    }
+  }
+
+  private async fanOutActiveSeriesToIndividualTrackers(
+    guildId: string,
+    queueNumber: number,
+    liveTrackerState: Pick<
+      LiveTrackerState,
+      "teams" | "seriesScore" | "matchIds" | "playersAssociationData" | "substitutions" | "startTime" | "lastUpdateTime"
+    >,
+  ): Promise<void> {
+    const playerXuids = Array.from(
+      new Set(
+        Object.values(liveTrackerState.playersAssociationData)
+          .map((player) => player.xboxId)
+          .filter((xuid): xuid is string => xuid != null),
+      ),
+    );
+
+    if (playerXuids.length === 0) {
+      return;
+    }
+
+    const trackerSessions = await this.databaseService.findIndividualTrackerSessionsByXuids(playerXuids);
+    if (trackerSessions.length === 0) {
+      return;
+    }
+
+    const activeNeatQueueSeries: IndividualTrackerActiveNeatQueueSeries = {
+      titleOverride: await this.getIndividualTrackerFanoutTitle(guildId),
+      subtitleOverride: `Queue #${queueNumber.toString()}`,
+      neatQueueSeriesData: {
+        seriesId: {
+          guildId,
+          queueNumber,
+        },
+        teams: liveTrackerState.teams,
+        seriesScore: liveTrackerState.seriesScore,
+        matchIds: liveTrackerState.matchIds,
+        playersAssociationData: liveTrackerState.playersAssociationData,
+        substitutions: liveTrackerState.substitutions,
+        startTime: liveTrackerState.startTime,
+        lastUpdateTime: liveTrackerState.lastUpdateTime,
+      },
+    };
+
+    await Promise.all(
+      trackerSessions.map(async (trackerSession) => {
+        const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${trackerSession.UserId}:${trackerSession.TrackerId}`);
+        const stub = this.env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const statusResponse = await stub.fetch("http://do/status", { method: "GET" });
+        if (statusResponse.status === 404) {
+          await this.databaseService.deleteIndividualTrackerSession(trackerSession.UserId, trackerSession.TrackerId);
+          return;
+        }
+
+        if (!statusResponse.ok) {
+          return;
+        }
+
+        await stub.fetch("http://do/neatqueue-series-update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: trackerSession.UserId,
+            activeNeatQueueSeries,
+          }),
+        });
+      }),
+    );
   }
 
   async verifyRequest(request: Request): Promise<VerifyNeatQueueResponse> {
@@ -623,6 +712,7 @@ export class NeatQueueService {
       });
 
       if (isSuccessResponse(result)) {
+        await this.fanOutActiveSeriesToIndividualTrackers(request.guild, request.match_number, result.state);
         logService.info(
           `Auto-started live tracker for queue ${request.match_number.toString()}`,
           new Map([
@@ -708,6 +798,10 @@ export class NeatQueueService {
       });
 
       if (isSuccessResponse(substitutionResult)) {
+        const updatedTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
+        if (updatedTrackerStatus?.state != null) {
+          await this.fanOutActiveSeriesToIndividualTrackers(request.guild, matchNumber, updatedTrackerStatus.state);
+        }
         logService.info(
           `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
           new Map([
@@ -1016,34 +1110,26 @@ export class NeatQueueService {
       return;
     }
 
-    let guildData: APIGuild | null = null;
-    try {
-      guildData = await this.discordService.getGuild(request.guild);
-    } catch (error) {
-      this.logService.warn(
-        error as Error,
-        new Map([
-          ["reason", "Failed to resolve guild name for individual tracker fanout"],
-          ["guildId", request.guild],
-        ]),
-      );
-    }
-
-    const titleOverride = guildData?.name ?? null;
+    const titleOverride = await this.getIndividualTrackerFanoutTitle(request.guild);
     const subtitleOverride = `Queue #${request.match_number.toString()}`;
     const targetKey = this.buildSeriesGroupKey(targetMatchIds);
+    if (!("teams" in liveTrackerStatus.state)) {
+      return;
+    }
+
+    const liveSeriesState = liveTrackerStatus.state;
     const neatQueueSeriesData: IndividualTrackerNeatQueueSeriesData = {
       seriesId: {
         guildId: request.guild,
         queueNumber: request.match_number,
       },
-      teams: liveTrackerStatus.state.teams,
-      seriesScore: liveTrackerStatus.state.seriesScore,
+      teams: liveSeriesState.teams,
+      seriesScore: liveSeriesState.seriesScore,
       matchIds: targetMatchIds,
-      playersAssociationData: liveTrackerStatus.state.playersAssociationData,
-      substitutions: liveTrackerStatus.state.substitutions,
-      startTime: liveTrackerStatus.state.startTime,
-      lastUpdateTime: liveTrackerStatus.state.lastUpdateTime,
+      playersAssociationData: liveSeriesState.playersAssociationData,
+      substitutions: liveSeriesState.substitutions,
+      startTime: liveSeriesState.startTime,
+      lastUpdateTime: liveSeriesState.lastUpdateTime,
     };
 
     await Promise.all(
@@ -1079,6 +1165,15 @@ export class NeatQueueService {
             titleOverride,
             subtitleOverride,
             neatQueueSeriesData,
+          }),
+        });
+
+        await stub.fetch("http://do/neatqueue-series-update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: trackerSession.UserId,
+            activeNeatQueueSeries: null,
           }),
         });
       }),

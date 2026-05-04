@@ -39,6 +39,12 @@ export interface IndividualTrackerNeatQueueSeriesData {
   readonly lastUpdateTime: string;
 }
 
+export interface IndividualTrackerActiveNeatQueueSeries {
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
+  readonly neatQueueSeriesData: IndividualTrackerNeatQueueSeriesData;
+}
+
 /**
  * Full state of an individual tracker Durable Object.
  * Transmitted to viewer clients via WebSocket.
@@ -67,6 +73,7 @@ export interface IndividualTrackerState {
   readonly matchIds: readonly string[];
   readonly matchGroupings: readonly (readonly string[])[];
   readonly seriesGroups: readonly IndividualTrackerSeriesGroup[];
+  readonly activeNeatQueueSeries?: IndividualTrackerActiveNeatQueueSeries;
   /** Match IDs explicitly excluded by the owner during active tracking. */
   readonly excludedMatchIds: readonly string[];
 
