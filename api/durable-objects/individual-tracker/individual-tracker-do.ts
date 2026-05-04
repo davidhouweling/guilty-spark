@@ -155,51 +155,60 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         return;
       }
 
-      if (this.checkAndHandleStaleLock(trackerState)) {
-        this.logService.debug("IndividualTracker: refresh in progress, skipping alarm");
-        await this.state.storage.setAlarm(
-          addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime(),
-        );
-        return;
-      }
-
-      // Idle check: stop if no new match has been found within the configured window.
-      const idleThresholdHours = trackerState.idleTimeoutHours;
-      const lastActivity = new Date(trackerState.lastMatchDiscoveredAt);
-      if (differenceInHours(new Date(), lastActivity) >= idleThresholdHours) {
-        await this.dispose("Tracker idle, no new matches discovered within timeout window");
-        return;
-      }
-
-      trackerState.refreshInProgress = true;
-      trackerState.refreshStartedAt = new Date().toISOString();
-      await this.setState(trackerState);
-
-      Sentry.setContext("trackerState", {
-        userId: trackerState.userId,
-        trackerId: trackerState.trackerId,
-        gamertag: trackerState.gamertag,
-        checkCount: trackerState.checkCount,
-        errorCount: trackerState.errorState.consecutiveErrors,
-      });
-
       try {
+        if (this.checkAndHandleStaleLock(trackerState)) {
+          this.logService.debug("IndividualTracker: refresh in progress, skipping alarm");
+          await this.state.storage.setAlarm(
+            addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime(),
+          );
+          return;
+        }
+
+        // Idle check: stop if no new match has been found within the configured window.
+        const idleThresholdHours = trackerState.idleTimeoutHours;
+        const lastActivity = new Date(trackerState.lastMatchDiscoveredAt);
+        if (differenceInHours(new Date(), lastActivity) >= idleThresholdHours) {
+          await this.dispose("Tracker idle, no new matches discovered within timeout window");
+          return;
+        }
+
+        trackerState.refreshInProgress = true;
+        trackerState.refreshStartedAt = new Date().toISOString();
+        await this.setState(trackerState);
+
+        Sentry.setContext("trackerState", {
+          userId: trackerState.userId,
+          trackerId: trackerState.trackerId,
+          gamertag: trackerState.gamertag,
+          checkCount: trackerState.checkCount,
+          errorCount: trackerState.errorState.consecutiveErrors,
+        });
+
         await this.executeTrackerUpdate(trackerState);
       } catch (error) {
         this.logService.error("IndividualTracker: alarm update failed", new Map([["error", String(error)]]));
         Sentry.captureException(error);
         this.handleError(trackerState, String(error));
+        if (error instanceof Error && error.message.includes("Tracker stopped")) {
+          return;
+        }
+      } finally {
+        try {
+          await this.state.storage.setAlarm(
+            addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime(),
+          );
+        } catch (error) {
+          this.logService.error("Failed to reschedule individual tracker alarm", new Map([["error", String(error)]]));
+        }
+
+        await this.setState({
+          ...trackerState,
+          refreshInProgress: false,
+          refreshStartedAt: undefined,
+        }).catch((error: unknown) => {
+          this.logService.error("Failed to clear refresh lock", new Map([["error", String(error)]]));
+        });
       }
-
-      await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
-
-      await this.setState({
-        ...trackerState,
-        refreshInProgress: false,
-        refreshStartedAt: undefined,
-      }).catch((error: unknown) => {
-        this.logService.error("Failed to clear refresh lock", new Map([["error", String(error)]]));
-      });
     });
   }
 
