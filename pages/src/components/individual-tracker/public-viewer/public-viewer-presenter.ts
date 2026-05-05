@@ -289,9 +289,18 @@ export class PublicViewerPresenter {
       };
     }
 
+    const observerOverride =
+      state == null ? null : this.streamerStyleFlags.observerColorOverrides?.[state.trackerId] ?? null;
+
     return {
-      teamColor: this.normalizeColorId(this.streamerStyleFlags.teamColor, snapshot.viewerTeamColor),
-      enemyColor: this.normalizeColorId(this.streamerStyleFlags.enemyColor, snapshot.viewerEnemyColor),
+      teamColor: this.normalizeColorId(
+        observerOverride?.teamColor ?? this.streamerStyleFlags.teamColor,
+        snapshot.viewerTeamColor,
+      ),
+      enemyColor: this.normalizeColorId(
+        observerOverride?.enemyColor ?? this.streamerStyleFlags.enemyColor,
+        snapshot.viewerEnemyColor,
+      ),
     };
   }
 

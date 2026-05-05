@@ -334,6 +334,35 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
   const styleColorMode = parseStreamerViewColorMode(styleFlags["colorMode"]);
   const styleTeamColor = typeof styleFlags["teamColor"] === "string" ? styleFlags["teamColor"] : null;
   const styleEnemyColor = typeof styleFlags["enemyColor"] === "string" ? styleFlags["enemyColor"] : null;
+  const styleObserverOverridesRecord =
+    styleFlags["observerColorOverrides"] != null &&
+    typeof styleFlags["observerColorOverrides"] === "object" &&
+    !Array.isArray(styleFlags["observerColorOverrides"])
+      ? (styleFlags["observerColorOverrides"] as Record<string, unknown>)
+      : null;
+  const styleObserverOverrides =
+    styleObserverOverridesRecord == null
+      ? null
+      : Object.fromEntries(
+          Object.entries(styleObserverOverridesRecord)
+            .filter((entry): entry is [string, Record<string, unknown>] => {
+              const [, value] = entry;
+              return value != null && typeof value === "object" && !Array.isArray(value);
+            })
+            .map(([trackerId, value]) => {
+              const teamColor = typeof value["teamColor"] === "string" ? value["teamColor"] : null;
+              const enemyColor = typeof value["enemyColor"] === "string" ? value["enemyColor"] : null;
+
+              return [
+                trackerId,
+                {
+                  ...(teamColor == null ? {} : { teamColor }),
+                  ...(enemyColor == null ? {} : { enemyColor }),
+                },
+              ] as const;
+            })
+            .filter(([, value]) => value.teamColor != null || value.enemyColor != null),
+        );
 
   if (updatedAt !== null && !isNumber(updatedAt)) {
     throw new Error("Invalid streamer view settings response");
@@ -354,6 +383,9 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
       ...(styleColorMode == null ? {} : { colorMode: styleColorMode }),
       ...(styleTeamColor == null ? {} : { teamColor: styleTeamColor }),
       ...(styleEnemyColor == null ? {} : { enemyColor: styleEnemyColor }),
+      ...(styleObserverOverrides == null || Object.keys(styleObserverOverrides).length === 0
+        ? {}
+        : { observerColorOverrides: styleObserverOverrides }),
     },
     effectiveDefaults: {
       colorMode: effectiveColorMode,

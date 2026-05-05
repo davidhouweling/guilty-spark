@@ -6,10 +6,14 @@ import styles from "./streamer-connections.module.css";
 
 interface StreamerConnectionsSectionViewProps {
   readonly xboxXuid: string | null;
+  readonly activeTrackerId: string | null;
+  readonly activeTrackerGamertag: string | null;
   readonly defaultColorMode: "player" | "observer";
   readonly showTabs: boolean;
   readonly showTicker: boolean;
   readonly showTeamDetails: boolean;
+  readonly observerOverrideTeamColor: string | null;
+  readonly observerOverrideEnemyColor: string | null;
   readonly saving: boolean;
   readonly errorMessage: string | null;
   readonly onPresentationSettingsChange: (settings: {
@@ -17,6 +21,10 @@ interface StreamerConnectionsSectionViewProps {
     showTabs: boolean;
     showTicker: boolean;
     showTeamDetails: boolean;
+  }) => void;
+  readonly onObserverOverrideChange: (settings: {
+    teamColor: string;
+    enemyColor: string;
   }) => void;
   readonly onOpenView?: (xuid: string) => void;
   readonly onOpenOverlay?: (xuid: string) => void;
@@ -37,13 +45,18 @@ function buildStreamerUrls(xboxXuid: string): StreamerUrls {
 
 export function StreamerConnectionsSectionView({
   xboxXuid,
+  activeTrackerId,
+  activeTrackerGamertag,
   defaultColorMode,
   showTabs,
   showTicker,
   showTeamDetails,
+  observerOverrideTeamColor,
+  observerOverrideEnemyColor,
   saving,
   errorMessage,
   onPresentationSettingsChange,
+  onObserverOverrideChange,
   onOpenView,
   onOpenOverlay,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
@@ -206,6 +219,41 @@ export function StreamerConnectionsSectionView({
 
         {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
         {errorMessage != null ? <Alert variant="error">{errorMessage}</Alert> : null}
+      </div>
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Observer overrides</h3>
+        {activeTrackerId == null ? (
+          <p className={styles.cardDescription}>Start or set a live tracker to configure per-tracker observer colors.</p>
+        ) : (
+          <>
+            <p className={styles.cardDescription}>
+              Override observer colors for {activeTrackerGamertag ?? "active tracker"}.
+            </p>
+            <Input
+              label="Observer team color"
+              value={observerOverrideTeamColor ?? ""}
+              disabled={saving}
+              onChange={(event): void => {
+                onObserverOverrideChange({
+                  teamColor: event.currentTarget.value,
+                  enemyColor: observerOverrideEnemyColor ?? "",
+                });
+              }}
+            />
+            <Input
+              label="Observer enemy color"
+              value={observerOverrideEnemyColor ?? ""}
+              disabled={saving}
+              onChange={(event): void => {
+                onObserverOverrideChange({
+                  teamColor: observerOverrideTeamColor ?? "",
+                  enemyColor: event.currentTarget.value,
+                });
+              }}
+            />
+          </>
+        )}
       </div>
 
       <Alert variant="info">Twitch automation and advanced overlay presets remain in the next Phase 4 slice.</Alert>

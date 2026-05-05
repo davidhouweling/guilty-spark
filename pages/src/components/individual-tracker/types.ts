@@ -133,6 +133,8 @@ export interface IndividualTrackerSnapshot {
   readonly authState: AuthState;
   readonly profileId: string | null;
   readonly xboxXuid: string | null;
+  readonly settingsActiveTrackerId: string | null;
+  readonly settingsActiveTrackerGamertag: string | null;
   readonly mode: IndividualTrackerPageMode;
   readonly viewSource: IndividualTrackerViewSource;
   readonly viewTrackerId: string | null;
@@ -161,6 +163,8 @@ export interface IndividualTrackerSnapshot {
   readonly viewerShowTabs: boolean;
   readonly viewerShowTicker: boolean;
   readonly viewerShowTeamDetails: boolean;
+  readonly viewerObserverOverrideTeamColor: string | null;
+  readonly viewerObserverOverrideEnemyColor: string | null;
   readonly viewerSettingsSaving: boolean;
   readonly viewerSettingsErrorMessage: string | null;
   readonly loading: boolean;

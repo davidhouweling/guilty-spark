@@ -169,4 +169,10 @@ describe("PublicIndividualTrackerOverlay", () => {
 
     expect(screen.queryByText("Blue")).not.toBeInTheDocument();
   });
+
+  it("shows overlay status with player mode when requested", () => {
+    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayColorMode: "player" })} />);
+
+    expect(screen.getByText(/player mode/i)).toBeInTheDocument();
+  });
 });

@@ -6,6 +6,7 @@ import type {
   StreamerViewColorMode,
   StreamerViewEffectiveDefaults,
   StreamerViewLayoutOptions,
+  StreamerViewObserverColorOverrides,
   StreamerViewStyleFlags,
   StreamerViewVisibleSections,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -166,11 +167,45 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
     record["colorMode"] === "player" || record["colorMode"] === "observer" ? record["colorMode"] : null;
   const teamColor = typeof record["teamColor"] === "string" ? record["teamColor"] : null;
   const enemyColor = typeof record["enemyColor"] === "string" ? record["enemyColor"] : null;
+  const observerColorOverridesRecord =
+    record["observerColorOverrides"] != null &&
+    typeof record["observerColorOverrides"] === "object" &&
+    !Array.isArray(record["observerColorOverrides"])
+      ? (record["observerColorOverrides"] as Record<string, unknown>)
+      : null;
+
+  let observerColorOverrides: StreamerViewObserverColorOverrides | null = null;
+  if (observerColorOverridesRecord != null) {
+    const parsedEntries: Record<string, { teamColor?: string; enemyColor?: string }> = {};
+
+    for (const [trackerId, override] of Object.entries(observerColorOverridesRecord)) {
+      if (override == null || typeof override !== "object" || Array.isArray(override)) {
+        continue;
+      }
+
+      const overrideRecord = override as Record<string, unknown>;
+      const parsedTeamColor = typeof overrideRecord["teamColor"] === "string" ? overrideRecord["teamColor"] : null;
+      const parsedEnemyColor =
+        typeof overrideRecord["enemyColor"] === "string" ? overrideRecord["enemyColor"] : null;
+
+      if (parsedTeamColor == null && parsedEnemyColor == null) {
+        continue;
+      }
+
+      parsedEntries[trackerId] = {
+        ...(parsedTeamColor == null ? {} : { teamColor: parsedTeamColor }),
+        ...(parsedEnemyColor == null ? {} : { enemyColor: parsedEnemyColor }),
+      };
+    }
+
+    observerColorOverrides = Object.keys(parsedEntries).length === 0 ? null : parsedEntries;
+  }
 
   return {
     ...(colorMode == null ? {} : { colorMode }),
     ...(teamColor == null ? {} : { teamColor }),
     ...(enemyColor == null ? {} : { enemyColor }),
+    ...(observerColorOverrides == null ? {} : { observerColorOverrides }),
   };
 }
 

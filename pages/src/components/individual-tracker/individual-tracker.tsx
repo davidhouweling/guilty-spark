@@ -104,10 +104,14 @@ export function IndividualTrackerView({
       panelContent = (
         <StreamerConnectionsSectionView
           xboxXuid={snapshot.xboxXuid}
+          activeTrackerId={snapshot.settingsActiveTrackerId}
+          activeTrackerGamertag={snapshot.settingsActiveTrackerGamertag}
           defaultColorMode={snapshot.viewerDefaultColorMode}
           showTabs={snapshot.viewerShowTabs}
           showTicker={snapshot.viewerShowTicker}
           showTeamDetails={snapshot.viewerShowTeamDetails}
+          observerOverrideTeamColor={snapshot.viewerObserverOverrideTeamColor}
+          observerOverrideEnemyColor={snapshot.viewerObserverOverrideEnemyColor}
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
           onPresentationSettingsChange={(settings): void => {
@@ -117,6 +121,9 @@ export function IndividualTrackerView({
               settings.showTicker,
               settings.showTeamDetails,
             );
+          }}
+          onObserverOverrideChange={(settings): void => {
+            void presenter.updateActiveTrackerObserverOverride(settings.teamColor, settings.enemyColor);
           }}
           onOpenView={(xuid): void => {
             presenter.openPublicViewer(xuid);

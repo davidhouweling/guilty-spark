@@ -412,7 +412,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] OBS overlay implementation for individual trackers, including series-aware and non-series session modes.
 - [x] Allow the owner to select which active tracker is presented on stream.
 
-> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, client-side routed manager/view/overlay transitions, and OBS-ready overlay behaviors (series/non-series + player/observer + section toggles) are in place. Remaining backlog focuses on per-tracker observer-color override UX.
+> Current Phase 4 state: complete. Backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, per-tracker observer-color overrides, client-side routed manager/view/overlay transitions, and OBS-ready overlay behaviors are all in place.
 
 ### Phase 5 - Twitch extension integration
 
@@ -647,7 +647,7 @@ Core owner workflow delivery is complete. The remaining implementation slices be
 3. [x] **Row actions** — ellipsis menu with all actions wired to backend (pause, resume, set live, delete).
 4. [x] **Game selection sync dialog** — sync-on-close behaviour.
 5. [x] **Client-side routing + active XUID surfaces** — replace hard refreshes with in-app routing and add stable `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes.
-6. [ ] **Streamer settings integration** — rename Streamer Connections, expose OBS/view URLs, and move from the current Additional Options baseline to the broader server-backed settings + per-tracker override UX (global defaults delivered; per-tracker overrides pending).
+6. [x] **Streamer settings integration** — rename Streamer Connections, expose OBS/view URLs, and move from the current Additional Options baseline to the broader server-backed settings + per-tracker override UX.
 7. [ ] **Twitch integration follow-up** — add Twitch linking UI, auto-start/stop config, and the remaining operator toggles.
 
 Each backlog item should still land in a separate commit with this document updated alongside it.
@@ -671,8 +671,7 @@ Each backlog item should still land in a separate commit with this document upda
 - [x] Runtime reliability follow-up delivered: individual tracker DO alarm flow now has focused coverage for initial scheduling, periodic polling, rescheduling, and stale refresh-lock cleanup.
 - [x] Viewer + NeatQueue lifecycle follow-up delivered: worker now fans out active NeatQueue series updates on teams-created/substitution events, individual tracker DO stores active pre-series context, viewer renders pre-series roster/substitution info, and match-completed fanout clears active pre-series state.
 - [x] Phase 4 routing follow-up delivered: manager now routes in-app to stable XUID-based active view / overlay routes without full-page transitions.
-- [x] Phase 4 overlay follow-up delivered: individual tracker overlay now supports player/observer modes, non-series session states, and global server-backed section toggles/defaults.
-- [ ] Phase 4 overlay follow-up pending: per-tracker observer-color override UX.
+- [x] Phase 4 overlay follow-up delivered: individual tracker overlay now supports player/observer modes, non-series session states, global server-backed section toggles/defaults, and per-tracker observer-color overrides.
 
 ### Current operator note - View tracker behavior
 

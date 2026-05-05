@@ -345,4 +345,62 @@ describe("IndividualTrackerPresenter", () => {
     expect(snapshot.viewerSettingsErrorMessage).toBeNull();
     expect(snapshot.viewerSettingsSaving).toBe(false);
   });
+
+  it("updates and persists active tracker observer color overrides", async () => {
+    const individualTrackerService = aFakeIndividualTrackerServiceWith({
+      profile: {
+        ProfileId: "profile-1",
+        UserId: "user-1",
+        ActiveIdentityId: null,
+        Name: "default",
+        CreatedAt: 1,
+        UpdatedAt: 1,
+      },
+      activeState: aFakeIndividualTrackerStateWith({
+        trackerId: "tracker-1",
+        gamertag: "Chief",
+      }),
+    });
+
+    const updateSettingsSpy = vi.spyOn(individualTrackerService, "updateStreamerViewSettings");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService,
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().settingsActiveTrackerId).toBe("tracker-1");
+    });
+
+    await harness.presenter.updateActiveTrackerObserverOverride("jade", "tangelo");
+
+    expect(updateSettingsSpy).toHaveBeenCalledWith({
+      profileId: "profile-1",
+      styleFlags: {
+        observerColorOverrides: {
+          "tracker-1": {
+            teamColor: "jade",
+            enemyColor: "tangelo",
+          },
+        },
+      },
+    });
+
+    const snapshot = harness.presenter.getSnapshot();
+    expect(snapshot.viewerObserverOverrideTeamColor).toBe("jade");
+    expect(snapshot.viewerObserverOverrideEnemyColor).toBe("tangelo");
+    expect(snapshot.viewerSettingsErrorMessage).toBeNull();
+  });
 });

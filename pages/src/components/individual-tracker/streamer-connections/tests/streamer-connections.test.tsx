@@ -14,13 +14,18 @@ describe("StreamerConnectionsSectionView", () => {
     render(
       <StreamerConnectionsSectionView
         xboxXuid="2533274844642438"
+        activeTrackerId="tracker-1"
+        activeTrackerGamertag="Chief"
         defaultColorMode="observer"
         showTabs={true}
         showTicker={true}
         showTeamDetails={true}
+        observerOverrideTeamColor="salmon"
+        observerOverrideEnemyColor="cerulean"
         saving={false}
         errorMessage={null}
         onPresentationSettingsChange={(): void => {}}
+        onObserverOverrideChange={(): void => {}}
         {...overrides}
       />,
     );
@@ -92,6 +97,30 @@ describe("StreamerConnectionsSectionView", () => {
       showTabs: true,
       showTicker: true,
       showTeamDetails: false,
+    });
+  });
+
+  it("invokes observer override callback for active tracker inputs", () => {
+    const onObserverOverrideChange = vi.fn<
+      React.ComponentProps<typeof StreamerConnectionsSectionView>["onObserverOverrideChange"]
+    >();
+
+    renderComponent({ onObserverOverrideChange });
+
+    fireEvent.change(screen.getByLabelText(/observer team color/i), {
+      target: { value: "jade" },
+    });
+    fireEvent.change(screen.getByLabelText(/observer enemy color/i), {
+      target: { value: "tangelo" },
+    });
+
+    expect(onObserverOverrideChange).toHaveBeenNthCalledWith(1, {
+      teamColor: "jade",
+      enemyColor: "cerulean",
+    });
+    expect(onObserverOverrideChange).toHaveBeenNthCalledWith(2, {
+      teamColor: "salmon",
+      enemyColor: "tangelo",
     });
   });
 });

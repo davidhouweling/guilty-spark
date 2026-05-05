@@ -39,6 +39,7 @@ export class IndividualTrackerPresenter {
   private viewedTrackerSummary: TrackerSearchResult | null = null;
   private viewedMatchHistory: TrackerMatchHistoryResponse | null = null;
   private viewedMedalMetadata: MedalMetadata = {};
+  private currentStreamerStyleFlags: StreamerViewStyleFlags = {};
   private currentRoute: IndividualTrackerAppRoute;
 
   public constructor(config: Config) {
@@ -116,6 +117,12 @@ export class IndividualTrackerPresenter {
         },
       });
 
+      this.currentStreamerStyleFlags = {
+        ...this.currentStreamerStyleFlags,
+        teamColor: nextTeamColor,
+        enemyColor: nextEnemyColor,
+      };
+
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewerSettingsSaving: false,
@@ -168,6 +175,11 @@ export class IndividualTrackerPresenter {
         },
       });
 
+      this.currentStreamerStyleFlags = {
+        ...this.currentStreamerStyleFlags,
+        colorMode: defaultColorMode,
+      };
+
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewerSettingsSaving: false,
@@ -176,6 +188,63 @@ export class IndividualTrackerPresenter {
     } catch (error) {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
+  public async updateActiveTrackerObserverOverride(teamColor: string, enemyColor: string): Promise<void> {
+    const snapshot = this.getSnapshot();
+    const { profileId, settingsActiveTrackerId } = snapshot;
+    if (profileId == null || settingsActiveTrackerId == null) {
+      this.updateSnapshot((current) => ({
+        ...current,
+        viewerSettingsErrorMessage: "No active tracker selected for observer override.",
+      }));
+      return;
+    }
+
+    const nextTeamColor = this.normalizeColorId(teamColor, snapshot.viewerTeamColor);
+    const nextEnemyColor = this.normalizeColorId(enemyColor, snapshot.viewerEnemyColor);
+    const existingOverrides = this.currentStreamerStyleFlags.observerColorOverrides ?? {};
+    const nextOverrides = {
+      ...existingOverrides,
+      [settingsActiveTrackerId]: {
+        teamColor: nextTeamColor,
+        enemyColor: nextEnemyColor,
+      },
+    };
+
+    this.updateSnapshot((current) => ({
+      ...current,
+      viewerObserverOverrideTeamColor: nextTeamColor,
+      viewerObserverOverrideEnemyColor: nextEnemyColor,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        styleFlags: {
+          observerColorOverrides: nextOverrides,
+        },
+      });
+
+      this.currentStreamerStyleFlags = {
+        ...this.currentStreamerStyleFlags,
+        observerColorOverrides: nextOverrides,
+      };
+
+      this.updateSnapshot((current) => ({
+        ...current,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((current) => ({
+        ...current,
         viewerSettingsSaving: false,
         viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
       }));
@@ -681,6 +750,8 @@ export class IndividualTrackerPresenter {
           authState: "unauthenticated",
           profileId: null,
           xboxXuid: null,
+          settingsActiveTrackerId: null,
+          settingsActiveTrackerGamertag: null,
           viewedMatchHistoryLoading: false,
           viewerRefreshPending: false,
           viewerRefreshMessage: null,
@@ -698,31 +769,52 @@ export class IndividualTrackerPresenter {
         try {
           const streamerSettings =
             await this.config.services.individualTrackerService.getStreamerViewSettings(profileId);
+          const activeTrackerResponse =
+            xboxXuid == null
+              ? { activeTracker: null }
+              : await this.config.services.individualTrackerService.getActiveTrackerState(xboxXuid);
+          this.currentStreamerStyleFlags = streamerSettings.styleFlags;
           const viewerColors = this.getViewerColorsFromStyleFlags(streamerSettings.styleFlags);
+          const activeTrackerId = activeTrackerResponse.activeTracker?.trackerId ?? null;
+          const activeTrackerGamertag = activeTrackerResponse.activeTracker?.gamertag ?? null;
+          const activeObserverOverride =
+            activeTrackerId == null
+              ? null
+              : streamerSettings.styleFlags.observerColorOverrides?.[activeTrackerId] ?? null;
 
           this.updateSnapshot((snapshot) => ({
             ...snapshot,
             profileId,
             xboxXuid,
+            settingsActiveTrackerId: activeTrackerId,
+            settingsActiveTrackerGamertag: activeTrackerGamertag,
             viewerTeamColor: viewerColors.teamColor,
             viewerEnemyColor: viewerColors.enemyColor,
             viewerDefaultColorMode: streamerSettings.layoutOptions.defaultColorMode ?? "observer",
             viewerShowTabs: streamerSettings.visibleSections.showTabs ?? true,
             viewerShowTicker: streamerSettings.visibleSections.showTicker ?? true,
             viewerShowTeamDetails: streamerSettings.visibleSections.showTeamDetails ?? true,
+            viewerObserverOverrideTeamColor: activeObserverOverride?.teamColor ?? null,
+            viewerObserverOverrideEnemyColor: activeObserverOverride?.enemyColor ?? null,
           }));
         } catch {
+          this.currentStreamerStyleFlags = {};
           this.updateSnapshot((snapshot) => ({
             ...snapshot,
             profileId,
             xboxXuid,
+            settingsActiveTrackerId: null,
+            settingsActiveTrackerGamertag: null,
           }));
         }
       } else {
+        this.currentStreamerStyleFlags = {};
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           profileId: null,
           xboxXuid,
+          settingsActiveTrackerId: null,
+          settingsActiveTrackerGamertag: null,
         }));
       }
 
