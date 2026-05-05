@@ -5,7 +5,6 @@ import { Button } from "../button/button";
 import { Container } from "../container/container";
 import { SettingsShell, type SettingsShellItem } from "../settings-shell/settings-shell";
 import { LoadingState } from "../loading-state/loading-state";
-import { AdditionalOptionsSectionView } from "./additional-options/additional-options";
 import type { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import type { IndividualTrackerSectionId } from "./types";
 import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
@@ -37,11 +36,6 @@ export function IndividualTrackerView({
         id: "streamer-connections",
         label: "Streamer Settings",
         description: "Configure the active viewer and OBS overlay for your stream.",
-      },
-      {
-        id: "additional-options",
-        label: "Additional Options",
-        description: "Fine-tune how your trackers behave.",
       },
     ],
     [],
@@ -124,24 +118,6 @@ export function IndividualTrackerView({
               settings.showTeamDetails,
             );
           }}
-          onPlayerColorsChange={(settings): void => {
-            void presenter.updateViewerColors(settings.teamColor, settings.enemyColor);
-          }}
-          onObserverColorsChange={(settings): void => {
-            void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
-          }}
-        />
-      );
-      break;
-    }
-    case "additional-options": {
-      panelContent = (
-        <AdditionalOptionsSectionView
-          defaultColorMode={snapshot.viewerDefaultColorMode}
-          teamColor={snapshot.viewerTeamColor}
-          enemyColor={snapshot.viewerEnemyColor}
-          saving={snapshot.viewerSettingsSaving}
-          errorMessage={snapshot.viewerSettingsErrorMessage}
           onDefaultColorModeChange={(nextMode): void => {
             void presenter.updateStreamerPresentationSettings(
               nextMode,
@@ -150,11 +126,11 @@ export function IndividualTrackerView({
               snapshot.viewerShowTeamDetails,
             );
           }}
-          onTeamColorChange={(nextColor): void => {
-            void presenter.updateViewerColors(nextColor, snapshot.viewerEnemyColor);
+          onPlayerColorsChange={(settings): void => {
+            void presenter.updateViewerColors(settings.teamColor, settings.enemyColor);
           }}
-          onEnemyColorChange={(nextColor): void => {
-            void presenter.updateViewerColors(snapshot.viewerTeamColor, nextColor);
+          onObserverColorsChange={(settings): void => {
+            void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
           }}
         />
       );

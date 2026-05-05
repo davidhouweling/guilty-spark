@@ -9,7 +9,7 @@ import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
 
-export type IndividualTrackerSectionId = "live-trackers" | "streamer-connections" | "additional-options";
+export type IndividualTrackerSectionId = "live-trackers" | "streamer-connections";
 
 export type AuthState = "loading" | "authenticated" | "unauthenticated";
 

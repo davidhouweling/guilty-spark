@@ -31,6 +31,5 @@ describe("/individual-tracker page wiring", () => {
 
     expect(screen.getByRole("button", { name: /live trackers/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /streamer settings/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /additional options/i })).toBeInTheDocument();
   });
 });

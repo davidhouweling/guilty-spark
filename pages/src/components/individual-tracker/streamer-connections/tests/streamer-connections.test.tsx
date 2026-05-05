@@ -33,6 +33,8 @@ describe("StreamerConnectionsSectionView", () => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         onPresentationSettingsChange={(): void => {}}
         // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onDefaultColorModeChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onPlayerColorsChange={(): void => {}}
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         onObserverColorsChange={(): void => {}}

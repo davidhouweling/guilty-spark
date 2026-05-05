@@ -25,6 +25,7 @@ interface StreamerConnectionsSectionViewProps {
     showTicker: boolean;
     showTeamDetails: boolean;
   }) => void;
+  readonly onDefaultColorModeChange: (mode: "player" | "observer") => void;
   readonly onPlayerColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
   readonly onObserverColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
 }
@@ -57,6 +58,7 @@ export function StreamerConnectionsSectionView({
   saving,
   errorMessage,
   onPresentationSettingsChange,
+  onDefaultColorModeChange,
   onPlayerColorsChange,
   onObserverColorsChange,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
@@ -150,7 +152,27 @@ export function StreamerConnectionsSectionView({
 
       <div className={styles.preferencesCard}>
         <h3 className={styles.cardTitle}>Presentation defaults</h3>
-        <p className={styles.cardDescription}>Configure always-on overlay sections.</p>
+        <p className={styles.cardDescription}>Configure always-on overlay sections and default color mode.</p>
+        <div className={styles.modeRow}>
+          <Button
+            variant={defaultColorMode === "player" ? "primary" : "secondary"}
+            disabled={saving}
+            onClick={(): void => {
+              onDefaultColorModeChange("player");
+            }}
+          >
+            Player Mode
+          </Button>
+          <Button
+            variant={defaultColorMode === "observer" ? "primary" : "secondary"}
+            disabled={saving}
+            onClick={(): void => {
+              onDefaultColorModeChange("observer");
+            }}
+          >
+            Observer Mode
+          </Button>
+        </div>
         <Checkbox
           label="Show overlay tabs"
           checked={showTabs}
@@ -187,9 +209,7 @@ export function StreamerConnectionsSectionView({
             });
           }}
         />
-        <p className={styles.modeNote}>
-          Current active color mode: {defaultColorMode}. You can change this in Individual Tracker options.
-        </p>
+        <p className={styles.modeNote}>Current active color mode: {defaultColorMode}.</p>
 
         {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
         {errorMessage != null ? <Alert variant="error">{errorMessage}</Alert> : null}
