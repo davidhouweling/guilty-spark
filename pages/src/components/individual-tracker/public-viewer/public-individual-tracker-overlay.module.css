@@ -3,6 +3,20 @@
   padding: var(--space-4);
 }
 
+.minimalMark {
+  background: color-mix(in srgb, var(--halo-teal-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+  border-radius: var(--radius-full, 999px);
+  color: color-mix(in srgb, var(--halo-teal-primary) 88%, white);
+  display: inline-flex;
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.85rem;
+  text-transform: uppercase;
+}
+
 .overlayCard {
   backdrop-filter: blur(6px);
   background: linear-gradient(

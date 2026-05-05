@@ -52,6 +52,18 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
       ? `${snapshot.trackerState.gamertag} Overlay`
       : "Guilty Spark Overlay";
 
+  const isInactive = snapshot.availability === "offline" || snapshot.availability === "not-found";
+
+  if (isInactive) {
+    return (
+      <section className={styles.overlayRoot}>
+        <div className={styles.minimalMark} aria-label="Guilty Spark overlay mark">
+          Guilty Spark
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={styles.overlayRoot}>
       <div

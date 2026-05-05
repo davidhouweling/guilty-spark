@@ -340,13 +340,13 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 - [ ] Introduce a client-side router (React Router is acceptable) for `/individual-tracker`, `/individual-tracker/:xuid/view`, and `/individual-tracker/:xuid/overlay` so manager/view/overlay transitions do not full-refresh.
 - [ ] Rename "Streamer Connections" to "Streamer Settings" and move the overlay/view configuration into that section.
-- [ ] Add one stable XUID-based view URL and one stable XUID-based overlay URL that always resolve to the user's currently active on-stream tracker.
+- [x] Add one stable XUID-based view URL and one stable XUID-based overlay URL that always resolve to the user's currently active on-stream tracker.
 - [ ] Build the individual tracker streamer overlay by lifting the NeatQueue overlay model and extending it for matchmaking games and multiple series inside one session.
 - [ ] Toggle sections and display modes for in-series vs not-in-series presentation.
 - [ ] Save layout and color preferences server-side in D1 and include them in the active-tracker read model / WebSocket updates.
 - [ ] Support player-view vs observer-view presentation, defaulting to player view when the tracked XUID is the owner's own account and observer view otherwise.
 - [ ] Support global per-user overlay settings plus per-tracker observer-color overrides so a streamer can present another player's tracker with colors that match their own branding.
-- [ ] Add offline / not-found handling for the new XUID routes: `view` shows offline if the XUID is configured but has no active tracker, and not found if there is no configured XUID surface; `overlay` collapses to a minimal mostly-empty state with only the Guilty Spark mark visible.
+- [x] Add offline / not-found handling for the new XUID routes: `view` shows offline if the XUID is configured but has no active tracker, and not found if there is no configured XUID surface; `overlay` collapses to a minimal mostly-empty state with only the Guilty Spark mark visible.
 - [x] Allow the owner to switch which active tracker is currently presented on stream.
 
 ### Phase D: Twitch extension readiness
@@ -358,7 +358,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 ### Phase E: viewer discovery
 
-- [ ] Add an `active tracker` viewer page that follows the current on-stream tracker automatically.
+- [x] Add an `active tracker` viewer page that follows the current on-stream tracker automatically.
 - [ ] Add a way for viewers to explore other active trackers for the streamer.
 - [ ] Keep this separate from the first viewer-mode implementation.
 
