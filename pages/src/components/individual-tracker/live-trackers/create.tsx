@@ -62,7 +62,7 @@ function LiveTrackersSectionInternal({ controller }: LiveTrackersSectionInternal
 
 interface CreateLiveTrackersSectionConfig {
   readonly services: Services;
-  readonly assignLocation?: (url: string) => void;
+  readonly navigateTo?: (url: string) => void;
   readonly confirmDelete?: (message: string) => boolean;
 }
 
@@ -77,7 +77,7 @@ export function createLiveTrackersSection(config: CreateLiveTrackersSectionConfi
   const controller = new LiveTrackersPresenter({
     services: config.services,
     store,
-    assignLocation: config.assignLocation,
+    navigateTo: config.navigateTo,
     confirmDelete: config.confirmDelete,
   });
 

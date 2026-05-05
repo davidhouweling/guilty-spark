@@ -34,6 +34,8 @@ describe("IndividualTracker create", () => {
   });
 
   it("installs services and renders view", async () => {
+    window.history.pushState({}, "", "/individual-tracker");
+
     const services = await installFakeServices();
     installServicesMock.mockResolvedValue(services);
 

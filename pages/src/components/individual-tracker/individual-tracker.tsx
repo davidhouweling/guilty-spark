@@ -35,8 +35,8 @@ export function IndividualTrackerView({
       },
       {
         id: "streamer-connections",
-        label: "Streamer Connections",
-        description: "Connect your accounts and automate your stream.",
+        label: "Streamer Settings",
+        description: "Configure the active viewer and OBS overlay for your stream.",
       },
       {
         id: "additional-options",

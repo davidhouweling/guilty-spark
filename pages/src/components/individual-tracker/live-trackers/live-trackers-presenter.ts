@@ -8,6 +8,7 @@ import type {
   TrackerSearchResult,
 } from "../../../services/individual-tracker/types";
 import type { GameSelectionDialogState } from "../types";
+import { buildIndividualTrackerTrackerViewPath } from "../routes";
 import { buildSeriesGroupKey } from "../series-group-metadata";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -16,7 +17,7 @@ interface Config {
   readonly services: Services;
   readonly store: LiveTrackersStore;
   readonly confirmDelete?: (message: string) => boolean;
-  readonly assignLocation?: (url: string) => void;
+  readonly navigateTo?: (url: string) => void;
 }
 
 const NON_LIVE_POLL_INTERVAL_MS = 30_000;
@@ -196,7 +197,7 @@ export class LiveTrackersPresenter {
       actions.push({
         label: "View tracker",
         onClick: (): void => {
-          this.assignLocation(`/individual-tracker?tracker=${trackerId}`);
+          this.navigateTo(buildIndividualTrackerTrackerViewPath(trackerId));
         },
       });
     }
@@ -443,13 +444,13 @@ export class LiveTrackersPresenter {
     }
   }
 
-  private assignLocation(url: string): void {
-    if (this.config.assignLocation != null) {
-      this.config.assignLocation(url);
+  private navigateTo(url: string): void {
+    if (this.config.navigateTo != null) {
+      this.config.navigateTo(url);
       return;
     }
 
-    window.location.assign(url);
+    window.location.assign(`/individual-tracker${url}`);
   }
 
   private syncRuntimeDependencies(): void {

@@ -8,6 +8,7 @@ import type {
   TrackerSearchResult,
   TrackerMatchHistoryResponse,
 } from "../../services/individual-tracker/types";
+import type { IndividualTrackerAppRoute } from "./routes";
 import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./types";
 import type { IndividualTrackerStore } from "./individual-tracker-store";
 import type { LiveTrackersController } from "./live-trackers/types";
@@ -17,6 +18,8 @@ interface Config {
   readonly services: Services;
   readonly store: IndividualTrackerStore;
   readonly liveTrackersController: LiveTrackersController;
+  readonly initialRoute: IndividualTrackerAppRoute;
+  readonly navigateTo?: (url: string) => void;
   readonly assignLocation?: (url: string) => void;
 }
 
@@ -33,14 +36,16 @@ export class IndividualTrackerPresenter {
   private viewedTrackerSummary: TrackerSearchResult | null = null;
   private viewedMatchHistory: TrackerMatchHistoryResponse | null = null;
   private viewedMedalMetadata: MedalMetadata = {};
+  private currentRoute: IndividualTrackerAppRoute;
 
   public constructor(config: Config) {
     this.config = config;
+    this.currentRoute = config.initialRoute;
   }
 
   public start(): void {
     this.config.liveTrackersController.start();
-    this.initializeModeFromUrl();
+    this.applyRoute(this.currentRoute);
     void this.refresh();
   }
 
@@ -59,6 +64,19 @@ export class IndividualTrackerPresenter {
 
   public getSnapshot(): IndividualTrackerSnapshot {
     return this.config.store.snapshot;
+  }
+
+  public setRoute(route: IndividualTrackerAppRoute): void {
+    if (this.isSameRoute(this.currentRoute, route)) {
+      return;
+    }
+
+    this.currentRoute = route;
+    this.applyRoute(route);
+
+    if (this.authenticatedUserId != null && this.getSnapshot().authState === "authenticated") {
+      void this.syncViewerForCurrentRoute(this.authenticatedUserId);
+    }
   }
 
   public setActiveSection(sectionId: IndividualTrackerSectionId): void {
@@ -110,7 +128,7 @@ export class IndividualTrackerPresenter {
   }
 
   public exitViewerMode(): void {
-    this.assignLocation("/individual-tracker");
+    this.navigateTo("/");
   }
 
   public async refreshViewerTracker(): Promise<void> {
@@ -203,6 +221,15 @@ export class IndividualTrackerPresenter {
     }
   }
 
+  private navigateTo(url: string): void {
+    if (this.config.navigateTo != null) {
+      this.config.navigateTo(url);
+      return;
+    }
+
+    this.assignLocation(url);
+  }
+
   private assignLocation(url: string): void {
     if (this.config.assignLocation != null) {
       this.config.assignLocation(url);
@@ -236,50 +263,93 @@ export class IndividualTrackerPresenter {
     };
   }
 
-  private initializeModeFromUrl(): void {
-    if (typeof window === "undefined") {
-      return;
+  private isSameRoute(left: IndividualTrackerAppRoute, right: IndividualTrackerAppRoute): boolean {
+    if (left.kind !== right.kind) {
+      return false;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const mode = params.get("mode");
-    if (mode === "active") {
-      this.viewedTracker = null;
-      this.viewedMatchHistory = null;
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        mode: "view",
-        viewSource: "active",
-        viewTrackerId: null,
-        viewTrackerGamertag: null,
-        viewConnectionStatus: "connecting",
-        viewErrorMessage: null,
-        viewedMatchHistoryLoading: false,
-        viewerRefreshPending: false,
-        viewerRefreshMessage: null,
-      }));
-      return;
+    if (left.kind !== "view-tracker") {
+      return true;
     }
 
-    const trackerId = params.get("tracker");
-    if (trackerId == null || trackerId.trim() === "") {
-      return;
-    }
+    return right.kind === "view-tracker" && left.trackerId === right.trackerId;
+  }
 
+  private applyRoute(route: IndividualTrackerAppRoute): void {
     this.viewedTracker = null;
     this.viewedMatchHistory = null;
-    this.updateSnapshot((snapshot) => ({
-      ...snapshot,
-      mode: "view",
-      viewSource: "tracker",
-      viewTrackerId: trackerId,
-      viewTrackerGamertag: null,
-      viewConnectionStatus: "connecting",
-      viewErrorMessage: null,
-      viewedMatchHistoryLoading: false,
-      viewerRefreshPending: false,
-      viewerRefreshMessage: null,
-    }));
+    this.viewedTrackerSummary = null;
+    this.viewedMedalMetadata = {};
+
+    this.updateSnapshot((snapshot) => {
+      switch (route.kind) {
+        case "manage": {
+          return {
+            ...snapshot,
+            mode: "manage",
+            viewSource: null,
+            viewTrackerId: null,
+            viewTrackerGamertag: null,
+            viewConnectionStatus: "idle",
+            viewErrorMessage: null,
+            viewedMatchHistoryLoading: false,
+            viewerRefreshPending: false,
+            viewerRefreshMessage: null,
+          };
+        }
+        case "view-active": {
+          return {
+            ...snapshot,
+            mode: "view",
+            viewSource: "active",
+            viewTrackerId: null,
+            viewTrackerGamertag: null,
+            viewConnectionStatus: "connecting",
+            viewErrorMessage: null,
+            viewedMatchHistoryLoading: false,
+            viewerRefreshPending: false,
+            viewerRefreshMessage: null,
+          };
+        }
+        case "view-tracker": {
+          return {
+            ...snapshot,
+            mode: "view",
+            viewSource: "tracker",
+            viewTrackerId: route.trackerId,
+            viewTrackerGamertag: null,
+            viewConnectionStatus: "connecting",
+            viewErrorMessage: null,
+            viewedMatchHistoryLoading: false,
+            viewerRefreshPending: false,
+            viewerRefreshMessage: null,
+          };
+        }
+        default: {
+          return snapshot;
+        }
+      }
+    });
+  }
+
+  private async syncViewerForCurrentRoute(userId: string): Promise<void> {
+    switch (this.currentRoute.kind) {
+      case "manage": {
+        this.disposeViewerConnection();
+        return;
+      }
+      case "view-active": {
+        await this.initializeActiveViewer(userId);
+        return;
+      }
+      case "view-tracker": {
+        await this.initializeViewer(userId, this.currentRoute.trackerId);
+        return;
+      }
+      default: {
+        return;
+      }
+    }
   }
 
   private disposeViewerConnection(): void {
@@ -573,14 +643,7 @@ export class IndividualTrackerPresenter {
       this.config.liveTrackersController.setSessionContext(userId, session.xboxGamertag ?? null);
       await this.config.liveTrackersController.refresh();
 
-      const { viewSource, viewTrackerId } = this.getSnapshot();
-      if (viewSource === "tracker" && viewTrackerId != null) {
-        await this.initializeViewer(userId, viewTrackerId);
-      } else if (viewSource === "active") {
-        await this.initializeActiveViewer(userId);
-      } else {
-        this.disposeViewerConnection();
-      }
+      await this.syncViewerForCurrentRoute(userId);
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,

@@ -27,6 +27,7 @@
     "modern-normalize": "^3.0.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.6.1",
     "react-time-ago": "^7.4.4",
     "react-transition-group": "^4.4.5",
     "tinyduration": "^3.4.1"

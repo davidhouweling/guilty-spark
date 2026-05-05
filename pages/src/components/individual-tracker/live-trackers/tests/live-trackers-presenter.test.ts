@@ -14,21 +14,21 @@ interface Harness {
   readonly store: LiveTrackersStore;
   readonly presenter: LiveTrackersPresenter;
   readonly services: Services;
-  readonly assignLocation: ReturnType<typeof vi.fn<(url: string) => void>>;
+  readonly navigateTo: ReturnType<typeof vi.fn<(url: string) => void>>;
 }
 
 function aHarnessWith(services: Services): Harness {
   const store = new LiveTrackersStore();
-  const assignLocation = vi.fn<(url: string) => void>();
+  const navigateTo = vi.fn<(url: string) => void>();
 
   const presenter = new LiveTrackersPresenter({
     services,
     store,
-    assignLocation,
+    navigateTo,
     confirmDelete: (): boolean => true,
   });
 
-  return { store, presenter, services, assignLocation };
+  return { store, presenter, services, navigateTo };
 }
 
 afterEach(() => {

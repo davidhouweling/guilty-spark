@@ -11,11 +11,13 @@ import {
 import type { LiveTrackersController } from "../live-trackers/types";
 import { IndividualTrackerPresenter } from "../individual-tracker-presenter";
 import { IndividualTrackerStore } from "../individual-tracker-store";
+import type { IndividualTrackerAppRoute } from "../routes";
 
 interface Harness {
   readonly store: IndividualTrackerStore;
   readonly presenter: IndividualTrackerPresenter;
   readonly services: Services;
+  readonly navigateTo: ReturnType<typeof vi.fn<(url: string) => void>>;
   readonly assignLocation: ReturnType<typeof vi.fn<(url: string) => void>>;
   readonly liveTrackersController: LiveTrackersController;
 }
@@ -30,18 +32,25 @@ function aLiveTrackersControllerMock(): LiveTrackersController {
   };
 }
 
-function aHarnessWith(services: Services, controller: LiveTrackersController = aLiveTrackersControllerMock()): Harness {
+function aHarnessWith(
+  services: Services,
+  controller: LiveTrackersController = aLiveTrackersControllerMock(),
+  route: IndividualTrackerAppRoute = { kind: "manage" },
+): Harness {
   const store = new IndividualTrackerStore();
+  const navigateTo = vi.fn<(url: string) => void>();
   const assignLocation = vi.fn<(url: string) => void>();
 
   const presenter = new IndividualTrackerPresenter({
     services,
     store,
     liveTrackersController: controller,
+    initialRoute: route,
+    navigateTo,
     assignLocation,
   });
 
-  return { store, presenter, services, assignLocation, liveTrackersController: controller };
+  return { store, presenter, services, navigateTo, assignLocation, liveTrackersController: controller };
 }
 
 afterEach(() => {
@@ -49,9 +58,7 @@ afterEach(() => {
 });
 
 describe("IndividualTrackerPresenter", () => {
-  it("enters follow-active viewer mode when mode=active query param is present", async () => {
-    window.history.pushState({}, "", "/individual-tracker?mode=active");
-
+  it("enters follow-active viewer mode when the active route is selected", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith({
         session: {
@@ -70,7 +77,7 @@ describe("IndividualTrackerPresenter", () => {
       }),
     };
 
-    const harness = aHarnessWith(services);
+    const harness = aHarnessWith(services, aLiveTrackersControllerMock(), { kind: "view-active" });
     harness.presenter.start();
 
     await waitFor(() => {
@@ -81,13 +88,9 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.viewTrackerId).toBe("active-1");
       expect(snapshot.viewerRenderModel).not.toBeNull();
     });
-
-    window.history.pushState({}, "", "/individual-tracker");
   });
 
-  it("enters viewer mode when tracker query param is present", async () => {
-    window.history.pushState({}, "", "/individual-tracker?tracker=tracker-123");
-
+  it("enters viewer mode when a tracker route is selected", async () => {
     const services: Services = {
       authService: aFakeAuthServiceWith({
         session: {
@@ -129,7 +132,10 @@ describe("IndividualTrackerPresenter", () => {
       }),
     };
 
-    const harness = aHarnessWith(services);
+    const harness = aHarnessWith(services, aLiveTrackersControllerMock(), {
+      kind: "view-tracker",
+      trackerId: "tracker-123",
+    });
     harness.presenter.start();
 
     await waitFor(() => {
@@ -140,8 +146,6 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.viewTrackerId).toBe("tracker-123");
       expect(snapshot.viewerRenderModel).not.toBeNull();
     });
-
-    window.history.pushState({}, "", "/individual-tracker");
   });
 
   it("loads authenticated session and coordinates child controller", async () => {
@@ -215,6 +219,20 @@ describe("IndividualTrackerPresenter", () => {
     expect(harness.assignLocation).toHaveBeenCalledWith(
       "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     );
+  });
+
+  it("navigates back to the manage route when exiting viewer mode", () => {
+    const services: Services = {
+      authService: aFakeAuthServiceWith(),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith(),
+    };
+
+    const harness = aHarnessWith(services, aLiveTrackersControllerMock(), { kind: "view-active" });
+
+    harness.presenter.exitViewerMode();
+
+    expect(harness.navigateTo).toHaveBeenCalledWith("/");
   });
 
   it("updates and persists viewer team colors", async () => {

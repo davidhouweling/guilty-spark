@@ -5,12 +5,12 @@ import styles from "./streamer-connections.module.css";
 export function StreamerConnectionsSectionView(): React.ReactElement {
   return (
     <div className={styles.placeholderPanel}>
-      <h2 className={styles.sectionTitle}>Streamer Connections</h2>
+      <h2 className={styles.sectionTitle}>Streamer Settings</h2>
       <p className={styles.sectionDescription}>
-        Connect your Twitch account to automate your stream - auto-start your tracker when you go live and pause it when
-        your stream ends.
+        Configure the active viewer and OBS overlay for your stream. Stable XUID-based view and overlay routes will land
+        here alongside the longer-term Twitch automation work.
       </p>
-      <Alert variant="info">Twitch integration coming soon.</Alert>
+      <Alert variant="info">Overlay and Twitch settings are the next implementation slice.</Alert>
     </div>
   );
 }
