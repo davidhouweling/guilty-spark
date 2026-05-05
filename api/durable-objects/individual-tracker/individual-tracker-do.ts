@@ -150,6 +150,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       Sentry.setTag("method", "alarm");
 
       const trackerState = await this.getState();
+      let shouldContinueAfterAlarm = true;
 
       if (trackerState == null || trackerState.status === "stopped") {
         await this.dispose("Tracker stopped, disposing on alarm");
@@ -171,8 +172,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
         // Idle check: stop if no new match has been found within the configured window.
         const idleThresholdHours = trackerState.idleTimeoutHours;
-        const lastActivity = new Date(trackerState.lastMatchDiscoveredAt);
+        const lastActivity = new Date(
+          Math.max(new Date(trackerState.startTime).getTime(), new Date(trackerState.lastMatchDiscoveredAt).getTime()),
+        );
         if (differenceInHours(new Date(), lastActivity) >= idleThresholdHours) {
+          shouldContinueAfterAlarm = false;
           await this.dispose("Tracker idle, no new matches discovered within timeout window");
           return;
         }
@@ -195,24 +199,27 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         Sentry.captureException(error);
         this.handleError(trackerState, String(error));
         if (error instanceof Error && error.message.includes("Tracker stopped")) {
+          shouldContinueAfterAlarm = false;
           return;
         }
       } finally {
-        try {
-          await this.state.storage.setAlarm(
-            addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime(),
-          );
-        } catch (error) {
-          this.logService.error("Failed to reschedule individual tracker alarm", new Map([["error", String(error)]]));
-        }
+        if (shouldContinueAfterAlarm) {
+          try {
+            await this.state.storage.setAlarm(
+              addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime(),
+            );
+          } catch (error) {
+            this.logService.error("Failed to reschedule individual tracker alarm", new Map([["error", String(error)]]));
+          }
 
-        await this.setState({
-          ...trackerState,
-          refreshInProgress: false,
-          refreshStartedAt: undefined,
-        }).catch((error: unknown) => {
-          this.logService.error("Failed to clear refresh lock", new Map([["error", String(error)]]));
-        });
+          await this.setState({
+            ...trackerState,
+            refreshInProgress: false,
+            refreshStartedAt: undefined,
+          }).catch((error: unknown) => {
+            this.logService.error("Failed to clear refresh lock", new Map([["error", String(error)]]));
+          });
+        }
       }
     });
   }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
+import { addHours } from "date-fns";
 import type {
   IndividualTrackerActiveNeatQueueSeries,
   IndividualTrackerNeatQueueSeriesData,
@@ -82,6 +83,8 @@ describe("IndividualTrackerDO", () => {
   let storageGetSpy: MockInstance;
   let storagePutSpy: MockInstance;
   let storageSetAlarmSpy: MockInstance;
+  let storageDeleteAlarmSpy: MockInstance;
+  let storageDeleteAllSpy: MockInstance;
 
   beforeEach(() => {
     const { durableObjectState, mocks } = createMockDurableObjectState();
@@ -90,6 +93,8 @@ describe("IndividualTrackerDO", () => {
     storageGetSpy = vi.spyOn(mocks.storage, "get");
     storagePutSpy = vi.spyOn(mocks.storage, "put");
     storageSetAlarmSpy = vi.spyOn(mocks.storage, "setAlarm");
+    storageDeleteAlarmSpy = vi.spyOn(mocks.storage, "deleteAlarm");
+    storageDeleteAllSpy = vi.spyOn(mocks.storage, "deleteAll");
 
     trackerState = aFakeIndividualTrackerStateWith({
       searchStartTime: new Date(Date.now() - 60_000).toISOString(),
@@ -169,6 +174,43 @@ describe("IndividualTrackerDO", () => {
     const finalState = storagePutSpy.mock.calls.at(-1)?.[1] as IndividualTrackerState | undefined;
     expect(finalState?.refreshInProgress).toBe(false);
     expect(finalState?.refreshStartedAt).toBeUndefined();
+  });
+
+  it("disposes an idle tracker without rescheduling the alarm or rewriting state", async () => {
+    trackerState = aFakeIndividualTrackerStateWith({
+      startTime: addHours(new Date(), -2).toISOString(),
+      lastMatchDiscoveredAt: addHours(new Date(), -2).toISOString(),
+      idleTimeoutHours: 1,
+    });
+    storageGetSpy.mockResolvedValue(trackerState);
+
+    await individualTrackerDO.alarm();
+
+    expect(storageDeleteAlarmSpy).toHaveBeenCalledTimes(1);
+    expect(storageDeleteAllSpy).toHaveBeenCalledTimes(1);
+    expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+    expect(storagePutSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not dispose a tracker before the timeout window has elapsed from start time", async () => {
+    trackerState = aFakeIndividualTrackerStateWith({
+      startTime: addHours(new Date(), -0.5).toISOString(),
+      lastMatchDiscoveredAt: addHours(new Date(), -2).toISOString(),
+      idleTimeoutHours: 1,
+    });
+    storageGetSpy.mockResolvedValue(trackerState);
+    const getPlayerMatches = vi.fn(async () => Promise.resolve([]));
+    const haloClientSpy = buildHaloClientSpy(individualTrackerDO);
+    haloClientSpy.mockResolvedValue({
+      getPlayerMatches,
+    });
+
+    await individualTrackerDO.alarm();
+
+    expect(storageDeleteAlarmSpy).not.toHaveBeenCalled();
+    expect(storageDeleteAllSpy).not.toHaveBeenCalled();
+    expect(getPlayerMatches).toHaveBeenCalledWith(trackerState.xuid, expect.anything(), 25);
+    expect(storageSetAlarmSpy).toHaveBeenCalledWith(expect.any(Number));
   });
 
   it("stores NeatQueue series metadata on a grouped series update", async () => {
