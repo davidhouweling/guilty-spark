@@ -1,5 +1,6 @@
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { Services } from "../../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -30,6 +31,8 @@ export class PublicViewerPresenter {
   private matchHistory: TrackerMatchHistoryResponse | null = null;
   private medalMetadata: MedalMetadata = {};
   private trackerSummary: TrackerSearchResult | null = null;
+  private streamerStyleFlags: StreamerViewStyleFlags = {};
+  private resolvedColorMode: "player" | "observer" = "observer";
 
   public constructor(config: PublicViewerPresenterConfig) {
     this.config = config;
@@ -94,19 +97,24 @@ export class PublicViewerPresenter {
 
     try {
       const response = await this.config.services.individualTrackerService.getActiveTrackerView(this.config.xuid);
-      const viewerColors = this.getViewerColorsFromStreamerSettings(response.streamerView?.styleFlags ?? {});
-      const resolvedColorMode = this.getOverlayColorMode(
-        response.streamerView?.styleFlags ?? {},
+      this.streamerStyleFlags = response.streamerView?.styleFlags ?? {};
+      this.resolvedColorMode = this.getOverlayColorMode(
+        this.streamerStyleFlags,
         response.streamerView?.effectiveDefaults.colorMode,
       );
       const overlayShowTabs = response.streamerView?.visibleSections.showTabs ?? true;
+      const overlayShowTicker = response.streamerView?.visibleSections.showTicker ?? true;
+      const overlayShowTeamDetails = response.streamerView?.visibleSections.showTeamDetails ?? true;
+      const viewerColors = this.getViewerColorsForState(response.activeTracker);
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewerTeamColor: viewerColors.teamColor,
         viewerEnemyColor: viewerColors.enemyColor,
         overlayShowTabs,
-        overlayColorMode: resolvedColorMode,
+        overlayShowTicker,
+        overlayShowTeamDetails,
+        overlayColorMode: this.resolvedColorMode,
         availability: response.status,
         trackerState: response.activeTracker,
         connectionStatus: response.activeTracker == null ? "idle" : snapshot.connectionStatus,
@@ -137,12 +145,15 @@ export class PublicViewerPresenter {
     this.connection = this.config.services.individualTrackerService.connectToActiveTracker(this.config.xuid);
 
     this.stateSubscription = this.connection.subscribe((state) => {
+      const viewerColors = this.getViewerColorsForState(state);
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         availability: "active",
         trackerState: state,
         connectionStatus: "connected",
         errorMessage: null,
+        viewerTeamColor: viewerColors.teamColor,
+        viewerEnemyColor: viewerColors.enemyColor,
       }));
 
       void this.refreshTrackerSummary(state.gamertag);
@@ -265,14 +276,22 @@ export class PublicViewerPresenter {
     return trimmed;
   }
 
-  private getViewerColorsFromStreamerSettings(styleFlags: StreamerViewStyleFlags): {
+  private getViewerColorsForState(state: IndividualTrackerState | null): {
     teamColor: string;
     enemyColor: string;
   } {
     const snapshot = this.getSnapshot();
+
+    if (this.resolvedColorMode === "player" && state != null) {
+      return {
+        teamColor: this.normalizeColorId(state.teamColor, snapshot.viewerTeamColor),
+        enemyColor: this.normalizeColorId(state.enemyColor, snapshot.viewerEnemyColor),
+      };
+    }
+
     return {
-      teamColor: this.normalizeColorId(styleFlags.teamColor, snapshot.viewerTeamColor),
-      enemyColor: this.normalizeColorId(styleFlags.enemyColor, snapshot.viewerEnemyColor),
+      teamColor: this.normalizeColorId(this.streamerStyleFlags.teamColor, snapshot.viewerTeamColor),
+      enemyColor: this.normalizeColorId(this.streamerStyleFlags.enemyColor, snapshot.viewerEnemyColor),
     };
   }
 

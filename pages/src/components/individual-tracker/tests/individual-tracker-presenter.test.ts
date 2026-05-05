@@ -323,7 +323,7 @@ describe("IndividualTrackerPresenter", () => {
       expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
     });
 
-    await harness.presenter.updateStreamerPresentationSettings("player", false);
+    await harness.presenter.updateStreamerPresentationSettings("player", false, false, false);
 
     expect(updateSettingsSpy).toHaveBeenCalledWith({
       profileId: "profile-1",
@@ -332,12 +332,16 @@ describe("IndividualTrackerPresenter", () => {
       },
       visibleSections: {
         showTabs: false,
+        showTicker: false,
+        showTeamDetails: false,
       },
     });
 
     const snapshot = harness.presenter.getSnapshot();
     expect(snapshot.viewerDefaultColorMode).toBe("player");
     expect(snapshot.viewerShowTabs).toBe(false);
+    expect(snapshot.viewerShowTicker).toBe(false);
+    expect(snapshot.viewerShowTeamDetails).toBe(false);
     expect(snapshot.viewerSettingsErrorMessage).toBeNull();
     expect(snapshot.viewerSettingsSaving).toBe(false);
   });

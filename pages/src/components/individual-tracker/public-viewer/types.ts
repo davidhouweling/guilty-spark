@@ -21,5 +21,7 @@ export interface PublicViewerSnapshot {
   readonly viewerTeamColor: string;
   readonly viewerEnemyColor: string;
   readonly overlayShowTabs: boolean;
+  readonly overlayShowTicker: boolean;
+  readonly overlayShowTeamDetails: boolean;
   readonly overlayColorMode: "player" | "observer";
 }

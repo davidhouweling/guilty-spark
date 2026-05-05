@@ -409,10 +409,10 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] Client-side router for manager/view/overlay flows without page reloads.
 - [x] Broader streamer-view layout/preferences UI in the renamed Streamer Settings section.
 - [x] Stable XUID-based active view and overlay URLs for live stream usage.
-- [ ] OBS overlay implementation for individual trackers, including series-aware and non-series session modes.
+- [x] OBS overlay implementation for individual trackers, including series-aware and non-series session modes.
 - [x] Allow the owner to select which active tracker is presented on stream.
 
-> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, and client-side routed manager/view/overlay transitions are in place. Remaining slices focus on deeper overlay behavior and per-tracker presentation overrides.
+> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, client-side routed manager/view/overlay transitions, and OBS-ready overlay behaviors (series/non-series + player/observer + section toggles) are in place. Remaining backlog focuses on per-tracker observer-color override UX.
 
 ### Phase 5 - Twitch extension integration
 
@@ -671,7 +671,8 @@ Each backlog item should still land in a separate commit with this document upda
 - [x] Runtime reliability follow-up delivered: individual tracker DO alarm flow now has focused coverage for initial scheduling, periodic polling, rescheduling, and stale refresh-lock cleanup.
 - [x] Viewer + NeatQueue lifecycle follow-up delivered: worker now fans out active NeatQueue series updates on teams-created/substitution events, individual tracker DO stores active pre-series context, viewer renders pre-series roster/substitution info, and match-completed fanout clears active pre-series state.
 - [x] Phase 4 routing follow-up delivered: manager now routes in-app to stable XUID-based active view / overlay routes without full-page transitions.
-- [ ] Phase 4 overlay follow-up planned: lift the NeatQueue streamer overlay into a user-scoped individual tracker overlay with player/observer modes, non-series session states, global server-backed settings, and per-tracker observer-color overrides.
+- [x] Phase 4 overlay follow-up delivered: individual tracker overlay now supports player/observer modes, non-series session states, and global server-backed section toggles/defaults.
+- [ ] Phase 4 overlay follow-up pending: per-tracker observer-color override UX.
 
 ### Current operator note - View tracker behavior
 

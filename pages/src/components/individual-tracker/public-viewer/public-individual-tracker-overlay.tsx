@@ -88,14 +88,16 @@ function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
         <span className={styles.seriesScore}>{activeSeries.seriesScore}</span>
       </div>
       <p className={styles.seriesSubtitle}>{activeSeries.subtitle}</p>
-      <div className={styles.teamGrid}>
-        {activeSeries.teams.map((team, index) => (
-          <section key={`series-team-${index.toString()}`} className={styles.teamCard}>
-            <h3 className={styles.teamName}>{team.name}</h3>
-            <p className={styles.teamPlayers}>{team.players.map((player) => player.displayName).join(" • ")}</p>
-          </section>
-        ))}
-      </div>
+      {snapshot.overlayShowTeamDetails ? (
+        <div className={styles.teamGrid}>
+          {activeSeries.teams.map((team, index) => (
+            <section key={`series-team-${index.toString()}`} className={styles.teamCard}>
+              <h3 className={styles.teamName}>{team.name}</h3>
+              <p className={styles.teamPlayers}>{team.players.map((player) => player.displayName).join(" • ")}</p>
+            </section>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -125,20 +127,22 @@ function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: numb
     <div className={styles.panelBody}>
       <h2 className={styles.seriesTitle}>{item.match.gameMode}</h2>
       <p className={styles.seriesSubtitle}>{item.match.gameTypeAndMap}</p>
-      <div className={styles.matchMetaGrid}>
-        <div className={styles.metaCell}>
-          <span className={styles.metaLabel}>Score</span>
-          <span className={styles.metaValue}>{item.match.score}</span>
+      {snapshot.overlayShowTeamDetails ? (
+        <div className={styles.matchMetaGrid}>
+          <div className={styles.metaCell}>
+            <span className={styles.metaLabel}>Score</span>
+            <span className={styles.metaValue}>{item.match.score}</span>
+          </div>
+          <div className={styles.metaCell}>
+            <span className={styles.metaLabel}>Duration</span>
+            <span className={styles.metaValue}>{item.match.duration}</span>
+          </div>
+          <div className={styles.metaCell}>
+            <span className={styles.metaLabel}>Start</span>
+            <span className={styles.metaValue}>{item.match.startTime}</span>
+          </div>
         </div>
-        <div className={styles.metaCell}>
-          <span className={styles.metaLabel}>Duration</span>
-          <span className={styles.metaValue}>{item.match.duration}</span>
-        </div>
-        <div className={styles.metaCell}>
-          <span className={styles.metaLabel}>Start</span>
-          <span className={styles.metaValue}>{item.match.startTime}</span>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -193,7 +197,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
           <h1 className={styles.title}>{title}</h1>
           <span className={styles.status}>{getOverlayStatusText(snapshot)}</span>
         </header>
-        <p className={styles.message}>{getOverlayMessage(snapshot)}</p>
+        {snapshot.overlayShowTicker ? <p className={styles.message}>{getOverlayMessage(snapshot)}</p> : null}
 
         {tabs.length > 0 ? (
           <>

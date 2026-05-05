@@ -24,6 +24,8 @@ export class IndividualTrackerStore {
     viewerEnemyColor: "cerulean",
     viewerDefaultColorMode: "observer",
     viewerShowTabs: true,
+    viewerShowTicker: true,
+    viewerShowTeamDetails: true,
     viewerSettingsSaving: false,
     viewerSettingsErrorMessage: null,
     loading: true,

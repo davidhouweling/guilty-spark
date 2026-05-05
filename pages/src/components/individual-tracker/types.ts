@@ -159,6 +159,8 @@ export interface IndividualTrackerSnapshot {
   readonly viewerEnemyColor: string;
   readonly viewerDefaultColorMode: StreamerViewColorMode;
   readonly viewerShowTabs: boolean;
+  readonly viewerShowTicker: boolean;
+  readonly viewerShowTeamDetails: boolean;
   readonly viewerSettingsSaving: boolean;
   readonly viewerSettingsErrorMessage: string | null;
   readonly loading: boolean;

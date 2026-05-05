@@ -16,6 +16,8 @@ describe("StreamerConnectionsSectionView", () => {
         xboxXuid="2533274844642438"
         defaultColorMode="observer"
         showTabs={true}
+        showTicker={true}
+        showTeamDetails={true}
         saving={false}
         errorMessage={null}
         onPresentationSettingsChange={(): void => {}}
@@ -64,14 +66,32 @@ describe("StreamerConnectionsSectionView", () => {
       target: { value: "player" },
     });
     fireEvent.click(screen.getByRole("checkbox", { name: /show overlay tabs/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /show overlay ticker/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /show team details/i }));
 
     expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(1, {
       defaultColorMode: "player",
       showTabs: true,
+      showTicker: true,
+      showTeamDetails: true,
     });
     expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(2, {
       defaultColorMode: "observer",
       showTabs: false,
+      showTicker: true,
+      showTeamDetails: true,
+    });
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(3, {
+      defaultColorMode: "observer",
+      showTabs: true,
+      showTicker: false,
+      showTeamDetails: true,
+    });
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(4, {
+      defaultColorMode: "observer",
+      showTabs: true,
+      showTicker: true,
+      showTeamDetails: false,
     });
   });
 });

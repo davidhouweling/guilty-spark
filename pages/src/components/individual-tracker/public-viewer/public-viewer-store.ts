@@ -16,6 +16,8 @@ function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): Publ
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",
     overlayShowTabs: true,
+    overlayShowTicker: true,
+    overlayShowTeamDetails: true,
     overlayColorMode: "observer",
   };
 }

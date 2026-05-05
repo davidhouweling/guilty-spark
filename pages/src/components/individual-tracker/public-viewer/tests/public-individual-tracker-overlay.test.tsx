@@ -119,6 +119,8 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",
     overlayShowTabs: true,
+    overlayShowTicker: true,
+    overlayShowTeamDetails: true,
     overlayColorMode: "observer",
     ...overrides,
   };
@@ -154,5 +156,17 @@ describe("PublicIndividualTrackerOverlay", () => {
 
     expect(screen.queryByRole("button", { name: "Series" })).not.toBeInTheDocument();
     expect(screen.getByText("Grand Finals")).toBeInTheDocument();
+  });
+
+  it("hides ticker text when streamer settings disable ticker", () => {
+    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayShowTicker: false })} />);
+
+    expect(screen.queryByText(/live tracker connected/i)).not.toBeInTheDocument();
+  });
+
+  it("hides team details when streamer settings disable team details", () => {
+    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayShowTeamDetails: false })} />);
+
+    expect(screen.queryByText("Blue")).not.toBeInTheDocument();
   });
 });

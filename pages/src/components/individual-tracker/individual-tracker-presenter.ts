@@ -130,7 +130,12 @@ export class IndividualTrackerPresenter {
     }
   }
 
-  public async updateStreamerPresentationSettings(defaultColorMode: "player" | "observer", showTabs: boolean): Promise<void> {
+  public async updateStreamerPresentationSettings(
+    defaultColorMode: "player" | "observer",
+    showTabs: boolean,
+    showTicker: boolean,
+    showTeamDetails: boolean,
+  ): Promise<void> {
     const { profileId } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
@@ -144,6 +149,8 @@ export class IndividualTrackerPresenter {
       ...snapshot,
       viewerDefaultColorMode: defaultColorMode,
       viewerShowTabs: showTabs,
+      viewerShowTicker: showTicker,
+      viewerShowTeamDetails: showTeamDetails,
       viewerSettingsSaving: true,
       viewerSettingsErrorMessage: null,
     }));
@@ -156,6 +163,8 @@ export class IndividualTrackerPresenter {
         },
         visibleSections: {
           showTabs,
+          showTicker,
+          showTeamDetails,
         },
       });
 
@@ -699,6 +708,8 @@ export class IndividualTrackerPresenter {
             viewerEnemyColor: viewerColors.enemyColor,
             viewerDefaultColorMode: streamerSettings.layoutOptions.defaultColorMode ?? "observer",
             viewerShowTabs: streamerSettings.visibleSections.showTabs ?? true,
+            viewerShowTicker: streamerSettings.visibleSections.showTicker ?? true,
+            viewerShowTeamDetails: streamerSettings.visibleSections.showTeamDetails ?? true,
           }));
         } catch {
           this.updateSnapshot((snapshot) => ({

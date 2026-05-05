@@ -8,11 +8,15 @@ interface StreamerConnectionsSectionViewProps {
   readonly xboxXuid: string | null;
   readonly defaultColorMode: "player" | "observer";
   readonly showTabs: boolean;
+  readonly showTicker: boolean;
+  readonly showTeamDetails: boolean;
   readonly saving: boolean;
   readonly errorMessage: string | null;
   readonly onPresentationSettingsChange: (settings: {
     defaultColorMode: "player" | "observer";
     showTabs: boolean;
+    showTicker: boolean;
+    showTeamDetails: boolean;
   }) => void;
   readonly onOpenView?: (xuid: string) => void;
   readonly onOpenOverlay?: (xuid: string) => void;
@@ -35,6 +39,8 @@ export function StreamerConnectionsSectionView({
   xboxXuid,
   defaultColorMode,
   showTabs,
+  showTicker,
+  showTeamDetails,
   saving,
   errorMessage,
   onPresentationSettingsChange,
@@ -138,6 +144,8 @@ export function StreamerConnectionsSectionView({
             onPresentationSettingsChange({
               defaultColorMode: event.currentTarget.value === "player" ? "player" : "observer",
               showTabs,
+              showTicker,
+              showTeamDetails,
             });
           }}
         >
@@ -154,10 +162,46 @@ export function StreamerConnectionsSectionView({
               onPresentationSettingsChange({
                 defaultColorMode,
                 showTabs: event.currentTarget.checked,
+                showTicker,
+                showTeamDetails,
               });
             }}
           />
           <span>Show overlay tabs</span>
+        </label>
+
+        <label className={styles.toggleRow}>
+          <input
+            type="checkbox"
+            checked={showTicker}
+            disabled={saving}
+            onChange={(event): void => {
+              onPresentationSettingsChange({
+                defaultColorMode,
+                showTabs,
+                showTicker: event.currentTarget.checked,
+                showTeamDetails,
+              });
+            }}
+          />
+          <span>Show overlay ticker</span>
+        </label>
+
+        <label className={styles.toggleRow}>
+          <input
+            type="checkbox"
+            checked={showTeamDetails}
+            disabled={saving}
+            onChange={(event): void => {
+              onPresentationSettingsChange({
+                defaultColorMode,
+                showTabs,
+                showTicker,
+                showTeamDetails: event.currentTarget.checked,
+              });
+            }}
+          />
+          <span>Show team details</span>
         </label>
 
         {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
