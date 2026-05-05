@@ -407,12 +407,12 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] Streamer-view settings API.
 - [x] Initial viewer settings UI for team/enemy colors in Additional Options.
 - [x] Client-side router for manager/view/overlay flows without page reloads.
-- [ ] Broader streamer-view layout/preferences UI in the renamed Streamer Settings section.
-- [ ] Stable XUID-based active view and overlay URLs for live stream usage.
+- [x] Broader streamer-view layout/preferences UI in the renamed Streamer Settings section.
+- [x] Stable XUID-based active view and overlay URLs for live stream usage.
 - [ ] OBS overlay implementation for individual trackers, including series-aware and non-series session modes.
 - [x] Allow the owner to select which active tracker is presented on stream.
 
-> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, and client-side routed manager/view/overlay transitions are in place. Remaining slices focus on broader settings UX and deeper overlay behavior.
+> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, and client-side routed manager/view/overlay transitions are in place. Remaining slices focus on deeper overlay behavior and per-tracker presentation overrides.
 
 ### Phase 5 - Twitch extension integration
 
@@ -646,8 +646,8 @@ Core owner workflow delivery is complete. The remaining implementation slices be
 2. [x] **Add tracker dialog** — gamertag search with service record preview, game history selection, "Start tracker" footer.
 3. [x] **Row actions** — ellipsis menu with all actions wired to backend (pause, resume, set live, delete).
 4. [x] **Game selection sync dialog** — sync-on-close behaviour.
-5. [ ] **Client-side routing + active XUID surfaces** — replace hard refreshes with in-app routing and add stable `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes.
-6. [ ] **Streamer settings integration** — rename Streamer Connections, expose OBS/view URLs, and move from the current Additional Options baseline to the broader server-backed settings + per-tracker override UX.
+5. [x] **Client-side routing + active XUID surfaces** — replace hard refreshes with in-app routing and add stable `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes.
+6. [ ] **Streamer settings integration** — rename Streamer Connections, expose OBS/view URLs, and move from the current Additional Options baseline to the broader server-backed settings + per-tracker override UX (global defaults delivered; per-tracker overrides pending).
 7. [ ] **Twitch integration follow-up** — add Twitch linking UI, auto-start/stop config, and the remaining operator toggles.
 
 Each backlog item should still land in a separate commit with this document updated alongside it.

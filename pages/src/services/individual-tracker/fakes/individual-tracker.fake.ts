@@ -183,7 +183,11 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       },
       effectiveDefaults: {
         colorMode:
-          (request.styleFlags?.colorMode ?? this.streamerViewSettings.effectiveDefaults.colorMode) === "player"
+          (
+            request.layoutOptions?.defaultColorMode ??
+            request.styleFlags?.colorMode ??
+            this.streamerViewSettings.effectiveDefaults.colorMode
+          ) === "player"
             ? "player"
             : "observer",
       },

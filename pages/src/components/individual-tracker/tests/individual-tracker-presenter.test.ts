@@ -288,4 +288,57 @@ describe("IndividualTrackerPresenter", () => {
     expect(snapshot.viewerSettingsErrorMessage).toBeNull();
     expect(snapshot.viewerSettingsSaving).toBe(false);
   });
+
+  it("updates and persists streamer presentation settings", async () => {
+    const individualTrackerService = aFakeIndividualTrackerServiceWith({
+      profile: {
+        ProfileId: "profile-1",
+        UserId: "user-1",
+        ActiveIdentityId: null,
+        Name: "default",
+        CreatedAt: 1,
+        UpdatedAt: 1,
+      },
+    });
+
+    const updateSettingsSpy = vi.spyOn(individualTrackerService, "updateStreamerViewSettings");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService,
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
+    });
+
+    await harness.presenter.updateStreamerPresentationSettings("player", false);
+
+    expect(updateSettingsSpy).toHaveBeenCalledWith({
+      profileId: "profile-1",
+      layoutOptions: {
+        defaultColorMode: "player",
+      },
+      visibleSections: {
+        showTabs: false,
+      },
+    });
+
+    const snapshot = harness.presenter.getSnapshot();
+    expect(snapshot.viewerDefaultColorMode).toBe("player");
+    expect(snapshot.viewerShowTabs).toBe(false);
+    expect(snapshot.viewerSettingsErrorMessage).toBeNull();
+    expect(snapshot.viewerSettingsSaving).toBe(false);
+  });
 });

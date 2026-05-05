@@ -10,14 +10,28 @@ afterEach(() => {
 });
 
 describe("StreamerConnectionsSectionView", () => {
+  function renderComponent(overrides: Partial<React.ComponentProps<typeof StreamerConnectionsSectionView>> = {}): void {
+    render(
+      <StreamerConnectionsSectionView
+        xboxXuid="2533274844642438"
+        defaultColorMode="observer"
+        showTabs={true}
+        saving={false}
+        errorMessage={null}
+        onPresentationSettingsChange={(): void => {}}
+        {...overrides}
+      />,
+    );
+  }
+
   it("shows warning when no xbox xuid is available", () => {
-    render(<StreamerConnectionsSectionView xboxXuid={null} />);
+    renderComponent({ xboxXuid: null });
 
     expect(screen.getByText(/no active xbox identity is linked/i)).toBeInTheDocument();
   });
 
   it("renders stable xuid viewer and overlay urls", () => {
-    render(<StreamerConnectionsSectionView xboxXuid="2533274844642438" />);
+    renderComponent();
 
     expect(screen.getByDisplayValue(/\/individual-tracker\/2533274844642438\/view/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/\/individual-tracker\/2533274844642438\/overlay/i)).toBeInTheDocument();
@@ -30,18 +44,34 @@ describe("StreamerConnectionsSectionView", () => {
     const onOpenView = vi.fn<(xuid: string) => void>();
     const onOpenOverlay = vi.fn<(xuid: string) => void>();
 
-    render(
-      <StreamerConnectionsSectionView
-        xboxXuid="2533274844642438"
-        onOpenView={onOpenView}
-        onOpenOverlay={onOpenOverlay}
-      />,
-    );
+    renderComponent({ onOpenView, onOpenOverlay });
 
     fireEvent.click(screen.getByRole("button", { name: "Open viewer" }));
     fireEvent.click(screen.getByRole("button", { name: "Open overlay" }));
 
     expect(onOpenView).toHaveBeenCalledWith("2533274844642438");
     expect(onOpenOverlay).toHaveBeenCalledWith("2533274844642438");
+  });
+
+  it("invokes presentation settings callback for color mode and tabs", () => {
+    const onPresentationSettingsChange = vi.fn<
+      React.ComponentProps<typeof StreamerConnectionsSectionView>["onPresentationSettingsChange"]
+    >();
+
+    renderComponent({ onPresentationSettingsChange });
+
+    fireEvent.change(screen.getByLabelText(/default color mode/i), {
+      target: { value: "player" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /show overlay tabs/i }));
+
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(1, {
+      defaultColorMode: "player",
+      showTabs: true,
+    });
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(2, {
+      defaultColorMode: "observer",
+      showTabs: false,
+    });
   });
 });

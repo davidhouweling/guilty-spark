@@ -4,6 +4,7 @@ import type {
 } from "@guilty-spark/shared/individual-tracker/types";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { TrackerSearchResult } from "../../services/individual-tracker/types";
+import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
@@ -156,6 +157,8 @@ export interface IndividualTrackerSnapshot {
   readonly activeSection: IndividualTrackerSectionId;
   readonly viewerTeamColor: string;
   readonly viewerEnemyColor: string;
+  readonly viewerDefaultColorMode: StreamerViewColorMode;
+  readonly viewerShowTabs: boolean;
   readonly viewerSettingsSaving: boolean;
   readonly viewerSettingsErrorMessage: string | null;
   readonly loading: boolean;

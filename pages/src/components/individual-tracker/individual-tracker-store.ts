@@ -22,6 +22,8 @@ export class IndividualTrackerStore {
     activeSection: "live-trackers",
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",
+    viewerDefaultColorMode: "observer",
+    viewerShowTabs: true,
     viewerSettingsSaving: false,
     viewerSettingsErrorMessage: null,
     loading: true,

@@ -130,6 +130,49 @@ export class IndividualTrackerPresenter {
     }
   }
 
+  public async updateStreamerPresentationSettings(defaultColorMode: "player" | "observer", showTabs: boolean): Promise<void> {
+    const { profileId } = this.getSnapshot();
+    if (profileId == null) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsErrorMessage: "No profile available to save viewer settings.",
+      }));
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      viewerDefaultColorMode: defaultColorMode,
+      viewerShowTabs: showTabs,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        layoutOptions: {
+          defaultColorMode,
+        },
+        visibleSections: {
+          showTabs,
+        },
+      });
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
   public exitViewerMode(): void {
     this.navigateTo("/");
   }
@@ -654,6 +697,8 @@ export class IndividualTrackerPresenter {
             xboxXuid,
             viewerTeamColor: viewerColors.teamColor,
             viewerEnemyColor: viewerColors.enemyColor,
+            viewerDefaultColorMode: streamerSettings.layoutOptions.defaultColorMode ?? "observer",
+            viewerShowTabs: streamerSettings.visibleSections.showTabs ?? true,
           }));
         } catch {
           this.updateSnapshot((snapshot) => ({

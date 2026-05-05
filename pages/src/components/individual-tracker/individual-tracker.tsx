@@ -104,6 +104,13 @@ export function IndividualTrackerView({
       panelContent = (
         <StreamerConnectionsSectionView
           xboxXuid={snapshot.xboxXuid}
+          defaultColorMode={snapshot.viewerDefaultColorMode}
+          showTabs={snapshot.viewerShowTabs}
+          saving={snapshot.viewerSettingsSaving}
+          errorMessage={snapshot.viewerSettingsErrorMessage}
+          onPresentationSettingsChange={(settings): void => {
+            void presenter.updateStreamerPresentationSettings(settings.defaultColorMode, settings.showTabs);
+          }}
           onOpenView={(xuid): void => {
             presenter.openPublicViewer(xuid);
           }}

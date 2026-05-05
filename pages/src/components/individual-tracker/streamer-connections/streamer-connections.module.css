@@ -34,6 +34,16 @@
   padding: var(--space-3);
 }
 
+.preferencesCard {
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
 .cardTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
@@ -52,6 +62,31 @@
   display: grid;
   gap: var(--space-3);
   grid-template-columns: minmax(0, 1fr);
+}
+
+.preferenceLabel {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.selectInput {
+  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  min-height: 2.5rem;
+  padding: 0 var(--space-2);
+}
+
+.toggleRow {
+  align-items: center;
+  color: var(--halo-gray-light);
+  display: flex;
+  font-size: var(--text-sm);
+  gap: var(--space-2);
 }
 
 @media (--tablet-viewport) {

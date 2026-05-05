@@ -62,9 +62,9 @@ export interface IndividualTrackerStreamerViewSettings {
 
 export interface IndividualTrackerUpdateStreamerViewSettingsRequest {
   readonly profileId: string;
-  readonly layoutOptions?: Readonly<Record<string, unknown>>;
-  readonly visibleSections?: Readonly<Record<string, unknown>>;
-  readonly styleFlags?: Readonly<Record<string, unknown>>;
+  readonly layoutOptions?: StreamerViewLayoutOptions;
+  readonly visibleSections?: StreamerViewVisibleSections;
+  readonly styleFlags?: StreamerViewStyleFlags;
 }
 
 export interface IndividualTrackerMutateGamesRequest {

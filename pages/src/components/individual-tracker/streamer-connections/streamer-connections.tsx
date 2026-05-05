@@ -6,6 +6,14 @@ import styles from "./streamer-connections.module.css";
 
 interface StreamerConnectionsSectionViewProps {
   readonly xboxXuid: string | null;
+  readonly defaultColorMode: "player" | "observer";
+  readonly showTabs: boolean;
+  readonly saving: boolean;
+  readonly errorMessage: string | null;
+  readonly onPresentationSettingsChange: (settings: {
+    defaultColorMode: "player" | "observer";
+    showTabs: boolean;
+  }) => void;
   readonly onOpenView?: (xuid: string) => void;
   readonly onOpenOverlay?: (xuid: string) => void;
 }
@@ -25,6 +33,11 @@ function buildStreamerUrls(xboxXuid: string): StreamerUrls {
 
 export function StreamerConnectionsSectionView({
   xboxXuid,
+  defaultColorMode,
+  showTabs,
+  saving,
+  errorMessage,
+  onPresentationSettingsChange,
   onOpenView,
   onOpenOverlay,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
@@ -108,6 +121,48 @@ export function StreamerConnectionsSectionView({
           </div>
         </div>
       )}
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Presentation defaults</h3>
+        <p className={styles.cardDescription}>Choose how the public view and overlay should render by default.</p>
+
+        <label className={styles.preferenceLabel} htmlFor="default-color-mode-select">
+          Default color mode
+        </label>
+        <select
+          id="default-color-mode-select"
+          className={styles.selectInput}
+          value={defaultColorMode}
+          disabled={saving}
+          onChange={(event): void => {
+            onPresentationSettingsChange({
+              defaultColorMode: event.currentTarget.value === "player" ? "player" : "observer",
+              showTabs,
+            });
+          }}
+        >
+          <option value="observer">Observer</option>
+          <option value="player">Player</option>
+        </select>
+
+        <label className={styles.toggleRow}>
+          <input
+            type="checkbox"
+            checked={showTabs}
+            disabled={saving}
+            onChange={(event): void => {
+              onPresentationSettingsChange({
+                defaultColorMode,
+                showTabs: event.currentTarget.checked,
+              });
+            }}
+          />
+          <span>Show overlay tabs</span>
+        </label>
+
+        {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
+        {errorMessage != null ? <Alert variant="error">{errorMessage}</Alert> : null}
+      </div>
 
       <Alert variant="info">Twitch automation and advanced overlay presets remain in the next Phase 4 slice.</Alert>
     </div>
