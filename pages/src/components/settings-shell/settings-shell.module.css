@@ -93,6 +93,7 @@
   }
 
   .menu {
+    align-self: start;
     flex-direction: column;
     overflow: visible auto;
   }

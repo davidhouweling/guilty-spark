@@ -130,12 +130,6 @@ export function IndividualTrackerView({
           onObserverColorsChange={(settings): void => {
             void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
           }}
-          onOpenView={(xuid): void => {
-            presenter.openPublicViewer(xuid);
-          }}
-          onOpenOverlay={(xuid): void => {
-            presenter.openPublicOverlay(xuid);
-          }}
         />
       );
       break;

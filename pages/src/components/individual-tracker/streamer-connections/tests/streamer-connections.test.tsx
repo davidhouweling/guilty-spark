@@ -30,8 +30,11 @@ describe("StreamerConnectionsSectionView", () => {
         showTeamDetails={true}
         saving={false}
         errorMessage={null}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onPresentationSettingsChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onPlayerColorsChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onObserverColorsChange={(): void => {}}
         {...overrides}
       />,
@@ -54,17 +57,26 @@ describe("StreamerConnectionsSectionView", () => {
     expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(2);
   });
 
-  it("invokes open callbacks with xuid", () => {
-    const onOpenView = vi.fn<(xuid: string) => void>();
-    const onOpenOverlay = vi.fn<(xuid: string) => void>();
+  it("opens viewer and overlay urls in new tabs", () => {
+    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
-    renderComponent({ onOpenView, onOpenOverlay });
+    renderComponent();
 
     fireEvent.click(screen.getByRole("button", { name: "Open viewer" }));
     fireEvent.click(screen.getByRole("button", { name: "Open overlay" }));
 
-    expect(onOpenView).toHaveBeenCalledWith("2533274844642438");
-    expect(onOpenOverlay).toHaveBeenCalledWith("2533274844642438");
+    expect(windowOpenSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/individual-tracker/2533274844642438/view"),
+      "_blank",
+    );
+    expect(windowOpenSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/individual-tracker/2533274844642438/overlay"),
+      "_blank",
+    );
+
+    windowOpenSpy.mockRestore();
   });
 
   it("invokes presentation settings callback for section toggles", () => {

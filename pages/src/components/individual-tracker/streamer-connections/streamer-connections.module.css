@@ -57,13 +57,6 @@
   margin: 0;
 }
 
-.urlRow {
-  align-items: end;
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .urlText {
   background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
@@ -73,6 +66,11 @@
   min-height: 2.5rem;
   overflow-wrap: anywhere;
   padding: var(--space-2);
+}
+
+.buttonRow {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .preferenceLabel {
@@ -112,10 +110,6 @@
 }
 
 @media (--tablet-viewport) {
-  .urlRow {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
   .pickerGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

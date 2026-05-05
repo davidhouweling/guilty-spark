@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo } from "react";
+import TimeAgo from "javascript-time-ago";
+import en from "javascript-time-ago/locale/en";
 import { ErrorState } from "../components/error-state/error-state";
 import { LoadingState } from "../components/loading-state/loading-state";
 import { PublicViewer } from "../components/individual-tracker/public-viewer/public-viewer";
@@ -7,6 +9,8 @@ import { PublicViewerStore } from "../components/individual-tracker/public-viewe
 import type { PublicViewerVariant } from "../components/individual-tracker/public-viewer/types";
 import type { Services } from "../services/types";
 import { BaseApp } from "./base-app";
+
+TimeAgo.addDefaultLocale(en);
 
 interface IndividualTrackerPublicAppProps {
   readonly apiHost: string;

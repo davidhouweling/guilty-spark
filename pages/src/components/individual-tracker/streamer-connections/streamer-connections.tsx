@@ -27,8 +27,6 @@ interface StreamerConnectionsSectionViewProps {
   }) => void;
   readonly onPlayerColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
   readonly onObserverColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
-  readonly onOpenView?: (xuid: string) => void;
-  readonly onOpenOverlay?: (xuid: string) => void;
 }
 
 interface StreamerUrls {
@@ -61,8 +59,6 @@ export function StreamerConnectionsSectionView({
   onPresentationSettingsChange,
   onPlayerColorsChange,
   onObserverColorsChange,
-  onOpenView,
-  onOpenOverlay,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
   const [copyState, setCopyState] = useState<"idle" | "view" | "overlay">("idle");
   const urls = useMemo(() => (xboxXuid == null ? null : buildStreamerUrls(xboxXuid)), [xboxXuid]);
@@ -72,6 +68,7 @@ export function StreamerConnectionsSectionView({
   const selectedObserverEnemyColor = getTeamColor(observerEnemyColor) ?? HALO_TEAM_COLORS[1];
 
   const copyToClipboard = async (kind: "view" | "overlay", value: string): Promise<void> => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof navigator === "undefined" || navigator.clipboard == null) {
       return;
     }
@@ -95,7 +92,7 @@ export function StreamerConnectionsSectionView({
         tracker is currently marked live.
       </p>
 
-      {urls == null ? (
+      {xboxXuid == null ? (
         <Alert variant="warning">
           No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
         </Alert>
@@ -104,12 +101,12 @@ export function StreamerConnectionsSectionView({
           <div className={styles.urlCard}>
             <h3 className={styles.cardTitle}>Viewer URL</h3>
             <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
-            <div className={styles.urlRow}>
-              <p className={styles.urlText}>{urls.viewUrl}</p>
+            <p className={styles.urlText}>{urls?.viewUrl}</p>
+            <div className={styles.buttonRow}>
               <Button
                 onClick={(): void => {
-                  if (xboxXuid != null) {
-                    onOpenView?.(xboxXuid);
+                  if (typeof window !== "undefined") {
+                    window.open(urls?.viewUrl ?? "", "_blank");
                   }
                 }}
               >
@@ -117,7 +114,7 @@ export function StreamerConnectionsSectionView({
               </Button>
               <Button
                 onClick={(): void => {
-                  void copyToClipboard("view", urls.viewUrl);
+                  void copyToClipboard("view", urls?.viewUrl ?? "");
                 }}
               >
                 {copyState === "view" ? "Copied!" : "Copy"}
@@ -128,12 +125,12 @@ export function StreamerConnectionsSectionView({
           <div className={styles.urlCard}>
             <h3 className={styles.cardTitle}>Overlay URL</h3>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
-            <div className={styles.urlRow}>
-              <p className={styles.urlText}>{urls.overlayUrl}</p>
+            <p className={styles.urlText}>{urls?.overlayUrl}</p>
+            <div className={styles.buttonRow}>
               <Button
                 onClick={(): void => {
-                  if (xboxXuid != null) {
-                    onOpenOverlay?.(xboxXuid);
+                  if (typeof window !== "undefined") {
+                    window.open(urls?.overlayUrl ?? "", "_blank");
                   }
                 }}
               >
@@ -141,7 +138,7 @@ export function StreamerConnectionsSectionView({
               </Button>
               <Button
                 onClick={(): void => {
-                  void copyToClipboard("overlay", urls.overlayUrl);
+                  void copyToClipboard("overlay", urls?.overlayUrl ?? "");
                 }}
               >
                 {copyState === "overlay" ? "Copied!" : "Copy"}

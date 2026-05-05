@@ -117,8 +117,7 @@ function renderOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
     );
   }
 
-  const leftTeam = activeSeries.teams[0];
-  const rightTeam = activeSeries.teams[1];
+  const [leftTeam, rightTeam] = activeSeries.teams;
 
   return (
     <div className={styles.topSection}>
@@ -141,6 +140,7 @@ function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: numb
   const timeline = snapshot.renderModel?.gameplayTimeline ?? [];
   const item = timeline[timelineIndex];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (item == null) {
     return <p className={styles.emptyPanel}>Waiting for tracked gameplay timeline...</p>;
   }

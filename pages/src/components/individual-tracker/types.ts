@@ -3,8 +3,8 @@ import type {
   IndividualTrackerState,
 } from "@guilty-spark/shared/individual-tracker/types";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
-import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";

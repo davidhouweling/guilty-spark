@@ -315,37 +315,33 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
     throw new Error("Invalid streamer view settings response");
   }
 
-  const effectiveColorMode = parseStreamerViewColorMode(effectiveDefaults["colorMode"]);
+  const effectiveColorMode = parseStreamerViewColorMode(effectiveDefaults.colorMode);
   if (effectiveColorMode == null) {
     throw new Error("Invalid streamer view settings response");
   }
 
   const layoutViewMode =
-    layoutOptions["viewMode"] === "standard" ||
-    layoutOptions["viewMode"] === "wide" ||
-    layoutOptions["viewMode"] === "streamer"
-      ? layoutOptions["viewMode"]
+    layoutOptions.viewMode === "standard" || layoutOptions.viewMode === "wide" || layoutOptions.viewMode === "streamer"
+      ? layoutOptions.viewMode
       : null;
-  const layoutDefaultColorMode = parseStreamerViewColorMode(layoutOptions["defaultColorMode"]);
-  const visibleShowTicker = typeof visibleSections["showTicker"] === "boolean" ? visibleSections["showTicker"] : null;
-  const visibleShowTabs = typeof visibleSections["showTabs"] === "boolean" ? visibleSections["showTabs"] : null;
+  const layoutDefaultColorMode = parseStreamerViewColorMode(layoutOptions.defaultColorMode);
+  const visibleShowTicker = typeof visibleSections.showTicker === "boolean" ? visibleSections.showTicker : null;
+  const visibleShowTabs = typeof visibleSections.showTabs === "boolean" ? visibleSections.showTabs : null;
   const visibleShowTeamDetails =
-    typeof visibleSections["showTeamDetails"] === "boolean" ? visibleSections["showTeamDetails"] : null;
-  const styleColorMode = parseStreamerViewColorMode(styleFlags["colorMode"]);
-  const stylePlayerTeamColor = typeof styleFlags["playerTeamColor"] === "string" ? styleFlags["playerTeamColor"] : null;
-  const stylePlayerEnemyColor =
-    typeof styleFlags["playerEnemyColor"] === "string" ? styleFlags["playerEnemyColor"] : null;
-  const styleObserverTeamColor =
-    typeof styleFlags["observerTeamColor"] === "string" ? styleFlags["observerTeamColor"] : null;
+    typeof visibleSections.showTeamDetails === "boolean" ? visibleSections.showTeamDetails : null;
+  const styleColorMode = parseStreamerViewColorMode(styleFlags.colorMode);
+  const stylePlayerTeamColor = typeof styleFlags.playerTeamColor === "string" ? styleFlags.playerTeamColor : null;
+  const stylePlayerEnemyColor = typeof styleFlags.playerEnemyColor === "string" ? styleFlags.playerEnemyColor : null;
+  const styleObserverTeamColor = typeof styleFlags.observerTeamColor === "string" ? styleFlags.observerTeamColor : null;
   const styleObserverEnemyColor =
-    typeof styleFlags["observerEnemyColor"] === "string" ? styleFlags["observerEnemyColor"] : null;
-  const styleTeamColor = typeof styleFlags["teamColor"] === "string" ? styleFlags["teamColor"] : null;
-  const styleEnemyColor = typeof styleFlags["enemyColor"] === "string" ? styleFlags["enemyColor"] : null;
+    typeof styleFlags.observerEnemyColor === "string" ? styleFlags.observerEnemyColor : null;
+  const styleTeamColor = typeof styleFlags.teamColor === "string" ? styleFlags.teamColor : null;
+  const styleEnemyColor = typeof styleFlags.enemyColor === "string" ? styleFlags.enemyColor : null;
   const styleObserverOverridesRecord =
-    styleFlags["observerColorOverrides"] != null &&
-    typeof styleFlags["observerColorOverrides"] === "object" &&
-    !Array.isArray(styleFlags["observerColorOverrides"])
-      ? (styleFlags["observerColorOverrides"] as Record<string, unknown>)
+    styleFlags.observerColorOverrides != null &&
+    typeof styleFlags.observerColorOverrides === "object" &&
+    !Array.isArray(styleFlags.observerColorOverrides)
+      ? (styleFlags.observerColorOverrides as Record<string, unknown>)
       : null;
   const styleObserverOverrides =
     styleObserverOverridesRecord == null
@@ -353,12 +349,12 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
       : Object.fromEntries(
           Object.entries(styleObserverOverridesRecord)
             .filter((entry): entry is [string, Record<string, unknown>] => {
-              const [, value] = entry;
-              return value != null && typeof value === "object" && !Array.isArray(value);
+              const [, overrideValue] = entry;
+              return overrideValue != null && typeof overrideValue === "object" && !Array.isArray(overrideValue);
             })
-            .map(([trackerId, value]) => {
-              const teamColor = typeof value["teamColor"] === "string" ? value["teamColor"] : null;
-              const enemyColor = typeof value["enemyColor"] === "string" ? value["enemyColor"] : null;
+            .map(([trackerId, overrideValue]) => {
+              const teamColor = typeof overrideValue.teamColor === "string" ? overrideValue.teamColor : null;
+              const enemyColor = typeof overrideValue.enemyColor === "string" ? overrideValue.enemyColor : null;
 
               return [
                 trackerId,
@@ -368,7 +364,7 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
                 },
               ] as const;
             })
-            .filter(([, value]) => value.teamColor != null || value.enemyColor != null),
+            .filter(([, overrideData]) => overrideData.teamColor != null || overrideData.enemyColor != null),
         );
 
   if (updatedAt !== null && !isNumber(updatedAt)) {
@@ -1130,7 +1126,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     const activeTracker = payload.activeTracker ?? null;
     const streamerView = payload.streamerView ?? null;
-    const status = payload.status;
+    const { status } = payload;
 
     if (status === "active" || status === "offline" || status === "not-found") {
       return {
