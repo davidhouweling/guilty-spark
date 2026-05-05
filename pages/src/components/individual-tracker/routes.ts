@@ -21,3 +21,11 @@ export function buildIndividualTrackerActiveViewPath(): string {
 export function buildIndividualTrackerTrackerViewPath(trackerId: string): string {
   return `/tracker/${encodeURIComponent(trackerId)}`;
 }
+
+export function buildIndividualTrackerPublicViewPath(xuid: string): string {
+  return `/${encodeURIComponent(xuid)}/view`;
+}
+
+export function buildIndividualTrackerPublicOverlayPath(xuid: string): string {
+  return `/${encodeURIComponent(xuid)}/overlay`;
+}

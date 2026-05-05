@@ -13,6 +13,7 @@ import {
   buildIndividualTrackerManagePath,
   type IndividualTrackerAppRoute,
 } from "../components/individual-tracker/routes";
+import { IndividualTrackerPublicFactory } from "./individual-tracker-public-app";
 import { BaseApp } from "./base-app";
 
 TimeAgo.addDefaultLocale(en);
@@ -110,6 +111,26 @@ function TrackerViewRoute({ services }: { readonly services: Services }): React.
   return <RoutedIndividualTrackerFactory services={services} route={{ kind: "view-tracker", trackerId }} />;
 }
 
+function PublicViewRoute({ services }: { readonly services: Services }): React.ReactElement {
+  const { xuid } = ReactRouterDom.useParams<{ xuid: string }>();
+
+  if (xuid == null || xuid.trim() === "") {
+    return <ReactRouterDom.Navigate to={buildIndividualTrackerManagePath()} replace={true} />;
+  }
+
+  return <IndividualTrackerPublicFactory services={services} xuid={xuid} variant="view" />;
+}
+
+function PublicOverlayRoute({ services }: { readonly services: Services }): React.ReactElement {
+  const { xuid } = ReactRouterDom.useParams<{ xuid: string }>();
+
+  if (xuid == null || xuid.trim() === "") {
+    return <ReactRouterDom.Navigate to={buildIndividualTrackerManagePath()} replace={true} />;
+  }
+
+  return <IndividualTrackerPublicFactory services={services} xuid={xuid} variant="overlay" />;
+}
+
 export function IndividualTrackerApp({ apiHost }: IndividualTrackerAppProps): React.ReactElement {
   const loadingState = <LoadingState text="Loading individual tracker..." />;
 
@@ -124,6 +145,8 @@ export function IndividualTrackerApp({ apiHost }: IndividualTrackerAppProps): Re
             <ReactRouterDom.Route path="/" element={<ManageRoute services={services} />} />
             <ReactRouterDom.Route path="/active" element={<ActiveViewRoute services={services} />} />
             <ReactRouterDom.Route path="/tracker/:trackerId" element={<TrackerViewRoute services={services} />} />
+            <ReactRouterDom.Route path="/:xuid/view" element={<PublicViewRoute services={services} />} />
+            <ReactRouterDom.Route path="/:xuid/overlay" element={<PublicOverlayRoute services={services} />} />
             <ReactRouterDom.Route
               path="*"
               element={<ReactRouterDom.Navigate to={buildIndividualTrackerManagePath()} replace={true} />}

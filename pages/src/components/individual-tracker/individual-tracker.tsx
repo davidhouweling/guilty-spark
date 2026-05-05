@@ -101,7 +101,17 @@ export function IndividualTrackerView({
       break;
     }
     case "streamer-connections": {
-      panelContent = <StreamerConnectionsSectionView xboxXuid={snapshot.xboxXuid} />;
+      panelContent = (
+        <StreamerConnectionsSectionView
+          xboxXuid={snapshot.xboxXuid}
+          onOpenView={(xuid): void => {
+            presenter.openPublicViewer(xuid);
+          }}
+          onOpenOverlay={(xuid): void => {
+            presenter.openPublicOverlay(xuid);
+          }}
+        />
+      );
       break;
     }
     case "additional-options": {

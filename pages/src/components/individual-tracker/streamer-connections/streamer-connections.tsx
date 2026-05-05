@@ -6,6 +6,8 @@ import styles from "./streamer-connections.module.css";
 
 interface StreamerConnectionsSectionViewProps {
   readonly xboxXuid: string | null;
+  readonly onOpenView?: (xuid: string) => void;
+  readonly onOpenOverlay?: (xuid: string) => void;
 }
 
 interface StreamerUrls {
@@ -21,7 +23,11 @@ function buildStreamerUrls(xboxXuid: string): StreamerUrls {
   };
 }
 
-export function StreamerConnectionsSectionView({ xboxXuid }: StreamerConnectionsSectionViewProps): React.ReactElement {
+export function StreamerConnectionsSectionView({
+  xboxXuid,
+  onOpenView,
+  onOpenOverlay,
+}: StreamerConnectionsSectionViewProps): React.ReactElement {
   const [copyState, setCopyState] = useState<"idle" | "view" | "overlay">("idle");
   const urls = useMemo(() => (xboxXuid == null ? null : buildStreamerUrls(xboxXuid)), [xboxXuid]);
 
@@ -60,6 +66,15 @@ export function StreamerConnectionsSectionView({ xboxXuid }: StreamerConnections
               <Input label="Viewer URL" value={urls.viewUrl} onChange={(): void => {}} disabled={true} />
               <Button
                 onClick={(): void => {
+                  if (xboxXuid != null) {
+                    onOpenView?.(xboxXuid);
+                  }
+                }}
+              >
+                Open viewer
+              </Button>
+              <Button
+                onClick={(): void => {
                   void copyToClipboard("view", urls.viewUrl);
                 }}
               >
@@ -73,6 +88,15 @@ export function StreamerConnectionsSectionView({ xboxXuid }: StreamerConnections
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <div className={styles.urlRow}>
               <Input label="Overlay URL" value={urls.overlayUrl} onChange={(): void => {}} disabled={true} />
+              <Button
+                onClick={(): void => {
+                  if (xboxXuid != null) {
+                    onOpenOverlay?.(xboxXuid);
+                  }
+                }}
+              >
+                Open overlay
+              </Button>
               <Button
                 onClick={(): void => {
                   void copyToClipboard("overlay", urls.overlayUrl);

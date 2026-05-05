@@ -14,6 +14,7 @@ import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./ty
 import type { IndividualTrackerStore } from "./individual-tracker-store";
 import type { LiveTrackersController } from "./live-trackers/types";
 import { buildIndividualTrackerViewerRenderModel } from "./viewer/viewer-render-model";
+import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "./routes";
 
 interface Config {
   readonly services: Services;
@@ -131,6 +132,14 @@ export class IndividualTrackerPresenter {
 
   public exitViewerMode(): void {
     this.navigateTo("/");
+  }
+
+  public openPublicViewer(xuid: string): void {
+    this.navigateTo(buildIndividualTrackerPublicViewPath(xuid));
+  }
+
+  public openPublicOverlay(xuid: string): void {
+    this.navigateTo(buildIndividualTrackerPublicOverlayPath(xuid));
   }
 
   public async refreshViewerTracker(): Promise<void> {

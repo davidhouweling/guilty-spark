@@ -18,6 +18,12 @@ vi.mock("../../../components/individual-tracker/individual-tracker", () => ({
   IndividualTrackerView: (): React.ReactElement => <div>Individual tracker view</div>,
 }));
 
+vi.mock("../../../apps/individual-tracker-public-app", () => ({
+  IndividualTrackerPublicFactory: ({ variant }: { readonly variant: "view" | "overlay" }): React.ReactElement => (
+    <div>{variant === "view" ? "Public view" : "Public overlay"}</div>
+  ),
+}));
+
 import { IndividualTrackerApp, IndividualTrackerFactory } from "../../../apps/individual-tracker-app";
 
 afterEach(() => {
@@ -49,6 +55,32 @@ describe("IndividualTracker create", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Individual tracker view")).toBeInTheDocument();
+    });
+  });
+
+  it("routes xuid view path to public viewer factory", async () => {
+    window.history.pushState({}, "", "/individual-tracker/2533274844642438/view");
+
+    const services = await installFakeServices();
+    installServicesMock.mockResolvedValue(services);
+
+    render(<IndividualTrackerApp apiHost="https://api.example.com" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Public view")).toBeInTheDocument();
+    });
+  });
+
+  it("routes xuid overlay path to public viewer factory", async () => {
+    window.history.pushState({}, "", "/individual-tracker/2533274844642438/overlay");
+
+    const services = await installFakeServices();
+    installServicesMock.mockResolvedValue(services);
+
+    render(<IndividualTrackerApp apiHost="https://api.example.com" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Public overlay")).toBeInTheDocument();
     });
   });
 });

@@ -10,7 +10,7 @@
 - The current "Streamer Connections" panel remains a placeholder and is planned to become "Streamer Settings" for the Phase 4 overlay/view work.
 - Per-tracker Streamer Settings action is present but intentionally disabled pending Phase 5 integration.
 - Viewer-mode behavior is now wired for tracker-specific viewing and follow-active viewing: `?tracker=` and `?mode=active` routes render a dedicated read-only tracker panel backed by explicit status fetch + WebSocket updates.
-- Individual tracker navigation still relies on full-page URL changes today; a client-side router is now a declared prerequisite for the next phase so manager/view/overlay transitions can happen without page reloads.
+- Individual tracker manager/public transitions now use client-side routing for `/individual-tracker`, `/individual-tracker/:xuid/view`, and `/individual-tracker/:xuid/overlay` inside the app shell, avoiding full-page reloads when navigating from Streamer Settings open actions.
 - Shared series-overview UI is now extracted into a reusable component and consumed by both team live-tracker and individual tracker viewer surfaces.
 - Individual tracker grouped-series presentation now supports dropping inner borders around score/team blocks for closer visual parity with the target viewer UX.
 - Individual tracker viewer derivation now lives in a presenter-side render-model builder so the viewer component is primarily presentational.
@@ -406,13 +406,13 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 - [x] `streamer_view_settings` D1 schema defined and ready to execute manually.
 - [x] Streamer-view settings API.
 - [x] Initial viewer settings UI for team/enemy colors in Additional Options.
-- [ ] Client-side router for manager/view/overlay flows without page reloads.
+- [x] Client-side router for manager/view/overlay flows without page reloads.
 - [ ] Broader streamer-view layout/preferences UI in the renamed Streamer Settings section.
 - [ ] Stable XUID-based active view and overlay URLs for live stream usage.
 - [ ] OBS overlay implementation for individual trackers, including series-aware and non-series session modes.
 - [x] Allow the owner to select which active tracker is presented on stream.
 
-> Current Phase 4 state: the required backend schema/API work and owner-side live-tracker selection are in place. The next implementation slice starts with client-side routing and XUID-based active view / overlay resolution, then lands the full Streamer Settings UX and OBS overlay behaviour.
+> Current Phase 4 state: backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, and client-side routed manager/view/overlay transitions are in place. Remaining slices focus on broader settings UX and deeper overlay behavior.
 
 ### Phase 5 - Twitch extension integration
 
@@ -670,12 +670,12 @@ Each backlog item should still land in a separate commit with this document upda
 - [x] Viewer score follow-up delivered: grouped-series score now derives from Halo team-order data instead of tracked-player win/loss orientation.
 - [x] Runtime reliability follow-up delivered: individual tracker DO alarm flow now has focused coverage for initial scheduling, periodic polling, rescheduling, and stale refresh-lock cleanup.
 - [x] Viewer + NeatQueue lifecycle follow-up delivered: worker now fans out active NeatQueue series updates on teams-created/substitution events, individual tracker DO stores active pre-series context, viewer renders pre-series roster/substitution info, and match-completed fanout clears active pre-series state.
-- [ ] Phase 4 routing follow-up planned: replace hard page transitions with client-side routing and introduce stable XUID-based active view / overlay routes.
+- [x] Phase 4 routing follow-up delivered: manager now routes in-app to stable XUID-based active view / overlay routes without full-page transitions.
 - [ ] Phase 4 overlay follow-up planned: lift the NeatQueue streamer overlay into a user-scoped individual tracker overlay with player/observer modes, non-series session states, global server-backed settings, and per-tracker observer-color overrides.
 
 ### Current operator note - View tracker behavior
 
-Current behavior for this stage: the "View" row action routes to `/individual-tracker?tracker=<trackerId>` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker?mode=active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling, team-order-correct grouped-series scoring, shared rank / peak / game-count summary in the header, and active NeatQueue pre-series context (teams, player pre-series info, substitutions) when available.
+Current behavior for this stage: the "View" row action routes to `/individual-tracker/tracker/:trackerId` and opens a distinct read-only viewer panel for that tracker. Owner follow-active viewing is also available at `/individual-tracker/active`. The viewer boots from explicit status/history fetches, subscribes to live tracker state updates, and renders the shared series/stats presentation with chronological grouped-match handling, team-order-correct grouped-series scoring, shared rank / peak / game-count summary in the header, and active NeatQueue pre-series context (teams, player pre-series info, substitutions) when available.
 
 Planned replacement for Phase 4: stable XUID-based `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes that follow the active tracker automatically, avoid full reloads via client-side routing, and support richer stream-facing transitions.
 
