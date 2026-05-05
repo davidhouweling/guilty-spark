@@ -531,6 +531,31 @@ describe("Database Service", () => {
     });
   });
 
+  describe("findIndividualTrackerActiveSessionByXuid()", () => {
+    it("returns the active tracker session for an active xbox identity", async () => {
+      const session: IndividualTrackerActiveSessionsRow = aFakeIndividualTrackerActiveSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerActiveSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(session);
+
+      const result = await databaseService.findIndividualTrackerActiveSessionByXuid("2533274844642438");
+
+      expect(prepareSpy).toHaveBeenCalledWith(`
+      SELECT sessions.*
+      FROM IndividualTrackerActiveSessions sessions
+      INNER JOIN LinkedIdentities identities
+        ON identities.UserId = sessions.UserId
+      WHERE identities.Provider = 'xbox'
+        AND identities.ProviderUserId = ?
+        AND identities.IsActive = 1
+      LIMIT 1
+    `);
+      expect(bindSpy).toHaveBeenCalledWith("2533274844642438");
+      expect(result).toEqual(session);
+    });
+  });
+
   describe("findIndividualTrackerSessionsByUserId()", () => {
     it("returns tracker sessions for a user", async () => {
       const session: IndividualTrackerSessionsRow = aFakeIndividualTrackerSessionsRow();

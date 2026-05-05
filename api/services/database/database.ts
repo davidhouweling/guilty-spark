@@ -277,6 +277,21 @@ export class DatabaseService {
     return await stmt.first<IndividualTrackerActiveSessionsRow>();
   }
 
+  async findIndividualTrackerActiveSessionByXuid(xuid: string): Promise<IndividualTrackerActiveSessionsRow | null> {
+    const query = `
+      SELECT sessions.*
+      FROM IndividualTrackerActiveSessions sessions
+      INNER JOIN LinkedIdentities identities
+        ON identities.UserId = sessions.UserId
+      WHERE identities.Provider = 'xbox'
+        AND identities.ProviderUserId = ?
+        AND identities.IsActive = 1
+      LIMIT 1
+    `;
+    const stmt = this.DB.prepare(query).bind(xuid);
+    return await stmt.first<IndividualTrackerActiveSessionsRow>();
+  }
+
   async upsertIndividualTrackerActiveSession(userId: string, trackerId: string): Promise<void> {
     const query = `
       INSERT INTO IndividualTrackerActiveSessions (UserId, TrackerId, UpdatedAt) VALUES (?, ?, unixepoch())

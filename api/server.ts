@@ -16,6 +16,7 @@ import type {
   IndividualTrackerStartRequest,
 } from "./durable-objects/individual-tracker/types";
 import type { IdentityProvider, LinkedIdentitiesRow } from "./services/database/types/linked_identities";
+import type { StreamerViewSettingsRow } from "./services/database/types/streamer_view_settings";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -32,6 +33,14 @@ interface LinkIdentityRequest {
 
 interface UnlinkIdentityRequest {
   readonly identityId: string;
+}
+
+interface StreamerViewSettingsResponse {
+  readonly profileId: string;
+  readonly layoutOptions: Readonly<Record<string, unknown>>;
+  readonly visibleSections: Readonly<Record<string, unknown>>;
+  readonly styleFlags: Readonly<Record<string, unknown>>;
+  readonly updatedAt: number | null;
 }
 
 type AuthenticatedRouteSessionResult =
@@ -103,6 +112,19 @@ function toObjectOrDefault(value: string | null, fallback: Record<string, unknow
   }
 
   return fallback;
+}
+
+function toStreamerViewSettingsResponse(
+  profileId: string,
+  settings: StreamerViewSettingsRow | null,
+): StreamerViewSettingsResponse {
+  return {
+    profileId,
+    layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
+    visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
+    styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
+    updatedAt: settings?.UpdatedAt ?? null,
+  };
 }
 
 function getAvatarUrlFromGamerpic(gamerpic: unknown): string | null {
@@ -801,19 +823,10 @@ export class Server {
 
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
         return await this.withRefreshedSessionCookie(
-          new Response(
-            JSON.stringify({
-              profileId,
-              layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
-              visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
-              styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
-              updatedAt: settings?.UpdatedAt ?? null,
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify(toStreamerViewSettingsResponse(profileId, settings)), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
           services.authService,
           refreshedSessionPayload,
         );
@@ -2029,6 +2042,96 @@ export class Server {
       }
     });
 
+    this.router.get("/api/individual-tracker/xuid/:xuid/active", async (request, env: Env) => {
+      try {
+        const { xuid } = request.params as { xuid: string };
+        const normalizedXuid = normalizeXuid(xuid);
+        if (!isValidXuid(normalizedXuid)) {
+          return new Response(JSON.stringify({ error: "Invalid xuid" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const services = this.installServices({ env });
+        const xboxIdentity = await services.databaseService.getLinkedIdentityByProvider("xbox", normalizedXuid);
+        if (xboxIdentity?.IsActive !== 1) {
+          return new Response(JSON.stringify({ status: "not-found", activeTracker: null, streamerView: null }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        const profiles = await services.databaseService.findIndividualTrackerProfilesByUserId(xboxIdentity.UserId);
+        const profile = profiles[0] ?? null;
+        const streamerViewSettings =
+          profile == null
+            ? null
+            : toStreamerViewSettingsResponse(
+                profile.ProfileId,
+                await services.databaseService.getStreamerViewSettings(profile.ProfileId),
+              );
+
+        const activeSession = await services.databaseService.findIndividualTrackerActiveSessionByXuid(normalizedXuid);
+        if (activeSession == null) {
+          return new Response(
+            JSON.stringify({
+              status: "offline",
+              activeTracker: null,
+              streamerView: streamerViewSettings,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${activeSession.UserId}:${activeSession.TrackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/status";
+        const doResponse = await stub.fetch(new Request(doUrl.toString()));
+
+        if (doResponse.status === 404) {
+          await services.databaseService.deleteIndividualTrackerActiveSession(activeSession.UserId);
+          await services.databaseService.deleteIndividualTrackerSession(activeSession.UserId, activeSession.TrackerId);
+
+          return new Response(
+            JSON.stringify({
+              status: "offline",
+              activeTracker: null,
+              streamerView: streamerViewSettings,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        const doData = await doResponse.json<{ state: unknown }>();
+        return new Response(
+          JSON.stringify({
+            status: "active",
+            activeTracker: doData.state,
+            streamerView: streamerViewSettings,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Individual live tracker xuid active REST error:", error);
+        return new Response(JSON.stringify({ error: "Failed to resolve active tracker" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.get("/ws/individual-tracker/:userId/active", async (request, env: Env) => {
       try {
         const { userId } = request.params as { userId: string };
@@ -2048,6 +2151,38 @@ export class Server {
         return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
       } catch (error) {
         console.error("Individual tracker active WebSocket route error:", error);
+        return new Response("Internal Server Error", { status: 500 });
+      }
+    });
+
+    this.router.get("/ws/individual-tracker/xuid/:xuid/active", async (request, env: Env) => {
+      try {
+        const { xuid } = request.params as { xuid: string };
+        const normalizedXuid = normalizeXuid(xuid);
+        if (!isValidXuid(normalizedXuid)) {
+          return new Response("Invalid xuid", { status: 400 });
+        }
+
+        const services = this.installServices({ env });
+        const xboxIdentity = await services.databaseService.getLinkedIdentityByProvider("xbox", normalizedXuid);
+        if (xboxIdentity?.IsActive !== 1) {
+          return new Response("No configured xuid found", { status: 404 });
+        }
+
+        const activeSession = await services.databaseService.findIndividualTrackerActiveSessionByXuid(normalizedXuid);
+        if (activeSession == null) {
+          return new Response("No active tracker found", { status: 404 });
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${activeSession.UserId}:${activeSession.TrackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/websocket";
+
+        return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
+      } catch (error) {
+        console.error("Individual tracker xuid active WebSocket route error:", error);
         return new Response("Internal Server Error", { status: 500 });
       }
     });
