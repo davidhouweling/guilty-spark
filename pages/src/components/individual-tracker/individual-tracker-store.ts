@@ -4,6 +4,7 @@ export class IndividualTrackerStore {
   public snapshot: IndividualTrackerSnapshot = {
     authState: "loading",
     profileId: null,
+    xboxXuid: null,
     mode: "manage",
     viewSource: null,
     viewTrackerId: null,

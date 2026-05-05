@@ -101,7 +101,7 @@ export function IndividualTrackerView({
       break;
     }
     case "streamer-connections": {
-      panelContent = <StreamerConnectionsSectionView />;
+      panelContent = <StreamerConnectionsSectionView xboxXuid={snapshot.xboxXuid} />;
       break;
     }
     case "additional-options": {

@@ -1,4 +1,4 @@
-.placeholderPanel {
+.panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -17,4 +17,45 @@
   font-size: var(--text-base);
   line-height: 1.7;
   margin: 0;
+}
+
+.urlList {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.urlCard {
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.cardTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.cardDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.urlRow {
+  align-items: end;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (--tablet-viewport) {
+  .urlRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
 }

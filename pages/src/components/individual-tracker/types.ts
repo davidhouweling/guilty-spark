@@ -131,6 +131,7 @@ export interface IndividualTrackerViewerRenderModel {
 export interface IndividualTrackerSnapshot {
   readonly authState: AuthState;
   readonly profileId: string | null;
+  readonly xboxXuid: string | null;
   readonly mode: IndividualTrackerPageMode;
   readonly viewSource: IndividualTrackerViewSource;
   readonly viewTrackerId: string | null;

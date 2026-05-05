@@ -339,7 +339,7 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 ### Phase C: streamer controls
 
 - [ ] Introduce a client-side router (React Router is acceptable) for `/individual-tracker`, `/individual-tracker/:xuid/view`, and `/individual-tracker/:xuid/overlay` so manager/view/overlay transitions do not full-refresh.
-- [ ] Rename "Streamer Connections" to "Streamer Settings" and move the overlay/view configuration into that section.
+- [x] Rename "Streamer Connections" to "Streamer Settings" and move the overlay/view configuration into that section.
 - [x] Add one stable XUID-based view URL and one stable XUID-based overlay URL that always resolve to the user's currently active on-stream tracker.
 - [ ] Build the individual tracker streamer overlay by lifting the NeatQueue overlay model and extending it for matchmaking games and multiple series inside one session.
 - [ ] Toggle sections and display modes for in-series vs not-in-series presentation.

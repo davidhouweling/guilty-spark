@@ -618,6 +618,7 @@ export class IndividualTrackerPresenter {
           ...snapshot,
           authState: "unauthenticated",
           profileId: null,
+          xboxXuid: null,
           viewedMatchHistoryLoading: false,
           viewerRefreshPending: false,
           viewerRefreshMessage: null,
@@ -640,6 +641,7 @@ export class IndividualTrackerPresenter {
           this.updateSnapshot((snapshot) => ({
             ...snapshot,
             profileId,
+            xboxXuid,
             viewerTeamColor: viewerColors.teamColor,
             viewerEnemyColor: viewerColors.enemyColor,
           }));
@@ -647,12 +649,14 @@ export class IndividualTrackerPresenter {
           this.updateSnapshot((snapshot) => ({
             ...snapshot,
             profileId,
+            xboxXuid,
           }));
         }
       } else {
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           profileId: null,
+          xboxXuid,
         }));
       }
 
