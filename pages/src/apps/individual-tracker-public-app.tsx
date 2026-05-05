@@ -46,6 +46,30 @@ export function IndividualTrackerPublicFactory({
     };
   }, [presenter]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const previousMode = document.body.getAttribute("data-view-mode");
+    if (variant === "overlay") {
+      document.body.setAttribute("data-view-mode", "streamer");
+    }
+
+    return (): void => {
+      if (variant !== "overlay") {
+        return;
+      }
+
+      if (previousMode == null || previousMode === "") {
+        document.body.removeAttribute("data-view-mode");
+        return;
+      }
+
+      document.body.setAttribute("data-view-mode", previousMode);
+    };
+  }, [variant]);
+
   return <PublicViewer presenter={presenter} />;
 }
 

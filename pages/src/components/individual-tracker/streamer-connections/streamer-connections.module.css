@@ -64,6 +64,17 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.urlText {
+  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  margin: 0;
+  min-height: 2.5rem;
+  overflow-wrap: anywhere;
+  padding: var(--space-2);
+}
+
 .preferenceLabel {
   color: var(--halo-white);
   font-family: var(--font-body);
@@ -89,8 +100,23 @@
   gap: var(--space-2);
 }
 
+.modeNote {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
+.pickerGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
 @media (--tablet-viewport) {
   .urlRow {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pickerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

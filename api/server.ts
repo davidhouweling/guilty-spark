@@ -163,10 +163,13 @@ function toVisibleSections(value: string | null): StreamerViewVisibleSections {
 
 function toStyleFlags(value: string | null): StreamerViewStyleFlags {
   const record = toObjectOrDefault(value, {});
-  const colorMode =
-    record["colorMode"] === "player" || record["colorMode"] === "observer" ? record["colorMode"] : null;
+  const colorMode = record["colorMode"] === "player" || record["colorMode"] === "observer" ? record["colorMode"] : null;
   const teamColor = typeof record["teamColor"] === "string" ? record["teamColor"] : null;
   const enemyColor = typeof record["enemyColor"] === "string" ? record["enemyColor"] : null;
+  const playerTeamColor = typeof record["playerTeamColor"] === "string" ? record["playerTeamColor"] : null;
+  const playerEnemyColor = typeof record["playerEnemyColor"] === "string" ? record["playerEnemyColor"] : null;
+  const observerTeamColor = typeof record["observerTeamColor"] === "string" ? record["observerTeamColor"] : null;
+  const observerEnemyColor = typeof record["observerEnemyColor"] === "string" ? record["observerEnemyColor"] : null;
   const observerColorOverridesRecord =
     record["observerColorOverrides"] != null &&
     typeof record["observerColorOverrides"] === "object" &&
@@ -185,8 +188,7 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
 
       const overrideRecord = override as Record<string, unknown>;
       const parsedTeamColor = typeof overrideRecord["teamColor"] === "string" ? overrideRecord["teamColor"] : null;
-      const parsedEnemyColor =
-        typeof overrideRecord["enemyColor"] === "string" ? overrideRecord["enemyColor"] : null;
+      const parsedEnemyColor = typeof overrideRecord["enemyColor"] === "string" ? overrideRecord["enemyColor"] : null;
 
       if (parsedTeamColor == null && parsedEnemyColor == null) {
         continue;
@@ -203,6 +205,10 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
 
   return {
     ...(colorMode == null ? {} : { colorMode }),
+    ...(playerTeamColor == null ? {} : { playerTeamColor }),
+    ...(playerEnemyColor == null ? {} : { playerEnemyColor }),
+    ...(observerTeamColor == null ? {} : { observerTeamColor }),
+    ...(observerEnemyColor == null ? {} : { observerEnemyColor }),
     ...(teamColor == null ? {} : { teamColor }),
     ...(enemyColor == null ? {} : { enemyColor }),
     ...(observerColorOverrides == null ? {} : { observerColorOverrides }),
@@ -938,10 +944,13 @@ export class Server {
 
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
         return await this.withRefreshedSessionCookie(
-          new Response(JSON.stringify(toStreamerViewSettingsResponse(profileId, settings, selectedXboxXuid, selectedXboxXuid)), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }),
+          new Response(
+            JSON.stringify(toStreamerViewSettingsResponse(profileId, settings, selectedXboxXuid, selectedXboxXuid)),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
           services.authService,
           refreshedSessionPayload,
         );
@@ -2158,7 +2167,8 @@ export class Server {
         let trackedXuid: string | null = normalizedXuid;
         if (activeSession != null) {
           const sessions = await services.databaseService.findIndividualTrackerSessionsByUserId(activeSession.UserId);
-          const activeTrackerSession = sessions.find((session) => session.TrackerId === activeSession.TrackerId) ?? null;
+          const activeTrackerSession =
+            sessions.find((session) => session.TrackerId === activeSession.TrackerId) ?? null;
           trackedXuid = activeTrackerSession?.Xuid ?? trackedXuid;
         }
 

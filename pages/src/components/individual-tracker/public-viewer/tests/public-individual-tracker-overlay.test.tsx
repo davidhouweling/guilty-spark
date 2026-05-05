@@ -139,7 +139,7 @@ describe("PublicIndividualTrackerOverlay", () => {
 
     expect(screen.getByRole("button", { name: "Series" })).toBeInTheDocument();
     expect(screen.getByText("Grand Finals")).toBeInTheDocument();
-    expect(screen.getByText("Blue")).toBeInTheDocument();
+    expect(screen.getAllByText("Blue").length).toBeGreaterThan(0);
   });
 
   it("renders match-first tabs when no active series exists", () => {

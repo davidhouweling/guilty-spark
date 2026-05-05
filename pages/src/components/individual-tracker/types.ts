@@ -163,6 +163,8 @@ export interface IndividualTrackerSnapshot {
   readonly viewerShowTabs: boolean;
   readonly viewerShowTicker: boolean;
   readonly viewerShowTeamDetails: boolean;
+  readonly viewerObserverTeamColor: string;
+  readonly viewerObserverEnemyColor: string;
   readonly viewerObserverOverrideTeamColor: string | null;
   readonly viewerObserverOverrideEnemyColor: string | null;
   readonly viewerSettingsSaving: boolean;

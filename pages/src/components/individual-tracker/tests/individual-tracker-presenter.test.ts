@@ -277,8 +277,8 @@ describe("IndividualTrackerPresenter", () => {
     expect(updateSettingsSpy).toHaveBeenCalledWith({
       profileId: "profile-1",
       styleFlags: {
-        teamColor: "jade",
-        enemyColor: "tangelo",
+        playerTeamColor: "jade",
+        playerEnemyColor: "tangelo",
       },
     });
 

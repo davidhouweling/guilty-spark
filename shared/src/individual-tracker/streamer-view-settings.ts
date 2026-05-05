@@ -20,6 +20,10 @@ export interface StreamerViewVisibleSections {
 
 export interface StreamerViewStyleFlags {
   readonly colorMode?: StreamerViewColorMode;
+  readonly playerTeamColor?: string;
+  readonly playerEnemyColor?: string;
+  readonly observerTeamColor?: string;
+  readonly observerEnemyColor?: string;
   readonly teamColor?: string;
   readonly enemyColor?: string;
   readonly observerColorOverrides?: StreamerViewObserverColorOverrides;

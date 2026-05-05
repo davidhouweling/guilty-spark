@@ -1,9 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { StreamerConnectionsSectionView } from "../streamer-connections";
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 afterEach(() => {
   cleanup();
@@ -17,15 +21,18 @@ describe("StreamerConnectionsSectionView", () => {
         activeTrackerId="tracker-1"
         activeTrackerGamertag="Chief"
         defaultColorMode="observer"
+        playerTeamColor="salmon"
+        playerEnemyColor="cerulean"
+        observerTeamColor="jade"
+        observerEnemyColor="tangelo"
         showTabs={true}
         showTicker={true}
         showTeamDetails={true}
-        observerOverrideTeamColor="salmon"
-        observerOverrideEnemyColor="cerulean"
         saving={false}
         errorMessage={null}
         onPresentationSettingsChange={(): void => {}}
-        onObserverOverrideChange={(): void => {}}
+        onPlayerColorsChange={(): void => {}}
+        onObserverColorsChange={(): void => {}}
         {...overrides}
       />,
     );
@@ -40,8 +47,8 @@ describe("StreamerConnectionsSectionView", () => {
   it("renders stable xuid viewer and overlay urls", () => {
     renderComponent();
 
-    expect(screen.getByDisplayValue(/\/individual-tracker\/2533274844642438\/view/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/\/individual-tracker\/2533274844642438\/overlay/i)).toBeInTheDocument();
+    expect(screen.getByText(/\/individual-tracker\/2533274844642438\/view/i)).toBeInTheDocument();
+    expect(screen.getByText(/\/individual-tracker\/2533274844642438\/overlay/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open viewer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open overlay" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(2);
@@ -60,66 +67,44 @@ describe("StreamerConnectionsSectionView", () => {
     expect(onOpenOverlay).toHaveBeenCalledWith("2533274844642438");
   });
 
-  it("invokes presentation settings callback for color mode and tabs", () => {
-    const onPresentationSettingsChange = vi.fn<
-      React.ComponentProps<typeof StreamerConnectionsSectionView>["onPresentationSettingsChange"]
-    >();
+  it("invokes presentation settings callback for section toggles", () => {
+    const onPresentationSettingsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onPresentationSettingsChange"]>();
 
     renderComponent({ onPresentationSettingsChange });
 
-    fireEvent.change(screen.getByLabelText(/default color mode/i), {
-      target: { value: "player" },
-    });
     fireEvent.click(screen.getByRole("checkbox", { name: /show overlay tabs/i }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /show overlay ticker/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /show information ticker/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /show team details/i }));
 
     expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(1, {
-      defaultColorMode: "player",
-      showTabs: true,
-      showTicker: true,
-      showTeamDetails: true,
-    });
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(2, {
-      defaultColorMode: "observer",
       showTabs: false,
       showTicker: true,
       showTeamDetails: true,
     });
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(3, {
-      defaultColorMode: "observer",
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(2, {
       showTabs: true,
       showTicker: false,
       showTeamDetails: true,
     });
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(4, {
-      defaultColorMode: "observer",
+    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(3, {
       showTabs: true,
       showTicker: true,
       showTeamDetails: false,
     });
   });
 
-  it("invokes observer override callback for active tracker inputs", () => {
-    const onObserverOverrideChange = vi.fn<
-      React.ComponentProps<typeof StreamerConnectionsSectionView>["onObserverOverrideChange"]
-    >();
+  it("invokes observer colors callback from color pickers", () => {
+    const onObserverColorsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onObserverColorsChange"]>();
 
-    renderComponent({ onObserverOverrideChange });
+    renderComponent({ onObserverColorsChange });
 
-    fireEvent.change(screen.getByLabelText(/observer team color/i), {
-      target: { value: "jade" },
-    });
-    fireEvent.change(screen.getByLabelText(/observer enemy color/i), {
-      target: { value: "tangelo" },
-    });
+    fireEvent.click(screen.getByLabelText(/select observer team color/i));
+    fireEvent.click(screen.getByLabelText(/^Jade$/i));
 
-    expect(onObserverOverrideChange).toHaveBeenNthCalledWith(1, {
+    expect(onObserverColorsChange).toHaveBeenNthCalledWith(1, {
       teamColor: "jade",
-      enemyColor: "cerulean",
-    });
-    expect(onObserverOverrideChange).toHaveBeenNthCalledWith(2, {
-      teamColor: "salmon",
       enemyColor: "tangelo",
     });
   });

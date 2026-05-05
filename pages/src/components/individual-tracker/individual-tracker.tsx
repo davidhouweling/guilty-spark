@@ -107,23 +107,28 @@ export function IndividualTrackerView({
           activeTrackerId={snapshot.settingsActiveTrackerId}
           activeTrackerGamertag={snapshot.settingsActiveTrackerGamertag}
           defaultColorMode={snapshot.viewerDefaultColorMode}
+          playerTeamColor={snapshot.viewerTeamColor}
+          playerEnemyColor={snapshot.viewerEnemyColor}
+          observerTeamColor={snapshot.viewerObserverTeamColor}
+          observerEnemyColor={snapshot.viewerObserverEnemyColor}
           showTabs={snapshot.viewerShowTabs}
           showTicker={snapshot.viewerShowTicker}
           showTeamDetails={snapshot.viewerShowTeamDetails}
-          observerOverrideTeamColor={snapshot.viewerObserverOverrideTeamColor}
-          observerOverrideEnemyColor={snapshot.viewerObserverOverrideEnemyColor}
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
           onPresentationSettingsChange={(settings): void => {
             void presenter.updateStreamerPresentationSettings(
-              settings.defaultColorMode,
+              snapshot.viewerDefaultColorMode,
               settings.showTabs,
               settings.showTicker,
               settings.showTeamDetails,
             );
           }}
-          onObserverOverrideChange={(settings): void => {
-            void presenter.updateActiveTrackerObserverOverride(settings.teamColor, settings.enemyColor);
+          onPlayerColorsChange={(settings): void => {
+            void presenter.updateViewerColors(settings.teamColor, settings.enemyColor);
+          }}
+          onObserverColorsChange={(settings): void => {
+            void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
           }}
           onOpenView={(xuid): void => {
             presenter.openPublicViewer(xuid);
@@ -138,10 +143,19 @@ export function IndividualTrackerView({
     case "additional-options": {
       panelContent = (
         <AdditionalOptionsSectionView
+          defaultColorMode={snapshot.viewerDefaultColorMode}
           teamColor={snapshot.viewerTeamColor}
           enemyColor={snapshot.viewerEnemyColor}
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
+          onDefaultColorModeChange={(nextMode): void => {
+            void presenter.updateStreamerPresentationSettings(
+              nextMode,
+              snapshot.viewerShowTabs,
+              snapshot.viewerShowTicker,
+              snapshot.viewerShowTeamDetails,
+            );
+          }}
           onTeamColorChange={(nextColor): void => {
             void presenter.updateViewerColors(nextColor, snapshot.viewerEnemyColor);
           }}

@@ -284,21 +284,29 @@ export class PublicViewerPresenter {
 
     if (this.resolvedColorMode === "player" && state != null) {
       return {
-        teamColor: this.normalizeColorId(state.teamColor, snapshot.viewerTeamColor),
-        enemyColor: this.normalizeColorId(state.enemyColor, snapshot.viewerEnemyColor),
+        teamColor: this.normalizeColorId(
+          this.streamerStyleFlags.playerTeamColor ?? this.streamerStyleFlags.teamColor ?? state.teamColor,
+          snapshot.viewerTeamColor,
+        ),
+        enemyColor: this.normalizeColorId(
+          this.streamerStyleFlags.playerEnemyColor ?? this.streamerStyleFlags.enemyColor ?? state.enemyColor,
+          snapshot.viewerEnemyColor,
+        ),
       };
     }
 
     const observerOverride =
-      state == null ? null : this.streamerStyleFlags.observerColorOverrides?.[state.trackerId] ?? null;
+      state == null ? null : (this.streamerStyleFlags.observerColorOverrides?.[state.trackerId] ?? null);
 
     return {
       teamColor: this.normalizeColorId(
-        observerOverride?.teamColor ?? this.streamerStyleFlags.teamColor,
+        observerOverride?.teamColor ?? this.streamerStyleFlags.observerTeamColor ?? this.streamerStyleFlags.teamColor,
         snapshot.viewerTeamColor,
       ),
       enemyColor: this.normalizeColorId(
-        observerOverride?.enemyColor ?? this.streamerStyleFlags.enemyColor,
+        observerOverride?.enemyColor ??
+          this.streamerStyleFlags.observerEnemyColor ??
+          this.streamerStyleFlags.enemyColor,
         snapshot.viewerEnemyColor,
       ),
     };

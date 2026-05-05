@@ -1,6 +1,8 @@
 .overlayRoot {
+  inset: 0;
   min-height: 100vh;
-  padding: var(--space-4);
+  overflow: hidden;
+  position: fixed;
 }
 
 .minimalMark {
@@ -13,29 +15,29 @@
   font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
+  margin: var(--space-4);
   padding: 0.35rem 0.85rem;
   text-transform: uppercase;
 }
 
 .overlayCard {
-  backdrop-filter: blur(6px);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--overlay-team-color) 26%, rgb(10 14 22 / 90%)),
-    color-mix(in srgb, var(--overlay-enemy-color) 18%, rgb(10 14 22 / 88%))
-  );
-  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 42%, transparent);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 34px rgb(0 0 0 / 35%);
-  max-width: 640px;
-  padding: var(--space-4);
+  inset: 0;
+  position: absolute;
 }
 
-.header {
+.headerMeta {
   align-items: baseline;
+  background: color-mix(in srgb, var(--halo-bg-primary) 76%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--overlay-team-color) 35%, transparent);
   display: flex;
   gap: var(--space-2);
   justify-content: space-between;
+  left: 0;
+  padding: var(--space-2) var(--space-3);
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 20;
 }
 
 .title {
@@ -56,41 +58,96 @@
   text-transform: uppercase;
 }
 
-.message {
-  color: color-mix(in srgb, var(--halo-white) 90%, transparent);
-  font-size: var(--text-sm);
-  margin: var(--space-3) 0 0;
-}
-
-.tabBar {
-  display: flex;
-  flex-wrap: wrap;
+.topSection {
+  align-items: center;
+  display: grid;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  left: 0;
+  padding: var(--space-2) var(--space-3);
+  position: absolute;
+  right: 0;
+  top: 2.9rem;
+  z-index: 15;
 }
 
-.tabButton {
-  background: color-mix(in srgb, var(--overlay-team-color) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 45%, transparent);
+.topFallback {
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: var(--space-3);
+  position: absolute;
+  right: 0;
+  top: 2.8rem;
+  z-index: 15;
+}
+
+.topFallbackTitle {
+  background: color-mix(in srgb, var(--overlay-team-color) 22%, rgb(15 40 48 / 88%));
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 60%, transparent);
   border-radius: var(--radius-sm);
-  color: var(--halo-white);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: 0.25rem 0.55rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0;
+  padding: 0.2rem var(--space-3);
   text-transform: uppercase;
 }
 
-.tabButtonActive {
-  background: color-mix(in srgb, var(--overlay-team-color) 34%, transparent);
+.teamLeft,
+.teamRight {
+  background: color-mix(in srgb, var(--overlay-team-color) 28%, rgb(15 40 48 / 86%));
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 70%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+  padding: 0.2rem var(--space-2);
+}
+
+.teamRight {
+  background: color-mix(in srgb, var(--overlay-enemy-color) 28%, rgb(15 40 48 / 86%));
+  border-color: color-mix(in srgb, var(--overlay-enemy-color) 70%, transparent);
+}
+
+.teamName {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.teamPlayers {
+  color: color-mix(in srgb, var(--halo-white) 74%, transparent);
+  font-size: var(--text-xs);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topSeriesScore {
+  background: color-mix(in srgb, var(--overlay-team-color) 16%, rgb(15 40 48 / 90%));
+  border: 2px solid color-mix(in srgb, var(--halo-accent) 60%, transparent);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  padding: 0.15rem var(--space-3);
 }
 
 .detailsPanel {
-  background: color-mix(in srgb, var(--halo-bg-elevated) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 24%, transparent);
+  background: color-mix(in srgb, var(--halo-bg-elevated) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 28%, transparent);
   border-radius: var(--radius-md);
-  margin-top: var(--space-3);
+  bottom: 5.5rem;
+  left: 50%;
+  max-width: min(760px, calc(100vw - 1rem));
   padding: var(--space-3);
+  position: absolute;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 12;
 }
 
 .panelBody {
@@ -189,12 +246,53 @@
   margin: 0;
 }
 
-@media (--tablet-viewport) {
-  .overlayRoot {
-    padding: var(--space-6);
-  }
+.bottomSection {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  z-index: 18;
+}
 
-  .overlayCard {
-    padding: var(--space-5);
+.tabBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.tabButton {
+  background: color-mix(in srgb, var(--overlay-team-color) 18%, rgb(15 40 48 / 90%));
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 55%, transparent);
+  border-bottom: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--halo-white);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.tabButtonActive {
+  box-shadow: 0 0 22px color-mix(in srgb, var(--overlay-team-color) 42%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--overlay-team-color) 85%, transparent);
+}
+
+.ticker {
+  background: color-mix(in srgb, var(--overlay-team-color) 14%, rgb(15 40 48 / 92%));
+  border-top: 1px solid color-mix(in srgb, var(--overlay-team-color) 40%, transparent);
+  color: color-mix(in srgb, var(--halo-white) 92%, transparent);
+  font-size: var(--text-sm);
+  margin: 0;
+  min-height: 2.1rem;
+  padding: 0.45rem var(--space-3);
+  text-align: center;
+}
+
+@media (--tablet-viewport) {
+  .detailsPanel {
+    bottom: 5.8rem;
   }
 }

@@ -102,6 +102,41 @@ function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
   );
 }
 
+function renderOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
+  const activeSeries = snapshot.renderModel?.activeNeatQueueSeries;
+
+  if (activeSeries == null || !snapshot.overlayShowTeamDetails || activeSeries.teams.length < 2) {
+    return (
+      <div className={styles.topFallback}>
+        <h1 className={styles.topFallbackTitle}>
+          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
+            ? snapshot.trackerState.gamertag
+            : "Guilty Spark"}
+        </h1>
+      </div>
+    );
+  }
+
+  const leftTeam = activeSeries.teams[0];
+  const rightTeam = activeSeries.teams[1];
+
+  return (
+    <div className={styles.topSection}>
+      <div className={styles.teamLeft}>
+        <span className={styles.teamName}>{leftTeam.name}</span>
+        <span className={styles.teamPlayers}>{leftTeam.players.map((player) => player.displayName).join(" • ")}</span>
+      </div>
+
+      <div className={styles.topSeriesScore}>{activeSeries.seriesScore}</div>
+
+      <div className={styles.teamRight}>
+        <span className={styles.teamName}>{rightTeam.name}</span>
+        <span className={styles.teamPlayers}>{rightTeam.players.map((player) => player.displayName).join(" • ")}</span>
+      </div>
+    </div>
+  );
+}
+
 function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: number): React.ReactNode {
   const timeline = snapshot.renderModel?.gameplayTimeline ?? [];
   const item = timeline[timelineIndex];
@@ -193,46 +228,45 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
           } as React.CSSProperties
         }
       >
-        <header className={styles.header}>
+        <header className={styles.headerMeta}>
           <h1 className={styles.title}>{title}</h1>
           <span className={styles.status}>{getOverlayStatusText(snapshot)}</span>
         </header>
-        {snapshot.overlayShowTicker ? <p className={styles.message}>{getOverlayMessage(snapshot)}</p> : null}
+
+        {renderOverlayTop(snapshot)}
 
         {tabs.length > 0 ? (
-          <>
-            {snapshot.overlayShowTabs ? (
-              <nav className={styles.tabBar} aria-label="Overlay panels">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={classNames(styles.tabButton, {
-                      [styles.tabButtonActive]: tab.id === activeTab?.id,
-                    })}
-                    onClick={(): void => {
-                      setActiveTabId(tab.id);
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-            ) : null}
-
-            <section className={styles.detailsPanel}>
-              {activeTab == null
-                ? null
-                : activeTab.type === "series"
-                  ? renderSeriesPanel(snapshot)
-                  : renderTimelinePanel(snapshot, activeTab.timelineIndex ?? 0)}
-            </section>
-          </>
-        ) : (
           <section className={styles.detailsPanel}>
-            <p className={styles.emptyPanel}>Waiting for tracked gameplay timeline...</p>
+            {activeTab == null
+              ? null
+              : activeTab.type === "series"
+                ? renderSeriesPanel(snapshot)
+                : renderTimelinePanel(snapshot, activeTab.timelineIndex ?? 0)}
           </section>
-        )}
+        ) : null}
+
+        <div className={styles.bottomSection}>
+          {snapshot.overlayShowTabs ? (
+            <nav className={styles.tabBar} aria-label="Overlay panels">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={classNames(styles.tabButton, {
+                    [styles.tabButtonActive]: tab.id === activeTab?.id,
+                  })}
+                  onClick={(): void => {
+                    setActiveTabId(tab.id);
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
+
+          {snapshot.overlayShowTicker ? <p className={styles.ticker}>{getOverlayMessage(snapshot)}</p> : null}
+        </div>
       </div>
     </section>
   );

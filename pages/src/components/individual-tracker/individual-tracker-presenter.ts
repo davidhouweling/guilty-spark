@@ -112,15 +112,65 @@ export class IndividualTrackerPresenter {
       await this.config.services.individualTrackerService.updateStreamerViewSettings({
         profileId,
         styleFlags: {
-          teamColor: nextTeamColor,
-          enemyColor: nextEnemyColor,
+          playerTeamColor: nextTeamColor,
+          playerEnemyColor: nextEnemyColor,
         },
       });
 
       this.currentStreamerStyleFlags = {
         ...this.currentStreamerStyleFlags,
-        teamColor: nextTeamColor,
-        enemyColor: nextEnemyColor,
+        playerTeamColor: nextTeamColor,
+        playerEnemyColor: nextEnemyColor,
+      };
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
+  public async updateObserverViewColors(teamColor: string, enemyColor: string): Promise<void> {
+    const { profileId } = this.getSnapshot();
+    if (profileId == null) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsErrorMessage: "No profile available to save viewer settings.",
+      }));
+      return;
+    }
+
+    const nextTeamColor = this.normalizeColorId(teamColor, this.getSnapshot().viewerObserverTeamColor);
+    const nextEnemyColor = this.normalizeColorId(enemyColor, this.getSnapshot().viewerObserverEnemyColor);
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      viewerObserverTeamColor: nextTeamColor,
+      viewerObserverEnemyColor: nextEnemyColor,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        styleFlags: {
+          observerTeamColor: nextTeamColor,
+          observerEnemyColor: nextEnemyColor,
+        },
+      });
+
+      this.currentStreamerStyleFlags = {
+        ...this.currentStreamerStyleFlags,
+        observerTeamColor: nextTeamColor,
+        observerEnemyColor: nextEnemyColor,
       };
 
       this.updateSnapshot((snapshot) => ({
@@ -780,7 +830,7 @@ export class IndividualTrackerPresenter {
           const activeObserverOverride =
             activeTrackerId == null
               ? null
-              : streamerSettings.styleFlags.observerColorOverrides?.[activeTrackerId] ?? null;
+              : (streamerSettings.styleFlags.observerColorOverrides?.[activeTrackerId] ?? null);
 
           this.updateSnapshot((snapshot) => ({
             ...snapshot,
@@ -788,8 +838,22 @@ export class IndividualTrackerPresenter {
             xboxXuid,
             settingsActiveTrackerId: activeTrackerId,
             settingsActiveTrackerGamertag: activeTrackerGamertag,
-            viewerTeamColor: viewerColors.teamColor,
-            viewerEnemyColor: viewerColors.enemyColor,
+            viewerTeamColor: this.normalizeColorId(
+              streamerSettings.styleFlags.playerTeamColor ?? streamerSettings.styleFlags.teamColor,
+              viewerColors.teamColor,
+            ),
+            viewerEnemyColor: this.normalizeColorId(
+              streamerSettings.styleFlags.playerEnemyColor ?? streamerSettings.styleFlags.enemyColor,
+              viewerColors.enemyColor,
+            ),
+            viewerObserverTeamColor: this.normalizeColorId(
+              streamerSettings.styleFlags.observerTeamColor ?? streamerSettings.styleFlags.teamColor,
+              viewerColors.teamColor,
+            ),
+            viewerObserverEnemyColor: this.normalizeColorId(
+              streamerSettings.styleFlags.observerEnemyColor ?? streamerSettings.styleFlags.enemyColor,
+              viewerColors.enemyColor,
+            ),
             viewerDefaultColorMode: streamerSettings.layoutOptions.defaultColorMode ?? "observer",
             viewerShowTabs: streamerSettings.visibleSections.showTabs ?? true,
             viewerShowTicker: streamerSettings.visibleSections.showTicker ?? true,

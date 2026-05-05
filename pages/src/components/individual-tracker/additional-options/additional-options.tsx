@@ -5,19 +5,23 @@ import { getTeamColor, HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./additional-options.module.css";
 
 interface AdditionalOptionsSectionViewProps {
+  readonly defaultColorMode: "player" | "observer";
   readonly teamColor: string;
   readonly enemyColor: string;
   readonly saving: boolean;
   readonly errorMessage: string | null;
+  readonly onDefaultColorModeChange: (mode: "player" | "observer") => void;
   readonly onTeamColorChange: (colorId: string) => void;
   readonly onEnemyColorChange: (colorId: string) => void;
 }
 
 export function AdditionalOptionsSectionView({
+  defaultColorMode,
   teamColor,
   enemyColor,
   saving,
   errorMessage,
+  onDefaultColorModeChange,
   onTeamColorChange,
   onEnemyColorChange,
 }: AdditionalOptionsSectionViewProps): React.ReactElement {
@@ -32,9 +36,36 @@ export function AdditionalOptionsSectionView({
       </p>
 
       <section className={styles.colorSection}>
+        <h3 className={styles.subsectionTitle}>Active Color Mode</h3>
+        <p className={styles.subsectionDescription}>
+          Choose whether overlays use player colors or observer colors by default.
+        </p>
+        <div className={styles.modeRow}>
+          <button
+            type="button"
+            className={defaultColorMode === "player" ? styles.modeButtonActive : styles.modeButton}
+            onClick={(): void => {
+              onDefaultColorModeChange("player");
+            }}
+          >
+            Player
+          </button>
+          <button
+            type="button"
+            className={defaultColorMode === "observer" ? styles.modeButtonActive : styles.modeButton}
+            onClick={(): void => {
+              onDefaultColorModeChange("observer");
+            }}
+          >
+            Observer
+          </button>
+        </div>
+      </section>
+
+      <section className={styles.colorSection}>
         <h3 className={styles.subsectionTitle}>Viewer Team Colors</h3>
         <p className={styles.subsectionDescription}>
-          Set your tracked team color and enemy team color for individual tracker view mode.
+          Configure player-view fallback colors for individual tracker overlays.
         </p>
 
         <div className={styles.pickerGrid}>

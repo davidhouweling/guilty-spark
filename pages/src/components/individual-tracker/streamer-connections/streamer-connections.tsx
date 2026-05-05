@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
-import { Input } from "../../input/input";
+import { Checkbox } from "../../checkbox/checkbox";
+import { TeamColorPicker } from "../../team-colors/team-color-picker";
+import { getTeamColor, HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./streamer-connections.module.css";
 
 interface StreamerConnectionsSectionViewProps {
@@ -9,23 +11,22 @@ interface StreamerConnectionsSectionViewProps {
   readonly activeTrackerId: string | null;
   readonly activeTrackerGamertag: string | null;
   readonly defaultColorMode: "player" | "observer";
+  readonly playerTeamColor: string;
+  readonly playerEnemyColor: string;
+  readonly observerTeamColor: string;
+  readonly observerEnemyColor: string;
   readonly showTabs: boolean;
   readonly showTicker: boolean;
   readonly showTeamDetails: boolean;
-  readonly observerOverrideTeamColor: string | null;
-  readonly observerOverrideEnemyColor: string | null;
   readonly saving: boolean;
   readonly errorMessage: string | null;
   readonly onPresentationSettingsChange: (settings: {
-    defaultColorMode: "player" | "observer";
     showTabs: boolean;
     showTicker: boolean;
     showTeamDetails: boolean;
   }) => void;
-  readonly onObserverOverrideChange: (settings: {
-    teamColor: string;
-    enemyColor: string;
-  }) => void;
+  readonly onPlayerColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
+  readonly onObserverColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
   readonly onOpenView?: (xuid: string) => void;
   readonly onOpenOverlay?: (xuid: string) => void;
 }
@@ -48,20 +49,27 @@ export function StreamerConnectionsSectionView({
   activeTrackerId,
   activeTrackerGamertag,
   defaultColorMode,
+  playerTeamColor,
+  playerEnemyColor,
+  observerTeamColor,
+  observerEnemyColor,
   showTabs,
   showTicker,
   showTeamDetails,
-  observerOverrideTeamColor,
-  observerOverrideEnemyColor,
   saving,
   errorMessage,
   onPresentationSettingsChange,
-  onObserverOverrideChange,
+  onPlayerColorsChange,
+  onObserverColorsChange,
   onOpenView,
   onOpenOverlay,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
   const [copyState, setCopyState] = useState<"idle" | "view" | "overlay">("idle");
   const urls = useMemo(() => (xboxXuid == null ? null : buildStreamerUrls(xboxXuid)), [xboxXuid]);
+  const selectedPlayerTeamColor = getTeamColor(playerTeamColor) ?? HALO_TEAM_COLORS[0];
+  const selectedPlayerEnemyColor = getTeamColor(playerEnemyColor) ?? HALO_TEAM_COLORS[1];
+  const selectedObserverTeamColor = getTeamColor(observerTeamColor) ?? HALO_TEAM_COLORS[0];
+  const selectedObserverEnemyColor = getTeamColor(observerEnemyColor) ?? HALO_TEAM_COLORS[1];
 
   const copyToClipboard = async (kind: "view" | "overlay", value: string): Promise<void> => {
     if (typeof navigator === "undefined" || navigator.clipboard == null) {
@@ -88,14 +96,16 @@ export function StreamerConnectionsSectionView({
       </p>
 
       {urls == null ? (
-        <Alert variant="warning">No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.</Alert>
+        <Alert variant="warning">
+          No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
+        </Alert>
       ) : (
         <div className={styles.urlList}>
           <div className={styles.urlCard}>
             <h3 className={styles.cardTitle}>Viewer URL</h3>
             <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
             <div className={styles.urlRow}>
-              <Input label="Viewer URL" value={urls.viewUrl} onChange={(): void => {}} disabled={true} />
+              <p className={styles.urlText}>{urls.viewUrl}</p>
               <Button
                 onClick={(): void => {
                   if (xboxXuid != null) {
@@ -119,7 +129,7 @@ export function StreamerConnectionsSectionView({
             <h3 className={styles.cardTitle}>Overlay URL</h3>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <div className={styles.urlRow}>
-              <Input label="Overlay URL" value={urls.overlayUrl} onChange={(): void => {}} disabled={true} />
+              <p className={styles.urlText}>{urls.overlayUrl}</p>
               <Button
                 onClick={(): void => {
                   if (xboxXuid != null) {
@@ -143,116 +153,110 @@ export function StreamerConnectionsSectionView({
 
       <div className={styles.preferencesCard}>
         <h3 className={styles.cardTitle}>Presentation defaults</h3>
-        <p className={styles.cardDescription}>Choose how the public view and overlay should render by default.</p>
-
-        <label className={styles.preferenceLabel} htmlFor="default-color-mode-select">
-          Default color mode
-        </label>
-        <select
-          id="default-color-mode-select"
-          className={styles.selectInput}
-          value={defaultColorMode}
+        <p className={styles.cardDescription}>Configure always-on overlay sections.</p>
+        <Checkbox
+          label="Show overlay tabs"
+          checked={showTabs}
           disabled={saving}
-          onChange={(event): void => {
+          onChange={(checked): void => {
             onPresentationSettingsChange({
-              defaultColorMode: event.currentTarget.value === "player" ? "player" : "observer",
-              showTabs,
+              showTabs: checked,
               showTicker,
               showTeamDetails,
             });
           }}
-        >
-          <option value="observer">Observer</option>
-          <option value="player">Player</option>
-        </select>
-
-        <label className={styles.toggleRow}>
-          <input
-            type="checkbox"
-            checked={showTabs}
-            disabled={saving}
-            onChange={(event): void => {
-              onPresentationSettingsChange({
-                defaultColorMode,
-                showTabs: event.currentTarget.checked,
-                showTicker,
-                showTeamDetails,
-              });
-            }}
-          />
-          <span>Show overlay tabs</span>
-        </label>
-
-        <label className={styles.toggleRow}>
-          <input
-            type="checkbox"
-            checked={showTicker}
-            disabled={saving}
-            onChange={(event): void => {
-              onPresentationSettingsChange({
-                defaultColorMode,
-                showTabs,
-                showTicker: event.currentTarget.checked,
-                showTeamDetails,
-              });
-            }}
-          />
-          <span>Show overlay ticker</span>
-        </label>
-
-        <label className={styles.toggleRow}>
-          <input
-            type="checkbox"
-            checked={showTeamDetails}
-            disabled={saving}
-            onChange={(event): void => {
-              onPresentationSettingsChange({
-                defaultColorMode,
-                showTabs,
-                showTicker,
-                showTeamDetails: event.currentTarget.checked,
-              });
-            }}
-          />
-          <span>Show team details</span>
-        </label>
+        />
+        <Checkbox
+          label="Show information ticker"
+          checked={showTicker}
+          disabled={saving}
+          onChange={(checked): void => {
+            onPresentationSettingsChange({
+              showTabs,
+              showTicker: checked,
+              showTeamDetails,
+            });
+          }}
+        />
+        <Checkbox
+          label="Show team details"
+          checked={showTeamDetails}
+          disabled={saving}
+          onChange={(checked): void => {
+            onPresentationSettingsChange({
+              showTabs,
+              showTicker,
+              showTeamDetails: checked,
+            });
+          }}
+        />
+        <p className={styles.modeNote}>
+          Current active color mode: {defaultColorMode}. You can change this in Individual Tracker options.
+        </p>
 
         {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
         {errorMessage != null ? <Alert variant="error">{errorMessage}</Alert> : null}
       </div>
 
       <div className={styles.preferencesCard}>
-        <h3 className={styles.cardTitle}>Observer overrides</h3>
-        {activeTrackerId == null ? (
-          <p className={styles.cardDescription}>Start or set a live tracker to configure per-tracker observer colors.</p>
-        ) : (
-          <>
-            <p className={styles.cardDescription}>
-              Override observer colors for {activeTrackerGamertag ?? "active tracker"}.
-            </p>
-            <Input
+        <h3 className={styles.cardTitle}>Player View Colors</h3>
+        <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
+        <div className={styles.pickerGrid}>
+          <div>
+            <label className={styles.preferenceLabel}>Player team color</label>
+            <TeamColorPicker
+              label="Player team color"
+              selectedColor={selectedPlayerTeamColor}
+              onColorSelect={(colorId): void => {
+                onPlayerColorsChange({ teamColor: colorId, enemyColor: playerEnemyColor });
+              }}
+            />
+          </div>
+          <div>
+            <label className={styles.preferenceLabel}>Player enemy color</label>
+            <TeamColorPicker
+              label="Player enemy color"
+              selectedColor={selectedPlayerEnemyColor}
+              onColorSelect={(colorId): void => {
+                onPlayerColorsChange({ teamColor: playerTeamColor, enemyColor: colorId });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Observer View Colors</h3>
+        <p className={styles.cardDescription}>Global observer colors plus active-tracker override support.</p>
+        <div className={styles.pickerGrid}>
+          <div>
+            <label className={styles.preferenceLabel}>Observer team color</label>
+            <TeamColorPicker
               label="Observer team color"
-              value={observerOverrideTeamColor ?? ""}
-              disabled={saving}
-              onChange={(event): void => {
-                onObserverOverrideChange({
-                  teamColor: event.currentTarget.value,
-                  enemyColor: observerOverrideEnemyColor ?? "",
-                });
+              selectedColor={selectedObserverTeamColor}
+              onColorSelect={(colorId): void => {
+                onObserverColorsChange({ teamColor: colorId, enemyColor: observerEnemyColor });
               }}
             />
-            <Input
+          </div>
+          <div>
+            <label className={styles.preferenceLabel}>Observer enemy color</label>
+            <TeamColorPicker
               label="Observer enemy color"
-              value={observerOverrideEnemyColor ?? ""}
-              disabled={saving}
-              onChange={(event): void => {
-                onObserverOverrideChange({
-                  teamColor: observerOverrideTeamColor ?? "",
-                  enemyColor: event.currentTarget.value,
-                });
+              selectedColor={selectedObserverEnemyColor}
+              onColorSelect={(colorId): void => {
+                onObserverColorsChange({ teamColor: observerTeamColor, enemyColor: colorId });
               }}
             />
-          </>
+          </div>
+        </div>
+
+        {activeTrackerId == null ? (
+          <p className={styles.cardDescription}>No active tracker selected for per-tracker override.</p>
+        ) : (
+          <p className={styles.cardDescription}>
+            Active tracker override target: {activeTrackerGamertag ?? activeTrackerId}
+          </p>
         )}
       </div>
 

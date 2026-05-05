@@ -28,6 +28,8 @@ export class IndividualTrackerStore {
     viewerShowTabs: true,
     viewerShowTicker: true,
     viewerShowTeamDetails: true,
+    viewerObserverTeamColor: "salmon",
+    viewerObserverEnemyColor: "cerulean",
     viewerObserverOverrideTeamColor: null,
     viewerObserverOverrideEnemyColor: null,
     viewerSettingsSaving: false,

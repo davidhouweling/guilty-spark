@@ -332,6 +332,13 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
   const visibleShowTeamDetails =
     typeof visibleSections["showTeamDetails"] === "boolean" ? visibleSections["showTeamDetails"] : null;
   const styleColorMode = parseStreamerViewColorMode(styleFlags["colorMode"]);
+  const stylePlayerTeamColor = typeof styleFlags["playerTeamColor"] === "string" ? styleFlags["playerTeamColor"] : null;
+  const stylePlayerEnemyColor =
+    typeof styleFlags["playerEnemyColor"] === "string" ? styleFlags["playerEnemyColor"] : null;
+  const styleObserverTeamColor =
+    typeof styleFlags["observerTeamColor"] === "string" ? styleFlags["observerTeamColor"] : null;
+  const styleObserverEnemyColor =
+    typeof styleFlags["observerEnemyColor"] === "string" ? styleFlags["observerEnemyColor"] : null;
   const styleTeamColor = typeof styleFlags["teamColor"] === "string" ? styleFlags["teamColor"] : null;
   const styleEnemyColor = typeof styleFlags["enemyColor"] === "string" ? styleFlags["enemyColor"] : null;
   const styleObserverOverridesRecord =
@@ -381,6 +388,10 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
     },
     styleFlags: {
       ...(styleColorMode == null ? {} : { colorMode: styleColorMode }),
+      ...(stylePlayerTeamColor == null ? {} : { playerTeamColor: stylePlayerTeamColor }),
+      ...(stylePlayerEnemyColor == null ? {} : { playerEnemyColor: stylePlayerEnemyColor }),
+      ...(styleObserverTeamColor == null ? {} : { observerTeamColor: styleObserverTeamColor }),
+      ...(styleObserverEnemyColor == null ? {} : { observerEnemyColor: styleObserverEnemyColor }),
       ...(styleTeamColor == null ? {} : { teamColor: styleTeamColor }),
       ...(styleEnemyColor == null ? {} : { enemyColor: styleEnemyColor }),
       ...(styleObserverOverrides == null || Object.keys(styleObserverOverrides).length === 0
