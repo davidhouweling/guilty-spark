@@ -1,5 +1,11 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type {
+  StreamerViewEffectiveDefaults,
+  StreamerViewLayoutOptions,
+  StreamerViewStyleFlags,
+  StreamerViewVisibleSections,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchStats } from "halo-infinite-api";
 
 export interface IndividualTrackerProfile {
@@ -47,9 +53,10 @@ export interface IndividualTrackerUpdateProfileResponse {
 
 export interface IndividualTrackerStreamerViewSettings {
   readonly profileId: string;
-  readonly layoutOptions: Readonly<Record<string, unknown>>;
-  readonly visibleSections: Readonly<Record<string, unknown>>;
-  readonly styleFlags: Readonly<Record<string, unknown>>;
+  readonly layoutOptions: StreamerViewLayoutOptions;
+  readonly visibleSections: StreamerViewVisibleSections;
+  readonly styleFlags: StreamerViewStyleFlags;
+  readonly effectiveDefaults: StreamerViewEffectiveDefaults;
   readonly updatedAt: number | null;
 }
 

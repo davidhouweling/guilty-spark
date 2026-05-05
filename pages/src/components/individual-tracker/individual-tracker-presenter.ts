@@ -1,5 +1,6 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { Services } from "../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -253,7 +254,7 @@ export class IndividualTrackerPresenter {
     return trimmed;
   }
 
-  private getViewerColorsFromStyleFlags(styleFlags: Readonly<Record<string, unknown>>): {
+  private getViewerColorsFromStyleFlags(styleFlags: StreamerViewStyleFlags): {
     teamColor: string;
     enemyColor: string;
   } {

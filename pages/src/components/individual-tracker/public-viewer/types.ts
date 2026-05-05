@@ -20,4 +20,6 @@ export interface PublicViewerSnapshot {
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
   readonly viewerTeamColor: string;
   readonly viewerEnemyColor: string;
+  readonly overlayShowTabs: boolean;
+  readonly overlayColorMode: "player" | "observer";
 }

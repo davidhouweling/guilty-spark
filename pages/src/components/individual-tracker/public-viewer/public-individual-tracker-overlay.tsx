@@ -20,7 +20,8 @@ function getOverlayStatusText(snapshot: PublicViewerSnapshot): string {
     return "Offline";
   }
 
-  return snapshot.trackerState?.status ?? snapshot.connectionStatus;
+  const connectionState = snapshot.trackerState?.status ?? snapshot.connectionStatus;
+  return `${connectionState} • ${snapshot.overlayColorMode} mode`;
 }
 
 function getOverlayMessage(snapshot: PublicViewerSnapshot): string {
@@ -196,22 +197,24 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
 
         {tabs.length > 0 ? (
           <>
-            <nav className={styles.tabBar} aria-label="Overlay panels">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={classNames(styles.tabButton, {
-                    [styles.tabButtonActive]: tab.id === activeTab?.id,
-                  })}
-                  onClick={(): void => {
-                    setActiveTabId(tab.id);
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+            {snapshot.overlayShowTabs ? (
+              <nav className={styles.tabBar} aria-label="Overlay panels">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={classNames(styles.tabButton, {
+                      [styles.tabButtonActive]: tab.id === activeTab?.id,
+                    })}
+                    onClick={(): void => {
+                      setActiveTabId(tab.id);
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            ) : null}
 
             <section className={styles.detailsPanel}>
               {activeTab == null

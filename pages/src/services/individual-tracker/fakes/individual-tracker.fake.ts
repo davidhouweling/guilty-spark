@@ -153,6 +153,9 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
         layoutOptions: {},
         visibleSections: {},
         styleFlags: {},
+        effectiveDefaults: {
+          colorMode: "observer",
+        },
         updatedAt: null,
       },
       ...options,
@@ -177,6 +180,12 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       styleFlags: {
         ...this.streamerViewSettings.styleFlags,
         ...(request.styleFlags ?? {}),
+      },
+      effectiveDefaults: {
+        colorMode:
+          (request.styleFlags?.colorMode ?? this.streamerViewSettings.effectiveDefaults.colorMode) === "player"
+            ? "player"
+            : "observer",
       },
       updatedAt: Math.floor(Date.now() / 1000),
     };

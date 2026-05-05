@@ -1,4 +1,5 @@
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { Services } from "../../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -94,11 +95,18 @@ export class PublicViewerPresenter {
     try {
       const response = await this.config.services.individualTrackerService.getActiveTrackerView(this.config.xuid);
       const viewerColors = this.getViewerColorsFromStreamerSettings(response.streamerView?.styleFlags ?? {});
+      const resolvedColorMode = this.getOverlayColorMode(
+        response.streamerView?.styleFlags ?? {},
+        response.streamerView?.effectiveDefaults.colorMode,
+      );
+      const overlayShowTabs = response.streamerView?.visibleSections.showTabs ?? true;
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewerTeamColor: viewerColors.teamColor,
         viewerEnemyColor: viewerColors.enemyColor,
+        overlayShowTabs,
+        overlayColorMode: resolvedColorMode,
         availability: response.status,
         trackerState: response.activeTracker,
         connectionStatus: response.activeTracker == null ? "idle" : snapshot.connectionStatus,
@@ -257,7 +265,7 @@ export class PublicViewerPresenter {
     return trimmed;
   }
 
-  private getViewerColorsFromStreamerSettings(styleFlags: Readonly<Record<string, unknown>>): {
+  private getViewerColorsFromStreamerSettings(styleFlags: StreamerViewStyleFlags): {
     teamColor: string;
     enemyColor: string;
   } {
@@ -266,5 +274,20 @@ export class PublicViewerPresenter {
       teamColor: this.normalizeColorId(styleFlags.teamColor, snapshot.viewerTeamColor),
       enemyColor: this.normalizeColorId(styleFlags.enemyColor, snapshot.viewerEnemyColor),
     };
+  }
+
+  private getOverlayColorMode(
+    styleFlags: StreamerViewStyleFlags,
+    fallbackColorMode: "player" | "observer" | undefined,
+  ): "player" | "observer" {
+    if (styleFlags.colorMode === "player" || styleFlags.colorMode === "observer") {
+      return styleFlags.colorMode;
+    }
+
+    if (fallbackColorMode === "player" || fallbackColorMode === "observer") {
+      return fallbackColorMode;
+    }
+
+    return "observer";
   }
 }

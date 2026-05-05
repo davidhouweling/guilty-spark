@@ -118,6 +118,8 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     renderModel: aRenderModelWithSeries(),
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",
+    overlayShowTabs: true,
+    overlayColorMode: "observer",
     ...overrides,
   };
 }
@@ -145,5 +147,12 @@ describe("PublicIndividualTrackerOverlay", () => {
     expect(screen.getByRole("button", { name: "Game 1" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Game 1" }));
     expect(screen.getByText(/slayer on aquarius/i)).toBeInTheDocument();
+  });
+
+  it("hides tab controls when streamer settings disable tabs", () => {
+    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayShowTabs: false })} />);
+
+    expect(screen.queryByRole("button", { name: "Series" })).not.toBeInTheDocument();
+    expect(screen.getByText("Grand Finals")).toBeInTheDocument();
   });
 });

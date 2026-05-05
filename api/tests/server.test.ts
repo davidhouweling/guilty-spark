@@ -11,6 +11,7 @@ import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.
 import { pingInteraction } from "../services/discord/fakes/data";
 import {
   aFakeIndividualTrackerActiveSessionsRow,
+  aFakeIndividualTrackerSessionsRow,
   aFakeLinkedIdentitiesRow,
 } from "../services/database/fakes/database.fake";
 import type { AuthService } from "../services/auth/auth";
@@ -1111,6 +1112,7 @@ describe("Server", () => {
         layoutOptions: { viewMode: "streamer" },
         visibleSections: { showTicker: true },
         styleFlags: { colorMode: "observer" },
+        effectiveDefaults: { colorMode: "observer" },
         updatedAt: 123,
       });
     });
@@ -1169,12 +1171,14 @@ describe("Server", () => {
         profileId: string;
         layoutOptions: { viewMode: string };
         visibleSections: { showTicker: boolean; showTabs: boolean };
+        effectiveDefaults: { colorMode: "player" | "observer" };
       }>();
 
       expect(body.profileId).toBe("profile-1");
       expect(body.layoutOptions.viewMode).toBe("streamer");
       expect(body.visibleSections.showTicker).toBe(true);
       expect(body.visibleSections.showTabs).toBe(false);
+      expect(body.effectiveDefaults.colorMode).toBe("observer");
       expect(upsertStreamerViewSettingsSpy).toHaveBeenCalledTimes(1);
     });
   });
@@ -1846,6 +1850,85 @@ describe("Server", () => {
       expect(body).toEqual({ status: "active", activeTracker: { trackerId: "tracker-123" }, streamerView: null });
       expect(idFromNameSpy).toHaveBeenCalledWith("user-123:tracker-123");
       expect(doFetch).toHaveBeenCalledOnce();
+    });
+
+    it("returns streamer view defaults with player mode when active tracker xuid matches viewer", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({ UserId: "user-123", ProviderUserId: "2533274844642438", IsActive: 1 }),
+        );
+        vi.spyOn(services.databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([
+          {
+            ProfileId: "profile-1",
+            UserId: "user-123",
+            ActiveIdentityId: null,
+            Name: "default",
+            IdleTimeoutHours: 1,
+            AllowContinueAfterLogout: 0,
+            CreatedAt: 1,
+            UpdatedAt: 1,
+          },
+        ]);
+        vi.spyOn(services.databaseService, "getStreamerViewSettings").mockResolvedValue({
+          ProfileId: "profile-1",
+          LayoutOptionsJson: JSON.stringify({}),
+          VisibleSectionsJson: JSON.stringify({}),
+          StyleFlagsJson: JSON.stringify({}),
+          UpdatedAt: 1,
+        });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSessionByXuid").mockResolvedValue(
+          aFakeIndividualTrackerActiveSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+          }),
+        );
+        vi.spyOn(services.databaseService, "findIndividualTrackerSessionsByUserId").mockResolvedValue([
+          aFakeIndividualTrackerSessionsRow({
+            UserId: "user-123",
+            TrackerId: "tracker-123",
+            Xuid: "2533274844642438",
+          }),
+        ]);
+        return services;
+      });
+
+      const doFetch = vi.fn(async () => Promise.resolve(Response.json({ state: { trackerId: "tracker-123" } })));
+      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
+      const individualTrackerNamespace = Object.assign(
+        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
+        env.INDIVIDUAL_TRACKER_DO,
+        {
+          get: () =>
+            ({
+              __DURABLE_OBJECT_BRAND: undefined as never,
+              fetch: doFetch,
+              id: env.INDIVIDUAL_TRACKER_DO.idFromName("xuid-active-status-stub"),
+              connect: vi.fn(),
+            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
+        },
+      );
+
+      const envWithTrackerStub = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/2533274844642438/active", {
+        method: "GET",
+      });
+      const res = (await server.router.fetch(req, envWithTrackerStub)) as Response;
+
+      expect(res.status).toBe(200);
+      const body = await res.json<{
+        streamerView: {
+          effectiveDefaults: {
+            colorMode: "player" | "observer";
+          };
+        } | null;
+      }>();
+      expect(body.streamerView?.effectiveDefaults.colorMode).toBe("player");
     });
   });
 

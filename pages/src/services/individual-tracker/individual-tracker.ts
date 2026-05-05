@@ -26,6 +26,7 @@ import {
   analyzeMatchGroupings,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type {
   IndividualTrackerState,
   IndividualTrackerStateMessage,
@@ -64,6 +65,14 @@ import type {
   IndividualTrackerUpdateProfileRequest,
   IndividualTrackerUpdateProfileResponse,
 } from "./types";
+
+function parseStreamerViewColorMode(value: unknown): StreamerViewColorMode | null {
+  if (value === "player" || value === "observer") {
+    return value;
+  }
+
+  return null;
+}
 
 interface IndividualTrackerServiceOpts {
   readonly apiHost: string;
@@ -293,11 +302,38 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
   const { layoutOptions } = value;
   const { visibleSections } = value;
   const { styleFlags } = value;
+  const { effectiveDefaults } = value;
   const { updatedAt } = value;
 
-  if (!isString(profileId) || !isRecord(layoutOptions) || !isRecord(visibleSections) || !isRecord(styleFlags)) {
+  if (
+    !isString(profileId) ||
+    !isRecord(layoutOptions) ||
+    !isRecord(visibleSections) ||
+    !isRecord(styleFlags) ||
+    !isRecord(effectiveDefaults)
+  ) {
     throw new Error("Invalid streamer view settings response");
   }
+
+  const effectiveColorMode = parseStreamerViewColorMode(effectiveDefaults["colorMode"]);
+  if (effectiveColorMode == null) {
+    throw new Error("Invalid streamer view settings response");
+  }
+
+  const layoutViewMode =
+    layoutOptions["viewMode"] === "standard" ||
+    layoutOptions["viewMode"] === "wide" ||
+    layoutOptions["viewMode"] === "streamer"
+      ? layoutOptions["viewMode"]
+      : null;
+  const layoutDefaultColorMode = parseStreamerViewColorMode(layoutOptions["defaultColorMode"]);
+  const visibleShowTicker = typeof visibleSections["showTicker"] === "boolean" ? visibleSections["showTicker"] : null;
+  const visibleShowTabs = typeof visibleSections["showTabs"] === "boolean" ? visibleSections["showTabs"] : null;
+  const visibleShowTeamDetails =
+    typeof visibleSections["showTeamDetails"] === "boolean" ? visibleSections["showTeamDetails"] : null;
+  const styleColorMode = parseStreamerViewColorMode(styleFlags["colorMode"]);
+  const styleTeamColor = typeof styleFlags["teamColor"] === "string" ? styleFlags["teamColor"] : null;
+  const styleEnemyColor = typeof styleFlags["enemyColor"] === "string" ? styleFlags["enemyColor"] : null;
 
   if (updatedAt !== null && !isNumber(updatedAt)) {
     throw new Error("Invalid streamer view settings response");
@@ -305,9 +341,23 @@ function parseStreamerViewSettings(value: unknown): IndividualTrackerStreamerVie
 
   return {
     profileId,
-    layoutOptions,
-    visibleSections,
-    styleFlags,
+    layoutOptions: {
+      ...(layoutViewMode == null ? {} : { viewMode: layoutViewMode }),
+      ...(layoutDefaultColorMode == null ? {} : { defaultColorMode: layoutDefaultColorMode }),
+    },
+    visibleSections: {
+      ...(visibleShowTicker == null ? {} : { showTicker: visibleShowTicker }),
+      ...(visibleShowTabs == null ? {} : { showTabs: visibleShowTabs }),
+      ...(visibleShowTeamDetails == null ? {} : { showTeamDetails: visibleShowTeamDetails }),
+    },
+    styleFlags: {
+      ...(styleColorMode == null ? {} : { colorMode: styleColorMode }),
+      ...(styleTeamColor == null ? {} : { teamColor: styleTeamColor }),
+      ...(styleEnemyColor == null ? {} : { enemyColor: styleEnemyColor }),
+    },
+    effectiveDefaults: {
+      colorMode: effectiveColorMode,
+    },
     updatedAt,
   };
 }

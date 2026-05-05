@@ -2,6 +2,13 @@ import type { AutoRouterType } from "itty-router";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { SpartanTokenProvider } from "halo-infinite-api";
 import { isRecord } from "@guilty-spark/shared/base/json-readers";
+import type {
+  StreamerViewColorMode,
+  StreamerViewEffectiveDefaults,
+  StreamerViewLayoutOptions,
+  StreamerViewStyleFlags,
+  StreamerViewVisibleSections,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { UserTokenProvider } from "./services/halo/user-token-provider";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
@@ -37,9 +44,10 @@ interface UnlinkIdentityRequest {
 
 interface StreamerViewSettingsResponse {
   readonly profileId: string;
-  readonly layoutOptions: Readonly<Record<string, unknown>>;
-  readonly visibleSections: Readonly<Record<string, unknown>>;
-  readonly styleFlags: Readonly<Record<string, unknown>>;
+  readonly layoutOptions: StreamerViewLayoutOptions;
+  readonly visibleSections: StreamerViewVisibleSections;
+  readonly styleFlags: StreamerViewStyleFlags;
+  readonly effectiveDefaults: StreamerViewEffectiveDefaults;
   readonly updatedAt: number | null;
 }
 
@@ -114,15 +122,77 @@ function toObjectOrDefault(value: string | null, fallback: Record<string, unknow
   return fallback;
 }
 
+function getDefaultStreamerColorMode(trackedXuid: string | null, viewerXuid: string | null): StreamerViewColorMode {
+  if (trackedXuid != null && viewerXuid != null && trackedXuid === viewerXuid) {
+    return "player";
+  }
+
+  return "observer";
+}
+
+function toLayoutOptions(value: string | null): StreamerViewLayoutOptions {
+  const record = toObjectOrDefault(value, {});
+  const viewMode =
+    record["viewMode"] === "standard" || record["viewMode"] === "wide" || record["viewMode"] === "streamer"
+      ? record["viewMode"]
+      : null;
+  const defaultColorMode =
+    record["defaultColorMode"] === "player" || record["defaultColorMode"] === "observer"
+      ? record["defaultColorMode"]
+      : null;
+
+  return {
+    ...(viewMode == null ? {} : { viewMode }),
+    ...(defaultColorMode == null ? {} : { defaultColorMode }),
+  };
+}
+
+function toVisibleSections(value: string | null): StreamerViewVisibleSections {
+  const record = toObjectOrDefault(value, {});
+  const showTicker = typeof record["showTicker"] === "boolean" ? record["showTicker"] : null;
+  const showTabs = typeof record["showTabs"] === "boolean" ? record["showTabs"] : null;
+  const showTeamDetails = typeof record["showTeamDetails"] === "boolean" ? record["showTeamDetails"] : null;
+
+  return {
+    ...(showTicker == null ? {} : { showTicker }),
+    ...(showTabs == null ? {} : { showTabs }),
+    ...(showTeamDetails == null ? {} : { showTeamDetails }),
+  };
+}
+
+function toStyleFlags(value: string | null): StreamerViewStyleFlags {
+  const record = toObjectOrDefault(value, {});
+  const colorMode =
+    record["colorMode"] === "player" || record["colorMode"] === "observer" ? record["colorMode"] : null;
+  const teamColor = typeof record["teamColor"] === "string" ? record["teamColor"] : null;
+  const enemyColor = typeof record["enemyColor"] === "string" ? record["enemyColor"] : null;
+
+  return {
+    ...(colorMode == null ? {} : { colorMode }),
+    ...(teamColor == null ? {} : { teamColor }),
+    ...(enemyColor == null ? {} : { enemyColor }),
+  };
+}
+
 function toStreamerViewSettingsResponse(
   profileId: string,
   settings: StreamerViewSettingsRow | null,
+  trackedXuid: string | null,
+  viewerXuid: string | null,
 ): StreamerViewSettingsResponse {
+  const layoutOptions = toLayoutOptions(settings?.LayoutOptionsJson ?? null);
+  const styleFlags = toStyleFlags(settings?.StyleFlagsJson ?? null);
+  const defaultColorMode =
+    layoutOptions.defaultColorMode ?? styleFlags.colorMode ?? getDefaultStreamerColorMode(trackedXuid, viewerXuid);
+
   return {
     profileId,
-    layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
-    visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
-    styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
+    layoutOptions,
+    visibleSections: toVisibleSections(settings?.VisibleSectionsJson ?? null),
+    styleFlags,
+    effectiveDefaults: {
+      colorMode: defaultColorMode,
+    },
     updatedAt: settings?.UpdatedAt ?? null,
   };
 }
@@ -823,9 +893,17 @@ export class Server {
           return new Response("Profile not found", { status: 404 });
         }
 
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+        const xboxIdentities = identities.filter((identity) => identity.Provider === "xbox");
+        const activeXboxIdentity = xboxIdentities.find((identity) => identity.IsActive === 1);
+        const selectedXboxIdentity =
+          activeXboxIdentity ?? [...xboxIdentities].sort((a, b) => b.UpdatedAt - a.UpdatedAt)[0] ?? null;
+        const selectedXboxXuid =
+          selectedXboxIdentity == null ? null : normalizeXuid(selectedXboxIdentity.ProviderUserId);
+
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
         return await this.withRefreshedSessionCookie(
-          new Response(JSON.stringify(toStreamerViewSettingsResponse(profileId, settings)), {
+          new Response(JSON.stringify(toStreamerViewSettingsResponse(profileId, settings, selectedXboxXuid, selectedXboxXuid)), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           }),
@@ -873,6 +951,14 @@ export class Server {
         if (profile?.UserId !== session.userId) {
           return new Response("Profile not found", { status: 404 });
         }
+
+        const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
+        const xboxIdentities = identities.filter((identity) => identity.Provider === "xbox");
+        const activeXboxIdentity = xboxIdentities.find((identity) => identity.IsActive === 1);
+        const selectedXboxIdentity =
+          activeXboxIdentity ?? [...xboxIdentities].sort((a, b) => b.UpdatedAt - a.UpdatedAt)[0] ?? null;
+        const selectedXboxXuid =
+          selectedXboxIdentity == null ? null : normalizeXuid(selectedXboxIdentity.ProviderUserId);
 
         const current = await services.databaseService.getStreamerViewSettings(profileId);
         const currentLayout = toObjectOrDefault(current?.LayoutOptionsJson ?? null, {});
@@ -926,13 +1012,20 @@ export class Server {
 
         return await this.withRefreshedSessionCookie(
           new Response(
-            JSON.stringify({
-              profileId,
-              layoutOptions,
-              visibleSections,
-              styleFlags,
-              updatedAt,
-            }),
+            JSON.stringify(
+              toStreamerViewSettingsResponse(
+                profileId,
+                {
+                  ProfileId: profileId,
+                  LayoutOptionsJson: JSON.stringify(layoutOptions),
+                  VisibleSectionsJson: JSON.stringify(visibleSections),
+                  StyleFlagsJson: JSON.stringify(styleFlags),
+                  UpdatedAt: updatedAt,
+                },
+                selectedXboxXuid,
+                selectedXboxXuid,
+              ),
+            ),
             {
               status: 200,
               headers: { "Content-Type": "application/json" },
@@ -2025,15 +2118,25 @@ export class Server {
 
         const profiles = await services.databaseService.findIndividualTrackerProfilesByUserId(xboxIdentity.UserId);
         const profile = profiles[0] ?? null;
+        const activeSession = await services.databaseService.findIndividualTrackerActiveSessionByXuid(normalizedXuid);
+
+        let trackedXuid: string | null = normalizedXuid;
+        if (activeSession != null) {
+          const sessions = await services.databaseService.findIndividualTrackerSessionsByUserId(activeSession.UserId);
+          const activeTrackerSession = sessions.find((session) => session.TrackerId === activeSession.TrackerId) ?? null;
+          trackedXuid = activeTrackerSession?.Xuid ?? trackedXuid;
+        }
+
         const streamerViewSettings =
           profile == null
             ? null
             : toStreamerViewSettingsResponse(
                 profile.ProfileId,
                 await services.databaseService.getStreamerViewSettings(profile.ProfileId),
+                trackedXuid,
+                normalizedXuid,
               );
 
-        const activeSession = await services.databaseService.findIndividualTrackerActiveSessionByXuid(normalizedXuid);
         if (activeSession == null) {
           return new Response(
             JSON.stringify({
