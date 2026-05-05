@@ -249,7 +249,7 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 - [x] `POST /api/individual-tracker/manage/select-active` — mark one tracker as the current on-stream presenter
 - [x] `POST /api/individual-tracker/:trackerId/games:add` — add a past match into the active tracker
 - [x] `POST /api/individual-tracker/:trackerId/games:remove` — remove a match from the active tracker
-- [ ] `GET /api/halo/gamertag-search?q=<query>` — gamertag autocomplete (Xbox endpoint if available, exact match fallback)
+- [ ] `GET /api/halo/gamertag-search?q=<query>` — deferred; current manager flow already supports gamertag search via authenticated Halo proxy in pages service. Add only if we need dedicated server-side autocomplete behavior.
 
 #### Proposed start request
 
