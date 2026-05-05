@@ -30,6 +30,7 @@ import type {
   TrackerListResponse,
   TrackerSearchResult,
   TrackerStatusResponse,
+  ActiveTrackerViewResponse,
 } from "../types";
 
 interface FakeIndividualTrackerServiceOptions {
@@ -400,13 +401,23 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return new FakeIndividualTrackerConnection();
   }
 
-  public connectToActiveTracker(userId: string): IndividualTrackerConnection {
-    void userId;
+  public connectToActiveTracker(xuid: string): IndividualTrackerConnection {
+    void xuid;
     return new FakeIndividualTrackerConnection();
   }
 
-  public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
-    void userId;
+  public async getActiveTrackerView(xuid: string): Promise<ActiveTrackerViewResponse> {
+    void xuid;
+
+    return Promise.resolve({
+      status: this.options.activeState == null ? "offline" : "active",
+      activeTracker: this.options.activeState ?? null,
+      streamerView: null,
+    });
+  }
+
+  public async getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse> {
+    void xuid;
     return Promise.resolve({ activeTracker: this.options.activeState ?? null });
   }
 

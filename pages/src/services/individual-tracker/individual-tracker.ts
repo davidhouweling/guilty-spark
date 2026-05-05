@@ -56,6 +56,7 @@ import type {
   TrackerListResponse,
   TrackerSearchResult,
   TrackerStatusResponse,
+  ActiveTrackerViewResponse,
   IndividualTrackerService,
   IndividualTrackerProfile,
   IndividualTrackerProfileResponse,
@@ -1014,19 +1015,48 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     return connection;
   }
 
-  public connectToActiveTracker(userId: string): IndividualTrackerConnection {
+  public connectToActiveTracker(xuid: string): IndividualTrackerConnection {
     const wsHost = this.apiHost.replace(/^https?:\/\//, (match) => (match.startsWith("https") ? "wss://" : "ws://"));
-    const ws = new WebSocket(`${wsHost}/ws/individual-tracker/${encodeURIComponent(userId)}/active`);
+    const ws = new WebSocket(`${wsHost}/ws/individual-tracker/${encodeURIComponent(xuid)}/active`);
 
     const connection = new RealIndividualTrackerConnection(ws);
     connection.attachWebSocket(ws);
     return connection;
   }
 
-  public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-tracker/manage/${encodeURIComponent(userId)}/active`);
+  public async getActiveTrackerView(xuid: string): Promise<ActiveTrackerViewResponse> {
+    const response = await fetch(`${this.apiHost}/api/individual-tracker/${encodeURIComponent(xuid)}/active`);
+    const payload = await response.json<
+      | ActiveTrackerViewResponse
+      | {
+          status?: string;
+          activeTracker?: TrackerStatusResponse["activeTracker"];
+          streamerView?: ActiveTrackerViewResponse["streamerView"];
+        }
+    >();
 
-    return response.json<TrackerStatusResponse>();
+    const activeTracker = payload.activeTracker ?? null;
+    const streamerView = payload.streamerView ?? null;
+    const status = payload.status;
+
+    if (status === "active" || status === "offline" || status === "not-found") {
+      return {
+        status,
+        activeTracker,
+        streamerView,
+      };
+    }
+
+    return {
+      status: activeTracker == null ? "offline" : "active",
+      activeTracker,
+      streamerView,
+    };
+  }
+
+  public async getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse> {
+    const response = await this.getActiveTrackerView(xuid);
+    return { activeTracker: response.activeTracker };
   }
 
   public async getTrackerState(userId: string, trackerId: string): Promise<TrackerStatusResponse> {

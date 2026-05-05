@@ -1,0 +1,59 @@
+.overlayRoot {
+  min-height: 100vh;
+  padding: var(--space-4);
+}
+
+.overlayCard {
+  backdrop-filter: blur(6px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--overlay-team-color) 26%, rgb(10 14 22 / 90%)),
+    color-mix(in srgb, var(--overlay-enemy-color) 18%, rgb(10 14 22 / 88%))
+  );
+  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 42%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 34px rgb(0 0 0 / 35%);
+  max-width: 640px;
+  padding: var(--space-4);
+}
+
+.header {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.status {
+  background: color-mix(in srgb, var(--overlay-team-color) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 65%, transparent);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  text-transform: uppercase;
+}
+
+.message {
+  color: color-mix(in srgb, var(--halo-white) 90%, transparent);
+  font-size: var(--text-sm);
+  margin: var(--space-3) 0 0;
+}
+
+@media (--tablet-viewport) {
+  .overlayRoot {
+    padding: var(--space-6);
+  }
+
+  .overlayCard {
+    padding: var(--space-5);
+  }
+}

@@ -307,6 +307,7 @@ describe("Server", () => {
         expiresAt: refreshedExpiresAt,
         avatarUrl: null,
         xboxGamertag: null,
+        xboxXuid: null,
         spartanToken: null,
       });
 
@@ -370,6 +371,7 @@ describe("Server", () => {
         expiresAt: number;
         avatarUrl: null;
         xboxGamertag: string | null;
+        xboxXuid: string | null;
         spartanToken: string | null;
       }>();
       expect(body).toEqual({
@@ -378,6 +380,7 @@ describe("Server", () => {
         expiresAt,
         avatarUrl: null,
         xboxGamertag: null,
+        xboxXuid: null,
         spartanToken: null,
       });
     });
@@ -430,6 +433,7 @@ describe("Server", () => {
         expiresAt,
         avatarUrl: "https://images.example.com/xlarge.png",
         xboxGamertag: "TesterOne",
+        xboxXuid: "2533274844642438",
         spartanToken: null,
       });
     });
@@ -1771,7 +1775,7 @@ describe("Server", () => {
     });
   });
 
-  describe("GET /api/individual-tracker/xuid/:xuid/active", () => {
+  describe("GET /api/individual-tracker/:xuid/active", () => {
     it("returns not-found when xuid has no configured active xbox identity", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
@@ -1781,7 +1785,7 @@ describe("Server", () => {
 
       server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
 
-      const req = new Request("http://localhost/api/individual-tracker/xuid/2533274844642438/active", {
+      const req = new Request("http://localhost/api/individual-tracker/2533274844642438/active", {
         method: "GET",
       });
       const res = (await server.router.fetch(req, env)) as Response;
@@ -1832,7 +1836,7 @@ describe("Server", () => {
 
       server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
 
-      const req = new Request("http://localhost/api/individual-tracker/xuid/2533274844642438/active", {
+      const req = new Request("http://localhost/api/individual-tracker/2533274844642438/active", {
         method: "GET",
       });
       const res = (await server.router.fetch(req, envWithTrackerStub)) as Response;
@@ -1845,11 +1849,14 @@ describe("Server", () => {
     });
   });
 
-  describe("GET /ws/individual-tracker/:userId/active", () => {
+  describe("GET /ws/individual-tracker/:xuid/active", () => {
     it("forwards to the active tracker durable object instead of treating active as a trackerId", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
-        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSession").mockResolvedValue(
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({ UserId: "user-123", ProviderUserId: "2533274844642438", IsActive: 1 }),
+        );
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSessionByXuid").mockResolvedValue(
           aFakeIndividualTrackerActiveSessionsRow({
             UserId: "user-123",
             TrackerId: "tracker-123",
@@ -1883,64 +1890,14 @@ describe("Server", () => {
 
       server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
 
-      const req = new Request("http://localhost/ws/individual-tracker/user-123/active", { method: "GET" });
-      const res = (await server.router.fetch(req, envWithActiveTrackerStub)) as Response;
-
-      expect(res.status).toBe(200);
-      expect(idFromNameSpy).toHaveBeenCalledWith("user-123:tracker-123");
-      expect(idFromNameSpy).not.toHaveBeenCalledWith("user-123:active");
-      expect(doFetch).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe("GET /ws/individual-tracker/xuid/:xuid/active", () => {
-    it("forwards to the active tracker durable object for the resolved xbox xuid", async () => {
-      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
-        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(
-          aFakeLinkedIdentitiesRow({ UserId: "user-123", ProviderUserId: "2533274844642438", IsActive: 1 }),
-        );
-        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSessionByXuid").mockResolvedValue(
-          aFakeIndividualTrackerActiveSessionsRow({
-            UserId: "user-123",
-            TrackerId: "tracker-123",
-          }),
-        );
-        return services;
-      });
-
-      const doFetch = vi.fn(async () => Promise.resolve(new Response(null, { status: 200 })));
-      const idFromNameSpy = vi.fn(() => env.INDIVIDUAL_TRACKER_DO.idFromName("xuid-active-websocket-stub"));
-
-      const namespacePrototype = Object.getPrototypeOf(env.INDIVIDUAL_TRACKER_DO) as object | null;
-      const individualTrackerNamespace = Object.assign(
-        Object.create(namespacePrototype) as DurableObjectNamespace<IndividualTrackerDO>,
-        env.INDIVIDUAL_TRACKER_DO,
-        {
-          idFromName: idFromNameSpy,
-          get: () =>
-            ({
-              __DURABLE_OBJECT_BRAND: undefined as never,
-              fetch: doFetch,
-              id: env.INDIVIDUAL_TRACKER_DO.idFromName("xuid-active-websocket-stub"),
-              connect: vi.fn(),
-            }) as DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded,
-        },
-      );
-
-      const envWithActiveTrackerStub = aFakeEnvWith({
-        INDIVIDUAL_TRACKER_DO: individualTrackerNamespace,
-      });
-
-      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
-
-      const req = new Request("http://localhost/ws/individual-tracker/xuid/2533274844642438/active", {
+      const req = new Request("http://localhost/ws/individual-tracker/2533274844642438/active", {
         method: "GET",
       });
       const res = (await server.router.fetch(req, envWithActiveTrackerStub)) as Response;
 
       expect(res.status).toBe(200);
       expect(idFromNameSpy).toHaveBeenCalledWith("user-123:tracker-123");
+      expect(idFromNameSpy).not.toHaveBeenCalledWith("2533274844642438:active");
       expect(doFetch).toHaveBeenCalledOnce();
     });
   });

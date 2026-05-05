@@ -244,7 +244,7 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 - [x] `POST /api/individual-tracker/:trackerId/resume` — resume a paused tracker (re-enable alarm)
 - [x] `GET /api/individual-tracker/manage/:userId/trackers` — list running tracker references for a user (trackerId + gamertag + updatedAt)
 - [x] `GET /api/individual-tracker/manage/:userId/statuses` — batch status lookup for explicit tracker IDs (currently internal/client-service utility)
-- [x] `GET /api/individual-tracker/manage/:userId/active` — resolve the current active tracker for a given user without relying on an implicit session-scoped lookup
+- [x] `GET /api/individual-tracker/:xuid/active` — resolve the current active tracker for a given XUID (public, no session dependency)
 - [x] `GET /api/individual-tracker/manage/:userId/:trackerId/status` — resolve a specific tracker instance explicitly by identifier
 - [x] `POST /api/individual-tracker/manage/select-active` — mark one tracker as the current on-stream presenter
 - [x] `POST /api/individual-tracker/:trackerId/games:add` — add a past match into the active tracker
@@ -302,10 +302,10 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 > These routes are the Phase 4 replacement for the current query-param based active view flow. They are XUID-based, public, require no authentication, and always resolve to the user's currently active tracker.
 
-- [ ] `GET /individual-tracker/:xuid/view` — read-only active tracker view for sharing with viewers
-- [ ] `GET /individual-tracker/:xuid/overlay` — OBS-friendly active tracker overlay
-- [ ] `GET /api/individual-tracker/xuid/:xuid/active` — REST bootstrap for the currently active tracker and effective streamer settings
-- [ ] `GET /ws/individual-tracker/xuid/:xuid/active` — WebSocket that follows the currently active tracker for the user identified by XUID
+- [x] `GET /individual-tracker/:xuid/view` — read-only active tracker view for sharing with viewers
+- [x] `GET /individual-tracker/:xuid/overlay` — OBS-friendly active tracker overlay
+- [x] `GET /api/individual-tracker/:xuid/active` — REST bootstrap for the currently active tracker and effective streamer settings
+- [x] `GET /ws/individual-tracker/:xuid/active` — WebSocket that follows the currently active tracker for the user identified by XUID
 
 ### Halo proxy
 
@@ -316,8 +316,8 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 > Viewer routes are public and require no authentication. The UI is statically rendered with client-side hydration. If no active tracker exists, the client displays an informational message.
 
 - [x] `GET /ws/individual-tracker/:userId/:trackerId` — WebSocket for a specific active tracker
-- [x] `GET /ws/individual-tracker/:userId/active` — WebSocket that resolves to the current on-stream tracker
-- [x] `GET /api/individual-tracker/manage/:userId/active` — REST status of the current on-stream tracker (for initial render before WebSocket upgrade)
+- [x] `GET /ws/individual-tracker/:xuid/active` — WebSocket that resolves to the current on-stream tracker by XUID
+- [x] `GET /api/individual-tracker/:xuid/active` — REST status of the current on-stream tracker by XUID (for initial render before WebSocket upgrade)
 
 ## UI plan
 

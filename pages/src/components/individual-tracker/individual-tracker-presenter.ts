@@ -27,6 +27,7 @@ export class IndividualTrackerPresenter {
   private readonly config: Config;
   private isDisposed = false;
   private authenticatedUserId: string | null = null;
+  private authenticatedXboxXuid: string | null = null;
   private viewerConnection: IndividualTrackerConnection | null = null;
   private viewerStateSubscription: IndividualTrackerSubscription | null = null;
   private viewerStatusSubscription: IndividualTrackerSubscription | null = null;
@@ -75,7 +76,7 @@ export class IndividualTrackerPresenter {
     this.applyRoute(route);
 
     if (this.authenticatedUserId != null && this.getSnapshot().authState === "authenticated") {
-      void this.syncViewerForCurrentRoute(this.authenticatedUserId);
+      void this.syncViewerForCurrentRoute(this.authenticatedUserId, this.authenticatedXboxXuid);
     }
   }
 
@@ -332,14 +333,26 @@ export class IndividualTrackerPresenter {
     });
   }
 
-  private async syncViewerForCurrentRoute(userId: string): Promise<void> {
+  private async syncViewerForCurrentRoute(userId: string, xboxXuid: string | null): Promise<void> {
     switch (this.currentRoute.kind) {
       case "manage": {
         this.disposeViewerConnection();
         return;
       }
       case "view-active": {
-        await this.initializeActiveViewer(userId);
+        if (xboxXuid == null) {
+          this.disposeViewerConnection();
+          this.updateSnapshot((snapshot) => ({
+            ...snapshot,
+            viewConnectionStatus: "not_found",
+            viewErrorMessage: "No active Xbox identity is linked.",
+            viewTrackerId: null,
+            viewTrackerGamertag: null,
+          }));
+          return;
+        }
+
+        await this.initializeActiveViewer(xboxXuid);
         return;
       }
       case "view-tracker": {
@@ -527,7 +540,7 @@ export class IndividualTrackerPresenter {
     }
   }
 
-  private async initializeActiveViewer(userId: string): Promise<void> {
+  private async initializeActiveViewer(xuid: string): Promise<void> {
     this.disposeViewerConnection();
 
     this.updateSnapshot((snapshot) => ({
@@ -539,7 +552,7 @@ export class IndividualTrackerPresenter {
     }));
 
     try {
-      const statusResponse = await this.config.services.individualTrackerService.getActiveTrackerState(userId);
+      const statusResponse = await this.config.services.individualTrackerService.getActiveTrackerState(xuid);
       this.viewedTracker = statusResponse.activeTracker;
       this.viewedMatchHistory = null;
       this.viewedMedalMetadata = {};
@@ -562,7 +575,7 @@ export class IndividualTrackerPresenter {
         );
       }
 
-      const connection = this.config.services.individualTrackerService.connectToActiveTracker(userId);
+      const connection = this.config.services.individualTrackerService.connectToActiveTracker(xuid);
       this.viewerConnection = connection;
 
       this.viewerStateSubscription = connection.subscribe((state) => {
@@ -594,11 +607,13 @@ export class IndividualTrackerPresenter {
     try {
       const session = await this.config.services.authService.getSession();
       const userId = session.userId ?? null;
+      const xboxXuid = session.xboxXuid ?? null;
 
       if (!session.authenticated || userId == null) {
         this.disposeViewerConnection();
         this.config.liveTrackersController.resetForUnauthenticated();
         this.authenticatedUserId = null;
+        this.authenticatedXboxXuid = null;
         this.updateSnapshot((snapshot) => ({
           ...snapshot,
           authState: "unauthenticated",
@@ -611,6 +626,7 @@ export class IndividualTrackerPresenter {
       }
 
       this.authenticatedUserId = userId;
+      this.authenticatedXboxXuid = xboxXuid;
 
       const profileResponse = await this.config.services.individualTrackerService.getProfile();
       const profileId = profileResponse.profile?.ProfileId ?? null;
@@ -640,10 +656,10 @@ export class IndividualTrackerPresenter {
         }));
       }
 
-      this.config.liveTrackersController.setSessionContext(userId, session.xboxGamertag ?? null);
+      this.config.liveTrackersController.setSessionContext(userId, session.xboxGamertag ?? null, xboxXuid);
       await this.config.liveTrackersController.refresh();
 
-      await this.syncViewerForCurrentRoute(userId);
+      await this.syncViewerForCurrentRoute(userId, xboxXuid);
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,

@@ -88,8 +88,8 @@ export class LiveTrackersPresenter {
     return this.config.store.snapshot;
   }
 
-  public setSessionContext(userId: string, xboxGamertag: string | null): void {
-    this.updateSnapshot((snapshot) => ({ ...snapshot, userId, xboxGamertag }));
+  public setSessionContext(userId: string, xboxGamertag: string | null, xboxXuid: string | null): void {
+    this.updateSnapshot((snapshot) => ({ ...snapshot, userId, xboxGamertag, xboxXuid }));
   }
 
   public resetForUnauthenticated(): void {
@@ -97,6 +97,7 @@ export class LiveTrackersPresenter {
       ...snapshot,
       userId: null,
       xboxGamertag: null,
+      xboxXuid: null,
       activeTracker: null,
       runningTrackers: [],
       trackerStatuses: {},
@@ -409,7 +410,9 @@ export class LiveTrackersPresenter {
     try {
       const [trackerListResponse, activeStatusResponse] = await Promise.all([
         this.config.services.individualTrackerService.getTrackers(snapshot.userId),
-        this.config.services.individualTrackerService.getActiveTrackerState(snapshot.userId),
+        snapshot.xboxXuid == null
+          ? Promise.resolve({ activeTracker: null })
+          : this.config.services.individualTrackerService.getActiveTrackerState(snapshot.xboxXuid),
       ]);
 
       this.updateSnapshot((current) => ({

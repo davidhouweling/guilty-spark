@@ -65,6 +65,7 @@ describe("IndividualTrackerPresenter", () => {
           authenticated: true,
           userId: "user-1",
           xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
         },
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
@@ -97,6 +98,7 @@ describe("IndividualTrackerPresenter", () => {
           authenticated: true,
           userId: "user-1",
           xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
         },
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
@@ -155,6 +157,7 @@ describe("IndividualTrackerPresenter", () => {
           authenticated: true,
           userId: "user-1",
           xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
         },
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
@@ -171,7 +174,7 @@ describe("IndividualTrackerPresenter", () => {
     });
 
     expect(liveTrackersController.start).toHaveBeenCalledOnce();
-    expect(liveTrackersController.setSessionContext).toHaveBeenCalledWith("user-1", "Chief");
+    expect(liveTrackersController.setSessionContext).toHaveBeenCalledWith("user-1", "Chief", "2533274844642438");
     expect(liveTrackersController.refresh).toHaveBeenCalledOnce();
 
     harness.presenter.dispose();
@@ -255,6 +258,7 @@ describe("IndividualTrackerPresenter", () => {
           authenticated: true,
           userId: "user-1",
           xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
         },
       }),
       liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),

@@ -1,0 +1,7 @@
+.pageContainer {
+  padding: var(--space-6) 0;
+}
+
+.alertSection {
+  margin-bottom: var(--space-4);
+}

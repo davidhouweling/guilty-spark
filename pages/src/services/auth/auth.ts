@@ -43,6 +43,11 @@ function parseSessionResponse(value: unknown): SessionResponse {
     response.xboxGamertag = xboxGamertag;
   }
 
+  const { xboxXuid } = value;
+  if (isString(xboxXuid)) {
+    response.xboxXuid = xboxXuid;
+  }
+
   const { spartanToken } = value;
   if (isString(spartanToken)) {
     response.spartanToken = spartanToken;

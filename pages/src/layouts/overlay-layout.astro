@@ -1,0 +1,36 @@
+---
+import GuiltySparkIcon from "../assets/guilty-spark-icon.png";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = "Guilty Spark Overlay", description = "Guilty Spark Individual Tracker Overlay" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/png" href={GuiltySparkIcon.src} />
+    <meta name="generator" content={Astro.generator} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&family=Orbitron:wght@600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+<style is:global>
+  @import url("../styles/base.css");
+</style>

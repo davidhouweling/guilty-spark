@@ -579,6 +579,7 @@ export class Server {
         }
 
         const xboxGamertag = selectedXboxIdentity?.Gamertag ?? null;
+        const xboxXuid = selectedXboxIdentity == null ? null : normalizeXuid(selectedXboxIdentity.ProviderUserId);
 
         let spartanToken: string | null = null;
         const includeSpartanToken = request.headers.get("x-include-spartan-token") === "true";
@@ -609,6 +610,7 @@ export class Server {
             expiresAt: effectiveSession.expiresAt,
             avatarUrl,
             xboxGamertag,
+            xboxXuid,
             spartanToken,
           }),
           {
@@ -2001,48 +2003,7 @@ export class Server {
       }
     });
 
-    this.router.get("/api/individual-tracker/manage/:userId/active", async (request, env: Env) => {
-      try {
-        const { userId } = request.params as { userId: string };
-        const services = this.installServices({ env });
-
-        const activeSession = await services.databaseService.findIndividualTrackerActiveSession(userId);
-        if (activeSession == null) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-
-        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${activeSession.TrackerId}`);
-        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-
-        const doUrl = new URL(request.url);
-        doUrl.pathname = "/status";
-        const doResponse = await stub.fetch(new Request(doUrl.toString()));
-
-        if (doResponse.status === 404) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-
-        const doData = await doResponse.json<{ state: unknown }>();
-        return new Response(JSON.stringify({ activeTracker: doData.state }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        console.error("Individual live tracker active REST error:", error);
-        return new Response(JSON.stringify({ error: "Failed to get active tracker" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    });
-
-    this.router.get("/api/individual-tracker/xuid/:xuid/active", async (request, env: Env) => {
+    this.router.get("/api/individual-tracker/:xuid/active", async (request, env: Env) => {
       try {
         const { xuid } = request.params as { xuid: string };
         const normalizedXuid = normalizeXuid(xuid);
@@ -2132,30 +2093,7 @@ export class Server {
       }
     });
 
-    this.router.get("/ws/individual-tracker/:userId/active", async (request, env: Env) => {
-      try {
-        const { userId } = request.params as { userId: string };
-        const services = this.installServices({ env });
-
-        const activeSession = await services.databaseService.findIndividualTrackerActiveSession(userId);
-        if (activeSession == null) {
-          return new Response("No active tracker found", { status: 404 });
-        }
-
-        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${activeSession.TrackerId}`);
-        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-
-        const doUrl = new URL(request.url);
-        doUrl.pathname = "/websocket";
-
-        return await stub.fetch(new Request(doUrl.toString(), { headers: request.headers }));
-      } catch (error) {
-        console.error("Individual tracker active WebSocket route error:", error);
-        return new Response("Internal Server Error", { status: 500 });
-      }
-    });
-
-    this.router.get("/ws/individual-tracker/xuid/:xuid/active", async (request, env: Env) => {
+    this.router.get("/ws/individual-tracker/:xuid/active", async (request, env: Env) => {
       try {
         const { xuid } = request.params as { xuid: string };
         const normalizedXuid = normalizeXuid(xuid);

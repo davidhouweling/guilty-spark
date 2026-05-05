@@ -1,0 +1,11 @@
+---
+import OverlayLayout from "../../../layouts/overlay-layout.astro";
+import { API_HOST } from "../../../constants";
+import { IndividualTrackerPublicApp } from "../../../apps/individual-tracker-public-app";
+
+const { xuid = "" } = Astro.params;
+---
+
+<OverlayLayout title="Individual Tracker Overlay - Guilty Spark" description="OBS friendly individual tracker overlay">
+  <IndividualTrackerPublicApp client:load apiHost={API_HOST} xuid={xuid} variant="overlay" />
+</OverlayLayout>

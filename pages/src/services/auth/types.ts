@@ -5,6 +5,7 @@ export interface SessionResponse {
   expired?: boolean;
   avatarUrl?: string;
   xboxGamertag?: string;
+  xboxXuid?: string;
   spartanToken?: string;
 }
 

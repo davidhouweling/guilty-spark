@@ -70,7 +70,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -120,7 +120,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -158,7 +158,7 @@ describe("LiveTrackersPresenter", () => {
     const syncMatchesSpy = vi.spyOn(services.individualTrackerService, "syncMatchesToTracker");
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -232,7 +232,7 @@ describe("LiveTrackersPresenter", () => {
     const updateSeriesGroupSpy = vi.spyOn(services.individualTrackerService, "updateSeriesGroup");
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -338,7 +338,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -436,7 +436,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -550,7 +550,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     await harness.presenter.refresh();
 
@@ -622,7 +622,7 @@ describe("LiveTrackersPresenter", () => {
 
     const harness = aHarnessWith(services);
     harness.presenter.start();
-    harness.presenter.setSessionContext("user-1", "Chief");
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
 
     harness.store.snapshot = {
       ...harness.store.snapshot,

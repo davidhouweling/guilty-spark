@@ -5,6 +5,7 @@ import type { LiveTrackersPresenter } from "./live-trackers-presenter";
 export interface LiveTrackersSnapshot {
   readonly userId: string | null;
   readonly xboxGamertag: string | null;
+  readonly xboxXuid: string | null;
   readonly activeTracker: IndividualTrackerState | null;
   readonly runningTrackers: readonly { trackerId: string; gamertag: string }[];
   readonly trackerStatuses: Readonly<Record<string, IndividualTrackerState | null>>;
@@ -17,7 +18,7 @@ export interface LiveTrackersSnapshot {
 export interface LiveTrackersController {
   start: () => void;
   dispose: () => void;
-  setSessionContext: (userId: string, xboxGamertag: string | null) => void;
+  setSessionContext: (userId: string, xboxGamertag: string | null, xboxXuid: string | null) => void;
   resetForUnauthenticated: () => void;
   refresh: () => Promise<void>;
 }

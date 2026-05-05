@@ -4,6 +4,7 @@ function createInitialSnapshot(): LiveTrackersSnapshot {
   return {
     userId: null,
     xboxGamertag: null,
+    xboxXuid: null,
     activeTracker: null,
     runningTrackers: [],
     trackerStatuses: {},

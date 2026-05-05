@@ -101,8 +101,9 @@ export interface IndividualTrackerService {
   removeMatchFromTracker(trackerId: string, matchId: string): Promise<void>;
   getTrackers(userId: string): Promise<TrackerListResponse>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
-  connectToActiveTracker(userId: string): IndividualTrackerConnection;
-  getActiveTrackerState(userId: string): Promise<TrackerStatusResponse>;
+  connectToActiveTracker(xuid: string): IndividualTrackerConnection;
+  getActiveTrackerView(xuid: string): Promise<ActiveTrackerViewResponse>;
+  getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse>;
   getTrackerState(userId: string, trackerId: string): Promise<TrackerStatusResponse>;
 }
 
@@ -233,6 +234,12 @@ export type RefreshTrackerResponse = RefreshTrackerSuccessResponse | RefreshTrac
 
 export interface TrackerStatusResponse {
   activeTracker: IndividualTrackerState | null;
+}
+
+export interface ActiveTrackerViewResponse {
+  readonly status: "active" | "offline" | "not-found";
+  readonly activeTracker: IndividualTrackerState | null;
+  readonly streamerView: IndividualTrackerStreamerViewSettings | null;
 }
 
 export interface TrackerReference {

@@ -1,0 +1,11 @@
+---
+import Layout from "../../../layouts/layout.astro";
+import { API_HOST } from "../../../constants";
+import { IndividualTrackerPublicApp } from "../../../apps/individual-tracker-public-app";
+
+const { xuid = "" } = Astro.params;
+---
+
+<Layout title="Individual Tracker View - Guilty Spark" description="Public individual tracker active view">
+  <IndividualTrackerPublicApp client:load apiHost={API_HOST} xuid={xuid} variant="view" />
+</Layout>
