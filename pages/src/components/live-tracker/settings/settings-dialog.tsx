@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { Checkbox } from "../../checkbox/checkbox";
+import { CollapsiblePanel } from "../../collapsible-panel/collapsible-panel";
 import type {
   AllStreamerSettings,
   FontSizeSettings,
@@ -244,45 +245,54 @@ export function SettingsDialog({
                 <hr className={styles.divider} />
 
                 {/* Font Size Settings */}
-                <h4 className={styles.subsectionHeader}>Font Sizes</h4>
-                <p className={styles.subsectionDescription}>Adjust text size for each section (100% = default)</p>
-                <div className={styles.fontSizeContainer}>
-                  <FontSizeSlider
-                    label="Queue Info"
-                    value={settings.global.fontSizes.queueInfo}
-                    onChange={(value): void => {
-                      handleFontSizeChange("queueInfo", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Score"
-                    value={settings.global.fontSizes.score}
-                    onChange={(value): void => {
-                      handleFontSizeChange("score", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Teams"
-                    value={settings.global.fontSizes.teams}
-                    onChange={(value): void => {
-                      handleFontSizeChange("teams", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Tabs"
-                    value={settings.global.fontSizes.tabs}
-                    onChange={(value): void => {
-                      handleFontSizeChange("tabs", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Info Ticker"
-                    value={settings.global.fontSizes.ticker}
-                    onChange={(value): void => {
-                      handleFontSizeChange("ticker", value);
-                    }}
-                  />
-                </div>
+                <CollapsiblePanel
+                  id="font-sizes-section"
+                  defaultExpanded={false}
+                  header={
+                    <div>
+                      <h4 className={styles.subsectionHeader}>Font Sizes</h4>
+                      <p className={styles.subsectionDescription}>Adjust text size for each section (100% = default)</p>
+                    </div>
+                  }
+                >
+                  <div className={styles.fontSizeContainer}>
+                    <FontSizeSlider
+                      label="Queue Info"
+                      value={settings.global.fontSizes.queueInfo}
+                      onChange={(value): void => {
+                        handleFontSizeChange("queueInfo", value);
+                      }}
+                    />
+                    <FontSizeSlider
+                      label="Score"
+                      value={settings.global.fontSizes.score}
+                      onChange={(value): void => {
+                        handleFontSizeChange("score", value);
+                      }}
+                    />
+                    <FontSizeSlider
+                      label="Teams"
+                      value={settings.global.fontSizes.teams}
+                      onChange={(value): void => {
+                        handleFontSizeChange("teams", value);
+                      }}
+                    />
+                    <FontSizeSlider
+                      label="Tabs"
+                      value={settings.global.fontSizes.tabs}
+                      onChange={(value): void => {
+                        handleFontSizeChange("tabs", value);
+                      }}
+                    />
+                    <FontSizeSlider
+                      label="Info Ticker"
+                      value={settings.global.fontSizes.ticker}
+                      onChange={(value): void => {
+                        handleFontSizeChange("ticker", value);
+                      }}
+                    />
+                  </div>
+                </CollapsiblePanel>
               </div>
 
               {/* Series-Specific Settings */}
