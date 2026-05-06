@@ -1,9 +1,9 @@
-import type { IndividualTrackerSnapshot } from "./types";
 import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_TICKER_SETTINGS,
   DEFAULT_FONT_SIZES,
 } from "../live-tracker/settings/types";
+import type { IndividualTrackerSnapshot } from "./types";
 
 export class IndividualTrackerStore {
   public snapshot: IndividualTrackerSnapshot = {

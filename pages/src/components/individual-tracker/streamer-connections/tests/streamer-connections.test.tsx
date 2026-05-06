@@ -101,9 +101,12 @@ describe("StreamerConnectionsSectionView", () => {
 
     renderComponent({ onPresentationSettingsChange });
 
+    const tickerCheckboxes = screen.getAllByRole("checkbox", { name: /show information ticker/i });
+    const teamDetailsCheckboxes = screen.getAllByRole("checkbox", { name: /show team details/i });
+
     fireEvent.click(screen.getByRole("checkbox", { name: /show overlay tabs/i }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /show information ticker/i }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /show team details/i }));
+    fireEvent.click(tickerCheckboxes[0]);
+    fireEvent.click(teamDetailsCheckboxes[0]);
 
     expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(1, {
       showTabs: false,
@@ -156,7 +159,8 @@ describe("StreamerConnectionsSectionView", () => {
 
     renderComponent({ onTickerSettingsChange });
 
-    fireEvent.click(screen.getByRole("checkbox", { name: /show information ticker/i }));
+    const tickerCheckboxes = screen.getAllByRole("checkbox", { name: /show information ticker/i });
+    fireEvent.click(tickerCheckboxes[1]);
 
     expect(onTickerSettingsChange).toHaveBeenNthCalledWith(1, {
       showTicker: false,

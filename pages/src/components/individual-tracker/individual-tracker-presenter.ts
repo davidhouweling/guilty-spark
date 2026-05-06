@@ -588,80 +588,80 @@ export class IndividualTrackerPresenter {
   private toDisplaySettings(visibleSections: Record<string, unknown>): DisplaySettings {
     return {
       showTeamDetails:
-        typeof visibleSections["showTeamDetails"] === "boolean"
-          ? visibleSections["showTeamDetails"]
+        typeof visibleSections.showTeamDetails === "boolean"
+          ? visibleSections.showTeamDetails
           : DEFAULT_DISPLAY_SETTINGS.showTeamDetails,
       showDiscordNames:
-        typeof visibleSections["showDiscordNames"] === "boolean"
-          ? visibleSections["showDiscordNames"]
+        typeof visibleSections.showDiscordNames === "boolean"
+          ? visibleSections.showDiscordNames
           : DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
       showXboxNames:
-        typeof visibleSections["showXboxNames"] === "boolean"
-          ? visibleSections["showXboxNames"]
+        typeof visibleSections.showXboxNames === "boolean"
+          ? visibleSections.showXboxNames
           : DEFAULT_DISPLAY_SETTINGS.showXboxNames,
       showServerIcon:
-        typeof visibleSections["showServerIcon"] === "boolean"
-          ? visibleSections["showServerIcon"]
+        typeof visibleSections.showServerIcon === "boolean"
+          ? visibleSections.showServerIcon
           : DEFAULT_DISPLAY_SETTINGS.showServerIcon,
       showTitle:
-        typeof visibleSections["showTitle"] === "boolean"
-          ? visibleSections["showTitle"]
+        typeof visibleSections.showTitle === "boolean"
+          ? visibleSections.showTitle
           : DEFAULT_DISPLAY_SETTINGS.showTitle,
       showSubtitle:
-        typeof visibleSections["showSubtitle"] === "boolean"
-          ? visibleSections["showSubtitle"]
+        typeof visibleSections.showSubtitle === "boolean"
+          ? visibleSections.showSubtitle
           : DEFAULT_DISPLAY_SETTINGS.showSubtitle,
       showScore:
-        typeof visibleSections["showScore"] === "boolean"
-          ? visibleSections["showScore"]
+        typeof visibleSections.showScore === "boolean"
+          ? visibleSections.showScore
           : DEFAULT_DISPLAY_SETTINGS.showScore,
     };
   }
 
   private toTickerSettings(visibleSections: Record<string, unknown>): TickerSettings {
-    const selectedSlayerStats = this.isStringArray(visibleSections["selectedSlayerStats"])
-      ? visibleSections["selectedSlayerStats"]
+    const selectedSlayerStats = this.isStringArray(visibleSections.selectedSlayerStats)
+      ? visibleSections.selectedSlayerStats
       : DEFAULT_TICKER_SETTINGS.selectedSlayerStats;
-    const medalRarityFilter = this.isNumberArray(visibleSections["medalRarityFilter"])
-      ? visibleSections["medalRarityFilter"]
+    const medalRarityFilter = this.isNumberArray(visibleSections.medalRarityFilter)
+      ? visibleSections.medalRarityFilter
       : DEFAULT_TICKER_SETTINGS.medalRarityFilter;
 
     return {
       showTicker:
-        typeof visibleSections["showTicker"] === "boolean"
-          ? visibleSections["showTicker"]
+        typeof visibleSections.showTicker === "boolean"
+          ? visibleSections.showTicker
           : DEFAULT_TICKER_SETTINGS.showTicker,
       showPreSeriesInfo:
-        typeof visibleSections["showPreSeriesInfo"] === "boolean"
-          ? visibleSections["showPreSeriesInfo"]
+        typeof visibleSections.showPreSeriesInfo === "boolean"
+          ? visibleSections.showPreSeriesInfo
           : DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
       selectedSlayerStats,
       showObjectiveStats:
-        typeof visibleSections["showObjectiveStats"] === "boolean"
-          ? visibleSections["showObjectiveStats"]
+        typeof visibleSections.showObjectiveStats === "boolean"
+          ? visibleSections.showObjectiveStats
           : DEFAULT_TICKER_SETTINGS.showObjectiveStats,
       medalRarityFilter,
       showTabs:
-        typeof visibleSections["showTabs"] === "boolean"
-          ? visibleSections["showTabs"]
+        typeof visibleSections.showTabs === "boolean"
+          ? visibleSections.showTabs
           : DEFAULT_TICKER_SETTINGS.showTabs,
     };
   }
 
   private toFontSizeSettings(layoutOptions: Record<string, unknown>): FontSizeSettings {
-    const fontSizesValue = layoutOptions["fontSizes"];
+    const fontSizesValue = layoutOptions.fontSizes;
     if (!this.isRecord(fontSizesValue)) {
       return DEFAULT_FONT_SIZES;
     }
 
     return {
       queueInfo:
-        typeof fontSizesValue["queueInfo"] === "number" ? fontSizesValue["queueInfo"] : DEFAULT_FONT_SIZES.queueInfo,
-      score: typeof fontSizesValue["score"] === "number" ? fontSizesValue["score"] : DEFAULT_FONT_SIZES.score,
-      teams: typeof fontSizesValue["teams"] === "number" ? fontSizesValue["teams"] : DEFAULT_FONT_SIZES.teams,
+        typeof fontSizesValue.queueInfo === "number" ? fontSizesValue.queueInfo : DEFAULT_FONT_SIZES.queueInfo,
+      score: typeof fontSizesValue.score === "number" ? fontSizesValue.score : DEFAULT_FONT_SIZES.score,
+      teams: typeof fontSizesValue.teams === "number" ? fontSizesValue.teams : DEFAULT_FONT_SIZES.teams,
       ticker:
-        typeof fontSizesValue["ticker"] === "number" ? fontSizesValue["ticker"] : DEFAULT_FONT_SIZES.ticker,
-      tabs: typeof fontSizesValue["tabs"] === "number" ? fontSizesValue["tabs"] : DEFAULT_FONT_SIZES.tabs,
+        typeof fontSizesValue.ticker === "number" ? fontSizesValue.ticker : DEFAULT_FONT_SIZES.ticker,
+      tabs: typeof fontSizesValue.tabs === "number" ? fontSizesValue.tabs : DEFAULT_FONT_SIZES.tabs,
     };
   }
 
