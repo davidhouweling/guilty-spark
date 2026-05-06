@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PublicViewerSnapshot } from "../types";
 import { PublicIndividualTrackerOverlay } from "../public-individual-tracker-overlay";
 import { aFakeIndividualTrackerStateWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
-import type { IndividualTrackerViewerRenderModel } from "../../types";
+import type { IndividualTrackerViewerRenderModel, OverlayTab } from "../../types";
 
 afterEach(() => {
   cleanup();
@@ -104,6 +104,15 @@ function aRenderModelWithoutSeries(): IndividualTrackerViewerRenderModel {
 }
 
 function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicViewerSnapshot {
+  const defaultTabs: readonly OverlayTab[] = [
+    {
+      id: "series",
+      label: "Series",
+      type: "active-series",
+      teamColor: "#00B7EB",
+    },
+  ];
+
   return {
     xuid: "2533274844642438",
     variant: "overlay",
@@ -122,6 +131,33 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     overlayShowTicker: true,
     overlayShowTeamDetails: true,
     overlayColorMode: "observer",
+    overlayTabs: defaultTabs,
+    overlayAccumulatedStats: {
+      wins: 1,
+      losses: 0,
+      total: 1,
+      matchmaking: 1,
+      custom: 0,
+    },
+    overlayTickerGroups: [],
+    xuidToDiscordName: {},
+    overlayShowMatchmakingStatsOnly: false,
+    overlaySelectedSlayerStats: ["Score", "Kills"],
+    overlayShowObjectiveStats: false,
+    overlayMedalRarityFilter: [2, 3],
+    overlayShowPreSeriesInfo: true,
+    overlayFontSizes: {
+      queueInfo: 100,
+      score: 100,
+      teams: 100,
+      tabs: 100,
+      ticker: 100,
+    },
+    overlayShowTitle: true,
+    overlayShowSubtitle: true,
+    overlayShowScore: true,
+    overlayShowDiscordNames: true,
+    overlayShowXboxNames: true,
     ...overrides,
   };
 }
@@ -143,7 +179,24 @@ describe("PublicIndividualTrackerOverlay", () => {
   });
 
   it("renders match-first tabs when no active series exists", () => {
-    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ renderModel: aRenderModelWithoutSeries() })} />);
+    render(
+      <PublicIndividualTrackerOverlay
+        snapshot={
+          aSnapshotWith({
+            renderModel: aRenderModelWithoutSeries(),
+            overlayTabs: [
+              {
+                id: "standalone-0",
+                label: "Game 1",
+                type: "standalone",
+                teamColor: "#00B7EB",
+                timelineIndex: 0,
+              },
+            ],
+          })
+        }
+      />,
+    );
 
     expect(screen.queryByRole("button", { name: "Series" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Game 1" })).toBeInTheDocument();
@@ -174,5 +227,37 @@ describe("PublicIndividualTrackerOverlay", () => {
     render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayColorMode: "player" })} />);
 
     expect(screen.getByText(/player mode/i)).toBeInTheDocument();
+  });
+
+  it("renders accumulated stats in top bar for non-series sessions", () => {
+    render(
+      <PublicIndividualTrackerOverlay
+        snapshot={
+          aSnapshotWith({
+            renderModel: aRenderModelWithoutSeries(),
+            overlayTabs: [
+              {
+                id: "standalone-0",
+                label: "Game 1",
+                type: "standalone",
+                teamColor: "#00B7EB",
+                timelineIndex: 0,
+              },
+            ],
+            overlayAccumulatedStats: {
+              wins: 7,
+              losses: 4,
+              total: 11,
+              matchmaking: 10,
+              custom: 1,
+            },
+          })
+        }
+      />,
+    );
+
+    expect(screen.getByText("7W")).toBeInTheDocument();
+    expect(screen.getByText("4L")).toBeInTheDocument();
+    expect(screen.getByText("11 Total")).toBeInTheDocument();
   });
 });

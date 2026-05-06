@@ -42,7 +42,7 @@
 
 .title {
   font-family: var(--font-heading);
-  font-size: var(--text-xl);
+  font-size: calc(var(--text-xl) * var(--font-size-queue-info, 100) / 100);
   letter-spacing: 0.04em;
   margin: 0;
   text-transform: uppercase;
@@ -131,9 +131,49 @@
   border: 2px solid color-mix(in srgb, var(--halo-accent) 60%, transparent);
   border-radius: var(--radius-sm);
   font-family: var(--font-heading);
-  font-size: var(--text-lg);
+  font-size: calc(var(--text-lg) * var(--font-size-score, 100) / 100);
   font-weight: 700;
   padding: 0.15rem var(--space-3);
+}
+
+.topBarStats {
+  align-items: center;
+  background: color-mix(in srgb, var(--overlay-team-color) 22%, rgb(15 40 48 / 88%));
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 62%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  left: 50%;
+  max-width: min(840px, calc(100vw - 1.5rem));
+  padding: var(--space-2) var(--space-3);
+  position: absolute;
+  top: 2.95rem;
+  transform: translateX(-50%);
+  z-index: 16;
+}
+
+.gamertagTitle {
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-lg) * var(--font-size-queue-info, 100) / 100);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.statsLine {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.statItem {
+  background: color-mix(in srgb, var(--overlay-team-color) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--overlay-team-color) 42%, transparent);
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-sm) * var(--font-size-score, 100) / 100);
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
 }
 
 .detailsPanel {
@@ -269,7 +309,7 @@
   color: var(--halo-white);
   cursor: pointer;
   font-family: var(--font-heading);
-  font-size: var(--text-xs);
+  font-size: calc(var(--text-xs) * var(--font-size-tabs, 100) / 100);
   font-weight: 700;
   padding: 0.3rem 0.75rem;
   text-transform: uppercase;
@@ -284,7 +324,7 @@
   background: color-mix(in srgb, var(--overlay-team-color) 14%, rgb(15 40 48 / 92%));
   border-top: 1px solid color-mix(in srgb, var(--overlay-team-color) 40%, transparent);
   color: color-mix(in srgb, var(--halo-white) 92%, transparent);
-  font-size: var(--text-sm);
+  font-size: calc(var(--text-sm) * var(--font-size-ticker, 100) / 100);
   margin: 0;
   min-height: 2.1rem;
   padding: 0.45rem var(--space-3);

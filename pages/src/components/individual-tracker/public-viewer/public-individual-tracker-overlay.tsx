@@ -7,6 +7,36 @@ interface PublicIndividualTrackerOverlayProps {
   readonly snapshot: PublicViewerSnapshot;
 }
 
+interface OverlayPlayer {
+  readonly id: string;
+  readonly displayName: string;
+}
+
+function getOverlayPlayerLabel(snapshot: PublicViewerSnapshot, player: OverlayPlayer): string {
+  const discordName = snapshot.xuidToDiscordName[player.id] ?? "";
+  const xboxName = player.displayName;
+
+  if (snapshot.overlayShowDiscordNames && snapshot.overlayShowXboxNames) {
+    if (discordName === "" || discordName === xboxName) {
+      return xboxName;
+    }
+
+    return `${discordName} (${xboxName})`;
+  }
+
+  if (snapshot.overlayShowDiscordNames) {
+    if (discordName !== "") {
+      return discordName;
+    }
+  }
+
+  if (snapshot.overlayShowXboxNames) {
+    return xboxName;
+  }
+
+  return discordName === "" ? xboxName : discordName;
+}
+
 function getOverlayStatusText(snapshot: PublicViewerSnapshot): string {
   if (snapshot.loading) {
     return "Loading";
@@ -48,33 +78,6 @@ function getOverlayMessage(snapshot: PublicViewerSnapshot): string {
   return "Live tracker connected.";
 }
 
-interface OverlayTab {
-  readonly id: string;
-  readonly label: string;
-  readonly type: "series" | "timeline";
-  readonly timelineIndex?: number;
-}
-
-function buildTabs(snapshot: PublicViewerSnapshot): readonly OverlayTab[] {
-  const timeline = snapshot.renderModel?.gameplayTimeline ?? [];
-  const tabs: OverlayTab[] = [];
-
-  if (snapshot.renderModel?.activeNeatQueueSeries != null) {
-    tabs.push({ id: "series", label: "Series", type: "series" });
-  }
-
-  for (const [timelineIndex, item] of timeline.entries()) {
-    tabs.push({
-      id: `timeline-${timelineIndex.toString()}`,
-      label: item.type === "group" ? `Set ${(timelineIndex + 1).toString()}` : `Game ${(timelineIndex + 1).toString()}`,
-      type: "timeline",
-      timelineIndex,
-    });
-  }
-
-  return tabs;
-}
-
 function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
   const activeSeries = snapshot.renderModel?.activeNeatQueueSeries;
   if (activeSeries == null) {
@@ -87,13 +90,13 @@ function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
         <h2 className={styles.seriesTitle}>{activeSeries.title}</h2>
         <span className={styles.seriesScore}>{activeSeries.seriesScore}</span>
       </div>
-      <p className={styles.seriesSubtitle}>{activeSeries.subtitle}</p>
+      {snapshot.overlayShowSubtitle ? <p className={styles.seriesSubtitle}>{activeSeries.subtitle}</p> : null}
       {snapshot.overlayShowTeamDetails ? (
         <div className={styles.teamGrid}>
           {activeSeries.teams.map((team, index) => (
             <section key={`series-team-${index.toString()}`} className={styles.teamCard}>
               <h3 className={styles.teamName}>{team.name}</h3>
-              <p className={styles.teamPlayers}>{team.players.map((player) => player.displayName).join(" • ")}</p>
+              <p className={styles.teamPlayers}>{team.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</p>
             </section>
           ))}
         </div>
@@ -102,16 +105,14 @@ function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
   );
 }
 
-function renderOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
+function renderSeriesOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
   const activeSeries = snapshot.renderModel?.activeNeatQueueSeries;
 
   if (activeSeries == null || !snapshot.overlayShowTeamDetails || activeSeries.teams.length < 2) {
     return (
       <div className={styles.topFallback}>
         <h1 className={styles.topFallbackTitle}>
-          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-            ? snapshot.trackerState.gamertag
-            : "Guilty Spark"}
+          {snapshot.overlayShowTitle && (activeSeries?.title ?? (snapshot.trackerState?.gamertag ?? "Guilty Spark"))}
         </h1>
       </div>
     );
@@ -123,15 +124,49 @@ function renderOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
     <div className={styles.topSection}>
       <div className={styles.teamLeft}>
         <span className={styles.teamName}>{leftTeam.name}</span>
-        <span className={styles.teamPlayers}>{leftTeam.players.map((player) => player.displayName).join(" • ")}</span>
+        <span className={styles.teamPlayers}>{leftTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</span>
       </div>
 
-      <div className={styles.topSeriesScore}>{activeSeries.seriesScore}</div>
+      {snapshot.overlayShowScore && <div className={styles.topSeriesScore}>{activeSeries.seriesScore}</div>}
 
       <div className={styles.teamRight}>
         <span className={styles.teamName}>{rightTeam.name}</span>
-        <span className={styles.teamPlayers}>{rightTeam.players.map((player) => player.displayName).join(" • ")}</span>
+        <span className={styles.teamPlayers}>{rightTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</span>
       </div>
+    </div>
+  );
+}
+
+function renderNonSeriesTopBar(snapshot: PublicViewerSnapshot): React.ReactNode {
+  const accStats = snapshot.overlayAccumulatedStats;
+  if (accStats == null) {
+    return (
+      <div className={styles.topFallback}>
+        <h1 className={styles.topFallbackTitle}>
+          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
+            ? snapshot.trackerState.gamertag
+            : "Guilty Spark"}
+        </h1>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.topBarStats}>
+      {snapshot.overlayShowTitle ? (
+        <h1 className={styles.gamertagTitle}>
+          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
+            ? snapshot.trackerState.gamertag
+            : "Guilty Spark"}
+        </h1>
+      ) : null}
+      {snapshot.overlayShowScore && (
+        <div className={styles.statsLine}>
+          <span className={styles.statItem}>{accStats.wins}W</span>
+          <span className={styles.statItem}>{accStats.losses}L</span>
+          <span className={styles.statItem}>{accStats.total} Total</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -161,7 +196,7 @@ function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: numb
   return (
     <div className={styles.panelBody}>
       <h2 className={styles.seriesTitle}>{item.match.gameMode}</h2>
-      <p className={styles.seriesSubtitle}>{item.match.gameTypeAndMap}</p>
+      {snapshot.overlayShowSubtitle ? <p className={styles.seriesSubtitle}>{item.match.gameTypeAndMap}</p> : null}
       {snapshot.overlayShowTeamDetails ? (
         <div className={styles.matchMetaGrid}>
           <div className={styles.metaCell}>
@@ -183,22 +218,22 @@ function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: numb
 }
 
 export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTrackerOverlayProps): React.ReactElement {
-  const tabs = React.useMemo(() => buildTabs(snapshot), [snapshot]);
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
+  const isInSeries = snapshot.renderModel?.activeNeatQueueSeries != null;
 
   React.useEffect(() => {
-    if (tabs.length === 0) {
+    if (snapshot.overlayTabs.length === 0) {
       setActiveTabId(null);
       return;
     }
 
-    const hasCurrent = activeTabId != null && tabs.some((tab) => tab.id === activeTabId);
+    const hasCurrent = activeTabId != null && snapshot.overlayTabs.some((tab) => tab.id === activeTabId);
     if (!hasCurrent) {
-      setActiveTabId(tabs[0].id);
+      setActiveTabId(snapshot.overlayTabs[0].id);
     }
-  }, [tabs, activeTabId]);
+  }, [snapshot.overlayTabs, activeTabId]);
 
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+  const activeTab = snapshot.overlayTabs.find((tab) => tab.id === activeTabId) ?? null;
 
   const title =
     snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
@@ -217,29 +252,31 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
     );
   }
 
+  const cssVariables: React.CSSProperties = {
+    "--overlay-team-color": activeTab?.teamColor ?? `var(--team-color-${snapshot.viewerTeamColor}, var(--halo-green))`,
+    "--overlay-enemy-color": `var(--team-color-${snapshot.viewerEnemyColor}, var(--halo-red))`,
+    "--font-size-queue-info": snapshot.overlayFontSizes.queueInfo,
+    "--font-size-score": snapshot.overlayFontSizes.score,
+    "--font-size-teams": snapshot.overlayFontSizes.teams,
+    "--font-size-tabs": snapshot.overlayFontSizes.tabs,
+    "--font-size-ticker": snapshot.overlayFontSizes.ticker,
+  } as React.CSSProperties;
+
   return (
     <section className={styles.overlayRoot}>
-      <div
-        className={styles.overlayCard}
-        style={
-          {
-            "--overlay-team-color": `var(--team-color-${snapshot.viewerTeamColor}, var(--halo-green))`,
-            "--overlay-enemy-color": `var(--team-color-${snapshot.viewerEnemyColor}, var(--halo-red))`,
-          } as React.CSSProperties
-        }
-      >
+      <div className={styles.overlayCard} style={cssVariables}>
         <header className={styles.headerMeta}>
-          <h1 className={styles.title}>{title}</h1>
+          {snapshot.overlayShowTitle ? <h1 className={styles.title}>{title}</h1> : null}
           <span className={styles.status}>{getOverlayStatusText(snapshot)}</span>
         </header>
 
-        {renderOverlayTop(snapshot)}
+        {isInSeries ? renderSeriesOverlayTop(snapshot) : renderNonSeriesTopBar(snapshot)}
 
-        {tabs.length > 0 ? (
+        {snapshot.overlayTabs.length > 0 ? (
           <section className={styles.detailsPanel}>
             {activeTab == null
               ? null
-              : activeTab.type === "series"
+              : activeTab.type === "active-series"
                 ? renderSeriesPanel(snapshot)
                 : renderTimelinePanel(snapshot, activeTab.timelineIndex ?? 0)}
           </section>
@@ -248,13 +285,16 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
         <div className={styles.bottomSection}>
           {snapshot.overlayShowTabs ? (
             <nav className={styles.tabBar} aria-label="Overlay panels">
-              {tabs.map((tab) => (
+              {snapshot.overlayTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   className={classNames(styles.tabButton, {
                     [styles.tabButtonActive]: tab.id === activeTab?.id,
                   })}
+                  style={
+                    tab.teamColor != null && !isInSeries ? { color: tab.teamColor } : undefined
+                  }
                   onClick={(): void => {
                     setActiveTabId(tab.id);
                   }}
