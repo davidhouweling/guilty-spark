@@ -1541,6 +1541,9 @@ describe("NeatQueueService", () => {
                   startTime: liveTrackerState.startTime,
                   lastUpdateTime: liveTrackerState.lastUpdateTime,
                 },
+                xuidToDiscordName: {
+                  "2533274844642438": "soundmanD",
+                },
               },
             }),
           }),
@@ -2276,7 +2279,8 @@ describe("NeatQueueService", () => {
       await jobToComplete?.();
 
       expect(findSessionsSpy).toHaveBeenCalledWith(["2533274844642438"]);
-      expect(individualTrackerFetchSpy).toHaveBeenCalledWith(
+      expect(individualTrackerFetchSpy).toHaveBeenNthCalledWith(
+        2,
         "http://do/neatqueue-series-update",
         expect.objectContaining({
           method: "POST",
@@ -2297,6 +2301,9 @@ describe("NeatQueueService", () => {
                 substitutions: updatedTrackerState.substitutions,
                 startTime: updatedTrackerState.startTime,
                 lastUpdateTime: updatedTrackerState.lastUpdateTime,
+              },
+              xuidToDiscordName: {
+                "2533274844642438": substitutionRequest.player_subbed_in.name,
               },
             },
           }),

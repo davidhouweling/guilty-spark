@@ -1109,9 +1109,42 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       await expect(res.json()).resolves.toEqual({
         profileId: "profile-1",
-        layoutOptions: { viewMode: "streamer" },
-        visibleSections: { showTicker: true },
-        styleFlags: { colorMode: "observer" },
+        layoutOptions: {
+          viewMode: "streamer",
+          fontSizes: {
+            queueInfo: 100,
+            score: 100,
+            teams: 100,
+            tabs: 100,
+            ticker: 100,
+          },
+        },
+        visibleSections: {
+          showTicker: true,
+          showTabs: true,
+          showTeamDetails: true,
+          showTitle: true,
+          showSubtitle: true,
+          showScore: true,
+          showDiscordNames: false,
+        },
+        styleFlags: {
+          colorMode: "observer",
+          showPreSeriesInfo: true,
+          selectedSlayerStats: [
+            "Score",
+            "Kills",
+            "Deaths",
+            "Assists",
+            "KDA",
+            "Damage dealt",
+            "Damage taken",
+            "Damage ratio",
+          ],
+          showObjectiveStats: false,
+          medalRarityFilter: [2, 3],
+          showMatchmakingStatsOnly: false,
+        },
         effectiveDefaults: { colorMode: "observer" },
         updatedAt: 123,
       });
@@ -1169,17 +1202,146 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       const body = await res.json<{
         profileId: string;
-        layoutOptions: { viewMode: string };
-        visibleSections: { showTicker: boolean; showTabs: boolean };
+        layoutOptions: {
+          viewMode: string;
+          fontSizes: {
+            queueInfo: number;
+            score: number;
+            teams: number;
+            tabs: number;
+            ticker: number;
+          };
+        };
+        visibleSections: {
+          showTicker: boolean;
+          showTabs: boolean;
+          showTeamDetails: boolean;
+          showTitle: boolean;
+          showSubtitle: boolean;
+          showScore: boolean;
+          showDiscordNames: boolean;
+        };
+        styleFlags: {
+          colorMode: "player" | "observer";
+          showPreSeriesInfo: boolean;
+          selectedSlayerStats: readonly string[];
+          showObjectiveStats: boolean;
+          medalRarityFilter: readonly number[];
+          showMatchmakingStatsOnly: boolean;
+        };
         effectiveDefaults: { colorMode: "player" | "observer" };
       }>();
 
       expect(body.profileId).toBe("profile-1");
       expect(body.layoutOptions.viewMode).toBe("streamer");
+      expect(body.layoutOptions.fontSizes).toEqual({
+        queueInfo: 100,
+        score: 100,
+        teams: 100,
+        tabs: 100,
+        ticker: 100,
+      });
       expect(body.visibleSections.showTicker).toBe(true);
       expect(body.visibleSections.showTabs).toBe(false);
+      expect(body.visibleSections.showTeamDetails).toBe(true);
+      expect(body.visibleSections.showTitle).toBe(true);
+      expect(body.visibleSections.showSubtitle).toBe(true);
+      expect(body.visibleSections.showScore).toBe(true);
+      expect(body.visibleSections.showDiscordNames).toBe(false);
+      expect(body.styleFlags.showPreSeriesInfo).toBe(true);
+      expect(body.styleFlags.selectedSlayerStats).toEqual([
+        "Score",
+        "Kills",
+        "Deaths",
+        "Assists",
+        "KDA",
+        "Damage dealt",
+        "Damage taken",
+        "Damage ratio",
+      ]);
+      expect(body.styleFlags.showObjectiveStats).toBe(false);
+      expect(body.styleFlags.medalRarityFilter).toEqual([2, 3]);
+      expect(body.styleFlags.showMatchmakingStatsOnly).toBe(false);
       expect(body.effectiveDefaults.colorMode).toBe("observer");
       expect(upsertStreamerViewSettingsSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("PATCH /api/individual-tracker/streamer-view returns 400 for invalid selectedSlayerStats", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({
+          profileId: "profile-1",
+          styleFlags: { selectedSlayerStats: ["", "Kills"] },
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      await expect(res.text()).resolves.toBe("selectedSlayerStats must be a non-empty array of strings");
+    });
+
+    it("PATCH /api/individual-tracker/streamer-view returns 400 for invalid fontSizes", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue({
+          ProfileId: "profile-1",
+          UserId: "user-123",
+          ActiveIdentityId: null,
+          Name: "default",
+          IdleTimeoutHours: 1,
+          AllowContinueAfterLogout: 0,
+          CreatedAt: 1,
+          UpdatedAt: 1,
+        });
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        body: JSON.stringify({
+          profileId: "profile-1",
+          layoutOptions: { fontSizes: { queueInfo: 8 } },
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      await expect(res.text()).resolves.toBe("fontSizes values must be numbers between 10 and 200");
     });
   });
 

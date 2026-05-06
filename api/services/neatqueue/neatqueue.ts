@@ -127,6 +127,7 @@ export class NeatQueueService {
       LiveTrackerState,
       "teams" | "seriesScore" | "matchIds" | "playersAssociationData" | "substitutions" | "startTime" | "lastUpdateTime"
     >,
+    discordNameByDiscordId: Readonly<Record<string, string>> = {},
   ): Promise<void> {
     const playerXuids = Array.from(
       new Set(
@@ -145,6 +146,19 @@ export class NeatQueueService {
       return;
     }
 
+    // Build xuidToDiscordName mapping from players association data
+    const xuidToDiscordName: Record<string, string> = {};
+    for (const [discordId, playerData] of Object.entries(liveTrackerState.playersAssociationData)) {
+      if (playerData.xboxId == null) {
+        continue;
+      }
+
+      const discordName = discordNameByDiscordId[discordId] ?? playerData.discordName;
+      if (discordName !== "") {
+        xuidToDiscordName[playerData.xboxId] = discordName;
+      }
+    }
+
     const activeNeatQueueSeries: IndividualTrackerActiveNeatQueueSeries = {
       titleOverride: await this.getIndividualTrackerFanoutTitle(guildId),
       subtitleOverride: `Queue #${queueNumber.toString()}`,
@@ -161,6 +175,7 @@ export class NeatQueueService {
         startTime: liveTrackerState.startTime,
         lastUpdateTime: liveTrackerState.lastUpdateTime,
       },
+      ...(Object.keys(xuidToDiscordName).length > 0 ? { xuidToDiscordName } : {}),
     };
 
     await Promise.all(
@@ -712,7 +727,16 @@ export class NeatQueueService {
       });
 
       if (isSuccessResponse(result)) {
-        await this.fanOutActiveSeriesToIndividualTrackers(request.guild, request.match_number, result.state);
+        const discordNameByDiscordId = Object.fromEntries(
+          request.teams.flatMap((team) => team.map((player) => [player.id, player.name] as const)),
+        );
+
+        await this.fanOutActiveSeriesToIndividualTrackers(
+          request.guild,
+          request.match_number,
+          result.state,
+          discordNameByDiscordId,
+        );
         logService.info(
           `Auto-started live tracker for queue ${request.match_number.toString()}`,
           new Map([
@@ -800,7 +824,17 @@ export class NeatQueueService {
       if (isSuccessResponse(substitutionResult)) {
         const updatedTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
         if (updatedTrackerStatus?.state != null) {
-          await this.fanOutActiveSeriesToIndividualTrackers(request.guild, matchNumber, updatedTrackerStatus.state);
+          const discordNameByDiscordId = {
+            [request.player_subbed_out.id]: request.player_subbed_out.name,
+            [request.player_subbed_in.id]: request.player_subbed_in.name,
+          };
+
+          await this.fanOutActiveSeriesToIndividualTrackers(
+            request.guild,
+            matchNumber,
+            updatedTrackerStatus.state,
+            discordNameByDiscordId,
+          );
         }
         logService.info(
           `Updated live tracker with substitution for queue ${matchNumber.toString()}`,

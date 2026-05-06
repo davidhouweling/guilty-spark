@@ -72,10 +72,6 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function isNumberArray(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "number");
-}
-
 function isIndividualTrackerMatchSummary(value: unknown): value is IndividualTrackerMatchSummary {
   return (
     isRecord(value) &&
@@ -136,26 +132,26 @@ function getDefaultStreamerColorMode(trackedXuid: string | null, viewerXuid: str
   return "observer";
 }
 
-function toFontSizes(value: unknown): StreamerViewFontSizes | null {
-  if (!isRecord(value)) {
-    return null;
-  }
+function toFontSizes(value: unknown): StreamerViewFontSizes {
+  const record =
+    typeof value === "string"
+      ? toObjectOrDefault(value, {})
+      : value != null && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+  const queueInfo = typeof record["queueInfo"] === "number" ? record["queueInfo"] : null;
+  const score = typeof record["score"] === "number" ? record["score"] : null;
+  const teams = typeof record["teams"] === "number" ? record["teams"] : null;
+  const tabs = typeof record["tabs"] === "number" ? record["tabs"] : null;
+  const ticker = typeof record["ticker"] === "number" ? record["ticker"] : null;
 
-  const queueInfo = typeof value["queueInfo"] === "number" ? value["queueInfo"] : null;
-  const score = typeof value["score"] === "number" ? value["score"] : null;
-  const teams = typeof value["teams"] === "number" ? value["teams"] : null;
-  const ticker = typeof value["ticker"] === "number" ? value["ticker"] : null;
-  const tabs = typeof value["tabs"] === "number" ? value["tabs"] : null;
-
-  const fontSizes: StreamerViewFontSizes = {
+  return {
     ...(queueInfo == null ? {} : { queueInfo }),
     ...(score == null ? {} : { score }),
     ...(teams == null ? {} : { teams }),
-    ...(ticker == null ? {} : { ticker }),
     ...(tabs == null ? {} : { tabs }),
+    ...(ticker == null ? {} : { ticker }),
   };
-
-  return Object.keys(fontSizes).length === 0 ? null : fontSizes;
 }
 
 function toLayoutOptions(value: string | null): StreamerViewLayoutOptions {
@@ -168,7 +164,12 @@ function toLayoutOptions(value: string | null): StreamerViewLayoutOptions {
     record["defaultColorMode"] === "player" || record["defaultColorMode"] === "observer"
       ? record["defaultColorMode"]
       : null;
-  const fontSizes = toFontSizes(record["fontSizes"]);
+  const fontSizesValue = record["fontSizes"];
+  const fontSizes =
+    typeof fontSizesValue === "string" ||
+    (fontSizesValue != null && typeof fontSizesValue === "object" && !Array.isArray(fontSizesValue))
+      ? toFontSizes(fontSizesValue)
+      : null;
 
   return {
     ...(viewMode == null ? {} : { viewMode }),
@@ -182,35 +183,19 @@ function toVisibleSections(value: string | null): StreamerViewVisibleSections {
   const showTicker = typeof record["showTicker"] === "boolean" ? record["showTicker"] : null;
   const showTabs = typeof record["showTabs"] === "boolean" ? record["showTabs"] : null;
   const showTeamDetails = typeof record["showTeamDetails"] === "boolean" ? record["showTeamDetails"] : null;
-  const showDiscordNames = typeof record["showDiscordNames"] === "boolean" ? record["showDiscordNames"] : null;
-  const showXboxNames = typeof record["showXboxNames"] === "boolean" ? record["showXboxNames"] : null;
-  const showServerIcon = typeof record["showServerIcon"] === "boolean" ? record["showServerIcon"] : null;
   const showTitle = typeof record["showTitle"] === "boolean" ? record["showTitle"] : null;
   const showSubtitle = typeof record["showSubtitle"] === "boolean" ? record["showSubtitle"] : null;
   const showScore = typeof record["showScore"] === "boolean" ? record["showScore"] : null;
-  const showPreSeriesInfo =
-    typeof record["showPreSeriesInfo"] === "boolean" ? record["showPreSeriesInfo"] : null;
-  const selectedSlayerStats = isStringArray(record["selectedSlayerStats"])
-    ? record["selectedSlayerStats"]
-    : null;
-  const medalRarityFilter = isNumberArray(record["medalRarityFilter"]) ? record["medalRarityFilter"] : null;
-  const showObjectiveStats =
-    typeof record["showObjectiveStats"] === "boolean" ? record["showObjectiveStats"] : null;
+  const showDiscordNames = typeof record["showDiscordNames"] === "boolean" ? record["showDiscordNames"] : null;
 
   return {
     ...(showTicker == null ? {} : { showTicker }),
     ...(showTabs == null ? {} : { showTabs }),
     ...(showTeamDetails == null ? {} : { showTeamDetails }),
-    ...(showDiscordNames == null ? {} : { showDiscordNames }),
-    ...(showXboxNames == null ? {} : { showXboxNames }),
-    ...(showServerIcon == null ? {} : { showServerIcon }),
     ...(showTitle == null ? {} : { showTitle }),
     ...(showSubtitle == null ? {} : { showSubtitle }),
     ...(showScore == null ? {} : { showScore }),
-    ...(showPreSeriesInfo == null ? {} : { showPreSeriesInfo }),
-    ...(selectedSlayerStats == null ? {} : { selectedSlayerStats }),
-    ...(showObjectiveStats == null ? {} : { showObjectiveStats }),
-    ...(medalRarityFilter == null ? {} : { medalRarityFilter }),
+    ...(showDiscordNames == null ? {} : { showDiscordNames }),
   };
 }
 
@@ -223,6 +208,16 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
   const playerEnemyColor = typeof record["playerEnemyColor"] === "string" ? record["playerEnemyColor"] : null;
   const observerTeamColor = typeof record["observerTeamColor"] === "string" ? record["observerTeamColor"] : null;
   const observerEnemyColor = typeof record["observerEnemyColor"] === "string" ? record["observerEnemyColor"] : null;
+  const showPreSeriesInfo = typeof record["showPreSeriesInfo"] === "boolean" ? record["showPreSeriesInfo"] : null;
+  const showObjectiveStats = typeof record["showObjectiveStats"] === "boolean" ? record["showObjectiveStats"] : null;
+  const showMatchmakingStatsOnly = typeof record["showMatchmakingStatsOnly"] === "boolean" ? record["showMatchmakingStatsOnly"] : null;
+
+  const selectedSlayerStatsValue = record["selectedSlayerStats"];
+  const selectedSlayerStats = isStringArray(selectedSlayerStatsValue) ? selectedSlayerStatsValue : null;
+
+  const medalRarityFilterValue = record["medalRarityFilter"];
+  const medalRarityFilter = Array.isArray(medalRarityFilterValue) && medalRarityFilterValue.every((item) => typeof item === "number") ? medalRarityFilterValue : null;
+
   const observerColorOverridesRecord =
     record["observerColorOverrides"] != null &&
     typeof record["observerColorOverrides"] === "object" &&
@@ -265,6 +260,52 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
     ...(teamColor == null ? {} : { teamColor }),
     ...(enemyColor == null ? {} : { enemyColor }),
     ...(observerColorOverrides == null ? {} : { observerColorOverrides }),
+    ...(showPreSeriesInfo == null ? {} : { showPreSeriesInfo }),
+    ...(selectedSlayerStats == null ? {} : { selectedSlayerStats }),
+    ...(showObjectiveStats == null ? {} : { showObjectiveStats }),
+    ...(medalRarityFilter == null ? {} : { medalRarityFilter }),
+    ...(showMatchmakingStatsOnly == null ? {} : { showMatchmakingStatsOnly }),
+  };
+}
+
+function withDefaultVisibleSections(sections: StreamerViewVisibleSections): StreamerViewVisibleSections {
+  return {
+    showTicker: sections.showTicker ?? true,
+    showTabs: sections.showTabs ?? true,
+    showTeamDetails: sections.showTeamDetails ?? true,
+    showTitle: sections.showTitle ?? true,
+    showSubtitle: sections.showSubtitle ?? true,
+    showScore: sections.showScore ?? true,
+    showDiscordNames: sections.showDiscordNames ?? false,
+  };
+}
+
+function withDefaultStyleFlags(flags: StreamerViewStyleFlags): StreamerViewStyleFlags {
+  return {
+    ...flags,
+    colorMode: flags.colorMode ?? "observer",
+    showPreSeriesInfo: flags.showPreSeriesInfo ?? true,
+    selectedSlayerStats: flags.selectedSlayerStats ?? ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
+    showObjectiveStats: flags.showObjectiveStats ?? false,
+    medalRarityFilter: flags.medalRarityFilter ?? [2, 3],
+    showMatchmakingStatsOnly: flags.showMatchmakingStatsOnly ?? false,
+  };
+}
+
+function withDefaultFontSizes(sizes: StreamerViewFontSizes): Required<StreamerViewFontSizes> {
+  return {
+    queueInfo: sizes.queueInfo ?? 100,
+    score: sizes.score ?? 100,
+    teams: sizes.teams ?? 100,
+    tabs: sizes.tabs ?? 100,
+    ticker: sizes.ticker ?? 100,
+  };
+}
+
+function withDefaultLayoutOptions(options: StreamerViewLayoutOptions): StreamerViewLayoutOptions {
+  return {
+    ...options,
+    fontSizes: options.fontSizes != null ? withDefaultFontSizes(options.fontSizes) : withDefaultFontSizes({}),
   };
 }
 
@@ -276,14 +317,15 @@ function toStreamerViewSettingsResponse(
 ): StreamerViewSettingsResponse {
   const layoutOptions = toLayoutOptions(settings?.LayoutOptionsJson ?? null);
   const styleFlags = toStyleFlags(settings?.StyleFlagsJson ?? null);
+  const visibleSections = toVisibleSections(settings?.VisibleSectionsJson ?? null);
   const defaultColorMode =
     layoutOptions.defaultColorMode ?? styleFlags.colorMode ?? getDefaultStreamerColorMode(trackedXuid, viewerXuid);
 
   return {
     profileId,
-    layoutOptions,
-    visibleSections: toVisibleSections(settings?.VisibleSectionsJson ?? null),
-    styleFlags,
+    layoutOptions: withDefaultLayoutOptions(layoutOptions),
+    visibleSections: withDefaultVisibleSections(visibleSections),
+    styleFlags: withDefaultStyleFlags(styleFlags),
     effectiveDefaults: {
       colorMode: defaultColorMode,
     },
@@ -377,6 +419,35 @@ function extractViewerColors(styleFlags: Record<string, unknown>): { teamColor?:
   }
 
   return next;
+}
+
+function isValidSelectedSlayerStats(value: unknown): boolean {
+  if (!isStringArray(value)) {
+    return false;
+  }
+
+  return value.every((stat) => typeof stat === "string" && stat.length > 0);
+}
+
+function isValidMedalRarityFilter(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.every((item) => typeof item === "number" && item >= 0 && item <= 3);
+}
+
+function isValidFontSize(value: unknown): boolean {
+  return typeof value === "number" && value >= 10 && value <= 200;
+}
+
+function isValidFontSizes(value: unknown): value is Record<string, number> {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return Object.values(record).every((v) => v == null || isValidFontSize(v));
 }
 
 const ALLOWED_PROXY_METHODS = new Set([
@@ -1033,12 +1104,31 @@ export class Server {
           return new Response("Invalid request body", { status: 400 });
         }
 
-        const {
-          ["profileId"]: profileId,
-          ["layoutOptions"]: layoutOptionsInput,
-          ["visibleSections"]: visibleSectionsInput,
-          ["styleFlags"]: styleFlagsInput,
-        } = body;
+        const { profileId, layoutOptions: layoutOptionsInput, visibleSections: visibleSectionsInput, styleFlags: styleFlagsInput } =
+          body;
+
+        if (isRecord(styleFlagsInput)) {
+          if (
+            styleFlagsInput["selectedSlayerStats"] != null &&
+            !isValidSelectedSlayerStats(styleFlagsInput["selectedSlayerStats"])
+          ) {
+            return new Response("selectedSlayerStats must be a non-empty array of strings", { status: 400 });
+          }
+
+          if (
+            styleFlagsInput["medalRarityFilter"] != null &&
+            !isValidMedalRarityFilter(styleFlagsInput["medalRarityFilter"])
+          ) {
+            return new Response("medalRarityFilter must be an array of numbers 0-3", { status: 400 });
+          }
+        }
+
+        if (isRecord(layoutOptionsInput)) {
+          const { fontSizes } = layoutOptionsInput;
+          if (fontSizes != null && !isValidFontSizes(fontSizes)) {
+            return new Response("fontSizes values must be numbers between 10 and 200", { status: 400 });
+          }
+        }
 
         if (typeof profileId !== "string" || profileId === "") {
           return new Response("profileId must be a non-empty string", { status: 400 });
