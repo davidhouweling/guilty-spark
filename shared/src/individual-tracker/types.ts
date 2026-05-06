@@ -43,6 +43,7 @@ export interface IndividualTrackerActiveNeatQueueSeries {
   readonly titleOverride: string | null;
   readonly subtitleOverride: string | null;
   readonly neatQueueSeriesData: IndividualTrackerNeatQueueSeriesData;
+  readonly xuidToDiscordName?: Readonly<Record<string, string>>;
 }
 
 /**

@@ -7,18 +7,18 @@ export interface StreamerViewObserverColorOverride {
 
 export type StreamerViewObserverColorOverrides = Readonly<Record<string, StreamerViewObserverColorOverride>>;
 
-export interface StreamerViewLayoutOptions {
-  readonly viewMode?: "standard" | "wide" | "streamer";
-  readonly defaultColorMode?: StreamerViewColorMode;
-  readonly fontSizes?: StreamerViewFontSizes;
-}
-
 export interface StreamerViewFontSizes {
   readonly queueInfo?: number;
   readonly score?: number;
   readonly teams?: number;
-  readonly ticker?: number;
   readonly tabs?: number;
+  readonly ticker?: number;
+}
+
+export interface StreamerViewLayoutOptions {
+  readonly viewMode?: "standard" | "wide" | "streamer";
+  readonly defaultColorMode?: StreamerViewColorMode;
+  readonly fontSizes?: StreamerViewFontSizes;
 }
 
 export interface StreamerViewVisibleSections {
@@ -46,6 +46,11 @@ export interface StreamerViewStyleFlags {
   readonly teamColor?: string;
   readonly enemyColor?: string;
   readonly observerColorOverrides?: StreamerViewObserverColorOverrides;
+  readonly showPreSeriesInfo?: boolean;
+  readonly selectedSlayerStats?: readonly string[];
+  readonly showObjectiveStats?: boolean;
+  readonly medalRarityFilter?: readonly number[];
+  readonly showMatchmakingStatsOnly?: boolean;
 }
 
 export interface StreamerViewEffectiveDefaults {
