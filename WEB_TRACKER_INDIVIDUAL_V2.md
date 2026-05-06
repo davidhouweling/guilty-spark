@@ -414,6 +414,79 @@ Maximum 5 concurrent active trackers per user. New start requests beyond this li
 
 > Current Phase 4 state: complete. Backend schema/API work, owner-side live-tracker selection, streamer settings URL controls, server-backed streamer presentation defaults, per-tracker observer-color overrides, client-side routed manager/view/overlay transitions, and OBS-ready overlay behaviors are all in place.
 
+### Phase 4 Extension - Streamer settings feature parity
+
+**Goal**: Individual tracker overlay presentation settings achieve feature parity with NeatQueue live tracker settings, enabling identical UX and configuration capabilities across both tracker types.
+
+#### Shared settings types
+
+- [x] Extract `GlobalStreamerSettings`, `TickerSettings`, `DisplaySettings`, and `ColorSettings` types into a shared `@guilty-spark/contracts` package or `pages/src/components/streamer-settings/shared-types.ts`.
+- [x] Both NeatQueue (`live-tracker/settings/types.ts`) and individual tracker (`individual-tracker/streamer-connections/types.ts`) import the shared types to maintain feature parity.
+- [x] Ensure all enum lists (e.g., `MEDAL_RARITY_LEVELS`, `ALL_SLAYER_STATS`) are accessible from the shared location.
+
+#### Individual tracker settings features (streamer-connections component)
+
+All the following flags should be made available for individual tracker settings, wired to `streamer_view_settings` D1 table:
+
+- Font size controls (currently missing; should be added in a **collapsed section** for consistency with NeatQueue):
+  - `queueInfo`, `score`, `teams`, `tabs`, `ticker` (%) — defaults match NeatQueue
+
+- Display settings (currently missing):
+  - `showDiscordNames` (bool, default: false) — show Discord name if available alongside Xbox gamertag
+  - `showXboxNames` (bool, default: true)
+  - `showTitle` / `showSubtitle` (bool; applies to series title/subtitle for individual tracker when in series)
+  - `showScore` (bool; applies to series score display when in series)
+  - `showTeamDetails` (bool) — already exists, keep as-is
+
+- Ticker settings (core feature, partially implemented):
+  - `showTicker` (bool) — already exists, keep as-is
+  - `showTabs` (bool) — already exists, keep as-is
+  - `showPreSeriesInfo` (bool; new for individual tracker) — show pre-series series info section if active
+  - `selectedSlayerStats` (string[], currently missing) — which stat columns appear in ticker (same list as NeatQueue)
+  - `showObjectiveStats` (bool, currently missing) — toggle objective stats alongside slayer
+  - `medalRarityFilter` (number[], currently missing) — which medal rarity levels to display (Mythic, Legendary, Heroic, Normal)
+  - **New flag**: `showMatchmakingStatsOnly` (bool, default: false) — when enabled, ticker displays only stats from matchmaking matches, filtering out custom and local games
+
+- Color settings (already exist, keep as-is):
+  - `mode` (player | observer)
+  - `playerView` { `teamColor`, `enemyColor` }
+  - `observerView` { `eagleColor`, `cobraColor` }
+
+#### Discord name support for individual tracker
+
+- NeatQueue-to-individual tracker coordination: when TEAMS_CREATED or SUBSTITUTION events are broadcast to matching individual tracker DOs, include a `xuidToDiscordName` mapping alongside the existing metadata.
+- Format: `{ "xuid1": "discord-name-1", "xuid2": "discord-name-2", ... }`
+- If `showDiscordNames` is enabled and a Discord name exists in the mapping, prefer Discord name over Xbox gamertag in overlay rendering.
+- This capability ensures feature parity: an individual tracker can display player identities the same way a NeatQueue tracker does, even when not in an active series.
+
+#### NeatQueue settings UX alignment
+
+- [ ] Refactor NeatQueue live tracker settings dialog to move font size controls into a **collapsed section** (similar treatment to currently collapsed sections in the dialog).
+- [ ] Ensure both NeatQueue and individual tracker settings expose the same visual hierarchy: core presentation toggles visible by default, granular ticker/font-size options in collapsible sections.
+- [ ] Ensure tab structure and section organization mirror each other so switching between tracker types feels natural.
+
+#### Individual tracker overlay rendering (presenter-driven)
+
+- [ ] Public overlay component receives settings snapshot as a prop and passes to presenter for data organization logic.
+- [ ] Presenter builds consolidated game structures from `renderModel.gameplayTimeline` when outside a series:
+  - Group standalone games by optional series metadata, fallback to individual game tabs.
+  - Compute winner-relative tab colors based on player perspective (playerTeamColor if team won, playerEnemyColor if team lost).
+  - Apply ticker filtering based on `showMatchmakingStatsOnly`, `selectedSlayerStats`, `showObjectiveStats`, `medalRarityFilter`.
+- [ ] When in a series (`activeNeatQueueSeries` non-null), reuse existing NeatQueue-style overlay layout; apply all ticker and display settings identically.
+- [ ] Top bar shows accumulated stats when outside series (Option A from earlier clarification).
+
+#### D1 schema update (if not already done)
+
+- [ ] Extend `streamer_view_settings` table schema to include all new ticker settings columns (`showPreSeriesInfo`, `selectedSlayerStats`, `showObjectiveStats`, `medalRarityFilter`, `showMatchmakingStatsOnly`, `showTitle`, `showSubtitle`, `showDiscordNames`, fontSizeSettings).
+- [ ] Ensure backward compatibility: existing rows without these columns should default to expected values on read.
+
+#### Testing
+
+- [ ] Add unit tests for winner-relative color logic in presenter (per-game outcome + player perspective → appropriate color selection).
+- [ ] Add render-model tests for consolidated game structure building and ticker stat filtering.
+- [ ] Add integration tests confirming overlay renders correctly when all ticker/display settings are toggled on/off.
+- [ ] Regression tests for NeatQueue overlay to ensure settings changes don't break existing behavior.
+
 ### Phase 5 - Twitch extension integration
 
 - [ ] Discord account linking.
