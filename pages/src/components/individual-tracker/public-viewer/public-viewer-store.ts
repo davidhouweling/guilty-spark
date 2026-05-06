@@ -1,3 +1,8 @@
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_FONT_SIZES,
+  DEFAULT_TICKER_SETTINGS,
+} from "../../streamer-settings/shared-types";
 import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
 
 function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): PublicViewerSnapshot {
@@ -19,6 +24,23 @@ function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): Publ
     overlayShowTicker: true,
     overlayShowTeamDetails: true,
     overlayColorMode: "observer",
+    // Overlay-derived data
+    overlayTabs: [],
+    overlayAccumulatedStats: null,
+    overlayTickerGroups: [],
+    xuidToDiscordName: {},
+    // Settings for overlay
+    overlayShowMatchmakingStatsOnly: DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false,
+    overlaySelectedSlayerStats: DEFAULT_TICKER_SETTINGS.selectedSlayerStats,
+    overlayShowObjectiveStats: DEFAULT_TICKER_SETTINGS.showObjectiveStats,
+    overlayMedalRarityFilter: DEFAULT_TICKER_SETTINGS.medalRarityFilter,
+    overlayShowPreSeriesInfo: DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
+    overlayFontSizes: DEFAULT_FONT_SIZES,
+    overlayShowTitle: DEFAULT_DISPLAY_SETTINGS.showTitle,
+    overlayShowSubtitle: DEFAULT_DISPLAY_SETTINGS.showSubtitle,
+    overlayShowScore: DEFAULT_DISPLAY_SETTINGS.showScore,
+    overlayShowDiscordNames: DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
+    overlayShowXboxNames: DEFAULT_DISPLAY_SETTINGS.showXboxNames,
   };
 }
 

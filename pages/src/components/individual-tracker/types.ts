@@ -129,6 +129,40 @@ export interface IndividualTrackerViewerRenderModel {
   readonly trackedEntriesCount: number;
 }
 
+// ============================================================================
+// Overlay-specific types for PublicViewerSnapshot
+// ============================================================================
+
+export interface OverlayTab {
+  readonly id: string;
+  readonly label: string;
+  readonly type: "active-series" | "group" | "standalone";
+  readonly teamColor: string | undefined; // hex for winner-relative coloring
+  readonly timelineIndex?: number;
+}
+
+export interface OverlayAccumulatedStats {
+  readonly wins: number;
+  readonly losses: number;
+  readonly total: number;
+  readonly matchmaking: number;
+  readonly custom: number;
+}
+
+export interface OverlayTickerRow {
+  readonly type: "player" | "team";
+  readonly name: string;
+  readonly teamId: number;
+  readonly stats: readonly { name: string; value: number; display: string; bestInTeam: boolean; bestInMatch: boolean }[];
+  readonly medals: readonly { name: string; count: number; imageUrl: string }[];
+}
+
+export interface OverlayTickerGroup {
+  readonly matchIndex: number;
+  readonly label: string;
+  readonly rows: readonly OverlayTickerRow[];
+}
+
 export interface IndividualTrackerSnapshot {
   readonly authState: AuthState;
   readonly profileId: string | null;

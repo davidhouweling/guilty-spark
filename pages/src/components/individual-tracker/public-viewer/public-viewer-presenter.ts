@@ -1,6 +1,7 @@
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import type { MatchStats } from "halo-infinite-api";
 import type { Services } from "../../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -10,8 +11,20 @@ import type {
   IndividualTrackerConnectionStatus,
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerViewerRenderModel } from "../viewer/viewer-render-model";
-import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
+import type {
+  OverlayTab,
+  OverlayAccumulatedStats,
+  IndividualTrackerViewerRenderModel,
+  IndividualTrackerViewerTimelineItem,
+} from "../types";
+import { getTeamColor } from "../../team-colors/team-colors";
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_FONT_SIZES,
+  DEFAULT_TICKER_SETTINGS,
+} from "../../streamer-settings/shared-types";
 import type { PublicViewerStore } from "./public-viewer-store";
+import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
 
 interface PublicViewerPresenterConfig {
   readonly services: Services;
@@ -69,17 +82,40 @@ export class PublicViewerPresenter {
     }
 
     const next = updater(this.config.store.snapshot);
+    const renderModel = buildIndividualTrackerViewerRenderModel({
+      state: next.trackerState,
+      matchHistory: this.matchHistory,
+      medalMetadata: this.medalMetadata,
+      defaultTeamColor: next.viewerTeamColor,
+      defaultEnemyColor: next.viewerEnemyColor,
+    });
+
+    const overlayTabs = renderModel == null ? [] : this.computeOverlayTabs(renderModel);
+    const overlayAccumulatedStats = renderModel == null ? null : this.computeOverlayAccumulatedStats(renderModel);
+    const xuidToDiscordName = this.extractXuidToDiscordName(next.trackerState);
+
+    const overlaySettings = this.extractOverlaySettings();
+
     this.config.store.snapshot = {
       ...next,
       trackerSummary: this.trackerSummary,
       matchHistory: this.matchHistory,
-      renderModel: buildIndividualTrackerViewerRenderModel({
-        state: next.trackerState,
-        matchHistory: this.matchHistory,
-        medalMetadata: this.medalMetadata,
-        defaultTeamColor: next.viewerTeamColor,
-        defaultEnemyColor: next.viewerEnemyColor,
-      }),
+      renderModel,
+      overlayTabs,
+      overlayAccumulatedStats,
+      overlayTickerGroups: [], // Computed separately if needed
+      xuidToDiscordName,
+      overlayShowMatchmakingStatsOnly: overlaySettings.showMatchmakingStatsOnly,
+      overlaySelectedSlayerStats: overlaySettings.selectedSlayerStats,
+      overlayShowObjectiveStats: overlaySettings.showObjectiveStats,
+      overlayMedalRarityFilter: overlaySettings.medalRarityFilter,
+      overlayShowPreSeriesInfo: overlaySettings.showPreSeriesInfo,
+      overlayFontSizes: overlaySettings.fontSizes,
+      overlayShowTitle: overlaySettings.showTitle,
+      overlayShowSubtitle: overlaySettings.showSubtitle,
+      overlayShowScore: overlaySettings.showScore,
+      overlayShowDiscordNames: overlaySettings.showDiscordNames,
+      overlayShowXboxNames: overlaySettings.showXboxNames,
     };
 
     for (const subscriber of this.config.store.subscribers) {
@@ -325,5 +361,182 @@ export class PublicViewerPresenter {
     }
 
     return "observer";
+  }
+
+  private computeOverlayTabs(renderModel: IndividualTrackerViewerRenderModel): readonly OverlayTab[] {
+    const tabs: OverlayTab[] = [];
+    const snapshot = this.getSnapshot();
+
+    // If active NeatQueue series, emit single tab
+    if (renderModel.activeNeatQueueSeries != null) {
+      tabs.push({
+        id: "series",
+        label: "Series",
+        type: "active-series",
+        teamColor: this.computeWinnerRelativeColor(null, snapshot.viewerTeamColor, snapshot.viewerEnemyColor),
+        timelineIndex: undefined,
+      });
+      return tabs;
+    }
+
+    // For each timeline item, create a tab with computed winner-relative color
+    for (const [index, item] of renderModel.gameplayTimeline.entries()) {
+      const teamColor = this.computeTimelineItemWinnerColor(item, snapshot.viewerTeamColor, snapshot.viewerEnemyColor);
+
+      if (item.type === "group") {
+        tabs.push({
+          id: `group-${index.toString()}`,
+          label: `Set ${(index + 1).toString()}`,
+          type: "group",
+          teamColor,
+          timelineIndex: index,
+        });
+      } else {
+        tabs.push({
+          id: `standalone-${index.toString()}`,
+          label: `Game ${(index + 1).toString()}`,
+          type: "standalone",
+          teamColor,
+          timelineIndex: index,
+        });
+      }
+    }
+
+    return tabs;
+  }
+
+  private computeTimelineItemWinnerColor(
+    item: IndividualTrackerViewerTimelineItem,
+    teamColorId: string,
+    enemyColorId: string,
+  ): string | undefined {
+    let lastMatch: MatchStats | null = null;
+
+    if (item.type === "group") {
+      // Get last match from group
+      for (const matchCard of item.matches) {
+        const matchData = this.matchHistory?.matches.find((m) => m.rawMatchStats?.MatchId === matchCard.id);
+        if (matchData?.rawMatchStats != null) {
+          lastMatch = matchData.rawMatchStats;
+        }
+      }
+    } else {
+      // Get standalone match
+      const matchData = this.matchHistory?.matches.find((m) => m.rawMatchStats?.MatchId === item.match.id);
+      if (matchData?.rawMatchStats != null) {
+        lastMatch = matchData.rawMatchStats;
+      }
+    }
+
+    if (lastMatch == null || this.config.store.snapshot.trackerState == null) {
+      return undefined;
+    }
+
+    const playerXuid = this.config.store.snapshot.trackerState.xuid;
+    const playerTeamIndex = this.getPlayerTeamIndex(lastMatch, playerXuid);
+    const winningTeamIndex = this.getWinningTeamIndex(lastMatch);
+
+    if (playerTeamIndex == null || winningTeamIndex == null) {
+      return undefined;
+    }
+
+    return this.computeWinnerRelativeColor(
+      playerTeamIndex === winningTeamIndex,
+      teamColorId,
+      enemyColorId,
+    );
+  }
+
+  private getPlayerTeamIndex(match: MatchStats, playerXuid: string): number | null {
+    for (const player of match.Players) {
+      const playerId = player.PlayerId;
+      // Extract XUID from PlayerId (format: "xuid(12345678901)")
+      const xuidMatch = /xuid\((\d+)\)/.exec(playerId);
+      if (xuidMatch?.[1] === playerXuid) {
+        return player.LastTeamId;
+      }
+    }
+    return null;
+  }
+
+  private getWinningTeamIndex(match: MatchStats): number | null {
+    for (const team of match.Teams) {
+      // Outcome 2 = win
+      if (team.Outcome === 2) {
+        return team.TeamId;
+      }
+    }
+    return null;
+  }
+
+  private computeWinnerRelativeColor(isWinner: boolean | null, teamColorId: string, enemyColorId: string): string {
+    let colorId: string;
+
+    if (isWinner === true) {
+      colorId = teamColorId;
+    } else if (isWinner === false) {
+      colorId = enemyColorId;
+    } else {
+      colorId = teamColorId;
+    }
+
+    return getTeamColor(colorId)?.hex ?? "#00B7EB"; // Fallback to Halo blue
+  }
+
+  private computeOverlayAccumulatedStats(
+    renderModel: IndividualTrackerViewerRenderModel,
+  ): OverlayAccumulatedStats {
+    const accStats = renderModel.accumulatedStats;
+
+    return {
+      wins: accStats.wins,
+      losses: accStats.losses,
+      total: accStats.total,
+      matchmaking: accStats.matchmaking,
+      custom: accStats.customOrLocal,
+    };
+  }
+
+  private extractXuidToDiscordName(state: IndividualTrackerState | null): Readonly<Record<string, string>> {
+    if (state?.activeNeatQueueSeries == null) {
+      return {};
+    }
+
+    const mapping: Record<string, string> = {};
+    for (const [xuid, playerData] of Object.entries(state.activeNeatQueueSeries.neatQueueSeriesData.playersAssociationData)) {
+      if (playerData.discordName !== "") {
+        mapping[xuid] = playerData.discordName;
+      }
+    }
+
+    return mapping;
+  }
+
+  private extractOverlaySettings(): {
+    readonly showMatchmakingStatsOnly: boolean;
+    readonly selectedSlayerStats: readonly string[];
+    readonly showObjectiveStats: boolean;
+    readonly medalRarityFilter: readonly number[];
+    readonly showPreSeriesInfo: boolean;
+    readonly fontSizes: typeof DEFAULT_FONT_SIZES;
+    readonly showTitle: boolean;
+    readonly showSubtitle: boolean;
+    readonly showScore: boolean;
+    readonly showDiscordNames: boolean;
+    readonly showXboxNames: boolean;
+  } {
+    return {
+      showMatchmakingStatsOnly: DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false,
+      selectedSlayerStats: DEFAULT_TICKER_SETTINGS.selectedSlayerStats,
+      showObjectiveStats: DEFAULT_TICKER_SETTINGS.showObjectiveStats,
+      medalRarityFilter: DEFAULT_TICKER_SETTINGS.medalRarityFilter,
+      showPreSeriesInfo: DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
+      fontSizes: DEFAULT_FONT_SIZES,
+      showTitle: DEFAULT_DISPLAY_SETTINGS.showTitle,
+      showSubtitle: DEFAULT_DISPLAY_SETTINGS.showSubtitle,
+      showScore: DEFAULT_DISPLAY_SETTINGS.showScore,
+      showDiscordNames: DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
+      showXboxNames: DEFAULT_DISPLAY_SETTINGS.showXboxNames,
+    };
   }
 }
