@@ -440,11 +440,7 @@ export class PublicViewerPresenter {
       return undefined;
     }
 
-    return this.computeWinnerRelativeColor(
-      playerTeamIndex === winningTeamIndex,
-      teamColorId,
-      enemyColorId,
-    );
+    return this.computeWinnerRelativeColor(playerTeamIndex === winningTeamIndex, teamColorId, enemyColorId);
   }
 
   private getPlayerTeamIndex(match: MatchStats, playerXuid: string): number | null {
@@ -483,9 +479,7 @@ export class PublicViewerPresenter {
     return getTeamColor(colorId)?.hex ?? "#00B7EB"; // Fallback to Halo blue
   }
 
-  private computeOverlayAccumulatedStats(
-    renderModel: IndividualTrackerViewerRenderModel,
-  ): OverlayAccumulatedStats {
+  private computeOverlayAccumulatedStats(renderModel: IndividualTrackerViewerRenderModel): OverlayAccumulatedStats {
     const accStats = renderModel.accumulatedStats;
 
     return {
@@ -503,7 +497,9 @@ export class PublicViewerPresenter {
     }
 
     const mapping: Record<string, string> = {};
-    for (const [xuid, playerData] of Object.entries(state.activeNeatQueueSeries.neatQueueSeriesData.playersAssociationData)) {
+    for (const [xuid, playerData] of Object.entries(
+      state.activeNeatQueueSeries.neatQueueSeriesData.playersAssociationData,
+    )) {
       if (playerData.discordName !== "") {
         mapping[xuid] = playerData.discordName;
       }

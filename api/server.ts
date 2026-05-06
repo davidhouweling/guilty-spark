@@ -210,13 +210,17 @@ function toStyleFlags(value: string | null): StreamerViewStyleFlags {
   const observerEnemyColor = typeof record["observerEnemyColor"] === "string" ? record["observerEnemyColor"] : null;
   const showPreSeriesInfo = typeof record["showPreSeriesInfo"] === "boolean" ? record["showPreSeriesInfo"] : null;
   const showObjectiveStats = typeof record["showObjectiveStats"] === "boolean" ? record["showObjectiveStats"] : null;
-  const showMatchmakingStatsOnly = typeof record["showMatchmakingStatsOnly"] === "boolean" ? record["showMatchmakingStatsOnly"] : null;
+  const showMatchmakingStatsOnly =
+    typeof record["showMatchmakingStatsOnly"] === "boolean" ? record["showMatchmakingStatsOnly"] : null;
 
   const selectedSlayerStatsValue = record["selectedSlayerStats"];
   const selectedSlayerStats = isStringArray(selectedSlayerStatsValue) ? selectedSlayerStatsValue : null;
 
   const medalRarityFilterValue = record["medalRarityFilter"];
-  const medalRarityFilter = Array.isArray(medalRarityFilterValue) && medalRarityFilterValue.every((item) => typeof item === "number") ? medalRarityFilterValue : null;
+  const medalRarityFilter =
+    Array.isArray(medalRarityFilterValue) && medalRarityFilterValue.every((item) => typeof item === "number")
+      ? medalRarityFilterValue
+      : null;
 
   const observerColorOverridesRecord =
     record["observerColorOverrides"] != null &&
@@ -285,7 +289,16 @@ function withDefaultStyleFlags(flags: StreamerViewStyleFlags): StreamerViewStyle
     ...flags,
     colorMode: flags.colorMode ?? "observer",
     showPreSeriesInfo: flags.showPreSeriesInfo ?? true,
-    selectedSlayerStats: flags.selectedSlayerStats ?? ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
+    selectedSlayerStats: flags.selectedSlayerStats ?? [
+      "Score",
+      "Kills",
+      "Deaths",
+      "Assists",
+      "KDA",
+      "Damage dealt",
+      "Damage taken",
+      "Damage ratio",
+    ],
     showObjectiveStats: flags.showObjectiveStats ?? false,
     medalRarityFilter: flags.medalRarityFilter ?? [2, 3],
     showMatchmakingStatsOnly: flags.showMatchmakingStatsOnly ?? false,
@@ -1104,8 +1117,12 @@ export class Server {
           return new Response("Invalid request body", { status: 400 });
         }
 
-        const { profileId, layoutOptions: layoutOptionsInput, visibleSections: visibleSectionsInput, styleFlags: styleFlagsInput } =
-          body;
+        const {
+          profileId,
+          layoutOptions: layoutOptionsInput,
+          visibleSections: visibleSectionsInput,
+          styleFlags: styleFlagsInput,
+        } = body;
 
         if (isRecord(styleFlagsInput)) {
           if (

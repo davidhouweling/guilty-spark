@@ -96,7 +96,9 @@ function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
           {activeSeries.teams.map((team, index) => (
             <section key={`series-team-${index.toString()}`} className={styles.teamCard}>
               <h3 className={styles.teamName}>{team.name}</h3>
-              <p className={styles.teamPlayers}>{team.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</p>
+              <p className={styles.teamPlayers}>
+                {team.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
+              </p>
             </section>
           ))}
         </div>
@@ -112,7 +114,7 @@ function renderSeriesOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode
     return (
       <div className={styles.topFallback}>
         <h1 className={styles.topFallbackTitle}>
-          {snapshot.overlayShowTitle && (activeSeries?.title ?? (snapshot.trackerState?.gamertag ?? "Guilty Spark"))}
+          {snapshot.overlayShowTitle && (activeSeries?.title ?? snapshot.trackerState?.gamertag ?? "Guilty Spark")}
         </h1>
       </div>
     );
@@ -124,14 +126,18 @@ function renderSeriesOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode
     <div className={styles.topSection}>
       <div className={styles.teamLeft}>
         <span className={styles.teamName}>{leftTeam.name}</span>
-        <span className={styles.teamPlayers}>{leftTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</span>
+        <span className={styles.teamPlayers}>
+          {leftTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
+        </span>
       </div>
 
       {snapshot.overlayShowScore && <div className={styles.topSeriesScore}>{activeSeries.seriesScore}</div>}
 
       <div className={styles.teamRight}>
         <span className={styles.teamName}>{rightTeam.name}</span>
-        <span className={styles.teamPlayers}>{rightTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}</span>
+        <span className={styles.teamPlayers}>
+          {rightTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
+        </span>
       </div>
     </div>
   );
@@ -292,9 +298,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
                   className={classNames(styles.tabButton, {
                     [styles.tabButtonActive]: tab.id === activeTab?.id,
                   })}
-                  style={
-                    tab.teamColor != null && !isInSeries ? { color: tab.teamColor } : undefined
-                  }
+                  style={tab.teamColor != null && !isInSeries ? { color: tab.teamColor } : undefined}
                   onClick={(): void => {
                     setActiveTabId(tab.id);
                   }}

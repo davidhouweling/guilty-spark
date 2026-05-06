@@ -181,20 +181,18 @@ describe("PublicIndividualTrackerOverlay", () => {
   it("renders match-first tabs when no active series exists", () => {
     render(
       <PublicIndividualTrackerOverlay
-        snapshot={
-          aSnapshotWith({
-            renderModel: aRenderModelWithoutSeries(),
-            overlayTabs: [
-              {
-                id: "standalone-0",
-                label: "Game 1",
-                type: "standalone",
-                teamColor: "#00B7EB",
-                timelineIndex: 0,
-              },
-            ],
-          })
-        }
+        snapshot={aSnapshotWith({
+          renderModel: aRenderModelWithoutSeries(),
+          overlayTabs: [
+            {
+              id: "standalone-0",
+              label: "Game 1",
+              type: "standalone",
+              teamColor: "#00B7EB",
+              timelineIndex: 0,
+            },
+          ],
+        })}
       />,
     );
 
@@ -232,27 +230,25 @@ describe("PublicIndividualTrackerOverlay", () => {
   it("renders accumulated stats in top bar for non-series sessions", () => {
     render(
       <PublicIndividualTrackerOverlay
-        snapshot={
-          aSnapshotWith({
-            renderModel: aRenderModelWithoutSeries(),
-            overlayTabs: [
-              {
-                id: "standalone-0",
-                label: "Game 1",
-                type: "standalone",
-                teamColor: "#00B7EB",
-                timelineIndex: 0,
-              },
-            ],
-            overlayAccumulatedStats: {
-              wins: 7,
-              losses: 4,
-              total: 11,
-              matchmaking: 10,
-              custom: 1,
+        snapshot={aSnapshotWith({
+          renderModel: aRenderModelWithoutSeries(),
+          overlayTabs: [
+            {
+              id: "standalone-0",
+              label: "Game 1",
+              type: "standalone",
+              teamColor: "#00B7EB",
+              timelineIndex: 0,
             },
-          })
-        }
+          ],
+          overlayAccumulatedStats: {
+            wins: 7,
+            losses: 4,
+            total: 11,
+            matchmaking: 10,
+            custom: 1,
+          },
+        })}
       />,
     );
 

@@ -168,8 +168,7 @@ describe("StreamerConnectionsSectionView", () => {
   });
 
   it("invokes font size callback from slider changes", () => {
-    const onFontSizesChange =
-      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onFontSizesChange"]>();
+    const onFontSizesChange = vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onFontSizesChange"]>();
 
     renderComponent({ onFontSizesChange });
 

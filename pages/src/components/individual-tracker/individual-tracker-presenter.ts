@@ -604,17 +604,13 @@ export class IndividualTrackerPresenter {
           ? visibleSections.showServerIcon
           : DEFAULT_DISPLAY_SETTINGS.showServerIcon,
       showTitle:
-        typeof visibleSections.showTitle === "boolean"
-          ? visibleSections.showTitle
-          : DEFAULT_DISPLAY_SETTINGS.showTitle,
+        typeof visibleSections.showTitle === "boolean" ? visibleSections.showTitle : DEFAULT_DISPLAY_SETTINGS.showTitle,
       showSubtitle:
         typeof visibleSections.showSubtitle === "boolean"
           ? visibleSections.showSubtitle
           : DEFAULT_DISPLAY_SETTINGS.showSubtitle,
       showScore:
-        typeof visibleSections.showScore === "boolean"
-          ? visibleSections.showScore
-          : DEFAULT_DISPLAY_SETTINGS.showScore,
+        typeof visibleSections.showScore === "boolean" ? visibleSections.showScore : DEFAULT_DISPLAY_SETTINGS.showScore,
     };
   }
 
@@ -642,9 +638,7 @@ export class IndividualTrackerPresenter {
           : DEFAULT_TICKER_SETTINGS.showObjectiveStats,
       medalRarityFilter,
       showTabs:
-        typeof visibleSections.showTabs === "boolean"
-          ? visibleSections.showTabs
-          : DEFAULT_TICKER_SETTINGS.showTabs,
+        typeof visibleSections.showTabs === "boolean" ? visibleSections.showTabs : DEFAULT_TICKER_SETTINGS.showTabs,
     };
   }
 
@@ -655,12 +649,10 @@ export class IndividualTrackerPresenter {
     }
 
     return {
-      queueInfo:
-        typeof fontSizesValue.queueInfo === "number" ? fontSizesValue.queueInfo : DEFAULT_FONT_SIZES.queueInfo,
+      queueInfo: typeof fontSizesValue.queueInfo === "number" ? fontSizesValue.queueInfo : DEFAULT_FONT_SIZES.queueInfo,
       score: typeof fontSizesValue.score === "number" ? fontSizesValue.score : DEFAULT_FONT_SIZES.score,
       teams: typeof fontSizesValue.teams === "number" ? fontSizesValue.teams : DEFAULT_FONT_SIZES.teams,
-      ticker:
-        typeof fontSizesValue.ticker === "number" ? fontSizesValue.ticker : DEFAULT_FONT_SIZES.ticker,
+      ticker: typeof fontSizesValue.ticker === "number" ? fontSizesValue.ticker : DEFAULT_FONT_SIZES.ticker,
       tabs: typeof fontSizesValue.tabs === "number" ? fontSizesValue.tabs : DEFAULT_FONT_SIZES.tabs,
     };
   }

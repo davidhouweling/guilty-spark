@@ -154,7 +154,13 @@ export interface OverlayTickerRow {
   readonly type: "player" | "team";
   readonly name: string;
   readonly teamId: number;
-  readonly stats: readonly { name: string; value: number; display: string; bestInTeam: boolean; bestInMatch: boolean }[];
+  readonly stats: readonly {
+    name: string;
+    value: number;
+    display: string;
+    bestInTeam: boolean;
+    bestInMatch: boolean;
+  }[];
   readonly medals: readonly { name: string; count: number; imageUrl: string }[];
 }
 

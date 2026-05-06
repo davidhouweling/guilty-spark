@@ -309,11 +309,7 @@ export function StreamerConnectionsSectionView({
       <div className={styles.preferencesCard}>
         <h3 className={styles.cardTitle}>Text Sizes</h3>
         <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
-        <CollapsiblePanel
-          id="font-sizes-individual"
-          defaultExpanded={false}
-          header={<span>Font Size Settings</span>}
-        >
+        <CollapsiblePanel id="font-sizes-individual" defaultExpanded={false} header={<span>Font Size Settings</span>}>
           <div className={styles.fontSizeContainer}>
             <FontSizeSlider
               label="Queue Info"
