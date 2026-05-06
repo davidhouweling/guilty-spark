@@ -1,4 +1,9 @@
 import type { IndividualTrackerSnapshot } from "./types";
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_TICKER_SETTINGS,
+  DEFAULT_FONT_SIZES,
+} from "../live-tracker/settings/types";
 
 export class IndividualTrackerStore {
   public snapshot: IndividualTrackerSnapshot = {
@@ -32,6 +37,9 @@ export class IndividualTrackerStore {
     viewerObserverEnemyColor: "cerulean",
     viewerObserverOverrideTeamColor: null,
     viewerObserverOverrideEnemyColor: null,
+    viewerDisplaySettings: DEFAULT_DISPLAY_SETTINGS,
+    viewerTickerSettings: DEFAULT_TICKER_SETTINGS,
+    viewerFontSizeSettings: DEFAULT_FONT_SIZES,
     viewerSettingsSaving: false,
     viewerSettingsErrorMessage: null,
     loading: true,

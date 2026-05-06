@@ -5,6 +5,7 @@ import { isRecord } from "@guilty-spark/shared/base/json-readers";
 import type {
   StreamerViewColorMode,
   StreamerViewEffectiveDefaults,
+  StreamerViewFontSizes,
   StreamerViewLayoutOptions,
   StreamerViewObserverColorOverrides,
   StreamerViewStyleFlags,
@@ -71,6 +72,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "number");
+}
+
 function isIndividualTrackerMatchSummary(value: unknown): value is IndividualTrackerMatchSummary {
   return (
     isRecord(value) &&
@@ -131,6 +136,28 @@ function getDefaultStreamerColorMode(trackedXuid: string | null, viewerXuid: str
   return "observer";
 }
 
+function toFontSizes(value: unknown): StreamerViewFontSizes | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const queueInfo = typeof value["queueInfo"] === "number" ? value["queueInfo"] : null;
+  const score = typeof value["score"] === "number" ? value["score"] : null;
+  const teams = typeof value["teams"] === "number" ? value["teams"] : null;
+  const ticker = typeof value["ticker"] === "number" ? value["ticker"] : null;
+  const tabs = typeof value["tabs"] === "number" ? value["tabs"] : null;
+
+  const fontSizes: StreamerViewFontSizes = {
+    ...(queueInfo == null ? {} : { queueInfo }),
+    ...(score == null ? {} : { score }),
+    ...(teams == null ? {} : { teams }),
+    ...(ticker == null ? {} : { ticker }),
+    ...(tabs == null ? {} : { tabs }),
+  };
+
+  return Object.keys(fontSizes).length === 0 ? null : fontSizes;
+}
+
 function toLayoutOptions(value: string | null): StreamerViewLayoutOptions {
   const record = toObjectOrDefault(value, {});
   const viewMode =
@@ -141,10 +168,12 @@ function toLayoutOptions(value: string | null): StreamerViewLayoutOptions {
     record["defaultColorMode"] === "player" || record["defaultColorMode"] === "observer"
       ? record["defaultColorMode"]
       : null;
+  const fontSizes = toFontSizes(record["fontSizes"]);
 
   return {
     ...(viewMode == null ? {} : { viewMode }),
     ...(defaultColorMode == null ? {} : { defaultColorMode }),
+    ...(fontSizes == null ? {} : { fontSizes }),
   };
 }
 
@@ -153,11 +182,35 @@ function toVisibleSections(value: string | null): StreamerViewVisibleSections {
   const showTicker = typeof record["showTicker"] === "boolean" ? record["showTicker"] : null;
   const showTabs = typeof record["showTabs"] === "boolean" ? record["showTabs"] : null;
   const showTeamDetails = typeof record["showTeamDetails"] === "boolean" ? record["showTeamDetails"] : null;
+  const showDiscordNames = typeof record["showDiscordNames"] === "boolean" ? record["showDiscordNames"] : null;
+  const showXboxNames = typeof record["showXboxNames"] === "boolean" ? record["showXboxNames"] : null;
+  const showServerIcon = typeof record["showServerIcon"] === "boolean" ? record["showServerIcon"] : null;
+  const showTitle = typeof record["showTitle"] === "boolean" ? record["showTitle"] : null;
+  const showSubtitle = typeof record["showSubtitle"] === "boolean" ? record["showSubtitle"] : null;
+  const showScore = typeof record["showScore"] === "boolean" ? record["showScore"] : null;
+  const showPreSeriesInfo =
+    typeof record["showPreSeriesInfo"] === "boolean" ? record["showPreSeriesInfo"] : null;
+  const selectedSlayerStats = isStringArray(record["selectedSlayerStats"])
+    ? record["selectedSlayerStats"]
+    : null;
+  const medalRarityFilter = isNumberArray(record["medalRarityFilter"]) ? record["medalRarityFilter"] : null;
+  const showObjectiveStats =
+    typeof record["showObjectiveStats"] === "boolean" ? record["showObjectiveStats"] : null;
 
   return {
     ...(showTicker == null ? {} : { showTicker }),
     ...(showTabs == null ? {} : { showTabs }),
     ...(showTeamDetails == null ? {} : { showTeamDetails }),
+    ...(showDiscordNames == null ? {} : { showDiscordNames }),
+    ...(showXboxNames == null ? {} : { showXboxNames }),
+    ...(showServerIcon == null ? {} : { showServerIcon }),
+    ...(showTitle == null ? {} : { showTitle }),
+    ...(showSubtitle == null ? {} : { showSubtitle }),
+    ...(showScore == null ? {} : { showScore }),
+    ...(showPreSeriesInfo == null ? {} : { showPreSeriesInfo }),
+    ...(selectedSlayerStats == null ? {} : { selectedSlayerStats }),
+    ...(showObjectiveStats == null ? {} : { showObjectiveStats }),
+    ...(medalRarityFilter == null ? {} : { medalRarityFilter }),
   };
 }
 

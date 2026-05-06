@@ -2,6 +2,14 @@ import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tra
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { Services } from "../../services/types";
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_FONT_SIZES,
+  DEFAULT_TICKER_SETTINGS,
+  type DisplaySettings,
+  type FontSizeSettings,
+  type TickerSettings,
+} from "../live-tracker/settings/types";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerConnectionStatus,
@@ -301,6 +309,137 @@ export class IndividualTrackerPresenter {
     }
   }
 
+  public async updateDisplaySettings(updates: Partial<DisplaySettings>): Promise<void> {
+    const { profileId, viewerDisplaySettings } = this.getSnapshot();
+    if (profileId == null) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsErrorMessage: "No profile available to save viewer settings.",
+      }));
+      return;
+    }
+
+    const nextDisplaySettings = {
+      ...viewerDisplaySettings,
+      ...updates,
+    };
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      viewerDisplaySettings: nextDisplaySettings,
+      viewerShowTeamDetails: nextDisplaySettings.showTeamDetails,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        visibleSections: updates,
+      });
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
+  public async updateTickerSettings(updates: Partial<TickerSettings>): Promise<void> {
+    const { profileId, viewerTickerSettings } = this.getSnapshot();
+    if (profileId == null) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsErrorMessage: "No profile available to save viewer settings.",
+      }));
+      return;
+    }
+
+    const nextTickerSettings = {
+      ...viewerTickerSettings,
+      ...updates,
+    };
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      viewerTickerSettings: nextTickerSettings,
+      viewerShowTicker: nextTickerSettings.showTicker,
+      viewerShowTabs: nextTickerSettings.showTabs,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        visibleSections: updates,
+      });
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
+  public async updateFontSizes(updates: Partial<FontSizeSettings>): Promise<void> {
+    const { profileId, viewerFontSizeSettings } = this.getSnapshot();
+    if (profileId == null) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsErrorMessage: "No profile available to save viewer settings.",
+      }));
+      return;
+    }
+
+    const nextFontSizes = {
+      ...viewerFontSizeSettings,
+      ...updates,
+    };
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      viewerFontSizeSettings: nextFontSizes,
+      viewerSettingsSaving: true,
+      viewerSettingsErrorMessage: null,
+    }));
+
+    try {
+      await this.config.services.individualTrackerService.updateStreamerViewSettings({
+        profileId,
+        layoutOptions: {
+          fontSizes: nextFontSizes,
+        },
+      });
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
+      }));
+    }
+  }
+
   public exitViewerMode(): void {
     this.navigateTo("/");
   }
@@ -432,6 +571,98 @@ export class IndividualTrackerPresenter {
     }
 
     return trimmed;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return value != null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  private isStringArray(value: unknown): value is readonly string[] {
+    return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+  }
+
+  private isNumberArray(value: unknown): value is readonly number[] {
+    return Array.isArray(value) && value.every((entry) => typeof entry === "number");
+  }
+
+  private toDisplaySettings(visibleSections: Record<string, unknown>): DisplaySettings {
+    return {
+      showTeamDetails:
+        typeof visibleSections["showTeamDetails"] === "boolean"
+          ? visibleSections["showTeamDetails"]
+          : DEFAULT_DISPLAY_SETTINGS.showTeamDetails,
+      showDiscordNames:
+        typeof visibleSections["showDiscordNames"] === "boolean"
+          ? visibleSections["showDiscordNames"]
+          : DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
+      showXboxNames:
+        typeof visibleSections["showXboxNames"] === "boolean"
+          ? visibleSections["showXboxNames"]
+          : DEFAULT_DISPLAY_SETTINGS.showXboxNames,
+      showServerIcon:
+        typeof visibleSections["showServerIcon"] === "boolean"
+          ? visibleSections["showServerIcon"]
+          : DEFAULT_DISPLAY_SETTINGS.showServerIcon,
+      showTitle:
+        typeof visibleSections["showTitle"] === "boolean"
+          ? visibleSections["showTitle"]
+          : DEFAULT_DISPLAY_SETTINGS.showTitle,
+      showSubtitle:
+        typeof visibleSections["showSubtitle"] === "boolean"
+          ? visibleSections["showSubtitle"]
+          : DEFAULT_DISPLAY_SETTINGS.showSubtitle,
+      showScore:
+        typeof visibleSections["showScore"] === "boolean"
+          ? visibleSections["showScore"]
+          : DEFAULT_DISPLAY_SETTINGS.showScore,
+    };
+  }
+
+  private toTickerSettings(visibleSections: Record<string, unknown>): TickerSettings {
+    const selectedSlayerStats = this.isStringArray(visibleSections["selectedSlayerStats"])
+      ? visibleSections["selectedSlayerStats"]
+      : DEFAULT_TICKER_SETTINGS.selectedSlayerStats;
+    const medalRarityFilter = this.isNumberArray(visibleSections["medalRarityFilter"])
+      ? visibleSections["medalRarityFilter"]
+      : DEFAULT_TICKER_SETTINGS.medalRarityFilter;
+
+    return {
+      showTicker:
+        typeof visibleSections["showTicker"] === "boolean"
+          ? visibleSections["showTicker"]
+          : DEFAULT_TICKER_SETTINGS.showTicker,
+      showPreSeriesInfo:
+        typeof visibleSections["showPreSeriesInfo"] === "boolean"
+          ? visibleSections["showPreSeriesInfo"]
+          : DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
+      selectedSlayerStats,
+      showObjectiveStats:
+        typeof visibleSections["showObjectiveStats"] === "boolean"
+          ? visibleSections["showObjectiveStats"]
+          : DEFAULT_TICKER_SETTINGS.showObjectiveStats,
+      medalRarityFilter,
+      showTabs:
+        typeof visibleSections["showTabs"] === "boolean"
+          ? visibleSections["showTabs"]
+          : DEFAULT_TICKER_SETTINGS.showTabs,
+    };
+  }
+
+  private toFontSizeSettings(layoutOptions: Record<string, unknown>): FontSizeSettings {
+    const fontSizesValue = layoutOptions["fontSizes"];
+    if (!this.isRecord(fontSizesValue)) {
+      return DEFAULT_FONT_SIZES;
+    }
+
+    return {
+      queueInfo:
+        typeof fontSizesValue["queueInfo"] === "number" ? fontSizesValue["queueInfo"] : DEFAULT_FONT_SIZES.queueInfo,
+      score: typeof fontSizesValue["score"] === "number" ? fontSizesValue["score"] : DEFAULT_FONT_SIZES.score,
+      teams: typeof fontSizesValue["teams"] === "number" ? fontSizesValue["teams"] : DEFAULT_FONT_SIZES.teams,
+      ticker:
+        typeof fontSizesValue["ticker"] === "number" ? fontSizesValue["ticker"] : DEFAULT_FONT_SIZES.ticker,
+      tabs: typeof fontSizesValue["tabs"] === "number" ? fontSizesValue["tabs"] : DEFAULT_FONT_SIZES.tabs,
+    };
   }
 
   private getViewerColorsFromStyleFlags(styleFlags: StreamerViewStyleFlags): {
@@ -824,6 +1055,11 @@ export class IndividualTrackerPresenter {
               ? { activeTracker: null }
               : await this.config.services.individualTrackerService.getActiveTrackerState(xboxXuid);
           this.currentStreamerStyleFlags = streamerSettings.styleFlags;
+          const visibleSections = { ...streamerSettings.visibleSections };
+          const layoutOptions = { ...streamerSettings.layoutOptions };
+          const displaySettings = this.toDisplaySettings(visibleSections);
+          const tickerSettings = this.toTickerSettings(visibleSections);
+          const fontSizeSettings = this.toFontSizeSettings(layoutOptions);
           const viewerColors = this.getViewerColorsFromStyleFlags(streamerSettings.styleFlags);
           const activeTrackerId = activeTrackerResponse.activeTracker?.trackerId ?? null;
           const activeTrackerGamertag = activeTrackerResponse.activeTracker?.gamertag ?? null;
@@ -855,11 +1091,14 @@ export class IndividualTrackerPresenter {
               viewerColors.enemyColor,
             ),
             viewerDefaultColorMode: streamerSettings.layoutOptions.defaultColorMode ?? "observer",
-            viewerShowTabs: streamerSettings.visibleSections.showTabs ?? true,
-            viewerShowTicker: streamerSettings.visibleSections.showTicker ?? true,
-            viewerShowTeamDetails: streamerSettings.visibleSections.showTeamDetails ?? true,
+            viewerShowTabs: tickerSettings.showTabs,
+            viewerShowTicker: tickerSettings.showTicker,
+            viewerShowTeamDetails: displaySettings.showTeamDetails,
             viewerObserverOverrideTeamColor: activeObserverOverride?.teamColor ?? null,
             viewerObserverOverrideEnemyColor: activeObserverOverride?.enemyColor ?? null,
+            viewerDisplaySettings: displaySettings,
+            viewerTickerSettings: tickerSettings,
+            viewerFontSizeSettings: fontSizeSettings,
           }));
         } catch {
           this.currentStreamerStyleFlags = {};

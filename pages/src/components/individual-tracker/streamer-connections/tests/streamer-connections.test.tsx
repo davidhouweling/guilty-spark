@@ -4,6 +4,11 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { StreamerConnectionsSectionView } from "../streamer-connections";
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_FONT_SIZES,
+  DEFAULT_TICKER_SETTINGS,
+} from "../../../live-tracker/settings/types";
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -28,6 +33,9 @@ describe("StreamerConnectionsSectionView", () => {
         showTabs={true}
         showTicker={true}
         showTeamDetails={true}
+        displaySettings={DEFAULT_DISPLAY_SETTINGS}
+        tickerSettings={DEFAULT_TICKER_SETTINGS}
+        fontSizeSettings={DEFAULT_FONT_SIZES}
         saving={false}
         errorMessage={null}
         // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -38,6 +46,12 @@ describe("StreamerConnectionsSectionView", () => {
         onPlayerColorsChange={(): void => {}}
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         onObserverColorsChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onDisplaySettingsChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onTickerSettingsChange={(): void => {}}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onFontSizesChange={(): void => {}}
         {...overrides}
       />,
     );
@@ -120,6 +134,46 @@ describe("StreamerConnectionsSectionView", () => {
     expect(onObserverColorsChange).toHaveBeenNthCalledWith(1, {
       teamColor: "jade",
       enemyColor: "tangelo",
+    });
+  });
+
+  it("invokes display settings callback for display options", () => {
+    const onDisplaySettingsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onDisplaySettingsChange"]>();
+
+    renderComponent({ onDisplaySettingsChange });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /show title \/ server name/i }));
+
+    expect(onDisplaySettingsChange).toHaveBeenNthCalledWith(1, {
+      showTitle: false,
+    });
+  });
+
+  it("invokes ticker settings callback for ticker toggles", () => {
+    const onTickerSettingsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onTickerSettingsChange"]>();
+
+    renderComponent({ onTickerSettingsChange });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /show information ticker/i }));
+
+    expect(onTickerSettingsChange).toHaveBeenNthCalledWith(1, {
+      showTicker: false,
+    });
+  });
+
+  it("invokes font size callback from slider changes", () => {
+    const onFontSizesChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onFontSizesChange"]>();
+
+    renderComponent({ onFontSizesChange });
+
+    fireEvent.click(screen.getByRole("button", { name: /font size settings/i }));
+    fireEvent.change(screen.getByLabelText(/queue info/i), { target: { value: "110" } });
+
+    expect(onFontSizesChange).toHaveBeenNthCalledWith(1, {
+      queueInfo: 110,
     });
   });
 });

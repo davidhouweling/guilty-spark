@@ -108,6 +108,9 @@ export function IndividualTrackerView({
           showTabs={snapshot.viewerShowTabs}
           showTicker={snapshot.viewerShowTicker}
           showTeamDetails={snapshot.viewerShowTeamDetails}
+          displaySettings={snapshot.viewerDisplaySettings}
+          tickerSettings={snapshot.viewerTickerSettings}
+          fontSizeSettings={snapshot.viewerFontSizeSettings}
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
           onPresentationSettingsChange={(settings): void => {
@@ -131,6 +134,15 @@ export function IndividualTrackerView({
           }}
           onObserverColorsChange={(settings): void => {
             void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
+          }}
+          onDisplaySettingsChange={(updates): void => {
+            void presenter.updateDisplaySettings(updates);
+          }}
+          onTickerSettingsChange={(updates): void => {
+            void presenter.updateTickerSettings(updates);
+          }}
+          onFontSizesChange={(updates): void => {
+            void presenter.updateFontSizes(updates);
           }}
         />
       );

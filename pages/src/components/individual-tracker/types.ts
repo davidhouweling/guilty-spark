@@ -4,6 +4,7 @@ import type {
 } from "@guilty-spark/shared/individual-tracker/types";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { DisplaySettings, TickerSettings, FontSizeSettings } from "../live-tracker/settings/types";
 import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
@@ -201,6 +202,9 @@ export interface IndividualTrackerSnapshot {
   readonly viewerObserverEnemyColor: string;
   readonly viewerObserverOverrideTeamColor: string | null;
   readonly viewerObserverOverrideEnemyColor: string | null;
+  readonly viewerDisplaySettings: DisplaySettings;
+  readonly viewerTickerSettings: TickerSettings;
+  readonly viewerFontSizeSettings: FontSizeSettings;
   readonly viewerSettingsSaving: boolean;
   readonly viewerSettingsErrorMessage: string | null;
   readonly loading: boolean;

@@ -2,7 +2,12 @@ import React, { useMemo, useState } from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
+import { CollapsiblePanel } from "../../collapsible-panel/collapsible-panel";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
+import { DisplaySettingsSection } from "../../live-tracker/settings/display-settings-section";
+import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settings-section";
+import { FontSizeSlider } from "../../live-tracker/settings/font-size-slider";
+import type { DisplaySettings, TickerSettings, FontSizeSettings } from "../../live-tracker/settings/types";
 import { getTeamColor, HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./streamer-connections.module.css";
 
@@ -18,6 +23,9 @@ interface StreamerConnectionsSectionViewProps {
   readonly showTabs: boolean;
   readonly showTicker: boolean;
   readonly showTeamDetails: boolean;
+  readonly displaySettings: DisplaySettings;
+  readonly tickerSettings: TickerSettings;
+  readonly fontSizeSettings: FontSizeSettings;
   readonly saving: boolean;
   readonly errorMessage: string | null;
   readonly onPresentationSettingsChange: (settings: {
@@ -28,6 +36,9 @@ interface StreamerConnectionsSectionViewProps {
   readonly onDefaultColorModeChange: (mode: "player" | "observer") => void;
   readonly onPlayerColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
   readonly onObserverColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
+  readonly onDisplaySettingsChange: (settings: Partial<DisplaySettings>) => void;
+  readonly onTickerSettingsChange: (settings: Partial<TickerSettings>) => void;
+  readonly onFontSizesChange: (settings: Partial<FontSizeSettings>) => void;
 }
 
 interface StreamerUrls {
@@ -55,12 +66,18 @@ export function StreamerConnectionsSectionView({
   showTabs,
   showTicker,
   showTeamDetails,
+  displaySettings,
+  tickerSettings,
+  fontSizeSettings,
   saving,
   errorMessage,
   onPresentationSettingsChange,
   onDefaultColorModeChange,
   onPlayerColorsChange,
   onObserverColorsChange,
+  onDisplaySettingsChange,
+  onTickerSettingsChange,
+  onFontSizesChange,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
   const [copyState, setCopyState] = useState<"idle" | "view" | "overlay">("idle");
   const urls = useMemo(() => (xboxXuid == null ? null : buildStreamerUrls(xboxXuid)), [xboxXuid]);
@@ -275,6 +292,66 @@ export function StreamerConnectionsSectionView({
             Active tracker override target: {activeTrackerGamertag ?? activeTrackerId}
           </p>
         )}
+      </div>
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Display Options</h3>
+        <p className={styles.cardDescription}>Control what information is shown on the overlay.</p>
+        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+      </div>
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Information Ticker</h3>
+        <p className={styles.cardDescription}>Customize stats and medals shown in the information ticker.</p>
+        <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
+      </div>
+
+      <div className={styles.preferencesCard}>
+        <h3 className={styles.cardTitle}>Text Sizes</h3>
+        <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
+        <CollapsiblePanel
+          id="font-sizes-individual"
+          defaultExpanded={false}
+          header={<span>Font Size Settings</span>}
+        >
+          <div className={styles.fontSizeContainer}>
+            <FontSizeSlider
+              label="Queue Info"
+              value={fontSizeSettings.queueInfo}
+              onChange={(value): void => {
+                onFontSizesChange({ queueInfo: value });
+              }}
+            />
+            <FontSizeSlider
+              label="Score"
+              value={fontSizeSettings.score}
+              onChange={(value): void => {
+                onFontSizesChange({ score: value });
+              }}
+            />
+            <FontSizeSlider
+              label="Teams"
+              value={fontSizeSettings.teams}
+              onChange={(value): void => {
+                onFontSizesChange({ teams: value });
+              }}
+            />
+            <FontSizeSlider
+              label="Tabs"
+              value={fontSizeSettings.tabs}
+              onChange={(value): void => {
+                onFontSizesChange({ tabs: value });
+              }}
+            />
+            <FontSizeSlider
+              label="Info Ticker"
+              value={fontSizeSettings.ticker}
+              onChange={(value): void => {
+                onFontSizesChange({ ticker: value });
+              }}
+            />
+          </div>
+        </CollapsiblePanel>
       </div>
 
       <Alert variant="info">Twitch automation and advanced overlay presets remain in the next Phase 4 slice.</Alert>
