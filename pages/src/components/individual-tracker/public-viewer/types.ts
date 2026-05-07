@@ -6,7 +6,12 @@ import type {
   OverlayAccumulatedStats,
   OverlayTickerGroup,
 } from "../types";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../streamer-settings/shared-types";
+import type {
+  DisplaySettings,
+  FontSizeSettings,
+  IndividualTopBarStatOption,
+  TickerSettings,
+} from "../../streamer-settings/shared-types";
 
 export type PublicViewerVariant = "view" | "overlay";
 
@@ -49,4 +54,5 @@ export interface PublicViewerSnapshot {
   readonly overlayShowScore: DisplaySettings["showScore"];
   readonly overlayShowDiscordNames: DisplaySettings["showDiscordNames"];
   readonly overlayShowXboxNames: DisplaySettings["showXboxNames"];
+  readonly overlayTopBarStatSlots: readonly IndividualTopBarStatOption[];
 }

@@ -98,29 +98,16 @@ export function IndividualTrackerView({
       panelContent = (
         <StreamerConnectionsSectionView
           xboxXuid={snapshot.xboxXuid}
-          activeTrackerId={snapshot.settingsActiveTrackerId}
-          activeTrackerGamertag={snapshot.settingsActiveTrackerGamertag}
           defaultColorMode={snapshot.viewerDefaultColorMode}
           playerTeamColor={snapshot.viewerTeamColor}
           playerEnemyColor={snapshot.viewerEnemyColor}
           observerTeamColor={snapshot.viewerObserverTeamColor}
           observerEnemyColor={snapshot.viewerObserverEnemyColor}
-          showTabs={snapshot.viewerShowTabs}
-          showTicker={snapshot.viewerShowTicker}
-          showTeamDetails={snapshot.viewerShowTeamDetails}
           displaySettings={snapshot.viewerDisplaySettings}
           tickerSettings={snapshot.viewerTickerSettings}
           fontSizeSettings={snapshot.viewerFontSizeSettings}
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
-          onPresentationSettingsChange={(settings): void => {
-            void presenter.updateStreamerPresentationSettings(
-              snapshot.viewerDefaultColorMode,
-              settings.showTabs,
-              settings.showTicker,
-              settings.showTeamDetails,
-            );
-          }}
           onDefaultColorModeChange={(nextMode): void => {
             void presenter.updateStreamerPresentationSettings(
               nextMode,

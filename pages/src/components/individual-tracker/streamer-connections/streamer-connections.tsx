@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
-import { Checkbox } from "../../checkbox/checkbox";
 import { CollapsiblePanel } from "../../collapsible-panel/collapsible-panel";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
 import { DisplaySettingsSection } from "../../live-tracker/settings/display-settings-section";
@@ -11,28 +10,23 @@ import type { DisplaySettings, TickerSettings, FontSizeSettings } from "../../li
 import { getTeamColor, HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import styles from "./streamer-connections.module.css";
 
+type SaveToast = {
+  readonly variant: "info" | "error";
+  readonly message: string;
+} | null;
+
 interface StreamerConnectionsSectionViewProps {
   readonly xboxXuid: string | null;
-  readonly activeTrackerId: string | null;
-  readonly activeTrackerGamertag: string | null;
   readonly defaultColorMode: "player" | "observer";
   readonly playerTeamColor: string;
   readonly playerEnemyColor: string;
   readonly observerTeamColor: string;
   readonly observerEnemyColor: string;
-  readonly showTabs: boolean;
-  readonly showTicker: boolean;
-  readonly showTeamDetails: boolean;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
   readonly fontSizeSettings: FontSizeSettings;
   readonly saving: boolean;
   readonly errorMessage: string | null;
-  readonly onPresentationSettingsChange: (settings: {
-    showTabs: boolean;
-    showTicker: boolean;
-    showTeamDetails: boolean;
-  }) => void;
   readonly onDefaultColorModeChange: (mode: "player" | "observer") => void;
   readonly onPlayerColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
   readonly onObserverColorsChange: (settings: { teamColor: string; enemyColor: string }) => void;
@@ -56,22 +50,16 @@ function buildStreamerUrls(xboxXuid: string): StreamerUrls {
 
 export function StreamerConnectionsSectionView({
   xboxXuid,
-  activeTrackerId,
-  activeTrackerGamertag,
   defaultColorMode,
   playerTeamColor,
   playerEnemyColor,
   observerTeamColor,
   observerEnemyColor,
-  showTabs,
-  showTicker,
-  showTeamDetails,
   displaySettings,
   tickerSettings,
   fontSizeSettings,
   saving,
   errorMessage,
-  onPresentationSettingsChange,
   onDefaultColorModeChange,
   onPlayerColorsChange,
   onObserverColorsChange,
@@ -80,11 +68,45 @@ export function StreamerConnectionsSectionView({
   onFontSizesChange,
 }: StreamerConnectionsSectionViewProps): React.ReactElement {
   const [copyState, setCopyState] = useState<"idle" | "view" | "overlay">("idle");
+  const [saveToast, setSaveToast] = useState<SaveToast>(null);
+  const wasSavingRef = useRef(false);
   const urls = useMemo(() => (xboxXuid == null ? null : buildStreamerUrls(xboxXuid)), [xboxXuid]);
   const selectedPlayerTeamColor = getTeamColor(playerTeamColor) ?? HALO_TEAM_COLORS[0];
   const selectedPlayerEnemyColor = getTeamColor(playerEnemyColor) ?? HALO_TEAM_COLORS[1];
   const selectedObserverTeamColor = getTeamColor(observerTeamColor) ?? HALO_TEAM_COLORS[0];
   const selectedObserverEnemyColor = getTeamColor(observerEnemyColor) ?? HALO_TEAM_COLORS[1];
+
+  useEffect(() => {
+    if (saving) {
+      wasSavingRef.current = true;
+      setSaveToast({ variant: "info", message: "Saving streamer settings..." });
+      return;
+    }
+
+    if (errorMessage != null) {
+      setSaveToast({ variant: "error", message: errorMessage });
+      return;
+    }
+
+    if (wasSavingRef.current) {
+      wasSavingRef.current = false;
+      setSaveToast({ variant: "info", message: "Streamer settings saved." });
+    }
+  }, [errorMessage, saving]);
+
+  useEffect(() => {
+    if (saveToast == null || saveToast.message === "Saving streamer settings...") {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setSaveToast(null);
+    }, 2200);
+
+    return (): void => {
+      clearTimeout(timeout);
+    };
+  }, [saveToast]);
 
   const copyToClipboard = async (kind: "view" | "overlay", value: string): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -190,46 +212,6 @@ export function StreamerConnectionsSectionView({
             Observer Mode
           </Button>
         </div>
-        <Checkbox
-          label="Show overlay tabs"
-          checked={showTabs}
-          disabled={saving}
-          onChange={(checked): void => {
-            onPresentationSettingsChange({
-              showTabs: checked,
-              showTicker,
-              showTeamDetails,
-            });
-          }}
-        />
-        <Checkbox
-          label="Show information ticker"
-          checked={showTicker}
-          disabled={saving}
-          onChange={(checked): void => {
-            onPresentationSettingsChange({
-              showTabs,
-              showTicker: checked,
-              showTeamDetails,
-            });
-          }}
-        />
-        <Checkbox
-          label="Show team details"
-          checked={showTeamDetails}
-          disabled={saving}
-          onChange={(checked): void => {
-            onPresentationSettingsChange({
-              showTabs,
-              showTicker,
-              showTeamDetails: checked,
-            });
-          }}
-        />
-        <p className={styles.modeNote}>Current active color mode: {defaultColorMode}.</p>
-
-        {saving ? <Alert variant="info">Saving streamer settings...</Alert> : null}
-        {errorMessage != null ? <Alert variant="error">{errorMessage}</Alert> : null}
       </div>
 
       <div className={styles.preferencesCard}>
@@ -284,25 +266,19 @@ export function StreamerConnectionsSectionView({
             />
           </div>
         </div>
-
-        {activeTrackerId == null ? (
-          <p className={styles.cardDescription}>No active tracker selected for per-tracker override.</p>
-        ) : (
-          <p className={styles.cardDescription}>
-            Active tracker override target: {activeTrackerGamertag ?? activeTrackerId}
-          </p>
-        )}
       </div>
 
       <div className={styles.preferencesCard}>
         <h3 className={styles.cardTitle}>Display Options</h3>
-        <p className={styles.cardDescription}>Control what information is shown on the overlay.</p>
-        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+        <p className={styles.cardDescription}>Control what information is shown on the viewer and overlay.</p>
+        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} mode="individual" />
       </div>
 
       <div className={styles.preferencesCard}>
         <h3 className={styles.cardTitle}>Information Ticker</h3>
-        <p className={styles.cardDescription}>Customize stats and medals shown in the information ticker.</p>
+        <p className={styles.cardDescription}>
+          In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
+        </p>
         <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
       </div>
 
@@ -349,6 +325,12 @@ export function StreamerConnectionsSectionView({
           </div>
         </CollapsiblePanel>
       </div>
+
+      {saveToast != null ? (
+        <div className={styles.floatingSaveToast} role="status" aria-live="polite">
+          <Alert variant={saveToast.variant}>{saveToast.message}</Alert>
+        </div>
+      ) : null}
 
       <Alert variant="info">Twitch automation and advanced overlay presets remain in the next Phase 4 slice.</Alert>
     </div>

@@ -1,5 +1,8 @@
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  StreamerViewStyleFlags,
+  StreamerViewVisibleSections,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 import type { Services } from "../../../services/types";
@@ -22,7 +25,9 @@ import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_FONT_SIZES,
   DEFAULT_TICKER_SETTINGS,
+  isIndividualTopBarStatOption,
 } from "../../streamer-settings/shared-types";
+import type { DisplaySettings } from "../../streamer-settings/shared-types";
 import type { PublicViewerStore } from "./public-viewer-store";
 import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
 
@@ -45,6 +50,7 @@ export class PublicViewerPresenter {
   private medalMetadata: MedalMetadata = {};
   private trackerSummary: TrackerSearchResult | null = null;
   private streamerStyleFlags: StreamerViewStyleFlags = {};
+  private streamerVisibleSections: StreamerViewVisibleSections = {};
   private resolvedColorMode: "player" | "observer" = "observer";
 
   public constructor(config: PublicViewerPresenterConfig) {
@@ -116,6 +122,7 @@ export class PublicViewerPresenter {
       overlayShowScore: overlaySettings.showScore,
       overlayShowDiscordNames: overlaySettings.showDiscordNames,
       overlayShowXboxNames: overlaySettings.showXboxNames,
+      overlayTopBarStatSlots: overlaySettings.topBarStatSlots,
     };
 
     for (const subscriber of this.config.store.subscribers) {
@@ -134,6 +141,7 @@ export class PublicViewerPresenter {
     try {
       const response = await this.config.services.individualTrackerService.getActiveTrackerView(this.config.xuid);
       this.streamerStyleFlags = response.streamerView?.styleFlags ?? {};
+      this.streamerVisibleSections = response.streamerView?.visibleSections ?? {};
       this.resolvedColorMode = this.getOverlayColorMode(
         this.streamerStyleFlags,
         response.streamerView?.effectiveDefaults.colorMode,
@@ -520,7 +528,14 @@ export class PublicViewerPresenter {
     readonly showScore: boolean;
     readonly showDiscordNames: boolean;
     readonly showXboxNames: boolean;
+    readonly topBarStatSlots: DisplaySettings["topBarStatSlots"];
   } {
+    const visibleSections = this.streamerVisibleSections;
+
+    const topBarStatSlots = (visibleSections.topBarStatSlots ?? DEFAULT_DISPLAY_SETTINGS.topBarStatSlots)
+      .filter((value): value is DisplaySettings["topBarStatSlots"][number] => isIndividualTopBarStatOption(value))
+      .slice(0, DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length);
+
     return {
       showMatchmakingStatsOnly: DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false,
       selectedSlayerStats: DEFAULT_TICKER_SETTINGS.selectedSlayerStats,
@@ -528,11 +543,15 @@ export class PublicViewerPresenter {
       medalRarityFilter: DEFAULT_TICKER_SETTINGS.medalRarityFilter,
       showPreSeriesInfo: DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
       fontSizes: DEFAULT_FONT_SIZES,
-      showTitle: DEFAULT_DISPLAY_SETTINGS.showTitle,
-      showSubtitle: DEFAULT_DISPLAY_SETTINGS.showSubtitle,
-      showScore: DEFAULT_DISPLAY_SETTINGS.showScore,
-      showDiscordNames: DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
-      showXboxNames: DEFAULT_DISPLAY_SETTINGS.showXboxNames,
+      showTitle: visibleSections.showTitle ?? DEFAULT_DISPLAY_SETTINGS.showTitle,
+      showSubtitle: visibleSections.showSubtitle ?? DEFAULT_DISPLAY_SETTINGS.showSubtitle,
+      showScore: visibleSections.showScore ?? DEFAULT_DISPLAY_SETTINGS.showScore,
+      showDiscordNames: visibleSections.showDiscordNames ?? DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
+      showXboxNames: visibleSections.showXboxNames ?? DEFAULT_DISPLAY_SETTINGS.showXboxNames,
+      topBarStatSlots:
+        topBarStatSlots.length === DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length
+          ? topBarStatSlots
+          : DEFAULT_DISPLAY_SETTINGS.topBarStatSlots,
     };
   }
 }

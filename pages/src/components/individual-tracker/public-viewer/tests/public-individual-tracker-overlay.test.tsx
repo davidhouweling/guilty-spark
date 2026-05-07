@@ -158,6 +158,14 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     overlayShowScore: true,
     overlayShowDiscordNames: true,
     overlayShowXboxNames: true,
+    overlayTopBarStatSlots: [
+      "games-win-loss",
+      "series-win-loss",
+      "kills-deaths-assists-kda",
+      "damage-dealt-taken-ratio",
+      "avg-life-damage-per-life",
+      "current-rank",
+    ],
     ...overrides,
   };
 }
@@ -248,12 +256,21 @@ describe("PublicIndividualTrackerOverlay", () => {
             matchmaking: 10,
             custom: 1,
           },
+          overlayTopBarStatSlots: [
+            "games-win-loss",
+            "total-games",
+            "matchmaking-games",
+            "custom-local-games",
+            "series-win-loss",
+            "current-rank",
+          ],
         })}
       />,
     );
 
-    expect(screen.getByText("7W")).toBeInTheDocument();
-    expect(screen.getByText("4L")).toBeInTheDocument();
+    expect(screen.getByText("7W:4L")).toBeInTheDocument();
     expect(screen.getByText("11 Total")).toBeInTheDocument();
+    expect(screen.getByText("10 Matchmaking")).toBeInTheDocument();
+    expect(screen.getByText("1 Custom/Local")).toBeInTheDocument();
   });
 });

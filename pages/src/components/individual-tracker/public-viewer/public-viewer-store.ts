@@ -41,6 +41,7 @@ function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): Publ
     overlayShowScore: DEFAULT_DISPLAY_SETTINGS.showScore,
     overlayShowDiscordNames: DEFAULT_DISPLAY_SETTINGS.showDiscordNames,
     overlayShowXboxNames: DEFAULT_DISPLAY_SETTINGS.showXboxNames,
+    overlayTopBarStatSlots: DEFAULT_DISPLAY_SETTINGS.topBarStatSlots,
   };
 }
 

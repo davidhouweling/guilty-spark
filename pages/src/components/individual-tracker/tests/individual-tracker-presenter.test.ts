@@ -323,18 +323,19 @@ describe("IndividualTrackerPresenter", () => {
       expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
     });
 
-    await harness.presenter.updateStreamerPresentationSettings("player", false, false, false);
-
-    expect(updateSettingsSpy).toHaveBeenCalledWith({
-      profileId: "profile-1",
-      layoutOptions: {
-        defaultColorMode: "player",
-      },
-      visibleSections: {
-        showTabs: false,
-        showTicker: false,
-        showTeamDetails: false,
-      },
+    harness.presenter.updateStreamerPresentationSettings("player", false, false, false);
+    await waitFor(() => {
+      expect(updateSettingsSpy).toHaveBeenCalledWith({
+        profileId: "profile-1",
+        layoutOptions: {
+          defaultColorMode: "player",
+        },
+        visibleSections: {
+          showTabs: false,
+          showTicker: false,
+          showTeamDetails: false,
+        },
+      });
     });
 
     const snapshot = harness.presenter.getSnapshot();
@@ -344,6 +345,69 @@ describe("IndividualTrackerPresenter", () => {
     expect(snapshot.viewerShowTeamDetails).toBe(false);
     expect(snapshot.viewerSettingsErrorMessage).toBeNull();
     expect(snapshot.viewerSettingsSaving).toBe(false);
+  });
+
+  it("creates a default profile when none exists and then saves presentation settings", async () => {
+    const defaultProfile = {
+      ProfileId: "profile-1",
+      UserId: "user-1",
+      ActiveIdentityId: null,
+      Name: "default",
+      CreatedAt: 1,
+      UpdatedAt: 1,
+    } as const;
+
+    const individualTrackerService = aFakeIndividualTrackerServiceWith({
+      profile: defaultProfile,
+    });
+
+    const getProfileSpy = vi
+      .spyOn(individualTrackerService, "getProfile")
+      .mockResolvedValueOnce({ profile: null, games: [] })
+      .mockResolvedValue({ profile: defaultProfile, games: [] });
+    const createProfileSpy = vi.spyOn(individualTrackerService, "createProfile");
+    const updateSettingsSpy = vi.spyOn(individualTrackerService, "updateStreamerViewSettings");
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService,
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().authState).toBe("authenticated");
+      expect(harness.presenter.getSnapshot().profileId).toBe("profile-1");
+    });
+
+    expect(getProfileSpy).toHaveBeenCalled();
+    expect(createProfileSpy).toHaveBeenCalledWith({});
+
+    harness.presenter.updateStreamerPresentationSettings("player", true, true, true);
+    await waitFor(() => {
+      expect(updateSettingsSpy).toHaveBeenCalledWith({
+        profileId: "profile-1",
+        layoutOptions: {
+          defaultColorMode: "player",
+        },
+        visibleSections: {
+          showTabs: true,
+          showTicker: true,
+          showTeamDetails: true,
+        },
+      });
+    });
+
+    expect(harness.presenter.getSnapshot().viewerSettingsErrorMessage).toBeNull();
   });
 
   it("updates and persists active tracker observer color overrides", async () => {

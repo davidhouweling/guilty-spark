@@ -187,6 +187,7 @@ function toVisibleSections(value: string | null): StreamerViewVisibleSections {
   const showSubtitle = typeof record["showSubtitle"] === "boolean" ? record["showSubtitle"] : null;
   const showScore = typeof record["showScore"] === "boolean" ? record["showScore"] : null;
   const showDiscordNames = typeof record["showDiscordNames"] === "boolean" ? record["showDiscordNames"] : null;
+  const topBarStatSlots = isStringArray(record["topBarStatSlots"]) ? record["topBarStatSlots"] : null;
 
   return {
     ...(showTicker == null ? {} : { showTicker }),
@@ -196,6 +197,7 @@ function toVisibleSections(value: string | null): StreamerViewVisibleSections {
     ...(showSubtitle == null ? {} : { showSubtitle }),
     ...(showScore == null ? {} : { showScore }),
     ...(showDiscordNames == null ? {} : { showDiscordNames }),
+    ...(topBarStatSlots == null ? {} : { topBarStatSlots }),
   };
 }
 
@@ -281,6 +283,14 @@ function withDefaultVisibleSections(sections: StreamerViewVisibleSections): Stre
     showSubtitle: sections.showSubtitle ?? true,
     showScore: sections.showScore ?? true,
     showDiscordNames: sections.showDiscordNames ?? false,
+    topBarStatSlots: sections.topBarStatSlots ?? [
+      "games-win-loss",
+      "series-win-loss",
+      "kills-deaths-assists-kda",
+      "damage-dealt-taken-ratio",
+      "avg-life-damage-per-life",
+      "current-rank",
+    ],
   };
 }
 

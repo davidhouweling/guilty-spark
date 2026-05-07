@@ -1,19 +1,50 @@
 import React from "react";
+import classNames from "classnames";
 import { Checkbox } from "../../checkbox/checkbox";
-import type { DisplaySettings } from "./types";
+import {
+  type DisplaySettings,
+  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS,
+  INDIVIDUAL_TOP_BAR_SLOT_COUNT,
+} from "./types";
 import styles from "./display-settings-section.module.css";
+
+const TOP_BAR_STAT_GROUP_LABELS = {
+  summary: "Summary",
+  "viewer-table": "Viewer Table Stats",
+  compact: "Compact Stats",
+} as const;
 
 interface DisplaySettingsSectionProps {
   readonly settings: DisplaySettings;
   readonly onChange: (updates: Partial<DisplaySettings>) => void;
+  readonly mode?: "series" | "individual";
 }
 
-export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSectionProps): React.ReactElement {
+export function DisplaySettingsSection({
+  settings,
+  onChange,
+  mode = "series",
+}: DisplaySettingsSectionProps): React.ReactElement {
+  const isIndividualMode = mode === "individual";
+  const defaultSlotValue = settings.topBarStatSlots[0] ?? INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS[0].value;
+  const slotValues = Array.from({ length: INDIVIDUAL_TOP_BAR_SLOT_COUNT }, (_, index) => {
+    return settings.topBarStatSlots[index] ?? defaultSlotValue;
+  });
+
+  const updateSlot = (slotIndex: number, value: string): void => {
+    const nextValue =
+      INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.find((option) => option.value === value)?.value ??
+      INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS[0].value;
+    const nextSlots = [...slotValues];
+    nextSlots[slotIndex] = nextValue;
+    onChange({ topBarStatSlots: nextSlots });
+  };
+
   return (
-    <div className={styles.container}>
+    <div className={classNames(styles.container, { [styles.containerIndividual]: isIndividualMode })}>
       {/* Team Details Section */}
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Team Information</h4>
+        <h4 className={styles.subsectionHeader}>{isIndividualMode ? "In Series" : ""} Team Information</h4>
 
         <Checkbox
           checked={settings.showTeamDetails}
@@ -46,7 +77,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
               onChange={(checked): void => {
                 onChange({ showDiscordNames: checked });
               }}
-              label="Show Discord Names"
+              label={`Show Discord Names${isIndividualMode ? " (if available)" : ""}`}
             />
 
             <Checkbox
@@ -66,7 +97,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
 
       {/* Queue Info Section */}
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Queue Information</h4>
+        <h4 className={styles.subsectionHeader}>{isIndividualMode ? "In Series" : ""} Queue Information</h4>
         <p className={styles.sectionDescription}>Control the parts shown in the top section</p>
 
         <Checkbox
@@ -93,6 +124,44 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
           label="Show Score"
         />
       </div>
+
+      {isIndividualMode ? (
+        <div className={classNames(styles.section, styles.sectionWide)}>
+          <h4 className={styles.subsectionHeader}>Out of Series - Top Bar</h4>
+          <p className={styles.sectionDescription}>
+            These will also control the accumulated stats shown at the top of the Viewer page.
+          </p>
+
+          <div className={styles.optionsGrid}>
+            {slotValues.map((slotValue, slotIndex) => (
+              <label key={`top-bar-slot-${slotIndex.toString()}`} className={styles.dropdownField}>
+                <span className={styles.dropdownLabel}>{`Top Stat ${(slotIndex + 1).toString()}`}</span>
+                <select
+                  className={styles.selectInput}
+                  value={slotValue}
+                  onChange={(event): void => {
+                    updateSlot(slotIndex, event.target.value);
+                  }}
+                >
+                  {(Object.keys(TOP_BAR_STAT_GROUP_LABELS) as (keyof typeof TOP_BAR_STAT_GROUP_LABELS)[]).map(
+                    (group) => (
+                      <optgroup key={group} label={TOP_BAR_STAT_GROUP_LABELS[group]}>
+                        {INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.filter((option) => option.group === group).map(
+                          (option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ),
+                        )}
+                      </optgroup>
+                    ),
+                  )}
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

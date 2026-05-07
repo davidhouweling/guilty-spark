@@ -23,35 +23,22 @@ describe("StreamerConnectionsSectionView", () => {
     render(
       <StreamerConnectionsSectionView
         xboxXuid="2533274844642438"
-        activeTrackerId="tracker-1"
-        activeTrackerGamertag="Chief"
         defaultColorMode="observer"
         playerTeamColor="salmon"
         playerEnemyColor="cerulean"
         observerTeamColor="jade"
         observerEnemyColor="tangelo"
-        showTabs={true}
-        showTicker={true}
-        showTeamDetails={true}
         displaySettings={DEFAULT_DISPLAY_SETTINGS}
         tickerSettings={DEFAULT_TICKER_SETTINGS}
         fontSizeSettings={DEFAULT_FONT_SIZES}
         saving={false}
         errorMessage={null}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onPresentationSettingsChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDefaultColorModeChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onPlayerColorsChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onObserverColorsChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDisplaySettingsChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onTickerSettingsChange={(): void => {}}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onFontSizesChange={(): void => {}}
+        onDefaultColorModeChange={(): void => void 0}
+        onPlayerColorsChange={(): void => void 0}
+        onObserverColorsChange={(): void => void 0}
+        onDisplaySettingsChange={(): void => void 0}
+        onTickerSettingsChange={(): void => void 0}
+        onFontSizesChange={(): void => void 0}
         {...overrides}
       />,
     );
@@ -95,36 +82,6 @@ describe("StreamerConnectionsSectionView", () => {
     windowOpenSpy.mockRestore();
   });
 
-  it("invokes presentation settings callback for section toggles", () => {
-    const onPresentationSettingsChange =
-      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onPresentationSettingsChange"]>();
-
-    renderComponent({ onPresentationSettingsChange });
-
-    const tickerCheckboxes = screen.getAllByRole("checkbox", { name: /show information ticker/i });
-    const teamDetailsCheckboxes = screen.getAllByRole("checkbox", { name: /show team details/i });
-
-    fireEvent.click(screen.getByRole("checkbox", { name: /show overlay tabs/i }));
-    fireEvent.click(tickerCheckboxes[0]);
-    fireEvent.click(teamDetailsCheckboxes[0]);
-
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(1, {
-      showTabs: false,
-      showTicker: true,
-      showTeamDetails: true,
-    });
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(2, {
-      showTabs: true,
-      showTicker: false,
-      showTeamDetails: true,
-    });
-    expect(onPresentationSettingsChange).toHaveBeenNthCalledWith(3, {
-      showTabs: true,
-      showTicker: true,
-      showTeamDetails: false,
-    });
-  });
-
   it("invokes observer colors callback from color pickers", () => {
     const onObserverColorsChange =
       vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onObserverColorsChange"]>();
@@ -151,6 +108,21 @@ describe("StreamerConnectionsSectionView", () => {
     expect(onDisplaySettingsChange).toHaveBeenNthCalledWith(1, {
       showTitle: false,
     });
+
+    fireEvent.change(screen.getByLabelText(/top stat 1/i), {
+      target: { value: "esra" },
+    });
+
+    expect(onDisplaySettingsChange).toHaveBeenNthCalledWith(2, {
+      topBarStatSlots: [
+        "esra",
+        "series-win-loss",
+        "kills-deaths-assists-kda",
+        "damage-dealt-taken-ratio",
+        "avg-life-damage-per-life",
+        "current-rank",
+      ],
+    });
   });
 
   it("invokes ticker settings callback for ticker toggles", () => {
@@ -159,8 +131,7 @@ describe("StreamerConnectionsSectionView", () => {
 
     renderComponent({ onTickerSettingsChange });
 
-    const tickerCheckboxes = screen.getAllByRole("checkbox", { name: /show information ticker/i });
-    fireEvent.click(tickerCheckboxes[1]);
+    fireEvent.click(screen.getByRole("checkbox", { name: /show information ticker/i }));
 
     expect(onTickerSettingsChange).toHaveBeenNthCalledWith(1, {
       showTicker: false,
@@ -178,5 +149,73 @@ describe("StreamerConnectionsSectionView", () => {
     expect(onFontSizesChange).toHaveBeenNthCalledWith(1, {
       queueInfo: 110,
     });
+  });
+
+  it("shows floating save toast while saving and after save", () => {
+    const onDefaultColorModeChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onDefaultColorModeChange"]>();
+    const onPlayerColorsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onPlayerColorsChange"]>();
+    const onObserverColorsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onObserverColorsChange"]>();
+    const onDisplaySettingsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onDisplaySettingsChange"]>();
+    const onTickerSettingsChange =
+      vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onTickerSettingsChange"]>();
+    const onFontSizesChange = vi.fn<React.ComponentProps<typeof StreamerConnectionsSectionView>["onFontSizesChange"]>();
+
+    const { rerender } = render(
+      <StreamerConnectionsSectionView
+        xboxXuid="2533274844642438"
+        defaultColorMode="observer"
+        playerTeamColor="salmon"
+        playerEnemyColor="cerulean"
+        observerTeamColor="jade"
+        observerEnemyColor="tangelo"
+        displaySettings={DEFAULT_DISPLAY_SETTINGS}
+        tickerSettings={DEFAULT_TICKER_SETTINGS}
+        fontSizeSettings={DEFAULT_FONT_SIZES}
+        saving={true}
+        errorMessage={null}
+        onDefaultColorModeChange={onDefaultColorModeChange}
+        onPlayerColorsChange={onPlayerColorsChange}
+        onObserverColorsChange={onObserverColorsChange}
+        onDisplaySettingsChange={onDisplaySettingsChange}
+        onTickerSettingsChange={onTickerSettingsChange}
+        onFontSizesChange={onFontSizesChange}
+      />,
+    );
+
+    expect(screen.getByText(/saving streamer settings/i)).toBeInTheDocument();
+
+    rerender(
+      <StreamerConnectionsSectionView
+        xboxXuid="2533274844642438"
+        defaultColorMode="observer"
+        playerTeamColor="salmon"
+        playerEnemyColor="cerulean"
+        observerTeamColor="jade"
+        observerEnemyColor="tangelo"
+        displaySettings={DEFAULT_DISPLAY_SETTINGS}
+        tickerSettings={DEFAULT_TICKER_SETTINGS}
+        fontSizeSettings={DEFAULT_FONT_SIZES}
+        saving={false}
+        errorMessage={null}
+        onDefaultColorModeChange={onDefaultColorModeChange}
+        onPlayerColorsChange={onPlayerColorsChange}
+        onObserverColorsChange={onObserverColorsChange}
+        onDisplaySettingsChange={onDisplaySettingsChange}
+        onTickerSettingsChange={onTickerSettingsChange}
+        onFontSizesChange={onFontSizesChange}
+      />,
+    );
+
+    expect(screen.getByText(/streamer settings saved/i)).toBeInTheDocument();
+  });
+
+  it("shows floating error toast when save fails", () => {
+    renderComponent({ errorMessage: "Failed to save viewer settings." });
+
+    expect(screen.getByText(/failed to save viewer settings/i)).toBeInTheDocument();
   });
 });

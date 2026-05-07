@@ -31,6 +31,7 @@ export interface StreamerViewVisibleSections {
   readonly showTitle?: boolean;
   readonly showSubtitle?: boolean;
   readonly showScore?: boolean;
+  readonly topBarStatSlots?: readonly string[];
   readonly showPreSeriesInfo?: boolean;
   readonly selectedSlayerStats?: readonly string[];
   readonly showObjectiveStats?: boolean;

@@ -1,11 +1,16 @@
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import type { StreamerViewStyleFlags } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  StreamerViewLayoutOptions,
+  StreamerViewStyleFlags,
+  StreamerViewVisibleSections,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { Services } from "../../services/types";
 import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_FONT_SIZES,
   DEFAULT_TICKER_SETTINGS,
+  isIndividualTopBarStatOption,
   type DisplaySettings,
   type FontSizeSettings,
   type TickerSettings,
@@ -33,6 +38,8 @@ interface Config {
   readonly assignLocation?: (url: string) => void;
 }
 
+const VIEWER_SETTINGS_DEBOUNCE_MS = 450;
+
 export class IndividualTrackerPresenter {
   private readonly config: Config;
   private isDisposed = false;
@@ -49,6 +56,9 @@ export class IndividualTrackerPresenter {
   private viewedMedalMetadata: MedalMetadata = {};
   private currentStreamerStyleFlags: StreamerViewStyleFlags = {};
   private currentRoute: IndividualTrackerAppRoute;
+  private settingsSaveDebounceHandle: ReturnType<typeof setTimeout> | null = null;
+  private pendingLayoutOptions: StreamerViewLayoutOptions = {};
+  private pendingVisibleSections: StreamerViewVisibleSections = {};
 
   public constructor(config: Config) {
     this.config = config;
@@ -63,6 +73,12 @@ export class IndividualTrackerPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+
+    if (this.settingsSaveDebounceHandle != null) {
+      clearTimeout(this.settingsSaveDebounceHandle);
+      this.settingsSaveDebounceHandle = null;
+    }
+
     this.disposeViewerConnection();
     this.config.liveTrackersController.dispose();
   }
@@ -195,12 +211,12 @@ export class IndividualTrackerPresenter {
     }
   }
 
-  public async updateStreamerPresentationSettings(
+  public updateStreamerPresentationSettings(
     defaultColorMode: "player" | "observer",
     showTabs: boolean,
     showTicker: boolean,
     showTeamDetails: boolean,
-  ): Promise<void> {
+  ): void {
     const { profileId } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
@@ -220,36 +236,21 @@ export class IndividualTrackerPresenter {
       viewerSettingsErrorMessage: null,
     }));
 
-    try {
-      await this.config.services.individualTrackerService.updateStreamerViewSettings({
-        profileId,
-        layoutOptions: {
-          defaultColorMode,
-        },
-        visibleSections: {
-          showTabs,
-          showTicker,
-          showTeamDetails,
-        },
-      });
+    this.currentStreamerStyleFlags = {
+      ...this.currentStreamerStyleFlags,
+      colorMode: defaultColorMode,
+    };
 
-      this.currentStreamerStyleFlags = {
-        ...this.currentStreamerStyleFlags,
-        colorMode: defaultColorMode,
-      };
-
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: null,
-      }));
-    } catch (error) {
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
-      }));
-    }
+    this.queueDebouncedViewerSettingsSave(profileId, {
+      layoutOptions: {
+        defaultColorMode,
+      },
+      visibleSections: {
+        showTabs,
+        showTicker,
+        showTeamDetails,
+      },
+    });
   }
 
   public async updateActiveTrackerObserverOverride(teamColor: string, enemyColor: string): Promise<void> {
@@ -309,7 +310,7 @@ export class IndividualTrackerPresenter {
     }
   }
 
-  public async updateDisplaySettings(updates: Partial<DisplaySettings>): Promise<void> {
+  public updateDisplaySettings(updates: Partial<DisplaySettings>): void {
     const { profileId, viewerDisplaySettings } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
@@ -332,27 +333,12 @@ export class IndividualTrackerPresenter {
       viewerSettingsErrorMessage: null,
     }));
 
-    try {
-      await this.config.services.individualTrackerService.updateStreamerViewSettings({
-        profileId,
-        visibleSections: updates,
-      });
-
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: null,
-      }));
-    } catch (error) {
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
-      }));
-    }
+    this.queueDebouncedViewerSettingsSave(profileId, {
+      visibleSections: updates,
+    });
   }
 
-  public async updateTickerSettings(updates: Partial<TickerSettings>): Promise<void> {
+  public updateTickerSettings(updates: Partial<TickerSettings>): void {
     const { profileId, viewerTickerSettings } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
@@ -376,27 +362,12 @@ export class IndividualTrackerPresenter {
       viewerSettingsErrorMessage: null,
     }));
 
-    try {
-      await this.config.services.individualTrackerService.updateStreamerViewSettings({
-        profileId,
-        visibleSections: updates,
-      });
-
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: null,
-      }));
-    } catch (error) {
-      this.updateSnapshot((snapshot) => ({
-        ...snapshot,
-        viewerSettingsSaving: false,
-        viewerSettingsErrorMessage: error instanceof Error ? error.message : "Failed to save viewer settings.",
-      }));
-    }
+    this.queueDebouncedViewerSettingsSave(profileId, {
+      visibleSections: updates,
+    });
   }
 
-  public async updateFontSizes(updates: Partial<FontSizeSettings>): Promise<void> {
+  public updateFontSizes(updates: Partial<FontSizeSettings>): void {
     const { profileId, viewerFontSizeSettings } = this.getSnapshot();
     if (profileId == null) {
       this.updateSnapshot((snapshot) => ({
@@ -418,17 +389,67 @@ export class IndividualTrackerPresenter {
       viewerSettingsErrorMessage: null,
     }));
 
+    this.queueDebouncedViewerSettingsSave(profileId, {
+      layoutOptions: {
+        fontSizes: nextFontSizes,
+      },
+    });
+  }
+
+  private queueDebouncedViewerSettingsSave(
+    profileId: string,
+    updates: {
+      readonly layoutOptions?: StreamerViewLayoutOptions;
+      readonly visibleSections?: StreamerViewVisibleSections;
+    },
+  ): void {
+    this.pendingLayoutOptions = {
+      ...this.pendingLayoutOptions,
+      ...(updates.layoutOptions ?? {}),
+    };
+    this.pendingVisibleSections = {
+      ...this.pendingVisibleSections,
+      ...(updates.visibleSections ?? {}),
+    };
+
+    if (this.settingsSaveDebounceHandle != null) {
+      clearTimeout(this.settingsSaveDebounceHandle);
+    }
+
+    this.settingsSaveDebounceHandle = setTimeout(() => {
+      void this.flushDebouncedViewerSettingsSave(profileId);
+    }, VIEWER_SETTINGS_DEBOUNCE_MS);
+  }
+
+  private async flushDebouncedViewerSettingsSave(profileId: string): Promise<void> {
+    this.settingsSaveDebounceHandle = null;
+
+    const layoutOptions = this.pendingLayoutOptions;
+    const visibleSections = this.pendingVisibleSections;
+    this.pendingLayoutOptions = {};
+    this.pendingVisibleSections = {};
+
+    const hasLayoutOptions = Object.keys(layoutOptions).length > 0;
+    const hasVisibleSections = Object.keys(visibleSections).length > 0;
+
+    if (!hasLayoutOptions && !hasVisibleSections) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        viewerSettingsSaving: false,
+      }));
+      return;
+    }
+
     try {
       await this.config.services.individualTrackerService.updateStreamerViewSettings({
         profileId,
-        layoutOptions: {
-          fontSizes: nextFontSizes,
-        },
+        ...(hasLayoutOptions ? { layoutOptions } : {}),
+        ...(hasVisibleSections ? { visibleSections } : {}),
       });
 
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
-        viewerSettingsSaving: false,
+        viewerSettingsSaving: this.settingsSaveDebounceHandle != null,
         viewerSettingsErrorMessage: null,
       }));
     } catch (error) {
@@ -586,6 +607,17 @@ export class IndividualTrackerPresenter {
   }
 
   private toDisplaySettings(visibleSections: Record<string, unknown>): DisplaySettings {
+    const topBarStatSlots = this.isStringArray(visibleSections.topBarStatSlots)
+      ? visibleSections.topBarStatSlots
+          .filter((value): value is DisplaySettings["topBarStatSlots"][number] => isIndividualTopBarStatOption(value))
+          .slice(0, DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length)
+      : DEFAULT_DISPLAY_SETTINGS.topBarStatSlots;
+
+    const normalizedTopBarStatSlots =
+      topBarStatSlots.length === DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length
+        ? topBarStatSlots
+        : DEFAULT_DISPLAY_SETTINGS.topBarStatSlots;
+
     return {
       showTeamDetails:
         typeof visibleSections.showTeamDetails === "boolean"
@@ -611,6 +643,7 @@ export class IndividualTrackerPresenter {
           : DEFAULT_DISPLAY_SETTINGS.showSubtitle,
       showScore:
         typeof visibleSections.showScore === "boolean" ? visibleSections.showScore : DEFAULT_DISPLAY_SETTINGS.showScore,
+      topBarStatSlots: normalizedTopBarStatSlots,
     };
   }
 
@@ -1036,7 +1069,16 @@ export class IndividualTrackerPresenter {
       this.authenticatedXboxXuid = xboxXuid;
 
       const profileResponse = await this.config.services.individualTrackerService.getProfile();
-      const profileId = profileResponse.profile?.ProfileId ?? null;
+      let profileId = profileResponse.profile?.ProfileId ?? null;
+
+      if (profileId == null) {
+        try {
+          const createdProfile = await this.config.services.individualTrackerService.createProfile({});
+          profileId = createdProfile.profile.ProfileId;
+        } catch {
+          profileId = null;
+        }
+      }
 
       if (profileId != null) {
         try {
