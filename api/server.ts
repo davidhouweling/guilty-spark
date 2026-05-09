@@ -284,7 +284,7 @@ function withDefaultVisibleSections(sections: StreamerViewVisibleSections): Stre
     showScore: sections.showScore ?? true,
     showDiscordNames: sections.showDiscordNames ?? false,
     topBarStatSlots: sections.topBarStatSlots ?? [
-      "games-win-loss",
+      "matches-win-loss",
       "series-win-loss",
       "kills-deaths-assists-kda",
       "damage-dealt-taken-ratio",

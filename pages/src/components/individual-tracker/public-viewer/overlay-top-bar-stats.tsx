@@ -1,0 +1,37 @@
+import React, { memo } from "react";
+import type { IndividualTrackerTopBarStatItem } from "../top-bar-stats";
+import styles from "./overlay-top-bar-stats.module.css";
+
+interface OverlayTopBarStatsProps {
+  readonly title: string;
+  readonly showTitle: boolean;
+  readonly items: readonly IndividualTrackerTopBarStatItem[];
+}
+
+const OverlayTopBarStatsComponent = ({
+  title,
+  showTitle,
+  items,
+}: OverlayTopBarStatsProps): React.ReactElement | null => {
+  if (!showTitle && items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={styles.root}>
+      {showTitle ? <h1 className={styles.title}>{title}</h1> : null}
+      {items.length > 0 ? (
+        <div className={styles.grid} aria-label="Overlay top bar stats">
+          {items.map((item, index) => (
+            <div key={`${item.option}-${index.toString()}`} className={styles.card}>
+              <span className={styles.label}>{item.label}</span>
+              <span className={styles.value}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+export const OverlayTopBarStats = memo(OverlayTopBarStatsComponent);

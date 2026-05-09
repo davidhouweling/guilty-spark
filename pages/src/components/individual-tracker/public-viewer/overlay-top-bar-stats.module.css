@@ -1,0 +1,82 @@
+.root {
+  align-items: center;
+  background: color-mix(in srgb, var(--overlay-team-color) 22%, rgb(15 40 48 / 88%));
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 62%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  justify-content: center;
+  left: 50%;
+  max-width: min(1180px, calc(100vw - 1.5rem));
+  padding: var(--space-2) var(--space-3);
+  position: absolute;
+  top: 2.95rem;
+  transform: translateX(-50%);
+  width: min(1180px, calc(100vw - 1.5rem));
+  z-index: 16;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-lg) * var(--font-size-queue-info, 100) / 100);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
+.card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--overlay-team-color) 26%, transparent), transparent),
+    color-mix(in srgb, var(--halo-bg-elevated) 80%, transparent);
+  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 55%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: var(--space-2);
+  text-align: center;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+.label {
+  color: color-mix(in srgb, var(--halo-white) 76%, transparent);
+  font-size: calc(0.625rem * var(--font-size-tabs, 100) / 100);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.value {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-sm) * var(--font-size-score, 100) / 100);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (--desktop-viewport) {
+  .root {
+    flex-direction: row;
+    gap: var(--space-3);
+  }
+
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

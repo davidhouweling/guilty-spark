@@ -61,6 +61,7 @@ export function PublicViewer({ presenter }: PublicViewerProps): React.ReactEleme
         refreshMessage={null}
         trackerSummary={snapshot.trackerSummary}
         renderModel={snapshot.renderModel}
+        topBarStats={snapshot.overlayTopBarStats}
         matchHistoryLoading={snapshot.matchHistoryLoading}
         onBackToManage={(): void => {
           // public route has no manage context

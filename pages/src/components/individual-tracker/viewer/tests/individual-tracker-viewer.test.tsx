@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 import type { IndividualTrackerViewerRenderModel } from "../../types";
 import type { TrackerSearchResult } from "../../../../services/individual-tracker/types";
+import type { IndividualTrackerTopBarStatItem } from "../../top-bar-stats";
 
 vi.mock("../../../stats/match-stats", () => ({
   MatchStats: ({ id }: { id: string }): React.ReactNode => <div>match-stats-body-{id}</div>,
@@ -133,6 +134,21 @@ function aTrackerSummaryWith(): TrackerSearchResult {
   };
 }
 
+function aTopBarStatsWith(): readonly IndividualTrackerTopBarStatItem[] {
+  return [
+    {
+      option: "matches-win-loss",
+      label: "Matches Won/Loss",
+      value: "2W:1L",
+    },
+    {
+      option: "current-rank",
+      label: "Current Rank",
+      value: "Onyx (1500)",
+    },
+  ];
+}
+
 describe("IndividualTrackerViewer", () => {
   it("expands series and standalone matches by default and allows toggling them", () => {
     render(
@@ -147,6 +163,7 @@ describe("IndividualTrackerViewer", () => {
         refreshMessage={null}
         trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -179,6 +196,7 @@ describe("IndividualTrackerViewer", () => {
         refreshMessage={null}
         trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -204,6 +222,7 @@ describe("IndividualTrackerViewer", () => {
         refreshMessage={null}
         trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -227,6 +246,7 @@ describe("IndividualTrackerViewer", () => {
         refreshMessage={null}
         trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -249,6 +269,7 @@ describe("IndividualTrackerViewer", () => {
         refreshMessage={null}
         trackerSummary={aTrackerSummaryWith()}
         renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -337,6 +358,7 @@ describe("IndividualTrackerViewer", () => {
             ],
           },
         }}
+        topBarStats={aTopBarStatsWith()}
         matchHistoryLoading={false}
         onBackToManage={vi.fn()}
         onRefresh={vi.fn()}
@@ -347,5 +369,31 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("player-pre-series-info-body")).toBeInTheDocument();
     expect(screen.getByText(/SubPlayer/i)).toBeInTheDocument();
     expect(screen.getByText(/Queue #12/i)).toBeInTheDocument();
+  });
+
+  it("renders presenter-provided top bar stats", () => {
+    render(
+      <IndividualTrackerViewer
+        trackerGamertag="Chief"
+        connectionStatus="connected"
+        errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
+        renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
+        matchHistoryLoading={false}
+        onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Matches Won/Loss")).toBeInTheDocument();
+    expect(screen.getByText("2W:1L")).toBeInTheDocument();
+    expect(screen.getByText("Current Rank")).toBeInTheDocument();
+    expect(screen.getByText("Onyx (1500)")).toBeInTheDocument();
   });
 });

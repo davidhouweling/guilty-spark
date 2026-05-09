@@ -74,6 +74,7 @@ export function IndividualTrackerView({
           refreshMessage={snapshot.viewerRefreshMessage}
           trackerSummary={snapshot.viewerTrackerSummary}
           renderModel={snapshot.viewerRenderModel}
+          topBarStats={snapshot.viewerTopBarStats}
           matchHistoryLoading={snapshot.viewedMatchHistoryLoading}
           onBackToManage={(): void => {
             presenter.exitViewerMode();

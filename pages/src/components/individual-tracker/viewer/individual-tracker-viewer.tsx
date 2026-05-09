@@ -23,6 +23,8 @@ import type { TrackerSearchResult } from "../../../services/individual-tracker/t
 import { TrackerSummary } from "../tracker-summary/tracker-summary";
 import type { IndividualTrackerViewerRenderModel } from "../types";
 import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
+import type { IndividualTrackerTopBarStatItem } from "../top-bar-stats";
+import { ViewerTopBarStats } from "./viewer-top-bar-stats";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
@@ -36,6 +38,7 @@ interface IndividualTrackerViewerProps {
   readonly refreshMessage: string | null;
   readonly trackerSummary: TrackerSearchResult | null;
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
+  readonly topBarStats?: readonly IndividualTrackerTopBarStatItem[];
   readonly matchHistoryLoading: boolean;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
@@ -108,6 +111,7 @@ export function IndividualTrackerViewer({
   refreshMessage,
   trackerSummary,
   renderModel,
+  topBarStats = [],
   matchHistoryLoading,
   onBackToManage,
   onRefresh,
@@ -270,35 +274,7 @@ export function IndividualTrackerViewer({
                   {isWideView ? "Standard width" : "Wide view"}
                 </Button>
               </div>
-              <ul className={styles.accumulatedGrid}>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Total Games</span>
-                  <span className={styles.statValue}>{renderModel.accumulatedStats.total.toString()}</span>
-                </li>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Record</span>
-                  <span className={styles.statValue}>
-                    {renderModel.accumulatedStats.wins.toString()}W {renderModel.accumulatedStats.losses.toString()}L{" "}
-                    {renderModel.accumulatedStats.ties.toString()}T
-                  </span>
-                </li>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Series Groups</span>
-                  <span className={styles.statValue}>{renderModel.accumulatedStats.groupedSeries.toString()}</span>
-                </li>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Standalone Matches</span>
-                  <span className={styles.statValue}>{renderModel.accumulatedStats.standalone.toString()}</span>
-                </li>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Matchmaking</span>
-                  <span className={styles.statValue}>{renderModel.accumulatedStats.matchmaking.toString()}</span>
-                </li>
-                <li className={styles.statCard}>
-                  <span className={styles.statLabel}>Custom / Local</span>
-                  <span className={styles.statValue}>{renderModel.accumulatedStats.customOrLocal.toString()}</span>
-                </li>
-              </ul>
+              <ViewerTopBarStats items={topBarStats} />
               {renderModel.trackedPlayerTotals != null ? (
                 <div className={classNames(styles.matchStatsCard, styles.accumulatedTableCard)}>
                   <SeriesStats

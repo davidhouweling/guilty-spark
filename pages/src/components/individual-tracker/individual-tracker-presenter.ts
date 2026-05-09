@@ -10,7 +10,7 @@ import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_FONT_SIZES,
   DEFAULT_TICKER_SETTINGS,
-  isIndividualTopBarStatOption,
+  normalizeIndividualTopBarStatOption,
   type DisplaySettings,
   type FontSizeSettings,
   type TickerSettings,
@@ -26,6 +26,7 @@ import type { IndividualTrackerAppRoute } from "./routes";
 import type { IndividualTrackerSectionId, IndividualTrackerSnapshot } from "./types";
 import type { IndividualTrackerStore } from "./individual-tracker-store";
 import type { LiveTrackersController } from "./live-trackers/types";
+import { buildIndividualTrackerTopBarStats } from "./top-bar-stats";
 import { buildIndividualTrackerViewerRenderModel } from "./viewer/viewer-render-model";
 import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "./routes";
 
@@ -540,6 +541,14 @@ export class IndividualTrackerPresenter {
   }
 
   private deriveSnapshot(snapshot: IndividualTrackerSnapshot): IndividualTrackerSnapshot {
+    const viewerRenderModel = buildIndividualTrackerViewerRenderModel({
+      state: this.viewedTracker,
+      matchHistory: this.viewedMatchHistory,
+      medalMetadata: this.viewedMedalMetadata,
+      defaultTeamColor: snapshot.viewerTeamColor,
+      defaultEnemyColor: snapshot.viewerEnemyColor,
+    });
+
     return {
       ...snapshot,
       viewTrackerGamertag: this.viewedTracker?.gamertag ?? snapshot.viewTrackerGamertag,
@@ -547,12 +556,11 @@ export class IndividualTrackerPresenter {
       viewerRefreshInProgress: this.viewedTracker?.refreshInProgress === true,
       viewerRefreshStartedAt: this.viewedTracker?.refreshStartedAt ?? null,
       viewerTrackerSummary: this.viewedTrackerSummary,
-      viewerRenderModel: buildIndividualTrackerViewerRenderModel({
-        state: this.viewedTracker,
-        matchHistory: this.viewedMatchHistory,
-        medalMetadata: this.viewedMedalMetadata,
-        defaultTeamColor: snapshot.viewerTeamColor,
-        defaultEnemyColor: snapshot.viewerEnemyColor,
+      viewerRenderModel,
+      viewerTopBarStats: buildIndividualTrackerTopBarStats({
+        renderModel: viewerRenderModel,
+        trackerSummary: this.viewedTrackerSummary,
+        topBarStatSlots: snapshot.viewerDisplaySettings.topBarStatSlots,
       }),
     };
   }
@@ -609,7 +617,8 @@ export class IndividualTrackerPresenter {
   private toDisplaySettings(visibleSections: Record<string, unknown>): DisplaySettings {
     const topBarStatSlots = this.isStringArray(visibleSections.topBarStatSlots)
       ? visibleSections.topBarStatSlots
-          .filter((value): value is DisplaySettings["topBarStatSlots"][number] => isIndividualTopBarStatOption(value))
+          .map((value) => normalizeIndividualTopBarStatOption(value))
+          .filter((value): value is DisplaySettings["topBarStatSlots"][number] => value != null)
           .slice(0, DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length)
       : DEFAULT_DISPLAY_SETTINGS.topBarStatSlots;
 

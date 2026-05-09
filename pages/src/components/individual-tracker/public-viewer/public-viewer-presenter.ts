@@ -25,11 +25,12 @@ import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_FONT_SIZES,
   DEFAULT_TICKER_SETTINGS,
-  isIndividualTopBarStatOption,
+  normalizeIndividualTopBarStatOption,
 } from "../../streamer-settings/shared-types";
 import type { DisplaySettings } from "../../streamer-settings/shared-types";
 import type { PublicViewerStore } from "./public-viewer-store";
 import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
+import { buildIndividualTrackerTopBarStats, type IndividualTrackerTopBarStatItem } from "../top-bar-stats";
 
 interface PublicViewerPresenterConfig {
   readonly services: Services;
@@ -101,6 +102,11 @@ export class PublicViewerPresenter {
     const xuidToDiscordName = this.extractXuidToDiscordName(next.trackerState);
 
     const overlaySettings = this.extractOverlaySettings();
+    const overlayTopBarStats: readonly IndividualTrackerTopBarStatItem[] = buildIndividualTrackerTopBarStats({
+      renderModel,
+      trackerSummary: this.trackerSummary,
+      topBarStatSlots: overlaySettings.topBarStatSlots,
+    });
 
     this.config.store.snapshot = {
       ...next,
@@ -110,6 +116,7 @@ export class PublicViewerPresenter {
       overlayTabs,
       overlayAccumulatedStats,
       overlayTickerGroups: [], // Computed separately if needed
+      overlayTopBarStats,
       xuidToDiscordName,
       overlayShowMatchmakingStatsOnly: overlaySettings.showMatchmakingStatsOnly,
       overlaySelectedSlayerStats: overlaySettings.selectedSlayerStats,
@@ -533,7 +540,8 @@ export class PublicViewerPresenter {
     const visibleSections = this.streamerVisibleSections;
 
     const topBarStatSlots = (visibleSections.topBarStatSlots ?? DEFAULT_DISPLAY_SETTINGS.topBarStatSlots)
-      .filter((value): value is DisplaySettings["topBarStatSlots"][number] => isIndividualTopBarStatOption(value))
+      .map((value) => normalizeIndividualTopBarStatOption(value))
+      .filter((value): value is DisplaySettings["topBarStatSlots"][number] => value != null)
       .slice(0, DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length);
 
     return {

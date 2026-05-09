@@ -22,6 +22,7 @@ export class IndividualTrackerStore {
     viewerRefreshMessage: null,
     viewerTrackerSummary: null,
     viewerRenderModel: null,
+    viewerTopBarStats: [],
     activeSection: "live-trackers",
     viewerTeamColor: "salmon",
     viewerEnemyColor: "cerulean",

@@ -1,7 +1,7 @@
 import React from "react";
 import classNames from "classnames";
-import type { IndividualTopBarStatOption } from "../../streamer-settings/shared-types";
 import type { PublicViewerSnapshot } from "./types";
+import { OverlayTopBarStats } from "./overlay-top-bar-stats";
 import styles from "./public-individual-tracker-overlay.module.css";
 
 interface PublicIndividualTrackerOverlayProps {
@@ -144,227 +144,8 @@ function renderSeriesOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode
   );
 }
 
-interface TrackedPlayerStatValue {
-  readonly value: number;
-  readonly display: string;
-}
-
-function getTrackedPlayerStatsMap(snapshot: PublicViewerSnapshot): Map<string, TrackedPlayerStatValue> {
-  const playerData = snapshot.renderModel?.trackedPlayerTotals?.playerData;
-  if (playerData === undefined) {
-    return new Map();
-  }
-
-  for (const team of playerData) {
-    if (team.players.length === 0) {
-      continue;
-    }
-    const [player] = team.players;
-
-    const statsMap = new Map<string, TrackedPlayerStatValue>();
-    for (const stat of player.values) {
-      statsMap.set(stat.name, {
-        value: stat.value,
-        display: stat.display,
-      });
-    }
-    return statsMap;
-  }
-
-  return new Map();
-}
-
-function getSeriesWonLoss(snapshot: PublicViewerSnapshot): { won: number; lost: number } {
-  const timeline = snapshot.renderModel?.gameplayTimeline ?? [];
-  let won = 0;
-  let lost = 0;
-
-  for (const item of timeline) {
-    if (item.type !== "group") {
-      continue;
-    }
-
-    let matchWins = 0;
-    let matchLosses = 0;
-    for (const match of item.matches) {
-      if (/^Win\s*-/.test(match.score)) {
-        matchWins += 1;
-      }
-      if (/^Loss\s*-/.test(match.score)) {
-        matchLosses += 1;
-      }
-    }
-
-    if (matchWins > matchLosses) {
-      won += 1;
-    }
-    if (matchLosses > matchWins) {
-      lost += 1;
-    }
-  }
-
-  return { won, lost };
-}
-
-function formatRankLine(label: string | null, csrLabel: string | null): string | null {
-  const safeLabel = label ?? "";
-  const safeCsrLabel = csrLabel ?? "";
-
-  if (safeLabel === "" && safeCsrLabel === "") {
-    return null;
-  }
-
-  if (safeLabel !== "" && safeCsrLabel !== "") {
-    return `${safeLabel} (${safeCsrLabel})`;
-  }
-
-  return safeLabel !== "" ? safeLabel : safeCsrLabel;
-}
-
-function formatTopBarStatValue(snapshot: PublicViewerSnapshot, option: IndividualTopBarStatOption): string | null {
-  const accStats = snapshot.overlayAccumulatedStats;
-  const trackedStats = getTrackedPlayerStatsMap(snapshot);
-  const { trackerSummary } = snapshot;
-
-  if (accStats == null) {
-    return null;
-  }
-
-  switch (option) {
-    case "games-win-loss": {
-      return `${accStats.wins.toString()}W:${accStats.losses.toString()}L`;
-    }
-    case "series-win-loss": {
-      const series = getSeriesWonLoss(snapshot);
-      return `${series.won.toString()}SW:${series.lost.toString()}SL`;
-    }
-    case "total-games": {
-      return `${accStats.total.toString()} Total`;
-    }
-    case "matchmaking-games": {
-      return `${accStats.matchmaking.toString()} Matchmaking`;
-    }
-    case "custom-local-games": {
-      return `${accStats.custom.toString()} Custom/Local`;
-    }
-    case "current-rank": {
-      return formatRankLine(trackerSummary?.rankLabel ?? null, trackerSummary?.csrLabel ?? null) ?? "Current Rank: N/A";
-    }
-    case "season-peak": {
-      return (
-        formatRankLine(trackerSummary?.seasonPeakRankTier ?? null, trackerSummary?.seasonPeakCsrLabel ?? null) ??
-        "Season Peak: N/A"
-      );
-    }
-    case "all-time-peak": {
-      return (
-        formatRankLine(trackerSummary?.allTimePeakRankLabel ?? null, trackerSummary?.allTimePeakCsrLabel ?? null) ??
-        "All Time Peak: N/A"
-      );
-    }
-    case "esra": {
-      return "ESRA: N/A";
-    }
-    case "kills": {
-      return trackedStats.get("Kills")?.display ?? null;
-    }
-    case "deaths": {
-      return trackedStats.get("Deaths")?.display ?? null;
-    }
-    case "assists": {
-      return trackedStats.get("Assists")?.display ?? null;
-    }
-    case "kda": {
-      return trackedStats.get("KDA")?.display ?? null;
-    }
-    case "headshot-kills": {
-      return trackedStats.get("Headshot kills")?.display ?? null;
-    }
-    case "shots-hit": {
-      return trackedStats.get("Shots hit")?.display ?? null;
-    }
-    case "shots-fired": {
-      return trackedStats.get("Shots fired")?.display ?? null;
-    }
-    case "accuracy": {
-      return trackedStats.get("Accuracy")?.display ?? null;
-    }
-    case "damage-dealt": {
-      return trackedStats.get("Damage dealt")?.display ?? null;
-    }
-    case "damage-taken": {
-      return trackedStats.get("Damage taken")?.display ?? null;
-    }
-    case "damage-ratio": {
-      return trackedStats.get("Damage ratio")?.display ?? null;
-    }
-    case "avg-life-time": {
-      return trackedStats.get("Avg life time")?.display ?? null;
-    }
-    case "avg-damage-per-life": {
-      return trackedStats.get("Avg damage per life")?.display ?? null;
-    }
-    case "kills-deaths-kd": {
-      const kills = trackedStats.get("Kills");
-      const deaths = trackedStats.get("Deaths");
-      if (kills == null || deaths == null) {
-        return null;
-      }
-
-      const kdRatio = deaths.value === 0 ? kills.value : kills.value / deaths.value;
-      const kd = Number.isFinite(kdRatio) ? kdRatio.toFixed(2) : "0.00";
-
-      return `${kills.display}:${deaths.display} (${kd})`;
-    }
-    case "kills-deaths-assists-kda": {
-      const kills = trackedStats.get("Kills");
-      const deaths = trackedStats.get("Deaths");
-      const assists = trackedStats.get("Assists");
-      const kda = trackedStats.get("KDA");
-      if (kills == null || deaths == null || assists == null || kda == null) {
-        return null;
-      }
-
-      return `${kills.display}:${deaths.display}:${assists.display} (${kda.display})`;
-    }
-    case "shots-hit-fired-accuracy": {
-      const shotsHit = trackedStats.get("Shots hit");
-      const shotsFired = trackedStats.get("Shots fired");
-      const accuracy = trackedStats.get("Accuracy");
-      if (shotsHit == null || shotsFired == null || accuracy == null) {
-        return null;
-      }
-
-      return `${shotsHit.display}:${shotsFired.display} (${accuracy.display})`;
-    }
-    case "damage-dealt-taken-ratio": {
-      const dealt = trackedStats.get("Damage dealt");
-      const taken = trackedStats.get("Damage taken");
-      const ratio = trackedStats.get("Damage ratio");
-      if (dealt == null || taken == null || ratio == null) {
-        return null;
-      }
-
-      return `${dealt.display}:${taken.display} (${ratio.display})`;
-    }
-    case "avg-life-damage-per-life": {
-      const life = trackedStats.get("Avg life time");
-      const damagePerLife = trackedStats.get("Avg damage per life");
-      if (life == null || damagePerLife == null) {
-        return null;
-      }
-
-      return `${life.display} (${damagePerLife.display})`;
-    }
-    default: {
-      return null;
-    }
-  }
-}
-
 function renderNonSeriesTopBar(snapshot: PublicViewerSnapshot): React.ReactNode {
-  const accStats = snapshot.overlayAccumulatedStats;
-  if (accStats == null) {
+  if (snapshot.overlayTopBarStats.length === 0) {
     return (
       <div className={styles.topFallback}>
         <h1 className={styles.topFallbackTitle}>
@@ -376,30 +157,12 @@ function renderNonSeriesTopBar(snapshot: PublicViewerSnapshot): React.ReactNode 
     );
   }
 
-  const topBarStatItems = snapshot.overlayTopBarStatSlots
-    .map((slot) => ({ slot, value: formatTopBarStatValue(snapshot, slot) }))
-    .filter((entry): entry is { slot: IndividualTopBarStatOption; value: string } => entry.value != null);
+  const title =
+    snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
+      ? snapshot.trackerState.gamertag
+      : "Guilty Spark";
 
-  return (
-    <div className={styles.topBarStats}>
-      {snapshot.overlayShowTitle ? (
-        <h1 className={styles.gamertagTitle}>
-          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-            ? snapshot.trackerState.gamertag
-            : "Guilty Spark"}
-        </h1>
-      ) : null}
-      {topBarStatItems.length > 0 ? (
-        <div className={styles.statsLine}>
-          {topBarStatItems.map((item, index) => (
-            <span key={`${item.slot}-${index.toString()}`} className={styles.statItem}>
-              {item.value}
-            </span>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+  return <OverlayTopBarStats title={title} showTitle={snapshot.overlayShowTitle} items={snapshot.overlayTopBarStats} />;
 }
 
 function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: number): React.ReactNode {

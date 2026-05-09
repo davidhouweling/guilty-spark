@@ -28,6 +28,7 @@ function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): Publ
     overlayTabs: [],
     overlayAccumulatedStats: null,
     overlayTickerGroups: [],
+    overlayTopBarStats: [],
     xuidToDiscordName: {},
     // Settings for overlay
     overlayShowMatchmakingStatsOnly: DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false,

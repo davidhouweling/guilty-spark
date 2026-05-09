@@ -12,6 +12,7 @@ import type {
   IndividualTopBarStatOption,
   TickerSettings,
 } from "../../streamer-settings/shared-types";
+import type { IndividualTrackerTopBarStatItem } from "../top-bar-stats";
 
 export type PublicViewerVariant = "view" | "overlay";
 
@@ -40,6 +41,7 @@ export interface PublicViewerSnapshot {
   readonly overlayTabs: readonly OverlayTab[];
   readonly overlayAccumulatedStats: OverlayAccumulatedStats | null;
   readonly overlayTickerGroups: readonly OverlayTickerGroup[];
+  readonly overlayTopBarStats: readonly IndividualTrackerTopBarStatItem[];
   readonly xuidToDiscordName: Readonly<Record<string, string>>;
 
   // Settings for overlay

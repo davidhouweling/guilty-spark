@@ -9,6 +9,7 @@ import type { TrackerSearchResult } from "../../services/individual-tracker/type
 import type { SeriesMetadata } from "../stats/series-metadata";
 import type { MatchStatsData } from "../stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
+import type { IndividualTrackerTopBarStatItem } from "./top-bar-stats";
 
 export type IndividualTrackerSectionId = "live-trackers" | "streamer-connections";
 
@@ -197,6 +198,7 @@ export interface IndividualTrackerSnapshot {
   readonly viewerRefreshMessage: string | null;
   readonly viewerTrackerSummary: TrackerSearchResult | null;
   readonly viewerRenderModel: IndividualTrackerViewerRenderModel | null;
+  readonly viewerTopBarStats: readonly IndividualTrackerTopBarStatItem[];
   readonly activeSection: IndividualTrackerSectionId;
   readonly viewerTeamColor: string;
   readonly viewerEnemyColor: string;

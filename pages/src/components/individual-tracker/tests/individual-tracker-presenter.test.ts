@@ -88,6 +88,8 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.viewSource).toBe("active");
       expect(snapshot.viewTrackerId).toBe("active-1");
       expect(snapshot.viewerRenderModel).not.toBeNull();
+      expect(snapshot.viewerTopBarStats).toHaveLength(6);
+      expect(snapshot.viewerTopBarStats[0]?.option).toBe("matches-win-loss");
     });
   });
 

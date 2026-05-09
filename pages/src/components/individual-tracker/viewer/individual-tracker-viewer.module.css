@@ -162,39 +162,8 @@
   margin: 0;
 }
 
-.accumulatedGrid {
-  display: grid;
-  gap: var(--space-2);
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
 .accumulatedTableCard {
   margin-top: 0;
-}
-
-.statCard {
-  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: var(--space-3);
-}
-
-.statLabel {
-  color: var(--halo-gray);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-}
-
-.statValue {
-  font-family: var(--font-heading);
-  font-size: var(--text-base);
-  font-weight: 600;
 }
 
 .matchesTitle {

@@ -33,7 +33,7 @@ export interface ColorSettings {
 }
 
 export type IndividualTopBarStatOption =
-  | "games-win-loss"
+  | "matches-win-loss"
   | "series-win-loss"
   | "total-games"
   | "matchmaking-games"
@@ -70,7 +70,7 @@ export interface IndividualTopBarStatOptionDefinition {
 }
 
 export const INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS: readonly IndividualTopBarStatOptionDefinition[] = [
-  { value: "games-win-loss", label: "Games Won/Loss", group: "summary" },
+  { value: "matches-win-loss", label: "Matches Won/Loss", group: "summary" },
   { value: "series-win-loss", label: "Series Won/Loss", group: "summary" },
   { value: "total-games", label: "Total Games", group: "summary" },
   { value: "matchmaking-games", label: "Matchmaking Games", group: "summary" },
@@ -102,6 +102,18 @@ export const INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS: readonly IndividualTopB
 export const INDIVIDUAL_TOP_BAR_STAT_OPTIONS: readonly IndividualTopBarStatOption[] = [
   ...INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((option) => option.value),
 ];
+
+const LEGACY_INDIVIDUAL_TOP_BAR_STAT_OPTION_ALIASES: Readonly<Record<string, IndividualTopBarStatOption>> = {
+  "games-win-loss": "matches-win-loss",
+};
+
+export function normalizeIndividualTopBarStatOption(value: string): IndividualTopBarStatOption | null {
+  if (INDIVIDUAL_TOP_BAR_STAT_OPTIONS.includes(value as IndividualTopBarStatOption)) {
+    return value as IndividualTopBarStatOption;
+  }
+
+  return LEGACY_INDIVIDUAL_TOP_BAR_STAT_OPTION_ALIASES[value] ?? null;
+}
 
 export function isIndividualTopBarStatOption(value: string): value is IndividualTopBarStatOption {
   return INDIVIDUAL_TOP_BAR_STAT_OPTIONS.includes(value as IndividualTopBarStatOption);
@@ -186,7 +198,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showSubtitle: true,
   showScore: true,
   topBarStatSlots: [
-    "games-win-loss",
+    "matches-win-loss",
     "series-win-loss",
     "kills-deaths-assists-kda",
     "damage-dealt-taken-ratio",

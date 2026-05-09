@@ -7,6 +7,7 @@ import type { PublicViewerSnapshot } from "../types";
 import { PublicIndividualTrackerOverlay } from "../public-individual-tracker-overlay";
 import { aFakeIndividualTrackerStateWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { IndividualTrackerViewerRenderModel, OverlayTab } from "../../types";
+import type { IndividualTrackerTopBarStatItem } from "../../top-bar-stats";
 
 afterEach(() => {
   cleanup();
@@ -140,6 +141,7 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
       custom: 0,
     },
     overlayTickerGroups: [],
+    overlayTopBarStats: [],
     xuidToDiscordName: {},
     overlayShowMatchmakingStatsOnly: false,
     overlaySelectedSlayerStats: ["Score", "Kills"],
@@ -159,7 +161,7 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     overlayShowDiscordNames: true,
     overlayShowXboxNames: true,
     overlayTopBarStatSlots: [
-      "games-win-loss",
+      "matches-win-loss",
       "series-win-loss",
       "kills-deaths-assists-kda",
       "damage-dealt-taken-ratio",
@@ -168,6 +170,17 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     ],
     ...overrides,
   };
+}
+
+function aTopBarStatsWith(): readonly IndividualTrackerTopBarStatItem[] {
+  return [
+    { option: "matches-win-loss", label: "Matches Won/Loss", value: "7W:4L" },
+    { option: "total-games", label: "Total Games", value: "11" },
+    { option: "matchmaking-games", label: "Matchmaking Games", value: "10" },
+    { option: "custom-local-games", label: "Custom/Local Games", value: "1" },
+    { option: "series-win-loss", label: "Series Won/Loss", value: "0SW:0SL" },
+    { option: "current-rank", label: "Current Rank", value: "N/A" },
+  ];
 }
 
 describe("PublicIndividualTrackerOverlay", () => {
@@ -256,21 +269,18 @@ describe("PublicIndividualTrackerOverlay", () => {
             matchmaking: 10,
             custom: 1,
           },
-          overlayTopBarStatSlots: [
-            "games-win-loss",
-            "total-games",
-            "matchmaking-games",
-            "custom-local-games",
-            "series-win-loss",
-            "current-rank",
-          ],
+          overlayTopBarStats: aTopBarStatsWith(),
         })}
       />,
     );
 
+    expect(screen.getByText("Matches Won/Loss")).toBeInTheDocument();
     expect(screen.getByText("7W:4L")).toBeInTheDocument();
-    expect(screen.getByText("11 Total")).toBeInTheDocument();
-    expect(screen.getByText("10 Matchmaking")).toBeInTheDocument();
-    expect(screen.getByText("1 Custom/Local")).toBeInTheDocument();
+    expect(screen.getByText("Total Games")).toBeInTheDocument();
+    expect(screen.getByText("11")).toBeInTheDocument();
+    expect(screen.getByText("Matchmaking Games")).toBeInTheDocument();
+    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getByText("Custom/Local Games")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 });
