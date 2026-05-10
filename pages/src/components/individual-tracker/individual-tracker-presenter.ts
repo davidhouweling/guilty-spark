@@ -35,8 +35,8 @@ interface Config {
   readonly store: IndividualTrackerStore;
   readonly liveTrackersController: LiveTrackersController;
   readonly initialRoute: IndividualTrackerAppRoute;
-  readonly navigateTo?: (url: string) => void;
-  readonly assignLocation?: (url: string) => void;
+  readonly navigateTo?: ((url: string) => void) | undefined;
+  readonly assignLocation?: ((url: string) => void) | undefined;
 }
 
 const VIEWER_SETTINGS_DEBOUNCE_MS = 450;

@@ -37,7 +37,7 @@ export class FakeAuthService implements AuthService {
 
 export function aFakeAuthServiceWith(opts: FakeAuthServiceFactoryOpts = {}): FakeAuthService {
   return new FakeAuthService({
-    session: opts.session,
-    microsoftStartResponse: opts.microsoftStartResponse,
+    ...(opts.session !== undefined ? { session: opts.session } : {}),
+    ...(opts.microsoftStartResponse !== undefined ? { microsoftStartResponse: opts.microsoftStartResponse } : {}),
   });
 }

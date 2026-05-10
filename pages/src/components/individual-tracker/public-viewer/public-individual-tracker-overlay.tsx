@@ -1,16 +1,64 @@
-import React from "react";
-import classNames from "classnames";
-import type { PublicViewerSnapshot } from "./types";
+import React, { useMemo, useCallback } from "react";
+import type { ImageMetadata } from "astro";
+import captureTheFlagPng from "../../../assets/game-modes/capture-the-flag.png";
+import strongholdsPng from "../../../assets/game-modes/strongholds.png";
+import oddballPng from "../../../assets/game-modes/oddball.png";
+import slayerPng from "../../../assets/game-modes/slayer.png";
+import kingOfTheHillPng from "../../../assets/game-modes/king-of-the-hill.png";
+import assaultPng from "../../../assets/game-modes/assault.png";
+import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
+import { MatchStats as MatchStatsView } from "../../stats/match-stats";
+import { SeriesStats } from "../../stats/series-stats";
+import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
+import { TopSection } from "../../streamer-overlay/top-section";
+import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
+import type { IndividualTrackerViewerMatchCard } from "../types";
 import { OverlayTopBarStats } from "./overlay-top-bar-stats";
+import type { PublicViewerSnapshot } from "./types";
 import styles from "./public-individual-tracker-overlay.module.css";
 
 interface PublicIndividualTrackerOverlayProps {
   readonly snapshot: PublicViewerSnapshot;
 }
 
+interface OverlayStyleVars extends React.CSSProperties {
+  readonly "--overlay-team-color": string;
+  readonly "--overlay-enemy-color": string;
+  readonly "--font-size-queue-info": string;
+  readonly "--font-size-score": string;
+  readonly "--font-size-teams": string;
+  readonly "--font-size-tabs": string;
+  readonly "--font-size-ticker": string;
+}
+
 interface OverlayPlayer {
   readonly id: string;
   readonly displayName: string;
+}
+
+function gameModeIconUrl(gameMode: string): ImageMetadata {
+  switch (gameMode) {
+    case "Capture the Flag": {
+      return captureTheFlagPng;
+    }
+    case "Strongholds": {
+      return strongholdsPng;
+    }
+    case "Oddball": {
+      return oddballPng;
+    }
+    case "King of the Hill": {
+      return kingOfTheHillPng;
+    }
+    case "Neutral Bomb": {
+      return assaultPng;
+    }
+    case "Slayer":
+    default: {
+      return slayerPng;
+    }
+  }
 }
 
 function getOverlayPlayerLabel(snapshot: PublicViewerSnapshot, player: OverlayPlayer): string {
@@ -25,10 +73,8 @@ function getOverlayPlayerLabel(snapshot: PublicViewerSnapshot, player: OverlayPl
     return `${discordName} (${xboxName})`;
   }
 
-  if (snapshot.overlayShowDiscordNames) {
-    if (discordName !== "") {
-      return discordName;
-    }
+  if (snapshot.overlayShowDiscordNames && discordName !== "") {
+    return discordName;
   }
 
   if (snapshot.overlayShowXboxNames) {
@@ -38,204 +84,115 @@ function getOverlayPlayerLabel(snapshot: PublicViewerSnapshot, player: OverlayPl
   return discordName === "" ? xboxName : discordName;
 }
 
-function getOverlayStatusText(snapshot: PublicViewerSnapshot): string {
-  if (snapshot.loading) {
-    return "Loading";
-  }
-
-  if (snapshot.availability === "not-found") {
-    return "Not found";
-  }
-
-  if (snapshot.availability === "offline") {
-    return "Offline";
-  }
-
-  const connectionState = snapshot.trackerState?.status ?? snapshot.connectionStatus;
-  return `${connectionState} • ${snapshot.overlayColorMode} mode`;
+function buildTickerGroups(snapshot: PublicViewerSnapshot): readonly TickerMatchGroup[] {
+  return snapshot.overlayTickerGroups.map((group) => ({
+    matchIndex: group.matchIndex,
+    label: group.label,
+    rows: group.rows.map((row) => ({
+      type: row.type,
+      teamId: row.teamId,
+      name: row.name,
+      stats: row.stats.map((stat) => ({
+        name: stat.name,
+        value: stat.value,
+        bestInTeam: stat.bestInTeam,
+        bestInMatch: stat.bestInMatch,
+        display: stat.display,
+      })),
+      medals: row.medals.map((medal) => ({
+        name: medal.name,
+        count: medal.count,
+      })),
+    })),
+  }));
 }
 
-function getOverlayMessage(snapshot: PublicViewerSnapshot): string {
-  if (snapshot.loading) {
-    return "Connecting to active tracker feed...";
-  }
-
-  if (snapshot.errorMessage != null) {
-    return snapshot.errorMessage;
-  }
-
-  if (snapshot.availability === "not-found") {
-    return "No active Xbox identity is linked for this XUID.";
-  }
-
-  if (snapshot.availability === "offline") {
-    return "Tracker is currently offline.";
-  }
-
-  if (snapshot.renderModel?.activeNeatQueueSeries != null) {
-    return `${snapshot.renderModel.activeNeatQueueSeries.title} • ${snapshot.renderModel.activeNeatQueueSeries.seriesScore}`;
-  }
-
-  return "Live tracker connected.";
-}
-
-function renderSeriesPanel(snapshot: PublicViewerSnapshot): React.ReactNode {
-  const activeSeries = snapshot.renderModel?.activeNeatQueueSeries;
-  if (activeSeries == null) {
-    return <p className={styles.emptyPanel}>No active series is currently available.</p>;
+function renderMatchPanel(
+  snapshot: PublicViewerSnapshot,
+  match: {
+    readonly id: string;
+    readonly matchStats: IndividualTrackerViewerMatchCard["matchStats"];
+    readonly backgroundImageUrl: string;
+    readonly gameMode: string;
+    readonly matchNumber: number;
+    readonly gameTypeAndMap: string;
+    readonly duration: string;
+    readonly score: string;
+    readonly startTime: string;
+    readonly endTime: string;
+  },
+): React.ReactElement | null {
+  if (match.matchStats == null) {
+    return <p className={styles.emptyPanel}>Match stats unavailable for this game.</p>;
   }
 
   return (
-    <div className={styles.panelBody}>
-      <div className={styles.seriesHeader}>
-        <h2 className={styles.seriesTitle}>{activeSeries.title}</h2>
-        <span className={styles.seriesScore}>{activeSeries.seriesScore}</span>
-      </div>
-      {snapshot.overlayShowSubtitle ? <p className={styles.seriesSubtitle}>{activeSeries.subtitle}</p> : null}
-      {snapshot.overlayShowTeamDetails ? (
-        <div className={styles.teamGrid}>
-          {activeSeries.teams.map((team, index) => (
-            <section key={`series-team-${index.toString()}`} className={styles.teamCard}>
-              <h3 className={styles.teamName}>{team.name}</h3>
-              <p className={styles.teamPlayers}>
-                {team.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
-              </p>
-            </section>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <MatchStatsView
+      data={match.matchStats}
+      id={match.id}
+      backgroundImageUrl={match.backgroundImageUrl}
+      gameModeIconUrl={gameModeIconUrl(match.gameMode).src}
+      gameModeAlt={match.gameMode}
+      matchNumber={match.matchNumber}
+      gameTypeAndMap={match.gameTypeAndMap}
+      duration={match.duration}
+      score={match.score}
+      startTime={match.startTime}
+      endTime={match.endTime}
+      teamColors={snapshot.renderModel?.teamColors ?? []}
+    />
   );
 }
 
-function renderSeriesOverlayTop(snapshot: PublicViewerSnapshot): React.ReactNode {
-  const activeSeries = snapshot.renderModel?.activeNeatQueueSeries;
-
-  if (activeSeries == null || !snapshot.overlayShowTeamDetails || activeSeries.teams.length < 2) {
-    return (
-      <div className={styles.topFallback}>
-        <h1 className={styles.topFallbackTitle}>
-          {snapshot.overlayShowTitle && (activeSeries?.title ?? snapshot.trackerState?.gamertag ?? "Guilty Spark")}
-        </h1>
-      </div>
-    );
-  }
-
-  const [leftTeam, rightTeam] = activeSeries.teams;
-
-  return (
-    <div className={styles.topSection}>
-      <div className={styles.teamLeft}>
-        <span className={styles.teamName}>{leftTeam.name}</span>
-        <span className={styles.teamPlayers}>
-          {leftTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
-        </span>
-      </div>
-
-      {snapshot.overlayShowScore && <div className={styles.topSeriesScore}>{activeSeries.seriesScore}</div>}
-
-      <div className={styles.teamRight}>
-        <span className={styles.teamName}>{rightTeam.name}</span>
-        <span className={styles.teamPlayers}>
-          {rightTeam.players.map((player) => getOverlayPlayerLabel(snapshot, player)).join(" • ")}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function renderNonSeriesTopBar(snapshot: PublicViewerSnapshot): React.ReactNode {
-  if (snapshot.overlayTopBarStats.length === 0) {
-    return (
-      <div className={styles.topFallback}>
-        <h1 className={styles.topFallbackTitle}>
-          {snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-            ? snapshot.trackerState.gamertag
-            : "Guilty Spark"}
-        </h1>
-      </div>
-    );
-  }
-
-  const title =
-    snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-      ? snapshot.trackerState.gamertag
-      : "Guilty Spark";
-
-  return <OverlayTopBarStats title={title} showTitle={snapshot.overlayShowTitle} items={snapshot.overlayTopBarStats} />;
-}
-
-function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: number): React.ReactNode {
+function renderTimelinePanel(snapshot: PublicViewerSnapshot, timelineIndex: number): React.ReactElement | null {
   const timeline = snapshot.renderModel?.gameplayTimeline ?? [];
-  const item = timeline[timelineIndex];
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const item = timeline.at(timelineIndex);
   if (item == null) {
     return <p className={styles.emptyPanel}>Waiting for tracked gameplay timeline...</p>;
   }
 
   if (item.type === "group") {
+    if (item.seriesTotals == null) {
+      return <p className={styles.emptyPanel}>Series totals are still loading.</p>;
+    }
+
     return (
-      <div className={styles.panelBody}>
-        <div className={styles.seriesHeader}>
-          <h2 className={styles.seriesTitle}>{item.title}</h2>
-          <span className={styles.seriesScore}>{item.seriesScore}</span>
-        </div>
-        <p className={styles.seriesSubtitle}>{item.subtitle}</p>
-        <p className={styles.summaryLine}>{`${item.matches.length.toString()} tracked games in this set.`}</p>
-      </div>
+      <SeriesStats
+        teamData={item.seriesTotals.teamData}
+        playerData={item.seriesTotals.playerData}
+        title="Series Totals"
+        metadata={item.seriesTotals.metadata}
+        teamColors={snapshot.renderModel?.teamColors ?? []}
+      />
     );
   }
 
+  return renderMatchPanel(snapshot, item.match);
+}
+
+function renderAccumulatedStatsPanel(snapshot: PublicViewerSnapshot): React.ReactElement | null {
+  const totals = snapshot.renderModel?.trackedPlayerTotals;
+  if (totals == null || snapshot.renderModel == null) {
+    return <p className={styles.emptyPanel}>No accumulated stats available yet.</p>;
+  }
+
   return (
-    <div className={styles.panelBody}>
-      <h2 className={styles.seriesTitle}>{item.match.gameMode}</h2>
-      {snapshot.overlayShowSubtitle ? <p className={styles.seriesSubtitle}>{item.match.gameTypeAndMap}</p> : null}
-      {snapshot.overlayShowTeamDetails ? (
-        <div className={styles.matchMetaGrid}>
-          <div className={styles.metaCell}>
-            <span className={styles.metaLabel}>Score</span>
-            <span className={styles.metaValue}>{item.match.score}</span>
-          </div>
-          <div className={styles.metaCell}>
-            <span className={styles.metaLabel}>Duration</span>
-            <span className={styles.metaValue}>{item.match.duration}</span>
-          </div>
-          <div className={styles.metaCell}>
-            <span className={styles.metaLabel}>Start</span>
-            <span className={styles.metaValue}>{item.match.startTime}</span>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <SeriesStats
+      teamData={totals.teamData}
+      playerData={totals.playerData}
+      title={totals.title}
+      metadata={totals.metadata}
+      teamColors={snapshot.renderModel.teamColors}
+      showHeader={false}
+      showSectionHeaders={false}
+      highlightBestStats={false}
+      omitStatKeys={["team", "gamertag"]}
+    />
   );
 }
 
 export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTrackerOverlayProps): React.ReactElement {
-  const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
-  const isInSeries = snapshot.renderModel?.activeNeatQueueSeries != null;
-
-  React.useEffect(() => {
-    if (snapshot.overlayTabs.length === 0) {
-      setActiveTabId(null);
-      return;
-    }
-
-    const hasCurrent = activeTabId != null && snapshot.overlayTabs.some((tab) => tab.id === activeTabId);
-    if (!hasCurrent) {
-      setActiveTabId(snapshot.overlayTabs[0].id);
-    }
-  }, [snapshot.overlayTabs, activeTabId]);
-
-  const activeTab = snapshot.overlayTabs.find((tab) => tab.id === activeTabId) ?? null;
-
-  const title =
-    snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-      ? `${snapshot.trackerState.gamertag} Overlay`
-      : "Guilty Spark Overlay";
-
   const isInactive = snapshot.availability === "offline" || snapshot.availability === "not-found";
-
   if (isInactive) {
     return (
       <section className={styles.overlayRoot}>
@@ -246,60 +203,154 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
     );
   }
 
-  const cssVariables: React.CSSProperties = {
-    "--overlay-team-color": activeTab?.teamColor ?? `var(--team-color-${snapshot.viewerTeamColor}, var(--halo-green))`,
+  const teamColors = useMemo(
+    () => [getTeamColorOrDefault(snapshot.viewerTeamColor, 0), getTeamColorOrDefault(snapshot.viewerEnemyColor, 1)],
+    [snapshot.viewerEnemyColor, snapshot.viewerTeamColor],
+  );
+
+  const topTitle =
+    snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
+      ? snapshot.trackerState.gamertag
+      : "Guilty Spark";
+
+  const hasSeriesContext = snapshot.overlayHasSeriesContext;
+  const seriesMatches = snapshot.overlaySeriesMatches;
+  const seriesTeams = snapshot.overlaySeriesTeams;
+  const timelineTabIndexes = snapshot.overlayTimelineTabIndexes;
+  const hasRenderableSeriesTeams = snapshot.overlayShowTeamDetails && seriesTeams.length >= 2;
+  const leftSeriesTeam = hasRenderableSeriesTeams ? seriesTeams[0] : undefined;
+  const rightSeriesTeam = hasRenderableSeriesTeams ? seriesTeams[1] : undefined;
+
+  const topSection = hasSeriesContext ? (
+    <TopSection
+      title={
+        snapshot.overlayShowTitle
+          ? (snapshot.overlaySeriesTitle ?? snapshot.trackerState?.gamertag ?? "Guilty Spark")
+          : null
+      }
+      subtitle={snapshot.overlayShowSubtitle ? snapshot.overlaySeriesSubtitle : null}
+      iconUrl={null}
+      showScore={snapshot.overlayShowScore}
+      showTeamDetails={hasRenderableSeriesTeams}
+      seriesScore={snapshot.overlaySeriesScore}
+      teamColors={teamColors}
+      teamLeft={
+        leftSeriesTeam != null ? (
+          <TeamDetailsContent
+            team={leftSeriesTeam}
+            teamName={leftSeriesTeam.name}
+            disableTeamPlayerNames={false}
+            renderPlayerNameContent={(playerId, displayName) => (
+              <>{getOverlayPlayerLabel(snapshot, { id: playerId, displayName })}</>
+            )}
+          />
+        ) : null
+      }
+      teamRight={
+        rightSeriesTeam != null ? (
+          <TeamDetailsContent
+            team={rightSeriesTeam}
+            teamName={rightSeriesTeam.name}
+            disableTeamPlayerNames={false}
+            renderPlayerNameContent={(playerId, displayName) => (
+              <>{getOverlayPlayerLabel(snapshot, { id: playerId, displayName })}</>
+            )}
+          />
+        ) : null
+      }
+    />
+  ) : (
+    <OverlayTopBarStats title={topTitle} showTitle={snapshot.overlayShowTitle} items={snapshot.overlayTopBarStats} />
+  );
+
+  const sharedTabs = snapshot.overlaySharedTabs;
+
+  const hasPanelContent = useCallback(
+    (selectedTab: number): boolean => {
+      if (selectedTab === -1) {
+        return true;
+      }
+
+      if (hasSeriesContext) {
+        return selectedTab >= 0 && selectedTab < seriesMatches.length;
+      }
+
+      if (selectedTab < 0 || selectedTab >= timelineTabIndexes.length) {
+        return false;
+      }
+
+      const timelineIndex = timelineTabIndexes.at(selectedTab);
+      if (timelineIndex == null) {
+        return false;
+      }
+
+      return snapshot.renderModel?.gameplayTimeline[timelineIndex] != null;
+    },
+    [hasSeriesContext, seriesMatches, snapshot.renderModel?.gameplayTimeline, timelineTabIndexes],
+  );
+
+  const renderPanelContent = useCallback(
+    (selectedTab: number): React.ReactElement | null => {
+      if (selectedTab === -1) {
+        return renderAccumulatedStatsPanel(snapshot);
+      }
+
+      if (hasSeriesContext) {
+        if (selectedTab < 0 || selectedTab >= seriesMatches.length) {
+          return <p className={styles.emptyPanel}>No tracked details available for this tab.</p>;
+        }
+
+        const seriesMatch = seriesMatches.at(selectedTab);
+        if (seriesMatch == null) {
+          return <p className={styles.emptyPanel}>No tracked details available for this tab.</p>;
+        }
+
+        return renderMatchPanel(snapshot, seriesMatch);
+      }
+
+      if (selectedTab < 0 || selectedTab >= timelineTabIndexes.length) {
+        return <p className={styles.emptyPanel}>No tracked details available for this tab.</p>;
+      }
+
+      const timelineIndex = timelineTabIndexes.at(selectedTab);
+      if (timelineIndex == null) {
+        return <p className={styles.emptyPanel}>No tracked details available for this tab.</p>;
+      }
+
+      return renderTimelinePanel(snapshot, timelineIndex);
+    },
+    [hasSeriesContext, seriesMatches, snapshot, timelineTabIndexes],
+  );
+
+  const cssVariables: OverlayStyleVars = {
+    "--overlay-team-color": `var(--team-color-${snapshot.viewerTeamColor}, var(--halo-green))`,
     "--overlay-enemy-color": `var(--team-color-${snapshot.viewerEnemyColor}, var(--halo-red))`,
-    "--font-size-queue-info": snapshot.overlayFontSizes.queueInfo,
-    "--font-size-score": snapshot.overlayFontSizes.score,
-    "--font-size-teams": snapshot.overlayFontSizes.teams,
-    "--font-size-tabs": snapshot.overlayFontSizes.tabs,
-    "--font-size-ticker": snapshot.overlayFontSizes.ticker,
-  } as React.CSSProperties;
+    "--font-size-queue-info": (snapshot.overlayFontSizes.queueInfo / 100).toString(),
+    "--font-size-score": (snapshot.overlayFontSizes.score / 100).toString(),
+    "--font-size-teams": (snapshot.overlayFontSizes.teams / 100).toString(),
+    "--font-size-tabs": (snapshot.overlayFontSizes.tabs / 100).toString(),
+    "--font-size-ticker": (snapshot.overlayFontSizes.ticker / 100).toString(),
+  };
 
   return (
     <section className={styles.overlayRoot}>
-      <div className={styles.overlayCard} style={cssVariables}>
-        <header className={styles.headerMeta}>
-          {snapshot.overlayShowTitle ? <h1 className={styles.title}>{title}</h1> : null}
-          <span className={styles.status}>{getOverlayStatusText(snapshot)}</span>
-        </header>
-
-        {isInSeries ? renderSeriesOverlayTop(snapshot) : renderNonSeriesTopBar(snapshot)}
-
-        {snapshot.overlayTabs.length > 0 ? (
-          <section className={styles.detailsPanel}>
-            {activeTab == null
-              ? null
-              : activeTab.type === "active-series"
-                ? renderSeriesPanel(snapshot)
-                : renderTimelinePanel(snapshot, activeTab.timelineIndex ?? 0)}
-          </section>
-        ) : null}
-
-        <div className={styles.bottomSection}>
-          {snapshot.overlayShowTabs ? (
-            <nav className={styles.tabBar} aria-label="Overlay panels">
-              {snapshot.overlayTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={classNames(styles.tabButton, {
-                    [styles.tabButtonActive]: tab.id === activeTab?.id,
-                  })}
-                  style={tab.teamColor != null && !isInSeries ? { color: tab.teamColor } : undefined}
-                  onClick={(): void => {
-                    setActiveTabId(tab.id);
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          ) : null}
-
-          {snapshot.overlayShowTicker ? <p className={styles.ticker}>{getOverlayMessage(snapshot)}</p> : null}
-        </div>
-      </div>
+      <StreamerOverlay
+        topSection={topSection}
+        pinTopSection={!hasSeriesContext}
+        teamColors={teamColors}
+        tabs={sharedTabs}
+        tickerMatchGroups={buildTickerGroups(snapshot)}
+        showTabs={snapshot.overlayShowTabs}
+        showTicker={snapshot.overlayShowTicker}
+        showPreSeriesInfo={snapshot.overlayShowPreSeriesInfo}
+        matchesLength={hasSeriesContext ? seriesMatches.length : timelineTabIndexes.length}
+        showPreview={snapshot.overlayViewPreview}
+        previewMode={snapshot.overlayColorMode}
+        fontSizeStyles={cssVariables}
+        settingsUi={null}
+        hasPanelContent={hasPanelContent}
+        renderPanelContent={renderPanelContent}
+      />
     </section>
   );
 }

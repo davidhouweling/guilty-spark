@@ -3,6 +3,7 @@ import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
 import type { ImageMetadata } from "astro";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../assets/game-modes/strongholds.png";
@@ -20,7 +21,7 @@ import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
-import { StreamerOverlay } from "./streamer-overlay/streamer-overlay";
+import { LiveTrackerStreamerOverlay } from "./live-tracker-streamer-overlay";
 import {
   useTrackerInfo,
   useTrackerState,
@@ -68,7 +69,8 @@ function emojifySeriesScore(seriesScore: string): string {
   if (teamScores.length !== 2) {
     return seriesScore;
   }
-  return `🦅${teamScores[0]}:${teamScores[1]}🐍`;
+  const [leftScore, rightScore] = teamScores;
+  return `🦅${Preconditions.checkExists(leftScore)}:${Preconditions.checkExists(rightScore)}🐍`;
 }
 
 function gameModeIconSrc(gameMode: string): string {
@@ -272,7 +274,7 @@ export function LiveTrackerView(): React.ReactElement {
     return (
       <>
         <title>{title.join(" ")}</title>
-        <StreamerOverlay
+        <LiveTrackerStreamerOverlay
           teamColors={teamColorsArray}
           gameModeIconUrl={gameModeIconSrc}
           settings={settings}

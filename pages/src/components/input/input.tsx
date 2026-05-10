@@ -4,9 +4,9 @@ import styles from "./input.module.css";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  containerClassName?: string;
-  labelClassName?: string;
-  hint?: string;
+  containerClassName?: string | undefined;
+  labelClassName?: string | undefined;
+  hint?: string | undefined;
 }
 
 export function Input({ label, containerClassName, labelClassName, hint, ...rest }: InputProps): React.ReactElement {

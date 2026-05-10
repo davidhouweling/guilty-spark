@@ -48,6 +48,13 @@ function buildStreamerUrls(xboxXuid: string): StreamerUrls {
   };
 }
 
+function buildOverlayPreviewUrl(overlayUrl: string, previewMode: "player" | "observer"): string {
+  const url = new URL(overlayUrl, window.location.origin);
+  url.searchParams.set("preview", "1");
+  url.searchParams.set("previewMode", previewMode);
+  return url.toString();
+}
+
 export function StreamerConnectionsSectionView({
   xboxXuid,
   defaultColorMode,
@@ -176,6 +183,15 @@ export function StreamerConnectionsSectionView({
                 }}
               >
                 Open overlay
+              </Button>
+              <Button
+                onClick={(): void => {
+                  if (typeof window !== "undefined") {
+                    window.open(buildOverlayPreviewUrl(urls?.overlayUrl ?? "", defaultColorMode), "_blank");
+                  }
+                }}
+              >
+                Open overlay with preview
               </Button>
               <Button
                 onClick={(): void => {

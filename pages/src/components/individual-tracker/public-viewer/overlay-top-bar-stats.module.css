@@ -10,11 +10,11 @@
   left: 50%;
   max-width: min(1180px, calc(100vw - 1.5rem));
   padding: var(--space-2) var(--space-3);
-  position: absolute;
-  top: 2.95rem;
+  position: fixed;
+  top: 0;
   transform: translateX(-50%);
   width: min(1180px, calc(100vw - 1.5rem));
-  z-index: 16;
+  z-index: 24;
 }
 
 .title {

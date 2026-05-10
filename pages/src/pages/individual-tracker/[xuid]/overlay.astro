@@ -6,8 +6,20 @@ import { API_HOST } from "../../../constants";
 import { IndividualTrackerPublicApp } from "../../../apps/individual-tracker-public-app";
 
 const { xuid = "" } = Astro.params;
+const previewParam = Astro.url.searchParams.get("preview")?.toLowerCase() ?? "";
+const overlayViewPreview = previewParam === "1" || previewParam === "true";
+const previewModeParam = Astro.url.searchParams.get("previewMode")?.toLowerCase();
+const overlayPreviewMode =
+  previewModeParam === "player" || previewModeParam === "observer" ? previewModeParam : undefined;
 ---
 
 <OverlayLayout title="Individual Tracker Overlay - Guilty Spark" description="OBS friendly individual tracker overlay">
-  <IndividualTrackerPublicApp client:load apiHost={API_HOST} xuid={xuid} variant="overlay" />
+  <IndividualTrackerPublicApp
+    client:load
+    apiHost={API_HOST}
+    xuid={xuid}
+    variant="overlay"
+    overlayViewPreview={overlayViewPreview}
+    overlayPreviewMode={overlayPreviewMode}
+  />
 </OverlayLayout>

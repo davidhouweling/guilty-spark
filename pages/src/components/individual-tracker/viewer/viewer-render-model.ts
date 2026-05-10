@@ -33,7 +33,9 @@ interface SeriesGroupViewModel {
   readonly subtitle: string;
   readonly seriesScore: string;
   readonly entries: readonly TrackerMatchHistoryEntry[];
-  readonly neatQueueSeriesData?: NonNullable<IndividualTrackerState["seriesGroups"][number]["neatQueueSeriesData"]>;
+  readonly neatQueueSeriesData?:
+    | NonNullable<IndividualTrackerState["seriesGroups"][number]["neatQueueSeriesData"]>
+    | undefined;
 }
 
 type GameplayTimelineItem =

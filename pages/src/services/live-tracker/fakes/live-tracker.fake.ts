@@ -7,6 +7,7 @@ import type {
   LiveTrackerStatusListener,
   LiveTrackerSubscription,
 } from "../types";
+import { Preconditions } from "../../../base/preconditions";
 import type { LiveTrackerScenario } from "./scenario";
 import { aFakeLiveTrackerScenarioWith } from "./scenario";
 
@@ -104,7 +105,7 @@ class FakeLiveTrackerConnection implements LiveTrackerConnection {
       return;
     }
 
-    const message = this.scenario.frames[this.frameIndex];
+    const message = Preconditions.checkExists(this.scenario.frames[this.frameIndex]);
     this.frameIndex += 1;
 
     this.emitMessage(message);
@@ -149,6 +150,6 @@ export function aFakeLiveTrackerServiceWith(opts: FakeLiveTrackerServiceFactoryO
   const scenario = opts.scenario ?? aFakeLiveTrackerScenarioWith();
 
   return new FakeLiveTrackerService(scenario, {
-    mode: opts.mode,
+    mode: opts.mode ?? "manual",
   });
 }

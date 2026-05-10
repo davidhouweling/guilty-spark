@@ -97,13 +97,13 @@ describe("SortableTable", () => {
     let rows = screen.getAllByRole("row").slice(1);
     let [firstRow] = rows;
     let firstRowCells = within(firstRow).getAllByRole("cell");
-    const firstClickScore = parseInt(firstRowCells[1]?.textContent || "0", 10);
+    const firstClickScore = parseInt(firstRowCells[1]?.textContent ?? "0", 10);
 
     await user.click(scoreHeader);
     rows = screen.getAllByRole("row").slice(1);
     [firstRow] = rows;
     firstRowCells = within(firstRow).getAllByRole("cell");
-    const secondClickScore = parseInt(firstRowCells[1]?.textContent || "0", 10);
+    const secondClickScore = parseInt(firstRowCells[1]?.textContent ?? "0", 10);
 
     expect(firstClickScore).not.toBe(secondClickScore);
   });

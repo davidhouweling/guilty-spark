@@ -62,8 +62,8 @@ function LiveTrackersSectionInternal({ controller }: LiveTrackersSectionInternal
 
 interface CreateLiveTrackersSectionConfig {
   readonly services: Services;
-  readonly navigateTo?: (url: string) => void;
-  readonly confirmDelete?: (message: string) => boolean;
+  readonly navigateTo?: ((url: string) => void) | undefined;
+  readonly confirmDelete?: ((message: string) => boolean) | undefined;
 }
 
 interface CreateLiveTrackersSectionResult {

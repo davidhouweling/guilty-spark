@@ -69,7 +69,7 @@ export interface LiveTrackerNeatQueueStateRenderModel {
   readonly seriesScore: string;
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
-  readonly seriesData?: LiveTrackerSeriesDataRenderModel;
+  readonly seriesData?: LiveTrackerSeriesDataRenderModel | undefined;
 }
 
 export interface LiveTrackerViewModel {

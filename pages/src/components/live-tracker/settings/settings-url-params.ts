@@ -300,9 +300,9 @@ export function buildUrlWithSettings({
 }: {
   baseUrl: string;
   settings: AllStreamerSettings;
-  server?: string;
-  queue?: number;
-  viewMode?: ViewMode;
+  server?: string | undefined;
+  queue?: number | undefined;
+  viewMode?: ViewMode | undefined;
 }): string {
   const url = new URL(baseUrl);
 

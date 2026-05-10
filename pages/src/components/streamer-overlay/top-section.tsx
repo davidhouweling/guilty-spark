@@ -1,6 +1,6 @@
 import React, { memo } from "react";
-import type { TeamColor } from "../../team-colors/team-colors";
-import { TeamIcon } from "../../icons/team-icon";
+import type { TeamColor } from "../team-colors/team-colors";
+import { TeamIcon } from "../icons/team-icon";
 import styles from "./streamer-overlay.module.css";
 
 interface TopSectionProps {

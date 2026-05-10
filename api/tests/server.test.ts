@@ -1127,6 +1127,14 @@ describe("Server", () => {
           showSubtitle: true,
           showScore: true,
           showDiscordNames: false,
+          topBarStatSlots: [
+            "matches-win-loss",
+            "series-win-loss",
+            "kills-deaths-assists-kda",
+            "damage-dealt-taken-ratio",
+            "avg-life-damage-per-life",
+            "current-rank",
+          ],
         },
         styleFlags: {
           colorMode: "observer",

@@ -444,11 +444,11 @@ export function aFakeIndividualTrackerServiceWith(
 ): FakeIndividualTrackerService {
   return new FakeIndividualTrackerService({
     profileResponse: buildDefaultProfileResponse(opts.profile ?? null, opts.games ?? []),
-    activeState: opts.activeState,
-    trackerStates: opts.trackerStates,
-    trackerReferences: opts.trackerReferences,
-    startResponse: opts.startResponse,
-    stopResponse: opts.stopResponse,
-    shouldThrowOnStart: opts.shouldThrowOnStart,
+    ...(opts.activeState !== undefined ? { activeState: opts.activeState } : {}),
+    ...(opts.trackerStates !== undefined ? { trackerStates: opts.trackerStates } : {}),
+    ...(opts.trackerReferences !== undefined ? { trackerReferences: opts.trackerReferences } : {}),
+    ...(opts.startResponse !== undefined ? { startResponse: opts.startResponse } : {}),
+    ...(opts.stopResponse !== undefined ? { stopResponse: opts.stopResponse } : {}),
+    ...(opts.shouldThrowOnStart !== undefined ? { shouldThrowOnStart: opts.shouldThrowOnStart } : {}),
   });
 }

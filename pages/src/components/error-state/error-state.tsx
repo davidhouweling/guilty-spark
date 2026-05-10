@@ -2,8 +2,8 @@ import React from "react";
 import styles from "./error-state.module.css";
 
 interface ErrorStateProps {
-  readonly message?: string;
-  readonly onRetry?: () => void;
+  readonly message?: string | undefined;
+  readonly onRetry?: (() => void) | undefined;
 }
 
 export function ErrorState({ message, onRetry }: ErrorStateProps): React.ReactElement {

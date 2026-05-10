@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./tracker-summary.module.css";
@@ -30,7 +31,7 @@ function formatMatchCount(value: number | null): string {
 }
 
 export function TrackerSummary({ tracker, className }: TrackerSummaryProps): React.ReactElement {
-  const combinedClassName = className == null ? styles.summaryCard : `${styles.summaryCard} ${className}`;
+  const combinedClassName = classNames(styles.summaryCard, className);
 
   return (
     <div className={combinedClassName}>

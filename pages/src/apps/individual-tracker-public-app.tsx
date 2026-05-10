@@ -16,20 +16,29 @@ interface IndividualTrackerPublicAppProps {
   readonly apiHost: string;
   readonly xuid: string;
   readonly variant: PublicViewerVariant;
+  readonly overlayViewPreview?: boolean;
+  readonly overlayPreviewMode?: "player" | "observer" | undefined;
 }
 
 interface IndividualTrackerPublicFactoryProps {
   readonly services: Services;
   readonly xuid: string;
   readonly variant: PublicViewerVariant;
+  readonly overlayViewPreview?: boolean;
+  readonly overlayPreviewMode?: "player" | "observer" | undefined;
 }
 
 export function IndividualTrackerPublicFactory({
   services,
   xuid,
   variant,
+  overlayViewPreview = false,
+  overlayPreviewMode,
 }: IndividualTrackerPublicFactoryProps): React.ReactElement {
-  const store = useMemo(() => new PublicViewerStore(xuid, variant), [xuid, variant]);
+  const store = useMemo(
+    () => new PublicViewerStore(xuid, variant, overlayViewPreview, overlayPreviewMode),
+    [overlayPreviewMode, overlayViewPreview, xuid, variant],
+  );
 
   const presenter = useMemo(
     () =>
@@ -38,8 +47,9 @@ export function IndividualTrackerPublicFactory({
         store,
         xuid,
         variant,
+        forcedOverlayColorMode: overlayPreviewMode,
       }),
-    [services, store, xuid, variant],
+    [overlayPreviewMode, services, store, xuid, variant],
   );
 
   useEffect(() => {
@@ -81,13 +91,23 @@ export function IndividualTrackerPublicApp({
   apiHost,
   xuid,
   variant,
+  overlayViewPreview = false,
+  overlayPreviewMode,
 }: IndividualTrackerPublicAppProps): React.ReactElement {
   return (
     <BaseApp
       apiHost={apiHost}
       loading={<LoadingState text="Loading active tracker view..." />}
       error={<ErrorState message="Failed to load active tracker view" />}
-      loaded={(services) => <IndividualTrackerPublicFactory services={services} xuid={xuid} variant={variant} />}
+      loaded={(services) => (
+        <IndividualTrackerPublicFactory
+          services={services}
+          xuid={xuid}
+          variant={variant}
+          overlayViewPreview={overlayViewPreview}
+          overlayPreviewMode={overlayPreviewMode}
+        />
+      )}
     />
   );
 }

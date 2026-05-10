@@ -1,13 +1,21 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { PublicViewerSnapshot } from "../types";
 import { PublicIndividualTrackerOverlay } from "../public-individual-tracker-overlay";
 import { aFakeIndividualTrackerStateWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { IndividualTrackerViewerRenderModel, OverlayTab } from "../../types";
 import type { IndividualTrackerTopBarStatItem } from "../../top-bar-stats";
+
+vi.mock("../../../icons/team-icon", () => ({
+  TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
+}));
+
+vi.mock("../../../information-ticker/information-ticker", () => ({
+  InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,
+}));
 
 afterEach(() => {
   cleanup();
@@ -131,7 +139,39 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
     overlayShowTabs: true,
     overlayShowTicker: true,
     overlayShowTeamDetails: true,
+    overlayViewPreview: false,
     overlayColorMode: "observer",
+    overlayHasSeriesContext: true,
+    overlaySeriesTitle: "Grand Finals",
+    overlaySeriesSubtitle: "Queue #77",
+    overlaySeriesScore: "2:1",
+    overlaySeriesTeams: [
+      {
+        name: "Blue",
+        players: [
+          { id: "p1", displayName: "Alpha" },
+          { id: "p2", displayName: "Bravo" },
+        ],
+      },
+      {
+        name: "Red",
+        players: [
+          { id: "p3", displayName: "Charlie" },
+          { id: "p4", displayName: "Delta" },
+        ],
+      },
+    ],
+    overlaySeriesMatches: [],
+    overlaySharedTabs: [
+      {
+        type: "series",
+        index: -1,
+        label: "Series score",
+        score: "2:1",
+        teamColor: undefined,
+      },
+    ],
+    overlayTimelineTabIndexes: [0],
     overlayTabs: defaultTabs,
     overlayAccumulatedStats: {
       wins: 1,
@@ -194,7 +234,7 @@ describe("PublicIndividualTrackerOverlay", () => {
   it("renders series tab and team details when active series exists", () => {
     render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith()} />);
 
-    expect(screen.getByRole("button", { name: "Series" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /series score/i })).toBeInTheDocument();
     expect(screen.getByText("Grand Finals")).toBeInTheDocument();
     expect(screen.getAllByText("Blue").length).toBeGreaterThan(0);
   });
@@ -204,6 +244,31 @@ describe("PublicIndividualTrackerOverlay", () => {
       <PublicIndividualTrackerOverlay
         snapshot={aSnapshotWith({
           renderModel: aRenderModelWithoutSeries(),
+          overlayHasSeriesContext: false,
+          overlaySeriesTitle: null,
+          overlaySeriesSubtitle: null,
+          overlaySeriesScore: "1:0",
+          overlaySeriesTeams: [],
+          overlaySeriesMatches: [],
+          overlaySharedTabs: [
+            {
+              type: "series",
+              index: -1,
+              label: "Matches",
+              score: "1:0",
+              teamColor: undefined,
+            },
+            {
+              type: "match",
+              index: 0,
+              matchId: "standalone-0",
+              label: "Game 1",
+              score: "50:48",
+              icon: "",
+              teamColor: "#00B7EB",
+            },
+          ],
+          overlayTimelineTabIndexes: [0],
           overlayTabs: [
             {
               id: "standalone-0",
@@ -218,22 +283,22 @@ describe("PublicIndividualTrackerOverlay", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Series" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Game 1" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Game 1" }));
-    expect(screen.getByText(/slayer on aquarius/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /game 1/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /game 1/i }));
+    expect(screen.getByText(/match stats unavailable for this game/i)).toBeInTheDocument();
   });
 
   it("hides tab controls when streamer settings disable tabs", () => {
     render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayShowTabs: false })} />);
 
-    expect(screen.queryByRole("button", { name: "Series" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /series score/i })).not.toBeInTheDocument();
     expect(screen.getByText("Grand Finals")).toBeInTheDocument();
   });
 
   it("hides ticker text when streamer settings disable ticker", () => {
     render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayShowTicker: false })} />);
 
-    expect(screen.queryByText(/live tracker connected/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("information-ticker")).not.toBeInTheDocument();
   });
 
   it("hides team details when streamer settings disable team details", () => {
@@ -242,10 +307,10 @@ describe("PublicIndividualTrackerOverlay", () => {
     expect(screen.queryByText("Blue")).not.toBeInTheDocument();
   });
 
-  it("shows overlay status with player mode when requested", () => {
+  it("renders overlay when player mode is requested", () => {
     render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith({ overlayColorMode: "player" })} />);
 
-    expect(screen.getByText(/player mode/i)).toBeInTheDocument();
+    expect(screen.getByText("Grand Finals")).toBeInTheDocument();
   });
 
   it("renders accumulated stats in top bar for non-series sessions", () => {
@@ -253,6 +318,31 @@ describe("PublicIndividualTrackerOverlay", () => {
       <PublicIndividualTrackerOverlay
         snapshot={aSnapshotWith({
           renderModel: aRenderModelWithoutSeries(),
+          overlayHasSeriesContext: false,
+          overlaySeriesTitle: null,
+          overlaySeriesSubtitle: null,
+          overlaySeriesScore: "7:4",
+          overlaySeriesTeams: [],
+          overlaySeriesMatches: [],
+          overlaySharedTabs: [
+            {
+              type: "series",
+              index: -1,
+              label: "Matches",
+              score: "7:4",
+              teamColor: undefined,
+            },
+            {
+              type: "match",
+              index: 0,
+              matchId: "standalone-0",
+              label: "Game 1",
+              score: "50:48",
+              icon: "",
+              teamColor: "#00B7EB",
+            },
+          ],
+          overlayTimelineTabIndexes: [0],
           overlayTabs: [
             {
               id: "standalone-0",

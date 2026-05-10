@@ -19,11 +19,11 @@ export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" 
   /** Function to extract cell value from row data */
   accessorFn: (row: TData) => unknown;
   /** Function to render cell content (optional, defaults to displaying the value) */
-  cell?: (value: unknown, row: TData) => React.ReactNode;
+  cell?: ((value: unknown, row: TData) => React.ReactNode) | undefined;
   /** Optional CSS class for header cells */
-  headerClassName?: string;
+  headerClassName?: string | undefined;
   /** Optional CSS class for body cells (can be a function for dynamic classes) */
-  cellClassName?: string | ((row: TData) => string);
+  cellClassName?: string | ((row: TData) => string) | undefined;
   /** Enable sorting for this column (default: true) */
   enableSorting?: boolean;
 }
@@ -34,15 +34,15 @@ export interface SortableTableProps<TData> {
   /** Column definitions */
   columns: readonly SortableTableColumn<TData>[];
   /** Optional CSS class for the wrapper */
-  className?: string;
+  className?: string | undefined;
   /** Optional function to generate unique keys for rows */
-  getRowKey?: (row: TData, index: number) => string;
+  getRowKey?: ((row: TData, index: number) => string) | undefined;
   /** Optional ARIA label for the table */
-  ariaLabel?: string;
+  ariaLabel?: string | undefined;
   /** Optional initial sort state */
-  initialSort?: { columnId: string; desc?: boolean };
+  initialSort?: { columnId: string; desc?: boolean | undefined } | undefined;
   /** Optional function to provide custom row styles */
-  getRowStyle?: (row: TData) => React.CSSProperties | undefined;
+  getRowStyle?: ((row: TData) => React.CSSProperties | undefined) | undefined;
 }
 
 function getSortIndicator(sortDirection: SortDirection | false): string | null {

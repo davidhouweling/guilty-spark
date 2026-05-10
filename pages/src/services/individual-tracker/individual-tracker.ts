@@ -713,7 +713,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       this.haloInfiniteClient.getPlayerMatchCount(userResult.xuid),
     ]);
 
-    if (rankedArenaCsrs.status === "fulfilled" && rankedArenaCsrs.value.length > 0) {
+    if (rankedArenaCsrs.status === "fulfilled") {
       const [{ Result }] = rankedArenaCsrs.value;
       const labels = getRankAndCsrLabels(Result);
       const current = Result.Current;

@@ -153,7 +153,7 @@ function formatTopBarStatValue(
   trackerSummary: TrackerSearchResult | null,
   option: IndividualTopBarStatOption,
 ): string | null {
-  const accumulatedStats = renderModel.accumulatedStats;
+  const { accumulatedStats } = renderModel;
   const trackedStats = getTrackedPlayerStatsMap(renderModel);
 
   switch (option) {

@@ -3,6 +3,7 @@ import type { LiveTrackerIdentity } from "@guilty-spark/shared/live-tracker/type
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { RealLiveTrackerService } from "../live-tracker";
 import type { LiveTrackerListener } from "../types";
+import { Preconditions } from "../../../base/preconditions";
 
 class MockWebSocket {
   public onopen: ((event: Event) => void) | null = null;
@@ -321,7 +322,7 @@ describe("RealLiveTrackerService", () => {
     statusListener.mockClear();
 
     const [ws] = MockWebSocket.instances;
-    const closeSpy = vi.spyOn(ws, "close");
+    const closeSpy = vi.spyOn(Preconditions.checkExists(ws), "close");
 
     connection.disconnect();
 
@@ -341,7 +342,7 @@ describe("RealLiveTrackerService", () => {
     const connection = await service.connect(identity);
 
     const [ws] = MockWebSocket.instances;
-    const closeSpy = vi.spyOn(ws, "close");
+    const closeSpy = vi.spyOn(Preconditions.checkExists(ws), "close");
 
     window.dispatchEvent(new Event("offline"));
 

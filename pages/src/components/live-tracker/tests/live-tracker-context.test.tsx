@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import { Preconditions } from "../../../base/preconditions";
 import type { LiveTrackerViewModel } from "../types";
 import {
   LiveTrackerProvider,
@@ -195,14 +196,12 @@ describe("LiveTrackerContext", () => {
       },
     };
 
-    const defaultState = aFakeLiveTrackerViewModelWith().state;
+    const defaultState = Preconditions.checkExists(aFakeLiveTrackerViewModelWith().state);
     const model = aFakeLiveTrackerViewModelWith({
-      state: defaultState
-        ? {
-            ...defaultState,
-            playersAssociationData: playersData,
-          }
-        : undefined,
+      state: {
+        ...defaultState,
+        playersAssociationData: playersData,
+      },
     });
 
     const { result } = renderHook(() => useTrackerPlayersData(), {

@@ -16,8 +16,8 @@ import type { LiveTrackersSnapshot } from "./types";
 interface Config {
   readonly services: Services;
   readonly store: LiveTrackersStore;
-  readonly confirmDelete?: (message: string) => boolean;
-  readonly navigateTo?: (url: string) => void;
+  readonly confirmDelete?: ((message: string) => boolean) | undefined;
+  readonly navigateTo?: ((url: string) => void) | undefined;
 }
 
 const NON_LIVE_POLL_INTERVAL_MS = 30_000;

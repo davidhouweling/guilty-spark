@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { StatsCollection } from "@guilty-spark/shared/halo/types";
 import { BaseMatchStatsPresenter } from "../base-match-stats-presenter";
 import {
@@ -309,13 +310,15 @@ describe("BaseMatchStatsPresenter", () => {
 
       const result = presenter.getData(match, players, medalMetadata);
 
-      const [team0] = result;
-      const [player] = team0.players;
+      const team0 = Preconditions.checkExists(result.at(0));
+      const player = Preconditions.checkExists(team0.players.at(0));
       const { medals } = player;
 
       if (medals.length > 0) {
         for (let i = 0; i < medals.length - 1; i++) {
-          const [currentMedal, nextMedal] = medals.slice(i, i + 2);
+          const [currentMedalRaw, nextMedalRaw] = medals.slice(i, i + 2);
+          const currentMedal = Preconditions.checkExists(currentMedalRaw);
+          const nextMedal = Preconditions.checkExists(nextMedalRaw);
           expect(currentMedal).toBeDefined();
           expect(nextMedal).toBeDefined();
           expect(currentMedal.sortingWeight).toBeGreaterThanOrEqual(nextMedal.sortingWeight);

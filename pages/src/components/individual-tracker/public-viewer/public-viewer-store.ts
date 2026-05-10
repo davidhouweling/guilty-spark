@@ -5,7 +5,12 @@ import {
 } from "../../streamer-settings/shared-types";
 import type { PublicViewerSnapshot, PublicViewerVariant } from "./types";
 
-function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): PublicViewerSnapshot {
+function createInitialSnapshot(
+  xuid: string,
+  variant: PublicViewerVariant,
+  overlayViewPreview: boolean,
+  overlayPreviewMode: "player" | "observer",
+): PublicViewerSnapshot {
   return {
     xuid,
     variant,
@@ -23,7 +28,16 @@ function createInitialSnapshot(xuid: string, variant: PublicViewerVariant): Publ
     overlayShowTabs: true,
     overlayShowTicker: true,
     overlayShowTeamDetails: true,
-    overlayColorMode: "observer",
+    overlayViewPreview,
+    overlayColorMode: overlayPreviewMode,
+    overlayHasSeriesContext: false,
+    overlaySeriesTitle: null,
+    overlaySeriesSubtitle: null,
+    overlaySeriesScore: "0:0",
+    overlaySeriesTeams: [],
+    overlaySeriesMatches: [],
+    overlaySharedTabs: [],
+    overlayTimelineTabIndexes: [],
     // Overlay-derived data
     overlayTabs: [],
     overlayAccumulatedStats: null,
@@ -50,7 +64,12 @@ export class PublicViewerStore {
   public snapshot: PublicViewerSnapshot;
   public readonly subscribers = new Set<() => void>();
 
-  public constructor(xuid: string, variant: PublicViewerVariant) {
-    this.snapshot = createInitialSnapshot(xuid, variant);
+  public constructor(
+    xuid: string,
+    variant: PublicViewerVariant,
+    overlayViewPreview = false,
+    overlayPreviewMode: "player" | "observer" = "observer",
+  ) {
+    this.snapshot = createInitialSnapshot(xuid, variant, overlayViewPreview, overlayPreviewMode);
   }
 }

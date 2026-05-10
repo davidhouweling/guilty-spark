@@ -28,11 +28,11 @@ interface SettingsDialogProps {
   readonly onSettingsChange: (settings: AllStreamerSettings) => void;
   readonly onViewModeChange: (mode: ViewMode) => void;
   readonly onViewPreviewChange: (enabled: boolean) => void;
-  readonly defaultTitle?: string | null;
-  readonly defaultSubtitle?: string | null;
-  readonly availablePlayers?: readonly { id: string; name: string }[];
-  readonly server?: string;
-  readonly queue?: number;
+  readonly defaultTitle?: string | null | undefined;
+  readonly defaultSubtitle?: string | null | undefined;
+  readonly availablePlayers?: readonly { id: string; name: string }[] | undefined;
+  readonly server?: string | undefined;
+  readonly queue?: number | undefined;
 }
 
 interface ViewModeButtonProps {

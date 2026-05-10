@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 import { SeriesStats } from "../series-stats";
 import {
@@ -218,7 +219,7 @@ describe("SeriesStats", () => {
 
     expect(screen.queryByText("Tracked Player Totals")).not.toBeInTheDocument();
     expect(screen.queryByText("Accumulated Player Stats")).not.toBeInTheDocument();
-    expect(container.querySelector(`.${tableStyles.bestInTeam}`)).toBeNull();
-    expect(container.querySelector(`.${tableStyles.bestInMatch}`)).toBeNull();
+    expect(container.querySelector(`.${Preconditions.checkExists(tableStyles.bestInTeam)}`)).toBeNull();
+    expect(container.querySelector(`.${Preconditions.checkExists(tableStyles.bestInMatch)}`)).toBeNull();
   });
 });

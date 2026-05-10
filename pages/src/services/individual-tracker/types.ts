@@ -168,21 +168,21 @@ export interface TrackerMatchHistoryEntry {
   readonly modeAssetId: string;
   readonly modeVersionId: string;
   readonly gameVariantCategory: number;
-  readonly startTimeIso?: string;
-  readonly endTimeIso?: string;
+  readonly startTimeIso?: string | undefined;
+  readonly endTimeIso?: string | undefined;
   readonly duration: string;
   readonly mapName: string;
   readonly modeName: string;
-  readonly gameType?: string;
-  readonly gameMap?: string;
-  readonly gameTypeAndMap?: string;
+  readonly gameType?: string | undefined;
+  readonly gameMap?: string | undefined;
+  readonly gameTypeAndMap?: string | undefined;
   readonly outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
   readonly resultString: string;
   readonly isMatchmaking: boolean;
   readonly category: "matchmaking" | "custom" | "local" | "unknown";
   readonly teams: readonly (readonly string[])[];
-  readonly rawMatchStats?: MatchStats | null;
-  readonly playerXuidToGametag?: Readonly<Record<string, string>>;
+  readonly rawMatchStats?: MatchStats | null | undefined;
+  readonly playerXuidToGametag?: Readonly<Record<string, string>> | undefined;
   readonly mapThumbnailUrl: string;
 }
 

@@ -110,7 +110,7 @@ export function IndividualTrackerView({
           saving={snapshot.viewerSettingsSaving}
           errorMessage={snapshot.viewerSettingsErrorMessage}
           onDefaultColorModeChange={(nextMode): void => {
-            void presenter.updateStreamerPresentationSettings(
+            presenter.updateStreamerPresentationSettings(
               nextMode,
               snapshot.viewerShowTabs,
               snapshot.viewerShowTicker,
@@ -124,13 +124,13 @@ export function IndividualTrackerView({
             void presenter.updateObserverViewColors(settings.teamColor, settings.enemyColor);
           }}
           onDisplaySettingsChange={(updates): void => {
-            void presenter.updateDisplaySettings(updates);
+            presenter.updateDisplaySettings(updates);
           }}
           onTickerSettingsChange={(updates): void => {
-            void presenter.updateTickerSettings(updates);
+            presenter.updateTickerSettings(updates);
           }}
           onFontSizesChange={(updates): void => {
-            void presenter.updateFontSizes(updates);
+            presenter.updateFontSizes(updates);
           }}
         />
       );

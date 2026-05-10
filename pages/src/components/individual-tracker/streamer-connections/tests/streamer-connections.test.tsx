@@ -57,6 +57,7 @@ describe("StreamerConnectionsSectionView", () => {
     expect(screen.getByText(/\/individual-tracker\/2533274844642438\/overlay/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open viewer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open overlay" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open overlay with preview" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(2);
   });
 
@@ -67,6 +68,7 @@ describe("StreamerConnectionsSectionView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open viewer" }));
     fireEvent.click(screen.getByRole("button", { name: "Open overlay" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open overlay with preview" }));
 
     expect(windowOpenSpy).toHaveBeenNthCalledWith(
       1,
@@ -76,6 +78,11 @@ describe("StreamerConnectionsSectionView", () => {
     expect(windowOpenSpy).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("/individual-tracker/2533274844642438/overlay"),
+      "_blank",
+    );
+    expect(windowOpenSpy).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("/individual-tracker/2533274844642438/overlay?preview=1&previewMode=observer"),
       "_blank",
     );
 

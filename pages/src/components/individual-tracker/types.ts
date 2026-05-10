@@ -44,7 +44,7 @@ export interface IndividualTrackerViewerOverviewMatch {
   readonly score: string;
   readonly mapName: string;
   readonly mapThumbnailUrl: string;
-  readonly winningTeamIndex?: number;
+  readonly winningTeamIndex?: number | undefined;
 }
 
 export interface IndividualTrackerViewerOverviewPlayer {
@@ -140,7 +140,7 @@ export interface OverlayTab {
   readonly label: string;
   readonly type: "active-series" | "group" | "standalone";
   readonly teamColor: string | undefined; // hex for winner-relative coloring
-  readonly timelineIndex?: number;
+  readonly timelineIndex?: number | undefined;
 }
 
 export interface OverlayAccumulatedStats {

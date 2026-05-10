@@ -1,11 +1,19 @@
 import React, { memo } from "react";
 import classNames from "classnames";
-import { ScrollingContent } from "../../scrolling-content/scrolling-content";
-import type { LiveTrackerTeamRenderModel } from "../types";
+import { ScrollingContent } from "../scrolling-content/scrolling-content";
 import styles from "./streamer-overlay.module.css";
 
+interface TeamPlayer {
+  readonly id: string;
+  readonly displayName: string;
+}
+
+interface TeamDetails {
+  readonly players: readonly TeamPlayer[];
+}
+
 interface TeamDetailsContentProps {
-  readonly team: LiveTrackerTeamRenderModel;
+  readonly team: TeamDetails;
   readonly teamName: string | null;
   readonly disableTeamPlayerNames: boolean;
   readonly renderPlayerNameContent: (playerId: string, displayName: string) => React.ReactElement;

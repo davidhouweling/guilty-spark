@@ -12,18 +12,18 @@ export interface SeriesOverviewTeam {
   readonly id: string;
   readonly name: string;
   readonly players: readonly SeriesOverviewPlayer[];
-  readonly colorHex?: string;
+  readonly colorHex?: string | undefined;
 }
 
 export interface SeriesOverviewMatch {
   readonly id: string;
   readonly gameMode: string;
   readonly score: string;
-  readonly subScore?: string;
+  readonly subScore?: string | undefined;
   readonly mapName: string;
   readonly mapThumbnailUrl: string;
-  readonly winningTeamIndex?: number;
-  readonly href?: string;
+  readonly winningTeamIndex?: number | undefined;
+  readonly href?: string | undefined;
 }
 
 interface SeriesOverviewProps {

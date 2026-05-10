@@ -49,7 +49,7 @@ describe("/individual-tracker/:xuid public routes wiring", () => {
     render(<IndividualTrackerPublicFactory services={services} xuid="2533274844642438" variant="overlay" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /chief overlay/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /chief/i })).toBeInTheDocument();
     });
   });
 });

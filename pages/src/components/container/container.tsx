@@ -4,12 +4,12 @@ import styles from "./container.module.css";
 
 interface ContainerProps {
   readonly children: React.ReactNode;
-  readonly className?: string;
-  readonly style?: React.CSSProperties;
-  readonly mobileDown?: string;
-  readonly tabletUp?: string;
-  readonly desktopUp?: string;
-  readonly ultrawideUp?: string;
+  readonly className?: string | undefined;
+  readonly style?: React.CSSProperties | undefined;
+  readonly mobileDown?: string | undefined;
+  readonly tabletUp?: string | undefined;
+  readonly desktopUp?: string | undefined;
+  readonly ultrawideUp?: string | undefined;
 }
 
 export function Container({

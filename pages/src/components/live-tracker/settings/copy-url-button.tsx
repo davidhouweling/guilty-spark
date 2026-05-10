@@ -5,9 +5,9 @@ import type { AllStreamerSettings, ViewMode } from "./types";
 
 interface CopyUrlButtonProps {
   readonly settings: AllStreamerSettings;
-  readonly server?: string;
-  readonly queue?: number;
-  readonly viewMode?: ViewMode;
+  readonly server?: string | undefined;
+  readonly queue?: number | undefined;
+  readonly viewMode?: ViewMode | undefined;
 }
 
 export function CopyUrlButton({ settings, viewMode, server, queue }: CopyUrlButtonProps): React.ReactElement {
