@@ -95,7 +95,7 @@ describe("StreamerConnectionsSectionView", () => {
 
     renderComponent({ onObserverColorsChange });
 
-    fireEvent.click(screen.getByLabelText(/select observer team color/i));
+    fireEvent.click(screen.getByLabelText(/select eagle/i));
     fireEvent.click(screen.getByLabelText(/^Jade$/i));
 
     expect(onObserverColorsChange).toHaveBeenNthCalledWith(1, {

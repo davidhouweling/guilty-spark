@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { GameVariantCategory } from "halo-infinite-api";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 import type { IndividualTrackerViewerRenderModel } from "../../types";
 import type { TrackerSearchResult } from "../../../../services/individual-tracker/types";
@@ -81,9 +82,11 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
             id: "m1",
             matchStats: [],
             backgroundImageUrl: "data:,",
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             gameMode: "Slayer",
             matchNumber: 1,
             gameTypeAndMap: "Slayer: Aquarius",
+            map: "Aquarius",
             duration: "10m 0s",
             score: "Win - 50:40",
             startTime: "2026-01-01T00:00:00.000Z",
@@ -98,9 +101,11 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
           id: "m3",
           matchStats: [],
           backgroundImageUrl: "data:,",
+          gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
           gameMode: "Slayer",
           matchNumber: 3,
           gameTypeAndMap: "Slayer: Bazaar",
+          map: "Bazaar",
           duration: "12m 0s",
           score: "Loss - 40:50",
           startTime: "2026-01-01T00:30:00.000Z",

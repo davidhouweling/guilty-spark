@@ -4,6 +4,7 @@ import type {
 } from "@guilty-spark/shared/individual-tracker/types";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { GameVariantCategory } from "halo-infinite-api";
 import type { DisplaySettings, TickerSettings, FontSizeSettings } from "../live-tracker/settings/types";
 import type { TrackerSearchResult } from "../../services/individual-tracker/types";
 import type { SeriesMetadata } from "../stats/series-metadata";
@@ -63,9 +64,11 @@ export interface IndividualTrackerViewerMatchCard {
   readonly id: string;
   readonly matchStats: MatchStatsData[] | null;
   readonly backgroundImageUrl: string;
+  readonly gameVariantCategory: GameVariantCategory;
   readonly gameMode: string;
   readonly matchNumber: number;
   readonly gameTypeAndMap: string;
+  readonly map: string;
   readonly duration: string;
   readonly score: string;
   readonly startTime: string;

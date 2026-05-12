@@ -4,14 +4,23 @@ import type {
   StreamerViewVisibleSections,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
-import type { MatchStats } from "halo-infinite-api";
+import { GameVariantCategory, type MatchStats } from "halo-infinite-api";
 import type { ImageMetadata } from "astro";
+import attritionPng from "../../../assets/game-modes/attrition.png";
 import captureTheFlagPng from "../../../assets/game-modes/capture-the-flag.png";
+import eliminationPng from "../../../assets/game-modes/elimination.png";
 import strongholdsPng from "../../../assets/game-modes/strongholds.png";
 import oddballPng from "../../../assets/game-modes/oddball.png";
 import slayerPng from "../../../assets/game-modes/slayer.png";
 import kingOfTheHillPng from "../../../assets/game-modes/king-of-the-hill.png";
 import assaultPng from "../../../assets/game-modes/assault.png";
+import totalControlPng from "../../../assets/game-modes/total-control.png";
+import extractionPng from "../../../assets/game-modes/extraction.png";
+import stockpilePng from "../../../assets/game-modes/stockpile.png";
+import infectionPng from "../../../assets/game-modes/infection.png";
+import landGrabPng from "../../../assets/game-modes/land-grab.png";
+import firefightPng from "../../../assets/game-modes/firefight.png";
+import vipPng from "../../../assets/game-modes/vip.png";
 import type { Services } from "../../../services/types";
 import type {
   IndividualTrackerConnection,
@@ -64,24 +73,65 @@ interface ResolvedOverlayContext {
   readonly timelineTabIndexes: readonly number[];
 }
 
-function gameModeIconUrl(gameMode: string): ImageMetadata {
-  switch (gameMode) {
-    case "Capture the Flag": {
-      return captureTheFlagPng;
+function gameModeIconUrl(gameVariantCategory: GameVariantCategory, gameMode: string): ImageMetadata {
+  switch (gameVariantCategory) {
+    case GameVariantCategory.MultiplayerAttrition: {
+      return attritionPng;
     }
-    case "Strongholds": {
+    case GameVariantCategory.MultiplayerElimination: {
+      return eliminationPng;
+    }
+    case GameVariantCategory.MultiplayerStrongholds: {
       return strongholdsPng;
     }
-    case "Oddball": {
-      return oddballPng;
-    }
-    case "King of the Hill": {
+    case GameVariantCategory.MultiplayerKingOfTheHill: {
       return kingOfTheHillPng;
     }
-    case "Neutral Bomb": {
-      return assaultPng;
+    case GameVariantCategory.MultiplayerTotalControl: {
+      return totalControlPng;
     }
-    case "Slayer":
+    case GameVariantCategory.MultiplayerCtf: {
+      return captureTheFlagPng;
+    }
+    case GameVariantCategory.MultiplayerExtraction: {
+      return extractionPng;
+    }
+    case GameVariantCategory.MultiplayerOddball: {
+      return oddballPng;
+    }
+    case GameVariantCategory.MultiplayerStockpile: {
+      return stockpilePng;
+    }
+    case GameVariantCategory.MultiplayerInfection: {
+      return infectionPng;
+    }
+    case GameVariantCategory.MultiplayerVIP: {
+      return vipPng;
+    }
+    case GameVariantCategory.MultiplayerLandGrab: {
+      return landGrabPng;
+    }
+    case GameVariantCategory.MultiplayerMinigame: {
+      if (gameMode.includes("Bomb") || gameMode.includes("Assault")) {
+        return assaultPng;
+      }
+      return slayerPng;
+    }
+    case GameVariantCategory.MultiplayerFirefight: {
+      return firefightPng;
+    }
+    case GameVariantCategory.MultiplayerFiesta: {
+      if (gameMode.includes("Total Control")) {
+        return totalControlPng;
+      }
+      if (gameMode.toLowerCase().includes("flag") || gameMode.toLowerCase().includes("ctf")) {
+        return captureTheFlagPng;
+      }
+      return slayerPng;
+    }
+    case GameVariantCategory.MultiplayerEscalation:
+    case GameVariantCategory.MultiplayerGrifball:
+    case GameVariantCategory.MultiplayerSlayer:
     default: {
       return slayerPng;
     }
@@ -646,7 +696,10 @@ export class PublicViewerPresenter {
     const timelineSharedTabs: PublicViewerOverlaySharedTab[] = timelineTabs.map((tab, index) => {
       const timelineItem = tab.timelineIndex == null ? null : (renderModel.gameplayTimeline[tab.timelineIndex] ?? null);
       const score = timelineItem?.type === "match" ? timelineItem.match.score : "";
-      const icon = timelineItem?.type === "match" ? gameModeIconUrl(timelineItem.match.gameMode).src : "";
+      const icon =
+        timelineItem?.type === "match"
+          ? gameModeIconUrl(timelineItem.match.gameVariantCategory, timelineItem.match.gameMode).src
+          : "";
 
       return {
         type: "match",
@@ -686,7 +739,7 @@ export class PublicViewerPresenter {
           matchId: match.id,
           label: getSeriesMatchTabLabel(match),
           score: toCompactSeriesScore(match.score),
-          icon: gameModeIconUrl(match.gameMode).src,
+          icon: gameModeIconUrl(match.gameVariantCategory, match.gameMode).src,
           teamColor: winnerRelativeColor,
         };
       });
@@ -746,7 +799,7 @@ export class PublicViewerPresenter {
       } else {
         tabs.push({
           id: `standalone-${index.toString()}`,
-          label: `Game ${(index + 1).toString()}`,
+          label: item.match.map,
           type: "standalone",
           teamColor,
           timelineIndex: index,

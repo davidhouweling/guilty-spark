@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import type { Services } from "../../../../services/types";
 import { aFakeAuthServiceWith } from "../../../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../../../services/live-tracker/fakes/live-tracker.fake";
@@ -196,7 +197,7 @@ describe("LiveTrackersPresenter", () => {
           mapVersionId: "map-version-2",
           modeAssetId: "mode-2",
           modeVersionId: "mode-version-2",
-          gameVariantCategory: 2,
+          gameVariantCategory: GameVariantCategory.MultiplayerCtf,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Capture the Flag",
@@ -282,7 +283,7 @@ describe("LiveTrackersPresenter", () => {
           mapVersionId: "map-version-2",
           modeAssetId: "mode-2",
           modeVersionId: "mode-version-2",
-          gameVariantCategory: 2,
+          gameVariantCategory: GameVariantCategory.MultiplayerCtf,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Capture the Flag",
@@ -386,7 +387,7 @@ describe("LiveTrackersPresenter", () => {
           mapVersionId: "map-version-3",
           modeAssetId: "mode-3",
           modeVersionId: "mode-version-3",
-          gameVariantCategory: 2,
+          gameVariantCategory: GameVariantCategory.MultiplayerCtf,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Capture the Flag",
@@ -497,7 +498,7 @@ describe("LiveTrackersPresenter", () => {
           mapVersionId: "map-version-2",
           modeAssetId: "mode-2",
           modeVersionId: "mode-version-2",
-          gameVariantCategory: 2,
+          gameVariantCategory: GameVariantCategory.MultiplayerCtf,
           duration: "10m 0s",
           mapName: "Bazaar",
           modeName: "Capture the Flag",

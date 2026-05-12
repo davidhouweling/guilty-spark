@@ -6,7 +6,7 @@ import type {
   StreamerViewStyleFlags,
   StreamerViewVisibleSections,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { MatchStats } from "halo-infinite-api";
+import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 
 export interface IndividualTrackerProfile {
   ProfileId: string;
@@ -167,7 +167,7 @@ export interface TrackerMatchHistoryEntry {
   readonly mapVersionId: string;
   readonly modeAssetId: string;
   readonly modeVersionId: string;
-  readonly gameVariantCategory: number;
+  readonly gameVariantCategory: GameVariantCategory;
   readonly startTimeIso?: string | undefined;
   readonly endTimeIso?: string | undefined;
   readonly duration: string;

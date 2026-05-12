@@ -262,9 +262,9 @@ export function StreamerConnectionsSectionView({
         <p className={styles.cardDescription}>Global observer colors plus active-tracker override support.</p>
         <div className={styles.pickerGrid}>
           <div>
-            <label className={styles.preferenceLabel}>Observer team color</label>
+            <label className={styles.preferenceLabel}>Eagle</label>
             <TeamColorPicker
-              label="Observer team color"
+              label="Eagle"
               selectedColor={selectedObserverTeamColor}
               onColorSelect={(colorId): void => {
                 onObserverColorsChange({ teamColor: colorId, enemyColor: observerEnemyColor });
@@ -272,9 +272,9 @@ export function StreamerConnectionsSectionView({
             />
           </div>
           <div>
-            <label className={styles.preferenceLabel}>Observer enemy color</label>
+            <label className={styles.preferenceLabel}>Cobra</label>
             <TeamColorPicker
-              label="Observer enemy color"
+              label="Cobra"
               selectedColor={selectedObserverEnemyColor}
               onColorSelect={(colorId): void => {
                 onObserverColorsChange({ teamColor: observerTeamColor, enemyColor: colorId });

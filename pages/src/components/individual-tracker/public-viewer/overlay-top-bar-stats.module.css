@@ -5,6 +5,7 @@
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
+  font-size: calc(var(--text-sm) * var(--font-size-tabs, 1));
   gap: var(--space-2);
   justify-content: center;
   left: 50%;
@@ -19,7 +20,7 @@
 
 .title {
   font-family: var(--font-heading);
-  font-size: calc(var(--text-lg) * var(--font-size-queue-info, 100) / 100);
+  font-size: calc(var(--text-lg) * var(--font-size-queue-info, 1));
   letter-spacing: 0.04em;
   margin: 0;
   text-transform: uppercase;
@@ -51,7 +52,6 @@
 
 .label {
   color: color-mix(in srgb, var(--halo-white) 76%, transparent);
-  font-size: calc(0.625rem * var(--font-size-tabs, 100) / 100);
   font-weight: 700;
   letter-spacing: 0.05em;
   overflow: hidden;
@@ -63,7 +63,6 @@
 .value {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: calc(var(--text-sm) * var(--font-size-score, 100) / 100);
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;

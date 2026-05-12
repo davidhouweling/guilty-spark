@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTopBarStats } from "../top-bar-stats";
 import type { IndividualTrackerViewerRenderModel } from "../types";
@@ -75,9 +76,11 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
             id: "m1",
             matchStats: null,
             backgroundImageUrl: "",
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             gameMode: "Slayer",
             matchNumber: 1,
             gameTypeAndMap: "Slayer: Aquarius",
+            map: "Aquarius",
             duration: "10m",
             score: "Win - 50:40",
             startTime: "10:00",
@@ -87,9 +90,11 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
             id: "m2",
             matchStats: null,
             backgroundImageUrl: "",
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             gameMode: "Slayer",
             matchNumber: 2,
             gameTypeAndMap: "Slayer: Streets",
+            map: "Streets",
             duration: "10m",
             score: "Loss - 45:50",
             startTime: "10:15",
@@ -99,9 +104,11 @@ function aRenderModelWith(): IndividualTrackerViewerRenderModel {
             id: "m3",
             matchStats: null,
             backgroundImageUrl: "",
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             gameMode: "Slayer",
             matchNumber: 3,
             gameTypeAndMap: "Slayer: Recharge",
+            map: "Recharge",
             duration: "10m",
             score: "Win - 50:42",
             startTime: "10:30",
