@@ -97,6 +97,7 @@ export function IndividualTrackerPublicApp({
   return (
     <BaseApp
       apiHost={apiHost}
+      trackerXuid={xuid}
       loading={<LoadingState text="Loading active tracker view..." />}
       error={<ErrorState message="Failed to load active tracker view" />}
       loaded={(services) => (

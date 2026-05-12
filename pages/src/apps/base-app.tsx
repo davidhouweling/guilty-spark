@@ -5,12 +5,13 @@ import { ComponentLoader, ComponentLoaderStatus } from "../components/component-
 
 interface BaseAppProps {
   readonly apiHost: string;
+  readonly trackerXuid?: string;
   readonly loading: React.ReactElement;
   readonly error: React.ReactElement;
   readonly loaded: (services: Services) => React.ReactElement;
 }
 
-export function BaseApp({ apiHost, loading, error, loaded }: BaseAppProps): React.ReactElement {
+export function BaseApp({ apiHost, trackerXuid, loading, error, loaded }: BaseAppProps): React.ReactElement {
   const [loadingServices, setLoadingServices] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
 
@@ -20,7 +21,7 @@ export function BaseApp({ apiHost, loading, error, loaded }: BaseAppProps): Reac
     setServices(null);
     setLoadingServices(ComponentLoaderStatus.PENDING);
 
-    installServices(apiHost)
+    installServices(apiHost, { ...(trackerXuid != null ? { trackerXuid } : {}) })
       .then((installedServices) => {
         if (isCancelled) {
           return;

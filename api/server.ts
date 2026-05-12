@@ -2,6 +2,11 @@ import type { AutoRouterType } from "itty-router";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { SpartanTokenProvider } from "halo-infinite-api";
 import { isRecord } from "@guilty-spark/shared/base/json-readers";
+import {
+  isHaloProxyOperationName,
+  parseHaloProxyArgsFromUrl,
+  resolveHaloProxyOperation,
+} from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
 import type {
   StreamerViewColorMode,
   StreamerViewEffectiveDefaults,
@@ -472,20 +477,6 @@ function isValidFontSizes(value: unknown): value is Record<string, number> {
   const record = value as Record<string, unknown>;
   return Object.values(record).every((v) => v == null || isValidFontSize(v));
 }
-
-const ALLOWED_PROXY_METHODS = new Set([
-  "getMatchSkill",
-  "getMatchStats",
-  "getMedalsMetadataFile",
-  "getPlayerMatchCount",
-  "getPlayerMatches",
-  "getPlaylist",
-  "getPlaylistCsr",
-  "getSpecificAssetVersion",
-  "getUser",
-  "getUserServiceRecord",
-  "getUsers",
-]);
 
 export class Server {
   readonly router: AutoRouterType;
@@ -2567,7 +2558,7 @@ export class Server {
       }
     });
 
-    this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
+    this.router.all("/proxy/halo-infinite/:operation", async (request, env: Env) => {
       try {
         const authHeader = request.headers.get("x-proxy-auth");
         if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
@@ -2583,54 +2574,71 @@ export class Server {
         if (!hasValidWorkerToken) {
           services = this.installServices({ env });
           const session = await services.authService.validateSession(request);
-          if (session === null) {
-            return new Response("Unauthorized", { status: 401 });
+
+          if (session !== null) {
+            if (session.isExpired) {
+              try {
+                refreshedSessionPayload = await services.authService.refreshSession(session);
+              } catch {
+                const response = new Response("Unauthorized", { status: 401 });
+                services.authService.clearSessionCookie(response);
+                return response;
+              }
+
+              if (refreshedSessionPayload === null) {
+                const response = new Response("Unauthorized", { status: 401 });
+                services.authService.clearSessionCookie(response);
+                return response;
+              }
+
+              sessionAccessToken = refreshedSessionPayload.accessToken;
+            } else {
+              sessionAccessToken = session.accessToken;
+            }
+          }
+          // No session: fall through. Tracker-bound token or bot account will be resolved below.
+        }
+
+        const { operation } = request.params as { operation: string };
+        if (!isHaloProxyOperationName(operation)) {
+          return new Response(`Method not allowed: ${operation}`, { status: 403 });
+        }
+
+        const operationDefinition = resolveHaloProxyOperation(operation);
+        if (operationDefinition == null) {
+          return new Response(`Method not allowed: ${operation}`, { status: 403 });
+        }
+
+        if (request.method !== operationDefinition.httpMethod) {
+          return new Response("Method not allowed", { status: 405 });
+        }
+
+        let args: unknown[] = [];
+        if (operationDefinition.httpMethod === "GET") {
+          const parsed = parseHaloProxyArgsFromUrl(new URL(request.url));
+          if (!parsed.ok) {
+            return new Response(parsed.error, { status: 400 });
+          }
+          const { args: parsedArgs } = parsed;
+          args = parsedArgs;
+        } else {
+          let body: unknown;
+          try {
+            body = await request.json();
+          } catch {
+            return new Response("Invalid JSON body", { status: 400 });
           }
 
-          if (session.isExpired) {
-            try {
-              refreshedSessionPayload = await services.authService.refreshSession(session);
-            } catch {
-              const response = new Response("Unauthorized", { status: 401 });
-              services.authService.clearSessionCookie(response);
-              return response;
-            }
-
-            if (refreshedSessionPayload === null) {
-              const response = new Response("Unauthorized", { status: 401 });
-              services.authService.clearSessionCookie(response);
-              return response;
-            }
-
-            sessionAccessToken = refreshedSessionPayload.accessToken;
-          } else {
-            sessionAccessToken = session.accessToken;
+          if (typeof body !== "object" || body === null || !Array.isArray((body as { args?: unknown[] }).args)) {
+            return new Response("Invalid request format", { status: 400 });
           }
-        }
 
-        let body: unknown;
-        try {
-          body = await request.json();
-        } catch {
-          return new Response("Invalid JSON body", { status: 400 });
-        }
-
-        if (
-          typeof body !== "object" ||
-          body === null ||
-          typeof (body as { method?: unknown }).method !== "string" ||
-          !Array.isArray((body as { args?: unknown[] }).args)
-        ) {
-          return new Response("Invalid request format", { status: 400 });
-        }
-
-        const { method, args } = body as { method: string; args: unknown[] };
-
-        if (!ALLOWED_PROXY_METHODS.has(method)) {
-          return new Response(`Method not allowed: ${method}`, { status: 403 });
+          const { args: bodyArgs } = body as { args: unknown[] };
+          args = bodyArgs;
         }
 
         const spartanHeader = request.headers.get("x-343-authorization-spartan");
+        const trackerXuid = new URL(request.url).searchParams.get("trackerXuid");
 
         let haloInfiniteClient: HaloInfiniteClient;
         if (spartanHeader != null && spartanHeader !== "") {
@@ -2643,6 +2651,28 @@ export class Server {
         } else if (sessionAccessToken !== null) {
           const token = sessionAccessToken;
           haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
+        } else if (trackerXuid !== null) {
+          const svc = services ?? this.installServices({ env });
+          services = svc;
+          const trackerSession = await svc.databaseService.findIndividualTrackerActiveSessionByXuid(trackerXuid);
+          if (trackerSession !== null) {
+            const userSession = await svc.databaseService.findUserSessionByUserId(trackerSession.UserId);
+            if (userSession !== null) {
+              const trackerTokenProvider = new UserTokenProvider({
+                userMicrosoftAccessToken: userSession.AccessToken,
+                userMicrosoftRefreshToken: userSession.RefreshToken ?? undefined,
+                clientId: env.MICROSOFT_CLIENT_ID,
+                clientSecret: env.MICROSOFT_CLIENT_SECRET,
+                redirectUri: env.MICROSOFT_REDIRECT_URI,
+                logService: svc.logService,
+              });
+              haloInfiniteClient = new HaloInfiniteClient(trackerTokenProvider);
+            } else {
+              ({ haloInfiniteClient } = svc);
+            }
+          } else {
+            ({ haloInfiniteClient } = svc);
+          }
         } else {
           ({ haloInfiniteClient } = services ?? this.installServices({ env }));
         }
@@ -2656,17 +2686,26 @@ export class Server {
             typeof (obj as Record<string, unknown>)[key] === "function"
           );
         };
-        if (!isFunctionProperty(haloInfiniteClient, method)) {
-          return new Response(`Method not found: ${method}`, { status: 404 });
+        if (!isFunctionProperty(haloInfiniteClient, operation)) {
+          return new Response(`Method not found: ${operation}`, { status: 404 });
         }
 
-        const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
+        const targetMethod = haloInfiniteClient[operation] as (...a: unknown[]) => unknown;
 
         const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
 
-        const response = new Response(JSON.stringify({ result }), {
+        const responseHeaders = new Headers({ "content-type": "application/json" });
+        if (operationDefinition.httpMethod === "GET") {
+          const { cacheTtlSeconds, staleWhileRevalidateSeconds } = operationDefinition;
+          responseHeaders.set(
+            "cache-control",
+            `public, max-age=60, s-maxage=${cacheTtlSeconds.toString()}, stale-while-revalidate=${staleWhileRevalidateSeconds.toString()}`,
+          );
+        }
+
+        const response = new Response(JSON.stringify(result), {
           status: 200,
-          headers: { "content-type": "application/json" },
+          headers: responseHeaders,
         });
 
         if (refreshedSessionPayload !== null && services !== null) {

@@ -13,6 +13,7 @@ import {
   aFakeIndividualTrackerActiveSessionsRow,
   aFakeIndividualTrackerSessionsRow,
   aFakeLinkedIdentitiesRow,
+  aFakeUserSessionsRow,
 } from "../services/database/fakes/database.fake";
 import type { AuthService } from "../services/auth/auth";
 import type { SessionTokenPayload } from "../services/auth/types";
@@ -1353,105 +1354,100 @@ describe("Server", () => {
     });
   });
 
-  describe("POST /proxy/halo-infinite", () => {
-    it("returns 401 if x-proxy-auth header is missing", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: [] }),
-        headers: { "content-type": "application/json" },
+  describe("GET /proxy/halo-infinite/:operation", () => {
+    it("returns 200 using bot account when there is no session and no worker token", async () => {
+      vi.mocked(AutoTokenProvider).mockClear();
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+        method: "GET",
       });
       const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({
+        xuid: "0000000000001",
+        gamerpic: {
+          small: "small01.png",
+          medium: "medium01.png",
+          large: "large01.png",
+          xlarge: "xlarge01.png",
+        },
+        gamertag: "gamertag01",
+      });
+      expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
     });
 
     it("returns 401 if x-proxy-auth header is invalid", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: [] }),
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22foo%22", {
+        method: "GET",
         headers: {
-          "content-type": "application/json",
           "x-proxy-auth": "wrong-token",
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
+      await expect(res.text()).resolves.toBe("Unauthorized");
     });
 
-    it("returns 401 if x-proxy-auth header is invalid even with a valid session cookie", async () => {
-      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          userId: "user-123",
-          accessToken: "access-token",
-          refreshToken: "refresh-token",
-          expiresAt: Date.now() + 3600000,
-          isExpired: false,
-        });
-        return services;
-      });
-      server = new Server({
-        router: AutoRouter(),
-        installServices: localInstallServices,
-        getCommands,
-      });
-
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: [] }),
+    it("returns 403 if operation is not in allowlist", async () => {
+      const req = new Request("http://localhost/proxy/halo-infinite/notARealMethod", {
+        method: "GET",
         headers: {
-          "content-type": "application/json",
-          "x-proxy-auth": "wrong-token",
-          cookie: "auth-session=valid-token",
+          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
+      expect(res.status).toBe(403);
+      await expect(res.text()).resolves.toContain("Method not allowed");
     });
 
-    it("returns 401 with no authentication and no session cookie", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
+    it("returns 405 if HTTP method does not match operation", async () => {
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser", {
         method: "POST",
-        body: JSON.stringify({ method: "getUser", args: [] }),
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
+        },
+        body: JSON.stringify({ args: ["foo"] }),
       });
       const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
+      expect(res.status).toBe(405);
+      await expect(res.text()).resolves.toBe("Method not allowed");
     });
 
-    it("returns 401 with expired session cookie", async () => {
-      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          userId: "user-123",
-          accessToken: "access-token",
-          refreshToken: undefined,
-          expiresAt: Date.now() - 1000,
-          isExpired: true,
-        });
-        return services;
-      });
-      server = new Server({
-        router: AutoRouter(),
-        installServices: localInstallServices,
-        getCommands,
-      });
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: [] }),
-        headers: { "content-type": "application/json", cookie: "auth-session=expired-token" },
+    it("returns 400 with invalid query arg JSON", async () => {
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=not-json", {
+        method: "GET",
+        headers: {
+          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
+        },
       });
       const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
+      expect(res.status).toBe(400);
+      await expect(res.text()).resolves.toBe("Invalid query arguments");
+    });
+
+    it("returns 200 and raw result for valid operation", async () => {
+      vi.mocked(AutoTokenProvider).mockClear();
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+        method: "GET",
+        headers: {
+          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({
+        xuid: "0000000000001",
+        gamerpic: {
+          small: "small01.png",
+          medium: "medium01.png",
+          large: "large01.png",
+          xlarge: "xlarge01.png",
+        },
+        gamertag: "gamertag01",
+      });
+      expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
     });
 
     it("returns 200 and rotates session cookie when expired session is refreshed", async () => {
@@ -1486,10 +1482,9 @@ describe("Server", () => {
         getCommands,
       });
 
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
-        headers: { "content-type": "application/json", cookie: "auth-session=expired-token" },
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+        method: "GET",
+        headers: { cookie: "auth-session=expired-token" },
       });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
@@ -1507,39 +1502,7 @@ describe("Server", () => {
       expect(token).toBe("fresh-access-token");
     });
 
-    it("returns 401 when session is expired and refresh fails", async () => {
-      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          userId: "user-123",
-          accessToken: "expired-access-token",
-          refreshToken: "refresh-token",
-          expiresAt: Date.now() - 1000,
-          isExpired: true,
-        });
-        vi.spyOn(services.authService, "refreshSession").mockResolvedValue(null);
-        return services;
-      });
-      server = new Server({
-        router: AutoRouter(),
-        installServices: localInstallServices,
-        getCommands,
-      });
-
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
-        headers: { "content-type": "application/json", cookie: "auth-session=expired-token" },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(401);
-      const text = await res.text();
-      expect(text).toBe("Unauthorized");
-      expect(res.headers.get("Set-Cookie")).toContain("auth-session=");
-      expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
-    });
-
-    it("returns 200 and result with valid session cookie", async () => {
+    it("returns 200 using tracker owner token when trackerXuid query param resolves an active session", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
       vi.mocked(AutoTokenProvider).mockClear();
       vi.mocked(HaloInfiniteClient).mockClear();
@@ -1549,13 +1512,12 @@ describe("Server", () => {
 
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          userId: "user-123",
-          accessToken: "access-token",
-          refreshToken: undefined,
-          expiresAt: Date.now() + 3600000,
-          isExpired: false,
-        });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSessionByXuid").mockResolvedValue(
+          aFakeIndividualTrackerActiveSessionsRow({ UserId: "tracker-owner-1" }),
+        );
+        vi.spyOn(services.databaseService, "findUserSessionByUserId").mockResolvedValue(
+          aFakeUserSessionsRow({ UserId: "tracker-owner-1", AccessToken: "tracker-owner-access-token" }),
+        );
         return services;
       });
       server = new Server({
@@ -1563,114 +1525,54 @@ describe("Server", () => {
         installServices: localInstallServices,
         getCommands,
       });
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
-        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
-      });
+
+      const req = new Request(
+        "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&trackerXuid=2533274844642438",
+        { method: "GET" },
+      );
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({
-        result: {
-          xuid: "0000000000001",
-          gamerpic: {
-            small: "small01.png",
-            medium: "medium01.png",
-            large: "large01.png",
-            xlarge: "xlarge01.png",
-          },
-          gamertag: "gamertag01",
+        xuid: "0000000000001",
+        gamerpic: {
+          small: "small01.png",
+          medium: "medium01.png",
+          large: "large01.png",
+          xlarge: "xlarge01.png",
         },
+        gamertag: "gamertag01",
       });
-
-      expect(vi.mocked(AutoTokenProvider)).toHaveBeenCalledTimes(1);
-      const tokenProviderFactory = vi.mocked(AutoTokenProvider).mock.calls[0]?.[0];
-      expect(typeof tokenProviderFactory).toBe("function");
-
-      if (tokenProviderFactory === undefined) {
-        throw new Error("Expected AutoTokenProvider to be called with a token factory");
-      }
-
-      const token = await tokenProviderFactory();
-      expect(token).toBe("access-token");
-    });
-
-    it("returns 400 with invalid JSON", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: "{not-json}",
-        headers: {
-          "content-type": "application/json",
-          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-        },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(400);
-      const text = await res.text();
-      expect(text).toBe("Invalid JSON body");
-    });
-
-    it("returns 400 with invalid request format", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ foo: "bar" }),
-        headers: {
-          "content-type": "application/json",
-          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-        },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(400);
-      const text = await res.text();
-      expect(text).toBe("Invalid request format");
-    });
-
-    it("returns 403 if method is not in allowlist", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "notARealMethod", args: [] }),
-        headers: {
-          "content-type": "application/json",
-          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-        },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(403);
-      const text = await res.text();
-      expect(text).toContain("Method not allowed");
-    });
-
-    it("returns 200 and result for valid method", async () => {
-      vi.mocked(AutoTokenProvider).mockClear();
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
-        headers: {
-          "content-type": "application/json",
-          "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-        },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toEqual({
-        result: {
-          xuid: "0000000000001",
-          gamerpic: {
-            small: "small01.png",
-            medium: "medium01.png",
-            large: "large01.png",
-            xlarge: "xlarge01.png",
-          },
-          gamertag: "gamertag01",
-        },
-      });
-
       expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
+      expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledTimes(1);
     });
 
-    it("returns 500 and error details if the method throws", async () => {
+    it("returns 200 using bot account when trackerXuid does not match any active session", async () => {
+      vi.mocked(AutoTokenProvider).mockClear();
+      vi.mocked(HaloInfiniteClient).mockClear();
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSessionByXuid").mockResolvedValue(null);
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+
+      const req = new Request(
+        "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&trackerXuid=9999999999999",
+        { method: "GET" },
+      );
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(200);
+      expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
+      expect(vi.mocked(HaloInfiniteClient)).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 and error details if the operation throws", async () => {
       const localHaloInfiniteClient = aFakeHaloInfiniteClient();
       vi.spyOn(localHaloInfiniteClient, "getUser").mockRejectedValue(new Error("fail!"));
       const localInstallServices = vi.fn<typeof installServices>(() => ({
@@ -1682,11 +1584,10 @@ describe("Server", () => {
         installServices: localInstallServices,
         getCommands,
       });
-      const req = new Request("http://localhost/proxy/halo-infinite", {
-        method: "POST",
-        body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
+
+      const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+        method: "GET",
         headers: {
-          "content-type": "application/json",
           "x-proxy-auth": env.PROXY_WORKER_TOKEN,
         },
       });

@@ -1,4 +1,5 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import { appendHaloProxyArgsToUrl, resolveHaloProxyOperation } from "./halo-infinite-proxy-operations";
 
 interface CreateHaloInfiniteClientProxyOpts {
   readonly proxyBaseUrl: string;
@@ -6,6 +7,7 @@ interface CreateHaloInfiniteClientProxyOpts {
   readonly authToken?: string;
   readonly credentials?: "omit" | "same-origin" | "include";
   readonly additionalHeaders?: HeadersInit | (() => HeadersInit);
+  readonly additionalQueryParams?: Record<string, string> | (() => Record<string, string>);
   readonly fetchFn?: typeof fetch;
 }
 
@@ -31,10 +33,6 @@ function isProxyErrorResponse(
   );
 }
 
-function isProxySuccessResponse(data: unknown): data is { result: unknown } {
-  return typeof data === "object" && data !== null && "result" in data;
-}
-
 async function handleProxyResponse(response: Response): Promise<unknown> {
   const data: unknown = await response.json();
   if (!response.ok) {
@@ -56,11 +54,7 @@ async function handleProxyResponse(response: Response): Promise<unknown> {
     throw new ProxyRequestError(new URL(response.url), fixedResponse);
   }
 
-  if (isProxySuccessResponse(data)) {
-    return data.result;
-  }
-
-  throw new Error("Malformed proxy response");
+  return data;
 }
 
 function resolveAdditionalHeaders(additionalHeaders?: HeadersInit | (() => HeadersInit)): Headers {
@@ -83,6 +77,7 @@ export function createHaloInfiniteClientProxy({
   authToken,
   credentials,
   additionalHeaders,
+  additionalQueryParams,
   fetchFn = fetch,
 }: CreateHaloInfiniteClientProxyOpts): HaloInfiniteClient {
   const endpoint = resolveProxyEndpoint(proxyBaseUrl, proxyPath);
@@ -96,10 +91,14 @@ export function createHaloInfiniteClientProxy({
           return undefined;
         }
 
+        const operation = resolveHaloProxyOperation(prop);
+        if (operation == null) {
+          return undefined;
+        }
+
         return async (...args: unknown[]): Promise<unknown> => {
-          const headers = new Headers({
-            "content-type": "application/json",
-          });
+          const url = new URL(`${endpoint.replace(/\/$/, "")}/${prop}`);
+          const headers = new Headers();
 
           if (authToken != null && authToken !== "") {
             headers.set("x-proxy-auth", authToken);
@@ -110,18 +109,29 @@ export function createHaloInfiniteClientProxy({
             headers.set(key, value);
           }
 
-          const requestInit: RequestInit = {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ method: prop, args }),
-          };
+          const requestInit: RequestInit = { method: operation.httpMethod, headers };
+
+          if (additionalQueryParams != null) {
+            const params =
+              typeof additionalQueryParams === "function" ? additionalQueryParams() : additionalQueryParams;
+            for (const [key, value] of Object.entries(params)) {
+              url.searchParams.set(key, value);
+            }
+          }
+
+          if (operation.httpMethod === "GET") {
+            appendHaloProxyArgsToUrl(url, args);
+          } else {
+            headers.set("content-type", "application/json");
+            requestInit.body = JSON.stringify({ args });
+          }
 
           if (credentials != null) {
             (requestInit as RequestInit & { credentials?: "omit" | "same-origin" | "include" }).credentials =
               credentials;
           }
 
-          const response = await fetchFn(endpoint, requestInit);
+          const response = await fetchFn(url.toString(), requestInit);
 
           return handleProxyResponse(response);
         };

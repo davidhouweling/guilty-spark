@@ -50,7 +50,7 @@ describe("IndividualTracker create", () => {
     expect(screen.getByText("Loading individual tracker...")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(installServicesMock).toHaveBeenCalledWith("https://api.example.com");
+      expect(installServicesMock).toHaveBeenCalledWith("https://api.example.com", {});
     });
 
     await waitFor(() => {

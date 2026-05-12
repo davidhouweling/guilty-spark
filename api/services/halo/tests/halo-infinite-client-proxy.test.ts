@@ -30,7 +30,7 @@ describe("createHaloInfiniteClientProxy", () => {
   });
 
   it("calls the proxy endpoint with the correct method and arguments", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({ result: "proxy-result" }));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse("proxy-result"));
 
     const proxy = createHaloInfiniteClientProxy({
       proxyBaseUrl: env.PROXY_WORKER_URL,
@@ -42,15 +42,11 @@ describe("createHaloInfiniteClientProxy", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${env.PROXY_WORKER_URL}/proxy/halo-infinite`);
-    expect(options.method).toBe("POST");
+    expect(url).toBe(`${env.PROXY_WORKER_URL}/proxy/halo-infinite/getUser?arg=%22foo%22`);
+    expect(options.method).toBe("GET");
     const sentHeaders = new Headers(options.headers);
-    expect(sentHeaders.get("content-type")).toBe("application/json");
     expect(sentHeaders.get("x-proxy-auth")).toBe(env.PROXY_WORKER_TOKEN);
-    expect(JSON.parse(options.body as string)).toEqual({
-      method: "getUser",
-      args: ["foo"],
-    });
+    expect(options.body).toBeUndefined();
 
     expect(result).toBe("proxy-result");
   });
@@ -109,23 +105,15 @@ describe("createHaloInfiniteClientProxy", () => {
     expect(thrown?.message).toBe("500 from https://example.com/halo-infinite");
   });
 
-  it("throws a generic error if the proxy response is malformed", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({}));
+  it("returns raw json payloads without result envelopes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse({ xuid: "123" }));
 
     const proxy = createHaloInfiniteClientProxy({
       proxyBaseUrl: env.PROXY_WORKER_URL,
       authToken: env.PROXY_WORKER_TOKEN,
     });
 
-    let thrown: Error | undefined;
-
-    try {
-      await proxy.getUser("foo");
-    } catch (e) {
-      thrown = e as Error;
-    }
-
-    expect(thrown).toBeInstanceOf(Error);
-    expect(thrown?.message).toBe("Malformed proxy response");
+    const result = await proxy.getUser("foo");
+    expect(result).toEqual({ xuid: "123" });
   });
 });

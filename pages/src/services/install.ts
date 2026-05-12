@@ -12,7 +12,12 @@ function getMode(): PagesMode {
   return normalized === "fake" || normalized === "test" ? "FAKE" : "REAL";
 }
 
-export async function installServices(apiHost: string): Promise<Services> {
+interface InstallServicesOpts {
+  readonly trackerXuid?: string;
+}
+
+export async function installServices(apiHost: string, opts: InstallServicesOpts = {}): Promise<Services> {
+  const { trackerXuid } = opts;
   const mode = getMode();
 
   if (mode === "FAKE") {
@@ -40,6 +45,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       headers.set("x-343-authorization-spartan", latestSpartanToken);
       return headers;
     },
+    ...(trackerXuid != null ? { additionalQueryParams: { trackerXuid } } : {}),
   });
 
   return {
