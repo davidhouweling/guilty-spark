@@ -124,6 +124,8 @@ export function IndividualTrackerViewer({
   const refreshStartedDate = parseDate(refreshStartedAt);
   const nextAutomaticRefreshDate =
     trackerStatus === "active" && lastUpdatedDate != null ? addMinutes(lastUpdatedDate, 3) : null;
+  const statusText =
+    trackerStatus === "active" && matchHistoryLoading ? "updating" : (trackerStatus ?? connectionStatus);
 
   const groupColorById = React.useMemo(() => {
     const next = new Map<string, string>();
@@ -211,12 +213,12 @@ export function IndividualTrackerViewer({
               <span className={liveStyles.headerMetaLabel}>Status</span>
               <span
                 className={classNames(liveStyles.headerMetaValue, {
-                  [styles.statusActiveText]: trackerStatus === "active",
+                  [styles.statusActiveText]: trackerStatus === "active" || statusText === "updating",
                   [styles.statusPausedText]: trackerStatus === "paused",
                   [styles.statusStoppedText]: trackerStatus === "stopped",
                 })}
               >
-                {trackerStatus ?? connectionStatus}
+                {statusText}
               </span>
             </div>
           </div>

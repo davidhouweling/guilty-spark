@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Services } from "../../../services/types";
+import type {
+  IndividualTrackerConnection,
+  IndividualTrackerStateListener,
+  IndividualTrackerStatusListener,
+  IndividualTrackerSubscription,
+  TrackerSearchResult,
+} from "../../../services/individual-tracker/types";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
 import { FakeLiveTrackerService } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
@@ -20,6 +27,52 @@ interface Harness {
   readonly navigateTo: ReturnType<typeof vi.fn<(url: string) => void>>;
   readonly assignLocation: ReturnType<typeof vi.fn<(url: string) => void>>;
   readonly liveTrackersController: LiveTrackersController;
+}
+
+class TestIndividualTrackerConnection implements IndividualTrackerConnection {
+  private readonly stateListeners = new Set<IndividualTrackerStateListener>();
+  private readonly statusListeners = new Set<IndividualTrackerStatusListener>();
+
+  public subscribe(listener: IndividualTrackerStateListener): IndividualTrackerSubscription {
+    this.stateListeners.add(listener);
+    return {
+      unsubscribe: (): void => {
+        this.stateListeners.delete(listener);
+      },
+    };
+  }
+
+  public subscribeStatus(listener: IndividualTrackerStatusListener): IndividualTrackerSubscription {
+    this.statusListeners.add(listener);
+    return {
+      unsubscribe: (): void => {
+        this.statusListeners.delete(listener);
+      },
+    };
+  }
+
+  public disconnect(): void {
+    this.stateListeners.clear();
+    this.statusListeners.clear();
+  }
+
+  public emitState(state: ReturnType<typeof aFakeIndividualTrackerStateWith>): void {
+    for (const listener of this.stateListeners) {
+      listener(state);
+    }
+  }
+}
+
+function createDeferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolveValue!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolveValue = resolve;
+  });
+
+  return {
+    promise,
+    resolve: resolveValue,
+  };
 }
 
 function aLiveTrackersControllerMock(): LiveTrackersController {
@@ -149,6 +202,93 @@ describe("IndividualTrackerPresenter", () => {
       expect(snapshot.viewSource).toBe("tracker");
       expect(snapshot.viewTrackerId).toBe("tracker-123");
       expect(snapshot.viewerRenderModel).not.toBeNull();
+    });
+  });
+
+  it("keeps existing tracker summary visible while fetching an updated summary", async () => {
+    const initialState = aFakeIndividualTrackerStateWith({
+      userId: "user-1",
+      trackerId: "active-1",
+      xuid: "xuid-1",
+      gamertag: "Chief",
+    });
+
+    const nextState = aFakeIndividualTrackerStateWith({
+      userId: "user-1",
+      trackerId: "active-1",
+      xuid: "xuid-1",
+      gamertag: "ChiefNext",
+    });
+
+    const connection = new TestIndividualTrackerConnection();
+
+    const individualTrackerService = aFakeIndividualTrackerServiceWith({
+      activeState: initialState,
+    });
+    vi.spyOn(individualTrackerService, "connectToActiveTracker").mockReturnValue(connection);
+
+    const initialSummary: TrackerSearchResult = {
+      gamertag: "Chief",
+      xuid: "xuid-1",
+      rankLabel: null,
+      csrLabel: null,
+      currentRankTier: null,
+      currentRankSubTier: null,
+      currentRankMeasurementMatchesRemaining: null,
+      currentRankInitialMeasurementMatches: null,
+      allTimePeakRankLabel: null,
+      allTimePeakCsrLabel: null,
+      allTimePeakRankTier: null,
+      allTimePeakRankSubTier: null,
+      seasonPeakCsrLabel: null,
+      seasonPeakRankTier: null,
+      seasonPeakRankSubTier: null,
+      matchmadeMatchCount: null,
+      customMatchCount: null,
+    };
+
+    const nextSummary: TrackerSearchResult = {
+      ...initialSummary,
+      gamertag: "ChiefNext",
+    };
+
+    const nextSummaryDeferred = createDeferred<TrackerSearchResult | null>();
+    const searchGamertagSpy = vi.spyOn(individualTrackerService, "searchGamertag");
+    searchGamertagSpy.mockResolvedValueOnce(initialSummary);
+    searchGamertagSpy.mockReturnValueOnce(nextSummaryDeferred.promise);
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith({
+        session: {
+          authenticated: true,
+          userId: "user-1",
+          xboxGamertag: "Chief",
+          xboxXuid: "2533274844642438",
+        },
+      }),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService,
+    };
+
+    const harness = aHarnessWith(services, aLiveTrackersControllerMock(), { kind: "view-active" });
+    harness.presenter.start();
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().viewerTrackerSummary?.gamertag).toBe("Chief");
+    });
+
+    connection.emitState(nextState);
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().viewTrackerGamertag).toBe("ChiefNext");
+    });
+
+    expect(harness.presenter.getSnapshot().viewerTrackerSummary?.gamertag).toBe("Chief");
+
+    nextSummaryDeferred.resolve(nextSummary);
+
+    await waitFor(() => {
+      expect(harness.presenter.getSnapshot().viewerTrackerSummary?.gamertag).toBe("ChiefNext");
     });
   });
 

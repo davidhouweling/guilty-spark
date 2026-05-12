@@ -401,4 +401,27 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Current Rank")).toBeInTheDocument();
     expect(screen.getByText("Onyx (1500)")).toBeInTheDocument();
   });
+
+  it("shows updating status while active tracker data is refreshing", () => {
+    render(
+      <IndividualTrackerViewer
+        trackerGamertag="Chief"
+        connectionStatus="connected"
+        errorMessage={null}
+        canManage={true}
+        refreshInProgress={false}
+        refreshStartedAt={null}
+        refreshPending={false}
+        refreshMessage={null}
+        trackerSummary={aTrackerSummaryWith()}
+        renderModel={aRenderModelWith()}
+        topBarStats={aTopBarStatsWith()}
+        matchHistoryLoading={true}
+        onBackToManage={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("updating")).toBeInTheDocument();
+  });
 });

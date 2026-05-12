@@ -833,7 +833,6 @@ export class IndividualTrackerPresenter {
     }
 
     this.lastViewerSummaryGamertagKey = key;
-    this.viewedTrackerSummary = null;
     this.updateSnapshot((snapshot) => ({ ...snapshot }));
 
     try {
@@ -869,8 +868,6 @@ export class IndividualTrackerPresenter {
     }
 
     this.lastViewerMatchHistoryKey = key;
-    this.viewedMatchHistory = null;
-    this.viewedMedalMetadata = {};
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       viewedMatchHistoryLoading: true,
@@ -897,8 +894,6 @@ export class IndividualTrackerPresenter {
         };
       });
     } catch (error) {
-      this.viewedMatchHistory = null;
-      this.viewedMedalMetadata = {};
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         viewedMatchHistoryLoading: false,

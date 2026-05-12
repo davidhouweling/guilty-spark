@@ -519,7 +519,6 @@ export class PublicViewerPresenter {
     }
 
     this.lastSummaryGamertagKey = key;
-    this.trackerSummary = null;
     this.updateSnapshot((snapshot) => ({ ...snapshot }));
 
     try {
@@ -538,8 +537,6 @@ export class PublicViewerPresenter {
     }
 
     this.lastMatchHistoryKey = key;
-    this.matchHistory = null;
-    this.medalMetadata = {};
 
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
@@ -561,9 +558,6 @@ export class PublicViewerPresenter {
         matchHistoryLoading: false,
       }));
     } catch (error) {
-      this.matchHistory = null;
-      this.medalMetadata = {};
-
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         matchHistoryLoading: false,
