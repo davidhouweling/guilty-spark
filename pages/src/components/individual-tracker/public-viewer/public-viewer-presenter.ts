@@ -694,7 +694,7 @@ export class PublicViewerPresenter {
 
     const timelineSharedTabs: PublicViewerOverlaySharedTab[] = timelineTabs.map((tab, index) => {
       const timelineItem = tab.timelineIndex == null ? null : (renderModel.gameplayTimeline[tab.timelineIndex] ?? null);
-      const score = timelineItem?.type === "match" ? timelineItem.match.score : "";
+      const score = timelineItem?.type === "match" ? toCompactSeriesScore(timelineItem.match.score) : "";
       const icon =
         timelineItem?.type === "match"
           ? gameModeIconUrl(timelineItem.match.gameVariantCategory, timelineItem.match.gameMode).src
