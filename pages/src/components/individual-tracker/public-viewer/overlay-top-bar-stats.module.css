@@ -1,85 +1,43 @@
 .root {
   align-items: center;
-  background: color-mix(in srgb, var(--overlay-team-color) 22%, rgb(15 40 48 / 88%));
-  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 62%, transparent);
-  border-radius: var(--radius-sm);
   display: flex;
-  flex-direction: column;
-  font-size: calc(var(--text-sm) * var(--font-size-tabs, 1));
-  gap: var(--space-2);
+  gap: var(--space-1);
   justify-content: center;
-  left: 50%;
-  max-width: min(1180px, calc(100vw - 1.5rem));
-  padding: var(--space-2) var(--space-3);
-  position: fixed;
-  top: 0;
-  transform: translateX(-50%);
-  width: min(1180px, calc(100vw - 1.5rem));
+  margin-inline: auto;
+  max-width: min(1280px, calc(100vw - 1rem));
+  padding: 0 var(--space-2) var(--space-1);
+  width: 100%;
   z-index: 24;
 }
 
-.title {
-  font-family: var(--font-heading);
-  font-size: calc(var(--text-lg) * var(--font-size-queue-info, 1));
-  letter-spacing: 0.04em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.grid {
-  display: grid;
-  gap: var(--space-2);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: 100%;
-}
-
-.card {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--overlay-team-color) 26%, transparent), transparent),
-    color-mix(in srgb, var(--halo-bg-elevated) 80%, transparent);
-  border: 2px solid color-mix(in srgb, var(--overlay-team-color) 55%, transparent);
-  border-radius: var(--radius-sm);
+.row {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex: 1 1 auto;
+  gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-2);
-  text-align: center;
-  text-shadow:
-    0 1px 2px rgb(0 0 0 / 80%),
-    0 0 10px rgb(0 0 0 / 60%);
+  width: auto;
+}
+
+.tab {
+  align-items: center;
+  background: rgb(15 40 48 / 90%);
+  border: 2px solid rgb(0 0 0 / 60%);
+  border-radius: 0;
+  border-top: 0;
+  color: var(--halo-white);
+  display: flex;
+  flex: 1 1 0;
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-xs) * var(--font-size-tabs, 1));
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  text-transform: uppercase;
 }
 
 .label {
-  color: color-mix(in srgb, var(--halo-white) 76%, transparent);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-weight: 400;
 }
 
-.value {
-  align-items: center;
-  color: var(--halo-white);
-  display: flex;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  gap: var(--space-1);
-  justify-content: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (--desktop-viewport) {
-  .root {
-    flex-direction: row;
-    gap: var(--space-3);
-  }
-
-  .grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
+.dot {
+  color: color-mix(in srgb, var(--halo-white) 70%, transparent);
 }

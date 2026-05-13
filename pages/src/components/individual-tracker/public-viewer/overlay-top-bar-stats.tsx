@@ -4,28 +4,24 @@ import { RankIcon } from "../../icons/rank-icon";
 import styles from "./overlay-top-bar-stats.module.css";
 
 interface OverlayTopBarStatsProps {
-  readonly title: string;
-  readonly showTitle: boolean;
   readonly items: readonly IndividualTrackerTopBarStatItem[];
 }
 
-const OverlayTopBarStatsComponent = ({
-  title,
-  showTitle,
-  items,
-}: OverlayTopBarStatsProps): React.ReactElement | null => {
-  if (!showTitle && items.length === 0) {
+const OverlayTopBarStatsComponent = ({ items }: OverlayTopBarStatsProps): React.ReactElement | null => {
+  if (items.length === 0) {
     return null;
   }
 
   return (
     <div className={styles.root}>
-      {showTitle ? <h1 className={styles.title}>{title}</h1> : null}
-      {items.length > 0 ? (
-        <div className={styles.grid} aria-label="Overlay top bar stats">
+      {
+        <div className={styles.row} aria-label="Overlay top bar stats">
           {items.map((item, index) => (
-            <div key={`${item.option}-${index.toString()}`} className={styles.card}>
+            <div key={`${item.option}-${index.toString()}`} className={styles.tab}>
               <span className={styles.label}>{item.label}</span>
+              <span className={styles.dot} aria-hidden="true">
+                •
+              </span>
               <span className={styles.value}>
                 {item.rankTier != null && (
                   <>
@@ -38,12 +34,12 @@ const OverlayTopBarStatsComponent = ({
                     />{" "}
                   </>
                 )}
-                {item.value}
+                <span className={styles.valueText}>{item.value}</span>
               </span>
             </div>
           ))}
         </div>
-      ) : null}
+      }
     </div>
   );
 };

@@ -208,11 +208,6 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
     [snapshot.viewerEnemyColor, snapshot.viewerTeamColor],
   );
 
-  const topTitle =
-    snapshot.trackerState?.gamertag != null && snapshot.trackerState.gamertag !== ""
-      ? snapshot.trackerState.gamertag
-      : "Guilty Spark";
-
   const hasSeriesContext = snapshot.overlayHasSeriesContext;
   const seriesMatches = snapshot.overlaySeriesMatches;
   const seriesTeams = snapshot.overlaySeriesTeams;
@@ -260,7 +255,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
       }
     />
   ) : (
-    <OverlayTopBarStats title={topTitle} showTitle={snapshot.overlayShowTitle} items={snapshot.overlayTopBarStats} />
+    <OverlayTopBarStats items={snapshot.overlayTopBarStats} />
   );
 
   const sharedTabs = snapshot.overlaySharedTabs;

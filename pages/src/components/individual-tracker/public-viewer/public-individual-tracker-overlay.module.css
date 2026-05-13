@@ -42,7 +42,7 @@
 
 .title {
   font-family: var(--font-heading);
-  font-size: calc(var(--text-xl) * var(--font-size-queue-info, 100) / 100);
+  font-size: calc(var(--text-xl) * var(--font-size-queue-info, 1));
   letter-spacing: 0.04em;
   margin: 0;
   text-transform: uppercase;
@@ -131,7 +131,7 @@
   border: 2px solid color-mix(in srgb, var(--halo-accent) 60%, transparent);
   border-radius: var(--radius-sm);
   font-family: var(--font-heading);
-  font-size: calc(var(--text-lg) * var(--font-size-score, 100) / 100);
+  font-size: calc(var(--text-lg) * var(--font-size-score, 1));
   font-weight: 700;
   padding: 0.15rem var(--space-3);
 }
@@ -258,7 +258,7 @@
   color: var(--halo-white);
   cursor: pointer;
   font-family: var(--font-heading);
-  font-size: calc(var(--text-xs) * var(--font-size-tabs, 100) / 100);
+  font-size: calc(var(--text-xs) * var(--font-size-tabs, 1));
   font-weight: 700;
   padding: 0.3rem 0.75rem;
   text-transform: uppercase;
@@ -273,7 +273,7 @@
   background: color-mix(in srgb, var(--overlay-team-color) 14%, rgb(15 40 48 / 92%));
   border-top: 1px solid color-mix(in srgb, var(--overlay-team-color) 40%, transparent);
   color: color-mix(in srgb, var(--halo-white) 92%, transparent);
-  font-size: calc(var(--text-sm) * var(--font-size-ticker, 100) / 100);
+  font-size: calc(var(--text-sm) * var(--font-size-ticker, 1));
   margin: 0;
   min-height: 2.1rem;
   padding: 0.45rem var(--space-3);
