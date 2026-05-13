@@ -33,12 +33,15 @@ import { buildIndividualTrackerViewerRenderModel } from "../viewer/viewer-render
 import type {
   OverlayTab,
   OverlayAccumulatedStats,
+  OverlayTickerGroup,
+  OverlayTickerRow,
   IndividualTrackerViewerRenderModel,
   IndividualTrackerViewerTimelineItem,
   IndividualTrackerViewerMatchCard,
 } from "../types";
 import { getTeamColor } from "../../team-colors/team-colors";
 import {
+  ALL_SLAYER_STATS,
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_FONT_SIZES,
   DEFAULT_TICKER_SETTINGS,
@@ -358,6 +361,8 @@ export class PublicViewerPresenter {
       trackerSummary: this.trackerSummary,
       topBarStatSlots: overlaySettings.topBarStatSlots,
     });
+    const overlayTickerGroups =
+      renderModel == null ? [] : this.computeOverlayTickerGroups(renderModel, overlaySettings);
 
     this.config.store.snapshot = {
       ...next,
@@ -366,7 +371,7 @@ export class PublicViewerPresenter {
       renderModel,
       overlayTabs,
       overlayAccumulatedStats,
-      overlayTickerGroups: [], // Computed separately if needed
+      overlayTickerGroups,
       overlayTopBarStats,
       xuidToDiscordName,
       overlayShowMatchmakingStatsOnly: overlaySettings.showMatchmakingStatsOnly,
@@ -922,6 +927,7 @@ export class PublicViewerPresenter {
     readonly topBarStatSlots: DisplaySettings["topBarStatSlots"];
   } {
     const visibleSections = this.streamerVisibleSections;
+    const visibleSectionsRecord = visibleSections as Record<string, unknown>;
 
     const topBarStatSlots = (visibleSections.topBarStatSlots ?? DEFAULT_DISPLAY_SETTINGS.topBarStatSlots)
       .map((value) => normalizeIndividualTopBarStatOption(value))
@@ -929,11 +935,24 @@ export class PublicViewerPresenter {
       .slice(0, DEFAULT_DISPLAY_SETTINGS.topBarStatSlots.length);
 
     return {
-      showMatchmakingStatsOnly: DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false,
-      selectedSlayerStats: DEFAULT_TICKER_SETTINGS.selectedSlayerStats,
-      showObjectiveStats: DEFAULT_TICKER_SETTINGS.showObjectiveStats,
-      medalRarityFilter: DEFAULT_TICKER_SETTINGS.medalRarityFilter,
-      showPreSeriesInfo: DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
+      showMatchmakingStatsOnly:
+        typeof visibleSectionsRecord.showMatchmakingStatsOnly === "boolean"
+          ? visibleSectionsRecord.showMatchmakingStatsOnly
+          : (DEFAULT_TICKER_SETTINGS.showMatchmakingStatsOnly ?? false),
+      selectedSlayerStats: this.isStringArray(visibleSections.selectedSlayerStats)
+        ? visibleSections.selectedSlayerStats
+        : DEFAULT_TICKER_SETTINGS.selectedSlayerStats,
+      showObjectiveStats:
+        typeof visibleSections.showObjectiveStats === "boolean"
+          ? visibleSections.showObjectiveStats
+          : DEFAULT_TICKER_SETTINGS.showObjectiveStats,
+      medalRarityFilter: this.isNumberArray(visibleSections.medalRarityFilter)
+        ? visibleSections.medalRarityFilter
+        : DEFAULT_TICKER_SETTINGS.medalRarityFilter,
+      showPreSeriesInfo:
+        typeof visibleSections.showPreSeriesInfo === "boolean"
+          ? visibleSections.showPreSeriesInfo
+          : DEFAULT_TICKER_SETTINGS.showPreSeriesInfo,
       fontSizes: DEFAULT_FONT_SIZES,
       showTitle: visibleSections.showTitle ?? DEFAULT_DISPLAY_SETTINGS.showTitle,
       showSubtitle: visibleSections.showSubtitle ?? DEFAULT_DISPLAY_SETTINGS.showSubtitle,
@@ -945,5 +964,131 @@ export class PublicViewerPresenter {
           ? topBarStatSlots
           : DEFAULT_DISPLAY_SETTINGS.topBarStatSlots,
     };
+  }
+
+  private computeOverlayTickerGroups(
+    renderModel: IndividualTrackerViewerRenderModel,
+    overlaySettings: {
+      readonly showMatchmakingStatsOnly: boolean;
+      readonly selectedSlayerStats: readonly string[];
+      readonly showObjectiveStats: boolean;
+      readonly medalRarityFilter: readonly number[];
+    },
+  ): readonly OverlayTickerGroup[] {
+    const groups: OverlayTickerGroup[] = [];
+
+    const filterStats = (stats: OverlayTickerRow["stats"]): OverlayTickerRow["stats"] => {
+      return stats.filter((stat) => {
+        if (overlaySettings.selectedSlayerStats.includes(stat.name)) {
+          return true;
+        }
+
+        if (overlaySettings.showObjectiveStats) {
+          return !(ALL_SLAYER_STATS as readonly string[]).includes(stat.name);
+        }
+
+        return false;
+      });
+    };
+
+    const difficultyRange = new Map<number, readonly [number, number]>([
+      [0, [0, 99]],
+      [1, [100, 149]],
+      [2, [150, 199]],
+      [3, [200, Number.POSITIVE_INFINITY]],
+    ]);
+
+    const includeMedalByRarity = (sortingWeight: number): boolean => {
+      for (const [difficultyIndex, [minWeight, maxWeight]] of difficultyRange.entries()) {
+        if (sortingWeight >= minWeight && sortingWeight <= maxWeight) {
+          return overlaySettings.medalRarityFilter.includes(difficultyIndex);
+        }
+      }
+
+      return false;
+    };
+
+    // Build ticker groups from timeline matches
+    for (let itemIndex = 0; itemIndex < renderModel.gameplayTimeline.length; itemIndex++) {
+      const item = renderModel.gameplayTimeline[itemIndex];
+
+      if (item.type === "match") {
+        const { match } = item;
+        if (match.matchStats == null || match.matchStats.length === 0) {
+          continue;
+        }
+
+        const rows: OverlayTickerRow[] = [];
+
+        // Build rows for each team's stats
+        for (const teamStats of match.matchStats) {
+          // Add team row with team stats and medals
+          rows.push({
+            type: "team",
+            name: `Team ${String(teamStats.teamId)}`,
+            teamId: teamStats.teamId,
+            stats: filterStats(
+              teamStats.teamStats.map((stat) => ({
+                name: stat.name,
+                value: stat.value,
+                display: stat.display,
+                bestInTeam: stat.bestInTeam,
+                bestInMatch: stat.bestInMatch,
+              })),
+            ),
+            medals: teamStats.teamMedals
+              .filter((medal) => includeMedalByRarity(medal.sortingWeight))
+              .map((medal) => ({
+                name: medal.name,
+                count: medal.count,
+                imageUrl: "",
+              })),
+          });
+
+          // Add player rows for this team
+          for (const player of teamStats.players) {
+            rows.push({
+              type: "player",
+              name: player.name,
+              teamId: teamStats.teamId,
+              stats: filterStats(
+                player.values.map((stat) => ({
+                  name: stat.name,
+                  value: stat.value,
+                  display: stat.display,
+                  bestInTeam: stat.bestInTeam,
+                  bestInMatch: stat.bestInMatch,
+                })),
+              ),
+              medals: player.medals
+                .filter((medal) => includeMedalByRarity(medal.sortingWeight))
+                .map((medal) => ({
+                  name: medal.name,
+                  count: medal.count,
+                  imageUrl: "",
+                })),
+            });
+          }
+        }
+
+        if (rows.length > 0) {
+          groups.push({
+            matchIndex: itemIndex,
+            label: match.gameTypeAndMap,
+            rows,
+          });
+        }
+      }
+    }
+
+    return groups;
+  }
+
+  private isStringArray(value: unknown): value is readonly string[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+
+  private isNumberArray(value: unknown): value is readonly number[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "number" && Number.isFinite(item));
   }
 }
