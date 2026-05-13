@@ -126,4 +126,51 @@ describe("RealIndividualTrackerService", () => {
       body: JSON.stringify({}),
     });
   });
+
+  it("formats zero-indexed non-Onyx subtiers as one-based rank labels", async () => {
+    service = new RealIndividualTrackerService({
+      apiHost: "https://api.example.com",
+      haloInfiniteClient: {
+        getMedalsMetadataFile: getMedalsMetadataFileSpy,
+        getUser: vi.fn(async () => await Promise.resolve({
+          gamertag: "Chief",
+          xuid: "xuid-1",
+        })),
+        getPlayerMatchCount: vi.fn(async () => await Promise.resolve({
+          MatchmadeMatchesPlayedCount: 10,
+          CustomMatchesPlayedCount: 0,
+          LocalMatchesPlayedCount: 0,
+        })),
+        getPlaylistCsr: vi.fn(async () => await Promise.resolve([
+          {
+            Id: "playlist-1",
+            Result: {
+              Current: {
+                Tier: "Diamond",
+                SubTier: 2,
+                Value: 1234,
+                MeasurementMatchesRemaining: 0,
+              },
+              SeasonMax: {
+                Tier: "Diamond",
+                SubTier: 1,
+                Value: 1200,
+              },
+              AllTimeMax: {
+                Tier: "Diamond",
+                SubTier: 2,
+                Value: 1234,
+              },
+            },
+          },
+        ])),
+      } as never,
+    });
+
+    const result = await service.searchGamertag("Chief");
+
+    expect(result?.rankLabel).toBe("Diamond 3");
+    expect(result?.allTimePeakRankLabel).toBe("Diamond 3");
+    expect(result?.csrLabel).toBe("1234");
+  });
 });

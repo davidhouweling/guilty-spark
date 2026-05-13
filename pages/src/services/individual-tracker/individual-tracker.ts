@@ -81,26 +81,26 @@ interface IndividualTrackerServiceOpts {
 
 const RANKED_ARENA_PLAYLIST_ID = "edfef3ac-9cbe-4fa2-b949-8f29deafd483";
 
+function getRankLabel(tier: string, subTier: number): string {
+  if (tier === "Onyx") {
+    return tier;
+  }
+
+  // Halo API SubTier is zero-indexed for non-Onyx tiers (0..5 -> 1..6 for display).
+  return `${tier} ${(subTier + 1).toString()}`;
+}
+
 function getRankAndCsrLabels(csr: PlaylistCsrContainer): { rankLabel: string | null; csrLabel: string | null } {
   const currentCsr = csr.Current;
 
   const csrLabel = currentCsr.Value >= 0 ? currentCsr.Value.toString() : "-";
-  const rankLabel =
-    currentCsr.MeasurementMatchesRemaining > 0
-      ? "Unranked"
-      : currentCsr.SubTier > 0
-        ? `${currentCsr.Tier} ${currentCsr.SubTier.toString()}`
-        : currentCsr.Tier;
+  const rankLabel = currentCsr.MeasurementMatchesRemaining > 0 ? "Unranked" : getRankLabel(currentCsr.Tier, currentCsr.SubTier);
 
   return { rankLabel, csrLabel };
 }
 
 function getCsrLabel(value: number): string | null {
   return value >= 0 ? value.toString() : "-";
-}
-
-function getRankLabel(tier: string, subTier: number): string {
-  return subTier > 0 ? `${tier} ${subTier.toString()}` : tier;
 }
 
 async function resolveCached<T>(cache: Map<string, Promise<T>>, key: string, load: () => Promise<T>): Promise<T> {

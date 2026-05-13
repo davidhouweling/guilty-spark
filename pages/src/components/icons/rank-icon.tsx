@@ -134,8 +134,8 @@ function getRankKey(
     return "Onyx";
   }
 
-  // For other ranks, use the subtier
-  const tier = subTier ?? 1;
+  // For other ranks, Halo API SubTier is zero-indexed (0..5), so display icon is 1..6.
+  const tier = (subTier ?? 0) + 1;
   return `${rankTier}${tier.toString()}`;
 }
 
