@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import type { IndividualTrackerTopBarStatItem } from "../top-bar-stats";
+import { RankIcon } from "../../icons/rank-icon";
 import styles from "./overlay-top-bar-stats.module.css";
 
 interface OverlayTopBarStatsProps {
@@ -25,7 +26,20 @@ const OverlayTopBarStatsComponent = ({
           {items.map((item, index) => (
             <div key={`${item.option}-${index.toString()}`} className={styles.card}>
               <span className={styles.label}>{item.label}</span>
-              <span className={styles.value}>{item.value}</span>
+              <span className={styles.value}>
+                {item.rankTier != null && (
+                  <>
+                    <RankIcon
+                      rankTier={item.rankTier}
+                      subTier={item.rankSubTier ?? null}
+                      measurementMatchesRemaining={item.rankMeasurementMatchesRemaining ?? null}
+                      initialMeasurementMatches={item.rankInitialMeasurementMatches ?? null}
+                      size="small"
+                    />{" "}
+                  </>
+                )}
+                {item.value}
+              </span>
             </div>
           ))}
         </div>

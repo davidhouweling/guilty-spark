@@ -94,7 +94,8 @@ function getRankAndCsrLabels(csr: PlaylistCsrContainer): { rankLabel: string | n
   const currentCsr = csr.Current;
 
   const csrLabel = currentCsr.Value >= 0 ? currentCsr.Value.toString() : "-";
-  const rankLabel = currentCsr.MeasurementMatchesRemaining > 0 ? "Unranked" : getRankLabel(currentCsr.Tier, currentCsr.SubTier);
+  const rankLabel =
+    currentCsr.MeasurementMatchesRemaining > 0 ? "Unranked" : getRankLabel(currentCsr.Tier, currentCsr.SubTier);
 
   return { rankLabel, csrLabel };
 }

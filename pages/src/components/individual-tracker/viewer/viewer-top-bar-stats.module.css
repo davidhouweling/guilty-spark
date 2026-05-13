@@ -26,10 +26,13 @@
 }
 
 .value {
+  align-items: center;
   color: var(--halo-white);
+  display: flex;
   font-family: var(--font-heading);
   font-size: var(--text-base);
   font-weight: 700;
+  gap: var(--space-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

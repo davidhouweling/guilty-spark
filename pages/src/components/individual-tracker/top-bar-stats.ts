@@ -10,6 +10,10 @@ export interface IndividualTrackerTopBarStatItem {
   readonly option: IndividualTopBarStatOption;
   readonly label: string;
   readonly value: string;
+  rankTier?: string | null;
+  rankSubTier?: number | null;
+  rankMeasurementMatchesRemaining?: number | null;
+  rankInitialMeasurementMatches?: number | null;
 }
 
 interface TrackedPlayerStatValue {
@@ -292,9 +296,21 @@ export function buildIndividualTrackerTopBarStats({
     return [];
   }
 
-  return topBarStatSlots.map((option) => ({
-    option,
-    label: optionLabelByValue.get(option) ?? option,
-    value: formatTopBarStatValue(renderModel, trackerSummary, option) ?? "N/A",
-  }));
+  return topBarStatSlots.map((option) => {
+    const item: IndividualTrackerTopBarStatItem = {
+      option,
+      label: optionLabelByValue.get(option) ?? option,
+      value: formatTopBarStatValue(renderModel, trackerSummary, option) ?? "N/A",
+    };
+
+    // Include rank data for current-rank and similar rank-based stats
+    if (option === "current-rank" && trackerSummary != null) {
+      item.rankTier = trackerSummary.currentRankTier;
+      item.rankSubTier = trackerSummary.currentRankSubTier;
+      item.rankMeasurementMatchesRemaining = trackerSummary.currentRankMeasurementMatchesRemaining;
+      item.rankInitialMeasurementMatches = trackerSummary.currentRankInitialMeasurementMatches;
+    }
+
+    return item;
+  });
 }

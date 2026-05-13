@@ -61,9 +61,13 @@
 }
 
 .value {
+  align-items: center;
   color: var(--halo-white);
+  display: flex;
   font-family: var(--font-heading);
   font-weight: 700;
+  gap: var(--space-1);
+  justify-content: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -132,38 +132,47 @@ describe("RealIndividualTrackerService", () => {
       apiHost: "https://api.example.com",
       haloInfiniteClient: {
         getMedalsMetadataFile: getMedalsMetadataFileSpy,
-        getUser: vi.fn(async () => await Promise.resolve({
-          gamertag: "Chief",
-          xuid: "xuid-1",
-        })),
-        getPlayerMatchCount: vi.fn(async () => await Promise.resolve({
-          MatchmadeMatchesPlayedCount: 10,
-          CustomMatchesPlayedCount: 0,
-          LocalMatchesPlayedCount: 0,
-        })),
-        getPlaylistCsr: vi.fn(async () => await Promise.resolve([
-          {
-            Id: "playlist-1",
-            Result: {
-              Current: {
-                Tier: "Diamond",
-                SubTier: 2,
-                Value: 1234,
-                MeasurementMatchesRemaining: 0,
+        getUser: vi.fn(
+          async () =>
+            await Promise.resolve({
+              gamertag: "Chief",
+              xuid: "xuid-1",
+            }),
+        ),
+        getPlayerMatchCount: vi.fn(
+          async () =>
+            await Promise.resolve({
+              MatchmadeMatchesPlayedCount: 10,
+              CustomMatchesPlayedCount: 0,
+              LocalMatchesPlayedCount: 0,
+            }),
+        ),
+        getPlaylistCsr: vi.fn(
+          async () =>
+            await Promise.resolve([
+              {
+                Id: "playlist-1",
+                Result: {
+                  Current: {
+                    Tier: "Diamond",
+                    SubTier: 2,
+                    Value: 1234,
+                    MeasurementMatchesRemaining: 0,
+                  },
+                  SeasonMax: {
+                    Tier: "Diamond",
+                    SubTier: 1,
+                    Value: 1200,
+                  },
+                  AllTimeMax: {
+                    Tier: "Diamond",
+                    SubTier: 2,
+                    Value: 1234,
+                  },
+                },
               },
-              SeasonMax: {
-                Tier: "Diamond",
-                SubTier: 1,
-                Value: 1200,
-              },
-              AllTimeMax: {
-                Tier: "Diamond",
-                SubTier: 2,
-                Value: 1234,
-              },
-            },
-          },
-        ])),
+            ]),
+        ),
       } as never,
     });
 

@@ -164,7 +164,15 @@ describe("buildIndividualTrackerTopBarStats", () => {
       { option: "total-games", label: "Total Games", value: "11" },
       { option: "kills-deaths-assists-kda", label: "Kills:Deaths:Assists (KDA)", value: "22:11:6 (17.0)" },
       { option: "damage-dealt-taken-ratio", label: "Damage D:T (D/T)", value: "5000:4500 (1.11)" },
-      { option: "current-rank", label: "Current Rank", value: "Onyx (1500)" },
+      {
+        option: "current-rank",
+        label: "Current Rank",
+        value: "Onyx (1500)",
+        rankTier: "Onyx",
+        rankSubTier: 0,
+        rankMeasurementMatchesRemaining: null,
+        rankInitialMeasurementMatches: null,
+      },
     ]);
   });
 
