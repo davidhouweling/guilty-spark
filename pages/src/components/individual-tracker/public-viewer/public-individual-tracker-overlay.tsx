@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback } from "react";
 import type { ImageMetadata } from "astro";
+import haloEmblemPng from "../../../assets/halo-emblem.png";
 import captureTheFlagPng from "../../../assets/game-modes/capture-the-flag.png";
 import strongholdsPng from "../../../assets/game-modes/strongholds.png";
 import oddballPng from "../../../assets/game-modes/oddball.png";
@@ -224,7 +225,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
           : null
       }
       subtitle={snapshot.overlayShowSubtitle ? snapshot.overlaySeriesSubtitle : null}
-      iconUrl={null}
+      iconUrl={haloEmblemPng.src}
       showScore={snapshot.overlayShowScore}
       showTeamDetails={hasRenderableSeriesTeams}
       seriesScore={snapshot.overlaySeriesScore}

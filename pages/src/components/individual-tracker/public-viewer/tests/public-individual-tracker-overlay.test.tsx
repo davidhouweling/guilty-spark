@@ -242,6 +242,12 @@ describe("PublicIndividualTrackerOverlay", () => {
     expect(screen.getAllByText("Blue").length).toBeGreaterThan(0);
   });
 
+  it("renders fallback emblem in series top bar when no explicit logo exists", () => {
+    render(<PublicIndividualTrackerOverlay snapshot={aSnapshotWith()} />);
+
+    expect(screen.getByRole("img", { name: "Server" })).toBeInTheDocument();
+  });
+
   it("renders match-first tabs when no active series exists", () => {
     render(
       <PublicIndividualTrackerOverlay
