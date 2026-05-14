@@ -351,6 +351,13 @@
   gap: var(--space-1);
 }
 
+.tabIcons {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
 .tab:hover {
   background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-bg-primary)) 30%, rgb(15 40 48 / 90%));
   border-color: var(--halo-accent);
@@ -394,6 +401,10 @@
 .tabIcon {
   height: 20px;
   width: 20px;
+}
+
+.tabIconDimmed {
+  opacity: 0.5;
 }
 
 .tabLabel {

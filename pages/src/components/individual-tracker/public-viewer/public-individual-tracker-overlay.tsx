@@ -216,6 +216,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
   const hasRenderableSeriesTeams = snapshot.overlayShowTeamDetails && seriesTeams.length >= 2;
   const leftSeriesTeam = hasRenderableSeriesTeams ? seriesTeams[0] : undefined;
   const rightSeriesTeam = hasRenderableSeriesTeams ? seriesTeams[1] : undefined;
+  const haloEmblemUrl = typeof haloEmblemPng === "string" ? haloEmblemPng : haloEmblemPng.src;
 
   const topSection = hasSeriesContext ? (
     <TopSection
@@ -225,7 +226,7 @@ export function PublicIndividualTrackerOverlay({ snapshot }: PublicIndividualTra
           : null
       }
       subtitle={snapshot.overlayShowSubtitle ? snapshot.overlaySeriesSubtitle : null}
-      iconUrl={haloEmblemPng.src}
+      iconUrl={haloEmblemUrl}
       showScore={snapshot.overlayShowScore}
       showTeamDetails={hasRenderableSeriesTeams}
       seriesScore={snapshot.overlaySeriesScore}

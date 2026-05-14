@@ -382,4 +382,55 @@ describe("PublicIndividualTrackerOverlay", () => {
     expect(screen.getByText("Custom/Local Games")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
+
+  it("renders recorded series tab metadata outside active series context", () => {
+    render(
+      <PublicIndividualTrackerOverlay
+        snapshot={aSnapshotWith({
+          renderModel: aRenderModelWithoutSeries(),
+          overlayHasSeriesContext: false,
+          overlaySeriesTitle: null,
+          overlaySeriesSubtitle: null,
+          overlaySeriesScore: "0:0",
+          overlaySeriesTeams: [],
+          overlaySeriesMatches: [],
+          overlaySharedTabs: [
+            {
+              type: "series",
+              index: -1,
+              label: "Matches",
+              score: "7:4",
+              teamColor: undefined,
+            },
+            {
+              type: "match",
+              index: 0,
+              matchId: "group-0",
+              label: "Championship Best of 5",
+              score: "3:2",
+              icon: "",
+              icons: [
+                { src: "/oddball.png", dimmed: false },
+                { src: "/slayer.png", dimmed: true },
+              ],
+              teamColor: "#FE3939",
+            },
+          ],
+          overlayTimelineTabIndexes: [0],
+          overlayTabs: [
+            {
+              id: "group-0",
+              label: "Set 1",
+              type: "group",
+              teamColor: "#FE3939",
+              timelineIndex: 0,
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /championship best of 5/i })).toBeInTheDocument();
+    expect(screen.getByText("3:2")).toBeInTheDocument();
+  });
 });

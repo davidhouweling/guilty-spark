@@ -54,6 +54,7 @@ import { buildIndividualTrackerTopBarStats, type IndividualTrackerTopBarStatItem
 import type { PublicViewerStore } from "./public-viewer-store";
 import type {
   PublicViewerOverlaySharedTab,
+  PublicViewerOverlaySharedTabIcon,
   PublicViewerSeriesTeam,
   PublicViewerSnapshot,
   PublicViewerVariant,
@@ -254,6 +255,11 @@ function getSeriesMatchTabLabel(match: { readonly gameTypeAndMap: string; readon
   return match.gameMode;
 }
 
+function getSeriesGroupTabLabel(title: string, subtitle: string): string {
+  const parts = [title.trim(), subtitle.trim()].filter((part) => part !== "");
+  return parts.length > 0 ? parts.join(" ") : "Series";
+}
+
 function toCompactSeriesScore(score: string): string {
   return score.replace(/^(Win|Loss|Tie|DNF|Unknown)\s*-\s*/i, "").trim();
 }
@@ -293,6 +299,47 @@ function getWinnerRelativeSeriesTabColor(
   }
 
   return trackedTeamId === winningTeamId ? teamColor : enemyColor;
+}
+
+function buildGroupedSeriesTabIcons(
+  matches: readonly IndividualTrackerViewerMatchCard[],
+  winningTeamIndexes: readonly (number | undefined)[],
+  trackedTeamIndex: number | null,
+  teamColorId: string,
+  enemyColorId: string,
+  trackedGamertag: string | null,
+): readonly PublicViewerOverlaySharedTabIcon[] {
+  const icons: PublicViewerOverlaySharedTabIcon[] = [];
+  let previousDedupeKey: string | null = null;
+  const trackedTeamHex = getTeamColor(teamColorId)?.hex;
+  const enemyTeamHex = getTeamColor(enemyColorId)?.hex;
+
+  for (const [matchIndex, match] of matches.entries()) {
+    const dedupeKey = `${match.gameMode}::${match.map}`;
+    if (dedupeKey === previousDedupeKey) {
+      continue;
+    }
+
+    previousDedupeKey = dedupeKey;
+
+    const winningTeamIndex = winningTeamIndexes[matchIndex];
+    const isLoss =
+      winningTeamIndex != null && trackedTeamIndex != null
+        ? winningTeamIndex !== trackedTeamIndex
+        : getWinnerRelativeSeriesTabColor(teamColorId, enemyColorId, trackedGamertag, {
+            score: match.score,
+            matchStats: match.matchStats,
+          }) === enemyTeamHex &&
+          enemyTeamHex != null &&
+          trackedTeamHex != null;
+
+    icons.push({
+      src: gameModeIconUrl(match.gameVariantCategory, match.gameMode).src,
+      dimmed: isLoss,
+    });
+  }
+
+  return icons;
 }
 
 export class PublicViewerPresenter {
@@ -698,19 +745,41 @@ export class PublicViewerPresenter {
 
     const timelineSharedTabs: PublicViewerOverlaySharedTab[] = timelineTabs.map((tab, index) => {
       const timelineItem = tab.timelineIndex == null ? null : (renderModel.gameplayTimeline[tab.timelineIndex] ?? null);
-      const score = timelineItem?.type === "match" ? toCompactSeriesScore(timelineItem.match.score) : "";
+      const trackedGamertag = snapshot.trackerState?.gamertag ?? null;
+      const trackedTeamIndex =
+        timelineItem?.type === "group" ? getTrackedTeamIndexInSeriesGroup(timelineItem.teams, trackedGamertag) : null;
+      const score =
+        timelineItem?.type === "match"
+          ? toCompactSeriesScore(timelineItem.match.score)
+          : timelineItem?.type === "group"
+            ? timelineItem.seriesScore
+            : "";
       const icon =
         timelineItem?.type === "match"
           ? gameModeIconUrl(timelineItem.match.gameVariantCategory, timelineItem.match.gameMode).src
           : "";
+      const icons =
+        timelineItem?.type === "group"
+          ? buildGroupedSeriesTabIcons(
+              timelineItem.matches,
+              timelineItem.overviewMatches.map((match) => match.winningTeamIndex),
+              trackedTeamIndex,
+              snapshot.viewerTeamColor,
+              snapshot.viewerEnemyColor,
+              trackedGamertag,
+            )
+          : undefined;
+      const label =
+        timelineItem?.type === "group" ? getSeriesGroupTabLabel(timelineItem.title, timelineItem.subtitle) : tab.label;
 
       return {
         type: "match",
         index,
         matchId: tab.id,
-        label: tab.label,
+        label,
         score,
         icon,
+        ...(icons == null ? {} : { icons }),
         teamColor: tab.teamColor,
       };
     });

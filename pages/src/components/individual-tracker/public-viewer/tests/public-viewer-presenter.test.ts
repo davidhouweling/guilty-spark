@@ -6,6 +6,7 @@ import { aFakeLiveTrackerServiceWith } from "../../../../services/live-tracker/f
 import {
   FakeIndividualTrackerService,
   aFakeIndividualTrackerServiceWith,
+  aFakeIndividualTrackerStateWith,
 } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { ActiveTrackerViewResponse } from "../../../../services/individual-tracker/types";
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_TICKER_SETTINGS } from "../../../streamer-settings/shared-types";
@@ -15,6 +16,7 @@ import type {
   IndividualTrackerViewerMatchCard,
   IndividualTrackerViewerSeriesTotals,
 } from "../../types";
+import type { PublicViewerOverlaySharedTab, PublicViewerSnapshot } from "../types";
 import { PublicViewerStore } from "../public-viewer-store";
 import { PublicViewerPresenter } from "../public-viewer-presenter";
 import {
@@ -211,6 +213,46 @@ function getPrivateExtractOverlaySettings(presenter: PublicViewerPresenter): () 
     }
 
     return result;
+  };
+}
+
+function getPrivateResolveOverlayContext(
+  presenter: PublicViewerPresenter,
+): (
+  snapshot: PublicViewerSnapshot,
+  renderModel: IndividualTrackerViewerRenderModel,
+  overlayTabs: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly type: "group" | "standalone" | "active-series";
+    readonly teamColor: string | undefined;
+    readonly timelineIndex?: number | undefined;
+  }[],
+  overlayAccumulatedStats: {
+    readonly wins: number;
+    readonly losses: number;
+    readonly total: number;
+    readonly matchmaking: number;
+    readonly custom: number;
+  },
+) => { readonly sharedTabs: readonly PublicViewerOverlaySharedTab[] } {
+  const value: unknown = Reflect.get(presenter, "resolveOverlayContext");
+  if (typeof value !== "function") {
+    throw new Error("resolveOverlayContext is not available");
+  }
+
+  return (
+    snapshot: PublicViewerSnapshot,
+    renderModel: IndividualTrackerViewerRenderModel,
+    overlayTabs,
+    overlayAccumulatedStats,
+  ) => {
+    const result: unknown = value.call(presenter, snapshot, renderModel, overlayTabs, overlayAccumulatedStats);
+    if (typeof result !== "object" || result == null || !Array.isArray(Reflect.get(result, "sharedTabs"))) {
+      throw new Error("resolveOverlayContext returned an invalid payload");
+    }
+
+    return result as { readonly sharedTabs: readonly PublicViewerOverlaySharedTab[] };
   };
 }
 
@@ -466,6 +508,156 @@ describe("PublicViewerPresenter", () => {
     const groups = getTickerGroups(presenter, renderModel, createSettings({ selectedSlayerStats: ["Kills"] }), context);
 
     expect(groups).toEqual([]);
+  });
+
+  it("formats recorded grouped-series tabs with deduped icons and series metadata", () => {
+    expect.assertions(7);
+
+    const presenter = createPresenter();
+    const snapshot: PublicViewerSnapshot = {
+      ...new PublicViewerStore("xuid-1", "overlay").snapshot,
+      trackerState: aFakeIndividualTrackerStateWith({ gamertag: "Chief", status: "active" }),
+      viewerTeamColor: "salmon",
+      viewerEnemyColor: "cerulean",
+    };
+
+    const renderModel: IndividualTrackerViewerRenderModel = {
+      ...createRenderModel(),
+      gameplayTimeline: [
+        {
+          type: "group",
+          id: "group-0",
+          title: "Championship",
+          subtitle: "Best of 5",
+          seriesScore: "3:2",
+          overviewMatches: [
+            {
+              id: "m1",
+              gameMode: "Oddball",
+              score: "100:90",
+              mapName: "Streets",
+              mapThumbnailUrl: "",
+              winningTeamIndex: 0,
+            },
+            {
+              id: "m2",
+              gameMode: "Oddball",
+              score: "100:80",
+              mapName: "Streets",
+              mapThumbnailUrl: "",
+              winningTeamIndex: 0,
+            },
+            {
+              id: "m3",
+              gameMode: "Oddball",
+              score: "100:70",
+              mapName: "Streets",
+              mapThumbnailUrl: "",
+              winningTeamIndex: 0,
+            },
+            {
+              id: "m4",
+              gameMode: "Slayer",
+              score: "50:45",
+              mapName: "Aquarius",
+              mapThumbnailUrl: "",
+              winningTeamIndex: 1,
+            },
+            {
+              id: "m5",
+              gameMode: "Slayer",
+              score: "50:48",
+              mapName: "Aquarius",
+              mapThumbnailUrl: "",
+              winningTeamIndex: 1,
+            },
+          ],
+          teams: [
+            { id: "team-0", name: "Blue", colorHex: undefined, players: [{ id: "p-1", content: "Chief" }] },
+            { id: "team-1", name: "Red", colorHex: undefined, players: [{ id: "p-2", content: "Opponent" }] },
+          ],
+          seriesTotals: null,
+          matches: [
+            {
+              ...aFakeMatchCard("m1", "Oddball on Streets"),
+              gameVariantCategory: GameVariantCategory.MultiplayerOddball,
+              gameMode: "Oddball",
+              map: "Streets",
+            },
+            {
+              ...aFakeMatchCard("m2", "Oddball on Streets"),
+              gameVariantCategory: GameVariantCategory.MultiplayerOddball,
+              gameMode: "Oddball",
+              map: "Streets",
+            },
+            {
+              ...aFakeMatchCard("m3", "Oddball on Streets"),
+              gameVariantCategory: GameVariantCategory.MultiplayerOddball,
+              gameMode: "Oddball",
+              map: "Streets",
+            },
+            {
+              ...aFakeMatchCard("m4", "Slayer on Aquarius"),
+              gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+              gameMode: "Slayer",
+              map: "Aquarius",
+            },
+            {
+              ...aFakeMatchCard("m5", "Slayer on Aquarius"),
+              gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+              gameMode: "Slayer",
+              map: "Aquarius",
+            },
+          ],
+        },
+        {
+          type: "match",
+          id: "standalone-1",
+          match: aFakeMatchCard("standalone-1", "Slayer on Live Fire"),
+        },
+      ],
+    };
+
+    const overlayTabs = [
+      {
+        id: "group-0",
+        label: "Set 1",
+        type: "group" as const,
+        teamColor: "#FE3939",
+        timelineIndex: 0,
+      },
+      {
+        id: "standalone-1",
+        label: "Live Fire",
+        type: "standalone" as const,
+        teamColor: "#FE3939",
+        timelineIndex: 1,
+      },
+    ];
+
+    const resolveOverlayContext = getPrivateResolveOverlayContext(presenter);
+    const resolved = resolveOverlayContext(snapshot, renderModel, overlayTabs, {
+      wins: 0,
+      losses: 0,
+      total: 0,
+      matchmaking: 0,
+      custom: 0,
+    });
+
+    const [, groupedTab] = resolved.sharedTabs;
+
+    expect(groupedTab.type).toBe("match");
+    if (groupedTab.type !== "match") {
+      throw new Error("Expected grouped match tab to be present");
+    }
+
+    expect(groupedTab.label).toBe("Championship Best of 5");
+    expect(groupedTab.score).toBe("3:2");
+    expect(groupedTab.icons).toHaveLength(2);
+    const [firstIcon, secondIcon] = groupedTab.icons ?? [];
+    expect(firstIcon.dimmed).toBe(false);
+    expect(secondIcon.dimmed).toBe(true);
+    expect(groupedTab.icon).toBe("");
   });
 
   it("extracts overlay ticker settings from visible sections", () => {

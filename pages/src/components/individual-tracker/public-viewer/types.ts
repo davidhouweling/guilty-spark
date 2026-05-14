@@ -27,6 +27,11 @@ export interface PublicViewerOverlaySharedSeriesTab {
   readonly teamColor: undefined;
 }
 
+export interface PublicViewerOverlaySharedTabIcon {
+  readonly src: string;
+  readonly dimmed: boolean;
+}
+
 export interface PublicViewerOverlaySharedMatchTab {
   readonly type: "match";
   readonly index: number;
@@ -34,6 +39,7 @@ export interface PublicViewerOverlaySharedMatchTab {
   readonly label: string;
   readonly score: string;
   readonly icon: string;
+  readonly icons?: readonly PublicViewerOverlaySharedTabIcon[];
   readonly teamColor: string | undefined;
 }
 
