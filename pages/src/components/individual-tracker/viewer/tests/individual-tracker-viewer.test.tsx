@@ -143,8 +143,8 @@ function aTopBarStatsWith(): readonly IndividualTrackerTopBarStatItem[] {
   return [
     {
       option: "matches-win-loss",
-      label: "Matches Won/Loss",
-      value: "2W:1L",
+      label: "Won:Loss",
+      value: "2:1",
     },
     {
       option: "current-rank",
@@ -396,8 +396,8 @@ describe("IndividualTrackerViewer", () => {
       />,
     );
 
-    expect(screen.getByText("Matches Won/Loss")).toBeInTheDocument();
-    expect(screen.getByText("2W:1L")).toBeInTheDocument();
+    expect(screen.getByText("Won:Loss")).toBeInTheDocument();
+    expect(screen.getByText("2:1")).toBeInTheDocument();
     expect(screen.getByText("Current Rank")).toBeInTheDocument();
     expect(screen.getByText("Onyx (1500)")).toBeInTheDocument();
   });

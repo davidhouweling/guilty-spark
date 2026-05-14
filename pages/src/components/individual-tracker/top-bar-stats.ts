@@ -31,6 +31,18 @@ const optionLabelByValue = new Map<IndividualTopBarStatOption, string>(
   INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((definition) => [definition.value, definition.label]),
 );
 
+function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
+  if (option === "matches-win-loss") {
+    return "Won:Loss";
+  }
+
+  if (option === "series-win-loss") {
+    return "Series Won:Loss";
+  }
+
+  return optionLabelByValue.get(option) ?? option;
+}
+
 function getTrackedPlayerStatsMap(
   renderModel: IndividualTrackerViewerRenderModel,
 ): Map<string, TrackedPlayerStatValue> {
@@ -90,53 +102,6 @@ function getSeriesWonLoss(renderModel: IndividualTrackerViewerRenderModel): { wo
   return { won, lost };
 }
 
-function parseSeriesScore(score: string): { left: number; right: number } | null {
-  const match = /^(\d+):(\d+)$/.exec(score.trim());
-  if (match == null) {
-    return null;
-  }
-
-  const left = parseInt(match[1], 10);
-  const right = parseInt(match[2], 10);
-  if (Number.isNaN(left) || Number.isNaN(right)) {
-    return null;
-  }
-
-  return { left, right };
-}
-
-function getTimelineMatchWonLoss(renderModel: IndividualTrackerViewerRenderModel): { won: number; lost: number } {
-  let won = 0;
-  let lost = 0;
-
-  for (const item of renderModel.gameplayTimeline) {
-    switch (item.type) {
-      case "group": {
-        const parsedScore = parseSeriesScore(item.seriesScore);
-        if (parsedScore != null) {
-          won += parsedScore.left;
-          lost += parsedScore.right;
-        }
-        break;
-      }
-      case "match": {
-        if (/^Win\s*-/.test(item.match.score)) {
-          won += 1;
-        }
-        if (/^Loss\s*-/.test(item.match.score)) {
-          lost += 1;
-        }
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-  }
-
-  return { won, lost };
-}
-
 function formatRankValue(label: string | null, csrLabel: string | null): string | null {
   const safeLabel = label ?? "";
   const safeCsrLabel = csrLabel ?? "";
@@ -162,12 +127,11 @@ function formatTopBarStatValue(
 
   switch (option) {
     case "matches-win-loss": {
-      const matches = getTimelineMatchWonLoss(renderModel);
-      return `${matches.won.toString()}W:${matches.lost.toString()}L`;
+      return `${accumulatedStats.wins.toString()}:${accumulatedStats.losses.toString()}`;
     }
     case "series-win-loss": {
       const series = getSeriesWonLoss(renderModel);
-      return `${series.won.toString()}SW:${series.lost.toString()}SL`;
+      return `${series.won.toString()}:${series.lost.toString()}`;
     }
     case "total-games": {
       return accumulatedStats.total.toString();
@@ -299,7 +263,7 @@ export function buildIndividualTrackerTopBarStats({
   return topBarStatSlots.map((option) => {
     const item: IndividualTrackerTopBarStatItem = {
       option,
-      label: optionLabelByValue.get(option) ?? option,
+      label: getTopBarStatLabel(option),
       value: formatTopBarStatValue(renderModel, trackerSummary, option) ?? "N/A",
     };
 

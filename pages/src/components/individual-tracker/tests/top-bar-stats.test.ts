@@ -159,8 +159,8 @@ describe("buildIndividualTrackerTopBarStats", () => {
     });
 
     expect(items).toEqual([
-      { option: "matches-win-loss", label: "Matches Won/Loss", value: "2W:1L" },
-      { option: "series-win-loss", label: "Series Won/Loss", value: "1SW:0SL" },
+      { option: "matches-win-loss", label: "Won:Loss", value: "7:4" },
+      { option: "series-win-loss", label: "Series Won:Loss", value: "1:0" },
       { option: "total-games", label: "Total Games", value: "11" },
       { option: "kills-deaths-assists-kda", label: "Kills:Deaths:Assists (KDA)", value: "22:11:6 (17.0)" },
       { option: "damage-dealt-taken-ratio", label: "Damage D:T (D/T)", value: "5000:4500 (1.11)" },

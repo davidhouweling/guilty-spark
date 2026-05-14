@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { GameVariantCategory } from "halo-infinite-api";
 import type { PublicViewerSnapshot } from "../types";
 import { PublicIndividualTrackerOverlay } from "../public-individual-tracker-overlay";
@@ -217,11 +217,11 @@ function aSnapshotWith(overrides: Partial<PublicViewerSnapshot> = {}): PublicVie
 
 function aTopBarStatsWith(): readonly IndividualTrackerTopBarStatItem[] {
   return [
-    { option: "matches-win-loss", label: "Matches Won/Loss", value: "7W:4L" },
+    { option: "matches-win-loss", label: "Won:Loss", value: "7:4" },
     { option: "total-games", label: "Total Games", value: "11" },
     { option: "matchmaking-games", label: "Matchmaking Games", value: "10" },
     { option: "custom-local-games", label: "Custom/Local Games", value: "1" },
-    { option: "series-win-loss", label: "Series Won/Loss", value: "0SW:0SL" },
+    { option: "series-win-loss", label: "Series Won:Loss", value: "0:0" },
     { option: "current-rank", label: "Current Rank", value: "N/A" },
   ];
 }
@@ -373,14 +373,15 @@ describe("PublicIndividualTrackerOverlay", () => {
       />,
     );
 
-    expect(screen.getByText("Matches Won/Loss")).toBeInTheDocument();
-    expect(screen.getByText("7W:4L")).toBeInTheDocument();
-    expect(screen.getByText("Total Games")).toBeInTheDocument();
-    expect(screen.getByText("11")).toBeInTheDocument();
-    expect(screen.getByText("Matchmaking Games")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
-    expect(screen.getByText("Custom/Local Games")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    const topBar = screen.getByLabelText("Overlay top bar stats");
+    expect(within(topBar).getByText("Won:Loss")).toBeInTheDocument();
+    expect(within(topBar).getByText("7:4")).toBeInTheDocument();
+    expect(within(topBar).getByText("Total Games")).toBeInTheDocument();
+    expect(within(topBar).getByText("11")).toBeInTheDocument();
+    expect(within(topBar).getByText("Matchmaking Games")).toBeInTheDocument();
+    expect(within(topBar).getByText("10")).toBeInTheDocument();
+    expect(within(topBar).getByText("Custom/Local Games")).toBeInTheDocument();
+    expect(within(topBar).getByText("1")).toBeInTheDocument();
   });
 
   it("renders recorded series tab metadata outside active series context", () => {
