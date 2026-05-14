@@ -96,6 +96,8 @@ export interface IndividualTrackerService {
   stopTracker(trackerId: string): Promise<StopTrackerResponse>;
   pauseTracker(trackerId: string): Promise<PauseTrackerResponse>;
   resumeTracker(trackerId: string): Promise<ResumeTrackerResponse>;
+  startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse>;
+  endSeries(trackerId: string): Promise<EndSeriesResponse>;
   refreshTracker(trackerId: string): Promise<RefreshTrackerResponse>;
   selectLiveTracker(trackerId: string): Promise<void>;
   deleteTracker(trackerId: string): Promise<void>;
@@ -225,6 +227,32 @@ export interface ResumeTrackerSuccessResponse {
 }
 
 export type ResumeTrackerResponse = ResumeTrackerSuccessResponse;
+
+export interface StartSeriesTeamRequest {
+  readonly name: string;
+  readonly members: readonly string[];
+}
+
+export interface StartSeriesRequest {
+  readonly trackerId: string;
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
+  readonly teams: readonly StartSeriesTeamRequest[];
+}
+
+export interface StartSeriesSuccessResponse {
+  success: true;
+  state: IndividualTrackerState;
+}
+
+export type StartSeriesResponse = StartSeriesSuccessResponse;
+
+export interface EndSeriesSuccessResponse {
+  success: true;
+  state: IndividualTrackerState;
+}
+
+export type EndSeriesResponse = EndSeriesSuccessResponse;
 
 export interface RefreshTrackerSuccessResponse {
   success: true;

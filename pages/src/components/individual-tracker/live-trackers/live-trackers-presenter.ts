@@ -4,10 +4,11 @@ import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "..
 import type {
   IndividualTrackerConnection,
   IndividualTrackerSubscription,
+  StartSeriesRequest,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
 } from "../../../services/individual-tracker/types";
-import type { GameSelectionDialogState } from "../types";
+import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
 import { buildIndividualTrackerTrackerViewPath } from "../routes";
 import { buildSeriesGroupKey } from "../series-group-metadata";
 import type { LiveTrackersStore } from "./live-trackers-store";
@@ -105,6 +106,7 @@ export class LiveTrackersPresenter {
       errorMessage: null,
       isAddDialogOpen: false,
       gameSelectionDialogState: null,
+      manualSeriesDialogState: null,
     }));
   }
 
@@ -118,6 +120,10 @@ export class LiveTrackersPresenter {
 
   public closeGameSelectionDialog(): void {
     this.updateSnapshot((snapshot) => (snapshot.busy ? snapshot : { ...snapshot, gameSelectionDialogState: null }));
+  }
+
+  public closeManualSeriesDialog(): void {
+    this.updateSnapshot((snapshot) => (snapshot.busy ? snapshot : { ...snapshot, manualSeriesDialogState: null }));
   }
 
   public getTrackerItems(): readonly TrackerListItem[] {
@@ -171,6 +177,11 @@ export class LiveTrackersPresenter {
     const hasMultipleTrackers = trackerItems.length > 1;
     const actions: TrackerRowAction[] = [];
     const { status, gamertag, isLive, trackerId, isPinned } = item;
+    const trackerState =
+      trackerId == null
+        ? null
+        : (snapshot.trackerStatuses[trackerId] ??
+          (snapshot.activeTracker?.trackerId === trackerId ? snapshot.activeTracker : null));
 
     if ((status === "not-started" || status === "stopped") && gamertag !== "") {
       actions.push({
@@ -246,6 +257,26 @@ export class LiveTrackersPresenter {
         this.openGameSelection(item);
       },
     });
+
+    if (status === "active" && trackerId != null && trackerState?.activeNeatQueueSeries == null) {
+      actions.push({
+        label: "Start series",
+        disabled: snapshot.busy,
+        onClick: (): void => {
+          this.openManualSeriesDialog(item);
+        },
+      });
+    }
+
+    if (status === "active" && trackerId != null && trackerState?.activeNeatQueueSeries != null) {
+      actions.push({
+        label: "End series",
+        disabled: snapshot.busy,
+        onClick: (): void => {
+          void this.endSeries(trackerId);
+        },
+      });
+    }
 
     actions.push({
       label: "Streamer settings",
@@ -395,6 +426,76 @@ export class LiveTrackersPresenter {
         errorMessage: error instanceof Error ? error.message : "Failed to sync game selection.",
       }));
       throw error;
+    } finally {
+      this.updateSnapshot((snapshot) => ({ ...snapshot, busy: false }));
+    }
+  }
+
+  public async startManualSeries(
+    payload: Omit<StartSeriesRequest, "teams"> & {
+      readonly teams: readonly {
+        readonly name: string;
+        readonly members: readonly string[];
+      }[];
+      readonly backfillSelectedMatchIds: readonly string[];
+      readonly backfillMatches: TrackerMatchHistoryResponse["matches"];
+    },
+  ): Promise<void> {
+    this.updateSnapshot((snapshot) => ({ ...snapshot, busy: true, errorMessage: null }));
+
+    try {
+      const snapshotBeforeStart = this.getSnapshot();
+      const existingState =
+        snapshotBeforeStart.trackerStatuses[payload.trackerId] ??
+        (snapshotBeforeStart.activeTracker?.trackerId === payload.trackerId ? snapshotBeforeStart.activeTracker : null);
+
+      const result = await this.config.services.individualTrackerService.startSeries({
+        trackerId: payload.trackerId,
+        titleOverride: payload.titleOverride,
+        subtitleOverride: payload.subtitleOverride,
+        teams: payload.teams,
+      });
+
+      const normalizedBackfillIds = Array.from(
+        new Set(payload.backfillSelectedMatchIds.map((matchId) => matchId.trim()).filter((matchId) => matchId !== "")),
+      );
+
+      if (normalizedBackfillIds.length > 0) {
+        const existingMatchIds = existingState?.matchIds ?? [];
+        const mergedMatchIds = Array.from(new Set([...existingMatchIds, ...normalizedBackfillIds]));
+        const existingGroupings = existingState?.matchGroupings ?? [];
+        const backfillGrouping = normalizedBackfillIds.length >= 2 ? [normalizedBackfillIds] : [];
+
+        await this.config.services.individualTrackerService.syncMatchesToTracker({
+          trackerId: payload.trackerId,
+          selectedMatchIds: mergedMatchIds,
+          matchGroupings: [...existingGroupings, ...backfillGrouping],
+          matches: payload.backfillMatches,
+        });
+
+        if (normalizedBackfillIds.length >= 2 && (payload.titleOverride != null || payload.subtitleOverride != null)) {
+          await this.config.services.individualTrackerService.updateSeriesGroup({
+            trackerId: payload.trackerId,
+            matchIds: normalizedBackfillIds,
+            titleOverride: payload.titleOverride,
+            subtitleOverride: payload.subtitleOverride,
+          });
+        }
+
+        await this.refresh();
+      }
+
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        activeTracker: snapshot.activeTracker?.trackerId === payload.trackerId ? result.state : snapshot.activeTracker,
+        trackerStatuses: { ...snapshot.trackerStatuses, [result.state.trackerId]: result.state },
+        manualSeriesDialogState: null,
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        errorMessage: error instanceof Error ? error.message : "Failed to start series.",
+      }));
     } finally {
       this.updateSnapshot((snapshot) => ({ ...snapshot, busy: false }));
     }
@@ -657,6 +758,26 @@ export class LiveTrackersPresenter {
     }
   }
 
+  private async endSeries(trackerId: string): Promise<void> {
+    this.updateSnapshot((snapshot) => ({ ...snapshot, busy: true, errorMessage: null }));
+
+    try {
+      const result = await this.config.services.individualTrackerService.endSeries(trackerId);
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        activeTracker: snapshot.activeTracker?.trackerId === trackerId ? result.state : snapshot.activeTracker,
+        trackerStatuses: { ...snapshot.trackerStatuses, [result.state.trackerId]: result.state },
+      }));
+    } catch (error) {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        errorMessage: error instanceof Error ? error.message : "Failed to end series.",
+      }));
+    } finally {
+      this.updateSnapshot((snapshot) => ({ ...snapshot, busy: false }));
+    }
+  }
+
   private async selectLiveTracker(trackerId: string): Promise<void> {
     this.updateSnapshot((snapshot) => ({ ...snapshot, busy: true, errorMessage: null }));
 
@@ -726,5 +847,21 @@ export class LiveTrackersPresenter {
     };
 
     this.updateSnapshot((current) => ({ ...current, gameSelectionDialogState }));
+  }
+
+  private openManualSeriesDialog(item: TrackerListItem): void {
+    if (item.trackerId == null) {
+      return;
+    }
+
+    const dialogState: ManualSeriesDialogState = {
+      trackerId: item.trackerId,
+      trackerLabel: item.gamertag,
+    };
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      manualSeriesDialogState: dialogState,
+    }));
   }
 }

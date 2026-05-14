@@ -1,0 +1,75 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.caption {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionHeader {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+.metaGrid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.teamsGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.teamColumn {
+  border: 1px solid color-mix(in srgb, var(--halo-white) 15%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.teamTitle {
+  margin: 0;
+}
+
+.membersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.memberRow {
+  align-items: flex-end;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@media (--tablet-viewport) {
+  .metaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .teamsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

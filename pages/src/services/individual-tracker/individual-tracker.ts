@@ -47,6 +47,9 @@ import type {
   PauseTrackerResponse,
   RefreshTrackerResponse,
   ResumeTrackerResponse,
+  StartSeriesRequest,
+  StartSeriesResponse,
+  EndSeriesResponse,
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
@@ -656,6 +659,35 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     });
 
     return response.json<ResumeTrackerResponse>();
+  }
+
+  public async startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse> {
+    const response = await fetch(
+      `${this.apiHost}/api/individual-tracker/${encodeURIComponent(request.trackerId)}/start-series`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titleOverride: request.titleOverride,
+          subtitleOverride: request.subtitleOverride,
+          teams: request.teams,
+        }),
+      },
+    );
+
+    return response.json<StartSeriesResponse>();
+  }
+
+  public async endSeries(trackerId: string): Promise<EndSeriesResponse> {
+    const response = await fetch(`${this.apiHost}/api/individual-tracker/${encodeURIComponent(trackerId)}/end-series`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    return response.json<EndSeriesResponse>();
   }
 
   public async refreshTracker(trackerId: string): Promise<RefreshTrackerResponse> {

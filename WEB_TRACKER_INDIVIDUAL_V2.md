@@ -1,9 +1,9 @@
 # Web Individual Tracker v2 Proposal
 
-**Status**: Active implementation — Phase 1 and Phase 2 complete, Phase 3 core delivered including NeatQueue pre-series fanout; Phase 4 design clarified and implementation work queued
-**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 4, 2026)
+**Status**: Active implementation — Phase 1 through Phase 4 delivered; manual series kickoff/end controls and custom-series backfill are scoped as the next UX/runtime slice
+**Date**: April 7, 2026 (UX decisions recorded: April 12, 2026; implementation snapshot updated: May 14, 2026)
 
-## Current implementation snapshot (May 4, 2026)
+## Current implementation snapshot (May 14, 2026)
 
 - Shared `match-history` component is implemented and reused by both Add Tracker and Game Selection flows.
 - Live tracker row actions are wired end-to-end for pause, resume, stop, delete, set-live, and game-selection sync.
@@ -22,6 +22,10 @@
 - Individual tracker DO alarm handling now has focused test coverage and follows the same lock-clearing / rescheduling pattern as the NeatQueue live tracker more closely.
 - NeatQueue integration now fans out active-series metadata to matching individual tracker DOs on `TEAMS_CREATED` and `SUBSTITUTION` events using XUID overlap.
 - Individual tracker viewer now renders an active pre-series section (shared series overview, pre-series player info, substitutions) before grouped matches exist, and clears active-series state on series completion.
+- Overlay top bar for individual tracker now uses compact tab-chip styling consistent with the bottom tabs.
+- Overlay ticker data selection now aligns with visible tabs in both series and non-series contexts (series view excludes non-series timeline matches; non-series view aligns ticker indexes to visible tabs).
+- Overlay font-size scaling now consistently uses pre-normalized JS multipliers for CSS variables (no duplicate `/ 100` calc in individual tracker CSS).
+- Public viewer presenter has focused unit coverage for ticker-series alignment and series-stats ticker group behavior.
 
 ## Goal
 
@@ -46,8 +50,9 @@ Token strategy summary used by this proposal:
 4. User starts an individual live tracker backed by a dedicated Durable Object.
 5. The tracker continues polling without requiring the browser to stay open.
 6. User adds or removes games while the live tracker is active.
-7. User customizes one persistent streamer presentation keyed to their Xbox XUID and chooses which active tracker is currently presented on stream.
-8. User returns later and sees persisted profile state and current tracker status.
+7. User can optionally start a manual series when playing custom games outside NeatQueue.
+8. User customizes one persistent streamer presentation keyed to their Xbox XUID and chooses which active tracker is currently presented on stream.
+9. User returns later and sees persisted profile state and current tracker status.
 
 ### Long-term user flow (Twitch extension)
 
@@ -62,6 +67,7 @@ Token strategy summary used by this proposal:
 - Individual live tracking should be reintroduced as a separate Durable Object type with separate routes, state, and authorization rules.
 - If an individual tracker is following a NeatQueue series, it should be able to augment its presentation using NeatQueue grouping data, teams, player rosters, substitutions, and default series labels.
 - NeatQueue-to-individual tracker coordination should be worker-mediated: the worker fans out normalized NeatQueue series lifecycle updates to matching individual tracker DOs based on XUID overlap.
+- If a user is participating in a NeatQueue series monitored by Guilty Spark, NeatQueue fanout should continue to create and maintain series context automatically; manual series controls are intended for non-NeatQueue custom sessions.
 - Longer term, tournament-style tracking can reuse the same grouping concepts without forcing the individual tracker to share the NeatQueue Durable Object.
 
 ## Architecture (v2)
@@ -93,6 +99,7 @@ Token strategy summary used by this proposal:
 - Own the active live tracker for one individual tracker instance.
 - Poll Halo Infinite using the signed-in user's stored credentials.
 - Maintain active runtime state, match discovery state, grouped-series runtime metadata, and viewer websocket broadcast state.
+- Support owner-driven manual series lifecycle (start series, optionally backfill existing custom games, end series) for non-NeatQueue sessions.
 - Enforce tracker ownership for control-plane mutations.
 - Stop on explicit user request or when no new matches are discovered inside the configured idle-timeout window.
 
@@ -249,6 +256,10 @@ Use D1 for persistent relational data. Keep tokens and session secrets server-on
 - [x] `POST /api/individual-tracker/manage/select-active` — mark one tracker as the current on-stream presenter
 - [x] `POST /api/individual-tracker/:trackerId/games:add` — add a past match into the active tracker
 - [x] `POST /api/individual-tracker/:trackerId/games:remove` — remove a match from the active tracker
+- [ ] `POST /api/individual-tracker/:trackerId/series:start` — owner manually starts a series context for a non-NeatQueue custom session
+- [ ] `POST /api/individual-tracker/:trackerId/series:end` — owner manually ends the active manual series context and returns viewer/overlay to out-of-series mode
+- [ ] `POST /api/individual-tracker/:trackerId/series/backfill-candidates` — optional discovery endpoint that intersects selected-player match history and returns candidate shared custom games for manual series inclusion
+- [ ] `POST /api/individual-tracker/:trackerId/series/games:sync` — optional bulk sync of manual-series game membership from candidate selection
 - [ ] `GET /api/halo/gamertag-search?q=<query>` — deferred; current manager flow already supports gamertag search via authenticated Halo proxy in pages service. Add only if we need dedicated server-side autocomplete behavior.
 
 #### Proposed start request
@@ -618,6 +629,8 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 | Stop              | Active or paused                                         | Hard-stops DO, clears runtime state. Configuration survives in D1.                                        |
 | Delete            | Always                                                   | Removes tracker from D1 entirely. Confirmation required. Pinned gamertag tracker cannot be deleted.       |
 | Game selection    | Active only                                              | Opens game-selection dialog (see below)                                                                   |
+| Start series      | Active only, when no active series context               | Opens a manual-series setup dialog for non-NeatQueue sessions (title/subtitle, teams, optional backfill). |
+| End series        | Active only, when active series context exists           | Ends current manual series context and returns viewer/overlay to out-of-series presentation.              |
 | Streamer settings | Always                                                   | Opens streamer settings dialog scoped to this tracker (inherits global, allows overrides)                 |
 
 ### Game selection dialog (active trackers only)
@@ -637,6 +650,50 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
   - NeatQueue-backed grouped series default to NeatQueue-derived metadata when available.
 - Users can edit the labels inline from the viewer surface; the edit affordance is an icon that turns the title/subtitle strings into text inputs.
 - Label identity is tied to the grouped-series object. If grouping changes materially, the label follows the resulting grouped-series object rather than acting as a tracker-global setting.
+
+### Manual series setup dialog (owner-triggered)
+
+- Entry point: tracker row action `Start series`.
+- Goal: allow an owner to proactively define a series context in non-NeatQueue custom sessions where automatic NeatQueue fanout is unavailable.
+- Suggested info text at top of dialog:
+  - `Use this when you are running a custom series outside NeatQueue.`
+  - `If Guilty Spark is monitoring your NeatQueue series, series setup is automatic and you do not need to use this.`
+- Optional metadata fields:
+  - Series title (optional)
+  - Series subtitle (optional)
+- Team editor layout:
+  - Two columns (Team 1 and Team 2).
+  - Optional team name input per column.
+  - Team members initialized to 4 entries per side (4v4 default).
+  - `+ Add member` action to append inputs.
+  - `X` action on each member input row to remove that specific member.
+- Validation behavior:
+  - Empty team-member rows are allowed and ignored.
+  - At least one non-empty player across both teams is recommended for useful backfill discovery.
+  - Teams can be unbalanced because custom sessions may be uneven.
+
+### Optional manual-series backfill from existing custom games
+
+- Inside the Start series dialog, provide optional action: `Add existing custom games`.
+- Discovery behavior:
+  - For each specified player with resolvable history, fetch recent matches.
+  - Restrict to custom-game candidates.
+  - Cross-reference by match identifier and return only matches that appear in all players with available history for the selected set.
+  - If some players have no history available, continue with available players and show an informational warning about reduced confidence.
+- Selection behavior:
+  - Present candidates using the shared match-history style UI with checkboxes.
+  - Allow owner to select matches to include in the newly started manual series.
+  - Persist selection through one bulk sync mutation to avoid per-match drift.
+
+### Ending a manual series
+
+- Entry point: tracker row action `End series` when an active manual series exists.
+- Behavior:
+  - Clears active manual series context in the tracker runtime.
+  - Viewer and overlay should immediately transition back to non-series presentation.
+  - Existing tracked matches remain in tracker history; only the active series context is ended.
+- Guardrails:
+  - If NeatQueue-managed series context is currently active, `End series` should not terminate NeatQueue state; manual end applies only to owner-created manual series context.
 
 ### Streamer settings
 
@@ -681,6 +738,10 @@ Each row shows: gamertag being tracked, status badge (active / paused / stopped)
 - `POST /api/individual-tracker/:trackerId/pause` — pause a specific tracker.
 - `POST /api/individual-tracker/:trackerId/resume` — resume a paused tracker.
 - `POST /api/individual-tracker/manage/select-active` — mark one tracker as the on-stream live tracker.
+- `POST /api/individual-tracker/:trackerId/series:start` — owner starts manual series context for non-NeatQueue sessions.
+- `POST /api/individual-tracker/:trackerId/series:end` — owner ends manual series context and reverts viewer/overlay to out-of-series mode.
+- `POST /api/individual-tracker/:trackerId/series/backfill-candidates` — discover shared custom-game candidates from specified players.
+- `POST /api/individual-tracker/:trackerId/series/games:sync` — bulk apply selected backfill matches into the manual series.
 - `GET /api/halo/gamertag-search?q=<query>` — gamertag autocomplete proxy (Xbox endpoint if available, exact match fallback).
 - Interim implementation note: current Add Tracker search uses `POST /proxy/halo-infinite` with `getUser` + `getUserServiceRecord`; dedicated autocomplete endpoint remains planned.
 
@@ -721,7 +782,8 @@ Core owner workflow delivery is complete. The remaining implementation slices be
 4. [x] **Game selection sync dialog** — sync-on-close behaviour.
 5. [x] **Client-side routing + active XUID surfaces** — replace hard refreshes with in-app routing and add stable `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes.
 6. [x] **Streamer settings integration** — rename Streamer Connections, expose OBS/view URLs, and move from the current Additional Options baseline to the broader server-backed settings + per-tracker override UX.
-7. [ ] **Twitch integration follow-up** — add Twitch linking UI, auto-start/stop config, and the remaining operator toggles.
+7. [ ] **Manual series controls** — add Start series / End series row actions, owner setup dialog, and optional custom-game backfill flow.
+8. [ ] **Twitch integration follow-up** — add Twitch linking UI, auto-start/stop config, and the remaining operator toggles.
 
 Each backlog item should still land in a separate commit with this document updated alongside it.
 
@@ -745,6 +807,8 @@ Each backlog item should still land in a separate commit with this document upda
 - [x] Viewer + NeatQueue lifecycle follow-up delivered: worker now fans out active NeatQueue series updates on teams-created/substitution events, individual tracker DO stores active pre-series context, viewer renders pre-series roster/substitution info, and match-completed fanout clears active pre-series state.
 - [x] Phase 4 routing follow-up delivered: manager now routes in-app to stable XUID-based active view / overlay routes without full-page transitions.
 - [x] Phase 4 overlay follow-up delivered: individual tracker overlay now supports player/observer modes, non-series session states, global server-backed section toggles/defaults, and per-tracker observer-color overrides.
+- [x] Phase 4 overlay follow-up delivered: non-series ticker groups now align with visible tab indexes and series-mode ticker data excludes non-series timeline matches.
+- [ ] Manual series kickoff follow-up queued: owner-triggered series setup/end controls for non-NeatQueue custom sessions.
 
 ### Current operator note - View tracker behavior
 
@@ -851,6 +915,8 @@ Please run this quick checklist and share outcomes (pass/fail plus any response 
 - [x] Label identity: custom labels stay attached to the grouped-series object rather than acting as tracker-level settings.
 - [x] NeatQueue linkage: use XUID overlap to associate NeatQueue series metadata with active individual trackers; if a new NeatQueue series starts for the same player, it supersedes the previous series for future updates.
 - [x] NeatQueue coordination transport: use worker-mediated fanout from NeatQueue lifecycle updates into matching individual tracker DOs rather than DO-to-DO subscriptions or WebSocket coupling.
+- [ ] Manual series ownership model: confirm manual `Start series` / `End series` controls are owner-only control-plane mutations and cannot terminate NeatQueue-managed series context.
+- [ ] Manual backfill matching scope: confirm candidate intersection rule is strict match-id overlap across available selected-player histories, filtered to custom games.
 - [x] Twitch stream-end behavior: pause tracker (not stop). Configurable auto-stop delay (1–6h) after stream end, so intermittent stream drops don't lose state.
 - [x] Active streamer routing target: use stable XUID-based `/individual-tracker/:xuid/view` and `/individual-tracker/:xuid/overlay` routes that always resolve to the user's currently active tracker.
 - [x] Route auth model: XUID-based view and overlay routes are public and unauthenticated.

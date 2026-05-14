@@ -1757,6 +1757,133 @@ export class Server {
       }
     });
 
+    this.router.post("/api/individual-tracker/:trackerId/start-series", async (request, env: Env) => {
+      try {
+        const { trackerId } = request.params as { trackerId: string };
+        const services = this.installServices({ env });
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
+
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
+        }
+
+        const { session, refreshedSessionPayload } = authentication;
+        const body: unknown = await request.json();
+        if (!isRecord(body)) {
+          return new Response("Invalid request body", { status: 400 });
+        }
+
+        const { titleOverride, subtitleOverride, teams } = body;
+
+        if (titleOverride != null && typeof titleOverride !== "string") {
+          return new Response("titleOverride must be a string or null", { status: 400 });
+        }
+
+        if (subtitleOverride != null && typeof subtitleOverride !== "string") {
+          return new Response("subtitleOverride must be a string or null", { status: 400 });
+        }
+
+        if (!Array.isArray(teams) || teams.length !== 2) {
+          return new Response("teams must be an array with 2 team entries", { status: 400 });
+        }
+
+        const validatedTeams: { name: string; members: string[] }[] = [];
+        for (const team of teams) {
+          if (!isRecord(team)) {
+            return new Response("Each team must be an object", { status: 400 });
+          }
+
+          const { name, members } = team;
+          if (typeof name !== "string") {
+            return new Response("Each team name must be a string", { status: 400 });
+          }
+
+          if (!isStringArray(members)) {
+            return new Response("Each team members field must be an array of strings", { status: 400 });
+          }
+
+          validatedTeams.push({
+            name,
+            members: members.slice(),
+          });
+        }
+
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/manual-series-start";
+        const doResponse = await stub.fetch(
+          new Request(doUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: session.userId,
+              titleOverride: titleOverride ?? null,
+              subtitleOverride: subtitleOverride ?? null,
+              teams: validatedTeams,
+            }),
+          }),
+        );
+
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to start series";
+        return new Response(JSON.stringify({ error: message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
+    this.router.post("/api/individual-tracker/:trackerId/end-series", async (request, env: Env) => {
+      try {
+        const { trackerId } = request.params as { trackerId: string };
+        const services = this.installServices({ env });
+        const authentication = await this.resolveAuthenticatedSession(request, services.authService);
+
+        if (!authentication.isAuthenticated) {
+          return authentication.response;
+        }
+
+        const { session, refreshedSessionPayload } = authentication;
+        const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
+        const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+
+        const doUrl = new URL(request.url);
+        doUrl.pathname = "/manual-series-end";
+        const doResponse = await stub.fetch(
+          new Request(doUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: session.userId }),
+          }),
+        );
+
+        return await this.withRefreshedSessionCookie(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+          services.authService,
+          refreshedSessionPayload,
+        );
+      } catch (error) {
+        console.error("Individual live tracker end-series error:", error);
+        return new Response(JSON.stringify({ error: "Failed to end series" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    });
+
     this.router.post("/api/individual-tracker/:trackerId/refresh", async (request, env: Env) => {
       try {
         const { trackerId } = request.params as { trackerId: string };

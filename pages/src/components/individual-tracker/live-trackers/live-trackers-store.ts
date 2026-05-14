@@ -12,6 +12,7 @@ function createInitialSnapshot(): LiveTrackersSnapshot {
     errorMessage: null,
     isAddDialogOpen: false,
     gameSelectionDialogState: null,
+    manualSeriesDialogState: null,
   };
 }
 

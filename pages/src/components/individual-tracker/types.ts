@@ -28,6 +28,11 @@ export interface GameSelectionDialogState {
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
 }
 
+export interface ManualSeriesDialogState {
+  readonly trackerId: string;
+  readonly trackerLabel: string;
+}
+
 export interface IndividualTrackerViewerAccumulatedStats {
   readonly total: number;
   readonly wins: number;

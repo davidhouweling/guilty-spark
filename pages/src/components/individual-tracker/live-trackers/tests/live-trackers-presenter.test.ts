@@ -37,6 +37,164 @@ afterEach(() => {
 });
 
 describe("LiveTrackersPresenter", () => {
+  it("shows start-series or end-series action based on current series context", async () => {
+    const activeTracker = aFakeIndividualTrackerStateWith({
+      trackerId: "tracker-series",
+      gamertag: "SeriesPlayer",
+      status: "active",
+      activeNeatQueueSeries: {
+        titleOverride: null,
+        subtitleOverride: null,
+        neatQueueSeriesData: {
+          seriesId: { guildId: "manual-tracker-series", queueNumber: 0 },
+          teams: [
+            { name: "Eagle", playerIds: ["p-1"] },
+            { name: "Cobra", playerIds: ["p-2"] },
+          ],
+          seriesScore: "0:0",
+          matchIds: [],
+          playersAssociationData: {},
+          substitutions: [],
+          startTime: "2026-01-01T00:00:00.000Z",
+          lastUpdateTime: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+
+    const nonSeriesTracker = aFakeIndividualTrackerStateWith({
+      trackerId: "tracker-non-series",
+      gamertag: "NoSeriesPlayer",
+      status: "active",
+    });
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith(),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith({
+        activeState: nonSeriesTracker,
+        trackerReferences: {
+          "tracker-series": { gamertag: "SeriesPlayer" },
+          "tracker-non-series": { gamertag: "NoSeriesPlayer" },
+        },
+        trackerStates: {
+          "tracker-series": activeTracker,
+          "tracker-non-series": nonSeriesTracker,
+        },
+      }),
+    };
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
+
+    await harness.presenter.refresh();
+
+    const rows = harness.presenter.getTrackerItems();
+    const seriesRow = rows.find((item) => item.trackerId === "tracker-series");
+    const nonSeriesRow = rows.find((item) => item.trackerId === "tracker-non-series");
+
+    expect(seriesRow).toBeDefined();
+    expect(nonSeriesRow).toBeDefined();
+
+    if (seriesRow == null || nonSeriesRow == null) {
+      throw new Error("Expected tracker rows to exist");
+    }
+
+    const seriesActions = harness.presenter.getActions(seriesRow).map((action) => action.label);
+    const nonSeriesActions = harness.presenter.getActions(nonSeriesRow).map((action) => action.label);
+
+    expect(seriesActions).toContain("End series");
+    expect(seriesActions).not.toContain("Start series");
+    expect(nonSeriesActions).toContain("Start series");
+    expect(nonSeriesActions).not.toContain("End series");
+
+    const startSeriesAction = harness.presenter
+      .getActions(nonSeriesRow)
+      .find((action) => action.label === "Start series");
+    expect(startSeriesAction).toBeDefined();
+
+    startSeriesAction?.onClick();
+
+    expect(harness.presenter.getSnapshot().manualSeriesDialogState).toEqual({
+      trackerId: "tracker-non-series",
+      trackerLabel: "NoSeriesPlayer",
+    });
+
+    harness.presenter.dispose();
+  });
+
+  it("ends series from row action and updates tracker state", async () => {
+    const activeTracker = aFakeIndividualTrackerStateWith({
+      trackerId: "tracker-series",
+      gamertag: "SeriesPlayer",
+      status: "active",
+      activeNeatQueueSeries: {
+        titleOverride: null,
+        subtitleOverride: null,
+        neatQueueSeriesData: {
+          seriesId: { guildId: "manual-tracker-series", queueNumber: 0 },
+          teams: [
+            { name: "Eagle", playerIds: ["p-1"] },
+            { name: "Cobra", playerIds: ["p-2"] },
+          ],
+          seriesScore: "0:0",
+          matchIds: [],
+          playersAssociationData: {},
+          substitutions: [],
+          startTime: "2026-01-01T00:00:00.000Z",
+          lastUpdateTime: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+
+    const services: Services = {
+      authService: aFakeAuthServiceWith(),
+      liveTrackerService: new FakeLiveTrackerService(aFakeLiveTrackerScenarioWith({ frames: [] })),
+      individualTrackerService: aFakeIndividualTrackerServiceWith({
+        activeState: activeTracker,
+        trackerReferences: {
+          "tracker-series": { gamertag: "SeriesPlayer" },
+        },
+        trackerStates: {
+          "tracker-series": activeTracker,
+        },
+      }),
+    };
+
+    const endSeriesSpy = vi.spyOn(services.individualTrackerService, "endSeries").mockResolvedValue({
+      success: true,
+      state: aFakeIndividualTrackerStateWith({
+        trackerId: "tracker-series",
+        gamertag: "SeriesPlayer",
+        status: "active",
+      }),
+    });
+
+    const harness = aHarnessWith(services);
+    harness.presenter.start();
+    harness.presenter.setSessionContext("user-1", "Chief", "2533274844642438");
+
+    await harness.presenter.refresh();
+
+    const row = harness.presenter.getTrackerItems().find((item) => item.trackerId === "tracker-series");
+    expect(row).toBeDefined();
+    if (row == null) {
+      throw new Error("Expected tracker row to exist");
+    }
+
+    const endSeriesAction = harness.presenter.getActions(row).find((action) => action.label === "End series");
+    expect(endSeriesAction).toBeDefined();
+
+    endSeriesAction?.onClick();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(endSeriesSpy).toHaveBeenCalledWith("tracker-series");
+    expect(harness.presenter.getSnapshot().trackerStatuses["tracker-series"]?.activeNeatQueueSeries).toBeUndefined();
+
+    harness.presenter.dispose();
+  });
+
   it("refreshes tracker state and builds pinned/live tracker rows", async () => {
     const activeTracker = aFakeIndividualTrackerStateWith({
       trackerId: "tracker-2",

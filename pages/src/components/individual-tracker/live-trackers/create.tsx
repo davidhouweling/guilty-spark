@@ -2,6 +2,7 @@ import React, { useSyncExternalStore } from "react";
 import type { Services } from "../../../services/types";
 import { AddTrackerDialog } from "../add-tracker-dialog/add-tracker-dialog";
 import { GameSelectionDialog } from "../game-selection-dialog/game-selection-dialog";
+import { ManualSeriesDialog } from "../manual-series-dialog/manual-series-dialog";
 import { LiveTrackersPresenter } from "./live-trackers-presenter";
 import { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersController, LiveTrackersSectionController } from "./types";
@@ -53,6 +54,27 @@ function LiveTrackersSectionInternal({ controller }: LiveTrackersSectionInternal
             }}
             onLoadEnrichedMatches={async (xuid, start, count) => controller.loadMatches(xuid, start, count)}
             onSync={async (payload) => controller.syncGameSelection(payload)}
+          />
+
+          <ManualSeriesDialog
+            isOpen={snapshot.manualSeriesDialogState != null}
+            busy={snapshot.busy}
+            trackerLabel={snapshot.manualSeriesDialogState?.trackerLabel ?? ""}
+            onClose={(): void => {
+              controller.closeManualSeriesDialog();
+            }}
+            onStartSeries={async (payload) => {
+              if (snapshot.manualSeriesDialogState == null) {
+                return;
+              }
+
+              await controller.startManualSeries({
+                trackerId: snapshot.manualSeriesDialogState.trackerId,
+                ...payload,
+              });
+            }}
+            onSearchGamertag={async (query) => controller.searchGamertag(query)}
+            onLoadMatches={async (xuid, start, count) => controller.loadMatches(xuid, start, count)}
           />
         </>
       }

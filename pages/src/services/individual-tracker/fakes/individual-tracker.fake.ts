@@ -22,6 +22,9 @@ import type {
   PauseTrackerResponse,
   RefreshTrackerResponse,
   ResumeTrackerResponse,
+  StartSeriesRequest,
+  StartSeriesResponse,
+  EndSeriesResponse,
   StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
@@ -275,6 +278,18 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   }
 
   public async resumeTracker(trackerId: string): Promise<ResumeTrackerResponse> {
+    void trackerId;
+    const state = aFakeIndividualTrackerStateWith({ status: "active" });
+    return Promise.resolve({ success: true, state });
+  }
+
+  public async startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse> {
+    void request;
+    const state = aFakeIndividualTrackerStateWith({ status: "active" });
+    return Promise.resolve({ success: true, state });
+  }
+
+  public async endSeries(trackerId: string): Promise<EndSeriesResponse> {
     void trackerId;
     const state = aFakeIndividualTrackerStateWith({ status: "active" });
     return Promise.resolve({ success: true, state });

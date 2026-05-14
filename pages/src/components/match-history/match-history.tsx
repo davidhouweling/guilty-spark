@@ -384,8 +384,10 @@ export function MatchHistory({
                   const belowEntry =
                     entryIndex != null && entryIndex < entries.length - 1 ? entries[entryIndex + 1] : undefined;
                   const isGroupable = isGroupableGame(segment.entry);
-                  const canAddToAbove = isGroupable && aboveEntry != null && isGroupableGame(aboveEntry);
-                  const canAddToBelow = isGroupable && belowEntry != null && isGroupableGame(belowEntry);
+                  const canAddToAbove =
+                    allowManualGrouping && isGroupable && aboveEntry != null && isGroupableGame(aboveEntry);
+                  const canAddToBelow =
+                    allowManualGrouping && isGroupable && belowEntry != null && isGroupableGame(belowEntry);
                   const isSelected = selectedMatchIds?.has(segment.entry.matchId) ?? false;
                   return (
                     <MatchCard

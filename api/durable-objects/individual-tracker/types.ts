@@ -94,6 +94,22 @@ export interface IndividualTrackerActiveNeatQueueSeriesUpdateRequest {
   activeNeatQueueSeries: IndividualTrackerActiveNeatQueueSeries | null;
 }
 
+export interface IndividualTrackerManualSeriesStartRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+  titleOverride: string | null;
+  subtitleOverride: string | null;
+  teams: readonly {
+    name: string;
+    members: readonly string[];
+  }[];
+}
+
+export interface IndividualTrackerManualSeriesEndRequest {
+  /** Must match the tracker's owning userId to be accepted. */
+  userId: string;
+}
+
 export interface IndividualTrackerSelectActiveRequest {
   /** Must match the tracker's owning userId. */
   userId: string;
@@ -258,6 +274,20 @@ export interface IndividualTrackerActiveNeatQueueSeriesUpdateSuccessResponse {
 
 export type IndividualTrackerActiveNeatQueueSeriesUpdateResponse =
   IndividualTrackerActiveNeatQueueSeriesUpdateSuccessResponse;
+
+export interface IndividualTrackerManualSeriesStartSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerManualSeriesStartResponse = IndividualTrackerManualSeriesStartSuccessResponse;
+
+export interface IndividualTrackerManualSeriesEndSuccessResponse {
+  success: true;
+  state: IndividualTrackerStateSanitized;
+}
+
+export type IndividualTrackerManualSeriesEndResponse = IndividualTrackerManualSeriesEndSuccessResponse;
 
 // ─── Type guards ─────────────────────────────────────────────────────────────
 

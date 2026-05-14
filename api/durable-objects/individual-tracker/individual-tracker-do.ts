@@ -15,6 +15,10 @@ import {
   type IndividualTrackerSeriesGroupUpdateResponse,
   type IndividualTrackerActiveNeatQueueSeriesUpdateRequest,
   type IndividualTrackerActiveNeatQueueSeriesUpdateResponse,
+  type IndividualTrackerManualSeriesStartRequest,
+  type IndividualTrackerManualSeriesStartResponse,
+  type IndividualTrackerManualSeriesEndRequest,
+  type IndividualTrackerManualSeriesEndResponse,
   type IndividualTrackerViewerStyleUpdateRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
@@ -125,6 +129,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "neatqueue-series-update": {
             return await this.handleActiveNeatQueueSeriesUpdate(request);
+          }
+          case "manual-series-start": {
+            return await this.handleManualSeriesStart(request);
+          }
+          case "manual-series-end": {
+            return await this.handleManualSeriesEnd(request);
           }
           case "websocket": {
             return await this.handleWebSocket();
@@ -649,18 +659,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Forbidden", { status: 403 });
     }
 
-    const nextStateBase = {
-      ...trackerState,
-      lastUpdateTime: new Date().toISOString(),
-    };
+    const now = new Date().toISOString();
+    let nextState: IndividualTrackerState;
 
-    const nextState: IndividualTrackerState =
-      body.activeNeatQueueSeries == null
-        ? nextStateBase
-        : {
-            ...nextStateBase,
-            activeNeatQueueSeries: body.activeNeatQueueSeries,
-          };
+    if (body.activeNeatQueueSeries == null) {
+      nextState = {
+        ...trackerState,
+        lastUpdateTime: now,
+      };
+      delete nextState.activeNeatQueueSeries;
+    } else {
+      nextState = {
+        ...trackerState,
+        activeNeatQueueSeries: body.activeNeatQueueSeries,
+        lastUpdateTime: now,
+      };
+    }
 
     await this.setState(nextState);
 
@@ -668,6 +682,138 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       success: true,
       state: sanitizeTrackerState(nextState),
     };
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handleManualSeriesStart(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerManualSeriesStartRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const normalizedTeams = body.teams.slice(0, 2).map((team, teamIndex) => ({
+      name: team.name.trim() !== "" ? team.name.trim() : teamIndex === 0 ? "Eagle" : "Cobra",
+      members: team.members.map((member) => member.trim()).filter((member) => member !== ""),
+    }));
+
+    const eagleTeam = normalizedTeams[0] ?? { name: "Eagle", members: [] };
+    const cobraTeam = normalizedTeams[1] ?? { name: "Cobra", members: [] };
+
+    if (eagleTeam.members.length === 0 && cobraTeam.members.length === 0) {
+      eagleTeam.members.push(trackerState.gamertag);
+    }
+
+    const resolvedTeams = [eagleTeam, cobraTeam];
+
+    const playersAssociationData: Record<
+      string,
+      {
+        discordId: string;
+        discordName: string;
+        xboxId: string | null;
+        gamertag: string | null;
+        currentRank: number | null;
+        currentRankTier: string | null;
+        currentRankSubTier: number | null;
+        currentRankMeasurementMatchesRemaining: number | null;
+        currentRankInitialMeasurementMatches: number | null;
+        allTimePeakRank: number | null;
+        esra: number | null;
+        lastRankedGamePlayed: string | null;
+      }
+    > = {};
+
+    const teams = resolvedTeams.map((team, teamIndex) => {
+      const playerIds = team.members.map((member, memberIndex) => {
+        const playerId = `manual-${teamIndex.toString()}-${memberIndex.toString()}`;
+        playersAssociationData[playerId] = {
+          discordId: playerId,
+          discordName: member,
+          xboxId: null,
+          gamertag: member,
+          currentRank: null,
+          currentRankTier: null,
+          currentRankSubTier: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: null,
+          esra: null,
+          lastRankedGamePlayed: null,
+        };
+
+        return playerId;
+      });
+
+      return {
+        name: team.name,
+        playerIds,
+      };
+    });
+
+    const now = new Date().toISOString();
+    const nextState: IndividualTrackerState = {
+      ...trackerState,
+      activeNeatQueueSeries: {
+        titleOverride: body.titleOverride,
+        subtitleOverride: body.subtitleOverride,
+        neatQueueSeriesData: {
+          seriesId: {
+            guildId: `manual-${trackerState.trackerId}`,
+            queueNumber: 0,
+          },
+          teams,
+          seriesScore: "0:0",
+          matchIds: [],
+          playersAssociationData,
+          substitutions: [],
+          startTime: now,
+          lastUpdateTime: now,
+        },
+      },
+      lastUpdateTime: now,
+    };
+
+    await this.setState(nextState);
+
+    const response: IndividualTrackerManualSeriesStartResponse = {
+      success: true,
+      state: sanitizeTrackerState(nextState),
+    };
+
+    return Response.json(response, { status: 200 });
+  }
+
+  private async handleManualSeriesEnd(request: Request): Promise<Response> {
+    const body = await request.json<IndividualTrackerManualSeriesEndRequest>();
+    const trackerState = await this.getState();
+
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const nextState: IndividualTrackerState = {
+      ...trackerState,
+      lastUpdateTime: new Date().toISOString(),
+    };
+    delete nextState.activeNeatQueueSeries;
+
+    await this.setState(nextState);
+
+    const response: IndividualTrackerManualSeriesEndResponse = {
+      success: true,
+      state: sanitizeTrackerState(nextState),
+    };
+
     return Response.json(response, { status: 200 });
   }
 
