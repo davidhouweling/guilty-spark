@@ -13,7 +13,7 @@ const OverlayTopBarStatsComponent = ({ items }: OverlayTopBarStatsProps): React.
   }
 
   return (
-    <div className={styles.root}>
+    <div className={styles.topBarStats}>
       {
         <div className={styles.row} aria-label="Overlay top bar stats">
           {items.map((item, index) => (
@@ -22,20 +22,18 @@ const OverlayTopBarStatsComponent = ({ items }: OverlayTopBarStatsProps): React.
               <span className={styles.dot} aria-hidden="true">
                 •
               </span>
-              <span className={styles.value}>
-                {item.rankTier != null && (
-                  <>
-                    <RankIcon
-                      rankTier={item.rankTier}
-                      subTier={item.rankSubTier ?? null}
-                      measurementMatchesRemaining={item.rankMeasurementMatchesRemaining ?? null}
-                      initialMeasurementMatches={item.rankInitialMeasurementMatches ?? null}
-                      size="small"
-                    />{" "}
-                  </>
-                )}
-                <span className={styles.valueText}>{item.value}</span>
-              </span>
+              {item.rankTier != null && (
+                <>
+                  <RankIcon
+                    rankTier={item.rankTier}
+                    subTier={item.rankSubTier ?? null}
+                    measurementMatchesRemaining={item.rankMeasurementMatchesRemaining ?? null}
+                    initialMeasurementMatches={item.rankInitialMeasurementMatches ?? null}
+                    size="x-small"
+                  />{" "}
+                </>
+              )}
+              <span className={styles.valueText}>{item.value}</span>
             </div>
           ))}
         </div>

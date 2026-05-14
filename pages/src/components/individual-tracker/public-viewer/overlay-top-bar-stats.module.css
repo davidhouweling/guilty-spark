@@ -1,41 +1,45 @@
-.root {
+.topBarStats {
   align-items: center;
   display: flex;
   gap: var(--space-1);
   justify-content: center;
-  margin-inline: auto;
-  max-width: min(1280px, calc(100vw - 1rem));
-  padding: 0 var(--space-2) var(--space-1);
-  width: 100%;
   z-index: 24;
 }
 
 .row {
   display: flex;
-  flex: 1 1 auto;
+  flex-direction: row;
   gap: var(--space-1);
-  min-width: 0;
-  width: auto;
 }
 
 .tab {
   align-items: center;
   background: rgb(15 40 48 / 90%);
+  background-image:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, rgb(15 40 48 / 90%) 30%, transparent),
+      color-mix(in srgb, rgb(15 40 48 / 90%) 30%, transparent)
+    ),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px);
   border: 2px solid rgb(0 0 0 / 60%);
   border-radius: 0;
   border-top: 0;
   color: var(--halo-white);
   display: flex;
-  flex: 1 1 0;
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: calc(var(--text-xs) * var(--font-size-tabs, 1));
   font-weight: 700;
-  padding: 0.3rem 0.75rem;
+  gap: var(--space-1);
+  justify-content: center;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
   text-transform: uppercase;
+  text-wrap: nowrap;
 }
 
 .label {
-  font-weight: 400;
+  font-weight: 600;
 }
 
 .dot {
