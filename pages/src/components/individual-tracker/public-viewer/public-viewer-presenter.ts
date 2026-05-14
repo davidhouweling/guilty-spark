@@ -38,7 +38,9 @@ import type {
   IndividualTrackerViewerRenderModel,
   IndividualTrackerViewerTimelineItem,
   IndividualTrackerViewerMatchCard,
+  IndividualTrackerViewerSeriesTotals,
 } from "../types";
+import type { MatchStatsData } from "../../stats/types";
 import { getTeamColor } from "../../team-colors/team-colors";
 import {
   ALL_SLAYER_STATS,
@@ -72,6 +74,7 @@ interface ResolvedOverlayContext {
   readonly seriesScore: string;
   readonly seriesTeams: readonly PublicViewerSeriesTeam[];
   readonly seriesMatches: readonly IndividualTrackerViewerMatchCard[];
+  readonly seriesTotals: IndividualTrackerViewerSeriesTotals | null;
   readonly sharedTabs: readonly PublicViewerOverlaySharedTab[];
   readonly timelineTabIndexes: readonly number[];
 }
@@ -362,7 +365,7 @@ export class PublicViewerPresenter {
       topBarStatSlots: overlaySettings.topBarStatSlots,
     });
     const overlayTickerGroups =
-      renderModel == null ? [] : this.computeOverlayTickerGroups(renderModel, overlaySettings);
+      renderModel == null ? [] : this.computeOverlayTickerGroups(renderModel, overlaySettings, resolvedOverlayContext);
 
     this.config.store.snapshot = {
       ...next,
@@ -649,6 +652,7 @@ export class PublicViewerPresenter {
         seriesScore: "0:0",
         seriesTeams: [],
         seriesMatches: [],
+        seriesTotals: null,
         sharedTabs: [],
         timelineTabIndexes: [],
       };
@@ -750,6 +754,7 @@ export class PublicViewerPresenter {
         seriesScore: primaryTab.score,
         seriesTeams,
         seriesMatches,
+        seriesTotals: latestGroupedSeries?.seriesTotals ?? null,
         sharedTabs: [primaryTab, ...seriesSharedTabs],
         timelineTabIndexes,
       };
@@ -762,6 +767,7 @@ export class PublicViewerPresenter {
       seriesScore: primaryTab.score,
       seriesTeams,
       seriesMatches,
+      seriesTotals: null,
       sharedTabs: [primaryTab, ...timelineSharedTabs],
       timelineTabIndexes,
     };
@@ -974,6 +980,10 @@ export class PublicViewerPresenter {
       readonly showObjectiveStats: boolean;
       readonly medalRarityFilter: readonly number[];
     },
+    overlayContext: Pick<
+      ResolvedOverlayContext,
+      "hasSeriesContext" | "seriesMatches" | "seriesTotals" | "timelineTabIndexes"
+    >,
   ): readonly OverlayTickerGroup[] {
     const groups: OverlayTickerGroup[] = [];
 
@@ -1008,27 +1018,39 @@ export class PublicViewerPresenter {
       return false;
     };
 
-    // Build ticker groups from timeline matches
-    for (let itemIndex = 0; itemIndex < renderModel.gameplayTimeline.length; itemIndex++) {
-      const item = renderModel.gameplayTimeline[itemIndex];
+    const buildRowsFromMatchStats = (matchStats: MatchStatsData[]): OverlayTickerRow[] => {
+      const rows: OverlayTickerRow[] = [];
 
-      if (item.type === "match") {
-        const { match } = item;
-        if (match.matchStats == null || match.matchStats.length === 0) {
-          continue;
-        }
+      for (const teamStats of matchStats) {
+        rows.push({
+          type: "team",
+          name: `Team ${String(teamStats.teamId)}`,
+          teamId: teamStats.teamId,
+          stats: filterStats(
+            teamStats.teamStats.map((stat) => ({
+              name: stat.name,
+              value: stat.value,
+              display: stat.display,
+              bestInTeam: stat.bestInTeam,
+              bestInMatch: stat.bestInMatch,
+            })),
+          ),
+          medals: teamStats.teamMedals
+            .filter((medal) => includeMedalByRarity(medal.sortingWeight))
+            .map((medal) => ({
+              name: medal.name,
+              count: medal.count,
+              imageUrl: "",
+            })),
+        });
 
-        const rows: OverlayTickerRow[] = [];
-
-        // Build rows for each team's stats
-        for (const teamStats of match.matchStats) {
-          // Add team row with team stats and medals
+        for (const player of teamStats.players) {
           rows.push({
-            type: "team",
-            name: `Team ${String(teamStats.teamId)}`,
+            type: "player",
+            name: player.name,
             teamId: teamStats.teamId,
             stats: filterStats(
-              teamStats.teamStats.map((stat) => ({
+              player.values.map((stat) => ({
                 name: stat.name,
                 value: stat.value,
                 display: stat.display,
@@ -1036,7 +1058,7 @@ export class PublicViewerPresenter {
                 bestInMatch: stat.bestInMatch,
               })),
             ),
-            medals: teamStats.teamMedals
+            medals: player.medals
               .filter((medal) => includeMedalByRarity(medal.sortingWeight))
               .map((medal) => ({
                 name: medal.name,
@@ -1044,13 +1066,47 @@ export class PublicViewerPresenter {
                 imageUrl: "",
               })),
           });
+        }
+      }
 
-          // Add player rows for this team
-          for (const player of teamStats.players) {
+      return rows;
+    };
+
+    if (overlayContext.hasSeriesContext) {
+      // Series Stats group from accumulated series totals (aligns with the primary "Series score" tab at index -1)
+      if (overlayContext.seriesTotals != null) {
+        const rows: OverlayTickerRow[] = [];
+
+        for (const teamData of overlayContext.seriesTotals.teamData) {
+          rows.push({
+            type: "team",
+            name: `Team ${String(teamData.teamId)}`,
+            teamId: teamData.teamId,
+            stats: filterStats(
+              teamData.teamStats.map((stat) => ({
+                name: stat.name,
+                value: stat.value,
+                display: stat.display,
+                bestInTeam: stat.bestInTeam,
+                bestInMatch: stat.bestInMatch,
+              })),
+            ),
+            medals: teamData.teamMedals
+              .filter((medal) => includeMedalByRarity(medal.sortingWeight))
+              .map((medal) => ({
+                name: medal.name,
+                count: medal.count,
+                imageUrl: "",
+              })),
+          });
+        }
+
+        for (const playerTeamData of overlayContext.seriesTotals.playerData) {
+          for (const player of playerTeamData.players) {
             rows.push({
               type: "player",
               name: player.name,
-              teamId: teamStats.teamId,
+              teamId: playerTeamData.teamId,
               stats: filterStats(
                 player.values.map((stat) => ({
                   name: stat.name,
@@ -1072,11 +1128,37 @@ export class PublicViewerPresenter {
         }
 
         if (rows.length > 0) {
-          groups.push({
-            matchIndex: itemIndex,
-            label: match.gameTypeAndMap,
-            rows,
-          });
+          groups.push({ matchIndex: -1, label: "Series Stats", rows });
+        }
+      }
+
+      // One group per series match, matchIndex aligns with the series match tab indexes (0, 1, 2, ...)
+      for (const [matchIndex, seriesMatch] of overlayContext.seriesMatches.entries()) {
+        if (seriesMatch.matchStats == null || seriesMatch.matchStats.length === 0) {
+          continue;
+        }
+
+        const rows = buildRowsFromMatchStats(seriesMatch.matchStats);
+        if (rows.length > 0) {
+          groups.push({ matchIndex, label: seriesMatch.gameTypeAndMap, rows });
+        }
+      }
+    } else {
+      // Non-series: one group per visible tab, matchIndex is the sequential tab position (0, 1, 2, ...)
+      for (const [tabIndex, timelineIndex] of overlayContext.timelineTabIndexes.entries()) {
+        const item = renderModel.gameplayTimeline[timelineIndex];
+        if (item.type !== "match") {
+          continue;
+        }
+
+        const { match } = item;
+        if (match.matchStats == null || match.matchStats.length === 0) {
+          continue;
+        }
+
+        const rows = buildRowsFromMatchStats(match.matchStats);
+        if (rows.length > 0) {
+          groups.push({ matchIndex: tabIndex, label: match.gameTypeAndMap, rows });
         }
       }
     }

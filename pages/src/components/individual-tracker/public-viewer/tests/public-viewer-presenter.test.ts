@@ -9,7 +9,12 @@ import {
 } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { ActiveTrackerViewResponse } from "../../../../services/individual-tracker/types";
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_TICKER_SETTINGS } from "../../../streamer-settings/shared-types";
-import type { OverlayTickerGroup, IndividualTrackerViewerRenderModel } from "../../types";
+import type {
+  OverlayTickerGroup,
+  IndividualTrackerViewerRenderModel,
+  IndividualTrackerViewerMatchCard,
+  IndividualTrackerViewerSeriesTotals,
+} from "../../types";
 import { PublicViewerStore } from "../public-viewer-store";
 import { PublicViewerPresenter } from "../public-viewer-presenter";
 import {
@@ -32,6 +37,13 @@ interface ExtractedOverlaySettings {
   readonly showObjectiveStats: boolean;
   readonly medalRarityFilter: readonly number[];
   readonly showPreSeriesInfo: boolean;
+}
+
+interface TickerOverlayContext {
+  readonly hasSeriesContext: boolean;
+  readonly seriesMatches: readonly IndividualTrackerViewerMatchCard[];
+  readonly seriesTotals: IndividualTrackerViewerSeriesTotals | null;
+  readonly timelineTabIndexes: readonly number[];
 }
 
 class ActiveViewIndividualTrackerService extends FakeIndividualTrackerService {
@@ -165,14 +177,19 @@ function getPrivateComputeOverlayTickerGroups(
 ): (
   renderModel: IndividualTrackerViewerRenderModel,
   settings: OverlaySettingsForTicker,
+  context: TickerOverlayContext,
 ) => readonly OverlayTickerGroup[] {
   const value: unknown = Reflect.get(presenter, "computeOverlayTickerGroups");
   if (typeof value !== "function") {
     throw new Error("computeOverlayTickerGroups is not available");
   }
 
-  return (renderModel: IndividualTrackerViewerRenderModel, settings: OverlaySettingsForTicker) => {
-    const result: unknown = value.call(presenter, renderModel, settings);
+  return (
+    renderModel: IndividualTrackerViewerRenderModel,
+    settings: OverlaySettingsForTicker,
+    context: TickerOverlayContext,
+  ) => {
+    const result: unknown = value.call(presenter, renderModel, settings, context);
     if (!isOverlayTickerGroups(result)) {
       throw new Error("computeOverlayTickerGroups returned an invalid payload");
     }
@@ -213,13 +230,48 @@ async function waitForPresenterToSettle(presenter: PublicViewerPresenter): Promi
   throw new Error("Presenter did not settle");
 }
 
+function createNonSeriesContext(renderModel: IndividualTrackerViewerRenderModel): TickerOverlayContext {
+  const timelineTabIndexes = renderModel.gameplayTimeline.flatMap((item, index) =>
+    item.type === "match" ? [index] : [],
+  );
+
+  return {
+    hasSeriesContext: false,
+    seriesMatches: [],
+    seriesTotals: null,
+    timelineTabIndexes,
+  };
+}
+
+function aFakeMatchCard(
+  id: string,
+  label: string,
+  matchStats: IndividualTrackerViewerMatchCard["matchStats"] = null,
+): IndividualTrackerViewerMatchCard {
+  return {
+    id,
+    matchStats,
+    backgroundImageUrl: "",
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+    gameMode: "Slayer",
+    matchNumber: 1,
+    gameTypeAndMap: label,
+    map: "Aquarius",
+    duration: "10:00",
+    score: "50:48",
+    startTime: "2026-05-14T00:00:00.000Z",
+    endTime: "2026-05-14T00:10:00.000Z",
+  };
+}
+
 function getTickerGroups(
   presenter: PublicViewerPresenter,
   renderModel: IndividualTrackerViewerRenderModel,
   settings: OverlaySettingsForTicker,
+  context: TickerOverlayContext,
 ): readonly OverlayTickerGroup[] {
   const computeOverlayTickerGroups = getPrivateComputeOverlayTickerGroups(presenter);
-  return computeOverlayTickerGroups(renderModel, settings);
+  return computeOverlayTickerGroups(renderModel, settings, context);
 }
 
 describe("PublicViewerPresenter", () => {
@@ -227,7 +279,7 @@ describe("PublicViewerPresenter", () => {
     const presenter = createPresenter();
     const renderModel = createRenderModel();
 
-    const groups = getTickerGroups(presenter, renderModel, createSettings());
+    const groups = getTickerGroups(presenter, renderModel, createSettings(), createNonSeriesContext(renderModel));
 
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBe("Oddball on Live Fire");
@@ -253,6 +305,7 @@ describe("PublicViewerPresenter", () => {
         showObjectiveStats: true,
         medalRarityFilter: [0, 1, 2, 3],
       }),
+      createNonSeriesContext(renderModel),
     );
 
     const teamRow = groups[0].rows.find((row) => row.type === "team");
@@ -260,6 +313,133 @@ describe("PublicViewerPresenter", () => {
 
     expect(teamRow?.stats.map((stat) => stat.name)).toEqual(["Kills", "Ball time"]);
     expect(playerRow?.stats.map((stat) => stat.name)).toEqual(["Kills", "Ball time"]);
+  });
+
+  it("in non-series context restricts groups to timelineTabIndexes and uses sequential matchIndex", () => {
+    const presenter = createPresenter();
+    const matchStats = [
+      aFakeMatchStatsDataWith({
+        teamId: 0,
+        teamStats: [aFakeMatchStatsValuesWith({ name: "Kills", value: 10, display: "10" })],
+        players: [],
+        teamMedals: [],
+      }),
+    ];
+
+    const renderModel: IndividualTrackerViewerRenderModel = {
+      ...createRenderModel(),
+      gameplayTimeline: [
+        { type: "match", id: "match-a", match: aFakeMatchCard("match-a", "Match A", matchStats) },
+        { type: "match", id: "match-b", match: aFakeMatchCard("match-b", "Match B", matchStats) },
+        { type: "match", id: "match-c", match: aFakeMatchCard("match-c", "Match C", matchStats) },
+      ],
+    };
+
+    // Only tabs for timeline indexes 0 and 2 are shown (index 1 is hidden)
+    const context: TickerOverlayContext = {
+      hasSeriesContext: false,
+      seriesMatches: [],
+      seriesTotals: null,
+      timelineTabIndexes: [0, 2],
+    };
+
+    const groups = getTickerGroups(presenter, renderModel, createSettings({ selectedSlayerStats: ["Kills"] }), context);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].label).toBe("Match A");
+    expect(groups[0].matchIndex).toBe(0);
+    expect(groups[1].label).toBe("Match C");
+    expect(groups[1].matchIndex).toBe(1); // sequential tab position 1, not timeline index 2
+  });
+
+  it("in series context only shows series matches and excludes pre-series timeline matches", () => {
+    const presenter = createPresenter();
+    const matchStats = [
+      aFakeMatchStatsDataWith({
+        teamId: 0,
+        teamStats: [aFakeMatchStatsValuesWith({ name: "Kills", value: 10, display: "10" })],
+        players: [],
+        teamMedals: [],
+      }),
+    ];
+
+    // Render model has a pre-series match in the timeline
+    const renderModel: IndividualTrackerViewerRenderModel = {
+      ...createRenderModel(),
+      gameplayTimeline: [
+        {
+          type: "match",
+          id: "pre-series-match",
+          match: aFakeMatchCard("pre-series-match", "Pre-Series Match", matchStats),
+        },
+      ],
+    };
+
+    // Series context references its own matches (not the timeline)
+    const context: TickerOverlayContext = {
+      hasSeriesContext: true,
+      seriesMatches: [
+        aFakeMatchCard("series-match-1", "Series Match 1", matchStats),
+        aFakeMatchCard("series-match-2", "Series Match 2", matchStats),
+      ],
+      seriesTotals: null,
+      timelineTabIndexes: [],
+    };
+
+    const groups = getTickerGroups(presenter, renderModel, createSettings({ selectedSlayerStats: ["Kills"] }), context);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.every((g) => g.label !== "Pre-Series Match")).toBe(true);
+    expect(groups[0].label).toBe("Series Match 1");
+    expect(groups[0].matchIndex).toBe(0);
+    expect(groups[1].label).toBe("Series Match 2");
+    expect(groups[1].matchIndex).toBe(1);
+  });
+
+  it("in series context adds Series Stats group at matchIndex -1 from seriesTotals", () => {
+    const presenter = createPresenter();
+    const seriesTotals: IndividualTrackerViewerSeriesTotals = {
+      teamData: [
+        aFakeMatchStatsDataWith({
+          teamId: 0,
+          teamStats: [aFakeMatchStatsValuesWith({ name: "Kills", value: 30, display: "30" })],
+          players: [
+            aFakeMatchStatsPlayerDataWith({
+              name: "Alpha",
+              values: [aFakeMatchStatsValuesWith({ name: "Kills", value: 15, display: "15" })],
+              medals: [],
+            }),
+          ],
+          teamMedals: [],
+        }),
+      ],
+      playerData: [],
+      metadata: null,
+    };
+
+    const context: TickerOverlayContext = {
+      hasSeriesContext: true,
+      seriesMatches: [],
+      seriesTotals,
+      timelineTabIndexes: [],
+    };
+
+    const groups = getTickerGroups(
+      presenter,
+      createRenderModel(),
+      createSettings({ selectedSlayerStats: ["Kills"] }),
+      context,
+    );
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].matchIndex).toBe(-1);
+    expect(groups[0].label).toBe("Series Stats");
+
+    const teamRow = groups[0].rows.find((row) => row.type === "team");
+    expect.assertions(4);
+    if (teamRow != null) {
+      expect(teamRow.stats.map((s) => s.name)).toEqual(["Kills"]);
+    }
   });
 
   it("extracts overlay ticker settings from visible sections", () => {
