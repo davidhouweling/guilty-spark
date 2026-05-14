@@ -442,6 +442,32 @@ describe("PublicViewerPresenter", () => {
     }
   });
 
+  it("returns no ticker groups when visible tabs resolve to timeline items without match stats", () => {
+    const presenter = createPresenter();
+
+    const renderModel: IndividualTrackerViewerRenderModel = {
+      ...createRenderModel(),
+      gameplayTimeline: [
+        {
+          type: "match",
+          id: "match-empty-stats",
+          match: aFakeMatchCard("match-empty-stats", "Match Empty", []),
+        },
+      ],
+    };
+
+    const context: TickerOverlayContext = {
+      hasSeriesContext: false,
+      seriesMatches: [],
+      seriesTotals: null,
+      timelineTabIndexes: [0],
+    };
+
+    const groups = getTickerGroups(presenter, renderModel, createSettings({ selectedSlayerStats: ["Kills"] }), context);
+
+    expect(groups).toEqual([]);
+  });
+
   it("extracts overlay ticker settings from visible sections", () => {
     const presenter = createPresenter();
 

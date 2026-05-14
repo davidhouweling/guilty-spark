@@ -43,6 +43,11 @@ const InformationTickerComponent = function InformationTicker({
   }, [currentMatchGroup]);
 
   const handleRowScrollComplete = (): void => {
+    if (currentMatchGroup.rows.length === 0) {
+      onScrollComplete();
+      return;
+    }
+
     // Move to next row or complete the cycle
     if (currentRowIndex < currentMatchGroup.rows.length - 1) {
       setCurrentRowIndex(currentRowIndex + 1);
@@ -53,15 +58,28 @@ const InformationTickerComponent = function InformationTicker({
     }
   };
 
-  const currentRow = currentMatchGroup.rows[currentRowIndex];
-  const teamColor = teamColors[currentRow.teamId];
+  const currentRow = currentMatchGroup.rows.at(currentRowIndex) ?? currentMatchGroup.rows.at(0);
+
+  if (currentRow == null) {
+    return (
+      <div className={styles.ticker}>
+        <div className={styles.tickerContent}>
+          <div className={styles.tickerPinned}>
+            <span className={styles.tickerLabel}>{currentMatchGroup.label}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const rowColorHex = teamColors.at(currentRow.teamId)?.hex ?? teamColors.at(0)?.hex ?? "#00B7EB";
 
   return (
     <div
       className={styles.ticker}
       style={
         {
-          "--row-color": teamColor.hex,
+          "--row-color": rowColorHex,
         } as React.CSSProperties
       }
     >
@@ -104,7 +122,7 @@ const InformationTickerComponent = function InformationTicker({
               })}
               style={
                 {
-                  "--row-color": teamColor.hex,
+                  "--row-color": rowColorHex,
                 } as React.CSSProperties
               }
             >

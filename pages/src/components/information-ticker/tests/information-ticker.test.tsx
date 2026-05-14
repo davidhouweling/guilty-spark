@@ -342,4 +342,74 @@ describe("InformationTicker", () => {
     const rowElement = container.querySelector("[style*='--row-color']");
     expect(rowElement).toBeInTheDocument();
   });
+
+  it("renders safely when rows are temporarily empty during refresh", () => {
+    const matchGroupWithRows = aFakeTickerMatchGroupWith({
+      label: "Match 1",
+      rows: [aFakeTickerStatRowWith({ teamId: 0, name: "Player 1" })],
+    });
+
+    const { rerender } = render(
+      <InformationTicker currentMatchGroup={matchGroupWithRows} teamColors={teamColors} onScrollComplete={vi.fn()} />,
+    );
+
+    const matchGroupWithoutRows = aFakeTickerMatchGroupWith({
+      label: "Match 1",
+      rows: [],
+    });
+
+    rerender(
+      <InformationTicker
+        currentMatchGroup={matchGroupWithoutRows}
+        teamColors={teamColors}
+        onScrollComplete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Match 1")).toBeInTheDocument();
+  });
+
+  it("falls back to default color when row teamId has no color mapping", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({
+      rows: [aFakeTickerStatRowWith({ teamId: 5 })],
+    });
+
+    const { container } = render(
+      <InformationTicker currentMatchGroup={matchGroup} teamColors={teamColors} onScrollComplete={vi.fn()} />,
+    );
+
+    const rowElement = container.querySelector("[style*='--row-color']");
+    expect(rowElement).toHaveAttribute("style", expect.stringContaining("#0066CC"));
+  });
+
+  it("renders safely when current row index is stale after refresh shrinks rows", () => {
+    const onScrollComplete = vi.fn();
+    const initialGroup = aFakeTickerMatchGroupWith({
+      label: "Match 1",
+      rows: [aFakeTickerStatRowWith({ name: "Player 1" }), aFakeTickerStatRowWith({ name: "Player 2" })],
+    });
+
+    const { rerender } = render(
+      <InformationTicker
+        currentMatchGroup={initialGroup}
+        teamColors={teamColors}
+        onScrollComplete={onScrollComplete}
+      />,
+    );
+
+    // Move internal index to row 1.
+    screen.getByTestId("scrolling-content").click();
+
+    const shrunkGroup = aFakeTickerMatchGroupWith({
+      label: "Match 1",
+      rows: [aFakeTickerStatRowWith({ name: "Only Player" })],
+    });
+
+    rerender(
+      <InformationTicker currentMatchGroup={shrunkGroup} teamColors={teamColors} onScrollComplete={onScrollComplete} />,
+    );
+
+    expect(screen.getByText("Match 1")).toBeInTheDocument();
+    expect(screen.getByTestId("player-name")).toBeInTheDocument();
+  });
 });
