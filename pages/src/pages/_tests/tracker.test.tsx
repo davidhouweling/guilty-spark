@@ -1,10 +1,9 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-// Mock TeamIcon to avoid PNG import issues in tests
 vi.mock("../../components/icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
 }));

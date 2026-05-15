@@ -41,7 +41,7 @@ jobs:
           workingDirectory: "pages"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=guilty-spark-web --branch=main
+          command: deploy
 
       - name: Deploy Preview (Dependabot only)
         if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
@@ -51,7 +51,7 @@ jobs:
           workingDirectory: "pages"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=guilty-spark-web --branch=${{ github.head_ref }}
+          command: deploy --env preview
 
       - name: Update GitHub deployment
         if: github.event_name == 'push' || github.actor == 'dependabot[bot]'
