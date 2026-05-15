@@ -17,9 +17,9 @@ jobs:
       - name: Check out Git repository
         uses: actions/checkout@v4
         with:
-          # For Dependabot: checkout PR code (safe, automated)
-          # For external PRs: checkout base branch (prevents malicious code execution)
-          ref: ${{ github.actor == 'dependabot[bot]' && github.event.pull_request.head.sha || github.base_ref }}
+          # For Dependabot and trusted collaborators: checkout PR code.
+          # For external PRs: checkout base branch (prevents malicious code execution).
+          ref: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling') && github.event.pull_request.head.sha || github.base_ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -44,7 +44,7 @@ jobs:
           command: deploy
 
       - name: Deploy Preview (Dependabot only)
-        if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
+        if: github.event_name == 'pull_request_target' && (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling')
         id: deploy-preview
         uses: cloudflare/wrangler-action@v3
         with:
@@ -54,7 +54,7 @@ jobs:
           command: deploy --env preview
 
       - name: Update GitHub deployment
-        if: github.event_name == 'push' || github.actor == 'dependabot[bot]'
+        if: github.event_name == 'push' || github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling'
         id: update_deployment
         uses: chrnorm/deployment-action@v2
         with:
