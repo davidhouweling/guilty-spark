@@ -37,15 +37,20 @@ class MockWebSocket {
 
 describe("RealLiveTrackerService", () => {
   let originalWebSocket: typeof WebSocket;
+  let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
     originalWebSocket = global.WebSocket;
     global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     MockWebSocket.reset();
+
+    originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
   });
 
   afterEach(() => {
     global.WebSocket = originalWebSocket;
+    global.fetch = originalFetch;
   });
 
   it("creates WebSocket connection with correct URL for https protocol", async () => {
@@ -364,8 +369,6 @@ describe("RealLiveTrackerService", () => {
   });
 
   it("emits not_found status when server returns 404 for tracker status", async () => {
-    // Mock fetch to return 404 for the status endpoint
-    const originalFetch = global.fetch;
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
@@ -394,8 +397,6 @@ describe("RealLiveTrackerService", () => {
   });
 
   it("emits not_found status when server returns 404 for individual tracker", async () => {
-    // Mock fetch to return 404 for the status endpoint
-    const originalFetch = global.fetch;
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
