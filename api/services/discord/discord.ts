@@ -467,7 +467,7 @@ export class DiscordService {
     const isHandled = error instanceof EndUserError && error.handled;
     if (!isHandled) {
       logService[error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING ? "warn" : "error"](
-        error as Error,
+        error,
       );
     }
 

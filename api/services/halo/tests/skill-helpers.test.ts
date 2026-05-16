@@ -156,7 +156,7 @@ describe("skill-helpers", () => {
 
   describe("isValidCounterfactual()", () => {
     it("returns false if counterfactuals is null", () => {
-      const result = isValidCounterfactual(null as never, "Kills");
+      const result = isValidCounterfactual(null, "Kills");
 
       expect(result).toBe(false);
     });
@@ -192,7 +192,7 @@ describe("skill-helpers", () => {
         },
       };
 
-      const result = isValidCounterfactual(counterFactuals as never, "Kills");
+      const result = isValidCounterfactual(counterFactuals, "Kills");
 
       expect(result).toBe(false);
     });
@@ -210,7 +210,7 @@ describe("skill-helpers", () => {
         },
       };
 
-      const result = isValidCounterfactual(counterFactuals as never, "Kills");
+      const result = isValidCounterfactual(counterFactuals, "Kills");
 
       expect(result).toBe(true);
     });
@@ -228,7 +228,7 @@ describe("skill-helpers", () => {
         Deaths: { Count: 15, Expected: 16.5, StdDev: 5.0 },
       };
 
-      const result = isValidStatPerformance(statPerformances as never);
+      const result = isValidStatPerformance(statPerformances);
 
       expect(result).toBe(false);
     });
@@ -238,7 +238,7 @@ describe("skill-helpers", () => {
         Kills: { Count: 18, Expected: 18.7, StdDev: 5.2 },
       };
 
-      const result = isValidStatPerformance(statPerformances as never);
+      const result = isValidStatPerformance(statPerformances);
 
       expect(result).toBe(false);
     });
@@ -278,7 +278,7 @@ describe("skill-helpers", () => {
         },
       };
 
-      const result = skillRank(skill as never, "Kills", "Expected");
+      const result = skillRank(skill, "Kills", "Expected");
 
       expect(result).toBeUndefined();
     });
@@ -310,7 +310,7 @@ describe("skill-helpers", () => {
         },
       };
 
-      const result = skillRank(skill as never, "Kills", "Expected");
+      const result = skillRank(skill, "Kills", "Expected");
 
       expect(result).toBeDefined();
       expect(result).toBeGreaterThan(1100);

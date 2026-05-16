@@ -1402,7 +1402,7 @@ export class LiveTrackerIndividualDO implements DurableObject, Rpc.DurableObject
     for (const match of orderedMatches) {
       // Only group games that are likely custom (check category value)
       // Skip if this is a ranked/social/fiesta match
-      const isCustomGame = (match.MatchInfo.GameVariantCategory as unknown as number) >= 30;
+      const isCustomGame = match.MatchInfo.Playlist == null;
 
       if (!isCustomGame) {
         continue;

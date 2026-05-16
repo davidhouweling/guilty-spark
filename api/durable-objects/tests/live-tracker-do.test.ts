@@ -65,6 +65,11 @@ const createMockDurableObjectState = (): {
     setHibernatableWebSocketEventTimeout: () => void 0,
     setWebSocketAutoResponse: () => void 0,
     waitUntil: () => void 0,
+    facets: {
+      get: vi.fn(),
+      abort: vi.fn(),
+      delete: vi.fn(),
+    },
   };
 
   // Return both the properly typed object and mock accessor functions
@@ -2848,7 +2853,7 @@ describe("LiveTrackerDO", () => {
         const setStateCalls = storagePutSpy.mock.calls;
         const lastCall = setStateCalls[setStateCalls.length - 1];
         if (lastCall != null) {
-          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);
           expect(savedState.refreshStartedAt).toBeUndefined();
         }
@@ -2944,7 +2949,7 @@ describe("LiveTrackerDO", () => {
         const setStateCalls = storagePutSpy.mock.calls;
         const lastCall = setStateCalls[setStateCalls.length - 1];
         if (lastCall != null) {
-          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);
           expect(savedState.refreshStartedAt).toBeUndefined();
         }
@@ -2968,7 +2973,7 @@ describe("LiveTrackerDO", () => {
         const setStateCalls = storagePutSpy.mock.calls;
         const lastCall = setStateCalls[setStateCalls.length - 1];
         if (lastCall != null) {
-          const savedState = lastCall[1] as unknown as LiveTrackerState;
+          const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);
           expect(savedState.refreshStartedAt).toBeUndefined();
         }

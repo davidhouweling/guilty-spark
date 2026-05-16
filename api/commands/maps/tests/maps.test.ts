@@ -115,7 +115,7 @@ function aFakeMapsMessage({
           { name: "Mode", value: Array(count).fill("Slayer").join("\n"), inline: true },
           { name: "Map", value: Array(count).fill("Live Fire").join("\n"), inline: true },
         ],
-      } as APIEmbed,
+      },
     ],
     components: [
       {
@@ -142,7 +142,7 @@ function aFakeMapsMessage({
             style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
           },
         ],
-      } as APIMessageTopLevelComponent,
+      },
       {
         type: ComponentType.ActionRow,
         components: [
@@ -164,7 +164,7 @@ function aFakeMapsMessage({
             placeholder: "Select a playlist",
           },
         ],
-      } as APIMessageTopLevelComponent,
+      },
       {
         type: ComponentType.ActionRow,
         components: [
@@ -195,7 +195,7 @@ function aFakeMapsMessage({
             ],
           },
         ],
-      } as APIMessageTopLevelComponent,
+      },
     ],
   };
 }

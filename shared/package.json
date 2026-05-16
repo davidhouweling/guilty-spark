@@ -10,6 +10,6 @@
     "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.ts"
   },
   "dependencies": {
-    "halo-infinite-api": "^14.2.2"
+    "halo-infinite-api": "^14.3.1"
   }
 }

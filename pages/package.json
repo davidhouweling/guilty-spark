@@ -56,6 +56,6 @@
     "stylelint-config-standard": "^40.0.0",
     "stylelint-order": "^8.1.1",
     "typescript": "^5.9.3",
-    "wrangler": "^4.91.0"
+    "wrangler": "^4.92.0"
   }
 }

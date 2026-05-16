@@ -10,7 +10,6 @@ import type {
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
 import type { LiveTrackerSnapshot, LiveTrackerStore } from "../live-tracker-store";
-import type { Services } from "../../../services/types";
 import { aFakeTrackerInitiationServiceWith } from "../../../services/tracker-initiation/fakes/tracker-initiation.fake";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
@@ -127,7 +126,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       services: {
         liveTrackerService: mockService,
         trackerInitiationService: aFakeTrackerInitiationServiceWith(),
-      } as Services,
+      },
       store: mockStore as unknown as LiveTrackerStore,
     });
 
@@ -200,7 +199,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       services: {
         liveTrackerService: mockService,
         trackerInitiationService: aFakeTrackerInitiationServiceWith(),
-      } as Services,
+      },
       store: mockStore as unknown as LiveTrackerStore,
     });
 
@@ -251,7 +250,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       services: {
         liveTrackerService: mockService,
         trackerInitiationService: aFakeTrackerInitiationServiceWith(),
-      } as Services,
+      },
       store: mockStore as unknown as LiveTrackerStore,
     });
 

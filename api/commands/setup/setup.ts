@@ -1712,7 +1712,7 @@ export class SetupCommand extends BaseCommand {
       });
 
       // Re-show the informer config with updated state
-      await this.showNeatQueueInformerConfig(interaction as APIMessageComponentSelectMenuInteraction);
+      await this.showNeatQueueInformerConfig(interaction);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }

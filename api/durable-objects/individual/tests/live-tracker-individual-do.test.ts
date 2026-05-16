@@ -80,6 +80,11 @@ const createMockDurableObjectState = (): {
     setHibernatableWebSocketEventTimeout: () => void 0,
     setWebSocketAutoResponse: () => void 0,
     waitUntil: () => void 0,
+    facets: {
+      get: vi.fn(),
+      delete: vi.fn(),
+      abort: vi.fn(),
+    },
   };
 
   return {
