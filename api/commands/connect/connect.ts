@@ -650,7 +650,7 @@ export class ConnectCommand extends BaseCommand {
 
       this.services.logService.warn(`Unexpected error embed: ${errorEmbed.title}`);
     } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error as Error);
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 }

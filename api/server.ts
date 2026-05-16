@@ -229,7 +229,7 @@ export class Server {
     });
     this.router.post("/api/tracker/individual/:gamertag/subscribe", async (request, env: Env) => {
       try {
-        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        const validation = this.validateGamertagParam(request.params, request);
         if (!validation.valid) {
           return validation.response;
         }
@@ -254,7 +254,7 @@ export class Server {
 
     this.router.delete("/api/tracker/individual/:gamertag/unsubscribe/:targetId", async (request, env: Env) => {
       try {
-        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        const validation = this.validateGamertagParam(request.params, request);
         if (!validation.valid) {
           return validation.response;
         }
@@ -284,7 +284,7 @@ export class Server {
 
     this.router.get("/api/tracker/individual/:gamertag/targets", async (request, env: Env) => {
       try {
-        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        const validation = this.validateGamertagParam(request.params, request);
         if (!validation.valid) {
           return validation.response;
         }
@@ -308,7 +308,7 @@ export class Server {
     });
     this.router.get("/api/tracker/individual/:gamertag/matches", async (request, env: Env) => {
       try {
-        const validation = this.validateGamertagParam(request.params as Record<string, string>, request);
+        const validation = this.validateGamertagParam(request.params, request);
         if (!validation.valid) {
           return validation.response;
         }
@@ -351,7 +351,7 @@ export class Server {
 
     this.router.get("/ws/tracker/individual/:gamertag", async (request, env: Env) => {
       try {
-        const validation = this.validateGamertagParamWS(request.params as Record<string, string>);
+        const validation = this.validateGamertagParamWS(request.params);
         if (!validation.valid) {
           return validation.response;
         }

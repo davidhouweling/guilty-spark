@@ -552,7 +552,7 @@ export class HaloService {
       user = await this.getUserByGamertag(gamertag);
     } catch (error) {
       if (error instanceof RequestError && error.response.status === 400) {
-        this.logService.warn(error as Error);
+        this.logService.warn(error);
 
         throw new EndUserError(`No user found with gamertag "${gamertag}"`, {
           title: "User not found",

@@ -25,7 +25,7 @@ export const fakeD1Response: D1Response = {
 
 export class FakePreparedStatement<T> /* extends D1PreparedStatement */ {
   bind(): D1PreparedStatement {
-    return this as unknown as D1PreparedStatement;
+    return this;
   }
   async first(): Promise<T> {
     return Promise.resolve(null as T);
@@ -81,7 +81,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
       getByName: () => liveTrackerGet,
       get: () => liveTrackerGet,
       jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
-    } as DurableObjectNamespace<LiveTrackerDO>,
+    },
     LIVE_TRACKER_INDIVIDUAL_DO: {
       idFromName: () => liveTrackerDOId,
       idFromString: () => liveTrackerDOId,
@@ -89,7 +89,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
       getByName: () => liveTrackerGet,
       get: () => liveTrackerGet,
       jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerIndividualDO>,
-    } as DurableObjectNamespace<LiveTrackerIndividualDO>,
+    },
   };
 
   return {
