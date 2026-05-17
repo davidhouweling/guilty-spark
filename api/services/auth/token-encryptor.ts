@@ -8,8 +8,12 @@ export class TokenEncryptor {
 
   public constructor(tokenEncryptionSecret: string) {
     const secret = Preconditions.checkExists(tokenEncryptionSecret, "tokenEncryptionSecret");
-    if (secret.length !== 64 || !/^[0-9a-f]+$/i.test(secret)) {
-      throw new Error("tokenEncryptionSecret must be exactly 64 valid hex characters (32 bytes)");
+    if (secret.length !== 64) {
+      throw new Error("tokenEncryptionSecret must be exactly 64 characters (32 bytes encoded as hex)");
+    }
+
+    if (!/^[0-9a-f]+$/i.test(secret)) {
+      throw new Error("tokenEncryptionSecret must contain only hexadecimal characters");
     }
 
     const decodedSecret = Buffer.from(secret, "hex");
@@ -35,11 +39,11 @@ export class TokenEncryptor {
 
     const [prefix, ivBase64, cipherBase64] = token.split(".");
     if (prefix !== ENCRYPTED_TOKEN_PREFIX) {
-      throw new Error("Encrypted token payload is malformed");
+      throw new Error("Encrypted token payload uses an unsupported version");
     }
 
     if (ivBase64 == null || cipherBase64 == null) {
-      throw new Error("Encrypted token payload is malformed");
+      throw new Error("Encrypted token payload is missing required components");
     }
 
     const key = await this.importKey();

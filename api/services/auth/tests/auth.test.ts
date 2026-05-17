@@ -1,9 +1,7 @@
-import type { MockInstance } from "vitest";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AuthService } from "../auth";
 import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
-import type { DatabaseService } from "../../database/database";
 import { aFakeDatabaseServiceWith, aFakeUserSessionsRow } from "../../database/fakes/database.fake";
 import { aSignedMicrosoftIdTokenWith } from "./id-token-signing";
 
@@ -243,9 +241,7 @@ describe("AuthService", () => {
     vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
       aFakeUserSessionsRow({ SessionId: session.sessionId }),
     );
-    const upsertUserSessionSpy: MockInstance<DatabaseService["upsertUserSession"]> = vi
-      .spyOn(databaseService, "upsertUserSession")
-      .mockResolvedValue();
+    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
 
     const refreshed = await service.refreshSession(session);
 

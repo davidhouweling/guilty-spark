@@ -96,7 +96,16 @@ export class Server {
         const state = url.searchParams.get("state");
 
         if (code == null || state == null) {
-          return addCorsHeaders(new Response("Missing authorization code or state", { status: 400 }), request, true);
+          return addCorsHeaders(
+            new Response(JSON.stringify({ error: "Authentication failed" }), {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }),
+            request,
+            true,
+          );
         }
 
         const services = this.installServices({ env });

@@ -18,7 +18,15 @@ describe("TokenEncryptor", () => {
     await expect(encryptor.decrypt("legacy-token")).resolves.toBe("legacy-token");
   });
 
-  it("throws on invalid encryption secret", () => {
-    expect(() => new TokenEncryptor("invalid-secret")).toThrow();
+  it("throws on encryption secrets with the wrong length", () => {
+    expect(() => new TokenEncryptor("invalid-secret")).toThrow(
+      "tokenEncryptionSecret must be exactly 64 characters (32 bytes encoded as hex)",
+    );
+  });
+
+  it("throws on encryption secrets with invalid hex characters", () => {
+    expect(() => new TokenEncryptor("z".repeat(64))).toThrow(
+      "tokenEncryptionSecret must contain only hexadecimal characters",
+    );
   });
 });
