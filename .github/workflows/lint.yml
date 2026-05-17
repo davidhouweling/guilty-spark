@@ -26,8 +26,8 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
-      - name: Copy environment file
-        run: cp .example.dev.vars .dev.vars
+      - name: Copy API environment file
+        run: cp api/.example.dev.vars api/.dev.vars
 
       - name: Run format
         run: npm run format

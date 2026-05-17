@@ -11,7 +11,6 @@ import type { MatchStatsData } from "../stats/types";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
-import { TrackerInitiationFactory } from "../tracker-initiation/create";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -24,12 +23,11 @@ interface LiveTrackerAppProps {
 
 interface LiveTrackerFactoryProps {
   readonly services: Services;
-  readonly apiHost: string;
 }
 
 TimeAgo.addDefaultLocale(en);
 
-export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProps): React.ReactElement {
+export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
@@ -174,12 +172,6 @@ export function LiveTrackerFactory({ services, apiHost }: LiveTrackerFactoryProp
     }
   }, [model.state]); // Depend on entire state to catch type changes
 
-  // Show TrackerInitiation for idle or not_found states
-  if (snapshot.connectionState === "idle" || snapshot.connectionState === "not_found") {
-    const initialGamertag = snapshot.params.type === "individual" ? snapshot.params.gamertag : "";
-    return <TrackerInitiationFactory apiHost={apiHost} initialGamertag={initialGamertag} />;
-  }
-
   return (
     <ComponentLoader
       status={loaderStatus}
@@ -222,15 +214,8 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
       return;
     }
     const url = new URL(window.location.href);
-    const gamertag = url.searchParams.get("gamertag");
     const server = url.searchParams.get("server");
     const queue = url.searchParams.get("queue");
-
-    // Individual mode: needs gamertag
-    if (gamertag !== null && gamertag.length > 0) {
-      setShouldConnectToTracker(true);
-      return;
-    }
 
     // Team mode: needs both server and queue
     if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
@@ -270,6 +255,10 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
     };
   }, [apiHost, shouldConnectToTracker]);
 
+  if (!shouldConnectToTracker) {
+    return <ErrorState message={LiveTrackerPresenter.usageText} />;
+  }
+
   if (!services) {
     return <LoadingState />;
   }
@@ -279,13 +268,7 @@ export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElemen
       status={loadingServices}
       loading={<LoadingState />}
       error={<ErrorState />}
-      loaded={
-        !shouldConnectToTracker ? (
-          <TrackerInitiationFactory apiHost={apiHost} initialGamertag="" />
-        ) : (
-          <LiveTrackerFactory services={services} apiHost={apiHost} />
-        )
-      }
+      loaded={<LiveTrackerFactory services={services} />}
     />
   );
 }

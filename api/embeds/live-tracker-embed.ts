@@ -17,8 +17,6 @@ export enum InteractionComponent {
   Pause = "btn_track_pause",
   Resume = "btn_track_resume",
   Repost = "btn_track_repost",
-  IndividualMatchSelect = "select_track_individual_matches",
-  IndividualStartWithoutGames = "btn_track_start_without_games",
 }
 
 interface LiveTrackerEmbedServices {
@@ -272,7 +270,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
   }
 
   get actions(): APIMessageTopLevelComponent[] {
-    const { status, guildId, queueNumber, trackerLabel, isPaused } = this.data;
+    const { status, guildId, queueNumber, isPaused } = this.data;
     const components: APIButtonComponentWithCustomId[] = [];
 
     if (status !== "stopped") {
@@ -298,11 +296,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
         : [];
 
     if (actions.length > 0) {
-      // Determine URL format based on tracker type
-      const isIndividualTracker = trackerLabel != null && trackerLabel !== "";
-      const webUrl = isIndividualTracker
-        ? `${this.services.pagesUrl}/tracker?gamertag=${encodeURIComponent(trackerLabel)}`
-        : `${this.services.pagesUrl}/tracker?server=${guildId}&queue=${queueNumber.toString()}`;
+      const webUrl = `${this.services.pagesUrl}/tracker?server=${guildId}&queue=${queueNumber.toString()}`;
 
       actions.push({
         type: ComponentType.ActionRow,

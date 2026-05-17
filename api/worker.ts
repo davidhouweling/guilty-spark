@@ -6,7 +6,6 @@ import { Server } from "./server";
 
 // Export Durable Object classes
 export { LiveTrackerDO } from "./durable-objects/live-tracker-do";
-export { LiveTrackerIndividualDO } from "./durable-objects/individual/live-tracker-individual-do";
 
 const server = new Server({
   router: AutoRouter(),

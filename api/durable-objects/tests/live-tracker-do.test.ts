@@ -65,11 +65,6 @@ const createMockDurableObjectState = (): {
     setHibernatableWebSocketEventTimeout: () => void 0,
     setWebSocketAutoResponse: () => void 0,
     waitUntil: () => void 0,
-    facets: {
-      get: vi.fn(),
-      abort: vi.fn(),
-      delete: vi.fn(),
-    },
   };
 
   // Return both the properly typed object and mock accessor functions
@@ -2851,7 +2846,7 @@ describe("LiveTrackerDO", () => {
 
         // Verify that setState was called to clear the lock (in finally block)
         const setStateCalls = storagePutSpy.mock.calls;
-        const lastCall = setStateCalls[setStateCalls.length - 1];
+        const [lastCall] = setStateCalls.slice(-1);
         if (lastCall != null) {
           const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);
@@ -2924,7 +2919,7 @@ describe("LiveTrackerDO", () => {
         expect(callsWithLockSet.length).toBeGreaterThan(0);
 
         // Verify last call clears the lock
-        const lastCall = setStateCalls[setStateCalls.length - 1];
+        const [lastCall] = setStateCalls.slice(-1);
         if (lastCall == null) {
           throw new Error("Expected at least one setState call");
         }
@@ -2947,7 +2942,7 @@ describe("LiveTrackerDO", () => {
 
         // Verify lock was cleared (last setState call should clear lock)
         const setStateCalls = storagePutSpy.mock.calls;
-        const lastCall = setStateCalls[setStateCalls.length - 1];
+        const [lastCall] = setStateCalls.slice(-1);
         if (lastCall != null) {
           const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);
@@ -2971,7 +2966,7 @@ describe("LiveTrackerDO", () => {
 
         // Verify lock was still cleared despite error
         const setStateCalls = storagePutSpy.mock.calls;
-        const lastCall = setStateCalls[setStateCalls.length - 1];
+        const [lastCall] = setStateCalls.slice(-1);
         if (lastCall != null) {
           const [, savedState] = lastCall;
           expect(savedState.refreshInProgress).toBe(false);

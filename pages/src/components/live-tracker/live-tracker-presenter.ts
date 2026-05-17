@@ -1,5 +1,4 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
-import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { Services } from "../../services/types";
 import type {
   LiveTrackerConnection,
@@ -17,7 +16,7 @@ interface Config {
 }
 
 export class LiveTrackerPresenter {
-  public static readonly usageText = "Usage: /tracker?server=123&queue=1 or /tracker?gamertag=YourGamertag";
+  public static readonly usageText = "Usage: /tracker?server=123&queue=1";
 
   private readonly config: Config;
 
@@ -40,27 +39,14 @@ export class LiveTrackerPresenter {
   public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
 
-    let title: string;
-    let subtitle: string;
-    let iconUrl: string | null = null;
-
-    if (params.type === "team") {
-      title =
-        lastStateMessage?.type === "state" && lastStateMessage.data.type === "neatqueue"
-          ? lastStateMessage.data.guildName
-          : params.server.length > 0
-            ? `Guild ${params.server}`
-            : "";
-      subtitle = params.queue.length > 0 ? `Queue #${params.queue}` : "";
-      iconUrl =
-        lastStateMessage?.type === "state" && lastStateMessage.data.type === "neatqueue"
-          ? lastStateMessage.data.guildIcon
-          : null;
-    } else {
-      title = params.gamertag.length > 0 ? params.gamertag : "Not set";
-      subtitle = "Individual";
-      iconUrl = null;
-    }
+    const title =
+      lastStateMessage?.type === "state"
+        ? lastStateMessage.data.guildName
+        : params.server.length > 0
+          ? `Guild ${params.server}`
+          : "";
+    const subtitle = params.queue.length > 0 ? `Queue #${params.queue}` : "";
+    const iconUrl = lastStateMessage?.type === "state" ? lastStateMessage.data.guildIcon : null;
 
     let statusClassName = "";
     if (connectionState === "connected") {
@@ -94,19 +80,7 @@ export class LiveTrackerPresenter {
 
   // Helper function to compare params
   public static areParamsEqual(prev: LiveTrackerParams, curr: LiveTrackerParams): boolean {
-    if (prev.type !== curr.type) {
-      return false;
-    }
-
-    if (prev.type === "team" && curr.type === "team") {
-      return prev.server === curr.server && prev.queue === curr.queue;
-    }
-
-    if (prev.type === "individual" && curr.type === "individual") {
-      return prev.gamertag === curr.gamertag;
-    }
-
-    return false;
+    return prev.server === curr.server && prev.queue === curr.queue;
   }
 
   // Helper function to deeply compare state messages, ignoring timestamps
@@ -122,11 +96,6 @@ export class LiveTrackerPresenter {
     // Compare meaningful data, excluding timestamps that change every broadcast
     const prevData = prev.data;
     const currData = curr.data;
-
-    // First check if types match
-    if (prevData.type !== currData.type) {
-      return false;
-    }
 
     // Common fields
     if (prevData.status !== currData.status) {
@@ -185,151 +154,77 @@ export class LiveTrackerPresenter {
       }
     }
 
-    // Type-specific comparisons
-    if (prevData.type === "neatqueue" && currData.type === "neatqueue") {
+    if (
+      prevData.queueNumber !== currData.queueNumber ||
+      prevData.guildId !== currData.guildId ||
+      prevData.channelId !== currData.channelId ||
+      prevData.guildName !== currData.guildName ||
+      prevData.seriesScore !== currData.seriesScore ||
+      prevData.players.length !== currData.players.length ||
+      prevData.teams.length !== currData.teams.length ||
+      prevData.substitutions.length !== currData.substitutions.length ||
+      prevData.matchSummaries.length !== currData.matchSummaries.length
+    ) {
+      return false;
+    }
+
+    // Compare players by ID (order matters)
+    for (let i = 0; i < prevData.players.length; i++) {
       if (
-        prevData.queueNumber !== currData.queueNumber ||
-        prevData.guildId !== currData.guildId ||
-        prevData.channelId !== currData.channelId ||
-        prevData.guildName !== currData.guildName ||
-        prevData.seriesScore !== currData.seriesScore ||
-        prevData.players.length !== currData.players.length ||
-        prevData.teams.length !== currData.teams.length ||
-        prevData.substitutions.length !== currData.substitutions.length ||
-        prevData.matchSummaries.length !== currData.matchSummaries.length
+        prevData.players[i].id !== currData.players[i].id ||
+        prevData.players[i].discordUsername !== currData.players[i].discordUsername
       ) {
         return false;
       }
-
-      // Compare players by ID (order matters)
-      for (let i = 0; i < prevData.players.length; i++) {
-        if (
-          prevData.players[i].id !== currData.players[i].id ||
-          prevData.players[i].discordUsername !== currData.players[i].discordUsername
-        ) {
-          return false;
-        }
-      }
-
-      // Compare teams structure
-      for (let i = 0; i < prevData.teams.length; i++) {
-        const prevTeam = prevData.teams[i];
-        const currTeam = currData.teams[i];
-        if (
-          prevTeam.name !== currTeam.name ||
-          prevTeam.playerIds.length !== currTeam.playerIds.length ||
-          !prevTeam.playerIds.every((id: string, idx: number) => id === currTeam.playerIds[idx])
-        ) {
-          return false;
-        }
-      }
-
-      // Compare substitutions (excluding timestamps if they're the same event)
-      for (let i = 0; i < prevData.substitutions.length; i++) {
-        const prevSub = prevData.substitutions[i];
-        const currSub = currData.substitutions[i];
-        if (
-          prevSub.playerOutId !== currSub.playerOutId ||
-          prevSub.playerInId !== currSub.playerInId ||
-          prevSub.teamIndex !== currSub.teamIndex ||
-          prevSub.timestamp !== currSub.timestamp
-        ) {
-          return false;
-        }
-      }
-
-      // Compare match summaries by matchId and key properties
-      for (let i = 0; i < prevData.matchSummaries.length; i++) {
-        const prevMatch = prevData.matchSummaries[i];
-        const currMatch = currData.matchSummaries[i];
-        if (
-          prevMatch.matchId !== currMatch.matchId ||
-          prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
-          prevMatch.gameScore !== currMatch.gameScore ||
-          prevMatch.duration !== currMatch.duration ||
-          prevMatch.startTime !== currMatch.startTime ||
-          prevMatch.endTime !== currMatch.endTime
-        ) {
-          return false;
-        }
-      }
-
-      return true;
     }
 
-    if (prevData.type === "individual" && currData.type === "individual") {
+    // Compare teams structure
+    for (let i = 0; i < prevData.teams.length; i++) {
+      const prevTeam = prevData.teams[i];
+      const currTeam = currData.teams[i];
       if (
-        prevData.gamertag !== currData.gamertag ||
-        prevData.xuid !== currData.xuid ||
-        prevData.groups.length !== currData.groups.length
+        prevTeam.name !== currTeam.name ||
+        prevTeam.playerIds.length !== currTeam.playerIds.length ||
+        !prevTeam.playerIds.every((id: string, idx: number) => id === currTeam.playerIds[idx])
       ) {
         return false;
       }
-
-      // Compare groups structure
-      for (let i = 0; i < prevData.groups.length; i++) {
-        const prevGroup = prevData.groups[i];
-        const currGroup = currData.groups[i];
-
-        if (prevGroup.type !== currGroup.type || prevGroup.groupId !== currGroup.groupId) {
-          return false;
-        }
-
-        // Type-specific group comparisons (types are equal at this point)
-        switch (prevGroup.type) {
-          case "neatqueue-series": {
-            // Type assertion: we know currGroup.type === "neatqueue-series" from the equality check above
-            const currentTyped = currGroup as typeof prevGroup;
-            if (
-              prevGroup.seriesScore !== currentTyped.seriesScore ||
-              prevGroup.matchSummaries.length !== currentTyped.matchSummaries.length ||
-              prevGroup.players.length !== currentTyped.players.length ||
-              prevGroup.teams.length !== currentTyped.teams.length
-            ) {
-              return false;
-            }
-            break;
-          }
-          case "grouped-matches": {
-            const currentTyped = currGroup as typeof prevGroup;
-            if (
-              prevGroup.label !== currentTyped.label ||
-              prevGroup.seriesScore !== currentTyped.seriesScore ||
-              prevGroup.matchSummaries.length !== currentTyped.matchSummaries.length
-            ) {
-              return false;
-            }
-            break;
-          }
-          case "single-match": {
-            const currentTyped = currGroup as typeof prevGroup;
-            if (prevGroup.matchSummary.matchId !== currentTyped.matchSummary.matchId) {
-              return false;
-            }
-            break;
-          }
-          default: {
-            throw new UnreachableError(prevGroup);
-          }
-        }
-      }
-
-      return true;
     }
 
-    // All meaningful data is the same, only timestamps differ
+    // Compare substitutions (excluding timestamps if they're the same event)
+    for (let i = 0; i < prevData.substitutions.length; i++) {
+      const prevSub = prevData.substitutions[i];
+      const currSub = currData.substitutions[i];
+      if (
+        prevSub.playerOutId !== currSub.playerOutId ||
+        prevSub.playerInId !== currSub.playerInId ||
+        prevSub.teamIndex !== currSub.teamIndex ||
+        prevSub.timestamp !== currSub.timestamp
+      ) {
+        return false;
+      }
+    }
+
+    // Compare match summaries by matchId and key properties
+    for (let i = 0; i < prevData.matchSummaries.length; i++) {
+      const prevMatch = prevData.matchSummaries[i];
+      const currMatch = currData.matchSummaries[i];
+      if (
+        prevMatch.matchId !== currMatch.matchId ||
+        prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
+        prevMatch.gameScore !== currMatch.gameScore ||
+        prevMatch.duration !== currMatch.duration ||
+        prevMatch.startTime !== currMatch.startTime ||
+        prevMatch.endTime !== currMatch.endTime
+      ) {
+        return false;
+      }
+    }
+
     return true;
   }
 
   private static parseParamsFromUrl(url: URL): LiveTrackerParams {
-    const gamertag = url.searchParams.get("gamertag");
-    if (gamertag !== null && gamertag.length > 0) {
-      return {
-        type: "individual",
-        gamertag,
-      };
-    }
-
     return {
       type: "team",
       server: url.searchParams.get("server") ?? "",
@@ -338,23 +233,14 @@ export class LiveTrackerPresenter {
   }
 
   private static canConnect(params: LiveTrackerParams): boolean {
-    if (params.type === "team") {
-      return params.server.length > 0 && params.queue.length > 0;
-    }
-    return params.gamertag.length > 0;
+    return params.server.length > 0 && params.queue.length > 0;
   }
 
   private static toIdentity(params: LiveTrackerParams): LiveTrackerIdentity {
-    if (params.type === "team") {
-      return {
-        type: "team",
-        guildId: params.server,
-        queueNumber: params.queue,
-      };
-    }
     return {
-      type: "individual",
-      gamertag: params.gamertag,
+      type: "team",
+      guildId: params.server,
+      queueNumber: params.queue,
     };
   }
 
@@ -481,14 +367,10 @@ export class LiveTrackerPresenter {
 
         if (status === "not_found") {
           this.stopReconnection();
-          const message =
-            snapshot.params.type === "individual"
-              ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
-              : "No active tracker found for this queue. Start a tracker first.";
           this.config.store.setSnapshot({
             ...snapshot,
             connectionState: status,
-            statusText: message,
+            statusText: "No active tracker found for this queue. Start a tracker first.",
           });
           return;
         }
@@ -518,14 +400,10 @@ export class LiveTrackerPresenter {
     // If we've never received initial data, this is likely a "tracker not found" scenario
     // Don't retry in this case
     if (!snapshot.hasReceivedInitialData && this.reconnectionAttempt === 0) {
-      const message =
-        snapshot.params.type === "individual"
-          ? `No active tracker found for gamertag "${snapshot.params.gamertag}". Start a tracker first.`
-          : "No active tracker found for this queue. Start a tracker first.";
       this.config.store.setSnapshot({
         ...snapshot,
         connectionState: "not_found",
-        statusText: message,
+        statusText: "No active tracker found for this queue. Start a tracker first.",
       });
       this.stopReconnection();
       return;

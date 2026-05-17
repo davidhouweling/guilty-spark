@@ -37,20 +37,15 @@ class MockWebSocket {
 
 describe("RealLiveTrackerService", () => {
   let originalWebSocket: typeof WebSocket;
-  let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
     originalWebSocket = global.WebSocket;
     global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     MockWebSocket.reset();
-
-    originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
   });
 
   afterEach(() => {
     global.WebSocket = originalWebSocket;
-    global.fetch = originalFetch;
   });
 
   it("creates WebSocket connection with correct URL for https protocol", async () => {
@@ -369,6 +364,8 @@ describe("RealLiveTrackerService", () => {
   });
 
   it("emits not_found status when server returns 404 for tracker status", async () => {
+    // Mock fetch to return 404 for the status endpoint
+    const originalFetch = global.fetch;
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
@@ -391,30 +388,6 @@ describe("RealLiveTrackerService", () => {
     // WebSocket should have been closed immediately
     const [ws] = MockWebSocket.instances;
     expect(ws).toBeDefined();
-
-    connection.disconnect();
-    global.fetch = originalFetch;
-  });
-
-  it("emits not_found status when server returns 404 for individual tracker", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-    });
-
-    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
-    const identity: LiveTrackerIdentity = { type: "individual", gamertag: "TestPlayer" };
-
-    const statusListener = vi.fn();
-
-    const connection = await service.connect(identity);
-    connection.subscribeStatus(statusListener);
-
-    // Wait for async status update
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    // Should have received not_found status
-    expect(statusListener).toHaveBeenCalledWith("not_found", undefined);
 
     connection.disconnect();
     global.fetch = originalFetch;
