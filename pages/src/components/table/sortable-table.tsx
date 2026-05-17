@@ -69,11 +69,6 @@ export function SortableTable<TData>({
   initialSort,
   getRowStyle,
 }: SortableTableProps<TData>): React.ReactElement {
-  const columnsById = React.useMemo<ReadonlyMap<string, SortableTableColumn<TData>>>(
-    () => new Map(columns.map((column) => [column.id, column])),
-    [columns],
-  );
-
   // Convert our simplified column format to TanStack format
   const tableColumns = React.useMemo<ColumnDef<TData>[]>(
     () =>
@@ -87,6 +82,10 @@ export function SortableTable<TData>({
         },
         enableSorting: col.enableSorting !== false,
         sortingFn: col.sortingFn ?? "auto",
+        meta: {
+          headerClassName: col.headerClassName,
+          cellClassName: col.cellClassName,
+        },
       })),
     [columns],
   );
@@ -119,7 +118,7 @@ export function SortableTable<TData>({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
-                const column = columnsById.get(header.column.id);
+                const colDef = columns.find((c) => c.id === header.column.id);
                 const canSort = header.column.getCanSort();
                 const sortDirection = header.column.getIsSorted();
                 const sortIndicator = getSortIndicator(sortDirection);
@@ -127,7 +126,7 @@ export function SortableTable<TData>({
                 return (
                   <th
                     key={header.id}
-                    className={classNames(column?.headerClassName, {
+                    className={classNames(colDef?.headerClassName, {
                       [styles.sortableHeader]: canSort,
                       [styles.sortedAsc]: sortDirection === "asc",
                       [styles.sortedDesc]: sortDirection === "desc",
@@ -173,11 +172,11 @@ export function SortableTable<TData>({
             return (
               <tr key={getRowKey(row.original, index)} style={rowStyle}>
                 {row.getVisibleCells().map((cell) => {
-                  const column = columnsById.get(cell.column.id);
+                  const colDef = columns.find((c) => c.id === cell.column.id);
                   const cellClassName =
-                    typeof column?.cellClassName === "function"
-                      ? column.cellClassName(row.original)
-                      : column?.cellClassName;
+                    typeof colDef?.cellClassName === "function"
+                      ? colDef.cellClassName(row.original)
+                      : colDef?.cellClassName;
                   return (
                     <td key={cell.id} className={cellClassName}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

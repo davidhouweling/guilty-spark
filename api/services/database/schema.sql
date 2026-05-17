@@ -29,3 +29,71 @@ CREATE TABLE IF NOT EXISTS NeatQueueConfig (
     PostSeriesChannelId TEXT,
     PRIMARY KEY (GuildId, ChannelId)
 );
+
+CREATE TABLE IF NOT EXISTS UserSessions (
+    SessionId TEXT PRIMARY KEY NOT NULL,
+    UserId TEXT NOT NULL,
+    AccessToken TEXT NOT NULL,
+    RefreshToken TEXT,
+    ExpiresAt INTEGER NOT NULL,
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    LastRefreshedAt INTEGER,
+    AuthMetadataJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(AuthMetadataJson))
+);
+
+CREATE INDEX IF NOT EXISTS IdxUserSessionsUserId ON UserSessions (UserId);
+CREATE INDEX IF NOT EXISTS IdxUserSessionsExpiresAt ON UserSessions (ExpiresAt);
+
+CREATE TABLE IF NOT EXISTS LinkedIdentities (
+    IdentityId TEXT PRIMARY KEY NOT NULL,
+    UserId TEXT NOT NULL,
+    Provider TEXT NOT NULL CHECK (Provider IN ('xbox', 'twitch', 'discord')),
+    ProviderUserId TEXT NOT NULL,
+    Gamertag TEXT,
+    TwitchId TEXT,
+    IsActive INTEGER NOT NULL DEFAULT 1 CHECK (IsActive IN (0, 1)),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE (Provider, ProviderUserId)
+);
+
+CREATE INDEX IF NOT EXISTS IdxLinkedIdentitiesUserId ON LinkedIdentities (UserId);
+CREATE UNIQUE INDEX IF NOT EXISTS UqLinkedIdentitiesActiveXboxPerUser
+    ON LinkedIdentities (UserId)
+    WHERE Provider = 'xbox' AND IsActive = 1;
+
+CREATE TABLE IF NOT EXISTS IndividualTrackerProfiles (
+    ProfileId TEXT PRIMARY KEY NOT NULL,
+    UserId TEXT NOT NULL,
+    ActiveIdentityId TEXT,
+    Name TEXT NOT NULL DEFAULT 'default',
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (ActiveIdentityId) REFERENCES LinkedIdentities(IdentityId),
+    UNIQUE (UserId, Name)
+);
+
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserId ON IndividualTrackerProfiles (UserId);
+
+CREATE TABLE IF NOT EXISTS IndividualTrackerGames (
+    ProfileId TEXT NOT NULL,
+    MatchId TEXT NOT NULL,
+    Position INTEGER NOT NULL,
+    Included INTEGER NOT NULL DEFAULT 1 CHECK (Included IN (0, 1)),
+    AnnotationsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(AnnotationsJson)),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (ProfileId, MatchId),
+    FOREIGN KEY (ProfileId) REFERENCES IndividualTrackerProfiles(ProfileId) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackerGamesProfilePosition ON IndividualTrackerGames (ProfileId, Position);
+
+CREATE TABLE IF NOT EXISTS StreamerViewSettings (
+    ProfileId TEXT PRIMARY KEY NOT NULL,
+    LayoutOptionsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(LayoutOptionsJson)),
+    VisibleSectionsJson TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(VisibleSectionsJson)),
+    StyleFlagsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(StyleFlagsJson)),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (ProfileId) REFERENCES IndividualTrackerProfiles(ProfileId) ON DELETE CASCADE
+);

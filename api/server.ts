@@ -1,6 +1,8 @@
 import type { AutoRouterType } from "itty-router";
+import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
+import type { SessionTokenPayload } from "./services/auth/types";
 import { handleCorsPreflightRequest } from "./base/cors";
 
 interface ServerOpts {
@@ -32,6 +34,156 @@ export class Server {
       return new Response(
         `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands 🚀`,
       );
+    });
+
+    this.router.get("/auth/microsoft/start", async (_request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const { url, state } = await authService.generateAuthorizationUrl();
+
+        // Return the auth URL + state for frontend to navigate to
+        return new Response(
+          JSON.stringify({
+            authUrl: url.toString(),
+            state,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      } catch (error) {
+        console.error("Auth start error:", error);
+        return new Response(
+          JSON.stringify({
+            error: "Failed to generate authorization URL",
+          }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+    });
+
+    this.router.get("/auth/microsoft/callback", async (request, env: Env) => {
+      try {
+        const url = new URL(request.url);
+        const code = url.searchParams.get("code");
+        const state = url.searchParams.get("state");
+
+        if (code == null || state == null) {
+          return new Response("Missing authorization code or state", { status: 400 });
+        }
+
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        // Exchange code for tokens and create session
+        const sessionPayload = await authService.handleCallback(code, state);
+        const sessionToken = await authService.createSessionToken(sessionPayload);
+
+        // Create response with Set-Cookie header
+        const response = new Response(
+          JSON.stringify({
+            success: true,
+            userId: sessionPayload.userId,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        // Set session cookie
+        authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
+
+        return response;
+      } catch (error) {
+        console.error("Auth callback error:", error);
+        return new Response(
+          JSON.stringify({
+            error: error instanceof Error ? error.message : "Authentication failed",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+    });
+
+    this.router.post("/auth/logout", (_request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const response = new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        authService.clearSessionCookie(response);
+
+        return response;
+      } catch (error) {
+        console.error("Auth logout error:", error);
+        return new Response(JSON.stringify({ error: "Logout failed" }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      }
+    });
+
+    this.router.get("/auth/session", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const session = await authService.validateSession(request);
+
+        if (session === null) {
+          return new Response(JSON.stringify({ authenticated: false }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        if (session.isExpired) {
+          return new Response(JSON.stringify({ authenticated: false, expired: true }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Auth session error:", error);
+        return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     });
 
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
@@ -140,8 +292,42 @@ export class Server {
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
         const authHeader = request.headers.get("x-proxy-auth");
-        if (authHeader == null || authHeader !== env.PROXY_WORKER_TOKEN) {
+        if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
           return new Response("Unauthorized", { status: 401 });
+        }
+
+        const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
+
+        let services: ReturnType<typeof this.installServices> | null = null;
+        let sessionAccessToken: string | null = null;
+        let refreshedSessionPayload: SessionTokenPayload | null = null;
+
+        if (!hasValidWorkerToken) {
+          services = this.installServices({ env });
+          const session = await services.authService.validateSession(request);
+          if (session === null) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+
+          if (session.isExpired) {
+            try {
+              refreshedSessionPayload = await services.authService.refreshSession(session);
+            } catch {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return response;
+            }
+
+            if (refreshedSessionPayload === null) {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return response;
+            }
+
+            sessionAccessToken = refreshedSessionPayload.accessToken;
+          } else {
+            sessionAccessToken = session.accessToken;
+          }
         }
 
         let body: unknown;
@@ -161,8 +347,14 @@ export class Server {
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
-        const services = this.installServices({ env });
-        const { haloInfiniteClient } = services;
+
+        let haloInfiniteClient: HaloInfiniteClient;
+        if (sessionAccessToken !== null) {
+          const token = sessionAccessToken;
+          haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
+        } else {
+          ({ haloInfiniteClient } = services ?? this.installServices({ env }));
+        }
 
         const isFunctionProperty = <T>(
           obj: T,
@@ -180,10 +372,18 @@ export class Server {
         const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
 
         const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
-        return new Response(JSON.stringify({ result }), {
+
+        const response = new Response(JSON.stringify({ result }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
+
+        if (refreshedSessionPayload !== null && services !== null) {
+          const refreshedToken = await services.authService.createSessionToken(refreshedSessionPayload);
+          services.authService.setSessionCookie(response, refreshedToken, refreshedSessionPayload.expiresAt);
+        }
+
+        return response;
       } catch (error) {
         let errorBody: Record<string, unknown> = {};
         if (error instanceof Error) {

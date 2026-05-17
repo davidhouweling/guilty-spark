@@ -278,6 +278,6 @@ kvGetSpy.mockResolvedValue(null);
 5. Add/update tests if applicable (`npm test`)
 6. Format: `npm run format:fix`
 
-## Workarounds
+**Security**:
 
-- Whenever regenerating cloudflare wrangler types, review dynamic `import()` paths and keep them aligned with the repository's extensionless TypeScript import convention.
+- Never read from `.env`, `api/.dev.vars`, or `api/.production.vars`. You can read an example from `api/.example.dev.vars`.

@@ -1,11 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { DatabaseService } from "../database";
-import { aFakeDiscordAssociationsRow } from "../fakes/database.fake";
+import {
+  aFakeDiscordAssociationsRow,
+  aFakeUserSessionsRow,
+  aFakeLinkedIdentitiesRow,
+  aFakeIndividualTrackerProfilesRow,
+  aFakeIndividualTrackerGamesRow,
+  aFakeStreamerViewSettingsRow,
+} from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
 import type { NeatQueueConfigRow } from "../types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config";
+import type { UserSessionsRow } from "../types/user_sessions";
+import type { LinkedIdentitiesRow } from "../types/linked_identities";
+import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
+import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
+import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 
 describe("Database Service", () => {
   let env: Env;
@@ -424,6 +436,310 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?");
       expect(bindSpy).toHaveBeenCalledWith("guild-123", "channel-456");
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("getUserSession()", () => {
+    it("gets a user session by session id", async () => {
+      const session: UserSessionsRow = aFakeUserSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<UserSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(session);
+
+      const result = await databaseService.getUserSession(session.SessionId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM UserSessions WHERE SessionId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(session.SessionId);
+      expect(result).toEqual(session);
+    });
+  });
+
+  describe("upsertUserSession()", () => {
+    it("upserts user session", async () => {
+      const session = aFakeUserSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertUserSession(session);
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(
+        session.SessionId,
+        session.UserId,
+        session.AccessToken,
+        session.RefreshToken,
+        session.ExpiresAt,
+        session.CreatedAt,
+        session.LastRefreshedAt,
+        session.AuthMetadataJson,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteUserSession()", () => {
+    it("deletes user session by session id", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteUserSession("session-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE SessionId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("session-1");
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteExpiredUserSessions()", () => {
+    it("deletes expired sessions using epoch seconds", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteExpiredUserSessions(12345);
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE ExpiresAt <= ?");
+      expect(bindSpy).toHaveBeenCalledWith(12345);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("findLinkedIdentitiesByUserId()", () => {
+    it("returns linked identities for a user", async () => {
+      const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [identity] });
+
+      const results = await databaseService.findLinkedIdentitiesByUserId("user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM LinkedIdentities WHERE UserId = ? ORDER BY CreatedAt DESC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("user-1");
+      expect(results).toEqual([identity]);
+    });
+  });
+
+  describe("getLinkedIdentityByProvider()", () => {
+    it("returns linked identity by provider and provider user id", async () => {
+      const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow();
+      const fakePreparedStatement = new FakePreparedStatement<LinkedIdentitiesRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(identity);
+
+      const result = await databaseService.getLinkedIdentityByProvider("xbox", "xbox-user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM LinkedIdentities WHERE Provider = ? AND ProviderUserId = ?",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("xbox", "xbox-user-1");
+      expect(result).toEqual(identity);
+    });
+  });
+
+  describe("upsertLinkedIdentity()", () => {
+    it("upserts linked identity", async () => {
+      const identity = aFakeLinkedIdentitiesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLinkedIdentity(identity);
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(
+        identity.IdentityId,
+        identity.UserId,
+        identity.Provider,
+        identity.ProviderUserId,
+        identity.Gamertag,
+        identity.TwitchId,
+        identity.IsActive,
+        identity.CreatedAt,
+        identity.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("createIndividualTrackerProfile()", () => {
+    it("creates individual tracker profile", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.createIndividualTrackerProfile(profile);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "INSERT INTO IndividualTrackerProfiles (ProfileId, UserId, ActiveIdentityId, Name, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?)",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(
+        profile.ProfileId,
+        profile.UserId,
+        profile.ActiveIdentityId,
+        profile.Name,
+        profile.CreatedAt,
+        profile.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("getIndividualTrackerProfile()", () => {
+    it("returns individual tracker profile by profile id", async () => {
+      const profile: IndividualTrackerProfilesRow = aFakeIndividualTrackerProfilesRow();
+      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerProfilesRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(profile);
+
+      const result = await databaseService.getIndividualTrackerProfile(profile.ProfileId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM IndividualTrackerProfiles WHERE ProfileId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(profile.ProfileId);
+      expect(result).toEqual(profile);
+    });
+  });
+
+  describe("findIndividualTrackerProfilesByUserId()", () => {
+    it("returns individual tracker profiles by user id", async () => {
+      const profile: IndividualTrackerProfilesRow = aFakeIndividualTrackerProfilesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [profile] });
+
+      const results = await databaseService.findIndividualTrackerProfilesByUserId(profile.UserId);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM IndividualTrackerProfiles WHERE UserId = ? ORDER BY CreatedAt ASC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith(profile.UserId);
+      expect(results).toEqual([profile]);
+    });
+  });
+
+  describe("updateIndividualTrackerProfile()", () => {
+    it("updates selected fields for individual tracker profile", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.updateIndividualTrackerProfile("profile-1", {
+        Name: "updated",
+        UpdatedAt: 12345,
+      });
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "UPDATE IndividualTrackerProfiles SET Name = ?, UpdatedAt = ? WHERE ProfileId = ?",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("updated", 12345, "profile-1");
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("does nothing when no updates are provided", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+
+      await databaseService.updateIndividualTrackerProfile("profile-1", {});
+
+      expect(prepareSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getIndividualTrackerGames()", () => {
+    it("returns games ordered by position", async () => {
+      const game: IndividualTrackerGamesRow = aFakeIndividualTrackerGamesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [game] });
+
+      const results = await databaseService.getIndividualTrackerGames("profile-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM IndividualTrackerGames WHERE ProfileId = ? ORDER BY Position ASC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("profile-1");
+      expect(results).toEqual([game]);
+    });
+  });
+
+  describe("replaceIndividualTrackerGames()", () => {
+    it("replaces games by deleting existing rows then inserting new rows", async () => {
+      const game = aFakeIndividualTrackerGamesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.replaceIndividualTrackerGames("profile-1", [game]);
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM IndividualTrackerGames WHERE ProfileId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("profile-1");
+      expect(runSpy).toHaveBeenCalled();
+      expect(prepareSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("only deletes rows when replacement list is empty", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+
+      await databaseService.replaceIndividualTrackerGames("profile-1", []);
+
+      expect(prepareSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM IndividualTrackerGames WHERE ProfileId = ?");
+    });
+  });
+
+  describe("getStreamerViewSettings()", () => {
+    it("returns streamer view settings by profile id", async () => {
+      const settings: StreamerViewSettingsRow = aFakeStreamerViewSettingsRow();
+      const fakePreparedStatement = new FakePreparedStatement<StreamerViewSettingsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(settings);
+
+      const result = await databaseService.getStreamerViewSettings(settings.ProfileId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM StreamerViewSettings WHERE ProfileId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(settings.ProfileId);
+      expect(result).toEqual(settings);
+    });
+  });
+
+  describe("upsertStreamerViewSettings()", () => {
+    it("upserts streamer view settings", async () => {
+      const settings = aFakeStreamerViewSettingsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertStreamerViewSettings(settings);
+
+      expect(prepareSpy).toHaveBeenCalled();
+      expect(bindSpy).toHaveBeenCalledWith(
+        settings.ProfileId,
+        settings.LayoutOptionsJson,
+        settings.VisibleSectionsJson,
+        settings.StyleFlagsJson,
+        settings.UpdatedAt,
+      );
       expect(runSpy).toHaveBeenCalled();
     });
   });
