@@ -3,16 +3,11 @@ import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/ty
 
 export type LiveTrackerConnectionState = "idle" | LiveTrackerConnectionStatus;
 
-export type LiveTrackerParams =
-  | {
-      readonly type: "team";
-      readonly server: string;
-      readonly queue: string;
-    }
-  | {
-      readonly type: "individual";
-      readonly gamertag: string;
-    };
+export interface LiveTrackerParams {
+  readonly type: "team";
+  readonly server: string;
+  readonly queue: string;
+}
 
 export interface LiveTrackerSnapshot {
   readonly params: LiveTrackerParams;

@@ -1,0 +1,6 @@
+
+> guilty-spark@1.0.0 format
+> prettier . --check
+
+Checking formatting...
+All matched files use Prettier code style!

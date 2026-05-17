@@ -1,0 +1,173 @@
+
+> guilty-spark@1.0.0 lint
+> npm run lint:ts && npm run stylelint:pages
+
+
+> guilty-spark@1.0.0 lint:ts
+> eslint .
+
+
+/home/david/git/guilty-spark/api/base/cors.ts
+  32:36  error  Unsafe argument of type error typed assigned to a parameter of type `string | URL`  @typescript-eslint/no-unsafe-argument
+
+/home/david/git/guilty-spark/api/commands/connect/connect.ts
+  653:76  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+
+/home/david/git/guilty-spark/api/commands/maps/tests/maps.test.ts
+  111:7  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+  121:7  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+  146:7  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+  168:7  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+
+/home/david/git/guilty-spark/api/commands/setup/setup.ts
+   282:30  error  Invalid type "any" of template literal expression                                             @typescript-eslint/restrict-template-expressions
+  1715:46  error  This assertion is unnecessary since the receiver accepts the original type of the expression  @typescript-eslint/no-unnecessary-type-assertion
+
+/home/david/git/guilty-spark/api/tests/server.test.ts
+    73:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+    73:68  error  Unsafe member access .mockImplementation on a type that cannot be resolved   @typescript-eslint/no-unsafe-member-access
+    74:11  error  Unsafe assignment of an `any` value                                          @typescript-eslint/no-unsafe-assignment
+   111:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   111:58  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   112:11  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   115:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   115:62  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   161:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   161:58  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   162:11  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   165:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   165:62  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   215:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   215:62  error  Unsafe member access .mockImplementation on a type that cannot be resolved   @typescript-eslint/no-unsafe-member-access
+   249:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   249:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   282:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   282:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   289:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   289:29  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   289:78  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   290:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   290:33  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   292:12  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   293:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   325:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   325:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   332:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   332:58  error  Unsafe member access .mockRejectedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   353:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   353:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   394:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   394:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   446:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   446:59  error  Unsafe member access .mockRejectedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   474:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   474:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   508:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   508:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   515:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   515:58  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   516:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   516:62  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   539:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   539:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   569:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   569:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   605:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   605:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   656:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   656:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   703:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   703:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   724:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   729:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+   732:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   732:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   732:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+   734:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+   739:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   798:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   798:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   819:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   824:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+   827:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   827:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   827:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+   829:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+   834:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   854:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   854:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   875:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   880:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+   883:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   883:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   883:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+   885:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+   890:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+   921:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   921:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+   975:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+   975:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1007:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1007:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1033:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1033:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1075:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1075:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1167:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1167:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1281:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1281:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1320:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1320:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1463:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1463:59  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1470:9   error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1470:58  error  Unsafe member access .mockResolvedValue on a type that cannot be resolved    @typescript-eslint/no-unsafe-member-access
+  1516:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1516:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1519:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1519:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1877:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1877:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1881:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1881:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1890:41  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+  1890:41  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1890:67  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+  1893:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  1899:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+  1902:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  1902:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1902:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+  1904:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+  1909:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  1930:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1930:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1952:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  1952:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1958:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1969:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  1974:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+  1977:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  1977:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  1977:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+  1979:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+  1984:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  2011:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  2011:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  2014:11  error  Unsafe argument of type error typed assigned to a parameter of type `never`  @typescript-eslint/no-unsafe-argument
+  2014:11  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  2023:41  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+  2023:41  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  2023:67  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+  2026:13  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  2032:13  error  Unsafe return of a value of type error                                       @typescript-eslint/no-unsafe-return
+  2035:15  error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+  2035:19  error  Unsafe call of a type that could not be resolved                             @typescript-eslint/no-unsafe-call
+  2035:45  error  Unsafe member access .idFromName on a type that cannot be resolved           @typescript-eslint/no-unsafe-member-access
+  2037:19  error  'any' overrides all other types in this intersection type                    @typescript-eslint/no-redundant-type-constituents
+  2042:9   error  Unsafe assignment of an error typed value                                    @typescript-eslint/no-unsafe-assignment
+
+✖ 151 problems (151 errors, 0 warnings)
+  6 errors and 0 warnings potentially fixable with the `--fix` option.
+

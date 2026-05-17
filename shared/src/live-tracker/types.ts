@@ -1,13 +1,8 @@
-export type LiveTrackerIdentity =
-  | {
-      readonly type: "team";
-      readonly guildId: string;
-      readonly queueNumber: string;
-    }
-  | {
-      readonly type: "individual";
-      readonly gamertag: string;
-    };
+export interface LiveTrackerIdentity {
+  readonly type: "team";
+  readonly guildId: string;
+  readonly queueNumber: string;
+}
 
 export type LiveTrackerStatus = "active" | "paused" | "stopped";
 
@@ -92,12 +87,9 @@ export interface LiveTrackerNeatQueueSeriesData {
 // ============================================================================
 
 /**
- * Top-level discriminated union for live tracker state.
- * Use type field to determine which tracker type is active:
- * - "neatqueue": Team-based tracker for Discord guild queues
- * - "individual": Player-based tracker for single gamertag
+ * Top-level live tracker state for Discord guild queues.
  */
-export type LiveTrackerStateData = LiveTrackerNeatQueueStateData | LiveTrackerIndividualStateData;
+export type LiveTrackerStateData = LiveTrackerNeatQueueStateData;
 
 // ============================================================================
 // NEATQUEUE TRACKER STATE (extends shared series data)
@@ -119,79 +111,6 @@ export interface LiveTrackerNeatQueueStateData extends LiveTrackerNeatQueueSerie
   readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
   readonly rawMatches: Record<string, unknown>;
-}
-
-// ============================================================================
-// INDIVIDUAL TRACKER STATE
-// ============================================================================
-
-/**
- * State data for Individual tracker (single player, non-NeatQueue).
- * Contains heterogeneous groups: NeatQueue series, manual groupings, single matches.
- */
-export interface LiveTrackerIndividualStateData {
-  readonly type: "individual";
-  readonly gamertag: string;
-  readonly xuid: string;
-  readonly status: LiveTrackerStatus;
-  readonly lastUpdateTime: string;
-  readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
-  readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
-  readonly groups: readonly LiveTrackerIndividualGroup[];
-  readonly rawMatches: Record<string, unknown>;
-}
-
-// ============================================================================
-// INDIVIDUAL GROUPS (discriminated union)
-// ============================================================================
-
-/**
- * Discriminated union for Individual tracker match groups.
- * Each group type represents a different way matches are organized:
- * - "neatqueue-series": Active NeatQueue series (enables UI component reuse)
- * - "grouped-matches": Manually grouped matches (same participants)
- * - "single-match": Ungrouped individual match
- */
-export type LiveTrackerIndividualGroup =
-  | LiveTrackerNeatQueueSeriesGroup
-  | LiveTrackerManualMatchGroup
-  | LiveTrackerSingleMatchGroup;
-
-/**
- * NeatQueue series within an Individual tracker.
- * Extends shared series data, enabling reuse of NeatQueue series UI components.
- * Created when player participates in an active Discord guild queue.
- */
-export interface LiveTrackerNeatQueueSeriesGroup extends LiveTrackerNeatQueueSeriesData {
-  readonly type: "neatqueue-series";
-  readonly groupId: string;
-  readonly seriesId: {
-    guildId: string;
-    queueNumber: number;
-  };
-}
-
-/**
- * Manually-grouped matches (same participants over time).
- * E.g., "Custom Games • Feb 15-16 • 5 players"
- * Series score always computed from match results.
- */
-export interface LiveTrackerManualMatchGroup {
-  readonly type: "grouped-matches";
-  readonly groupId: string;
-  readonly label: string;
-  readonly seriesScore: string; // Required - computed from matches
-  readonly matchSummaries: readonly LiveTrackerMatchSummary[];
-}
-
-/**
- * Single ungrouped match.
- * Used for matches that don't belong to any series or manual grouping.
- */
-export interface LiveTrackerSingleMatchGroup {
-  readonly type: "single-match";
-  readonly groupId: string; // Use matchId as groupId
-  readonly matchSummary: LiveTrackerMatchSummary;
 }
 
 export interface LiveTrackerStateMessage {

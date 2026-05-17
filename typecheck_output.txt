@@ -1,0 +1,194 @@
+
+> guilty-spark@1.0.0 typecheck
+> npm run typecheck:api && npm run typecheck:pages
+
+
+> guilty-spark@1.0.0 typecheck:api
+> npm run typecheck --workspace=api
+
+
+> @guilty-spark/api@1.0.0 typecheck
+> tsc --noEmit
+
+base/cors.ts(19,9): error TS2339: Property 'FRONTEND_URL' does not exist on type 'Env'.
+commands/setup/setup.ts(282,39): error TS2339: Property 'BACKEND_URL' does not exist on type 'Env'.
+server.ts(50,19): error TS2554: Expected 3 arguments, but got 2.
+server.ts(76,12): error TS2554: Expected 3 arguments, but got 2.
+server.ts(81,12): error TS2554: Expected 3 arguments, but got 2.
+server.ts(154,14): error TS2554: Expected 2 arguments, but got 1.
+server.ts(224,16): error TS2554: Expected 3 arguments, but got 2.
+server.ts(323,18): error TS2554: Expected 3 arguments, but got 2.
+tests/server.test.ts(13,3): error TS2305: Module '"../services/database/fakes/database.fake"' has no exported member 'aFakeIndividualTrackerActiveSessionsRow'.
+tests/server.test.ts(14,3): error TS2305: Module '"../services/database/fakes/database.fake"' has no exported member 'aFakeIndividualTrackerSessionsRow'.
+tests/server.test.ts(15,3): error TS2305: Module '"../services/database/fakes/database.fake"' has no exported member 'aFakeLinkedIdentitiesRow'.
+tests/server.test.ts(16,3): error TS2305: Module '"../services/database/fakes/database.fake"' has no exported member 'aFakeUserSessionsRow'.
+tests/server.test.ts(18,34): error TS2307: Cannot find module '../services/auth/auth' or its corresponding type declarations.
+tests/server.test.ts(19,42): error TS2307: Cannot find module '../services/auth/types' or its corresponding type declarations.
+tests/server.test.ts(20,15): error TS2614: Module '"../worker"' has no exported member 'IndividualTrackerDO'. Did you mean to use 'import IndividualTrackerDO from "../worker"' instead?
+tests/server.test.ts(73,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(73,94): error TS7006: Parameter 'redirectTo' implicitly has an 'any' type.
+tests/server.test.ts(111,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(115,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(116,40): error TS2345: Argument of type '"getUserFromMicrosoftAccessToken"' is not assignable to parameter of type '"getUsersByXuids" | "getUserByGamertag" | "loadCredentials" | "maybeRefreshXstsToken" | "clearToken"'.
+tests/server.test.ts(117,11): error TS2353: Object literal may only specify known properties, and 'xuid' does not exist in type 'TokenInfo'.
+tests/server.test.ts(121,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(121,94): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(122,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(122,93): error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+tests/server.test.ts(123,44): error TS2345: Argument of type '"upsertLinkedIdentity"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(123,68): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(144,9): error TS2345: Argument of type '"getUserFromMicrosoftAccessToken"' is not assignable to parameter of type '"getUsersByXuids" | "getUserByGamertag" | "loadCredentials" | "maybeRefreshXstsToken" | "clearToken"'.
+tests/server.test.ts(146,80): error TS2345: Argument of type '"upsertLinkedIdentity"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(159,77): error TS2345: Argument of type '"getUserFromMicrosoftAccessToken"' is not assignable to parameter of type '"getUsersByXuids" | "getUserByGamertag" | "loadCredentials" | "maybeRefreshXstsToken" | "clearToken"'.
+tests/server.test.ts(160,70): error TS2345: Argument of type '"upsertLinkedIdentity"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(161,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(165,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(167,11): error TS2353: Object literal may only specify known properties, and 'xuid' does not exist in type 'TokenInfo'.
+tests/server.test.ts(171,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(171,94): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(172,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(172,93): error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+tests/server.test.ts(173,33): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(215,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(249,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(282,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(289,47): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(291,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(293,49): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(325,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(332,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(353,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(394,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(401,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(401,94): error TS2345: Argument of type '{ IdentityId: string; UserId: string; Provider: string; ProviderUserId: string; Gamertag: string; TwitchId: null; IsActive: number; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(417,11): error TS2353: Object literal may only specify known properties, and 'gamerpic' does not exist in type 'UserInfo'.
+tests/server.test.ts(446,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(474,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(481,44): error TS2345: Argument of type '"findIndividualTrackerProfilesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(481,103): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(508,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(515,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(516,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(517,44): error TS2345: Argument of type '"findIndividualTrackerProfilesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(517,103): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(539,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(546,44): error TS2345: Argument of type '"createIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(546,78): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(569,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(576,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(576,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(605,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(612,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(612,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(622,44): error TS2345: Argument of type '"getIndividualTrackerGames"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(623,34): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(624,34): error TS2345: Argument of type '{ ProfileId: string; MatchId: string; Position: number; Included: number; AnnotationsJson: string; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(635,44): error TS2345: Argument of type '"replaceIndividualTrackerGames"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(635,77): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(656,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(663,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(663,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(673,44): error TS2345: Argument of type '"getIndividualTrackerGames"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(673,91): error TS2345: Argument of type '{ ProfileId: string; MatchId: string; Position: number; Included: number; AnnotationsJson: string; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(703,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(723,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(726,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(732,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(739,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+tests/server.test.ts(798,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(818,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(821,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(827,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(834,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+tests/server.test.ts(854,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(874,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(877,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(883,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(890,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+tests/server.test.ts(921,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(928,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(928,94): error TS2345: Argument of type '{ IdentityId: string; UserId: string; Provider: string; ProviderUserId: string; Gamertag: string; TwitchId: null; IsActive: number; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(975,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(982,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(982,93): error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+tests/server.test.ts(983,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(983,94): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(984,44): error TS2345: Argument of type '"upsertLinkedIdentity"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(984,68): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(1007,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1033,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1040,44): error TS2345: Argument of type '"findLinkedIdentitiesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1040,94): error TS2345: Argument of type '{ IdentityId: string; UserId: string; Provider: string; ProviderUserId: string; Gamertag: string; TwitchId: null; IsActive: number; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1053,44): error TS2345: Argument of type '"upsertLinkedIdentity"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1053,68): error TS2554: Expected 1 arguments, but got 0.
+tests/server.test.ts(1075,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1082,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1082,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1092,44): error TS2345: Argument of type '"getStreamerViewSettings"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1092,89): error TS2345: Argument of type '{ ProfileId: string; LayoutOptionsJson: string; VisibleSectionsJson: string; StyleFlagsJson: string; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1167,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1174,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1174,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1184,44): error TS2345: Argument of type '"getStreamerViewSettings"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1184,89): error TS2345: Argument of type '{ ProfileId: string; LayoutOptionsJson: string; VisibleSectionsJson: string; StyleFlagsJson: string; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1191,44): error TS2345: Argument of type '"upsertStreamerViewSettings"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1191,93): error TS2345: Argument of type '(row: any) => Promise<void>' is not assignable to parameter of type '() => never'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+tests/server.test.ts(1191,100): error TS7006: Parameter 'row' implicitly has an 'any' type.
+tests/server.test.ts(1281,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1288,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1288,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1320,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1327,44): error TS2345: Argument of type '"getIndividualTrackerProfile"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1327,93): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1463,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1470,27): error TS2339: Property 'authService' does not exist on type 'Services'.
+tests/server.test.ts(1515,44): error TS2345: Argument of type '"findIndividualTrackerActiveSessionByXuid"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1516,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1518,44): error TS2345: Argument of type '"findUserSessionByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1519,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1556,44): error TS2345: Argument of type '"findIndividualTrackerActiveSessionByXuid"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1556,106): error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1857,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1857,93): error TS2345: Argument of type 'null' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1876,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1877,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1879,44): error TS2345: Argument of type '"findIndividualTrackerProfilesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1879,103): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1880,44): error TS2345: Argument of type '"findIndividualTrackerActiveSessionByXuid"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1881,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1890,45): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1892,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1895,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1902,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1909,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+tests/server.test.ts(1929,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1930,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1932,44): error TS2345: Argument of type '"findIndividualTrackerProfilesByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1932,103): error TS2345: Argument of type '{ ProfileId: string; UserId: string; ActiveIdentityId: null; Name: string; IdleTimeoutHours: number; AllowContinueAfterLogout: number; CreatedAt: number; UpdatedAt: number; }[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1944,44): error TS2345: Argument of type '"getStreamerViewSettings"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1944,89): error TS2345: Argument of type '{ ProfileId: string; LayoutOptionsJson: string; VisibleSectionsJson: string; StyleFlagsJson: string; UpdatedAt: number; }' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1951,44): error TS2345: Argument of type '"findIndividualTrackerActiveSessionByXuid"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1952,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1957,44): error TS2345: Argument of type '"findIndividualTrackerSessionsByUserId"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(1957,103): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'never'.
+tests/server.test.ts(1968,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1971,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1977,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(1984,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+tests/server.test.ts(2010,44): error TS2345: Argument of type '"getLinkedIdentityByProvider"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(2011,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(2013,44): error TS2345: Argument of type '"findIndividualTrackerActiveSessionByXuid"' is not assignable to parameter of type 'keyof DatabaseService'.
+tests/server.test.ts(2014,11): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+tests/server.test.ts(2023,45): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(2025,60): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(2028,13): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(2035,23): error TS2339: Property 'INDIVIDUAL_TRACKER_DO' does not exist on type 'Env'.
+tests/server.test.ts(2042,9): error TS2353: Object literal may only specify known properties, and 'INDIVIDUAL_TRACKER_DO' does not exist in type 'Partial<Env>'.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path /home/david/git/guilty-spark/api
+npm error workspace @guilty-spark/api@1.0.0
+npm error location /home/david/git/guilty-spark/api
+npm error command failed
+npm error command sh -c tsc --noEmit
