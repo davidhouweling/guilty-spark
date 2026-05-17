@@ -1,9 +1,9 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { DatabaseService } from "../database/database";
+import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager } from "./session-manager";
 import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
-import type { DatabaseService } from "../database/database";
-import type { UserSessionsRow } from "../database/types/user_sessions";
 
 /**
  * Main authentication orchestrator.
@@ -18,15 +18,17 @@ export class AuthService {
     microsoftClientId: string;
     microsoftClientSecret: string;
     microsoftRedirectUri: string;
+    microsoftTenant?: string;
+    microsoftScopes?: string;
     sessionSecret: string;
     databaseService: DatabaseService;
-    tenant?: string;
   }) {
     this.microsoftAuth = new MicrosoftAuthService({
       clientId: Preconditions.checkExists(config.microsoftClientId, "microsoftClientId"),
       clientSecret: Preconditions.checkExists(config.microsoftClientSecret, "microsoftClientSecret"),
       redirectUri: Preconditions.checkExists(config.microsoftRedirectUri, "microsoftRedirectUri"),
-      tenant: config.tenant,
+      tenant: config.microsoftTenant,
+      scopes: config.microsoftScopes,
     });
 
     this.sessionManager = new SessionManager(Preconditions.checkExists(config.sessionSecret, "sessionSecret"));
@@ -62,7 +64,7 @@ export class AuthService {
     const tokens = await this.microsoftAuth.exchangeCodeForTokens(code, pkceState.codeVerifier);
 
     // Parse ID token to get user info
-    const user = this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
+    const user = await this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
 
     const sessionId = crypto.randomUUID();
 
@@ -200,7 +202,7 @@ export class AuthService {
     payload: SessionTokenPayload,
     email?: string,
     name?: string,
-    preferredUsername?: string | undefined,
+    preferredUsername?: string,
   ): Promise<void> {
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,

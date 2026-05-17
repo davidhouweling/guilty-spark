@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MicrosoftAuthService } from "../microsoft-auth";
 import { aFakeAuthenticatedUser } from "../fakes/data";
+import { aSignedMicrosoftIdTokenWith } from "./id-token-signing";
 
 describe("MicrosoftAuthService", () => {
   let service: MicrosoftAuthService;
@@ -12,6 +13,10 @@ describe("MicrosoftAuthService", () => {
       redirectUri: "http://localhost:8787/auth/microsoft/callback",
       tenant: "consumers",
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("generates PKCE code verifier and challenge", async () => {
@@ -46,43 +51,119 @@ describe("MicrosoftAuthService", () => {
     expect(url.searchParams.get("scope")).toContain("openid");
   });
 
-  it("parses valid ID token", () => {
+  it("parses valid ID token", async () => {
     const fakeUser = aFakeAuthenticatedUser();
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      email: fakeUser.email,
+      name: fakeUser.name,
+      preferredUsername: fakeUser.preferredUsername,
+      sub: fakeUser.sub,
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
-    // Create a fake ID token (header.payload.signature format)
-    const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString("base64");
-    const payload = Buffer.from(
-      JSON.stringify({
-        sub: fakeUser.sub,
-        email: fakeUser.email,
-        name: fakeUser.name,
-        preferred_username: fakeUser.preferredUsername,
-      }),
-    ).toString("base64");
-    const signature = "fake-signature";
-    const idToken = `${header}.${payload}.${signature}`;
-
-    const user = service.parseIdToken(idToken);
+    const user = await service.parseIdToken(signedToken.token);
 
     expect(user.sub).toBe(fakeUser.sub);
     expect(user.email).toBe(fakeUser.email);
     expect(user.name).toBe(fakeUser.name);
   });
 
-  it("throws on malformed ID token", () => {
-    expect(() => service.parseIdToken("invalid")).toThrow();
+  it("throws on malformed ID token", async () => {
+    await expect(service.parseIdToken("invalid")).rejects.toThrow();
   });
 
-  it("throws on ID token missing required claims", () => {
-    const incomplete = Buffer.from(
+  it("throws on ID token missing required claims", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      email: undefined,
+      tenantId: "test-tenant-id",
+    });
+    const [header = "", , signature = ""] = signedToken.token.split(".");
+    const incompletePayload = Buffer.from(
       JSON.stringify({
+        aud: "test-client-id",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iss: "https://login.microsoftonline.com/test-tenant-id/v2.0",
         sub: "user-123",
-        // missing email
+        tid: "test-tenant-id",
       }),
-    ).toString("base64");
-    const idToken = `header.${incomplete}.signature`;
+    ).toString("base64url");
 
-    expect(() => service.parseIdToken(idToken)).toThrow();
+    await expect(service.parseIdToken(`${header}.${incompletePayload}.${signature}`)).rejects.toThrow();
+  });
+
+  it("throws on expired ID token", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      expiresAt: Math.floor(Date.now() / 1000) - 60,
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    await expect(service.parseIdToken(signedToken.token)).rejects.toThrow("ID token expired");
+  });
+
+  it("throws on ID token with invalid signature", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      tenantId: "test-tenant-id",
+    });
+    const [header = "", , signature = ""] = signedToken.token.split(".");
+    const tamperedPayload = Buffer.from(
+      JSON.stringify({
+        aud: "test-client-id",
+        email: "user@example.com",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iss: "https://login.microsoftonline.com/test-tenant-id/v2.0",
+        name: "Tampered User",
+        preferred_username: "testuser",
+        sub: "user-123",
+        tid: "test-tenant-id",
+      }),
+    ).toString("base64url");
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    await expect(service.parseIdToken(`${header}.${tamperedPayload}.${signature}`)).rejects.toThrow(
+      "Invalid ID token signature",
+    );
   });
 
   it("throws on token exchange failure", async () => {

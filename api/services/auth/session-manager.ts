@@ -82,15 +82,22 @@ export class SessionManager {
     }
   }
 
-  public setCookie(response: Response, cookieName: string, token: string, expiresAt: number, maxAgeSeconds = COOKIE_MAX_AGE_SECONDS): void {
+  public setCookie(
+    response: Response,
+    cookieName: string,
+    token: string,
+    expiresAt: number,
+    maxAgeSeconds = COOKIE_MAX_AGE_SECONDS,
+    sameSite: "Lax" | "Strict" = "Strict",
+  ): void {
     const expiresDate = new Date(expiresAt);
-    const cookieValue = `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}`;
+    const cookieValue = `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}`;
 
     response.headers.append("Set-Cookie", cookieValue);
   }
 
-  public clearCookie(response: Response, cookieName: string): void {
-    const cookieValue = `${cookieName}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  public clearCookie(response: Response, cookieName: string, sameSite: "Lax" | "Strict" = "Strict"): void {
+    const cookieValue = `${cookieName}=; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 
     response.headers.append("Set-Cookie", cookieValue);
   }
@@ -111,11 +118,11 @@ export class SessionManager {
 
   public setPkceStateCookie(response: Response, token: string): void {
     const expiresAt = Date.now() + PKCE_COOKIE_MAX_AGE_SECONDS * 1000;
-    this.setCookie(response, PKCE_COOKIE_NAME, token, expiresAt, PKCE_COOKIE_MAX_AGE_SECONDS);
+    this.setCookie(response, PKCE_COOKIE_NAME, token, expiresAt, PKCE_COOKIE_MAX_AGE_SECONDS, "Lax");
   }
 
   public clearPkceStateCookie(response: Response): void {
-    this.clearCookie(response, PKCE_COOKIE_NAME);
+    this.clearCookie(response, PKCE_COOKIE_NAME, "Lax");
   }
 
   /**

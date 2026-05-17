@@ -3,6 +3,7 @@ import { AuthService } from "../auth";
 import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
 import { aFakeDatabaseServiceWith, aFakeUserSessionsRow } from "../../database/fakes/database.fake";
+import { aSignedMicrosoftIdTokenWith } from "./id-token-signing";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -14,6 +15,8 @@ describe("AuthService", () => {
       microsoftClientId: "test-client-id",
       microsoftClientSecret: "test-client-secret",
       microsoftRedirectUri: "http://localhost:8787/auth/microsoft/callback",
+      microsoftTenant: "common",
+      microsoftScopes: "openid email",
       sessionSecret: "a".repeat(64),
       databaseService,
     });
@@ -28,6 +31,8 @@ describe("AuthService", () => {
 
     expect(url).toBeInstanceOf(URL);
     expect(url.toString()).toContain("login.microsoftonline.com");
+    expect(url.pathname).toContain("/common/oauth2/v2.0/authorize");
+    expect(url.searchParams.get("scope")).toBe("openid email");
     expect(state).toBeTruthy();
   });
 
@@ -52,31 +57,42 @@ describe("AuthService", () => {
   });
 
   it("handles callback with pkce cookie and persists the session", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          access_token: "access-token",
-          expires_in: 3600,
-          refresh_token: "refresh-token",
-          id_token: `header.${Buffer.from(
-            JSON.stringify({
-              sub: "user-123",
-              email: "user@example.com",
-              name: "Test User",
-              preferred_username: "testuser",
-            }),
-          ).toString("base64url")}.signature`,
-          token_type: "Bearer",
-          scope: "openid email XboxLive.signin XboxLive.offline_access",
-        }),
-        {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      issuerTemplate: "https://login.microsoftonline.com/{tenantid}/v2.0",
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            id_token: signedToken.token,
+            token_type: "Bearer",
+            scope: "openid email XboxLive.signin XboxLive.offline_access",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
-    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
 
     const { state, codeVerifier } = aFakePKCEState();
     const response = new Response();
@@ -98,7 +114,7 @@ describe("AuthService", () => {
 
     expect(session.sessionId).toBeTruthy();
     expect(session.userId).toBe("user-123");
-    expect(databaseService.upsertUserSession).toHaveBeenCalled();
+    expect(upsertUserSessionSpy).toHaveBeenCalled();
   });
 
   it("sets session cookie in response", async () => {
@@ -192,7 +208,9 @@ describe("AuthService", () => {
       isExpired: true,
     };
 
-    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(aFakeUserSessionsRow({ SessionId: session.sessionId }));
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({ SessionId: session.sessionId }),
+    );
     vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
 
     const refreshed = await service.refreshSession(session);

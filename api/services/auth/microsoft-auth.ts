@@ -1,6 +1,40 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MicrosoftTokenResponse, AuthenticatedUser, PKCEState } from "./types";
 
+interface JwtHeader {
+  readonly alg: string;
+  readonly kid: string;
+}
+
+interface IdTokenClaims {
+  readonly aud: string | readonly string[];
+  readonly email: string;
+  readonly exp: number;
+  readonly iss: string;
+  readonly name: string | undefined;
+  readonly nbf: number | undefined;
+  readonly preferred_username: string | undefined;
+  readonly sub: string;
+  readonly tid: string | undefined;
+}
+
+interface OpenIdConfiguration {
+  readonly issuer: string;
+  readonly jwks_uri: string;
+}
+
+interface SigningJsonWebKey extends JsonWebKey {
+  readonly e: string;
+  readonly kid?: string;
+  readonly kty: string;
+  readonly n: string;
+  readonly use?: string;
+}
+
+interface JwkSet {
+  readonly keys: readonly SigningJsonWebKey[];
+}
+
 /**
  * Microsoft OAuth2 with PKCE (Proof Key for Code Exchange) implementation.
  * Suitable for browser-based auth flow.
@@ -11,6 +45,8 @@ export class MicrosoftAuthService {
   private readonly redirectUri: string;
   private readonly tenant: string; // 'consumers' for personal accounts
   private readonly scopes: string;
+  private openIdConfigurationPromise: Promise<OpenIdConfiguration> | null = null;
+  private jwkSetPromise: Promise<JwkSet> | null = null;
 
   public constructor(config: {
     clientId: string;
@@ -136,30 +172,248 @@ export class MicrosoftAuthService {
 
   /**
    * Parse and validate an ID token (JWT).
-   * Returns the claims payload without cryptographic verification (rely on HTTPS for transport security).
-   * In production, consider verifying the signature using Microsoft's public keys.
    */
-  public parseIdToken(idToken: string): AuthenticatedUser {
+  public async parseIdToken(idToken: string): Promise<AuthenticatedUser> {
     const parts = idToken.split(".");
     if (parts.length !== 3) {
       throw new Error("Invalid ID token format");
     }
 
-    const payload = Buffer.from(parts[1] ?? "", "base64url").toString("utf-8");
-    const claims = JSON.parse(payload) as Record<string, unknown>;
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+    if (
+      typeof encodedHeader !== "string" ||
+      encodedHeader === "" ||
+      typeof encodedPayload !== "string" ||
+      encodedPayload === "" ||
+      typeof encodedSignature !== "string" ||
+      encodedSignature === ""
+    ) {
+      throw new Error("Invalid ID token format");
+    }
 
-    const { sub, email, name } = claims;
-    const preferredUsername = claims["preferred_username"];
+    const header = this.parseJwtHeader(encodedHeader);
+    const claims = this.parseClaims(encodedPayload);
+    const openIdConfiguration = await this.getOpenIdConfiguration();
 
-    if (typeof sub !== "string" || typeof email !== "string") {
+    await this.verifySignature(encodedHeader, encodedPayload, encodedSignature, header.kid);
+    this.validateClaims(claims, openIdConfiguration.issuer);
+
+    return {
+      sub: claims.sub,
+      email: claims.email,
+      name: claims.name ?? claims.email,
+      preferredUsername: claims.preferred_username,
+    };
+  }
+
+  private parseJwtHeader(encodedHeader: string): JwtHeader {
+    const header = this.parseJsonObject(encodedHeader);
+    const { alg, kid } = header;
+
+    if (alg !== "RS256" || typeof kid !== "string" || kid === "") {
+      throw new Error("Invalid ID token header");
+    }
+
+    return {
+      alg,
+      kid,
+    };
+  }
+
+  private parseClaims(encodedPayload: string): IdTokenClaims {
+    const claims = this.parseJsonObject(encodedPayload);
+    const { aud, email, exp, iss, name, nbf, preferred_username: preferredUsername, sub, tid } = claims;
+
+    if (
+      typeof sub !== "string" ||
+      typeof email !== "string" ||
+      (typeof name !== "string" && name !== undefined) ||
+      (typeof preferredUsername !== "string" && preferredUsername !== undefined) ||
+      (typeof aud !== "string" && !this.isStringArray(aud)) ||
+      typeof exp !== "number" ||
+      typeof iss !== "string" ||
+      (typeof tid !== "string" && tid !== undefined) ||
+      (typeof nbf !== "number" && nbf !== undefined)
+    ) {
       throw new Error("Missing required claims in ID token");
     }
 
     return {
       sub,
       email,
-      name: typeof name === "string" ? name : email,
-      preferredUsername: typeof preferredUsername === "string" ? preferredUsername : undefined,
+      name,
+      preferred_username: preferredUsername,
+      aud,
+      exp,
+      iss,
+      tid,
+      nbf,
     };
+  }
+
+  private async verifySignature(
+    encodedHeader: string,
+    encodedPayload: string,
+    encodedSignature: string,
+    keyId: string,
+  ): Promise<void> {
+    const data = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+    const signature = Buffer.from(encodedSignature, "base64url");
+    const key = await this.getVerificationKey(keyId);
+    const isValid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, data);
+
+    if (!isValid) {
+      throw new Error("Invalid ID token signature");
+    }
+  }
+
+  private validateClaims(claims: IdTokenClaims, issuerTemplate: string): void {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (claims.exp <= nowSeconds) {
+      throw new Error("ID token expired");
+    }
+
+    if (claims.nbf !== undefined && claims.nbf > nowSeconds) {
+      throw new Error("ID token is not valid yet");
+    }
+
+    if (!this.matchesAudience(claims.aud)) {
+      throw new Error("Invalid ID token audience");
+    }
+
+    if (!this.matchesIssuer(claims, issuerTemplate)) {
+      throw new Error("Invalid ID token issuer");
+    }
+  }
+
+  private matchesAudience(audience: IdTokenClaims["aud"]): boolean {
+    if (typeof audience === "string") {
+      return audience === this.clientId;
+    }
+
+    return audience.includes(this.clientId);
+  }
+
+  private matchesIssuer(claims: IdTokenClaims, issuerTemplate: string): boolean {
+    const allowedIssuers = new Set<string>();
+    if (issuerTemplate.includes("{tenantid}")) {
+      if (claims.tid !== undefined) {
+        allowedIssuers.add(issuerTemplate.replace("{tenantid}", claims.tid));
+      }
+
+      if (this.tenant === "common" || this.tenant === "consumers") {
+        allowedIssuers.add(issuerTemplate.replace("{tenantid}", "consumers"));
+      }
+    } else {
+      allowedIssuers.add(issuerTemplate);
+    }
+
+    if (this.isSpecificTenantGuid(this.tenant) && claims.tid !== this.tenant) {
+      return false;
+    }
+
+    return allowedIssuers.has(claims.iss);
+  }
+
+  private isSpecificTenantGuid(tenant: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenant);
+  }
+
+  private async getOpenIdConfiguration(): Promise<OpenIdConfiguration> {
+    this.openIdConfigurationPromise ??= this.fetchOpenIdConfiguration();
+    return await this.openIdConfigurationPromise;
+  }
+
+  private async fetchOpenIdConfiguration(): Promise<OpenIdConfiguration> {
+    const response = await fetch(
+      new URL(`https://login.microsoftonline.com/${this.tenant}/v2.0/.well-known/openid-configuration`),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Microsoft OpenID configuration fetch failed: ${response.status.toString()} ${response.statusText}`,
+      );
+    }
+
+    const payload: unknown = await response.json();
+    if (!this.isOpenIdConfiguration(payload)) {
+      throw new Error("Invalid Microsoft OpenID configuration response");
+    }
+
+    return payload;
+  }
+
+  private async getVerificationKey(keyId: string): Promise<CryptoKey> {
+    const jwkSet = await this.getJwkSet();
+    const jwk = jwkSet.keys.find((candidate) => {
+      return candidate.kid === keyId && candidate.kty === "RSA";
+    });
+
+    if (jwk == null) {
+      throw new Error("Unable to find Microsoft signing key");
+    }
+
+    return await crypto.subtle.importKey(
+      "jwk",
+      {
+        alg: "RS256",
+        e: jwk.e,
+        ext: true,
+        key_ops: ["verify"],
+        kty: jwk.kty,
+        n: jwk.n,
+      },
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+  }
+
+  private async getJwkSet(): Promise<JwkSet> {
+    this.jwkSetPromise ??= this.fetchJwkSet();
+    return await this.jwkSetPromise;
+  }
+
+  private async fetchJwkSet(): Promise<JwkSet> {
+    const openIdConfiguration = await this.getOpenIdConfiguration();
+    const response = await fetch(new URL(openIdConfiguration.jwks_uri));
+
+    if (!response.ok) {
+      throw new Error(`Microsoft JWKS fetch failed: ${response.status.toString()} ${response.statusText}`);
+    }
+
+    const payload: unknown = await response.json();
+    if (!this.isJwkSet(payload)) {
+      throw new Error("Invalid Microsoft JWKS response");
+    }
+
+    return payload;
+  }
+
+  private parseJsonObject(encodedValue: string): Record<string, unknown> {
+    const decoded = Buffer.from(encodedValue, "base64url").toString("utf-8");
+    const payload: unknown = JSON.parse(decoded);
+
+    if (!this.isRecord(payload)) {
+      throw new Error("Invalid ID token payload");
+    }
+
+    return payload;
+  }
+
+  private isOpenIdConfiguration(value: unknown): value is OpenIdConfiguration {
+    return this.isRecord(value) && typeof value["issuer"] === "string" && typeof value["jwks_uri"] === "string";
+  }
+
+  private isJwkSet(value: unknown): value is JwkSet {
+    return this.isRecord(value) && Array.isArray(value["keys"]);
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+  }
+
+  private isStringArray(value: unknown): value is readonly string[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
   }
 }

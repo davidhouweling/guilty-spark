@@ -119,6 +119,7 @@ describe("SessionManager", () => {
 
     const setCookie = response.headers.get("Set-Cookie");
     expect(setCookie).toContain("auth-pkce-state=signed-pkce-token");
+    expect(setCookie).toContain("SameSite=Lax");
 
     const request = new Request("http://localhost", {
       headers: {

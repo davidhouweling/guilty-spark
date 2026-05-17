@@ -374,7 +374,7 @@ export class DatabaseService {
       VALUES ${placeholders}
     `;
     const values = games.flatMap((game) => [
-      game.ProfileId,
+      profileId,
       game.MatchId,
       game.Position,
       game.Included,

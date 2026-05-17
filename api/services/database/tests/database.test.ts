@@ -693,13 +693,10 @@ describe("Database Service", () => {
       await databaseService.replaceIndividualTrackerGames("profile-1", [game]);
 
       expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM IndividualTrackerGames WHERE ProfileId = ?");
-      expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining("INSERT INTO IndividualTrackerGames"),
-      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO IndividualTrackerGames"));
       expect(deleteBindSpy).toHaveBeenCalledWith("profile-1");
       expect(insertBindSpy).toHaveBeenCalledWith(
-        game.ProfileId,
+        "profile-1",
         game.MatchId,
         game.Position,
         game.Included,
@@ -708,6 +705,27 @@ describe("Database Service", () => {
         game.UpdatedAt,
       );
       expect(batchSpy).toHaveBeenCalledWith([deleteStatement, insertStatement]);
+    });
+
+    it("uses the method profile id for inserted rows", async () => {
+      const game = aFakeIndividualTrackerGamesRow({ ProfileId: "other-profile" });
+      const deleteStatement = new FakePreparedStatement();
+      const insertStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
+      const insertBindSpy = vi.spyOn(insertStatement, "bind");
+      vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.replaceIndividualTrackerGames("profile-1", [game]);
+
+      expect(insertBindSpy).toHaveBeenCalledWith(
+        "profile-1",
+        game.MatchId,
+        game.Position,
+        game.Included,
+        game.AnnotationsJson,
+        game.CreatedAt,
+        game.UpdatedAt,
+      );
     });
 
     it("only deletes rows when replacement list is empty", async () => {

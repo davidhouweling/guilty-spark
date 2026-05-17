@@ -49,7 +49,9 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const authService = new AuthService({
     microsoftClientId: env.MICROSOFT_CLIENT_ID,
     microsoftClientSecret: env.MICROSOFT_CLIENT_SECRET,
+    microsoftTenant: env.MICROSOFT_TENANT,
     microsoftRedirectUri: env.MICROSOFT_REDIRECT_URI,
+    microsoftScopes: env.MICROSOFT_SCOPES,
     sessionSecret: env.SESSION_SECRET,
     databaseService,
   });
