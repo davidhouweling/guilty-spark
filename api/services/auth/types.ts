@@ -22,8 +22,8 @@ export interface AuthenticatedUser {
 }
 
 /**
- * Session token payload (what gets stored in cookie).
- * Compact representation to fit within typical cookie size limits.
+ * Server-side session payload used while creating and refreshing sessions.
+ * Only the signed sessionId is stored in the browser cookie; OAuth tokens remain in D1.
  */
 export interface SessionTokenPayload {
   readonly sessionId: string;

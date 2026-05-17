@@ -22,6 +22,7 @@ interface __BaseEnv_Env {
 	MICROSOFT_SCOPES: string;
 	SESSION_SECRET: string;
 	CSRF_SECRET: string;
+	TOKEN_ENCRYPTION_SECRET: string;
 	LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 }
 declare namespace Cloudflare {
@@ -50,6 +51,7 @@ declare namespace Cloudflare {
 		MICROSOFT_SCOPES: string;
 		SESSION_SECRET: string;
 		CSRF_SECRET: string;
+		TOKEN_ENCRYPTION_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 	}
 	interface ProductionEnv {
@@ -73,6 +75,7 @@ declare namespace Cloudflare {
 		MICROSOFT_SCOPES: string;
 		SESSION_SECRET: string;
 		CSRF_SECRET: string;
+		TOKEN_ENCRYPTION_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
 	}
 	interface Env extends __BaseEnv_Env {}
@@ -82,7 +85,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_TENANT" | "MICROSOFT_REDIRECT_URI" | "MICROSOFT_SCOPES" | "SESSION_SECRET" | "CSRF_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "HOST_URL" | "PAGES_URL" | "MODE" | "DISCORD_APP_ID" | "DISCORD_TOKEN" | "DISCORD_PUBLIC_KEY" | "XBOX_USERNAME" | "XBOX_PASSWORD" | "PROXY_WORKER_URL" | "PROXY_WORKER_TOKEN" | "SENTRY_AUTH_TOKEN" | "MICROSOFT_CLIENT_ID" | "MICROSOFT_CLIENT_SECRET" | "MICROSOFT_TENANT" | "MICROSOFT_REDIRECT_URI" | "MICROSOFT_SCOPES" | "SESSION_SECRET" | "CSRF_SECRET" | "TOKEN_ENCRYPTION_SECRET">> {}
 }
 
 // Begin runtime types

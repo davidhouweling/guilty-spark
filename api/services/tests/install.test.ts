@@ -16,4 +16,15 @@ describe("installServices", () => {
     expect(url.pathname).toContain("/common/oauth2/v2.0/authorize");
     expect(url.searchParams.get("scope")).toBe("openid email XboxLive.signin");
   });
+
+  it("uses the dedicated token encryption secret instead of the csrf secret", () => {
+    expect(() =>
+      installServices({
+        env: aFakeEnvWith({
+          CSRF_SECRET: "not-a-hex-secret",
+          TOKEN_ENCRYPTION_SECRET: "c".repeat(64),
+        }),
+      }),
+    ).not.toThrow();
+  });
 });

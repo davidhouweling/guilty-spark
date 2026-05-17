@@ -53,7 +53,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     microsoftRedirectUri: env.MICROSOFT_REDIRECT_URI,
     microsoftScopes: env.MICROSOFT_SCOPES,
     sessionSecret: env.SESSION_SECRET,
-    tokenEncryptionSecret: env.CSRF_SECRET,
+    tokenEncryptionSecret: env.TOKEN_ENCRYPTION_SECRET,
     databaseService,
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });

@@ -81,6 +81,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     MICROSOFT_SCOPES: "openid email offline_access XboxLive.signin XboxLive.offline_access",
     SESSION_SECRET: "a".repeat(64),
     CSRF_SECRET: "b".repeat(64),
+    TOKEN_ENCRYPTION_SECRET: "c".repeat(64),
     LIVE_TRACKER_DO: {
       idFromName: () => liveTrackerDOId,
       idFromString: () => liveTrackerDOId,
