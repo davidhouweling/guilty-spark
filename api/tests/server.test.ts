@@ -88,10 +88,34 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       const body = await res.json<{ success: boolean }>();
       expect(body).toEqual({ success: true });
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
       const setCookie = res.headers.get("Set-Cookie");
       expect(setCookie).toContain("auth-session=");
       expect(setCookie).toContain("Max-Age=0");
       expect(deleteUserSessionSpy).toHaveBeenCalledWith("session-123");
+    });
+
+    it("returns 200 and clears the session cookie when server-side invalidation fails", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "invalidateSession").mockRejectedValue(new Error("D1 unavailable"));
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/auth/logout", { method: "POST" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      const body = await res.json<{ success: boolean }>();
+      expect(body).toEqual({ success: true });
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      const setCookie = res.headers.get("Set-Cookie");
+      expect(setCookie).toContain("auth-session=");
+      expect(setCookie).toContain("Max-Age=0");
     });
 
     it("returns 500 with error message when clearSessionCookie throws", async () => {
@@ -120,6 +144,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(401);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
       const body = await res.json<{ authenticated: boolean }>();
       expect(body).toEqual({ authenticated: false });
     });
@@ -185,6 +210,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
       const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number }>();
       expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt });
     });
@@ -236,6 +262,7 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
     });
   });
 
@@ -266,6 +293,7 @@ describe("Server", () => {
       expect(body).toEqual({ error: "Authentication failed" });
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
     });
   });
 

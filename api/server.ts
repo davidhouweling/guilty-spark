@@ -11,6 +11,16 @@ interface ServerOpts {
   getCommands: typeof getCommands;
 }
 
+function createNoStoreJsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    },
+  });
+}
+
 export class Server {
   readonly router: AutoRouterType;
   private readonly installServices: typeof installServices;
@@ -49,17 +59,12 @@ export class Server {
 
         const { url, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
-        const response = new Response(
-          JSON.stringify({
+        const response = createNoStoreJsonResponse(
+          {
             authUrl: url.toString(),
             state,
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
           },
+          200,
         );
 
         await authService.setPkceStateCookie(response, {
@@ -72,16 +77,11 @@ export class Server {
       } catch (error) {
         console.error("Auth start error:", error);
         return addCorsHeaders(
-          new Response(
-            JSON.stringify({
-              error: "Failed to generate authorization URL",
-            }),
+          createNoStoreJsonResponse(
             {
-              status: 500,
-              headers: {
-                "Content-Type": "application/json",
-              },
+              error: "Failed to generate authorization URL",
             },
+            500,
           ),
           request,
           true,
@@ -96,16 +96,7 @@ export class Server {
         const state = url.searchParams.get("state");
 
         if (code == null || state == null) {
-          return addCorsHeaders(
-            new Response(JSON.stringify({ error: "Authentication failed" }), {
-              status: 400,
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }),
-            request,
-            true,
-          );
+          return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
         }
 
         const services = this.installServices({ env });
@@ -116,17 +107,12 @@ export class Server {
         const sessionToken = await authService.createSessionToken(sessionPayload);
 
         // Create response with Set-Cookie header
-        const response = new Response(
-          JSON.stringify({
+        const response = createNoStoreJsonResponse(
+          {
             success: true,
             userId: sessionPayload.userId,
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
           },
+          200,
         );
 
         // Set session cookie
@@ -137,16 +123,11 @@ export class Server {
       } catch (error) {
         console.error("Auth callback error:", error);
         return addCorsHeaders(
-          new Response(
-            JSON.stringify({
-              error: "Authentication failed",
-            }),
+          createNoStoreJsonResponse(
             {
-              status: 400,
-              headers: {
-                "Content-Type": "application/json",
-              },
+              error: "Authentication failed",
             },
+            400,
           ),
           request,
           true,
@@ -158,30 +139,20 @@ export class Server {
       try {
         const services = this.installServices({ env });
         const { authService } = services;
-        await authService.invalidateSession(request);
+        const response = createNoStoreJsonResponse({ success: true }, 200);
 
-        const response = new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        try {
+          await authService.invalidateSession(request);
+        } catch (error) {
+          console.error("Auth logout revocation error:", error);
+        }
 
         authService.clearSessionCookie(response);
 
         return addCorsHeaders(response, request, true);
       } catch (error) {
         console.error("Auth logout error:", error);
-        return addCorsHeaders(
-          new Response(JSON.stringify({ error: "Logout failed" }), {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }),
-          request,
-          true,
-        );
+        return addCorsHeaders(createNoStoreJsonResponse({ error: "Logout failed" }, 500), request, true);
       }
     });
 
@@ -196,7 +167,7 @@ export class Server {
           return addCorsHeaders(
             new Response(JSON.stringify({ authenticated: false }), {
               status: 401,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
             }),
             request,
             true,
@@ -207,7 +178,7 @@ export class Server {
           return addCorsHeaders(
             new Response(JSON.stringify({ authenticated: false, expired: true }), {
               status: 401,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
             }),
             request,
             true,
@@ -217,7 +188,7 @@ export class Server {
         return addCorsHeaders(
           new Response(JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
           }),
           request,
           true,
@@ -227,7 +198,7 @@ export class Server {
         return addCorsHeaders(
           new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
             status: 500,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
           }),
           request,
           true,
