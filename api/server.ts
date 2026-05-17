@@ -32,6 +32,9 @@ export class Server {
     this.router.options("/auth/*", (request) => {
       return handleCorsPreflightRequest(request, true);
     });
+    this.router.options("/proxy/halo-infinite", (request) => {
+      return handleCorsPreflightRequest(request, true);
+    });
 
     this.router.get("/", (_request, env: Env) => {
       return new Response(
@@ -93,7 +96,7 @@ export class Server {
         const state = url.searchParams.get("state");
 
         if (code == null || state == null) {
-          return new Response("Missing authorization code or state", { status: 400 });
+          return addCorsHeaders(new Response("Missing authorization code or state", { status: 400 }), request, true);
         }
 
         const services = this.installServices({ env });
@@ -127,7 +130,7 @@ export class Server {
         return addCorsHeaders(
           new Response(
             JSON.stringify({
-              error: error instanceof Error ? error.message : "Authentication failed",
+              error: "Authentication failed",
             }),
             {
               status: 400,
@@ -328,9 +331,13 @@ export class Server {
 
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => {
+          return addCorsHeaders(response, request, true);
+        };
+
         const authHeader = request.headers.get("x-proxy-auth");
         if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
@@ -343,7 +350,7 @@ export class Server {
           services = this.installServices({ env });
           const session = await services.authService.validateSession(request);
           if (session === null) {
-            return new Response("Unauthorized", { status: 401 });
+            return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
           }
 
           if (session.isExpired) {
@@ -352,13 +359,13 @@ export class Server {
             } catch {
               const response = new Response("Unauthorized", { status: 401 });
               services.authService.clearSessionCookie(response);
-              return response;
+              return withCorsHeaders(response);
             }
 
             if (refreshedSessionPayload === null) {
               const response = new Response("Unauthorized", { status: 401 });
               services.authService.clearSessionCookie(response);
-              return response;
+              return withCorsHeaders(response);
             }
 
             sessionAccessToken = refreshedSessionPayload.accessToken;
@@ -371,7 +378,7 @@ export class Server {
         try {
           body = await request.json();
         } catch {
-          return new Response("Invalid JSON body", { status: 400 });
+          return withCorsHeaders(new Response("Invalid JSON body", { status: 400 }));
         }
 
         if (
@@ -380,7 +387,7 @@ export class Server {
           typeof (body as { method?: unknown }).method !== "string" ||
           !Array.isArray((body as { args?: unknown[] }).args)
         ) {
-          return new Response("Invalid request format", { status: 400 });
+          return withCorsHeaders(new Response("Invalid request format", { status: 400 }));
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
@@ -403,7 +410,7 @@ export class Server {
           );
         };
         if (!isFunctionProperty(haloInfiniteClient, method)) {
-          return new Response(`Method not found: ${method}`, { status: 404 });
+          return withCorsHeaders(new Response(`Method not found: ${method}`, { status: 404 }));
         }
 
         const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
@@ -415,7 +422,7 @@ export class Server {
           headers: { "content-type": "application/json" },
         });
 
-        return response;
+        return withCorsHeaders(response);
       } catch (error) {
         let errorBody: Record<string, unknown> = {};
         if (error instanceof Error) {
@@ -427,10 +434,14 @@ export class Server {
         } else {
           errorBody = { error: String(error) };
         }
-        return new Response(JSON.stringify(errorBody), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify(errorBody), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 

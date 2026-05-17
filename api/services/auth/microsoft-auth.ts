@@ -326,7 +326,11 @@ export class MicrosoftAuthService {
   }
 
   private async getOpenIdConfiguration(forceRefresh = false): Promise<OpenIdConfiguration> {
-    if (!forceRefresh && this.openIdConfigurationCache != null && this.openIdConfigurationCache.expiresAt > Date.now()) {
+    if (
+      !forceRefresh &&
+      this.openIdConfigurationCache != null &&
+      this.openIdConfigurationCache.expiresAt > Date.now()
+    ) {
       return this.openIdConfigurationCache.value;
     }
 

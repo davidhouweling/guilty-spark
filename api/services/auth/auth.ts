@@ -3,6 +3,7 @@ import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager } from "./session-manager";
+import { TokenEncryptor } from "./token-encryptor";
 import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
 
 /**
@@ -12,6 +13,7 @@ import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
 export class AuthService {
   private readonly microsoftAuth: MicrosoftAuthService;
   private readonly sessionManager: SessionManager;
+  private readonly tokenEncryptor: TokenEncryptor;
   private readonly databaseService: DatabaseService;
 
   public constructor(config: {
@@ -21,6 +23,7 @@ export class AuthService {
     microsoftTenant?: string;
     microsoftScopes?: string;
     sessionSecret: string;
+    tokenEncryptionSecret: string;
     databaseService: DatabaseService;
   }) {
     this.microsoftAuth = new MicrosoftAuthService({
@@ -32,6 +35,9 @@ export class AuthService {
     });
 
     this.sessionManager = new SessionManager(Preconditions.checkExists(config.sessionSecret, "sessionSecret"));
+    this.tokenEncryptor = new TokenEncryptor(
+      Preconditions.checkExists(config.tokenEncryptionSecret, "tokenEncryptionSecret"),
+    );
     this.databaseService = Preconditions.checkExists(config.databaseService, "databaseService");
   }
 
@@ -110,7 +116,7 @@ export class AuthService {
       return null;
     }
 
-    return this.toAuthSession(session);
+    return await this.toAuthSession(session);
   }
 
   public async invalidateSession(request: Request): Promise<void> {
@@ -149,8 +155,9 @@ export class AuthService {
 
     await this.databaseService.upsertUserSession({
       ...existingSession,
-      AccessToken: refreshedSession.accessToken,
-      RefreshToken: refreshedSession.refreshToken ?? null,
+      AccessToken: await this.tokenEncryptor.encrypt(refreshedSession.accessToken),
+      RefreshToken:
+        refreshedSession.refreshToken == null ? null : await this.tokenEncryptor.encrypt(refreshedSession.refreshToken),
       ExpiresAt: Math.floor(refreshedSession.expiresAt / 1000),
       LastRefreshedAt: Math.floor(now / 1000),
     });
@@ -216,8 +223,8 @@ export class AuthService {
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,
       UserId: payload.userId,
-      AccessToken: payload.accessToken,
-      RefreshToken: payload.refreshToken ?? null,
+      AccessToken: await this.tokenEncryptor.encrypt(payload.accessToken),
+      RefreshToken: payload.refreshToken == null ? null : await this.tokenEncryptor.encrypt(payload.refreshToken),
       ExpiresAt: Math.floor(payload.expiresAt / 1000),
       CreatedAt: Math.floor(payload.issuedAt / 1000),
       LastRefreshedAt: Math.floor(payload.issuedAt / 1000),
@@ -231,15 +238,18 @@ export class AuthService {
     await this.databaseService.upsertUserSession(sessionRow);
   }
 
-  private toAuthSession(session: UserSessionsRow): AuthSession {
+  private async toAuthSession(session: UserSessionsRow): Promise<AuthSession> {
     const expiresAt = session.ExpiresAt * 1000;
     const isExpired = expiresAt < Date.now();
+    const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
+    const refreshToken =
+      session.RefreshToken == null ? undefined : await this.tokenEncryptor.decrypt(session.RefreshToken);
 
     return {
       sessionId: session.SessionId,
       userId: session.UserId,
-      accessToken: session.AccessToken,
-      refreshToken: session.RefreshToken ?? undefined,
+      accessToken,
+      refreshToken,
       expiresAt,
       isExpired,
     };

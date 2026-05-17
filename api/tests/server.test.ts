@@ -128,12 +128,12 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", {
         method: "GET",
         headers: {
-          Origin: "https://guilty-spark.app",
+          Origin: env.PAGES_URL,
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
 
-      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       expect(res.headers.get("Vary")).toBe("Origin");
     });
@@ -228,13 +228,43 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/microsoft/start", {
         method: "GET",
         headers: {
-          Origin: "https://guilty-spark.app",
+          Origin: env.PAGES_URL,
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
 
       expect(res.status).toBe(200);
-      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    });
+  });
+
+  describe("GET /auth/microsoft/callback", () => {
+    it("returns a generic authentication error when callback handling fails", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "handleCallback").mockRejectedValue(
+          new Error("upstream microsoft response body"),
+        );
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/auth/microsoft/callback?code=code-123&state=state-123", {
+        method: "GET",
+        headers: {
+          Origin: env.PAGES_URL,
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      const body = await res.json<{ error: string }>();
+      expect(body).toEqual({ error: "Authentication failed" });
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
   });
@@ -244,13 +274,13 @@ describe("Server", () => {
       const req = new Request("http://localhost/auth/session", {
         method: "OPTIONS",
         headers: {
-          Origin: "https://guilty-spark.app",
+          Origin: env.PAGES_URL,
         },
       });
       const res = (await server.router.fetch(req, env)) as Response;
 
       expect(res.status).toBe(204);
-      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
   });
@@ -474,7 +504,11 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite", {
         method: "POST",
         body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
-        headers: { "content-type": "application/json", cookie: "auth-session=valid-token" },
+        headers: {
+          "content-type": "application/json",
+          cookie: "auth-session=valid-token",
+          Origin: env.PAGES_URL,
+        },
       });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
@@ -502,6 +536,8 @@ describe("Server", () => {
 
       const token = await tokenProviderFactory();
       expect(token).toBe("access-token");
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
 
     it("returns 400 with invalid JSON", async () => {
@@ -604,6 +640,22 @@ describe("Server", () => {
       expect(body).toHaveProperty("message", "fail!");
       expect(body).toHaveProperty("stack");
       expect(body).toHaveProperty("name", "Error");
+    });
+  });
+
+  describe("OPTIONS /proxy/halo-infinite", () => {
+    it("returns credentialed preflight headers for allowed origins", async () => {
+      const req = new Request("http://localhost/proxy/halo-infinite", {
+        method: "OPTIONS",
+        headers: {
+          Origin: env.PAGES_URL,
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
   });
 

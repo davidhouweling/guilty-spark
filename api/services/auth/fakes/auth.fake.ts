@@ -14,6 +14,7 @@ export function aFakeAuthServiceWith(
     microsoftTenant: env.MICROSOFT_TENANT ?? "consumers",
     microsoftScopes: env.MICROSOFT_SCOPES ?? "openid email offline_access XboxLive.signin XboxLive.offline_access",
     sessionSecret: env.SESSION_SECRET ?? "a".repeat(64),
+    tokenEncryptionSecret: env.CSRF_SECRET ?? "b".repeat(64),
     databaseService: env.databaseService ?? aFakeDatabaseServiceWith({ env: fakeEnv }),
   });
 }

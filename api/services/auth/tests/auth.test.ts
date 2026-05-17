@@ -1,7 +1,9 @@
+import type { MockInstance } from "vitest";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AuthService } from "../auth";
 import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
+import type { DatabaseService } from "../../database/database";
 import { aFakeDatabaseServiceWith, aFakeUserSessionsRow } from "../../database/fakes/database.fake";
 import { aSignedMicrosoftIdTokenWith } from "./id-token-signing";
 
@@ -18,6 +20,7 @@ describe("AuthService", () => {
       microsoftTenant: "common",
       microsoftScopes: "openid email",
       sessionSecret: "a".repeat(64),
+      tokenEncryptionSecret: "b".repeat(64),
       databaseService,
     });
   });
@@ -115,6 +118,11 @@ describe("AuthService", () => {
     expect(session.sessionId).toBeTruthy();
     expect(session.userId).toBe("user-123");
     expect(upsertUserSessionSpy).toHaveBeenCalled();
+    const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
+    expect(persistedSession?.AccessToken).toContain("enc-v1.");
+    expect(persistedSession?.AccessToken).not.toContain("access-token");
+    expect(persistedSession?.RefreshToken).toContain("enc-v1.");
+    expect(persistedSession?.RefreshToken).not.toContain("refresh-token");
   });
 
   it("sets session cookie in response", async () => {
@@ -235,7 +243,9 @@ describe("AuthService", () => {
     vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
       aFakeUserSessionsRow({ SessionId: session.sessionId }),
     );
-    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const upsertUserSessionSpy: MockInstance<DatabaseService["upsertUserSession"]> = vi
+      .spyOn(databaseService, "upsertUserSession")
+      .mockResolvedValue();
 
     const refreshed = await service.refreshSession(session);
 
@@ -246,5 +256,8 @@ describe("AuthService", () => {
     expect(refreshed?.refreshToken).toBe("new-refresh-token");
     expect(typeof refreshed?.expiresAt).toBe("number");
     expect(typeof refreshed?.issuedAt).toBe("number");
+    const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
+    expect(persistedSession?.AccessToken).toContain("enc-v1.");
+    expect(persistedSession?.RefreshToken).toContain("enc-v1.");
   });
 });
