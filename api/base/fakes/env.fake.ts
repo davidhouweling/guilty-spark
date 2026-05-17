@@ -78,7 +78,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     MICROSOFT_CLIENT_SECRET: "test-client-secret",
     MICROSOFT_TENANT: "consumers",
     MICROSOFT_REDIRECT_URI: "http://localhost:8787/auth/microsoft/callback",
-    MICROSOFT_SCOPES: "openid profile email offline_access",
+    MICROSOFT_SCOPES: "openid email offline_access XboxLive.signin XboxLive.offline_access",
     SESSION_SECRET: "a".repeat(64),
     CSRF_SECRET: "b".repeat(64),
     LIVE_TRACKER_DO: {
