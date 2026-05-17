@@ -424,18 +424,9 @@ export class Server {
 
         return withCorsHeaders(response);
       } catch (error) {
-        let errorBody: Record<string, unknown> = {};
-        if (error instanceof Error) {
-          errorBody = {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-          };
-        } else {
-          errorBody = { error: String(error) };
-        }
+        console.error("Halo proxy error:", error);
         return addCorsHeaders(
-          new Response(JSON.stringify(errorBody), {
+          new Response(JSON.stringify({ error: "Proxy request failed" }), {
             status: 500,
             headers: { "content-type": "application/json" },
           }),

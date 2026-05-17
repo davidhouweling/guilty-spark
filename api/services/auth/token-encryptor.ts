@@ -6,8 +6,8 @@ const IV_LENGTH_BYTES = 12;
 export class TokenEncryptor {
   private readonly encryptionSecret: Uint8Array;
 
-  public constructor(encryptionSecretHex: string) {
-    const secret = Preconditions.checkExists(encryptionSecretHex, "encryptionSecretHex");
+  public constructor(tokenEncryptionSecret: string) {
+    const secret = Preconditions.checkExists(tokenEncryptionSecret, "tokenEncryptionSecret");
     if (secret.length !== 64 || !/^[0-9a-f]+$/i.test(secret)) {
       throw new Error("tokenEncryptionSecret must be exactly 64 valid hex characters (32 bytes)");
     }
@@ -33,7 +33,11 @@ export class TokenEncryptor {
       return token;
     }
 
-    const [, ivBase64, cipherBase64] = token.split(".");
+    const [prefix, ivBase64, cipherBase64] = token.split(".");
+    if (prefix !== ENCRYPTED_TOKEN_PREFIX) {
+      throw new Error("Encrypted token payload is malformed");
+    }
+
     if (ivBase64 == null || cipherBase64 == null) {
       throw new Error("Encrypted token payload is malformed");
     }

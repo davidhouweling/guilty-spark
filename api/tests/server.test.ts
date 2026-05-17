@@ -614,7 +614,7 @@ describe("Server", () => {
       expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
     });
 
-    it("returns 500 and error details if the method throws", async () => {
+    it("returns 500 with a generic error if the method throws", async () => {
       const localHaloInfiniteClient = aFakeHaloInfiniteClient();
       vi.spyOn(localHaloInfiniteClient, "getUser").mockRejectedValue(new Error("fail!"));
       const localInstallServices = vi.fn<typeof installServices>(() => ({
@@ -636,10 +636,8 @@ describe("Server", () => {
       });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(500);
-      const body = await res.json();
-      expect(body).toHaveProperty("message", "fail!");
-      expect(body).toHaveProperty("stack");
-      expect(body).toHaveProperty("name", "Error");
+      const body = await res.json<{ error: string }>();
+      expect(body).toEqual({ error: "Proxy request failed" });
     });
   });
 
