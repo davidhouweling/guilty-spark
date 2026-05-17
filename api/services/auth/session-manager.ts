@@ -15,12 +15,17 @@ export class SessionManager {
   public constructor(sessionSecretHex: string) {
     // Convert hex string to Uint8Array
     const secret = Preconditions.checkExists(sessionSecretHex, "sessionSecretHex");
-    if (secret.length !== 64) {
+    if (secret.length !== 64 || !/^[0-9a-f]+$/i.test(secret)) {
       // 32 bytes = 64 hex chars
       throw new Error(`sessionSecret must be 64 hex characters (32 bytes), got ${secret.length.toString()}`);
     }
 
-    this.sessionSecret = new Uint8Array(Buffer.from(secret, "hex"));
+    const decodedSecret = Buffer.from(secret, "hex");
+    if (decodedSecret.length !== 32) {
+      throw new Error("sessionSecret must decode to exactly 32 bytes");
+    }
+
+    this.sessionSecret = new Uint8Array(decodedSecret);
   }
 
   /**

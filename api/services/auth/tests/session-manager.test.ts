@@ -42,6 +42,10 @@ describe("SessionManager", () => {
     expect(() => new SessionManager("too-short")).toThrow();
   });
 
+  it("throws on non-hex session secret", () => {
+    expect(() => new SessionManager("z".repeat(64))).toThrow();
+  });
+
   it("sets session cookie with correct attributes", () => {
     const sessionSecret = "e".repeat(64);
     const manager = new SessionManager(sessionSecret);
@@ -71,7 +75,7 @@ describe("SessionManager", () => {
   });
 
   it("extracts session token from request cookies", () => {
-    const sessionSecret = "g".repeat(64);
+    const sessionSecret = "1".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
     const request = new Request("http://localhost", {
@@ -85,7 +89,7 @@ describe("SessionManager", () => {
   });
 
   it("returns null when session cookie not found", () => {
-    const sessionSecret = "h".repeat(64);
+    const sessionSecret = "2".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
     const request = new Request("http://localhost", {
@@ -99,7 +103,7 @@ describe("SessionManager", () => {
   });
 
   it("returns null when no cookies present", () => {
-    const sessionSecret = "i".repeat(64);
+    const sessionSecret = "3".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
     const request = new Request("http://localhost");
@@ -109,7 +113,7 @@ describe("SessionManager", () => {
   });
 
   it("sets and extracts PKCE state cookies", () => {
-    const sessionSecret = "j".repeat(64);
+    const sessionSecret = "4".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
     const response = new Response();

@@ -168,6 +168,30 @@ describe("AuthService", () => {
     expect(session).toBeNull();
   });
 
+  it("deletes the persisted session for a valid request", async () => {
+    const payload = aFakeSessionTokenPayload();
+    const token = await service.createSessionToken(payload);
+    const deleteUserSessionSpy = vi.spyOn(databaseService, "deleteUserSession").mockResolvedValue();
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: payload.sessionId,
+        UserId: payload.userId,
+        AccessToken: payload.accessToken,
+        RefreshToken: payload.refreshToken ?? null,
+        ExpiresAt: Math.floor(payload.expiresAt / 1000),
+      }),
+    );
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: `auth-session=${token}`,
+      },
+    });
+
+    await service.invalidateSession(request);
+
+    expect(deleteUserSessionSpy).toHaveBeenCalledWith(payload.sessionId);
+  });
+
   it("returns null when refreshing a session without refresh token", async () => {
     const session: AuthSession = {
       sessionId: "session-123",

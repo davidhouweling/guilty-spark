@@ -3,7 +3,7 @@ import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
-import { handleCorsPreflightRequest } from "./base/cors";
+import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -29,6 +29,9 @@ export class Server {
     this.router.options("/api/*", (request) => {
       return handleCorsPreflightRequest(request);
     });
+    this.router.options("/auth/*", (request) => {
+      return handleCorsPreflightRequest(request, true);
+    });
 
     this.router.get("/", (_request, env: Env) => {
       return new Response(
@@ -36,7 +39,7 @@ export class Server {
       );
     });
 
-    this.router.get("/auth/microsoft/start", async (_request, env: Env) => {
+    this.router.get("/auth/microsoft/start", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
         const { authService } = services;
@@ -62,19 +65,23 @@ export class Server {
           issuedAt: Date.now(),
         });
 
-        return response;
+        return addCorsHeaders(response, request, true);
       } catch (error) {
         console.error("Auth start error:", error);
-        return new Response(
-          JSON.stringify({
-            error: "Failed to generate authorization URL",
-          }),
-          {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
+        return addCorsHeaders(
+          new Response(
+            JSON.stringify({
+              error: "Failed to generate authorization URL",
+            }),
+            {
+              status: 500,
+              headers: {
+                "Content-Type": "application/json",
+              },
             },
-          },
+          ),
+          request,
+          true,
         );
       }
     });
@@ -114,28 +121,32 @@ export class Server {
         authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
         authService.clearPkceStateCookie(response);
 
-        return response;
+        return addCorsHeaders(response, request, true);
       } catch (error) {
         console.error("Auth callback error:", error);
-        const response = new Response(
-          JSON.stringify({
-            error: error instanceof Error ? error.message : "Authentication failed",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
+        return addCorsHeaders(
+          new Response(
+            JSON.stringify({
+              error: error instanceof Error ? error.message : "Authentication failed",
+            }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+              },
             },
-          },
+          ),
+          request,
+          true,
         );
-        return response;
       }
     });
 
-    this.router.post("/auth/logout", (_request, env: Env) => {
+    this.router.post("/auth/logout", async (request, env: Env) => {
       try {
         const services = this.installServices({ env });
         const { authService } = services;
+        await authService.invalidateSession(request);
 
         const response = new Response(JSON.stringify({ success: true }), {
           status: 200,
@@ -146,15 +157,19 @@ export class Server {
 
         authService.clearSessionCookie(response);
 
-        return response;
+        return addCorsHeaders(response, request, true);
       } catch (error) {
         console.error("Auth logout error:", error);
-        return new Response(JSON.stringify({ error: "Logout failed" }), {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Logout failed" }), {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+          request,
+          true,
+        );
       }
     });
 
@@ -166,32 +181,45 @@ export class Server {
         const session = await authService.validateSession(request);
 
         if (session === null) {
-          return new Response(JSON.stringify({ authenticated: false }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
+          return addCorsHeaders(
+            new Response(JSON.stringify({ authenticated: false }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            }),
+            request,
+            true,
+          );
         }
 
         if (session.isExpired) {
-          return new Response(JSON.stringify({ authenticated: false, expired: true }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
+          return addCorsHeaders(
+            new Response(JSON.stringify({ authenticated: false, expired: true }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            }),
+            request,
+            true,
+          );
         }
 
-        return new Response(
-          JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }),
-          {
+        return addCorsHeaders(
+          new Response(JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
-          },
+          }),
+          request,
+          true,
         );
       } catch (error) {
         console.error("Auth session error:", error);
-        return new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 

@@ -113,6 +113,15 @@ export class AuthService {
     return this.toAuthSession(session);
   }
 
+  public async invalidateSession(request: Request): Promise<void> {
+    const session = await this.validateSession(request);
+    if (session == null) {
+      return;
+    }
+
+    await this.databaseService.deleteUserSession(session.sessionId);
+  }
+
   /**
    * Refresh an expired session using the stored refresh token.
    * Returns null when no refresh token is available.

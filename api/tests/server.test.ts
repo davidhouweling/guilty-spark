@@ -1,16 +1,19 @@
+import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
+import type * as HaloInfiniteApi from "halo-infinite-api";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
+import type { DatabaseService } from "../services/database/database";
 import { Server } from "../server";
 import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
 
-vi.mock("halo-infinite-api", async () => {
-  const actual = await import("halo-infinite-api");
+vi.mock("halo-infinite-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof HaloInfiniteApi>();
   return {
     ...actual,
     AutoTokenProvider: vi.fn(),
@@ -55,8 +58,32 @@ describe("Server", () => {
   });
 
   describe("POST /auth/logout", () => {
-    it("returns 200 and clears the session cookie", async () => {
-      const req = new Request("http://localhost/auth/logout", { method: "POST" });
+    it("returns 200, revokes the server session, and clears the session cookie", async () => {
+      let deleteUserSessionSpy!: MockInstance<DatabaseService["deleteUserSession"]>;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        deleteUserSessionSpy = vi.spyOn(services.databaseService, "deleteUserSession").mockResolvedValue();
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/auth/logout", {
+        method: "POST",
+        headers: {
+          Cookie: "auth-session=valid-token",
+        },
+      });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
       const body = await res.json<{ success: boolean }>();
@@ -64,6 +91,7 @@ describe("Server", () => {
       const setCookie = res.headers.get("Set-Cookie");
       expect(setCookie).toContain("auth-session=");
       expect(setCookie).toContain("Max-Age=0");
+      expect(deleteUserSessionSpy).toHaveBeenCalledWith("session-123");
     });
 
     it("returns 500 with error message when clearSessionCookie throws", async () => {
@@ -94,6 +122,20 @@ describe("Server", () => {
       expect(res.status).toBe(401);
       const body = await res.json<{ authenticated: boolean }>();
       expect(body).toEqual({ authenticated: false });
+    });
+
+    it("adds credentialed CORS headers for allowed origins", async () => {
+      const req = new Request("http://localhost/auth/session", {
+        method: "GET",
+        headers: {
+          Origin: "https://guilty-spark.app",
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      expect(res.headers.get("Vary")).toBe("Origin");
     });
 
     it("returns 401 with expired flag when session is expired", async () => {
@@ -163,6 +205,53 @@ describe("Server", () => {
       expect(res.status).toBe(500);
       const body = await res.json<{ error: string }>();
       expect(body).toEqual({ error: "Failed to retrieve session" });
+    });
+  });
+
+  describe("GET /auth/microsoft/start", () => {
+    it("adds credentialed CORS headers for allowed origins", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "generateAuthorizationUrl").mockResolvedValue({
+          url: new URL("https://login.microsoftonline.com/test"),
+          state: "state-123",
+          codeVerifier: "verifier-123",
+        });
+        vi.spyOn(services.authService, "setPkceStateCookie").mockResolvedValue();
+        return services;
+      });
+      server = new Server({
+        router: AutoRouter(),
+        installServices: localInstallServices,
+        getCommands,
+      });
+      const req = new Request("http://localhost/auth/microsoft/start", {
+        method: "GET",
+        headers: {
+          Origin: "https://guilty-spark.app",
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    });
+  });
+
+  describe("OPTIONS /auth/*", () => {
+    it("returns credentialed preflight headers for allowed origins", async () => {
+      const req = new Request("http://localhost/auth/session", {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://guilty-spark.app",
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://guilty-spark.app");
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
   });
 
