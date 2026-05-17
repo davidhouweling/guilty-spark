@@ -211,12 +211,10 @@ export class AuthService {
       throw new Error("Invalid or expired state parameter");
     }
 
-    const parsedPayload: unknown = JSON.parse(payload);
-    if (!this.isPkceStatePayload(parsedPayload)) {
+    const pkceState = this.parsePkceStatePayload(JSON.parse(payload));
+    if (pkceState == null) {
       throw new Error("Invalid or expired state parameter");
     }
-
-    const pkceState = parsedPayload;
     if (pkceState.state !== state) {
       throw new Error("Invalid or expired state parameter");
     }
@@ -272,19 +270,19 @@ export class AuthService {
     }
 
     try {
-      const parsedPayload: unknown = JSON.parse(payload);
-      if (!this.isSessionCookiePayload(parsedPayload)) {
+      const sessionCookiePayload = this.parseSessionCookiePayload(JSON.parse(payload));
+      if (sessionCookiePayload == null) {
         return null;
       }
 
-      return parsedPayload;
+      return sessionCookiePayload;
     } catch {
       return null;
     }
   }
 
-  private isSessionCookiePayload(value: unknown): value is SessionCookiePayload {
-    return (
+  private parseSessionCookiePayload(value: unknown): SessionCookiePayload | null {
+    if (
       typeof value === "object" &&
       value !== null &&
       "sessionId" in value &&
@@ -293,11 +291,18 @@ export class AuthService {
       "sessionExpiresAt" in value &&
       typeof value.sessionExpiresAt === "number" &&
       Number.isFinite(value.sessionExpiresAt)
-    );
+    ) {
+      return {
+        sessionId: value.sessionId,
+        sessionExpiresAt: value.sessionExpiresAt,
+      };
+    }
+
+    return null;
   }
 
-  private isPkceStatePayload(value: unknown): value is Pick<PKCEState, "codeVerifier" | "state" | "issuedAt"> {
-    return (
+  private parsePkceStatePayload(value: unknown): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt"> | null {
+    if (
       typeof value === "object" &&
       value !== null &&
       "codeVerifier" in value &&
@@ -309,6 +314,14 @@ export class AuthService {
       "issuedAt" in value &&
       typeof value.issuedAt === "number" &&
       Number.isFinite(value.issuedAt)
-    );
+    ) {
+      return {
+        codeVerifier: value.codeVerifier,
+        state: value.state,
+        issuedAt: value.issuedAt,
+      };
+    }
+
+    return null;
   }
 }
