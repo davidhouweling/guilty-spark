@@ -1,5 +1,5 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import { AutoXstsSpartanTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
@@ -349,7 +349,9 @@ export class Server {
         let haloInfiniteClient: HaloInfiniteClient;
         if (sessionAccessToken !== null) {
           const token = sessionAccessToken;
-          haloInfiniteClient = new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(token)));
+          haloInfiniteClient = new HaloInfiniteClient(
+            new AutoXstsSpartanTokenProvider(async () => Promise.resolve(token)),
+          );
         } else {
           ({ haloInfiniteClient } = services ?? this.installServices({ env }));
         }

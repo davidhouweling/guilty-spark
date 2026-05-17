@@ -3,7 +3,7 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
 import type * as HaloInfiniteApi from "halo-infinite-api";
-import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import { AutoXstsSpartanTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import type { DatabaseService } from "../services/database/database";
 import { Server } from "../server";
@@ -17,6 +17,7 @@ vi.mock("halo-infinite-api", async (importOriginal) => {
   return {
     ...actual,
     AutoTokenProvider: vi.fn(),
+    AutoXstsSpartanTokenProvider: vi.fn(),
     HaloInfiniteClient: vi.fn(),
   };
 });
@@ -418,7 +419,7 @@ describe("Server", () => {
 
     it("returns 200 and rotates session cookie when expired session is refreshed", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
-      vi.mocked(AutoTokenProvider).mockClear();
+      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -459,8 +460,8 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       expect(res.headers.get("Set-Cookie")).toBeNull();
 
-      expect(vi.mocked(AutoTokenProvider)).toHaveBeenCalledTimes(1);
-      const tokenProviderFactory = vi.mocked(AutoTokenProvider).mock.calls[0]?.[0];
+      expect(vi.mocked(AutoXstsSpartanTokenProvider)).toHaveBeenCalledTimes(1);
+      const tokenProviderFactory = vi.mocked(AutoXstsSpartanTokenProvider).mock.calls[0]?.[0];
       expect(typeof tokenProviderFactory).toBe("function");
 
       if (tokenProviderFactory === undefined) {
@@ -506,7 +507,7 @@ describe("Server", () => {
 
     it("returns 200 and result with valid session cookie", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
-      vi.mocked(AutoTokenProvider).mockClear();
+      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -554,8 +555,8 @@ describe("Server", () => {
         },
       });
 
-      expect(vi.mocked(AutoTokenProvider)).toHaveBeenCalledTimes(1);
-      const tokenProviderFactory = vi.mocked(AutoTokenProvider).mock.calls[0]?.[0];
+      expect(vi.mocked(AutoXstsSpartanTokenProvider)).toHaveBeenCalledTimes(1);
+      const tokenProviderFactory = vi.mocked(AutoXstsSpartanTokenProvider).mock.calls[0]?.[0];
       expect(typeof tokenProviderFactory).toBe("function");
 
       if (tokenProviderFactory === undefined) {
@@ -614,7 +615,7 @@ describe("Server", () => {
     });
 
     it("returns 200 and result for valid method", async () => {
-      vi.mocked(AutoTokenProvider).mockClear();
+      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
       const req = new Request("http://localhost/proxy/halo-infinite", {
         method: "POST",
         body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
@@ -639,7 +640,7 @@ describe("Server", () => {
         },
       });
 
-      expect(vi.mocked(AutoTokenProvider)).not.toHaveBeenCalled();
+      expect(vi.mocked(AutoXstsSpartanTokenProvider)).not.toHaveBeenCalled();
     });
 
     it("returns 500 with a generic error if the method throws", async () => {
