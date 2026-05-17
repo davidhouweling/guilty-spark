@@ -362,9 +362,9 @@ export class DatabaseService {
 
   async replaceIndividualTrackerGames(profileId: string, games: IndividualTrackerGamesRow[]): Promise<void> {
     const deleteStmt = this.DB.prepare("DELETE FROM IndividualTrackerGames WHERE ProfileId = ?").bind(profileId);
-    await deleteStmt.run();
 
     if (games.length === 0) {
+      await deleteStmt.run();
       return;
     }
 
@@ -382,8 +382,8 @@ export class DatabaseService {
       game.CreatedAt,
       game.UpdatedAt,
     ]);
-    const stmt = this.DB.prepare(query).bind(...values);
-    await stmt.run();
+    const insertStmt = this.DB.prepare(query).bind(...values);
+    await this.DB.batch([deleteStmt, insertStmt]);
   }
 
   async getStreamerViewSettings(profileId: string): Promise<StreamerViewSettingsRow | null> {

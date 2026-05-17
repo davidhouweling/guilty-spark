@@ -17,6 +17,7 @@ export function aFakeAuthenticatedUser(): AuthenticatedUser {
  */
 export function aFakeSessionTokenPayload(overrides?: Partial<SessionTokenPayload>): SessionTokenPayload {
   return {
+    sessionId: "session-123",
     userId: "user-123",
     accessToken: "access-token-value",
     refreshToken: "refresh-token-value",

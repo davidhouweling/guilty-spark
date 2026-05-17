@@ -2,6 +2,8 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager } from "./session-manager";
 import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
+import type { DatabaseService } from "../database/database";
+import type { UserSessionsRow } from "../database/types/user_sessions";
 
 /**
  * Main authentication orchestrator.
@@ -10,13 +12,14 @@ import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
 export class AuthService {
   private readonly microsoftAuth: MicrosoftAuthService;
   private readonly sessionManager: SessionManager;
-  private readonly pkceStateStore: Map<string, PKCEState>; // In-memory for local dev; use KV for production
+  private readonly databaseService: DatabaseService;
 
   public constructor(config: {
     microsoftClientId: string;
     microsoftClientSecret: string;
     microsoftRedirectUri: string;
     sessionSecret: string;
+    databaseService: DatabaseService;
     tenant?: string;
   }) {
     this.microsoftAuth = new MicrosoftAuthService({
@@ -27,8 +30,7 @@ export class AuthService {
     });
 
     this.sessionManager = new SessionManager(Preconditions.checkExists(config.sessionSecret, "sessionSecret"));
-
-    this.pkceStateStore = new Map();
+    this.databaseService = Preconditions.checkExists(config.databaseService, "databaseService");
   }
 
   /**
@@ -39,16 +41,6 @@ export class AuthService {
     const { codeVerifier, codeChallenge } = await this.microsoftAuth.generatePKCE();
     const state = this.microsoftAuth.generateState();
 
-    // Store PKCE state for verification in callback
-    const pkceState: PKCEState = {
-      codeVerifier,
-      codeChallenge,
-      state,
-      issuedAt: Date.now(),
-    };
-
-    this.pkceStateStore.set(state, pkceState);
-
     const url = this.microsoftAuth.getAuthorizationUrl(codeChallenge, state);
 
     return { url, state, codeVerifier };
@@ -57,15 +49,8 @@ export class AuthService {
   /**
    * Handle OAuth callback: verify state, exchange code for tokens, create session.
    */
-  public async handleCallback(code: string, state: string): Promise<SessionTokenPayload> {
-    // Verify state and retrieve PKCE verifier
-    const pkceState = this.pkceStateStore.get(state);
-    if (!pkceState) {
-      throw new Error("Invalid or expired state parameter");
-    }
-
-    // Clean up state (use once)
-    this.pkceStateStore.delete(state);
+  public async handleCallback(request: Request, code: string, state: string): Promise<SessionTokenPayload> {
+    const pkceState = await this.readPkceState(request, state);
 
     // Check if state is still fresh (within 10 minutes)
     const stateAgeMs = Date.now() - pkceState.issuedAt;
@@ -79,15 +64,20 @@ export class AuthService {
     // Parse ID token to get user info
     const user = this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
 
+    const sessionId = crypto.randomUUID();
+
     // Create session token
     const expiresAt = Date.now() + tokens.expires_in * 1000;
     const sessionPayload: SessionTokenPayload = {
+      sessionId,
       userId: user.sub,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt,
       issuedAt: Date.now(),
     };
+
+    await this.persistSession(sessionPayload, user.email, user.name, user.preferredUsername);
 
     return sessionPayload;
   }
@@ -96,7 +86,7 @@ export class AuthService {
    * Create a signed session token and return it (caller handles cookie setting).
    */
   public async createSessionToken(payload: SessionTokenPayload): Promise<string> {
-    return this.sessionManager.createSessionToken(payload);
+    return this.sessionManager.createSignedToken(payload.sessionId);
   }
 
   /**
@@ -108,7 +98,17 @@ export class AuthService {
       return null;
     }
 
-    return this.sessionManager.validateSessionToken(token);
+    const sessionId = await this.sessionManager.validateSignedToken(token);
+    if (sessionId == null) {
+      return null;
+    }
+
+    const session = await this.databaseService.getUserSession(sessionId);
+    if (session == null) {
+      return null;
+    }
+
+    return this.toAuthSession(session);
   }
 
   /**
@@ -121,14 +121,30 @@ export class AuthService {
     }
 
     const tokens = await this.microsoftAuth.refreshAccessToken(session.refreshToken);
+    const existingSession = await this.databaseService.getUserSession(session.sessionId);
+    if (existingSession == null) {
+      return null;
+    }
 
-    return {
+    const now = Date.now();
+    const refreshedSession: SessionTokenPayload = {
+      sessionId: session.sessionId,
       userId: session.userId,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token ?? session.refreshToken,
-      expiresAt: Date.now() + tokens.expires_in * 1000,
-      issuedAt: Date.now(),
+      expiresAt: now + tokens.expires_in * 1000,
+      issuedAt: now,
     };
+
+    await this.databaseService.upsertUserSession({
+      ...existingSession,
+      AccessToken: refreshedSession.accessToken,
+      RefreshToken: refreshedSession.refreshToken ?? null,
+      ExpiresAt: Math.floor(refreshedSession.expiresAt / 1000),
+      LastRefreshedAt: Math.floor(now / 1000),
+    });
+
+    return refreshedSession;
   }
 
   /**
@@ -143,5 +159,78 @@ export class AuthService {
    */
   public clearSessionCookie(response: Response): void {
     this.sessionManager.clearSessionCookie(response);
+  }
+
+  public async setPkceStateCookie(
+    response: Response,
+    pkceState: Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">,
+  ): Promise<void> {
+    const token = JSON.stringify(pkceState);
+    const signedToken = await this.sessionManager.createSignedToken(token);
+    this.sessionManager.setPkceStateCookie(response, signedToken);
+  }
+
+  public clearPkceStateCookie(response: Response): void {
+    this.sessionManager.clearPkceStateCookie(response);
+  }
+
+  private async readPkceState(
+    request: Request,
+    state: string,
+  ): Promise<Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">> {
+    const token = this.sessionManager.extractPkceStateToken(request);
+    if (token == null) {
+      throw new Error("Invalid or expired state parameter");
+    }
+
+    const payload = await this.sessionManager.validateSignedToken(token);
+    if (payload == null) {
+      throw new Error("Invalid or expired state parameter");
+    }
+
+    const pkceState = JSON.parse(payload) as Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">;
+    if (pkceState.state !== state) {
+      throw new Error("Invalid or expired state parameter");
+    }
+
+    return pkceState;
+  }
+
+  private async persistSession(
+    payload: SessionTokenPayload,
+    email?: string,
+    name?: string,
+    preferredUsername?: string | undefined,
+  ): Promise<void> {
+    const sessionRow: UserSessionsRow = {
+      SessionId: payload.sessionId,
+      UserId: payload.userId,
+      AccessToken: payload.accessToken,
+      RefreshToken: payload.refreshToken ?? null,
+      ExpiresAt: Math.floor(payload.expiresAt / 1000),
+      CreatedAt: Math.floor(payload.issuedAt / 1000),
+      LastRefreshedAt: Math.floor(payload.issuedAt / 1000),
+      AuthMetadataJson: JSON.stringify({
+        email,
+        name,
+        preferredUsername,
+      }),
+    };
+
+    await this.databaseService.upsertUserSession(sessionRow);
+  }
+
+  private toAuthSession(session: UserSessionsRow): AuthSession {
+    const expiresAt = session.ExpiresAt * 1000;
+    const isExpired = expiresAt < Date.now();
+
+    return {
+      sessionId: session.SessionId,
+      userId: session.UserId,
+      accessToken: session.AccessToken,
+      refreshToken: session.RefreshToken ?? undefined,
+      expiresAt,
+      isExpired,
+    };
   }
 }

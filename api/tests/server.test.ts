@@ -100,6 +100,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "access-token",
           refreshToken: undefined,
@@ -125,6 +126,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "access-token",
           refreshToken: undefined,
@@ -196,6 +198,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "access-token",
           refreshToken: "refresh-token",
@@ -241,6 +244,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "access-token",
           refreshToken: undefined,
@@ -276,6 +280,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "expired-access-token",
           refreshToken: "refresh-token",
@@ -283,6 +288,7 @@ describe("Server", () => {
           isExpired: true,
         });
         vi.spyOn(services.authService, "refreshSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "fresh-access-token",
           refreshToken: "fresh-refresh-token",
@@ -304,7 +310,7 @@ describe("Server", () => {
       });
       const res = (await server.router.fetch(req, env)) as Response;
       expect(res.status).toBe(200);
-      expect(res.headers.get("Set-Cookie")).toContain("auth-session=");
+      expect(res.headers.get("Set-Cookie")).toBeNull();
 
       expect(vi.mocked(AutoTokenProvider)).toHaveBeenCalledTimes(1);
       const tokenProviderFactory = vi.mocked(AutoTokenProvider).mock.calls[0]?.[0];
@@ -322,6 +328,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "expired-access-token",
           refreshToken: "refresh-token",
@@ -361,6 +368,7 @@ describe("Server", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
           userId: "user-123",
           accessToken: "access-token",
           refreshToken: undefined,

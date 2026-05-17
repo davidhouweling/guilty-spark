@@ -13,8 +13,8 @@ import { aFakeLiveTrackerServiceWith } from "../live-tracker/fakes/live-tracker.
 export function installFakeServicesWith(opts: Partial<Services & { env: Env }> = {}): Services {
   const env = opts.env ?? aFakeEnvWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
-  const authService = opts.authService ?? aFakeAuthServiceWith(env);
   const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith({ env });
+  const authService = opts.authService ?? aFakeAuthServiceWith({ ...env, databaseService });
   const discordService = opts.discordService ?? aFakeDiscordServiceWith({ env });
   const xboxService = opts.xboxService ?? aFakeXboxServiceWith({ env });
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();

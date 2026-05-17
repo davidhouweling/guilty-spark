@@ -1,8 +1,9 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SessionTokenPayload, AuthSession } from "./types";
 
 const SESSION_COOKIE_NAME = "auth-session";
+const PKCE_COOKIE_NAME = "auth-pkce-state";
 const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
+const PKCE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 /**
  * Session management: create, sign, validate, and serialize session tokens.
@@ -23,12 +24,11 @@ export class SessionManager {
   }
 
   /**
-   * Create a signed session token from a payload.
-   * Format: payload_base64.signature_base64
+   * Create a signed token for an opaque value.
+   * Format: value_base64.signature_base64
    */
-  public async createSessionToken(payload: SessionTokenPayload): Promise<string> {
-    const payloadJson = JSON.stringify(payload);
-    const payloadBase64 = Buffer.from(payloadJson).toString("base64");
+  public async createSignedToken(value: string): Promise<string> {
+    const payloadBase64 = Buffer.from(value).toString("base64");
 
     // HMAC-SHA256(sessionSecret, payloadBase64)
     const encoder = new TextEncoder();
@@ -45,10 +45,10 @@ export class SessionManager {
   }
 
   /**
-   * Verify and parse a signed session token.
-   * Returns null if invalid/expired.
+   * Verify and parse a signed token.
+   * Returns the original value if valid, otherwise null.
    */
-  public async validateSessionToken(token: string): Promise<AuthSession | null> {
+  public async validateSignedToken(token: string): Promise<string | null> {
     try {
       const [payloadBase64, signatureBase64] = token.split(".");
       if (
@@ -76,43 +76,46 @@ export class SessionManager {
       }
 
       // Parse payload
-      const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
-      const payload = JSON.parse(payloadJson) as SessionTokenPayload;
-
-      // Check expiry
-      const now = Date.now();
-      const isExpired = payload.expiresAt < now;
-
-      return {
-        userId: payload.userId,
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken,
-        expiresAt: payload.expiresAt,
-        isExpired,
-      };
+      return Buffer.from(payloadBase64, "base64").toString("utf-8");
     } catch {
       return null;
     }
+  }
+
+  public setCookie(response: Response, cookieName: string, token: string, expiresAt: number, maxAgeSeconds = COOKIE_MAX_AGE_SECONDS): void {
+    const expiresDate = new Date(expiresAt);
+    const cookieValue = `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}`;
+
+    response.headers.append("Set-Cookie", cookieValue);
+  }
+
+  public clearCookie(response: Response, cookieName: string): void {
+    const cookieValue = `${cookieName}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+
+    response.headers.append("Set-Cookie", cookieValue);
   }
 
   /**
    * Set a signed session token in an HttpOnly, Secure, SameSite cookie.
    */
   public setSessionCookie(response: Response, token: string, expiresAt: number): void {
-    const expiresDate = new Date(expiresAt);
-
-    const cookieValue = `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE_SECONDS.toString()}; Expires=${expiresDate.toUTCString()}`;
-
-    response.headers.append("Set-Cookie", cookieValue);
+    this.setCookie(response, SESSION_COOKIE_NAME, token, expiresAt);
   }
 
   /**
    * Clear the session cookie.
    */
   public clearSessionCookie(response: Response): void {
-    const cookieValue = `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    this.clearCookie(response, SESSION_COOKIE_NAME);
+  }
 
-    response.headers.append("Set-Cookie", cookieValue);
+  public setPkceStateCookie(response: Response, token: string): void {
+    const expiresAt = Date.now() + PKCE_COOKIE_MAX_AGE_SECONDS * 1000;
+    this.setCookie(response, PKCE_COOKIE_NAME, token, expiresAt, PKCE_COOKIE_MAX_AGE_SECONDS);
+  }
+
+  public clearPkceStateCookie(response: Response): void {
+    this.clearCookie(response, PKCE_COOKIE_NAME);
   }
 
   /**
@@ -132,5 +135,21 @@ export class SessionManager {
     }
 
     return sessionCookie.substring(`${SESSION_COOKIE_NAME}=`.length);
+  }
+
+  public extractPkceStateToken(request: Request): string | null {
+    const cookieHeader = request.headers.get("Cookie");
+    if (cookieHeader == null) {
+      return null;
+    }
+
+    const cookies = cookieHeader.split(";").map((c) => c.trim());
+    const stateCookie = cookies.find((c) => c.startsWith(`${PKCE_COOKIE_NAME}=`));
+
+    if (stateCookie == null) {
+      return null;
+    }
+
+    return stateCookie.substring(`${PKCE_COOKIE_NAME}=`.length);
   }
 }

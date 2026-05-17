@@ -45,13 +45,14 @@ function isValidUrl(url: string): boolean {
 export function installServices({ env }: InstallServicesOpts): Services {
   const sentryMode = env.MODE === "development" ? "development" : "production";
   const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
+  const databaseService = new DatabaseService({ env });
   const authService = new AuthService({
     microsoftClientId: env.MICROSOFT_CLIENT_ID,
     microsoftClientSecret: env.MICROSOFT_CLIENT_SECRET,
     microsoftRedirectUri: env.MICROSOFT_REDIRECT_URI,
     sessionSecret: env.SESSION_SECRET,
+    databaseService,
   });
-  const databaseService = new DatabaseService({ env });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);

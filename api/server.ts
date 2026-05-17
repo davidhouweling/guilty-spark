@@ -41,10 +41,9 @@ export class Server {
         const services = this.installServices({ env });
         const { authService } = services;
 
-        const { url, state } = await authService.generateAuthorizationUrl();
+        const { url, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
-        // Return the auth URL + state for frontend to navigate to
-        return new Response(
+        const response = new Response(
           JSON.stringify({
             authUrl: url.toString(),
             state,
@@ -56,6 +55,14 @@ export class Server {
             },
           },
         );
+
+        await authService.setPkceStateCookie(response, {
+          codeVerifier,
+          state,
+          issuedAt: Date.now(),
+        });
+
+        return response;
       } catch (error) {
         console.error("Auth start error:", error);
         return new Response(
@@ -86,7 +93,7 @@ export class Server {
         const { authService } = services;
 
         // Exchange code for tokens and create session
-        const sessionPayload = await authService.handleCallback(code, state);
+        const sessionPayload = await authService.handleCallback(request, code, state);
         const sessionToken = await authService.createSessionToken(sessionPayload);
 
         // Create response with Set-Cookie header
@@ -105,11 +112,12 @@ export class Server {
 
         // Set session cookie
         authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
+        authService.clearPkceStateCookie(response);
 
         return response;
       } catch (error) {
         console.error("Auth callback error:", error);
-        return new Response(
+        const response = new Response(
           JSON.stringify({
             error: error instanceof Error ? error.message : "Authentication failed",
           }),
@@ -120,6 +128,7 @@ export class Server {
             },
           },
         );
+        return response;
       }
     });
 
@@ -377,11 +386,6 @@ export class Server {
           status: 200,
           headers: { "content-type": "application/json" },
         });
-
-        if (refreshedSessionPayload !== null && services !== null) {
-          const refreshedToken = await services.authService.createSessionToken(refreshedSessionPayload);
-          services.authService.setSessionCookie(response, refreshedToken, refreshedSessionPayload.expiresAt);
-        }
 
         return response;
       } catch (error) {

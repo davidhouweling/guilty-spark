@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AuthService } from "../auth";
-import { aFakeSessionTokenPayload } from "../fakes/data";
+import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
+import { aFakeDatabaseServiceWith, aFakeUserSessionsRow } from "../../database/fakes/database.fake";
 
 describe("AuthService", () => {
   let service: AuthService;
+  let databaseService: ReturnType<typeof aFakeDatabaseServiceWith>;
 
   beforeEach(() => {
+    databaseService = aFakeDatabaseServiceWith();
     service = new AuthService({
       microsoftClientId: "test-client-id",
       microsoftClientSecret: "test-client-secret",
       microsoftRedirectUri: "http://localhost:8787/auth/microsoft/callback",
       sessionSecret: "a".repeat(64),
+      databaseService,
     });
   });
 
@@ -28,7 +32,15 @@ describe("AuthService", () => {
   });
 
   it("throws on invalid state in callback", async () => {
-    await expect(service.handleCallback("code", "invalid-state")).rejects.toThrow("Invalid or expired state parameter");
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: "auth-pkce-state=invalid-token",
+      },
+    });
+
+    await expect(service.handleCallback(request, "code", "invalid-state")).rejects.toThrow(
+      "Invalid or expired state parameter",
+    );
   });
 
   it("creates session token from payload", async () => {
@@ -37,6 +49,56 @@ describe("AuthService", () => {
 
     expect(token).toContain(".");
     expect(token.split(".")).toHaveLength(2);
+  });
+
+  it("handles callback with pkce cookie and persists the session", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: "access-token",
+          expires_in: 3600,
+          refresh_token: "refresh-token",
+          id_token: `header.${Buffer.from(
+            JSON.stringify({
+              sub: "user-123",
+              email: "user@example.com",
+              name: "Test User",
+              preferred_username: "testuser",
+            }),
+          ).toString("base64url")}.signature`,
+          token_type: "Bearer",
+          scope: "openid email XboxLive.signin XboxLive.offline_access",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
+    const { state, codeVerifier } = aFakePKCEState();
+    const response = new Response();
+    await service.setPkceStateCookie(response, {
+      state,
+      codeVerifier,
+      issuedAt: Date.now(),
+    });
+
+    const cookieHeader = response.headers.get("Set-Cookie") ?? "";
+    const pkceCookie = cookieHeader.split(";")[0] ?? "";
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: pkceCookie,
+      },
+    });
+
+    const session = await service.handleCallback(request, "code", state);
+
+    expect(session.sessionId).toBeTruthy();
+    expect(session.userId).toBe("user-123");
+    expect(databaseService.upsertUserSession).toHaveBeenCalled();
   });
 
   it("sets session cookie in response", async () => {
@@ -61,6 +123,16 @@ describe("AuthService", () => {
   it("validates session from request", async () => {
     const payload = aFakeSessionTokenPayload();
     const token = await service.createSessionToken(payload);
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: payload.sessionId,
+        UserId: payload.userId,
+        AccessToken: payload.accessToken,
+        RefreshToken: payload.refreshToken ?? null,
+        ExpiresAt: Math.floor(payload.expiresAt / 1000),
+        LastRefreshedAt: Math.floor(Date.now() / 1000),
+      }),
+    );
 
     const request = new Request("http://localhost", {
       headers: {
@@ -82,6 +154,7 @@ describe("AuthService", () => {
 
   it("returns null when refreshing a session without refresh token", async () => {
     const session: AuthSession = {
+      sessionId: "session-123",
       userId: "user-123",
       accessToken: "access-token",
       refreshToken: undefined,
@@ -111,6 +184,7 @@ describe("AuthService", () => {
     );
 
     const session: AuthSession = {
+      sessionId: "session-123",
       userId: "user-123",
       accessToken: "old-access-token",
       refreshToken: "old-refresh-token",
@@ -118,9 +192,13 @@ describe("AuthService", () => {
       isExpired: true,
     };
 
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(aFakeUserSessionsRow({ SessionId: session.sessionId }));
+    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
     const refreshed = await service.refreshSession(session);
 
     expect(refreshed).not.toBeNull();
+    expect(refreshed?.sessionId).toBe(session.sessionId);
     expect(refreshed?.userId).toBe("user-123");
     expect(refreshed?.accessToken).toBe("new-access-token");
     expect(refreshed?.refreshToken).toBe("new-refresh-token");

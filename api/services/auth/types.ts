@@ -26,6 +26,7 @@ export interface AuthenticatedUser {
  * Compact representation to fit within typical cookie size limits.
  */
 export interface SessionTokenPayload {
+  readonly sessionId: string;
   readonly userId: string; // Microsoft user ID
   readonly accessToken: string;
   readonly refreshToken: string | undefined;
@@ -38,6 +39,7 @@ export interface SessionTokenPayload {
  * Available to authenticated route handlers.
  */
 export interface AuthSession {
+  readonly sessionId: string;
   readonly userId: string;
   readonly accessToken: string;
   readonly refreshToken: string | undefined;

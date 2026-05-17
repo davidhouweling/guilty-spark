@@ -1,60 +1,40 @@
 import { describe, it, expect } from "vitest";
 import { SessionManager } from "../session-manager";
-import { aFakeSessionTokenPayload } from "../fakes/data";
-
 describe("SessionManager", () => {
-  it("creates and validates a signed session token", async () => {
+  it("creates and validates a signed opaque value", async () => {
     const sessionSecret = "a".repeat(64); // 32 bytes = 64 hex chars
     const manager = new SessionManager(sessionSecret);
 
-    const payload = aFakeSessionTokenPayload();
-    const token = await manager.createSessionToken(payload);
+    const value = "session-123";
+    const token = await manager.createSignedToken(value);
 
     expect(token).toContain(".");
     const [payloadPart, signature] = token.split(".");
     expect(payloadPart).toBeTruthy();
     expect(signature).toBeTruthy();
 
-    const validated = await manager.validateSessionToken(token);
-    expect(validated).not.toBeNull();
-    expect(validated?.userId).toBe(payload.userId);
-    expect(validated?.accessToken).toBe(payload.accessToken);
-    expect(validated?.isExpired).toBe(false);
+    const validated = await manager.validateSignedToken(token);
+    expect(validated).toBe(value);
   });
 
   it("rejects tampered token", async () => {
     const sessionSecret = "b".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
-    const payload = aFakeSessionTokenPayload();
-    const token = await manager.createSessionToken(payload);
+    const token = await manager.createSignedToken("session-123");
 
     const [payloadPart] = token.split(".");
     const tamperedToken = `${payloadPart ?? ""}.fake-signature`;
 
-    const validated = await manager.validateSessionToken(tamperedToken);
+    const validated = await manager.validateSignedToken(tamperedToken);
     expect(validated).toBeNull();
-  });
-
-  it("detects expired session", async () => {
-    const sessionSecret = "c".repeat(64);
-    const manager = new SessionManager(sessionSecret);
-
-    const expiredPayload = aFakeSessionTokenPayload({
-      expiresAt: Date.now() - 3600 * 1000, // 1 hour ago
-    });
-    const token = await manager.createSessionToken(expiredPayload);
-
-    const validated = await manager.validateSessionToken(token);
-    expect(validated).not.toBeNull();
-    expect(validated?.isExpired).toBe(true);
   });
 
   it("rejects invalid token format", async () => {
     const sessionSecret = "d".repeat(64);
     const manager = new SessionManager(sessionSecret);
 
-    const validated = await manager.validateSessionToken("invalid-format");
+    const validated = await manager.validateSignedToken("invalid-format");
     expect(validated).toBeNull();
   });
 
@@ -126,5 +106,26 @@ describe("SessionManager", () => {
 
     const token = manager.extractSessionToken(request);
     expect(token).toBeNull();
+  });
+
+  it("sets and extracts PKCE state cookies", () => {
+    const sessionSecret = "j".repeat(64);
+    const manager = new SessionManager(sessionSecret);
+
+    const response = new Response();
+    const signedToken = "signed-pkce-token";
+
+    manager.setPkceStateCookie(response, signedToken);
+
+    const setCookie = response.headers.get("Set-Cookie");
+    expect(setCookie).toContain("auth-pkce-state=signed-pkce-token");
+
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: `auth-pkce-state=${signedToken}`,
+      },
+    });
+
+    expect(manager.extractPkceStateToken(request)).toBe(signedToken);
   });
 });

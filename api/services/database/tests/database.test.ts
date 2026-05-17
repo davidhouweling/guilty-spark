@@ -682,27 +682,46 @@ describe("Database Service", () => {
   describe("replaceIndividualTrackerGames()", () => {
     it("replaces games by deleting existing rows then inserting new rows", async () => {
       const game = aFakeIndividualTrackerGamesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
-      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
-      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
-      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+      const deleteStatement = new FakePreparedStatement();
+      const insertStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+      prepareSpy.mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
+      const deleteBindSpy = vi.spyOn(deleteStatement, "bind");
+      const insertBindSpy = vi.spyOn(insertStatement, "bind");
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.replaceIndividualTrackerGames("profile-1", [game]);
 
       expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM IndividualTrackerGames WHERE ProfileId = ?");
-      expect(bindSpy).toHaveBeenCalledWith("profile-1");
-      expect(runSpy).toHaveBeenCalled();
-      expect(prepareSpy).toHaveBeenCalledTimes(2);
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("INSERT INTO IndividualTrackerGames"),
+      );
+      expect(deleteBindSpy).toHaveBeenCalledWith("profile-1");
+      expect(insertBindSpy).toHaveBeenCalledWith(
+        game.ProfileId,
+        game.MatchId,
+        game.Position,
+        game.Included,
+        game.AnnotationsJson,
+        game.CreatedAt,
+        game.UpdatedAt,
+      );
+      expect(batchSpy).toHaveBeenCalledWith([deleteStatement, insertStatement]);
     });
 
     it("only deletes rows when replacement list is empty", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+      const batchSpy = vi.spyOn(env.DB, "batch");
 
       await databaseService.replaceIndividualTrackerGames("profile-1", []);
 
       expect(prepareSpy).toHaveBeenCalledTimes(1);
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM IndividualTrackerGames WHERE ProfileId = ?");
+      expect(runSpy).toHaveBeenCalled();
+      expect(batchSpy).not.toHaveBeenCalled();
     });
   });
 
