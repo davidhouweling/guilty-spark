@@ -1,18 +1,36 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import type { EnvironmentOptions } from "vite";
 
-// https://astro.build/config
 export default defineConfig({
-  adapter: cloudflare({
-    imageService: "cloudflare",
-  }),
+  adapter: cloudflare(),
   integrations: [react()],
   scopedStyleStrategy: "class",
   trailingSlash: "never",
   vite: {
-    optimizeDeps: {
-      exclude: ["halo-infinite-api"],
+    ssr: {
+      // CF Workers must have all deps bundled to avoid Vite SSR optimizer races.
+      noExternal: true,
     },
+    plugins: [
+      {
+        name: "cloudflare-worker-deps-prebundle",
+        configEnvironment(name, options): EnvironmentOptions | undefined {
+          if (name === "ssr" && (options.resolve?.conditions?.includes("workerd") ?? false)) {
+            return {
+              optimizeDeps: {
+                include: [
+                  // Vite's workerd runner can still hit nested CommonJS deps even when
+                  // the main renderer deps are prebundled. Force this nested dependency
+                  // into the SSR optimizer so the worker sees ESM instead of raw CJS.
+                  "@astrojs/internal-helpers > picomatch",
+                ],
+              },
+            };
+          }
+        },
+      },
+    ],
   },
 });
