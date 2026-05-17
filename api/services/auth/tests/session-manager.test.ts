@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SessionManager } from "../session-manager";
+
 describe("SessionManager", () => {
   it("creates and validates a signed opaque value", async () => {
     const sessionSecret = "a".repeat(64); // 32 bytes = 64 hex chars
@@ -51,7 +52,7 @@ describe("SessionManager", () => {
     const manager = new SessionManager(sessionSecret);
 
     const response = new Response();
-    manager.setSessionCookie(response, "test-token", Date.now() + 3600 * 1000);
+    manager.setSessionCookie(response, "test-token");
 
     const setCookie = response.headers.get("Set-Cookie");
     expect(setCookie).toContain("auth-session=test-token");
@@ -59,6 +60,7 @@ describe("SessionManager", () => {
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Strict");
     expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Max-Age=2592000");
   });
 
   it("clears session cookie on logout", () => {

@@ -128,10 +128,11 @@ describe("AuthService", () => {
     const token = await service.createSessionToken(payload);
     const response = new Response();
 
-    service.setSessionCookie(response, token, payload.expiresAt);
+    service.setSessionCookie(response, token);
 
     const setCookie = response.headers.get("Set-Cookie");
     expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("Max-Age=2592000");
   });
 
   it("clears session cookie", () => {

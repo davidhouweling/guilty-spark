@@ -116,7 +116,7 @@ export class Server {
         );
 
         // Set session cookie
-        authService.setSessionCookie(response, sessionToken, sessionPayload.expiresAt);
+        authService.setSessionCookie(response, sessionToken);
         authService.clearPkceStateCookie(response);
 
         return addCorsHeaders(response, request, true);

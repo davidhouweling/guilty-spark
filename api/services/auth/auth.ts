@@ -168,8 +168,8 @@ export class AuthService {
   /**
    * Set session cookie in response.
    */
-  public setSessionCookie(response: Response, token: string, expiresAt: number): void {
-    this.sessionManager.setSessionCookie(response, token, expiresAt);
+  public setSessionCookie(response: Response, token: string): void {
+    this.sessionManager.setSessionCookie(response, token);
   }
 
   /**

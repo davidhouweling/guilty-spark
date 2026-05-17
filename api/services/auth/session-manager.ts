@@ -110,7 +110,8 @@ export class SessionManager {
   /**
    * Set a signed session token in an HttpOnly, Secure, SameSite cookie.
    */
-  public setSessionCookie(response: Response, token: string, expiresAt: number): void {
+  public setSessionCookie(response: Response, token: string): void {
+    const expiresAt = Date.now() + COOKIE_MAX_AGE_SECONDS * 1000;
     this.setCookie(response, SESSION_COOKIE_NAME, token, expiresAt);
   }
 
