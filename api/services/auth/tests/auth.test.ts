@@ -168,6 +168,36 @@ describe("AuthService", () => {
     expect(session?.userId).toBe(payload.userId);
   });
 
+  it("returns null when the signed session has expired server-side", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-17T23:32:08.160Z"));
+      const payload = aFakeSessionTokenPayload({
+        issuedAt: Date.now() - 31 * 24 * 60 * 60 * 1000,
+        expiresAt: Date.now() + 3600 * 1000,
+      });
+      const token = await service.createSessionToken(payload);
+      vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+        aFakeUserSessionsRow({
+          SessionId: payload.sessionId,
+          UserId: payload.userId,
+          ExpiresAt: Math.floor(payload.expiresAt / 1000),
+        }),
+      );
+
+      const request = new Request("http://localhost", {
+        headers: {
+          Cookie: `auth-session=${token}`,
+        },
+      });
+
+      const session = await service.validateSession(request);
+      expect(session).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns null for invalid session", async () => {
     const request = new Request("http://localhost");
 

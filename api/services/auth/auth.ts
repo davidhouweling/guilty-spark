@@ -2,9 +2,9 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
-import { SessionManager } from "./session-manager";
+import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
-import type { PKCEState, SessionTokenPayload, AuthSession } from "./types";
+import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload } from "./types";
 
 /**
  * Main authentication orchestrator.
@@ -94,7 +94,12 @@ export class AuthService {
    * Create a signed session token and return it (caller handles cookie setting).
    */
   public async createSessionToken(payload: SessionTokenPayload): Promise<string> {
-    return this.sessionManager.createSignedToken(payload.sessionId);
+    const sessionCookiePayload: SessionCookiePayload = {
+      sessionId: payload.sessionId,
+      sessionExpiresAt: payload.issuedAt + SESSION_COOKIE_MAX_AGE_SECONDS * 1000,
+    };
+
+    return this.sessionManager.createSignedToken(JSON.stringify(sessionCookiePayload));
   }
 
   /**
@@ -106,12 +111,12 @@ export class AuthService {
       return null;
     }
 
-    const sessionId = await this.sessionManager.validateSignedToken(token);
-    if (sessionId == null) {
+    const sessionCookiePayload = await this.readSessionCookiePayload(token);
+    if (sessionCookiePayload == null || sessionCookiePayload.sessionExpiresAt <= Date.now()) {
       return null;
     }
 
-    const session = await this.databaseService.getUserSession(sessionId);
+    const session = await this.databaseService.getUserSession(sessionCookiePayload.sessionId);
     if (session == null) {
       return null;
     }
@@ -206,7 +211,12 @@ export class AuthService {
       throw new Error("Invalid or expired state parameter");
     }
 
-    const pkceState = JSON.parse(payload) as Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">;
+    const parsedPayload: unknown = JSON.parse(payload);
+    if (!this.isPkceStatePayload(parsedPayload)) {
+      throw new Error("Invalid or expired state parameter");
+    }
+
+    const pkceState = parsedPayload;
     if (pkceState.state !== state) {
       throw new Error("Invalid or expired state parameter");
     }
@@ -253,5 +263,52 @@ export class AuthService {
       expiresAt,
       isExpired,
     };
+  }
+
+  private async readSessionCookiePayload(token: string): Promise<SessionCookiePayload | null> {
+    const payload = await this.sessionManager.validateSignedToken(token);
+    if (payload == null) {
+      return null;
+    }
+
+    try {
+      const parsedPayload: unknown = JSON.parse(payload);
+      if (!this.isSessionCookiePayload(parsedPayload)) {
+        return null;
+      }
+
+      return parsedPayload;
+    } catch {
+      return null;
+    }
+  }
+
+  private isSessionCookiePayload(value: unknown): value is SessionCookiePayload {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      "sessionId" in value &&
+      typeof value.sessionId === "string" &&
+      value.sessionId !== "" &&
+      "sessionExpiresAt" in value &&
+      typeof value.sessionExpiresAt === "number" &&
+      Number.isFinite(value.sessionExpiresAt)
+    );
+  }
+
+  private isPkceStatePayload(value: unknown): value is Pick<PKCEState, "codeVerifier" | "state" | "issuedAt"> {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      "codeVerifier" in value &&
+      typeof value.codeVerifier === "string" &&
+      value.codeVerifier !== "" &&
+      "state" in value &&
+      typeof value.state === "string" &&
+      value.state !== "" &&
+      "issuedAt" in value &&
+      typeof value.issuedAt === "number" &&
+      Number.isFinite(value.issuedAt)
+    );
   }
 }

@@ -34,6 +34,11 @@ export interface SessionTokenPayload {
   readonly issuedAt: number; // Unix timestamp in milliseconds
 }
 
+export interface SessionCookiePayload {
+  readonly sessionId: string;
+  readonly sessionExpiresAt: number; // Unix timestamp in milliseconds
+}
+
 /**
  * Authenticated session data (after validation).
  * Available to authenticated route handlers.

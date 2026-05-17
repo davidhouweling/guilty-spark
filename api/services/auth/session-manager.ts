@@ -2,7 +2,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 const SESSION_COOKIE_NAME = "auth-session";
 const PKCE_COOKIE_NAME = "auth-pkce-state";
-const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
+export const SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const PKCE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 /**
@@ -92,7 +92,7 @@ export class SessionManager {
     cookieName: string,
     token: string,
     expiresAt: number,
-    maxAgeSeconds = COOKIE_MAX_AGE_SECONDS,
+    maxAgeSeconds = SESSION_COOKIE_MAX_AGE_SECONDS,
     sameSite: "Lax" | "Strict" = "Strict",
   ): void {
     const expiresDate = new Date(expiresAt);
@@ -111,7 +111,7 @@ export class SessionManager {
    * Set a signed session token in an HttpOnly, Secure, SameSite cookie.
    */
   public setSessionCookie(response: Response, token: string): void {
-    const expiresAt = Date.now() + COOKIE_MAX_AGE_SECONDS * 1000;
+    const expiresAt = Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
     this.setCookie(response, SESSION_COOKIE_NAME, token, expiresAt);
   }
 

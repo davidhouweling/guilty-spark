@@ -165,12 +165,35 @@ export class Server {
           return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false }, 401), request, true);
         }
 
+        let authenticatedSession = session;
         if (session.isExpired) {
-          return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false, expired: true }, 401), request, true);
+          try {
+            const refreshedSession = await authService.refreshSession(session);
+            if (refreshedSession == null) {
+              const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+              authService.clearSessionCookie(response);
+              return addCorsHeaders(response, request, true);
+            }
+
+            authenticatedSession = {
+              ...session,
+              accessToken: refreshedSession.accessToken,
+              refreshToken: refreshedSession.refreshToken,
+              expiresAt: refreshedSession.expiresAt,
+              isExpired: false,
+            };
+          } catch {
+            const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+            authService.clearSessionCookie(response);
+            return addCorsHeaders(response, request, true);
+          }
         }
 
         return addCorsHeaders(
-          createNoStoreJsonResponse({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }, 200),
+          createNoStoreJsonResponse(
+            { authenticated: true, userId: authenticatedSession.userId, expiresAt: authenticatedSession.expiresAt },
+            200,
+          ),
           request,
           true,
         );
