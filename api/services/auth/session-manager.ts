@@ -17,7 +17,7 @@ export class SessionManager {
     const secret = Preconditions.checkExists(sessionSecretHex, "sessionSecretHex");
     if (secret.length !== 64 || !/^[0-9a-f]+$/i.test(secret)) {
       // 32 bytes = 64 hex chars
-      throw new Error(`sessionSecret must be 64 hex characters (32 bytes), got ${secret.length.toString()}`);
+      throw new Error("sessionSecret must be exactly 64 valid hex characters (32 bytes)");
     }
 
     const decodedSecret = Buffer.from(secret, "hex");
