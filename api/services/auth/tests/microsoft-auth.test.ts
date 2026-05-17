@@ -93,7 +93,7 @@ describe("MicrosoftAuthService", () => {
       tenantId: "test-tenant-id",
     });
     const [header = "", , signature = ""] = signedToken.token.split(".");
-    const incompletePayload = Buffer.from(
+    const payloadMissingEmail = Buffer.from(
       JSON.stringify({
         aud: "test-client-id",
         exp: Math.floor(Date.now() / 1000) + 3600,
@@ -103,7 +103,7 @@ describe("MicrosoftAuthService", () => {
       }),
     ).toString("base64url");
 
-    await expect(service.parseIdToken(`${header}.${incompletePayload}.${signature}`)).rejects.toThrow();
+    await expect(service.parseIdToken(`${header}.${payloadMissingEmail}.${signature}`)).rejects.toThrow();
   });
 
   it("throws on expired ID token", async () => {

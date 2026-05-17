@@ -213,7 +213,7 @@ export class MicrosoftAuthService {
   }
 
   private parseJwtHeader(encodedHeader: string): JwtHeader {
-    const header = this.parseJsonObject(encodedHeader);
+    const header = this.parseJsonObject(encodedHeader, "header");
     const { alg, kid } = header;
 
     if (alg !== "RS256" || typeof kid !== "string" || kid === "") {
@@ -227,7 +227,7 @@ export class MicrosoftAuthService {
   }
 
   private parseClaims(encodedPayload: string): IdTokenClaims {
-    const claims = this.parseJsonObject(encodedPayload);
+    const claims = this.parseJsonObject(encodedPayload, "payload");
     const { aud, email, exp, iss, name, nbf, preferred_username: preferredUsername, sub, tid } = claims;
 
     if (
@@ -424,12 +424,12 @@ export class MicrosoftAuthService {
     };
   }
 
-  private parseJsonObject(encodedValue: string): Record<string, unknown> {
+  private parseJsonObject(encodedValue: string, context: "header" | "payload"): Record<string, unknown> {
     const decoded = Buffer.from(encodedValue, "base64url").toString("utf-8");
     const payload: unknown = JSON.parse(decoded);
 
     if (!this.isRecord(payload)) {
-      throw new Error("Invalid ID token payload");
+      throw new Error(`Invalid ID token ${context}`);
     }
 
     return payload;
