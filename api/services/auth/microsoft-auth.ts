@@ -23,6 +23,11 @@ interface OpenIdConfiguration {
   readonly jwks_uri: string;
 }
 
+interface CachedValue<T> {
+  readonly expiresAt: number;
+  readonly value: T;
+}
+
 interface SigningJsonWebKey extends JsonWebKey {
   readonly e: string;
   readonly kid?: string;
@@ -40,13 +45,14 @@ interface JwkSet {
  * Suitable for browser-based auth flow.
  */
 export class MicrosoftAuthService {
+  private static readonly DEFAULT_CACHE_MAX_AGE_SECONDS = 300;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
   private readonly tenant: string; // 'consumers' for personal accounts
   private readonly scopes: string;
-  private openIdConfigurationPromise: Promise<OpenIdConfiguration> | null = null;
-  private jwkSetPromise: Promise<JwkSet> | null = null;
+  private openIdConfigurationCache: CachedValue<OpenIdConfiguration> | null = null;
+  private jwkSetCache: CachedValue<JwkSet> | null = null;
 
   public constructor(config: {
     clientId: string;
@@ -319,12 +325,17 @@ export class MicrosoftAuthService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenant);
   }
 
-  private async getOpenIdConfiguration(): Promise<OpenIdConfiguration> {
-    this.openIdConfigurationPromise ??= this.fetchOpenIdConfiguration();
-    return await this.openIdConfigurationPromise;
+  private async getOpenIdConfiguration(forceRefresh = false): Promise<OpenIdConfiguration> {
+    if (!forceRefresh && this.openIdConfigurationCache != null && this.openIdConfigurationCache.expiresAt > Date.now()) {
+      return this.openIdConfigurationCache.value;
+    }
+
+    const configuration = await this.fetchOpenIdConfiguration();
+    this.openIdConfigurationCache = configuration;
+    return configuration.value;
   }
 
-  private async fetchOpenIdConfiguration(): Promise<OpenIdConfiguration> {
+  private async fetchOpenIdConfiguration(): Promise<CachedValue<OpenIdConfiguration>> {
     const response = await fetch(
       new URL(`https://login.microsoftonline.com/${this.tenant}/v2.0/.well-known/openid-configuration`),
     );
@@ -340,14 +351,14 @@ export class MicrosoftAuthService {
       throw new Error("Invalid Microsoft OpenID configuration response");
     }
 
-    return payload;
+    return {
+      expiresAt: this.getCacheExpiry(response.headers),
+      value: payload,
+    };
   }
 
   private async getVerificationKey(keyId: string): Promise<CryptoKey> {
-    const jwkSet = await this.getJwkSet();
-    const jwk = jwkSet.keys.find((candidate) => {
-      return candidate.kid === keyId && candidate.kty === "RSA";
-    });
+    const jwk = await this.findVerificationKey(keyId);
 
     if (jwk == null) {
       throw new Error("Unable to find Microsoft signing key");
@@ -369,13 +380,33 @@ export class MicrosoftAuthService {
     );
   }
 
-  private async getJwkSet(): Promise<JwkSet> {
-    this.jwkSetPromise ??= this.fetchJwkSet();
-    return await this.jwkSetPromise;
+  private async findVerificationKey(keyId: string): Promise<SigningJsonWebKey | undefined> {
+    const cachedJwkSet = await this.getJwkSet();
+    const cachedKey = cachedJwkSet.keys.find((candidate) => {
+      return candidate.kid === keyId && candidate.kty === "RSA";
+    });
+    if (cachedKey != null) {
+      return cachedKey;
+    }
+
+    const refreshedJwkSet = await this.getJwkSet(true);
+    return refreshedJwkSet.keys.find((candidate) => {
+      return candidate.kid === keyId && candidate.kty === "RSA";
+    });
   }
 
-  private async fetchJwkSet(): Promise<JwkSet> {
-    const openIdConfiguration = await this.getOpenIdConfiguration();
+  private async getJwkSet(forceRefresh = false): Promise<JwkSet> {
+    if (!forceRefresh && this.jwkSetCache != null && this.jwkSetCache.expiresAt > Date.now()) {
+      return this.jwkSetCache.value;
+    }
+
+    const jwkSet = await this.fetchJwkSet(forceRefresh);
+    this.jwkSetCache = jwkSet;
+    return jwkSet.value;
+  }
+
+  private async fetchJwkSet(forceRefresh = false): Promise<CachedValue<JwkSet>> {
+    const openIdConfiguration = await this.getOpenIdConfiguration(forceRefresh);
     const response = await fetch(new URL(openIdConfiguration.jwks_uri));
 
     if (!response.ok) {
@@ -387,7 +418,10 @@ export class MicrosoftAuthService {
       throw new Error("Invalid Microsoft JWKS response");
     }
 
-    return payload;
+    return {
+      expiresAt: this.getCacheExpiry(response.headers),
+      value: payload,
+    };
   }
 
   private parseJsonObject(encodedValue: string): Record<string, unknown> {
@@ -415,5 +449,16 @@ export class MicrosoftAuthService {
 
   private isStringArray(value: unknown): value is readonly string[] {
     return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+
+  private getCacheExpiry(headers: Headers): number {
+    const cacheControl = headers.get("cache-control");
+    const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
+    const maxAgeSeconds =
+      maxAgeMatch?.[1] == null
+        ? MicrosoftAuthService.DEFAULT_CACHE_MAX_AGE_SECONDS
+        : Number.parseInt(maxAgeMatch[1], 10);
+
+    return Date.now() + maxAgeSeconds * 1000;
   }
 }

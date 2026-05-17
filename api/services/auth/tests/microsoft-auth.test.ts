@@ -129,6 +129,29 @@ describe("MicrosoftAuthService", () => {
     await expect(service.parseIdToken(signedToken.token)).rejects.toThrow("ID token expired");
   });
 
+  it("throws when ID token is not valid yet", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      notBefore: Math.floor(Date.now() / 1000) + 60,
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Cache-Control": "max-age=60", "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Cache-Control": "max-age=60", "Content-Type": "application/json" },
+        }),
+      );
+
+    await expect(service.parseIdToken(signedToken.token)).rejects.toThrow("ID token is not valid yet");
+  });
+
   it("throws on ID token with invalid signature", async () => {
     const signedToken = await aSignedMicrosoftIdTokenWith({
       clientId: "test-client-id",
