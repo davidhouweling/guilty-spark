@@ -61,4 +61,10 @@ export interface PKCEState {
   readonly codeChallenge: string;
   readonly state: string;
   readonly issuedAt: number;
+  readonly redirectTo: string;
+}
+
+export interface AuthCallbackResult {
+  readonly sessionPayload: SessionTokenPayload;
+  readonly redirectTo: string;
 }

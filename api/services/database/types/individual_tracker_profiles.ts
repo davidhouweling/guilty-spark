@@ -3,6 +3,8 @@ export interface IndividualTrackerProfilesRow {
   UserId: string;
   ActiveIdentityId: string | null;
   Name: string;
+  IdleTimeoutHours: number;
+  AllowContinueAfterLogout: number;
   CreatedAt: number;
   UpdatedAt: number;
 }

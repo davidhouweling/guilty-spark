@@ -1,0 +1,16 @@
+export interface SessionResponse {
+  authenticated: boolean;
+  userId?: string;
+  expiresAt?: number;
+  expired?: boolean;
+}
+
+export interface MicrosoftStartResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface AuthService {
+  getSession(): Promise<SessionResponse>;
+  startMicrosoftAuth(redirectTo?: string): Promise<MicrosoftStartResponse>;
+}

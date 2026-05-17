@@ -1,0 +1,50 @@
+.container {
+  margin: 0 auto;
+  max-width: 640px;
+  padding: var(--space-6) var(--gutter-mobile);
+}
+
+.card {
+  background: color-mix(in srgb, var(--halo-bg-card) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+  border-radius: var(--radius-lg);
+  max-width: 520px;
+  padding: var(--space-8);
+  width: 100%;
+}
+
+.heading {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.subtext {
+  color: var(--halo-gray);
+  margin: var(--space-3) 0 var(--space-6);
+}
+
+.statusText {
+  color: var(--halo-teal-primary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.signInButton {
+  margin-top: var(--space-2);
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  margin: var(--space-4) 0 0;
+}
+
+@media (--tablet-viewport) {
+  .container {
+    padding: var(--space-8) var(--gutter-desktop);
+  }
+}

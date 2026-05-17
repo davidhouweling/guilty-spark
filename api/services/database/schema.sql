@@ -67,10 +67,20 @@ CREATE TABLE IF NOT EXISTS IndividualTrackerProfiles (
     UserId TEXT NOT NULL,
     ActiveIdentityId TEXT,
     Name TEXT NOT NULL DEFAULT 'default',
+    IdleTimeoutHours INTEGER NOT NULL DEFAULT 1 CHECK (IdleTimeoutHours IN (1, 2, 3, 4, 5, 6)),
+    AllowContinueAfterLogout INTEGER NOT NULL DEFAULT 0 CHECK (AllowContinueAfterLogout IN (0, 1)),
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     FOREIGN KEY (ActiveIdentityId) REFERENCES LinkedIdentities(IdentityId),
     UNIQUE (UserId, Name)
+);
+
+-- Tracks which tracker instance is designated as the "on-stream" active tracker for a user.
+-- Viewer routes displaying /active use this to resolve the current trackerId.
+CREATE TABLE IF NOT EXISTS IndividualTrackerActiveSessions (
+    UserId TEXT PRIMARY KEY NOT NULL,
+    TrackerId TEXT NOT NULL,
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserId ON IndividualTrackerProfiles (UserId);

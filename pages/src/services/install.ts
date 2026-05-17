@@ -1,4 +1,7 @@
+import { RealAuthService } from "./auth/auth";
 import { RealLiveTrackerService } from "./live-tracker/live-tracker";
+import { RealIndividualTrackerService } from "./individual-tracker/individual-tracker";
+import { RealIndividualLiveTrackerService } from "./individual-live-tracker/individual-live-tracker";
 import type { Services } from "./types";
 
 export type PagesMode = "REAL" | "FAKE";
@@ -17,6 +20,9 @@ export async function installServices(apiHost: string): Promise<Services> {
   }
 
   return {
+    authService: new RealAuthService({ apiHost }),
     liveTrackerService: new RealLiveTrackerService({ apiHost }),
+    individualTrackerService: new RealIndividualTrackerService({ apiHost }),
+    individualLiveTrackerService: new RealIndividualLiveTrackerService({ apiHost }),
   };
 }

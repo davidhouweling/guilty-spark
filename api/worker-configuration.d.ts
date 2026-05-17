@@ -23,11 +23,12 @@ interface __BaseEnv_Env {
 	SESSION_SECRET: string;
 	TOKEN_ENCRYPTION_SECRET: string;
 	LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
+    INDIVIDUAL_TRACKER_DO: DurableObjectNamespace<import("./worker").IndividualTrackerDO>;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./worker");
-		durableNamespaces: "LiveTrackerDO";
+        durableNamespaces: "LiveTrackerDO" | "IndividualTrackerDO";
 	}
 	interface StagingEnv {
 		APP_DATA: KVNamespace;
@@ -51,6 +52,7 @@ declare namespace Cloudflare {
 		SESSION_SECRET: string;
 		TOKEN_ENCRYPTION_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
+        INDIVIDUAL_TRACKER_DO: DurableObjectNamespace<import("./worker").IndividualTrackerDO>;
 	}
 	interface ProductionEnv {
 		APP_DATA: KVNamespace;
@@ -74,6 +76,7 @@ declare namespace Cloudflare {
 		SESSION_SECRET: string;
 		TOKEN_ENCRYPTION_SECRET: string;
 		LIVE_TRACKER_DO: DurableObjectNamespace<import("./worker").LiveTrackerDO>;
+        INDIVIDUAL_TRACKER_DO: DurableObjectNamespace<import("./worker").IndividualTrackerDO>;
 	}
 	interface Env extends __BaseEnv_Env {}
 }

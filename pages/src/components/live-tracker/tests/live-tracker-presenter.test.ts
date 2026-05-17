@@ -10,6 +10,9 @@ import type {
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
 import type { LiveTrackerSnapshot, LiveTrackerStore } from "../live-tracker-store";
+import { FakeAuthService } from "../../../services/auth/fakes/auth.fake";
+import { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { FakeIndividualLiveTrackerService } from "../../../services/individual-live-tracker/fakes/individual-live-tracker.fake";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
@@ -123,7 +126,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       services: {
+        authService: new FakeAuthService(),
         liveTrackerService: mockService,
+        individualTrackerService: new FakeIndividualTrackerService(),
+        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       },
       store: mockStore as unknown as LiveTrackerStore,
     });
@@ -195,7 +201,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       services: {
+        authService: new FakeAuthService(),
         liveTrackerService: mockService,
+        individualTrackerService: new FakeIndividualTrackerService(),
+        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       },
       store: mockStore as unknown as LiveTrackerStore,
     });
@@ -245,7 +254,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       services: {
+        authService: new FakeAuthService(),
         liveTrackerService: mockService,
+        individualTrackerService: new FakeIndividualTrackerService(),
+        individualLiveTrackerService: new FakeIndividualLiveTrackerService(),
       },
       store: mockStore as unknown as LiveTrackerStore,
     });

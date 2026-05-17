@@ -1,0 +1,187 @@
+.pageContainer {
+  padding-bottom: var(--space-16);
+  padding-top: var(--space-10);
+}
+
+.banner {
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 50%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.errorText {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 55%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.loadingBox,
+.authBox {
+  background: var(--halo-bg-card);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  padding: var(--space-6);
+}
+
+.authBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.authTitle {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  margin: 0;
+}
+
+.authSubtitle {
+  color: var(--halo-gray);
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  margin: 0;
+}
+
+.sectionDescription {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+.controlsGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.select {
+  background: var(--halo-bg-secondary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  min-height: 40px;
+  padding: var(--space-2);
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.statusCard {
+  background: var(--halo-bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: 1fr;
+  padding: var(--space-4);
+}
+
+.statusItem {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.statusLabel {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.statusValue {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.codeLike {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  word-break: break-all;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.gamesTable {
+  background: var(--halo-bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.gamesTable th,
+.gamesTable td {
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.gamesTable th {
+  color: var(--halo-gray);
+}
+
+.emptyCell {
+  color: var(--halo-gray);
+  font-style: italic;
+  text-align: center;
+}
+
+@media (--tablet-viewport) {
+  .controlsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .statusCard {
+    grid-template-columns: 1fr 1fr;
+  }
+}
