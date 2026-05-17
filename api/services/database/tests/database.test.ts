@@ -557,7 +557,12 @@ describe("Database Service", () => {
 
       await databaseService.upsertLinkedIdentity(identity);
 
-      expect(prepareSpy).toHaveBeenCalledWith(expect.not.stringContaining("IdentityId=excluded.IdentityId"));
+      expect(prepareSpy).toHaveBeenCalledWith(
+        `
+      INSERT INTO LinkedIdentities (IdentityId, UserId, Provider, ProviderUserId, Gamertag, TwitchId, IsActive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(Provider, ProviderUserId) DO UPDATE SET UserId=excluded.UserId, Gamertag=excluded.Gamertag, TwitchId=excluded.TwitchId, IsActive=excluded.IsActive, CreatedAt=excluded.CreatedAt, UpdatedAt=excluded.UpdatedAt
+    `,
+      );
       expect(bindSpy).toHaveBeenCalledWith(
         identity.IdentityId,
         identity.UserId,
