@@ -141,11 +141,9 @@ export class Server {
         const { authService } = services;
         const response = createNoStoreJsonResponse({ success: true }, 200);
 
-        try {
-          await authService.invalidateSession(request);
-        } catch (error) {
+        await authService.invalidateSession(request).catch((error: unknown) => {
           console.error("Auth logout revocation error:", error);
-        }
+        });
 
         authService.clearSessionCookie(response);
 
@@ -164,45 +162,21 @@ export class Server {
         const session = await authService.validateSession(request);
 
         if (session === null) {
-          return addCorsHeaders(
-            new Response(JSON.stringify({ authenticated: false }), {
-              status: 401,
-              headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
-            }),
-            request,
-            true,
-          );
+          return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false }, 401), request, true);
         }
 
         if (session.isExpired) {
-          return addCorsHeaders(
-            new Response(JSON.stringify({ authenticated: false, expired: true }), {
-              status: 401,
-              headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
-            }),
-            request,
-            true,
-          );
+          return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false, expired: true }, 401), request, true);
         }
 
         return addCorsHeaders(
-          new Response(JSON.stringify({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }), {
-            status: 200,
-            headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
-          }),
+          createNoStoreJsonResponse({ authenticated: true, userId: session.userId, expiresAt: session.expiresAt }, 200),
           request,
           true,
         );
       } catch (error) {
         console.error("Auth session error:", error);
-        return addCorsHeaders(
-          new Response(JSON.stringify({ error: "Failed to retrieve session" }), {
-            status: 500,
-            headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
-          }),
-          request,
-          true,
-        );
+        return addCorsHeaders(createNoStoreJsonResponse({ error: "Failed to retrieve session" }, 500), request, true);
       }
     });
 
