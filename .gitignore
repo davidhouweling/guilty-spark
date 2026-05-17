@@ -64,4 +64,9 @@ api/scripts/*.json
 test-results
 
 # mcp
-.playwright-mcp
+.playwright-mcpformat_output.txt
+lint_output.txt
+test_output.txt
+typecheck_output.txt
+fail_details.log
+run_checks.sh
