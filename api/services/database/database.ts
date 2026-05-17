@@ -282,7 +282,7 @@ export class DatabaseService {
   async upsertLinkedIdentity(identity: LinkedIdentitiesRow): Promise<void> {
     const query = `
       INSERT INTO LinkedIdentities (IdentityId, UserId, Provider, ProviderUserId, Gamertag, TwitchId, IsActive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(Provider, ProviderUserId) DO UPDATE SET IdentityId=excluded.IdentityId, UserId=excluded.UserId, Gamertag=excluded.Gamertag, TwitchId=excluded.TwitchId, IsActive=excluded.IsActive, CreatedAt=excluded.CreatedAt, UpdatedAt=excluded.UpdatedAt
+      ON CONFLICT(Provider, ProviderUserId) DO UPDATE SET UserId=excluded.UserId, Gamertag=excluded.Gamertag, TwitchId=excluded.TwitchId, IsActive=excluded.IsActive, CreatedAt=excluded.CreatedAt, UpdatedAt=excluded.UpdatedAt
     `;
     const stmt = this.DB.prepare(query).bind(
       identity.IdentityId,

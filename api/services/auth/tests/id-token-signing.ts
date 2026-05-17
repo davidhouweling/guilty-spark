@@ -89,12 +89,12 @@ export async function aSignedMicrosoftIdTokenWith(
   const payload = Buffer.from(
     JSON.stringify({
       aud: options.clientId,
-      email: options.email ?? "user@example.com",
+      email: "email" in options ? options.email : "user@example.com",
       exp: options.expiresAt ?? nowSeconds + 3600,
       iss: issuer,
-      name: options.name ?? "Test User",
+      name: "name" in options ? options.name : "Test User",
       nbf: options.notBefore,
-      preferred_username: options.preferredUsername ?? "testuser",
+      preferred_username: "preferredUsername" in options ? options.preferredUsername : "testuser",
       sub: options.sub ?? "user-123",
       tid: tenantId,
     }),

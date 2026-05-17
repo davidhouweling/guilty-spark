@@ -557,7 +557,7 @@ describe("Database Service", () => {
 
       await databaseService.upsertLinkedIdentity(identity);
 
-      expect(prepareSpy).toHaveBeenCalled();
+      expect(prepareSpy).toHaveBeenCalledWith(expect.not.stringContaining("IdentityId=excluded.IdentityId"));
       expect(bindSpy).toHaveBeenCalledWith(
         identity.IdentityId,
         identity.UserId,

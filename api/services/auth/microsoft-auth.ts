@@ -8,7 +8,7 @@ interface JwtHeader {
 
 interface IdTokenClaims {
   readonly aud: string | readonly string[];
-  readonly email: string;
+  readonly email: string | undefined;
   readonly exp: number;
   readonly iss: string;
   readonly name: string | undefined;
@@ -207,7 +207,7 @@ export class MicrosoftAuthService {
     return {
       sub: claims.sub,
       email: claims.email,
-      name: claims.name ?? claims.email,
+      name: claims.name ?? claims.preferred_username ?? claims.email ?? claims.sub,
       preferredUsername: claims.preferred_username,
     };
   }
@@ -232,7 +232,7 @@ export class MicrosoftAuthService {
 
     if (
       typeof sub !== "string" ||
-      typeof email !== "string" ||
+      (typeof email !== "string" && email !== undefined) ||
       (typeof name !== "string" && name !== undefined) ||
       (typeof preferredUsername !== "string" && preferredUsername !== undefined) ||
       (typeof aud !== "string" && !this.isStringArray(aud)) ||

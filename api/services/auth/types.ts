@@ -16,7 +16,7 @@ export interface MicrosoftTokenResponse {
  */
 export interface AuthenticatedUser {
   readonly sub: string; // Microsoft user ID (immutable)
-  readonly email: string;
+  readonly email: string | undefined;
   readonly name: string;
   readonly preferredUsername: string | undefined;
 }

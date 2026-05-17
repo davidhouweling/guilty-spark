@@ -86,24 +86,62 @@ describe("MicrosoftAuthService", () => {
     await expect(service.parseIdToken("invalid")).rejects.toThrow();
   });
 
-  it("throws on ID token missing required claims", async () => {
+  it("parses ID token when email claim is missing", async () => {
     const signedToken = await aSignedMicrosoftIdTokenWith({
       clientId: "test-client-id",
       email: undefined,
+      name: undefined,
+      preferredUsername: "fallback-user",
       tenantId: "test-tenant-id",
     });
-    const [header = "", , signature = ""] = signedToken.token.split(".");
-    const payloadMissingEmail = Buffer.from(
-      JSON.stringify({
-        aud: "test-client-id",
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        iss: "https://login.microsoftonline.com/test-tenant-id/v2.0",
-        sub: "user-123",
-        tid: "test-tenant-id",
-      }),
-    ).toString("base64url");
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
-    await expect(service.parseIdToken(`${header}.${payloadMissingEmail}.${signature}`)).rejects.toThrow();
+    const user = await service.parseIdToken(signedToken.token);
+
+    expect(user.email).toBeUndefined();
+    expect(user.name).toBe("fallback-user");
+    expect(user.preferredUsername).toBe("fallback-user");
+  });
+
+  it("falls back to sub when email and preferred username are missing", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      email: undefined,
+      name: undefined,
+      preferredUsername: undefined,
+      sub: "user-without-email",
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    const user = await service.parseIdToken(signedToken.token);
+
+    expect(user.email).toBeUndefined();
+    expect(user.name).toBe("user-without-email");
   });
 
   it("throws on expired ID token", async () => {
