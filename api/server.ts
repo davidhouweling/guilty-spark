@@ -1,5 +1,5 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoXstsSpartanTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
@@ -369,13 +369,16 @@ export class Server {
 
         const { method, args } = body as { method: string; args: unknown[] };
 
+        const activeServices = services ?? this.installServices({ env });
         let haloInfiniteClient: HaloInfiniteClient;
         if (microsoftAccessToken !== null) {
+          const xstsTokenInfo =
+            await activeServices.xboxService.exchangeMicrosoftAccessTokenForXstsToken(microsoftAccessToken);
           haloInfiniteClient = new HaloInfiniteClient(
-            new AutoXstsSpartanTokenProvider(async () => Promise.resolve(microsoftAccessToken)),
+            new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken),
           );
         } else {
-          ({ haloInfiniteClient } = services ?? this.installServices({ env }));
+          ({ haloInfiniteClient } = activeServices);
         }
 
         const isFunctionProperty = <T>(

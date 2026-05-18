@@ -1,7 +1,9 @@
-import { XSAPIClient, type authenticate } from "@xboxreplay/xboxlive-auth";
+import { XSAPIClient, xnet, type authenticate } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
+
+const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
 
 export interface XboxServiceOpts {
   env: Env;
@@ -35,6 +37,20 @@ export class XboxService {
   async clearToken(): Promise<void> {
     this.tokenInfo = null;
     await this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
+  }
+
+  async exchangeMicrosoftAccessTokenForXstsToken(accessToken: string): Promise<TokenInfo> {
+    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, "t");
+    const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
+      XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
+    });
+    const [displayClaim] = xstsTokenResponse.DisplayClaims.xui;
+
+    return {
+      XSTSToken: xstsTokenResponse.Token,
+      userHash: Preconditions.checkExists(displayClaim, "Xbox user hash is not available").uhs,
+      expiresOn: new Date(xstsTokenResponse.NotAfter),
+    };
   }
 
   async getUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
@@ -115,7 +131,7 @@ export class XboxService {
       this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
       this.env.XBOX_PASSWORD,
       {
-        XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+        XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
       },
     );
 

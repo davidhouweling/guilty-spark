@@ -2,7 +2,7 @@ import { afterEach } from "node:test";
 import type { Mock, MockInstance } from "vitest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
-import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
+import { XSAPIClient, xnet } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { XboxService } from "../xbox";
 import type { ProfileUser } from "../types";
@@ -141,6 +141,42 @@ describe("Xbox Service", () => {
 
       expect(deleteSpy).toHaveBeenCalledWith("xboxToken");
       expect(xboxService.tokenInfo).toBeNull();
+    });
+  });
+
+  describe("exchangeMicrosoftAccessTokenForXstsToken", () => {
+    it("exchanges a Microsoft access token for a Halo XSTS token", async () => {
+      const exchangeRpsTicketForUserTokenSpy: MockInstance = vi.spyOn(xnet, "exchangeRpsTicketForUserToken");
+      const exchangeTokenForXSTSTokenSpy: MockInstance = vi.spyOn(xnet, "exchangeTokenForXSTSToken");
+
+      exchangeRpsTicketForUserTokenSpy.mockResolvedValue({
+        IssueInstant: "2025-01-01T00:00:00.000Z",
+        NotAfter: "2025-01-01T06:00:00.000Z",
+        Token: "user-token",
+        DisplayClaims: {
+          xui: [{ uhs: "user_hash" }],
+        },
+      });
+      exchangeTokenForXSTSTokenSpy.mockResolvedValue({
+        IssueInstant: "2025-01-01T00:00:00.000Z",
+        NotAfter: "2025-01-01T06:00:00.000Z",
+        Token: "xsts_token",
+        DisplayClaims: {
+          xui: [{ uhs: "user_hash" }],
+        },
+      });
+
+      const result = await xboxService.exchangeMicrosoftAccessTokenForXstsToken("microsoft-access-token");
+
+      expect(exchangeRpsTicketForUserTokenSpy).toHaveBeenCalledWith("microsoft-access-token", "t");
+      expect(exchangeTokenForXSTSTokenSpy).toHaveBeenCalledWith("user-token", {
+        XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+      });
+      expect(result).toEqual({
+        XSTSToken: "xsts_token",
+        userHash: "user_hash",
+        expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+      });
     });
   });
 

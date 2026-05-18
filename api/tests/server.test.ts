@@ -3,7 +3,7 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import { AutoRouter } from "itty-router";
 import { InteractionType } from "discord-api-types/v10";
 import type * as HaloInfiniteApi from "halo-infinite-api";
-import { AutoXstsSpartanTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
+import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import type { DatabaseService } from "../services/database/database";
 import { Server } from "../server";
@@ -11,13 +11,14 @@ import { getCommands } from "../commands/commands";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
+import type { TokenInfo } from "../services/xbox/types";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
   return {
     ...actual,
     AutoTokenProvider: vi.fn(),
-    AutoXstsSpartanTokenProvider: vi.fn(),
+    StaticXstsTicketTokenSpartanTokenProvider: vi.fn(),
     HaloInfiniteClient: vi.fn(),
   };
 });
@@ -507,7 +508,8 @@ describe("Server", () => {
 
     it("returns 200 and rotates session cookie when expired session is refreshed", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
-      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
+      let exchangeMicrosoftAccessTokenForXstsTokenSpy!: MockInstance;
+      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -531,6 +533,13 @@ describe("Server", () => {
           expiresAt: Date.now() + 3600000,
           issuedAt: Date.now(),
         });
+        exchangeMicrosoftAccessTokenForXstsTokenSpy = vi
+          .spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken")
+          .mockResolvedValue({
+            XSTSToken: "fresh-xsts-token",
+            userHash: "fresh-user-hash",
+            expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+          } satisfies TokenInfo);
         return services;
       });
       server = new Server({
@@ -548,16 +557,9 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       expect(res.headers.get("Set-Cookie")).toBeNull();
 
-      expect(vi.mocked(AutoXstsSpartanTokenProvider)).toHaveBeenCalledTimes(1);
-      const tokenProviderFactory = vi.mocked(AutoXstsSpartanTokenProvider).mock.calls[0]?.[0];
-      expect(typeof tokenProviderFactory).toBe("function");
-
-      if (tokenProviderFactory === undefined) {
-        throw new Error("Expected AutoTokenProvider to be called with a token factory");
-      }
-
-      const token = await tokenProviderFactory();
-      expect(token).toBe("fresh-access-token");
+      expect(exchangeMicrosoftAccessTokenForXstsTokenSpy).toHaveBeenCalledWith("fresh-access-token");
+      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("fresh-xsts-token");
     });
 
     it("returns 401 when session is expired and refresh fails", async () => {
@@ -595,7 +597,8 @@ describe("Server", () => {
 
     it("returns 200 and result with valid session cookie", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
-      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
+      let exchangeMicrosoftAccessTokenForXstsTokenSpy!: MockInstance;
+      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -611,6 +614,13 @@ describe("Server", () => {
           expiresAt: Date.now() + 3600000,
           isExpired: false,
         });
+        exchangeMicrosoftAccessTokenForXstsTokenSpy = vi
+          .spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken")
+          .mockResolvedValue({
+            XSTSToken: "valid-xsts-token",
+            userHash: "valid-user-hash",
+            expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+          } satisfies TokenInfo);
         return services;
       });
       server = new Server({
@@ -643,16 +653,9 @@ describe("Server", () => {
         },
       });
 
-      expect(vi.mocked(AutoXstsSpartanTokenProvider)).toHaveBeenCalledTimes(1);
-      const tokenProviderFactory = vi.mocked(AutoXstsSpartanTokenProvider).mock.calls[0]?.[0];
-      expect(typeof tokenProviderFactory).toBe("function");
-
-      if (tokenProviderFactory === undefined) {
-        throw new Error("Expected AutoTokenProvider to be called with a token factory");
-      }
-
-      const token = await tokenProviderFactory();
-      expect(token).toBe("access-token");
+      expect(exchangeMicrosoftAccessTokenForXstsTokenSpy).toHaveBeenCalledWith("access-token");
+      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("valid-xsts-token");
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
@@ -703,7 +706,7 @@ describe("Server", () => {
     });
 
     it("returns 200 and result for valid method", async () => {
-      vi.mocked(AutoXstsSpartanTokenProvider).mockClear();
+      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
       const req = new Request("http://localhost/proxy/halo-infinite", {
         method: "POST",
         body: JSON.stringify({ method: "getUser", args: ["discord_user_01"] }),
@@ -728,7 +731,7 @@ describe("Server", () => {
         },
       });
 
-      expect(vi.mocked(AutoXstsSpartanTokenProvider)).not.toHaveBeenCalled();
+      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).not.toHaveBeenCalled();
     });
 
     it("returns 500 with a generic error if the method throws", async () => {
