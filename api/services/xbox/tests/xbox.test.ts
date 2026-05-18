@@ -2,7 +2,8 @@ import { afterEach } from "node:test";
 import type { Mock, MockInstance } from "vitest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
-import { XSAPIClient, xnet } from "@xboxreplay/xboxlive-auth";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { XboxService } from "../xbox";
 import type { ProfileUser } from "../types";
@@ -16,6 +17,13 @@ function createMockXSAPIResponse(profileUsers: ProfileUser[]): FetchResponse<{
     headers: {},
     statusCode: 200,
   };
+}
+
+function createJsonResponse(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 const validKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2025-01-01T03:00:00.000Z" });
@@ -51,6 +59,7 @@ describe("Xbox Service", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe("loadCredentials + get token", () => {
@@ -146,39 +155,44 @@ describe("Xbox Service", () => {
 
   describe("exchangeMicrosoftAccessTokenForXstsToken", () => {
     it("exchanges a Microsoft access token for a Halo XSTS token", async () => {
-      const exchangeRpsTicketForUserTokenSpy: MockInstance<typeof xnet.exchangeRpsTicketForUserToken> = vi.spyOn(
-        xnet,
-        "exchangeRpsTicketForUserToken",
-      );
-      const exchangeTokenForXSTSTokenSpy: MockInstance<typeof xnet.exchangeTokenForXSTSToken> = vi.spyOn(
-        xnet,
-        "exchangeTokenForXSTSToken",
-      );
-      const xstsDisplayClaim = Object.assign("user_hash_claim", { uhs: "user_hash" });
-
-      exchangeRpsTicketForUserTokenSpy.mockResolvedValue({
-        IssueInstant: "2025-01-01T00:00:00.000Z",
-        NotAfter: "2025-01-01T06:00:00.000Z",
-        Token: "user-token",
-        DisplayClaims: {
-          xui: [{ uhs: "user_hash" }],
-        },
-      });
-      exchangeTokenForXSTSTokenSpy.mockResolvedValue({
-        IssueInstant: "2025-01-01T00:00:00.000Z",
-        NotAfter: "2025-01-01T06:00:00.000Z",
-        Token: "xsts_token",
-        DisplayClaims: {
-          xui: [xstsDisplayClaim],
-        },
-      });
+      const fetchSpy: MockInstance<typeof globalThis.fetch> = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "user-token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "xsts_token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        );
 
       const result = await xboxService.exchangeMicrosoftAccessTokenForXstsToken("microsoft-access-token");
 
-      expect(exchangeRpsTicketForUserTokenSpy).toHaveBeenCalledWith("microsoft-access-token", "t");
-      expect(exchangeTokenForXSTSTokenSpy).toHaveBeenCalledWith("user-token", {
-        XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
-      });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://user.auth.xboxlive.com/user/authenticate");
+      expect(fetchSpy.mock.calls[1]?.[0]).toBe("https://xsts.auth.xboxlive.com/xsts/authorize");
+
+      const [, firstRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[0], "Expected first fetch call");
+      const [, secondRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[1], "Expected second fetch call");
+      const firstRequest = Preconditions.checkExists(firstRequestInit, "Expected first fetch request");
+      const secondRequest = Preconditions.checkExists(secondRequestInit, "Expected second fetch request");
+
+      expect(firstRequest.body).toContain("microsoft-access-token");
+      expect(firstRequest.body).toContain('"RpsTicket":"t=microsoft-access-token"');
+      expect(secondRequest.body).toContain('"UserTokens":["user-token"]');
+      expect(secondRequest.body).toContain('"RelyingParty":"https://prod.xsts.halowaypoint.com/"');
       expect(result).toEqual({
         XSTSToken: "xsts_token",
         userHash: "user_hash",
