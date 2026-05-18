@@ -146,8 +146,15 @@ describe("Xbox Service", () => {
 
   describe("exchangeMicrosoftAccessTokenForXstsToken", () => {
     it("exchanges a Microsoft access token for a Halo XSTS token", async () => {
-      const exchangeRpsTicketForUserTokenSpy: MockInstance = vi.spyOn(xnet, "exchangeRpsTicketForUserToken");
-      const exchangeTokenForXSTSTokenSpy: MockInstance = vi.spyOn(xnet, "exchangeTokenForXSTSToken");
+      const exchangeRpsTicketForUserTokenSpy: MockInstance<typeof xnet.exchangeRpsTicketForUserToken> = vi.spyOn(
+        xnet,
+        "exchangeRpsTicketForUserToken",
+      );
+      const exchangeTokenForXSTSTokenSpy: MockInstance<typeof xnet.exchangeTokenForXSTSToken> = vi.spyOn(
+        xnet,
+        "exchangeTokenForXSTSToken",
+      );
+      const xstsDisplayClaim = Object.assign("user_hash_claim", { uhs: "user_hash" });
 
       exchangeRpsTicketForUserTokenSpy.mockResolvedValue({
         IssueInstant: "2025-01-01T00:00:00.000Z",
@@ -162,7 +169,7 @@ describe("Xbox Service", () => {
         NotAfter: "2025-01-01T06:00:00.000Z",
         Token: "xsts_token",
         DisplayClaims: {
-          xui: [{ uhs: "user_hash" }],
+          xui: [xstsDisplayClaim],
         },
       });
 

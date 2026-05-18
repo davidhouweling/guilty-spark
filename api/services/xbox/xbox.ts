@@ -4,6 +4,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
 
 const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
+const MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE = "t";
 
 export interface XboxServiceOpts {
   env: Env;
@@ -39,8 +40,16 @@ export class XboxService {
     await this.env.APP_DATA.delete(XboxService.TOKEN_NAME);
   }
 
+  /**
+   * Converts a Microsoft OAuth access token into a Halo-scoped Xbox XSTS token
+   * by first exchanging the access token for an Xbox user token and then
+   * exchanging that user token for an XSTS token for Halo Waypoint.
+   */
   async exchangeMicrosoftAccessTokenForXstsToken(accessToken: string): Promise<TokenInfo> {
-    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, "t");
+    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(
+      accessToken,
+      MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE,
+    );
     const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
       XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
     });
