@@ -26,6 +26,14 @@ function createJsonResponse(data: unknown): Response {
   });
 }
 
+function expectString(value: BodyInit | null | undefined, message: string): string {
+  if (typeof value !== "string") {
+    throw new Error(message);
+  }
+
+  return value;
+}
+
 const validKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2025-01-01T03:00:00.000Z" });
 const expiredKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2024-12-31T23:59:00.000Z" });
 const validAuthenticateResponse: Awaited<ReturnType<typeof xboxliveAuthenticate>> = {
@@ -184,17 +192,27 @@ describe("Xbox Service", () => {
       expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://user.auth.xboxlive.com/user/authenticate");
       expect(fetchSpy.mock.calls[1]?.[0]).toBe("https://xsts.auth.xboxlive.com/xsts/authorize");
 
-      const [, firstRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[0], "Expected first fetch call");
-      const [, secondRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[1], "Expected second fetch call");
-      const firstRequestBody = Preconditions.checkExists(firstRequestInit, "Expected first fetch request").body;
-      const secondRequestBody = Preconditions.checkExists(secondRequestInit, "Expected second fetch request").body;
+      const [, firstRequestInit] = Preconditions.checkExists(
+        fetchSpy.mock.calls[0],
+        "Expected first fetch call arguments",
+      );
+      const [, secondRequestInit] = Preconditions.checkExists(
+        fetchSpy.mock.calls[1],
+        "Expected second fetch call arguments",
+      );
+      const firstRequestBody = Preconditions.checkExists(firstRequestInit, "Expected first fetch request init").body;
+      const secondRequestBody = Preconditions.checkExists(secondRequestInit, "Expected second fetch request init").body;
 
-      expect(JSON.parse(firstRequestBody as string)).toMatchObject({
+      expect(
+        JSON.parse(expectString(firstRequestBody, "Expected first fetch request body to be a string")),
+      ).toMatchObject({
         Properties: {
           RpsTicket: "t=microsoft-access-token",
         },
       });
-      expect(JSON.parse(secondRequestBody as string)).toMatchObject({
+      expect(
+        JSON.parse(expectString(secondRequestBody, "Expected second fetch request body to be a string")),
+      ).toMatchObject({
         RelyingParty: "https://prod.xsts.halowaypoint.com/",
         Properties: {
           UserTokens: ["user-token"],
