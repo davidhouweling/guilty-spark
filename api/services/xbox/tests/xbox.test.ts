@@ -1,6 +1,5 @@
-import { afterEach } from "node:test";
 import type { Mock, MockInstance } from "vitest";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
