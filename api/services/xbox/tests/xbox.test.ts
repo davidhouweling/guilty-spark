@@ -26,14 +26,6 @@ function createJsonResponse(data: unknown): Response {
   });
 }
 
-function expectString(value: BodyInit | null | undefined, message: string): string {
-  if (typeof value !== "string") {
-    throw new Error(message);
-  }
-
-  return value;
-}
-
 const validKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2025-01-01T03:00:00.000Z" });
 const expiredKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2024-12-31T23:59:00.000Z" });
 const validAuthenticateResponse: Awaited<ReturnType<typeof xboxliveAuthenticate>> = {
@@ -200,19 +192,25 @@ describe("Xbox Service", () => {
         fetchSpy.mock.calls[1],
         "Expected second fetch call arguments",
       );
-      const firstRequestBody = Preconditions.checkExists(firstRequestInit, "Expected first fetch request init").body;
-      const secondRequestBody = Preconditions.checkExists(secondRequestInit, "Expected second fetch request init").body;
+      const userAuthRequestBody = Preconditions.checkExists(
+        Preconditions.checkExists(firstRequestInit, "Expected first fetch request init").body,
+        "Expected user auth request body",
+      );
+      const xstsAuthRequestBody = Preconditions.checkExists(
+        Preconditions.checkExists(secondRequestInit, "Expected second fetch request init").body,
+        "Expected xsts auth request body",
+      );
 
-      expect(
-        JSON.parse(expectString(firstRequestBody, "Expected first fetch request body to be a string")),
-      ).toMatchObject({
+      if (typeof userAuthRequestBody !== "string" || typeof xstsAuthRequestBody !== "string") {
+        throw new Error("Expected Xbox auth request bodies to be strings");
+      }
+
+      expect(JSON.parse(userAuthRequestBody)).toMatchObject({
         Properties: {
           RpsTicket: "t=microsoft-access-token",
         },
       });
-      expect(
-        JSON.parse(expectString(secondRequestBody, "Expected second fetch request body to be a string")),
-      ).toMatchObject({
+      expect(JSON.parse(xstsAuthRequestBody)).toMatchObject({
         RelyingParty: "https://prod.xsts.halowaypoint.com/",
         Properties: {
           UserTokens: ["user-token"],
