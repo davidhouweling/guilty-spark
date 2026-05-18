@@ -506,7 +506,7 @@ describe("Server", () => {
       expect(text).toBe("Unauthorized");
     });
 
-    it("returns 200 and rotates session cookie when expired session is refreshed", async () => {
+    it("returns 200 without rotating session cookie when expired session is refreshed", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
       let exchangeMicrosoftAccessTokenForXstsTokenSpy!: MockInstance;
       vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
