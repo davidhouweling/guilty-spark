@@ -186,13 +186,20 @@ describe("Xbox Service", () => {
 
       const [, firstRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[0], "Expected first fetch call");
       const [, secondRequestInit] = Preconditions.checkExists(fetchSpy.mock.calls[1], "Expected second fetch call");
-      const firstRequest = Preconditions.checkExists(firstRequestInit, "Expected first fetch request");
-      const secondRequest = Preconditions.checkExists(secondRequestInit, "Expected second fetch request");
+      const firstRequestBody = Preconditions.checkExists(firstRequestInit, "Expected first fetch request").body;
+      const secondRequestBody = Preconditions.checkExists(secondRequestInit, "Expected second fetch request").body;
 
-      expect(firstRequest.body).toContain("microsoft-access-token");
-      expect(firstRequest.body).toContain('"RpsTicket":"t=microsoft-access-token"');
-      expect(secondRequest.body).toContain('"UserTokens":["user-token"]');
-      expect(secondRequest.body).toContain('"RelyingParty":"https://prod.xsts.halowaypoint.com/"');
+      expect(JSON.parse(firstRequestBody as string)).toMatchObject({
+        Properties: {
+          RpsTicket: "t=microsoft-access-token",
+        },
+      });
+      expect(JSON.parse(secondRequestBody as string)).toMatchObject({
+        RelyingParty: "https://prod.xsts.halowaypoint.com/",
+        Properties: {
+          UserTokens: ["user-token"],
+        },
+      });
       expect(result).toEqual({
         XSTSToken: "xsts_token",
         userHash: "user_hash",
