@@ -1,5 +1,6 @@
 import { instrumentD1WithSentry } from "@sentry/cloudflare";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "./types/guild_config";
@@ -258,8 +259,9 @@ export class DatabaseService {
   }
 
   async deleteExpiredUserSessions(nowEpochSeconds: number): Promise<void> {
-    const query = "DELETE FROM UserSessions WHERE ExpiresAt <= ?";
-    const stmt = this.DB.prepare(query).bind(nowEpochSeconds);
+    const sessionExpiryCutoffEpochSeconds = nowEpochSeconds - SESSION_COOKIE_MAX_AGE_SECONDS;
+    const query = "DELETE FROM UserSessions WHERE CreatedAt <= ?";
+    const stmt = this.DB.prepare(query).bind(sessionExpiryCutoffEpochSeconds);
     await stmt.run();
   }
 

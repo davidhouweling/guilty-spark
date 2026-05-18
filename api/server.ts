@@ -320,7 +320,7 @@ export class Server {
         const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
 
         let services: ReturnType<typeof this.installServices> | null = null;
-        let sessionAccessToken: string | null = null;
+        let microsoftAccessToken: string | null = null;
         let refreshedSessionPayload: SessionTokenPayload | null = null;
 
         if (!hasValidWorkerToken) {
@@ -345,9 +345,9 @@ export class Server {
               return withCorsHeaders(response);
             }
 
-            sessionAccessToken = refreshedSessionPayload.accessToken;
+            microsoftAccessToken = refreshedSessionPayload.accessToken;
           } else {
-            sessionAccessToken = session.accessToken;
+            microsoftAccessToken = session.accessToken;
           }
         }
 
@@ -370,10 +370,9 @@ export class Server {
         const { method, args } = body as { method: string; args: unknown[] };
 
         let haloInfiniteClient: HaloInfiniteClient;
-        if (sessionAccessToken !== null) {
-          const token = sessionAccessToken;
+        if (microsoftAccessToken !== null) {
           haloInfiniteClient = new HaloInfiniteClient(
-            new AutoXstsSpartanTokenProvider(async () => Promise.resolve(token)),
+            new AutoXstsSpartanTokenProvider(async () => Promise.resolve(microsoftAccessToken)),
           );
         } else {
           ({ haloInfiniteClient } = services ?? this.installServices({ env }));

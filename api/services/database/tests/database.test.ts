@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
+import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
 import {
   aFakeDiscordAssociationsRow,
@@ -497,7 +498,7 @@ describe("Database Service", () => {
   });
 
   describe("deleteExpiredUserSessions()", () => {
-    it("deletes expired sessions using epoch seconds", async () => {
+    it("deletes sessions older than the server-side session max age", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
@@ -505,8 +506,8 @@ describe("Database Service", () => {
 
       await databaseService.deleteExpiredUserSessions(12345);
 
-      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE ExpiresAt <= ?");
-      expect(bindSpy).toHaveBeenCalledWith(12345);
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE CreatedAt <= ?");
+      expect(bindSpy).toHaveBeenCalledWith(12345 - SESSION_COOKIE_MAX_AGE_SECONDS);
       expect(runSpy).toHaveBeenCalled();
     });
   });
