@@ -6,6 +6,7 @@ import { aFakeHaloInfiniteClient } from "../halo/fakes/infinite-client.fake";
 import type { Services } from "../install";
 import { aFakeLogServiceWith } from "../log/fakes/log.fake";
 import { aFakeNeatQueueServiceWith } from "../neatqueue/fakes/neatqueue.fake";
+import { aFakeAuthServiceWith } from "../auth/fakes/auth.fake";
 import { aFakeXboxServiceWith } from "../xbox/fakes/xbox.fake";
 import { aFakeLiveTrackerServiceWith } from "../live-tracker/fakes/live-tracker.fake";
 
@@ -13,6 +14,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const env = opts.env ?? aFakeEnvWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
   const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith({ env });
+  const authService = opts.authService ?? aFakeAuthServiceWith({ ...env, databaseService });
   const discordService = opts.discordService ?? aFakeDiscordServiceWith({ env });
   const xboxService = opts.xboxService ?? aFakeXboxServiceWith({ env });
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();
@@ -25,6 +27,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
 
   return {
     logService,
+    authService,
     databaseService,
     discordService,
     xboxService,

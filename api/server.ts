@@ -1,12 +1,24 @@
 import type { AutoRouterType } from "itty-router";
+import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
-import { handleCorsPreflightRequest } from "./base/cors";
+import type { SessionTokenPayload } from "./services/auth/types";
+import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 
 interface ServerOpts {
   router: AutoRouterType;
   installServices: typeof installServices;
   getCommands: typeof getCommands;
+}
+
+function createNoStoreJsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    },
+  });
 }
 
 export class Server {
@@ -27,11 +39,168 @@ export class Server {
     this.router.options("/api/*", (request) => {
       return handleCorsPreflightRequest(request);
     });
+    this.router.options("/auth/*", (request) => {
+      return handleCorsPreflightRequest(request, true);
+    });
+    this.router.options("/proxy/halo-infinite", (request) => {
+      return handleCorsPreflightRequest(request, true);
+    });
 
     this.router.get("/", (_request, env: Env) => {
       return new Response(
         `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands 🚀`,
       );
+    });
+
+    this.router.get("/auth/microsoft/start", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const { url, state, codeVerifier } = await authService.generateAuthorizationUrl();
+
+        const response = createNoStoreJsonResponse(
+          {
+            authUrl: url.toString(),
+            state,
+          },
+          200,
+        );
+
+        await authService.setPkceStateCookie(response, {
+          codeVerifier,
+          state,
+          issuedAt: Date.now(),
+        });
+
+        return addCorsHeaders(response, request, true);
+      } catch (error) {
+        console.error("Auth start error:", error);
+        return addCorsHeaders(
+          createNoStoreJsonResponse(
+            {
+              error: "Failed to generate authorization URL",
+            },
+            500,
+          ),
+          request,
+          true,
+        );
+      }
+    });
+
+    this.router.get("/auth/microsoft/callback", async (request, env: Env) => {
+      try {
+        const url = new URL(request.url);
+        const code = url.searchParams.get("code");
+        const state = url.searchParams.get("state");
+
+        if (code == null || state == null) {
+          return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
+        }
+
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        // Exchange code for tokens and create session
+        const sessionPayload = await authService.handleCallback(request, code, state);
+        const sessionToken = await authService.createSessionToken(sessionPayload);
+
+        // Create response with Set-Cookie header
+        const response = createNoStoreJsonResponse(
+          {
+            success: true,
+            userId: sessionPayload.userId,
+          },
+          200,
+        );
+
+        // Set session cookie
+        authService.setSessionCookie(response, sessionToken);
+        authService.clearPkceStateCookie(response);
+
+        return addCorsHeaders(response, request, true);
+      } catch (error) {
+        console.error("Auth callback error:", error);
+        return addCorsHeaders(
+          createNoStoreJsonResponse(
+            {
+              error: "Authentication failed",
+            },
+            400,
+          ),
+          request,
+          true,
+        );
+      }
+    });
+
+    this.router.post("/auth/logout", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+        const response = createNoStoreJsonResponse({ success: true }, 200);
+
+        await authService.invalidateSession(request).catch((error: unknown) => {
+          console.error("Auth logout revocation error:", error);
+        });
+
+        authService.clearSessionCookie(response);
+
+        return addCorsHeaders(response, request, true);
+      } catch (error) {
+        console.error("Auth logout error:", error);
+        return addCorsHeaders(createNoStoreJsonResponse({ error: "Logout failed" }, 500), request, true);
+      }
+    });
+
+    this.router.get("/auth/session", async (request, env: Env) => {
+      try {
+        const services = this.installServices({ env });
+        const { authService } = services;
+
+        const session = await authService.validateSession(request);
+
+        if (session === null) {
+          return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false }, 401), request, true);
+        }
+
+        let authenticatedSession = session;
+        if (session.isExpired) {
+          try {
+            const refreshedSession = await authService.refreshSession(session);
+            if (refreshedSession == null) {
+              const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+              authService.clearSessionCookie(response);
+              return addCorsHeaders(response, request, true);
+            }
+
+            authenticatedSession = {
+              ...session,
+              accessToken: refreshedSession.accessToken,
+              refreshToken: refreshedSession.refreshToken,
+              expiresAt: refreshedSession.expiresAt,
+              isExpired: false,
+            };
+          } catch {
+            const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+            authService.clearSessionCookie(response);
+            return addCorsHeaders(response, request, true);
+          }
+        }
+
+        return addCorsHeaders(
+          createNoStoreJsonResponse(
+            { authenticated: true, userId: authenticatedSession.userId, expiresAt: authenticatedSession.expiresAt },
+            200,
+          ),
+          request,
+          true,
+        );
+      } catch (error) {
+        console.error("Auth session error:", error);
+        return addCorsHeaders(createNoStoreJsonResponse({ error: "Failed to retrieve session" }, 500), request, true);
+      }
     });
 
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
@@ -139,16 +308,54 @@ export class Server {
 
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => {
+          return addCorsHeaders(response, request, true);
+        };
+
         const authHeader = request.headers.get("x-proxy-auth");
-        if (authHeader == null || authHeader !== env.PROXY_WORKER_TOKEN) {
-          return new Response("Unauthorized", { status: 401 });
+        if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
+        }
+
+        const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
+
+        let services: ReturnType<typeof this.installServices> | null = null;
+        let microsoftAccessToken: string | null = null;
+        let refreshedSessionPayload: SessionTokenPayload | null = null;
+
+        if (!hasValidWorkerToken) {
+          services = this.installServices({ env });
+          const session = await services.authService.validateSession(request);
+          if (session === null) {
+            return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
+          }
+
+          if (session.isExpired) {
+            try {
+              refreshedSessionPayload = await services.authService.refreshSession(session);
+            } catch {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return withCorsHeaders(response);
+            }
+
+            if (refreshedSessionPayload === null) {
+              const response = new Response("Unauthorized", { status: 401 });
+              services.authService.clearSessionCookie(response);
+              return withCorsHeaders(response);
+            }
+
+            microsoftAccessToken = refreshedSessionPayload.accessToken;
+          } else {
+            microsoftAccessToken = session.accessToken;
+          }
         }
 
         let body: unknown;
         try {
           body = await request.json();
         } catch {
-          return new Response("Invalid JSON body", { status: 400 });
+          return withCorsHeaders(new Response("Invalid JSON body", { status: 400 }));
         }
 
         if (
@@ -157,12 +364,22 @@ export class Server {
           typeof (body as { method?: unknown }).method !== "string" ||
           !Array.isArray((body as { args?: unknown[] }).args)
         ) {
-          return new Response("Invalid request format", { status: 400 });
+          return withCorsHeaders(new Response("Invalid request format", { status: 400 }));
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
-        const services = this.installServices({ env });
-        const { haloInfiniteClient } = services;
+
+        const activeServices = services ?? this.installServices({ env });
+        let haloInfiniteClient: HaloInfiniteClient;
+        if (microsoftAccessToken !== null) {
+          const xstsTokenInfo =
+            await activeServices.xboxService.exchangeMicrosoftAccessTokenForXstsToken(microsoftAccessToken);
+          haloInfiniteClient = new HaloInfiniteClient(
+            new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken),
+          );
+        } else {
+          ({ haloInfiniteClient } = activeServices);
+        }
 
         const isFunctionProperty = <T>(
           obj: T,
@@ -174,31 +391,29 @@ export class Server {
           );
         };
         if (!isFunctionProperty(haloInfiniteClient, method)) {
-          return new Response(`Method not found: ${method}`, { status: 404 });
+          return withCorsHeaders(new Response(`Method not found: ${method}`, { status: 404 }));
         }
 
         const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
 
         const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
-        return new Response(JSON.stringify({ result }), {
+
+        const response = new Response(JSON.stringify({ result }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
+
+        return withCorsHeaders(response);
       } catch (error) {
-        let errorBody: Record<string, unknown> = {};
-        if (error instanceof Error) {
-          errorBody = {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-          };
-        } else {
-          errorBody = { error: String(error) };
-        }
-        return new Response(JSON.stringify(errorBody), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
+        console.error("Halo proxy error:", error);
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Proxy request failed" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 

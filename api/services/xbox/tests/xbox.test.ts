@@ -1,7 +1,7 @@
-import { afterEach } from "node:test";
 import type { Mock, MockInstance } from "vitest";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxreplay/xboxlive-auth";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { XboxService } from "../xbox";
@@ -16,6 +16,13 @@ function createMockXSAPIResponse(profileUsers: ProfileUser[]): FetchResponse<{
     headers: {},
     statusCode: 200,
   };
+}
+
+function createJsonResponse(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 const validKvToken = JSON.stringify({ XSTSToken: "token", expiresOn: "2025-01-01T03:00:00.000Z" });
@@ -51,6 +58,7 @@ describe("Xbox Service", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe("loadCredentials + get token", () => {
@@ -141,6 +149,77 @@ describe("Xbox Service", () => {
 
       expect(deleteSpy).toHaveBeenCalledWith("xboxToken");
       expect(xboxService.tokenInfo).toBeNull();
+    });
+  });
+
+  describe("exchangeMicrosoftAccessTokenForXstsToken", () => {
+    it("exchanges a Microsoft access token for a Halo XSTS token", async () => {
+      const fetchSpy: MockInstance<typeof globalThis.fetch> = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "user-token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "xsts_token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        );
+
+      const result = await xboxService.exchangeMicrosoftAccessTokenForXstsToken("microsoft-access-token");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://user.auth.xboxlive.com/user/authenticate");
+      expect(fetchSpy.mock.calls[1]?.[0]).toBe("https://xsts.auth.xboxlive.com/xsts/authorize");
+
+      const [, firstRequestInit] = Preconditions.checkExists(
+        fetchSpy.mock.calls[0],
+        "Expected first fetch call arguments",
+      );
+      const [, secondRequestInit] = Preconditions.checkExists(
+        fetchSpy.mock.calls[1],
+        "Expected second fetch call arguments",
+      );
+      const userAuthRequestBody = Preconditions.checkExists(
+        Preconditions.checkExists(firstRequestInit, "Expected first fetch request init").body,
+        "Expected user auth request body",
+      );
+      const xstsAuthRequestBody = Preconditions.checkExists(
+        Preconditions.checkExists(secondRequestInit, "Expected second fetch request init").body,
+        "Expected xsts auth request body",
+      );
+
+      if (typeof userAuthRequestBody !== "string" || typeof xstsAuthRequestBody !== "string") {
+        throw new Error("Expected Xbox auth request bodies to be strings");
+      }
+
+      expect(JSON.parse(userAuthRequestBody)).toMatchObject({
+        Properties: {
+          RpsTicket: "t=microsoft-access-token",
+        },
+      });
+      expect(JSON.parse(xstsAuthRequestBody)).toMatchObject({
+        RelyingParty: "https://prod.xsts.halowaypoint.com/",
+        Properties: {
+          UserTokens: ["user-token"],
+        },
+      });
+      expect(result).toEqual({
+        XSTSToken: "xsts_token",
+        userHash: "user_hash",
+        expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+      });
     });
   });
 

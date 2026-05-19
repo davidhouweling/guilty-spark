@@ -65,6 +65,11 @@ const createMockDurableObjectState = (): {
     setHibernatableWebSocketEventTimeout: () => void 0,
     setWebSocketAutoResponse: () => void 0,
     waitUntil: () => void 0,
+    facets: {
+      get: vi.fn(),
+      abort: () => void 0,
+      delete: () => void 0,
+    },
   };
 
   // Return both the properly typed object and mock accessor functions

@@ -7,6 +7,11 @@ import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
 import type { NeatQueueConfigRow } from "../types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config";
+import type { UserSessionsRow } from "../types/user_sessions";
+import type { LinkedIdentitiesRow } from "../types/linked_identities";
+import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
+import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
+import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -64,4 +69,96 @@ export function aFakeDatabaseServiceWith(opts: Partial<DatabaseServiceOpts> = {}
     env: aFakeEnvWith(),
     ...opts,
   });
+}
+
+export function aFakeUserSessionsRow(opts: Partial<UserSessionsRow> = {}): UserSessionsRow {
+  const defaultOpts: UserSessionsRow = {
+    SessionId: "session-1",
+    UserId: "user-1",
+    AccessToken: "access-token",
+    RefreshToken: "refresh-token",
+    ExpiresAt: Math.floor(Date.now() / 1000) + 3600,
+    CreatedAt: Math.floor(Date.now() / 1000),
+    LastRefreshedAt: null,
+    AuthMetadataJson: "{}",
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLinkedIdentitiesRow(opts: Partial<LinkedIdentitiesRow> = {}): LinkedIdentitiesRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: LinkedIdentitiesRow = {
+    IdentityId: "identity-1",
+    UserId: "user-1",
+    Provider: "xbox",
+    ProviderUserId: "xbox-user-1",
+    Gamertag: "Gamertag01",
+    TwitchId: null,
+    IsActive: 1,
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeIndividualTrackerProfilesRow(
+  opts: Partial<IndividualTrackerProfilesRow> = {},
+): IndividualTrackerProfilesRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: IndividualTrackerProfilesRow = {
+    ProfileId: "profile-1",
+    UserId: "user-1",
+    ActiveIdentityId: "identity-1",
+    Name: "default",
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeIndividualTrackerGamesRow(
+  opts: Partial<IndividualTrackerGamesRow> = {},
+): IndividualTrackerGamesRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: IndividualTrackerGamesRow = {
+    ProfileId: "profile-1",
+    MatchId: "match-1",
+    Position: 1,
+    Included: 1,
+    AnnotationsJson: "{}",
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeStreamerViewSettingsRow(opts: Partial<StreamerViewSettingsRow> = {}): StreamerViewSettingsRow {
+  const defaultOpts: StreamerViewSettingsRow = {
+    ProfileId: "profile-1",
+    LayoutOptionsJson: "{}",
+    VisibleSectionsJson: "[]",
+    StyleFlagsJson: "{}",
+    UpdatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
 }

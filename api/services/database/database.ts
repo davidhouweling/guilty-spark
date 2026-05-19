@@ -1,9 +1,15 @@
 import { instrumentD1WithSentry } from "@sentry/cloudflare";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "./types/guild_config";
 import type { NeatQueueConfigRow, NeatQueuePostSeriesDisplayMode } from "./types/neat_queue_config";
+import type { UserSessionsRow } from "./types/user_sessions";
+import type { LinkedIdentitiesRow, IdentityProvider } from "./types/linked_identities";
+import type { IndividualTrackerProfilesRow } from "./types/individual_tracker_profiles";
+import type { IndividualTrackerGamesRow } from "./types/individual_tracker_games";
+import type { StreamerViewSettingsRow } from "./types/streamer_view_settings";
 
 export interface DatabaseServiceOpts {
   env: Env;
@@ -219,6 +225,187 @@ export class DatabaseService {
   async deleteNeatQueueConfig(guildId: string, channelId: string): Promise<void> {
     const query = "DELETE FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?";
     const stmt = this.DB.prepare(query).bind(guildId, channelId);
+    await stmt.run();
+  }
+
+  async getUserSession(sessionId: string): Promise<UserSessionsRow | null> {
+    const query = "SELECT * FROM UserSessions WHERE SessionId = ?";
+    const stmt = this.DB.prepare(query).bind(sessionId);
+    return await stmt.first<UserSessionsRow>();
+  }
+
+  async upsertUserSession(session: UserSessionsRow): Promise<void> {
+    const query = `
+      INSERT INTO UserSessions (SessionId, UserId, AccessToken, RefreshToken, ExpiresAt, CreatedAt, LastRefreshedAt, AuthMetadataJson) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(SessionId) DO UPDATE SET UserId=excluded.UserId, AccessToken=excluded.AccessToken, RefreshToken=excluded.RefreshToken, ExpiresAt=excluded.ExpiresAt, CreatedAt=excluded.CreatedAt, LastRefreshedAt=excluded.LastRefreshedAt, AuthMetadataJson=excluded.AuthMetadataJson
+    `;
+    const stmt = this.DB.prepare(query).bind(
+      session.SessionId,
+      session.UserId,
+      session.AccessToken,
+      session.RefreshToken,
+      session.ExpiresAt,
+      session.CreatedAt,
+      session.LastRefreshedAt,
+      session.AuthMetadataJson,
+    );
+    await stmt.run();
+  }
+
+  async deleteUserSession(sessionId: string): Promise<void> {
+    const query = "DELETE FROM UserSessions WHERE SessionId = ?";
+    const stmt = this.DB.prepare(query).bind(sessionId);
+    await stmt.run();
+  }
+
+  async deleteExpiredUserSessions(nowEpochSeconds: number): Promise<void> {
+    const sessionExpiryCutoffEpochSeconds = nowEpochSeconds - SESSION_COOKIE_MAX_AGE_SECONDS;
+    const query = "DELETE FROM UserSessions WHERE CreatedAt <= ?";
+    const stmt = this.DB.prepare(query).bind(sessionExpiryCutoffEpochSeconds);
+    await stmt.run();
+  }
+
+  async findLinkedIdentitiesByUserId(userId: string): Promise<LinkedIdentitiesRow[]> {
+    const query = "SELECT * FROM LinkedIdentities WHERE UserId = ? ORDER BY CreatedAt DESC";
+    const stmt = this.DB.prepare(query).bind(userId);
+    const response = await stmt.all<LinkedIdentitiesRow>();
+    return response.results;
+  }
+
+  async getLinkedIdentityByProvider(
+    provider: IdentityProvider,
+    providerUserId: string,
+  ): Promise<LinkedIdentitiesRow | null> {
+    const query = "SELECT * FROM LinkedIdentities WHERE Provider = ? AND ProviderUserId = ?";
+    const stmt = this.DB.prepare(query).bind(provider, providerUserId);
+    return await stmt.first<LinkedIdentitiesRow>();
+  }
+
+  async upsertLinkedIdentity(identity: LinkedIdentitiesRow): Promise<void> {
+    const query = `
+      INSERT INTO LinkedIdentities (IdentityId, UserId, Provider, ProviderUserId, Gamertag, TwitchId, IsActive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(Provider, ProviderUserId) DO UPDATE SET UserId=excluded.UserId, Gamertag=excluded.Gamertag, TwitchId=excluded.TwitchId, IsActive=excluded.IsActive, CreatedAt=excluded.CreatedAt, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(
+      identity.IdentityId,
+      identity.UserId,
+      identity.Provider,
+      identity.ProviderUserId,
+      identity.Gamertag,
+      identity.TwitchId,
+      identity.IsActive,
+      identity.CreatedAt,
+      identity.UpdatedAt,
+    );
+    await stmt.run();
+  }
+
+  async createIndividualTrackerProfile(profile: IndividualTrackerProfilesRow): Promise<void> {
+    const query =
+      "INSERT INTO IndividualTrackerProfiles (ProfileId, UserId, ActiveIdentityId, Name, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?)";
+    const stmt = this.DB.prepare(query).bind(
+      profile.ProfileId,
+      profile.UserId,
+      profile.ActiveIdentityId,
+      profile.Name,
+      profile.CreatedAt,
+      profile.UpdatedAt,
+    );
+    await stmt.run();
+  }
+
+  async getIndividualTrackerProfile(profileId: string): Promise<IndividualTrackerProfilesRow | null> {
+    const query = "SELECT * FROM IndividualTrackerProfiles WHERE ProfileId = ?";
+    const stmt = this.DB.prepare(query).bind(profileId);
+    return await stmt.first<IndividualTrackerProfilesRow>();
+  }
+
+  async findIndividualTrackerProfilesByUserId(userId: string): Promise<IndividualTrackerProfilesRow[]> {
+    const query = "SELECT * FROM IndividualTrackerProfiles WHERE UserId = ? ORDER BY CreatedAt ASC";
+    const stmt = this.DB.prepare(query).bind(userId);
+    const response = await stmt.all<IndividualTrackerProfilesRow>();
+    return response.results;
+  }
+
+  async updateIndividualTrackerProfile(
+    profileId: string,
+    updates: Partial<Pick<IndividualTrackerProfilesRow, "ActiveIdentityId" | "Name" | "UpdatedAt">>,
+  ): Promise<void> {
+    const setStatements: string[] = [];
+    const values: (string | number | null)[] = [];
+
+    type UpdatableKeys = keyof Pick<IndividualTrackerProfilesRow, "ActiveIdentityId" | "Name" | "UpdatedAt">;
+    const updateKeys: UpdatableKeys[] = ["ActiveIdentityId", "Name", "UpdatedAt"];
+
+    for (const key of updateKeys) {
+      if (updates[key] !== undefined) {
+        setStatements.push(`${key} = ?`);
+        values.push(updates[key]);
+      }
+    }
+
+    if (setStatements.length === 0) {
+      return;
+    }
+
+    values.push(profileId);
+
+    const query = `UPDATE IndividualTrackerProfiles SET ${setStatements.join(", ")} WHERE ProfileId = ?`;
+    const stmt = this.DB.prepare(query).bind(...values);
+    await stmt.run();
+  }
+
+  async getIndividualTrackerGames(profileId: string): Promise<IndividualTrackerGamesRow[]> {
+    const query = "SELECT * FROM IndividualTrackerGames WHERE ProfileId = ? ORDER BY Position ASC";
+    const stmt = this.DB.prepare(query).bind(profileId);
+    const response = await stmt.all<IndividualTrackerGamesRow>();
+    return response.results;
+  }
+
+  async replaceIndividualTrackerGames(profileId: string, games: IndividualTrackerGamesRow[]): Promise<void> {
+    const deleteStmt = this.DB.prepare("DELETE FROM IndividualTrackerGames WHERE ProfileId = ?").bind(profileId);
+
+    if (games.length === 0) {
+      await deleteStmt.run();
+      return;
+    }
+
+    const placeholders = games.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(",");
+    const query = `
+      INSERT INTO IndividualTrackerGames (ProfileId, MatchId, Position, Included, AnnotationsJson, CreatedAt, UpdatedAt)
+      VALUES ${placeholders}
+    `;
+    const values = games.flatMap((game) => [
+      profileId,
+      game.MatchId,
+      game.Position,
+      game.Included,
+      game.AnnotationsJson,
+      game.CreatedAt,
+      game.UpdatedAt,
+    ]);
+    const insertStmt = this.DB.prepare(query).bind(...values);
+    await this.DB.batch([deleteStmt, insertStmt]);
+  }
+
+  async getStreamerViewSettings(profileId: string): Promise<StreamerViewSettingsRow | null> {
+    const query = "SELECT * FROM StreamerViewSettings WHERE ProfileId = ?";
+    const stmt = this.DB.prepare(query).bind(profileId);
+    return await stmt.first<StreamerViewSettingsRow>();
+  }
+
+  async upsertStreamerViewSettings(settings: StreamerViewSettingsRow): Promise<void> {
+    const query = `
+      INSERT INTO StreamerViewSettings (ProfileId, LayoutOptionsJson, VisibleSectionsJson, StyleFlagsJson, UpdatedAt) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(ProfileId) DO UPDATE SET LayoutOptionsJson=excluded.LayoutOptionsJson, VisibleSectionsJson=excluded.VisibleSectionsJson, StyleFlagsJson=excluded.StyleFlagsJson, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(
+      settings.ProfileId,
+      settings.LayoutOptionsJson,
+      settings.VisibleSectionsJson,
+      settings.StyleFlagsJson,
+      settings.UpdatedAt,
+    );
     await stmt.run();
   }
 }
