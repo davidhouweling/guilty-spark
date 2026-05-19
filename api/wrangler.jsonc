@@ -39,6 +39,14 @@
       "tag": "v1",
       "new_classes": ["LiveTrackerDO"],
     },
+    {
+      "tag": "v2",
+      "new_classes": ["LiveTrackerIndividualDO"],
+    },
+    {
+      "tag": "v3",
+      "deleted_classes": ["LiveTrackerIndividualDO"],
+    },
   ],
 
   // Development environment variables
