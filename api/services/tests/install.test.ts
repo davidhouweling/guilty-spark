@@ -21,7 +21,6 @@ describe("installServices", () => {
     expect(() =>
       installServices({
         env: aFakeEnvWith({
-          CSRF_SECRET: "not-a-hex-secret",
           TOKEN_ENCRYPTION_SECRET: "c".repeat(64),
         }),
       }),

@@ -59,18 +59,32 @@ jobs:
             DISCORD_PUBLIC_KEY
             XBOX_USERNAME
             PROXY_WORKER_URL
+            MICROSOFT_CLIENT_ID
+            MICROSOFT_TENANT
+            MICROSOFT_REDIRECT_URI
+            MICROSOFT_SCOPES
           secrets: |
             DISCORD_TOKEN
             XBOX_PASSWORD
             PROXY_WORKER_TOKEN
+            MICROSOFT_CLIENT_SECRET
+            SESSION_SECRET
+            TOKEN_ENCRYPTION_SECRET
         env:
           DISCORD_APP_ID: ${{ vars.DISCORD_APP_ID }}
           DISCORD_PUBLIC_KEY: ${{ vars.DISCORD_PUBLIC_KEY }}
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           XBOX_USERNAME: ${{ vars.XBOX_USERNAME }}
-          XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
           PROXY_WORKER_URL: ${{ vars.PROXY_WORKER_URL }}
+          MICROSOFT_CLIENT_ID: ${{ vars.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_TENANT: ${{ vars.MICROSOFT_TENANT }}
+          MICROSOFT_REDIRECT_URI: ${{ vars.MICROSOFT_REDIRECT_URI }}
+          MICROSOFT_SCOPES: ${{ vars.MICROSOFT_SCOPES }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          XBOX_PASSWORD: ${{ secrets.XBOX_PASSWORD }}
           PROXY_WORKER_TOKEN: ${{ secrets.PROXY_WORKER_TOKEN }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          TOKEN_ENCRYPTION_SECRET: ${{ secrets.TOKEN_ENCRYPTION_SECRET }}
 
       - name: Set output directories
         run: |
