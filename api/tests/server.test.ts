@@ -13,7 +13,11 @@ import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.
 import { pingInteraction } from "../services/discord/fakes/data";
 import type { TokenInfo } from "../services/xbox/types";
 import { aFakeIndividualTrackerDOWith, aFakeIndividualTrackerStateWith } from "../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
-import { aFakeLinkedIdentitiesRow } from "../services/database/fakes/database.fake";
+import {
+  aFakeLinkedIdentitiesRow,
+  aFakeIndividualTrackerProfilesRow,
+  aFakeStreamerViewSettingsRow,
+} from "../services/database/fakes/database.fake";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
@@ -513,6 +517,171 @@ describe("Server", () => {
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       await expect(res.json()).resolves.toEqual({ error: "Invalid searchStartTime" });
+    });
+  });
+
+  describe("GET /api/identities", () => {
+    it("returns 401 when no authenticated session exists", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities", {
+        method: "GET",
+        headers: { Origin: env.PAGES_URL },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(401);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    });
+  });
+
+  describe("GET /api/individual-tracker/streamer-view", () => {
+    it("returns 404 when profile does not belong to authenticated user", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue(
+          aFakeIndividualTrackerProfilesRow({
+            ProfileId: "profile-123",
+            UserId: "another-user-456",
+          }),
+        );
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view?profileId=profile-123", {
+        method: "GET",
+        headers: { Origin: env.PAGES_URL },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.text()).resolves.toBe("Profile not found");
+    });
+
+    it("returns streamer view payload for authorized profile", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getIndividualTrackerProfile").mockResolvedValue(
+          aFakeIndividualTrackerProfilesRow({
+            ProfileId: "profile-123",
+            UserId: "user-123",
+          }),
+        );
+        vi.spyOn(services.databaseService, "getStreamerViewSettings").mockResolvedValue(
+          aFakeStreamerViewSettingsRow({
+            ProfileId: "profile-123",
+            LayoutOptionsJson: JSON.stringify({ columns: 2 }),
+            VisibleSectionsJson: JSON.stringify({ recentMatches: true }),
+            StyleFlagsJson: JSON.stringify({ compact: false }),
+            UpdatedAt: 123,
+          }),
+        );
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view?profileId=profile-123", {
+        method: "GET",
+        headers: { Origin: env.PAGES_URL },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.json()).resolves.toEqual({
+        profileId: "profile-123",
+        layoutOptions: { columns: 2 },
+        visibleSections: { recentMatches: true },
+        styleFlags: { compact: false },
+        updatedAt: 123,
+      });
+    });
+  });
+
+  describe("GET /api/individual-live-tracker/status", () => {
+    it("returns activeTracker null when no active session exists", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSession").mockResolvedValue(null);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-live-tracker/status", {
+        method: "GET",
+        headers: { Origin: env.PAGES_URL },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.json()).resolves.toEqual({ activeTracker: null });
+    });
+  });
+
+  describe("POST /api/individual-tracker/:action", () => {
+    it("returns 401 when games action is called without session", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-tracker/games:add", {
+        method: "POST",
+        headers: {
+          Origin: env.PAGES_URL,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ profileId: "profile-123", matchId: "match-123" }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(401);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.text()).resolves.toBe("Unauthorized");
     });
   });
 
