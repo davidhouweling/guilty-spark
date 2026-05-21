@@ -50,16 +50,14 @@ export function IndividualTracker({ apiHost }: IndividualTrackerProps): React.Re
     };
   }, [apiHost]);
 
-  if (!services) {
-    return <LoadingState text="Loading individual tracker..." />;
-  }
-
   return (
     <ComponentLoader
       status={loadingServices}
       loading={<LoadingState text="Loading individual tracker..." />}
       error={<ErrorState message="Failed to load individual tracker" />}
-      loaded={<IndividualTrackerFactory services={services} />}
+      loaded={
+        services == null ? <ErrorState message="Failed to load individual tracker" /> : <IndividualTrackerFactory services={services} />
+      }
     />
   );
 }

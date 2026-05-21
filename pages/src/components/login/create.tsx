@@ -115,16 +115,12 @@ export function LoginPage({ apiHost }: LoginPageProps): React.ReactElement {
     };
   }, [apiHost]);
 
-  if (!services) {
-    return <LoadingState text="Checking current session..." />;
-  }
-
   return (
     <ComponentLoader
       status={loadingServices}
       loading={<LoadingState text="Checking current session..." />}
       error={<ErrorState message="Failed to load login page" />}
-      loaded={<LoginPageFactory services={services} />}
+      loaded={services == null ? <ErrorState message="Failed to load login page" /> : <LoginPageFactory services={services} />}
     />
   );
 }
