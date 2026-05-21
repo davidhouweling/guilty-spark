@@ -16,6 +16,7 @@ import { SentryLogClient } from "./log/sentry-log-client";
 import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy";
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
+import { IndividualTrackerService } from "./individual-tracker/individual-tracker";
 
 export interface Services {
   logService: LogService;
@@ -27,6 +28,7 @@ export interface Services {
   haloInfiniteClient: HaloInfiniteClient;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
+  individualTrackerService: IndividualTrackerService;
 }
 
 interface InstallServicesOpts {
@@ -90,6 +92,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     haloService,
     liveTrackerService,
   });
+  const individualTrackerService = new IndividualTrackerService(databaseService);
 
   return {
     logService,
@@ -101,5 +104,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     haloInfiniteClient,
     liveTrackerService,
     neatQueueService,
+    individualTrackerService,
   };
 }
