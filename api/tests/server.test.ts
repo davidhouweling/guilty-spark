@@ -12,6 +12,7 @@ import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
 import type { TokenInfo } from "../services/xbox/types";
+import { aFakeIndividualTrackerDOWith, aFakeIndividualTrackerStateWith } from "../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
@@ -384,6 +385,40 @@ describe("Server", () => {
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       expect(res.headers.get("Cache-Control")).toBe("no-store");
+    });
+  });
+
+  describe("GET /api/individual-live-tracker/:userId/active", () => {
+    it("returns the activeTracker envelope when an active tracker exists", async () => {
+      const activeState = aFakeIndividualTrackerStateWith({
+        userId: "user-123",
+        trackerId: "tracker-123",
+      });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findIndividualTrackerActiveSession").mockResolvedValue({
+          UserId: "user-123",
+          TrackerId: "tracker-123",
+          UpdatedAt: 123,
+        });
+        return services;
+      });
+
+      env = aFakeEnvWith({
+        INDIVIDUAL_TRACKER_DO: {
+          ...env.INDIVIDUAL_TRACKER_DO,
+          get: () => aFakeIndividualTrackerDOWith({ statusResponse: { state: activeState } }),
+        },
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-live-tracker/user-123/active", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toEqual({ activeTracker: activeState });
     });
   });
 

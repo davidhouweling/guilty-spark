@@ -1,5 +1,6 @@
 import type { AutoRouterType } from "itty-router";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
@@ -866,7 +867,9 @@ export class Server {
           });
         }
 
-        return new Response(doResponse.body, {
+        const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
+
+        return new Response(JSON.stringify({ activeTracker: responseBody.state }), {
           status: doResponse.status,
           headers: { "Content-Type": "application/json" },
         });
@@ -992,7 +995,9 @@ export class Server {
           });
         }
 
-        return new Response(doResponse.body, {
+        const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
+
+        return new Response(JSON.stringify({ activeTracker: responseBody.state }), {
           status: doResponse.status,
           headers: { "Content-Type": "application/json" },
         });
