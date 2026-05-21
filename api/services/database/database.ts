@@ -267,7 +267,8 @@ export class DatabaseService {
   }
 
   async findUserSessionByUserId(userId: string): Promise<UserSessionsRow | null> {
-    const query = "SELECT * FROM UserSessions WHERE UserId = ? ORDER BY LastRefreshedAt DESC LIMIT 1";
+    const query =
+      "SELECT * FROM UserSessions WHERE UserId = ? ORDER BY COALESCE(LastRefreshedAt, CreatedAt) DESC LIMIT 1";
     const stmt = this.DB.prepare(query).bind(userId);
     return await stmt.first<UserSessionsRow>();
   }

@@ -512,6 +512,25 @@ describe("Database Service", () => {
     });
   });
 
+  describe("findUserSessionByUserId()", () => {
+    it("finds the latest session using LastRefreshedAt fallback to CreatedAt", async () => {
+      const session: UserSessionsRow = aFakeUserSessionsRow();
+      const fakePreparedStatement = new FakePreparedStatement<UserSessionsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(session);
+
+      const result = await databaseService.findUserSessionByUserId("user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM UserSessions WHERE UserId = ? ORDER BY COALESCE(LastRefreshedAt, CreatedAt) DESC LIMIT 1",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("user-1");
+      expect(firstSpy).toHaveBeenCalled();
+      expect(result).toEqual(session);
+    });
+  });
+
   describe("findLinkedIdentitiesByUserId()", () => {
     it("returns linked identities for a user", async () => {
       const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow();
