@@ -472,6 +472,50 @@ describe("Server", () => {
     });
   });
 
+  describe("POST /api/individual-live-tracker/start", () => {
+    it("returns 400 for an invalid searchStartTime", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          aFakeLinkedIdentitiesRow({
+            UserId: "user-123",
+            Provider: "xbox",
+            ProviderUserId: "xuid-123",
+            IsActive: 1,
+          }),
+        ]);
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/individual-live-tracker/start", {
+        method: "POST",
+        headers: {
+          Origin: env.PAGES_URL,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          searchStartTime: "not-a-timestamp",
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(400);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.json()).resolves.toEqual({ error: "Invalid searchStartTime" });
+    });
+  });
+
   describe("OPTIONS /api/*", () => {
     it("returns credentialed preflight headers including PATCH for allowed origins", async () => {
       const req = new Request("http://localhost/api/individual-tracker/streamer-view", {

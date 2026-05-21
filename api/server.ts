@@ -30,6 +30,16 @@ function isIdentityProvider(value: unknown): value is IdentityProvider {
   return value === "xbox" || value === "discord" || value === "twitch";
 }
 
+function isValidIsoTimestamp(value: string): boolean {
+  const isoTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+  if (!isoTimestampPattern.test(value)) {
+    return false;
+  }
+
+  const parsedDate = new Date(value);
+  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString() === value;
+}
+
 function mapIdentityResponse(row: LinkedIdentitiesRow): {
   identityId: string;
   userId: string;
@@ -823,10 +833,19 @@ export class Server {
           : DEFAULT_IDLE_TIMEOUT_HOURS;
 
         const rawSearchStartTime = (body as { searchStartTime?: unknown }).searchStartTime;
-        const searchStartTime =
-          typeof rawSearchStartTime === "string" && rawSearchStartTime !== ""
-            ? rawSearchStartTime
-            : new Date().toISOString();
+        let searchStartTime = new Date().toISOString();
+        if (typeof rawSearchStartTime === "string" && rawSearchStartTime !== "") {
+          if (!isValidIsoTimestamp(rawSearchStartTime)) {
+            return withCorsHeaders(
+              new Response(JSON.stringify({ error: "Invalid searchStartTime" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
+          searchStartTime = rawSearchStartTime;
+        }
 
         // Resolve the user's active Xbox identity for the XUID and gamertag.
         const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
