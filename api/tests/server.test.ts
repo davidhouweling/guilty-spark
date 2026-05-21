@@ -318,12 +318,15 @@ describe("Server", () => {
         const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
           const services = installFakeServicesWith({ env });
           vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
-            sessionId: "session-123",
-            userId: "user-123",
-            accessToken: "access-token",
-            refreshToken: "refresh-token",
-            expiresAt: accessTokenExpiresAt,
-            issuedAt: Date.now(),
+              sessionPayload: {
+                sessionId: "session-123",
+                userId: "user-123",
+                accessToken: "access-token",
+                refreshToken: "refresh-token",
+                expiresAt: accessTokenExpiresAt,
+                issuedAt: Date.now(),
+              },
+              redirectTo: "/individual-tracker",
           });
           vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("signed-session-token");
           return services;
@@ -342,9 +345,8 @@ describe("Server", () => {
 
         const res = (await server.router.fetch(req, env)) as Response;
 
-        expect(res.status).toBe(200);
-        const body = await res.json<{ success: boolean; userId: string }>();
-        expect(body).toEqual({ success: true, userId: "user-123" });
+        expect(res.status).toBe(302);
+        expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/individual-tracker`);
         const setCookie = res.headers.get("Set-Cookie");
         expect(setCookie).toContain("auth-session=signed-session-token");
         expect(setCookie).toContain("Max-Age=2592000");
@@ -405,12 +407,8 @@ describe("Server", () => {
         return services;
       });
 
-      env = aFakeEnvWith({
-        INDIVIDUAL_TRACKER_DO: {
-          ...env.INDIVIDUAL_TRACKER_DO,
-          get: () => aFakeIndividualTrackerDOWith({ statusResponse: { state: activeState } }),
-        },
-      });
+      const individualTrackerDo = aFakeIndividualTrackerDOWith({ statusResponse: { state: activeState } });
+      vi.spyOn(env.INDIVIDUAL_TRACKER_DO, "get").mockReturnValue(individualTrackerDo);
 
       server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
 

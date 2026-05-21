@@ -105,12 +105,14 @@ export class Server {
       try {
         const services = this.installServices({ env });
         const { authService } = services;
+        const url = new URL(request.url);
+        const redirect = url.searchParams.get("redirect") ?? undefined;
 
-        const { url, state, codeVerifier } = await authService.generateAuthorizationUrl();
+        const { url: authorizationUrl, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
         const response = createNoStoreJsonResponse(
           {
-            authUrl: url.toString(),
+            authUrl: authorizationUrl.toString(),
             state,
           },
           200,
@@ -120,6 +122,7 @@ export class Server {
           codeVerifier,
           state,
           issuedAt: Date.now(),
+          redirectTo: redirect ?? "/",
         });
 
         return addCorsHeaders(response, request, true);
@@ -152,17 +155,16 @@ export class Server {
         const { authService } = services;
 
         // Exchange code for tokens and create session
-        const sessionPayload = await authService.handleCallback(request, code, state);
+        const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
         const sessionToken = await authService.createSessionToken(sessionPayload);
+        const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
 
-        // Create response with Set-Cookie header
-        const response = createNoStoreJsonResponse(
-          {
-            success: true,
-            userId: sessionPayload.userId,
+        const response = new Response(null, {
+          status: 302,
+          headers: {
+            Location: pagesRedirectUrl.toString(),
           },
-          200,
-        );
+        });
 
         // Set session cookie
         authService.setSessionCookie(response, sessionToken);
