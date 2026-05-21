@@ -1,10 +1,12 @@
 import type { AutoRouterType } from "itty-router";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { IndividualTrackerState } from "@guilty-spark/shared/individual-tracker/types";
+import { z } from "zod";
 import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
 import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
+import { parseJsonBody, parseQueryParams } from "./base/request-parsing";
 import { ProfileNotFoundError, InvalidReorderError } from "./services/individual-tracker/errors";
 import { DEFAULT_IDLE_TIMEOUT_HOURS, IDLE_TIMEOUT_HOURS } from "./durable-objects/individual-tracker/types";
 import type { IdleTimeoutHours, IndividualTrackerStartRequest } from "./durable-objects/individual-tracker/types";
@@ -16,6 +18,68 @@ interface ServerOpts {
   getCommands: typeof getCommands;
 }
 
+const identityLinkBodySchema = z.object({
+  provider: z.enum(["xbox", "discord", "twitch"]),
+  providerUserId: z.string().optional(),
+  gamertag: z.string().optional(),
+  twitchId: z.string().optional(),
+});
+
+const identityUnlinkBodySchema = z.object({
+  identityId: z.string().min(1),
+});
+
+const streamerViewUpdateBodySchema = z.object({
+  profileId: z.string().min(1),
+  layoutOptions: z.record(z.string(), z.unknown()).optional(),
+  visibleSections: z.record(z.string(), z.unknown()).optional(),
+  styleFlags: z.record(z.string(), z.unknown()).optional(),
+});
+
+const createProfileBodySchema = z.object({
+  name: z.string().optional(),
+  activeIdentityId: z.string().nullable().optional(),
+});
+
+const updateProfileBodySchema = z.object({
+  profileId: z.string().min(1),
+  name: z.string().optional(),
+  activeIdentityId: z.string().nullable().optional(),
+});
+
+const trackerGamesActionBodySchema = z.object({
+  profileId: z.string().min(1),
+  matchId: z.string().min(1).optional(),
+  orderedMatchIds: z.array(z.string()).optional(),
+});
+
+const individualLiveTrackerStartBodySchema = z.object({
+  idleTimeoutHours: z.number().optional(),
+  searchStartTime: z.string().optional(),
+});
+
+const matchIdBodySchema = z.object({
+  matchId: z.string().min(1),
+});
+
+const streamerViewQuerySchema = z.object({
+  profileId: z.string().min(1),
+});
+
+const haloProxyBodySchema = z.object({
+  method: z.string().min(1),
+  args: z.array(z.unknown()),
+});
+
+const authStartQuerySchema = z.object({
+  redirect: z.string().optional(),
+});
+
+const authCallbackQuerySchema = z.object({
+  code: z.string(),
+  state: z.string(),
+});
+
 function createNoStoreJsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -24,10 +88,6 @@ function createNoStoreJsonResponse(body: unknown, status: number): Response {
       "Content-Type": "application/json",
     },
   });
-}
-
-function isIdentityProvider(value: unknown): value is IdentityProvider {
-  return value === "xbox" || value === "discord" || value === "twitch";
 }
 
 function isValidIsoTimestamp(value: string): boolean {
@@ -116,7 +176,12 @@ export class Server {
         const services = this.installServices({ env });
         const { authService } = services;
         const url = new URL(request.url);
-        const redirect = url.searchParams.get("redirect") ?? undefined;
+        const parsedQuery = parseQueryParams(url, authStartQuerySchema, "Failed to generate authorization URL");
+        if (!parsedQuery.success) {
+          return addCorsHeaders(parsedQuery.response, request, true);
+        }
+
+        const { redirect } = parsedQuery.data;
 
         const { url: authorizationUrl, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
@@ -154,12 +219,12 @@ export class Server {
     this.router.get("/auth/microsoft/callback", async (request, env: Env) => {
       try {
         const url = new URL(request.url);
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
-
-        if (code == null || state == null) {
+        const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
+        if (!parsedQuery.success) {
           return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
         }
+
+        const { code, state } = parsedQuery.data;
 
         const services = this.installServices({ env });
         const { authService } = services;
@@ -310,21 +375,17 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{
-          provider?: unknown;
-          providerUserId?: unknown;
-          gamertag?: unknown;
-          twitchId?: unknown;
-        }>();
-        const providerVal = body.provider;
-        if (!isIdentityProvider(providerVal)) {
-          return withCorsHeaders(new Response("Invalid link request", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, identityLinkBodySchema, "Invalid link request");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
 
-        const provider: IdentityProvider = providerVal;
-        const providerUserIdVal = body.providerUserId;
-        const gamertagVal = body.gamertag;
-        const twitchIdRaw = body.twitchId;
+        const {
+          provider,
+          providerUserId: providerUserIdVal,
+          gamertag: gamertagVal,
+          twitchId: twitchIdRaw,
+        } = parsedBody.data;
 
         let providerUserId: string;
         let providerGamertag: string | null;
@@ -424,12 +485,12 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ identityId?: unknown }>();
-        const identityIdRaw = body.identityId;
-
-        if (typeof identityIdRaw !== "string" || identityIdRaw === "") {
-          return withCorsHeaders(new Response("Invalid unlink request", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, identityUnlinkBodySchema, "Invalid unlink request");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const { identityId: identityIdRaw } = parsedBody.data;
 
         const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
         const targetIdentity = identities.find((identity) => identity.IdentityId === identityIdRaw);
@@ -474,11 +535,12 @@ export class Server {
         }
 
         const url = new URL(request.url);
-        const profileId = url.searchParams.get("profileId");
-
-        if (profileId == null || profileId === "") {
-          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
+        const parsedQuery = parseQueryParams(url, streamerViewQuerySchema, "Missing profileId");
+        if (!parsedQuery.success) {
+          return withCorsHeaders(parsedQuery.response);
         }
+
+        const { profileId } = parsedQuery.data;
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
         if (profile?.UserId !== session.userId) {
@@ -524,17 +586,17 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{
-          profileId?: unknown;
-          layoutOptions?: unknown;
-          visibleSections?: unknown;
-          styleFlags?: unknown;
-        }>();
-        const profileIdRaw = body.profileId;
-
-        if (typeof profileIdRaw !== "string" || profileIdRaw === "") {
-          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, streamerViewUpdateBodySchema, "Missing profileId");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const {
+          profileId: profileIdRaw,
+          layoutOptions: layoutOptionsRaw,
+          visibleSections: visibleSectionsRaw,
+          styleFlags: styleFlagsRaw,
+        } = parsedBody.data;
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileIdRaw);
         if (profile?.UserId !== session.userId) {
@@ -546,23 +608,12 @@ export class Server {
         const currentVisible = toObjectOrDefault(current?.VisibleSectionsJson ?? null, {});
         const currentStyle = toObjectOrDefault(current?.StyleFlagsJson ?? null, {});
 
-        const layoutOptionsRaw = body.layoutOptions;
-        const layoutOptions =
-          layoutOptionsRaw != null && typeof layoutOptionsRaw === "object" && !Array.isArray(layoutOptionsRaw)
-            ? { ...currentLayout, ...(layoutOptionsRaw as Record<string, unknown>) }
-            : currentLayout;
+        const layoutOptions = layoutOptionsRaw == null ? currentLayout : { ...currentLayout, ...layoutOptionsRaw };
 
-        const visibleSectionsRaw = body.visibleSections;
         const visibleSections =
-          visibleSectionsRaw != null && typeof visibleSectionsRaw === "object" && !Array.isArray(visibleSectionsRaw)
-            ? { ...currentVisible, ...(visibleSectionsRaw as Record<string, unknown>) }
-            : currentVisible;
+          visibleSectionsRaw == null ? currentVisible : { ...currentVisible, ...visibleSectionsRaw };
 
-        const styleFlagsRaw = body.styleFlags;
-        const styleFlags =
-          styleFlagsRaw != null && typeof styleFlagsRaw === "object" && !Array.isArray(styleFlagsRaw)
-            ? { ...currentStyle, ...(styleFlagsRaw as Record<string, unknown>) }
-            : currentStyle;
+        const styleFlags = styleFlagsRaw == null ? currentStyle : { ...currentStyle, ...styleFlagsRaw };
 
         const updatedAt = Math.floor(Date.now() / 1000);
         await services.databaseService.upsertStreamerViewSettings({
@@ -642,17 +693,18 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ name?: unknown; activeIdentityId?: unknown }>();
+        const parsedBody = await parseJsonBody(request, createProfileBodySchema, "Invalid profile payload");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
+        }
+
+        const { name: nameVal, activeIdentityId: activeIdentityIdVal } = parsedBody.data;
         const createProfileRequest = { userId: session.userId };
-        const nameVal = body.name;
-        if (typeof nameVal === "string") {
+        if (nameVal != null) {
           Object.assign(createProfileRequest, { name: nameVal });
         }
-        const activeIdentityIdVal = body.activeIdentityId;
         if (activeIdentityIdVal != null) {
-          Object.assign(createProfileRequest, {
-            activeIdentityId: typeof activeIdentityIdVal === "string" ? activeIdentityIdVal : null,
-          });
+          Object.assign(createProfileRequest, { activeIdentityId: activeIdentityIdVal });
         }
 
         const response = await services.individualTrackerService.createProfile(createProfileRequest);
@@ -686,22 +738,21 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ profileId?: unknown; name?: unknown; activeIdentityId?: unknown }>();
-        const { profileId } = body;
-        if (typeof profileId !== "string" || profileId === "") {
-          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, updateProfileBodySchema, "Missing profileId");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const { profileId, name, activeIdentityId } = parsedBody.data;
 
         const updates: { name?: string; activeIdentityId?: string | null } = {};
 
-        const { name } = body;
-        if (typeof name === "string") {
+        if (name != null) {
           updates.name = name;
         }
 
-        const { activeIdentityId } = body;
         if (activeIdentityId != null) {
-          updates.activeIdentityId = typeof activeIdentityId === "string" ? activeIdentityId : null;
+          updates.activeIdentityId = activeIdentityId;
         }
 
         try {
@@ -751,17 +802,17 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ profileId?: unknown; matchId?: unknown; orderedMatchIds?: unknown }>();
-        const { profileId } = body;
-        if (typeof profileId !== "string" || profileId === "") {
-          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, trackerGamesActionBodySchema, "Invalid games action payload");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const { profileId, matchId, orderedMatchIds } = parsedBody.data;
 
         try {
           switch (action) {
             case "games:add": {
-              const { matchId } = body;
-              if (typeof matchId !== "string" || matchId === "") {
+              if (matchId == null) {
                 return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
               }
 
@@ -780,8 +831,7 @@ export class Server {
             }
 
             case "games:remove": {
-              const { matchId } = body;
-              if (typeof matchId !== "string" || matchId === "") {
+              if (matchId == null) {
                 return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
               }
 
@@ -800,15 +850,14 @@ export class Server {
             }
 
             case "games:reorder": {
-              const { orderedMatchIds } = body;
-              if (!Array.isArray(orderedMatchIds) || orderedMatchIds.some((matchId) => typeof matchId !== "string")) {
+              if (orderedMatchIds == null) {
                 return withCorsHeaders(new Response("Invalid reorder payload", { status: 400 }));
               }
 
               const response = await services.individualTrackerService.reorderGames({
                 userId: session.userId,
                 profileId,
-                orderedMatchIds: orderedMatchIds as string[],
+                orderedMatchIds,
               });
 
               return withCorsHeaders(
@@ -857,17 +906,21 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ idleTimeoutHours?: unknown; searchStartTime?: unknown }>();
-        const rawIdleTimeout = body.idleTimeoutHours;
-        const idleTimeoutHours: IdleTimeoutHours = (IDLE_TIMEOUT_HOURS as readonly number[]).includes(
-          rawIdleTimeout as number,
-        )
-          ? (rawIdleTimeout as IdleTimeoutHours)
-          : DEFAULT_IDLE_TIMEOUT_HOURS;
+        const parsedBody = await parseJsonBody(
+          request,
+          individualLiveTrackerStartBodySchema,
+          "Invalid tracker start request",
+        );
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
+        }
 
-        const rawSearchStartTime = body.searchStartTime;
+        const { idleTimeoutHours: rawIdleTimeout, searchStartTime: rawSearchStartTime } = parsedBody.data;
+        const idleTimeoutHours: IdleTimeoutHours =
+          IDLE_TIMEOUT_HOURS.find((allowedTimeout) => allowedTimeout === rawIdleTimeout) ?? DEFAULT_IDLE_TIMEOUT_HOURS;
+
         let searchStartTime = new Date().toISOString();
-        if (typeof rawSearchStartTime === "string" && rawSearchStartTime !== "") {
+        if (rawSearchStartTime != null && rawSearchStartTime !== "") {
           if (!isValidIsoTimestamp(rawSearchStartTime)) {
             return withCorsHeaders(
               new Response(JSON.stringify({ error: "Invalid searchStartTime" }), {
@@ -1050,11 +1103,12 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ matchId?: unknown }>();
-        const { matchId } = body;
-        if (typeof matchId !== "string" || matchId === "") {
-          return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, matchIdBodySchema, "Missing matchId");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const { matchId } = parsedBody.data;
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -1099,11 +1153,12 @@ export class Server {
           return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
-        const body = await request.json<{ matchId?: unknown }>();
-        const { matchId } = body;
-        if (typeof matchId !== "string" || matchId === "") {
-          return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
+        const parsedBody = await parseJsonBody(request, matchIdBodySchema, "Missing matchId");
+        if (!parsedBody.success) {
+          return withCorsHeaders(parsedBody.response);
         }
+
+        const { matchId } = parsedBody.data;
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
         const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
@@ -1384,23 +1439,17 @@ export class Server {
           }
         }
 
-        let body: unknown;
-        try {
-          body = await request.json();
-        } catch {
-          return withCorsHeaders(new Response("Invalid JSON body", { status: 400 }));
+        const parsedProxyBody = await parseJsonBody(
+          request,
+          haloProxyBodySchema,
+          "Invalid request format",
+          "Invalid JSON body",
+        );
+        if (!parsedProxyBody.success) {
+          return withCorsHeaders(parsedProxyBody.response);
         }
 
-        if (
-          typeof body !== "object" ||
-          body === null ||
-          typeof (body as { method?: unknown }).method !== "string" ||
-          !Array.isArray((body as { args?: unknown[] }).args)
-        ) {
-          return withCorsHeaders(new Response("Invalid request format", { status: 400 }));
-        }
-
-        const { method, args } = body as { method: string; args: unknown[] };
+        const { method, args } = parsedProxyBody.data;
 
         const activeServices = services ?? this.installServices({ env });
         let haloInfiniteClient: HaloInfiniteClient;
