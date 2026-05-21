@@ -1,6 +1,5 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { Services } from "../../services/types";

@@ -322,13 +322,13 @@ export class Server {
         const twitchIdRaw = (body as { twitchId?: unknown }).twitchId;
 
         let providerUserId: string;
-        let gamertag: string | null;
+        let providerGamertag: string | null;
 
         switch (provider) {
           case "xbox": {
             const xboxUser = await services.xboxService.getUserFromMicrosoftAccessToken(session.accessToken);
             providerUserId = xboxUser.xuid;
-            gamertag = xboxUser.gamertag;
+            providerGamertag = xboxUser.gamertag;
             break;
           }
           case "discord":
@@ -338,7 +338,7 @@ export class Server {
             }
 
             providerUserId = providerUserIdVal;
-            gamertag = typeof gamertagVal === "string" ? gamertagVal : null;
+            providerGamertag = typeof gamertagVal === "string" ? gamertagVal : null;
             break;
           }
           default: {
@@ -376,7 +376,7 @@ export class Server {
           UserId: session.userId,
           Provider: provider,
           ProviderUserId: providerUserId,
-          Gamertag: gamertag,
+          Gamertag: providerGamertag,
           TwitchId: typeof twitchIdRaw === "string" ? twitchIdRaw : null,
           IsActive: 1,
           CreatedAt: existingIdentity?.CreatedAt ?? nowEpoch,
@@ -1008,7 +1008,7 @@ export class Server {
           );
         }
 
-        const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
+        const responseBody = await doResponse.json<{ state: IndividualTrackerState }>();
 
         return withCorsHeaders(
           new Response(JSON.stringify({ activeTracker: responseBody.state }), {
@@ -1161,7 +1161,7 @@ export class Server {
           );
         }
 
-        const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
+        const responseBody = await doResponse.json<{ state: IndividualTrackerState }>();
 
         return withCorsHeaders(
           new Response(JSON.stringify({ activeTracker: responseBody.state }), {

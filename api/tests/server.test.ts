@@ -12,7 +12,10 @@ import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { pingInteraction } from "../services/discord/fakes/data";
 import type { TokenInfo } from "../services/xbox/types";
-import { aFakeIndividualTrackerDOWith, aFakeIndividualTrackerStateWith } from "../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import {
+  aFakeIndividualTrackerDOWith,
+  aFakeIndividualTrackerStateWith,
+} from "../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import {
   aFakeLinkedIdentitiesRow,
   aFakeIndividualTrackerProfilesRow,
@@ -323,15 +326,15 @@ describe("Server", () => {
         const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
           const services = installFakeServicesWith({ env });
           vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
-              sessionPayload: {
-                sessionId: "session-123",
-                userId: "user-123",
-                accessToken: "access-token",
-                refreshToken: "refresh-token",
-                expiresAt: accessTokenExpiresAt,
-                issuedAt: Date.now(),
-              },
-              redirectTo: "/individual-tracker",
+            sessionPayload: {
+              sessionId: "session-123",
+              userId: "user-123",
+              accessToken: "access-token",
+              refreshToken: "refresh-token",
+              expiresAt: accessTokenExpiresAt,
+              issuedAt: Date.now(),
+            },
+            redirectTo: "/individual-tracker",
           });
           vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("signed-session-token");
           return services;

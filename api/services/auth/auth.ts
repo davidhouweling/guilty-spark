@@ -319,7 +319,9 @@ export class AuthService {
     return null;
   }
 
-  private parsePkceStatePayload(value: unknown): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo"> | null {
+  private parsePkceStatePayload(
+    value: unknown,
+  ): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo"> | null {
     if (
       typeof value === "object" &&
       value !== null &&

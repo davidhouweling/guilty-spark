@@ -120,7 +120,9 @@ export function LoginPage({ apiHost }: LoginPageProps): React.ReactElement {
       status={loadingServices}
       loading={<LoadingState text="Checking current session..." />}
       error={<ErrorState message="Failed to load login page" />}
-      loaded={services == null ? <ErrorState message="Failed to load login page" /> : <LoginPageFactory services={services} />}
+      loaded={
+        services == null ? <ErrorState message="Failed to load login page" /> : <LoginPageFactory services={services} />
+      }
     />
   );
 }
