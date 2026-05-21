@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/cloudflare";
 import { AutoTokenProvider, HaloInfiniteClient, MatchType } from "halo-infinite-api";
 import { addMilliseconds, differenceInHours, differenceInMilliseconds } from "date-fns";
 import { installServices as installServicesImpl } from "../../services/install";
+import { TokenEncryptor } from "../../services/auth/token-encryptor";
 import type { LogService } from "../../services/log/types";
 import type { DatabaseService } from "../../services/database/database";
 import {
@@ -31,6 +32,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly state: DurableObjectState;
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
+  private readonly tokenEncryptor: TokenEncryptor;
 
   constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
@@ -38,6 +40,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const services = installServices({ env });
     this.logService = services.logService;
     this.databaseService = services.databaseService;
+    this.tokenEncryptor = new TokenEncryptor(env.TOKEN_ENCRYPTION_SECRET);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -368,7 +371,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       throw new Error(`No active session found for user ${userId}`);
     }
 
-    const accessToken = session.AccessToken;
+    const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
     return new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(accessToken)));
   }
 

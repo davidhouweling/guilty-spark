@@ -106,10 +106,10 @@ class RealIndividualTrackerConnection implements IndividualTrackerConnection {
     });
 
     ws.addEventListener("close", (event: CloseEvent) => {
-      if (event.code === 1000) {
+      if (event.code === 1000 && event.reason === "Tracker stopped") {
         this.handleStatus("stopped");
       } else {
-        this.handleStatus("disconnected", event.reason);
+        this.handleStatus("disconnected", event.reason === "" ? undefined : event.reason);
       }
     });
 
@@ -126,34 +126,39 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
     this.apiHost = apiHost;
   }
 
+  private async fetchJson(path: string, init?: RequestInit): Promise<unknown> {
+    const response = await fetch(`${this.apiHost}${path}`, init);
+
+    if (!response.ok) {
+      const reason = await response.text();
+      throw new Error(reason === "" ? `Request failed (${String(response.status)})` : reason);
+    }
+
+    return response.json();
+  }
+
   public async startTracker(opts: StartTrackerRequest): Promise<StartTrackerResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/start`, {
+    return (await this.fetchJson("/api/individual-live-tracker/start", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(opts),
-    });
-
-    return response.json();
+    })) as StartTrackerResponse;
   }
 
   public async stopTracker(trackerId: string): Promise<StopTrackerResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(trackerId)}/stop`, {
+    return (await this.fetchJson(`/api/individual-live-tracker/${encodeURIComponent(trackerId)}/stop`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
-    });
-
-    return response.json();
+    })) as StopTrackerResponse;
   }
 
   public async getStatus(): Promise<TrackerStatusResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/status`, {
+    return (await this.fetchJson("/api/individual-live-tracker/status", {
       credentials: "include",
-    });
-
-    return response.json();
+    })) as TrackerStatusResponse;
   }
 
   public connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection {
@@ -177,8 +182,8 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
   }
 
   public async getActiveTrackerState(userId: string): Promise<TrackerStatusResponse> {
-    const response = await fetch(`${this.apiHost}/api/individual-live-tracker/${encodeURIComponent(userId)}/active`);
-
-    return response.json();
+    return (await this.fetchJson(
+      `/api/individual-live-tracker/${encodeURIComponent(userId)}/active`,
+    )) as TrackerStatusResponse;
   }
 }

@@ -65,8 +65,9 @@ export class IndividualTrackerService {
       UpdatedAt: Math.floor(Date.now() / 1000),
     };
 
-    if (request.updates.name !== undefined && request.updates.name.trim() !== "") {
-      updates.Name = request.updates.name;
+    const trimmedName = request.updates.name?.trim();
+    if (trimmedName != null && trimmedName !== "") {
+      updates.Name = trimmedName;
     }
 
     if (Object.prototype.hasOwnProperty.call(request.updates, "activeIdentityId")) {
@@ -157,8 +158,10 @@ export class IndividualTrackerService {
     const games = await this.databaseService.getIndividualTrackerGames(request.profileId);
 
     const gameByMatchId = new Map(games.map((game) => [game.MatchId, game]));
+    const orderedMatchIdSet = new Set(request.orderedMatchIds);
     if (
       request.orderedMatchIds.length !== games.length ||
+      orderedMatchIdSet.size !== games.length ||
       request.orderedMatchIds.some((matchId) => !gameByMatchId.has(matchId))
     ) {
       throw new InvalidReorderError("orderedMatchIds must include all existing games");

@@ -173,6 +173,24 @@ describe("IndividualTrackerService", () => {
       expect(updates).toMatchObject({ Name: "Updated" });
     });
 
+    it("trims profile name before persisting", async () => {
+      const originalProfile = aFakeIndividualTrackerProfilesRow({ Name: "Original" });
+      const updatedProfile = aFakeIndividualTrackerProfilesRow({ Name: "Updated" });
+
+      vi.spyOn(databaseService, "getIndividualTrackerProfile")
+        .mockResolvedValueOnce(originalProfile)
+        .mockResolvedValueOnce(updatedProfile);
+      const updateProfileSpy = vi.spyOn(databaseService, "updateIndividualTrackerProfile").mockResolvedValue(undefined);
+
+      await service.updateProfile({
+        userId: "user-1",
+        profileId: "profile-1",
+        updates: { name: "  Updated  " },
+      });
+
+      expect(updateProfileSpy.mock.calls[0]?.[1]).toMatchObject({ Name: "Updated" });
+    });
+
     it("ignores empty name and does not update it", async () => {
       const profile = aFakeIndividualTrackerProfilesRow({ Name: "Original" });
 
@@ -493,6 +511,25 @@ describe("IndividualTrackerService", () => {
           userId: "user-1",
           profileId: "profile-1",
           orderedMatchIds: ["match-999"],
+        }),
+      ).rejects.toThrow(InvalidReorderError);
+    });
+
+    it("throws InvalidReorderError when orderedMatchIds contains duplicates", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow();
+      const existingGames = [
+        aFakeIndividualTrackerGamesRow({ MatchId: "match-1" }),
+        aFakeIndividualTrackerGamesRow({ MatchId: "match-2" }),
+      ];
+
+      vi.spyOn(databaseService, "getIndividualTrackerProfile").mockResolvedValue(profile);
+      vi.spyOn(databaseService, "getIndividualTrackerGames").mockResolvedValue(existingGames);
+
+      await expect(
+        service.reorderGames({
+          userId: "user-1",
+          profileId: "profile-1",
+          orderedMatchIds: ["match-1", "match-1"],
         }),
       ).rejects.toThrow(InvalidReorderError);
     });
