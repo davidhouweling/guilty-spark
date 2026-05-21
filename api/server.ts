@@ -278,13 +278,13 @@ export class Server {
 
         return withCorsHeaders(
           new Response(
-          JSON.stringify({
-            identities: identities.map((identity) => mapIdentityResponse(identity)),
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+            JSON.stringify({
+              identities: identities.map((identity) => mapIdentityResponse(identity)),
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
           ),
         );
       } catch (error) {
@@ -387,13 +387,13 @@ export class Server {
 
         return withCorsHeaders(
           new Response(
-          JSON.stringify({
-            identity: mapIdentityResponse(linkedIdentity),
-          }),
-          {
-            status: 201,
-            headers: { "Content-Type": "application/json" },
-          },
+            JSON.stringify({
+              identity: mapIdentityResponse(linkedIdentity),
+            }),
+            {
+              status: 201,
+              headers: { "Content-Type": "application/json" },
+            },
           ),
         );
       } catch (error) {
@@ -483,17 +483,17 @@ export class Server {
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
         return withCorsHeaders(
           new Response(
-          JSON.stringify({
-            profileId,
-            layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
-            visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
-            styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
-            updatedAt: settings?.UpdatedAt ?? null,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+            JSON.stringify({
+              profileId,
+              layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
+              visibleSections: toObjectOrDefault(settings?.VisibleSectionsJson ?? null, {}),
+              styleFlags: toObjectOrDefault(settings?.StyleFlagsJson ?? null, {}),
+              updatedAt: settings?.UpdatedAt ?? null,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
           ),
         );
       } catch (error) {
@@ -565,17 +565,17 @@ export class Server {
 
         return withCorsHeaders(
           new Response(
-          JSON.stringify({
-            profileId: profileIdRaw,
-            layoutOptions,
-            visibleSections,
-            styleFlags,
-            updatedAt,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+            JSON.stringify({
+              profileId: profileIdRaw,
+              layoutOptions,
+              visibleSections,
+              styleFlags,
+              updatedAt,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
           ),
         );
       } catch (error) {
