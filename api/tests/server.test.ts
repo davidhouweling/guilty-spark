@@ -412,11 +412,35 @@ describe("Server", () => {
 
       server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
 
-      const req = new Request("http://localhost/api/individual-live-tracker/user-123/active", { method: "GET" });
+      const req = new Request("http://localhost/api/individual-live-tracker/user-123/active", {
+        method: "GET",
+        headers: {
+          Origin: env.PAGES_URL,
+        },
+      });
       const res = (await server.router.fetch(req, env)) as Response;
 
       expect(res.status).toBe(200);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       await expect(res.json()).resolves.toEqual({ activeTracker: activeState });
+    });
+  });
+
+  describe("OPTIONS /api/*", () => {
+    it("returns credentialed preflight headers including PATCH for allowed origins", async () => {
+      const req = new Request("http://localhost/api/individual-tracker/streamer-view", {
+        method: "OPTIONS",
+        headers: {
+          Origin: env.PAGES_URL,
+        },
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      expect(res.headers.get("Access-Control-Allow-Methods")).toContain("PATCH");
     });
   });
 

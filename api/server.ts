@@ -86,7 +86,7 @@ export class Server {
   private addRoutes(): void {
     // Handle CORS preflight requests for API routes
     this.router.options("/api/*", (request) => {
-      return handleCorsPreflightRequest(request);
+      return handleCorsPreflightRequest(request, true);
     });
     this.router.options("/auth/*", (request) => {
       return handleCorsPreflightRequest(request, true);
@@ -256,16 +256,18 @@ export class Server {
 
     this.router.get("/api/identities", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
 
-        return new Response(
+        return withCorsHeaders(
+          new Response(
           JSON.stringify({
             identities: identities.map((identity) => mapIdentityResponse(identity)),
           }),
@@ -273,23 +275,29 @@ export class Server {
             status: 200,
             headers: { "Content-Type": "application/json" },
           },
+          ),
         );
       } catch (error) {
         console.error("Identities list error:", error);
-        return new Response(JSON.stringify({ error: "Failed to fetch identities" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to fetch identities" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/identities/link", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
@@ -297,7 +305,7 @@ export class Server {
         const providerUserIdVal = (body as { providerUserId?: unknown }).providerUserId;
 
         if (!isIdentityProvider(providerVal) || typeof providerUserIdVal !== "string" || providerUserIdVal === "") {
-          return new Response("Invalid link request", { status: 400 });
+          return withCorsHeaders(new Response("Invalid link request", { status: 400 }));
         }
 
         const provider: IdentityProvider = providerVal;
@@ -335,7 +343,8 @@ export class Server {
 
         await services.databaseService.upsertLinkedIdentity(linkedIdentity);
 
-        return new Response(
+        return withCorsHeaders(
+          new Response(
           JSON.stringify({
             identity: mapIdentityResponse(linkedIdentity),
           }),
@@ -343,37 +352,43 @@ export class Server {
             status: 201,
             headers: { "Content-Type": "application/json" },
           },
+          ),
         );
       } catch (error) {
         console.error("Identity link error:", error);
-        return new Response(JSON.stringify({ error: "Failed to link identity" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to link identity" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/identities/unlink", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const identityIdRaw = (body as { identityId?: unknown }).identityId;
 
         if (typeof identityIdRaw !== "string" || identityIdRaw === "") {
-          return new Response("Invalid unlink request", { status: 400 });
+          return withCorsHeaders(new Response("Invalid unlink request", { status: 400 }));
         }
 
         const identities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
         const targetIdentity = identities.find((identity) => identity.IdentityId === identityIdRaw);
 
         if (targetIdentity == null) {
-          return new Response("Identity not found", { status: 404 });
+          return withCorsHeaders(new Response("Identity not found", { status: 404 }));
         }
 
         await services.databaseService.upsertLinkedIdentity({
@@ -382,42 +397,50 @@ export class Server {
           UpdatedAt: Math.floor(Date.now() / 1000),
         });
 
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Identity unlink error:", error);
-        return new Response(JSON.stringify({ error: "Failed to unlink identity" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to unlink identity" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.get("/api/individual-tracker/streamer-view", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const url = new URL(request.url);
         const profileId = url.searchParams.get("profileId");
 
         if (profileId == null || profileId === "") {
-          return new Response("Missing profileId", { status: 400 });
+          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
         }
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileId);
         if (profile?.UserId !== session.userId) {
-          return new Response("Profile not found", { status: 404 });
+          return withCorsHeaders(new Response("Profile not found", { status: 404 }));
         }
 
         const settings = await services.databaseService.getStreamerViewSettings(profileId);
-        return new Response(
+        return withCorsHeaders(
+          new Response(
           JSON.stringify({
             profileId,
             layoutOptions: toObjectOrDefault(settings?.LayoutOptionsJson ?? null, {}),
@@ -429,35 +452,41 @@ export class Server {
             status: 200,
             headers: { "Content-Type": "application/json" },
           },
+          ),
         );
       } catch (error) {
         console.error("Streamer view get error:", error);
-        return new Response(JSON.stringify({ error: "Failed to fetch streamer view settings" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to fetch streamer view settings" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.patch("/api/individual-tracker/streamer-view", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const profileIdRaw = (body as { profileId?: unknown }).profileId;
 
         if (typeof profileIdRaw !== "string" || profileIdRaw === "") {
-          return new Response("Missing profileId", { status: 400 });
+          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
         }
 
         const profile = await services.databaseService.getIndividualTrackerProfile(profileIdRaw);
         if (profile?.UserId !== session.userId) {
-          return new Response("Profile not found", { status: 404 });
+          return withCorsHeaders(new Response("Profile not found", { status: 404 }));
         }
 
         const current = await services.databaseService.getStreamerViewSettings(profileIdRaw);
@@ -492,7 +521,8 @@ export class Server {
           UpdatedAt: updatedAt,
         });
 
-        return new Response(
+        return withCorsHeaders(
+          new Response(
           JSON.stringify({
             profileId: profileIdRaw,
             layoutOptions,
@@ -504,47 +534,60 @@ export class Server {
             status: 200,
             headers: { "Content-Type": "application/json" },
           },
+          ),
         );
       } catch (error) {
         console.error("Streamer view update error:", error);
-        return new Response(JSON.stringify({ error: "Failed to update streamer view settings" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to update streamer view settings" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.get("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const response = await services.individualTrackerService.getProfile({ userId: session.userId });
 
-        return new Response(JSON.stringify(response), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(JSON.stringify(response), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual tracker profile get error:", error);
-        return new Response(JSON.stringify({ error: "Failed to fetch profile" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to fetch profile" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
@@ -562,32 +605,39 @@ export class Server {
 
         const response = await services.individualTrackerService.createProfile(createProfileRequest);
 
-        return new Response(JSON.stringify(response), {
-          status: 201,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(JSON.stringify(response), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual tracker profile create error:", error);
-        return new Response(JSON.stringify({ error: "Failed to create profile" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to create profile" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.patch("/api/individual-tracker/profile", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const { profileId } = body as { profileId?: unknown };
         if (typeof profileId !== "string" || profileId === "") {
-          return new Response("Missing profileId", { status: 400 });
+          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
         }
 
         const updates: { name?: string; activeIdentityId?: string | null } = {};
@@ -609,43 +659,50 @@ export class Server {
             updates,
           });
 
-          return new Response(JSON.stringify(response), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify(response), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         } catch (error) {
           if (error instanceof ProfileNotFoundError) {
-            return new Response("Profile not found", { status: 404 });
+            return withCorsHeaders(new Response("Profile not found", { status: 404 }));
           }
           throw error;
         }
       } catch (error) {
         console.error("Individual tracker profile update error:", error);
-        return new Response(JSON.stringify({ error: "Failed to update profile" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to update profile" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/individual-tracker/:action", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const { action } = request.params as { action: string };
         if (action !== "games:add" && action !== "games:remove" && action !== "games:reorder") {
-          return new Response("Not Found.", { status: 404 });
+          return withCorsHeaders(new Response("Not Found.", { status: 404 }));
         }
 
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const { profileId } = body as { profileId?: unknown };
         if (typeof profileId !== "string" || profileId === "") {
-          return new Response("Missing profileId", { status: 400 });
+          return withCorsHeaders(new Response("Missing profileId", { status: 400 }));
         }
 
         try {
@@ -653,7 +710,7 @@ export class Server {
             case "games:add": {
               const { matchId } = body as { matchId?: unknown };
               if (typeof matchId !== "string" || matchId === "") {
-                return new Response("Missing matchId", { status: 400 });
+                return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
               }
 
               const response = await services.individualTrackerService.addGame({
@@ -662,16 +719,18 @@ export class Server {
                 matchId,
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return withCorsHeaders(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+              );
             }
 
             case "games:remove": {
               const { matchId } = body as { matchId?: unknown };
               if (typeof matchId !== "string" || matchId === "") {
-                return new Response("Missing matchId", { status: 400 });
+                return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
               }
 
               const response = await services.individualTrackerService.removeGame({
@@ -680,16 +739,18 @@ export class Server {
                 matchId,
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return withCorsHeaders(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+              );
             }
 
             case "games:reorder": {
               const { orderedMatchIds } = body as { orderedMatchIds?: unknown };
               if (!Array.isArray(orderedMatchIds) || orderedMatchIds.some((matchId) => typeof matchId !== "string")) {
-                return new Response("Invalid reorder payload", { status: 400 });
+                return withCorsHeaders(new Response("Invalid reorder payload", { status: 400 }));
               }
 
               const response = await services.individualTrackerService.reorderGames({
@@ -698,31 +759,37 @@ export class Server {
                 orderedMatchIds: orderedMatchIds as string[],
               });
 
-              return new Response(JSON.stringify(response), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
+              return withCorsHeaders(
+                new Response(JSON.stringify(response), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }),
+              );
             }
 
             default: {
-              return new Response("Not Found.", { status: 404 });
+              return withCorsHeaders(new Response("Not Found.", { status: 404 }));
             }
           }
         } catch (error) {
           if (error instanceof ProfileNotFoundError) {
-            return new Response("Profile not found", { status: 404 });
+            return withCorsHeaders(new Response("Profile not found", { status: 404 }));
           }
           if (error instanceof InvalidReorderError) {
-            return new Response(error.message, { status: 400 });
+            return withCorsHeaders(new Response(error.message, { status: 400 }));
           }
           throw error;
         }
       } catch (error) {
         console.error("Individual tracker games action error:", error);
-        return new Response(JSON.stringify({ error: "Failed to process games action" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to process games action" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
@@ -730,11 +797,12 @@ export class Server {
 
     this.router.post("/api/individual-live-tracker/start", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
@@ -756,10 +824,12 @@ export class Server {
         const xboxIdentity = identities.find((id) => id.Provider === "xbox" && id.IsActive === 1);
 
         if (xboxIdentity == null) {
-          return new Response(JSON.stringify({ error: "No active Xbox identity linked" }), {
-            status: 422,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify({ error: "No active Xbox identity linked" }), {
+              status: 422,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }
 
         const trackerId = crypto.randomUUID();
@@ -789,27 +859,34 @@ export class Server {
           await services.databaseService.upsertIndividualTrackerActiveSession(session.userId, trackerId);
         }
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker start error:", error);
-        return new Response(JSON.stringify({ error: "Failed to start tracker" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to start tracker" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/individual-live-tracker/:trackerId/stop", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
@@ -825,34 +902,43 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker stop error:", error);
-        return new Response(JSON.stringify({ error: "Failed to stop tracker" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to stop tracker" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.get("/api/individual-live-tracker/status", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const activeSession = await services.databaseService.findIndividualTrackerActiveSession(session.userId);
         if (activeSession == null) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify({ activeTracker: null }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${activeSession.TrackerId}`);
@@ -863,41 +949,50 @@ export class Server {
         const doResponse = await stub.fetch(new Request(doUrl.toString()));
 
         if (doResponse.status === 404) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify({ activeTracker: null }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }
 
         const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
 
-        return new Response(JSON.stringify({ activeTracker: responseBody.state }), {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(JSON.stringify({ activeTracker: responseBody.state }), {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker status error:", error);
-        return new Response(JSON.stringify({ error: "Failed to get tracker status" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to get tracker status" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/individual-live-tracker/:trackerId/games:add", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const { matchId } = body as { matchId?: unknown };
         if (typeof matchId !== "string" || matchId === "") {
-          return new Response("Missing matchId", { status: 400 });
+          return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
         }
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
@@ -913,33 +1008,40 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker games:add error:", error);
-        return new Response(JSON.stringify({ error: "Failed to add game" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to add game" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
     this.router.post("/api/individual-live-tracker/:trackerId/games:remove", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const { trackerId } = request.params as { trackerId: string };
         const services = this.installServices({ env });
         const session = await services.authService.validateSession(request);
 
         if (session === null || session.isExpired) {
-          return new Response("Unauthorized", { status: 401 });
+          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
         }
 
         const body: unknown = await request.json();
         const { matchId } = body as { matchId?: unknown };
         if (typeof matchId !== "string" || matchId === "") {
-          return new Response("Missing matchId", { status: 400 });
+          return withCorsHeaders(new Response("Missing matchId", { status: 400 }));
         }
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${session.userId}:${trackerId}`);
@@ -955,16 +1057,22 @@ export class Server {
           }),
         );
 
-        return new Response(doResponse.body, {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(doResponse.body, {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker games:remove error:", error);
-        return new Response(JSON.stringify({ error: "Failed to remove game" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to remove game" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 
@@ -972,15 +1080,18 @@ export class Server {
 
     this.router.get("/api/individual-live-tracker/:userId/active", async (request, env: Env) => {
       try {
+        const withCorsHeaders = (response: Response): Response => addCorsHeaders(response, request, true);
         const { userId } = request.params as { userId: string };
         const services = this.installServices({ env });
 
         const activeSession = await services.databaseService.findIndividualTrackerActiveSession(userId);
         if (activeSession == null) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify({ activeTracker: null }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }
 
         const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${activeSession.TrackerId}`);
@@ -991,24 +1102,32 @@ export class Server {
         const doResponse = await stub.fetch(new Request(doUrl.toString()));
 
         if (doResponse.status === 404) {
-          return new Response(JSON.stringify({ activeTracker: null }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return withCorsHeaders(
+            new Response(JSON.stringify({ activeTracker: null }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }
 
         const responseBody = (await doResponse.json()) as { state: IndividualTrackerState };
 
-        return new Response(JSON.stringify({ activeTracker: responseBody.state }), {
-          status: doResponse.status,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withCorsHeaders(
+          new Response(JSON.stringify({ activeTracker: responseBody.state }), {
+            status: doResponse.status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       } catch (error) {
         console.error("Individual live tracker active REST error:", error);
-        return new Response(JSON.stringify({ error: "Failed to get active tracker" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return addCorsHeaders(
+          new Response(JSON.stringify({ error: "Failed to get active tracker" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+          request,
+          true,
+        );
       }
     });
 

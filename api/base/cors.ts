@@ -18,7 +18,7 @@ const CORS_CONFIG: CorsConfig = {
     "https://guilty-spark.app", // Production
     "https://www.guilty-spark.app", // Production (www)
   ],
-  allowedMethods: "GET, POST, OPTIONS",
+  allowedMethods: "GET, POST, PATCH, OPTIONS",
   allowedHeaders: "Content-Type",
   maxAge: 86400, // 24 hours
 };
