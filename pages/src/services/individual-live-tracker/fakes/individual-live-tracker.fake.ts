@@ -6,6 +6,7 @@ import type {
   IndividualTrackerStateListener,
   IndividualTrackerStatusListener,
   IndividualTrackerSubscription,
+  StartTrackerRequest,
   StartTrackerResponse,
   StopTrackerResponse,
   TrackerStatusResponse,
@@ -94,7 +95,9 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     this.opts = opts;
   }
 
-  public async startTracker(): Promise<StartTrackerResponse> {
+  public async startTracker(_opts: StartTrackerRequest): Promise<StartTrackerResponse> {
+    void _opts;
+
     if (this.opts.shouldThrowOnStart === true) {
       throw new Error("Fake start error");
     }
@@ -107,7 +110,9 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     return Promise.resolve({ success: true, state });
   }
 
-  public async stopTracker(): Promise<StopTrackerResponse> {
+  public async stopTracker(_trackerId: string): Promise<StopTrackerResponse> {
+    void _trackerId;
+
     if (this.opts.stopResponse != null) {
       return Promise.resolve(this.opts.stopResponse);
     }
@@ -120,15 +125,19 @@ export class FakeIndividualLiveTrackerService implements IndividualLiveTrackerSe
     return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
   }
 
-  public connectToTracker(): IndividualTrackerConnection {
+  public connectToTracker(_userId: string, _trackerId: string): IndividualTrackerConnection {
+    void _userId;
+    void _trackerId;
     return new FakeIndividualTrackerConnection();
   }
 
-  public connectToActiveTracker(): IndividualTrackerConnection {
+  public connectToActiveTracker(_userId: string): IndividualTrackerConnection {
+    void _userId;
     return new FakeIndividualTrackerConnection();
   }
 
-  public async getActiveTrackerState(): Promise<TrackerStatusResponse> {
+  public async getActiveTrackerState(_userId: string): Promise<TrackerStatusResponse> {
+    void _userId;
     return Promise.resolve({ activeTracker: this.opts.activeState ?? null });
   }
 }

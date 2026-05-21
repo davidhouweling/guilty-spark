@@ -127,7 +127,7 @@ export class RealIndividualLiveTrackerService implements IndividualLiveTrackerSe
   }
 
   private async fetchJson(path: string, init?: RequestInit): Promise<unknown> {
-    const response = await fetch(`${this.apiHost}${path}`, init);
+    const response = await fetch(new URL(path, this.apiHost), init);
 
     if (!response.ok) {
       const reason = await response.text();

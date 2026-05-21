@@ -3,10 +3,12 @@ import type { APIChannel } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
+import { z } from "zod";
 import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
+import { parseJsonBody } from "../base/request-parsing";
 import type { LogService } from "../services/log/types";
 import type { DiscordService } from "../services/discord/discord";
 import type { HaloService } from "../services/halo/halo";
@@ -29,7 +31,6 @@ import type {
   LiveTrackerSubstitutionRequest,
   LiveTrackerSubstitutionResponse,
   LiveTrackerStatusResponse,
-  LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
   LiveTrackerRefreshRequest,
 } from "./types";
@@ -51,6 +52,38 @@ const ERROR_THRESHOLD_MINUTES = 10;
 
 const REFRESH_COOLDOWN_MS = 30 * 1000;
 const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
+
+const liveTrackerStartBodySchema = z.object({
+  userId: z.string(),
+  guildId: z.string(),
+  channelId: z.string(),
+  queueNumber: z.number(),
+  interactionToken: z.string().optional(),
+  liveMessageId: z.string().optional(),
+  players: z.custom<LiveTrackerStartRequest["players"]>((value) => value != null && typeof value === "object"),
+  teams: z.array(
+    z.object({
+      name: z.string(),
+      playerIds: z.array(z.string()),
+    }),
+  ),
+  queueStartTime: z.string(),
+  playersAssociationData: z.custom<LiveTrackerStartRequest["playersAssociationData"]>(
+    (value) => value != null && typeof value === "object",
+  ),
+});
+
+const liveTrackerSubstitutionBodySchema = z.object({
+  playerOutId: z.string(),
+  playerInId: z.string(),
+  playerAssociationData: z
+    .custom<LiveTrackerSubstitutionRequest["playerAssociationData"]>((value) => value != null && typeof value === "object")
+    .optional(),
+});
+
+const liveTrackerRepostBodySchema = z.object({
+  newMessageId: z.string(),
+});
 
 export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -255,7 +288,23 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<LiveTrackerStartRequest>();
+    const parsedBody = await parseJsonBody(request, liveTrackerStartBodySchema, "Invalid start payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+    const requestBody = parsedBody.data;
+    const body: LiveTrackerStartRequest = {
+      userId: requestBody.userId,
+      guildId: requestBody.guildId,
+      channelId: requestBody.channelId,
+      queueNumber: requestBody.queueNumber,
+      players: requestBody.players,
+      teams: requestBody.teams,
+      queueStartTime: requestBody.queueStartTime,
+      playersAssociationData: requestBody.playersAssociationData,
+      ...(requestBody.interactionToken != null ? { interactionToken: requestBody.interactionToken } : {}),
+      ...(requestBody.liveMessageId != null ? { liveMessageId: requestBody.liveMessageId } : {}),
+    };
 
     const trackerState: LiveTrackerState = {
       userId: body.userId,
@@ -546,7 +595,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId, playerAssociationData } = await request.json<LiveTrackerSubstitutionRequest>();
+    const parsedBody = await parseJsonBody(request, liveTrackerSubstitutionBodySchema, "Invalid substitution payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+
+    const { playerOutId, playerInId, playerAssociationData } = parsedBody.data;
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -591,10 +645,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
       targetTeam.playerIds[playerIndex] = playerInId;
       trackerState.players[playerInId] = newPlayerMember;
-      trackerState.playersAssociationData = {
-        ...trackerState.playersAssociationData,
-        [playerInId]: playerAssociationData,
-      };
+      if (playerAssociationData != null) {
+        trackerState.playersAssociationData = {
+          ...trackerState.playersAssociationData,
+          [playerInId]: playerAssociationData,
+        };
+      }
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
 
@@ -635,7 +691,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    const { newMessageId } = await request.json<LiveTrackerRepostRequest>();
+    const parsedBody = await parseJsonBody(request, liveTrackerRepostBodySchema, "Invalid repost payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+
+    const { newMessageId } = parsedBody.data;
 
     const trackerState = await this.getState();
     if (!trackerState) {

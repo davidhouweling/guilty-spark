@@ -1,20 +1,20 @@
 import * as Sentry from "@sentry/cloudflare";
 import { AutoTokenProvider, HaloInfiniteClient, MatchType } from "halo-infinite-api";
 import { addMilliseconds, differenceInHours, differenceInMilliseconds } from "date-fns";
+import { z } from "zod";
 import { installServices as installServicesImpl } from "../../services/install";
 import { TokenEncryptor } from "../../services/auth/token-encryptor";
 import type { LogService } from "../../services/log/types";
 import type { DatabaseService } from "../../services/database/database";
+import { parseJsonBody } from "../../base/request-parsing";
 import {
   type IndividualTrackerMatchSummary,
   type IndividualTrackerState,
-  type IndividualTrackerStartRequest,
   type IndividualTrackerStartResponse,
   type IndividualTrackerStopResponse,
   type IndividualTrackerStatusResponse,
   type IndividualTrackerGamesAddResponse,
   type IndividualTrackerGamesRemoveResponse,
-  type IndividualTrackerGamesMutateRequest,
 } from "./types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
@@ -26,6 +26,24 @@ const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 
 const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
+
+const individualTrackerStartBodySchema = z.object({
+  userId: z.string(),
+  trackerId: z.string(),
+  xuid: z.string(),
+  gamertag: z.string(),
+  searchStartTime: z.string(),
+  idleTimeoutHours: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+});
+
+const individualTrackerStopBodySchema = z.object({
+  userId: z.string(),
+});
+
+const individualTrackerGamesMutateBodySchema = z.object({
+  userId: z.string(),
+  matchId: z.string(),
+});
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -153,7 +171,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<IndividualTrackerStartRequest>();
+    const parsedBody = await parseJsonBody(request, individualTrackerStartBodySchema, "Invalid start payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+    const body = parsedBody.data;
 
     const now = new Date().toISOString();
     const trackerState: IndividualTrackerState = {
@@ -189,7 +211,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleStop(request: Request): Promise<Response> {
-    const body = await request.json<{ userId: string }>();
+    const parsedBody = await parseJsonBody(request, individualTrackerStopBodySchema, "Invalid stop payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+    const body = parsedBody.data;
     const trackerState = await this.getState();
 
     if (trackerState == null) {
@@ -218,7 +244,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleGamesAdd(request: Request): Promise<Response> {
-    const body = await request.json<IndividualTrackerGamesMutateRequest>();
+    const parsedBody = await parseJsonBody(request, individualTrackerGamesMutateBodySchema, "Invalid games-add payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+    const body = parsedBody.data;
     const trackerState = await this.getState();
 
     if (trackerState == null) {
@@ -239,7 +269,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleGamesRemove(request: Request): Promise<Response> {
-    const body = await request.json<IndividualTrackerGamesMutateRequest>();
+    const parsedBody = await parseJsonBody(request, individualTrackerGamesMutateBodySchema, "Invalid games-remove payload");
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+    const body = parsedBody.data;
     const trackerState = await this.getState();
 
     if (trackerState == null) {
