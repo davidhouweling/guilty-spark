@@ -13,6 +13,7 @@ import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.
 import { pingInteraction } from "../services/discord/fakes/data";
 import type { TokenInfo } from "../services/xbox/types";
 import { aFakeIndividualTrackerDOWith, aFakeIndividualTrackerStateWith } from "../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import { aFakeLinkedIdentitiesRow } from "../services/database/fakes/database.fake";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
@@ -424,6 +425,50 @@ describe("Server", () => {
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       await expect(res.json()).resolves.toEqual({ activeTracker: activeState });
+    });
+  });
+
+  describe("POST /api/identities/link", () => {
+    it("returns 409 when the identity is already linked to another user", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({
+            UserId: "other-user-456",
+            Provider: "xbox",
+            ProviderUserId: "xuid-123",
+          }),
+        );
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities/link", {
+        method: "POST",
+        headers: {
+          Origin: env.PAGES_URL,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "xbox",
+          providerUserId: "xuid-123",
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(409);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+      await expect(res.json()).resolves.toEqual({ error: "Identity is already linked to another user" });
     });
   });
 

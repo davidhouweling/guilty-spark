@@ -316,6 +316,15 @@ export class Server {
         const nowEpoch = Math.floor(Date.now() / 1000);
         const existingIdentity = await services.databaseService.getLinkedIdentityByProvider(provider, providerUserId);
 
+        if (existingIdentity != null && existingIdentity.UserId !== session.userId) {
+          return withCorsHeaders(
+            new Response(JSON.stringify({ error: "Identity is already linked to another user" }), {
+              status: 409,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         if (provider === "xbox") {
           const allIdentities = await services.databaseService.findLinkedIdentitiesByUserId(session.userId);
           for (const identity of allIdentities) {
