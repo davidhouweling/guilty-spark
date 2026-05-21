@@ -62,6 +62,33 @@ export class XboxService {
     };
   }
 
+  async getUserFromMicrosoftAccessToken(accessToken: string): Promise<XboxUserInfo> {
+    const tokenInfo = await this.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
+
+    const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
+      "https://profile.xboxlive.com/users/me/profile/settings?settings=Gamertag",
+      {
+        options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
+      },
+    );
+
+    if (response.statusCode !== 200) {
+      throw new Error(`Failed to fetch Xbox user profile from access token: ${response.statusCode.toString()}`);
+    }
+
+    const [profileUser] = response.data.profileUsers;
+    if (profileUser == null) {
+      throw new Error("Xbox user profile was not found");
+    }
+
+    const gamertagSetting = profileUser.settings.find((setting) => setting.id === "Gamertag");
+
+    return {
+      xuid: profileUser.id,
+      gamertag: gamertagSetting?.value ?? "Unknown",
+    };
+  }
+
   async getUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
     if (!gamertag) {
       throw new Error("Gamertag cannot be empty");

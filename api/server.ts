@@ -312,16 +312,39 @@ export class Server {
 
         const body: unknown = await request.json();
         const providerVal = (body as { provider?: unknown }).provider;
-        const providerUserIdVal = (body as { providerUserId?: unknown }).providerUserId;
-
-        if (!isIdentityProvider(providerVal) || typeof providerUserIdVal !== "string" || providerUserIdVal === "") {
+        if (!isIdentityProvider(providerVal)) {
           return withCorsHeaders(new Response("Invalid link request", { status: 400 }));
         }
 
         const provider: IdentityProvider = providerVal;
-        const providerUserId: string = providerUserIdVal;
-        const gamertagRaw = (body as { gamertag?: unknown }).gamertag;
+        const providerUserIdVal = (body as { providerUserId?: unknown }).providerUserId;
+        const gamertagVal = (body as { gamertag?: unknown }).gamertag;
         const twitchIdRaw = (body as { twitchId?: unknown }).twitchId;
+
+        let providerUserId: string;
+        let gamertag: string | null;
+
+        switch (provider) {
+          case "xbox": {
+            const xboxUser = await services.xboxService.getUserFromMicrosoftAccessToken(session.accessToken);
+            providerUserId = xboxUser.xuid;
+            gamertag = xboxUser.gamertag;
+            break;
+          }
+          case "discord":
+          case "twitch": {
+            if (typeof providerUserIdVal !== "string" || providerUserIdVal === "") {
+              return withCorsHeaders(new Response("Invalid link request", { status: 400 }));
+            }
+
+            providerUserId = providerUserIdVal;
+            gamertag = typeof gamertagVal === "string" ? gamertagVal : null;
+            break;
+          }
+          default: {
+            return withCorsHeaders(new Response("Invalid link request", { status: 400 }));
+          }
+        }
 
         const nowEpoch = Math.floor(Date.now() / 1000);
         const existingIdentity = await services.databaseService.getLinkedIdentityByProvider(provider, providerUserId);
@@ -353,7 +376,7 @@ export class Server {
           UserId: session.userId,
           Provider: provider,
           ProviderUserId: providerUserId,
-          Gamertag: typeof gamertagRaw === "string" ? gamertagRaw : null,
+          Gamertag: gamertag,
           TwitchId: typeof twitchIdRaw === "string" ? twitchIdRaw : null,
           IsActive: 1,
           CreatedAt: existingIdentity?.CreatedAt ?? nowEpoch,

@@ -223,6 +223,58 @@ describe("Xbox Service", () => {
     });
   });
 
+  describe("getUserFromMicrosoftAccessToken", () => {
+    it("resolves xuid and gamertag from a verified Microsoft access token", async () => {
+      const fetchSpy: MockInstance<typeof globalThis.fetch> = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "user-token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "xsts_token",
+            DisplayClaims: {
+              xui: [{ uhs: "user_hash" }],
+            },
+          }),
+        );
+
+      const xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get> = vi.spyOn(XSAPIClient, "get");
+      xsapiClientGetSpy.mockResolvedValue(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "VerifiedPlayer" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token");
+
+      expect(xsapiClientGetSpy).toHaveBeenCalledWith(
+        "https://profile.xboxlive.com/users/me/profile/settings?settings=Gamertag",
+        {
+          options: { contractVersion: 2, userHash: "user_hash", XSTSToken: "xsts_token" },
+        },
+      );
+      expect(result).toEqual({
+        xuid: "2533274844642438",
+        gamertag: "VerifiedPlayer",
+      });
+    });
+  });
+
   describe("getUsersByXuids", () => {
     let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
 

@@ -433,6 +433,53 @@ describe("Server", () => {
   });
 
   describe("POST /api/identities/link", () => {
+    it("uses verified Xbox identity from the authenticated session", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        });
+        vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockResolvedValue({
+          xuid: "verified-xuid-456",
+          gamertag: "VerifiedGamertag",
+        });
+        vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(null);
+        vi.spyOn(services.databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+        vi.spyOn(services.databaseService, "upsertLinkedIdentity").mockResolvedValue();
+        return services;
+      });
+
+      server = new Server({ router: AutoRouter(), installServices: localInstallServices, getCommands });
+
+      const req = new Request("http://localhost/api/identities/link", {
+        method: "POST",
+        headers: {
+          Origin: env.PAGES_URL,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "xbox",
+          providerUserId: "client-supplied-xuid",
+          gamertag: "ClientSuppliedGamertag",
+        }),
+      });
+      const res = (await server.router.fetch(req, env)) as Response;
+
+      expect(res.status).toBe(201);
+      await expect(res.json()).resolves.toMatchObject({
+        identity: {
+          provider: "xbox",
+          providerUserId: "verified-xuid-456",
+          gamertag: "VerifiedGamertag",
+        },
+      });
+    });
+
     it("returns 409 when the identity is already linked to another user", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
@@ -443,6 +490,10 @@ describe("Server", () => {
           refreshToken: "refresh-token",
           expiresAt: Date.now() + 3600000,
           isExpired: false,
+        });
+        vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockResolvedValue({
+          xuid: "xuid-123",
+          gamertag: "VerifiedGamertag",
         });
         vi.spyOn(services.databaseService, "getLinkedIdentityByProvider").mockResolvedValue(
           aFakeLinkedIdentitiesRow({
