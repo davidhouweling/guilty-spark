@@ -37,7 +37,7 @@ function isOriginAllowed(origin: string | null): boolean {
 /**
  * Get CORS headers for a given origin
  */
-export function getCorsHeaders(origin: string | null, allowCredentials = false): Record<string, string> {
+function getCorsHeaders(origin: string | null, allowCredentials = false): Record<string, string> {
   const headers: Record<string, string> = {};
 
   if (isOriginAllowed(origin) && origin !== null) {
