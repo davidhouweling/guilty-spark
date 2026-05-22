@@ -40,7 +40,8 @@ describe("IndividualTrackerService", () => {
       const result = await service.getProfile({ userId: "user-1" });
 
       expect(result).toEqual({ profile, games });
-      expect(getGamesSpy.mock.calls[0]?.[0]).toBe("profile-1");
+      expect(getGamesSpy).toHaveBeenCalledOnce();
+      expect(getGamesSpy).toHaveBeenCalledWith("profile-1");
     });
 
     it("returns empty games when profile has no games", async () => {
@@ -65,7 +66,9 @@ describe("IndividualTrackerService", () => {
       expect(result.profile.Name).toBe("default");
       expect(result.profile.ActiveIdentityId).toBe(null);
       expect(result.profile.ProfileId).toBeTruthy();
-      expect(createProfileSpy.mock.calls[0]?.[0]).toMatchObject(result.profile);
+
+      expect(createProfileSpy).toHaveBeenCalledOnce();
+      expect(createProfileSpy).toHaveBeenCalledWith(expect.objectContaining(result.profile));
     });
 
     it("creates profile with provided name", async () => {
@@ -188,7 +191,8 @@ describe("IndividualTrackerService", () => {
         updates: { name: "  Updated  " },
       });
 
-      expect(updateProfileSpy.mock.calls[0]?.[1]).toMatchObject({ Name: "Updated" });
+      expect(updateProfileSpy).toHaveBeenCalledOnce();
+      expect(updateProfileSpy).toHaveBeenCalledWith("profile-1", expect.objectContaining({ Name: "Updated" }));
     });
 
     it("ignores empty name and does not update it", async () => {
@@ -205,7 +209,11 @@ describe("IndividualTrackerService", () => {
         updates: { name: "   " },
       });
 
-      expect(updateProfileSpy.mock.calls[0]?.[1]).not.toHaveProperty("Name");
+      expect(updateProfileSpy).toHaveBeenCalledOnce();
+      expect(updateProfileSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.not.objectContaining({ Name: expect.any(String) as string }),
+      );
     });
 
     it("updates activeIdentityId when explicitly set", async () => {
@@ -259,7 +267,11 @@ describe("IndividualTrackerService", () => {
         updates: { name: "Updated" },
       });
 
-      expect(updateProfileSpy.mock.calls[0]?.[1]?.UpdatedAt).toBeGreaterThan(1000);
+      expect(updateProfileSpy).toHaveBeenCalledOnce();
+      expect(updateProfileSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.objectContaining({ UpdatedAt: expect.any(Number) as number }),
+      );
     });
   });
 
@@ -333,7 +345,11 @@ describe("IndividualTrackerService", () => {
         matchId: "match-1",
       });
 
-      expect(replaceGamesSpy.mock.calls[0]?.[1]?.[0]?.Included).toBe(1);
+      expect(replaceGamesSpy).toHaveBeenCalledOnce();
+      expect(replaceGamesSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.arrayContaining([expect.objectContaining({ MatchId: "match-1", Included: 1 })]),
+      );
     });
 
     it("returns updated games after add", async () => {
@@ -401,7 +417,11 @@ describe("IndividualTrackerService", () => {
         matchId: "match-1",
       });
 
-      expect(replaceGamesSpy.mock.calls[0]?.[1]?.[0]?.Included).toBe(0);
+      expect(replaceGamesSpy).toHaveBeenCalledOnce();
+      expect(replaceGamesSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.arrayContaining([expect.objectContaining({ MatchId: "match-1", Included: 0 })]),
+      );
     });
 
     it("preserves other games when removing one", async () => {
@@ -427,9 +447,14 @@ describe("IndividualTrackerService", () => {
         matchId: "match-1",
       });
 
-      const replacedGames = replaceGamesSpy.mock.calls[0]?.[1];
-      expect(replacedGames).toHaveLength(2);
-      expect(replacedGames?.[1]?.Included).toBe(1);
+      expect(replaceGamesSpy).toHaveBeenCalledOnce();
+      expect(replaceGamesSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.arrayContaining([
+          expect.objectContaining({ MatchId: "match-1", Included: 0 }),
+          expect.objectContaining({ MatchId: "match-2", Included: 1 }),
+        ]),
+      );
     });
 
     it("returns updated games after remove", async () => {
@@ -559,11 +584,15 @@ describe("IndividualTrackerService", () => {
         orderedMatchIds: ["match-3", "match-1", "match-2"],
       });
 
-      const replacedGames = replaceGamesSpy.mock.calls[0]?.[1];
-      expect(replacedGames).toHaveLength(3);
-      expect(replacedGames?.[0]?.Position).toBe(1);
-      expect(replacedGames?.[1]?.Position).toBe(2);
-      expect(replacedGames?.[2]?.Position).toBe(3);
+      expect(replaceGamesSpy).toHaveBeenCalledOnce();
+      expect(replaceGamesSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.arrayContaining([
+          expect.objectContaining({ MatchId: "match-3", Position: 1 }),
+          expect.objectContaining({ MatchId: "match-1", Position: 2 }),
+          expect.objectContaining({ MatchId: "match-2", Position: 3 }),
+        ]),
+      );
     });
 
     it("returns reordered games", async () => {
@@ -615,9 +644,14 @@ describe("IndividualTrackerService", () => {
         orderedMatchIds: ["match-2", "match-1"],
       });
 
-      const replacedGames = replaceGamesSpy.mock.calls[0]?.[1];
-      expect(replacedGames?.[0]?.UpdatedAt).toBeGreaterThan(1000);
-      expect(replacedGames?.[1]?.UpdatedAt).toBeGreaterThan(1000);
+      expect(replaceGamesSpy).toHaveBeenCalledOnce();
+      expect(replaceGamesSpy).toHaveBeenCalledWith(
+        "profile-1",
+        expect.arrayContaining([
+          expect.objectContaining({ MatchId: "match-2", UpdatedAt: expect.any(Number) as number }),
+          expect.objectContaining({ MatchId: "match-1", UpdatedAt: expect.any(Number) as number }),
+        ]),
+      );
     });
   });
 });

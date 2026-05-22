@@ -1287,6 +1287,8 @@ export class Server {
       }
     });
 
+    // ─── Neatqueue live tracker routes ────────────────────────────────────────────────
+
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
@@ -1389,6 +1391,8 @@ export class Server {
         return new Response("Internal error", { status: 500 });
       }
     });
+
+    // ─── Halo Infinite proxy route ────────────────────────────────────────────────
 
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {

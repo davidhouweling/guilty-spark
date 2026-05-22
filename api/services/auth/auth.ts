@@ -1,10 +1,23 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
 import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload, AuthCallbackResult } from "./types";
+
+const sessionCookiePayloadSchema = z.object({
+  sessionId: z.string().min(1),
+  sessionExpiresAt: z.number(),
+});
+
+const pkceStatePayloadSchema = z.object({
+  codeVerifier: z.string().min(1),
+  state: z.string().min(1),
+  issuedAt: z.number(),
+  redirectTo: z.string(),
+});
 
 function normalizeRedirectPath(redirectTo?: string): string {
   if (redirectTo == null || redirectTo === "") {
@@ -300,51 +313,21 @@ export class AuthService {
   }
 
   private parseSessionCookiePayload(value: unknown): SessionCookiePayload | null {
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "sessionId" in value &&
-      typeof value.sessionId === "string" &&
-      value.sessionId !== "" &&
-      "sessionExpiresAt" in value &&
-      typeof value.sessionExpiresAt === "number" &&
-      Number.isFinite(value.sessionExpiresAt)
-    ) {
-      return {
-        sessionId: value.sessionId,
-        sessionExpiresAt: value.sessionExpiresAt,
-      };
-    }
+    const parsedPayload = sessionCookiePayloadSchema.safeParse(value);
 
-    return null;
+    return parsedPayload.success ? parsedPayload.data : null;
   }
 
   private parsePkceStatePayload(
     value: unknown,
   ): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo"> | null {
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "codeVerifier" in value &&
-      typeof value.codeVerifier === "string" &&
-      value.codeVerifier !== "" &&
-      "state" in value &&
-      typeof value.state === "string" &&
-      value.state !== "" &&
-      "issuedAt" in value &&
-      typeof value.issuedAt === "number" &&
-      Number.isFinite(value.issuedAt) &&
-      "redirectTo" in value &&
-      typeof value.redirectTo === "string"
-    ) {
-      return {
-        codeVerifier: value.codeVerifier,
-        state: value.state,
-        issuedAt: value.issuedAt,
-        redirectTo: normalizeRedirectPath(value.redirectTo),
-      };
-    }
+    const parsed = pkceStatePayloadSchema.safeParse(value);
 
-    return null;
+    return parsed.success
+      ? {
+          ...parsed.data,
+          redirectTo: normalizeRedirectPath(parsed.data.redirectTo),
+        }
+      : null;
   }
 }
