@@ -31,8 +31,8 @@ import {
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { DiscordService } from "../../../services/discord/discord";
 import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker";
-import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake";
-import type { LiveTrackerRefreshResponse } from "../../../durable-objects/types";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
+import type { LiveTrackerRefreshResponse } from "../../../durable-objects/live-tracker/types";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,

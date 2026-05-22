@@ -1,13 +1,14 @@
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { AutoTokenProvider, HaloInfiniteClient } from "halo-infinite-api";
-import { aFakeEnvWith } from "../../base/fakes/env.fake";
-import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake";
-import { IndividualTrackerDO } from "../individual-tracker/individual-tracker-do";
-import { installFakeServicesWith } from "../../services/fakes/services";
-import { aFakeUserSessionsRow } from "../../services/database/fakes/database.fake";
-import { TokenEncryptor } from "../../services/auth/token-encryptor";
-import type { IndividualTrackerState } from "../individual-tracker/types";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeDurableObjectId } from "../../live-tracker/fakes/live-tracker-do.fake";
+import { IndividualTrackerDO } from "../individual-tracker-do";
+import { installFakeServicesWith } from "../../../services/fakes/services";
+import { aFakeUserSessionsRow } from "../../../services/database/fakes/database.fake";
+import { TokenEncryptor } from "../../../services/auth/token-encryptor";
+import type { IndividualTrackerState } from "../types";
 
 let observedAccessToken: string | undefined;
 
@@ -147,8 +148,8 @@ describe("IndividualTrackerDO", () => {
     const services = installFakeServicesWith({ env });
     const trackerState = createTrackerState({ status: "stopped" });
     const { durableObjectState, mocks } = createMockDurableObjectState();
-    const storageGetSpy = vi.spyOn(mocks.storage, "get");
-    storageGetSpy.mockResolvedValue(trackerState as never);
+    const storageGetSpy: MockInstance = vi.spyOn(mocks.storage, "get");
+    storageGetSpy.mockResolvedValue(trackerState);
     const storageDeleteAlarmSpy = vi.spyOn(mocks.storage, "deleteAlarm");
     const storageDeleteAllSpy = vi.spyOn(mocks.storage, "deleteAll");
     const findUserSessionByUserIdSpy = vi

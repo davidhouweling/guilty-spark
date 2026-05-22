@@ -27,7 +27,7 @@ describe("RealAuthService", () => {
   });
 
   it("returns unauthenticated session on 401", async () => {
-    fetchSpy.mockResolvedValueOnce(textResponse("Unauthorized", 401));
+    fetchSpy.mockResolvedValue(textResponse("Unauthorized", 401));
 
     const session = await service.getSession();
 
@@ -35,7 +35,7 @@ describe("RealAuthService", () => {
   });
 
   it("returns microsoft auth start payload", async () => {
-    fetchSpy.mockResolvedValueOnce(
+    fetchSpy.mockResolvedValue(
       jsonResponse({
         authUrl: "https://login.microsoftonline.com/authorize",
         state: "state-123",

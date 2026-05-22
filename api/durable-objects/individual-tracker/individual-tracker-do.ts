@@ -244,7 +244,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleGamesAdd(request: Request): Promise<Response> {
-    const parsedBody = await parseJsonBody(request, individualTrackerGamesMutateBodySchema, "Invalid games-add payload");
+    const parsedBody = await parseJsonBody(
+      request,
+      individualTrackerGamesMutateBodySchema,
+      "Invalid games-add payload",
+    );
     if (!parsedBody.success) {
       return parsedBody.response;
     }
@@ -269,7 +273,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleGamesRemove(request: Request): Promise<Response> {
-    const parsedBody = await parseJsonBody(request, individualTrackerGamesMutateBodySchema, "Invalid games-remove payload");
+    const parsedBody = await parseJsonBody(
+      request,
+      individualTrackerGamesMutateBodySchema,
+      "Invalid games-remove payload",
+    );
     if (!parsedBody.success) {
       return parsedBody.response;
     }
@@ -405,8 +413,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       throw new Error(`No active session found for user ${userId}`);
     }
 
-    const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
-    return new HaloInfiniteClient(new AutoTokenProvider(async () => Promise.resolve(accessToken)));
+    return new HaloInfiniteClient(new AutoTokenProvider(async () => this.tokenEncryptor.decrypt(session.AccessToken)));
   }
 
   // ─── State helpers ────────────────────────────────────────────────────────

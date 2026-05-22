@@ -746,7 +746,7 @@ export class Server {
           updates.name = name;
         }
 
-        if (Object.prototype.hasOwnProperty.call(parsedBody.data, "activeIdentityId")) {
+        if (Object.prototype.hasOwnProperty.call(parsedBody.data, "activeIdentityId") && activeIdentityId != null) {
           updates.activeIdentityId = activeIdentityId;
         }
 

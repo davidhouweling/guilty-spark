@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import type { IndividualTrackerDO } from "../individual-tracker-do";
 import { DEFAULT_IDLE_TIMEOUT_HOURS } from "../types";
+import { aFakeDurableObjectId } from "../../live-tracker/fakes/live-tracker-do.fake";
 
 export interface FakeIndividualTrackerDOOpts {
   startResponse?: IndividualTrackerStartResponse;
@@ -52,22 +53,15 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
 
 export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts = {}): FakeIndividualTrackerDO {
   const defaultState = aFakeIndividualTrackerStateWith();
-
-  const startResponse: IndividualTrackerStartResponse = opts.startResponse ?? { success: true, state: defaultState };
-  const stopResponse: IndividualTrackerStopResponse = opts.stopResponse ?? {
-    success: true,
-    state: { ...defaultState, status: "stopped" },
-  };
-  const statusResponse: IndividualTrackerStatusResponse = opts.statusResponse ?? { state: defaultState };
-  const gamesAddResponse: IndividualTrackerGamesAddResponse = opts.gamesAddResponse ?? {
-    success: true,
-    matchId: "fake-match-id",
-  };
-  const gamesRemoveResponse: IndividualTrackerGamesRemoveResponse = opts.gamesRemoveResponse ?? {
-    success: true,
-    matchId: "fake-match-id",
-  };
-  const { shouldThrowError = false, errorMessage = "Fake IndividualTrackerDO error" } = opts;
+  const {
+    startResponse = { success: true, state: defaultState },
+    stopResponse = { success: true, state: { ...defaultState, status: "stopped" } },
+    statusResponse = { state: defaultState },
+    gamesAddResponse = { success: true, matchId: "fake-match-id" },
+    gamesRemoveResponse = { success: true, matchId: "fake-match-id" },
+    shouldThrowError = false,
+    errorMessage = "Fake IndividualTrackerDO error",
+  } = opts;
 
   const fetchMock: FakeIndividualTrackerDO["fetch"] = async (input) => {
     if (shouldThrowError) {
@@ -124,7 +118,11 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
   };
 
   return {
+    ["__DURABLE_OBJECT_BRAND"]: undefined as never,
     fetch: fetchMock,
-    __DURABLE_OBJECT_BRAND: undefined as never,
-  } as FakeIndividualTrackerDO;
+    connect: (): Socket => {
+      throw new Error("WebSocket connections not supported in fake IndividualTrackerDO");
+    },
+    id: aFakeDurableObjectId(),
+  };
 }

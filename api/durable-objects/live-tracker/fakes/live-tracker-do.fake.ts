@@ -69,21 +69,25 @@ export function aFakeLiveTrackerStateWith(opts: Partial<LiveTrackerState> = {}):
 export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLiveTrackerDO {
   const defaultState: LiveTrackerState = aFakeLiveTrackerStateWith();
 
-  const startResponse: LiveTrackerStartResponse = opts.startResponse ?? { success: true, state: defaultState };
-  const pauseResponse: LiveTrackerPauseResponse = opts.pauseResponse ?? { success: true, state: defaultState };
-  const resumeResponse: LiveTrackerResumeResponse = opts.resumeResponse ?? { success: true, state: defaultState };
-  const stopResponse: LiveTrackerStopResponse = opts.stopResponse ?? { success: true, state: defaultState };
-  const refreshResponse: LiveTrackerRefreshResponse = opts.refreshResponse ?? { success: true, state: defaultState };
-  const substitutionResponse: LiveTrackerSubstitutionResponse = opts.substitutionResponse ?? {
-    success: true,
-    substitution: {
-      playerOutId: "fake-player-out-id",
-      playerInId: "fake-player-in-id",
-      teamIndex: 0,
+  const {
+    startResponse = { success: true, state: defaultState },
+    pauseResponse = { success: true, state: defaultState },
+    resumeResponse = { success: true, state: defaultState },
+    stopResponse = { success: true, state: defaultState },
+    refreshResponse = { success: true, state: defaultState },
+    substitutionResponse = {
+      success: true,
+      substitution: {
+        playerOutId: "fake-player-out-id",
+        playerInId: "fake-player-in-id",
+        teamIndex: 0,
+      },
     },
-  };
-  const statusResponse: LiveTrackerStatusResponse = opts.statusResponse ?? { state: defaultState };
-  const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
+    statusResponse = { state: defaultState },
+    repostResponse = { success: true, oldMessageId: "old-fake-message-id", newMessageId: "new-fake-message-id" },
+    shouldThrowError = false,
+    errorMessage = "Fake DO error",
+  } = opts;
 
   const fetchMock: FakeLiveTrackerDO["fetch"] = async (input) => {
     if (shouldThrowError) {
@@ -125,6 +129,9 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
       case "/substitution":
         responseBody = JSON.stringify(substitutionResponse);
         break;
+      case "/repost":
+        responseBody = JSON.stringify(repostResponse);
+        break;
       default:
         responseBody = JSON.stringify({ success: false, error: `Unknown endpoint: ${path}` });
         break;
@@ -146,35 +153,4 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
     },
     id: aFakeDurableObjectId(),
   };
-}
-
-export function aFakeDurableObjectStubWith(opts: FakeLiveTrackerDOOpts = {}): DurableObjectStub {
-  const fakeDO = aFakeLiveTrackerDOWith(opts);
-  return {
-    ...fakeDO,
-    id: aFakeDurableObjectId(),
-    connect: (): Socket => {
-      throw new Error("Socket connections not supported in fake");
-    },
-  };
-}
-
-export function aFakeDurableObjectNamespaceWith(
-  opts: {
-    stubResponse?: FakeLiveTrackerDOOpts;
-    idValue?: string;
-  } = {},
-): DurableObjectNamespace {
-  const { stubResponse = {}, idValue = "fake-do-id" } = opts;
-
-  const durableObjectNamespace: DurableObjectNamespace = {
-    get: () => aFakeDurableObjectStubWith(stubResponse),
-    idFromName: () => aFakeDurableObjectId(idValue),
-    getByName: () => aFakeDurableObjectStubWith(stubResponse),
-    idFromString: () => aFakeDurableObjectId(idValue),
-    jurisdiction: () => durableObjectNamespace,
-    newUniqueId: () => aFakeDurableObjectId(),
-  };
-
-  return durableObjectNamespace;
 }

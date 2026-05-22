@@ -4,7 +4,7 @@ import type {
   LiveTrackerStatus,
   PlayerAssociationData,
 } from "@guilty-spark/shared/live-tracker/types";
-import type { LiveTrackerEmbedData } from "../live-tracker/types";
+import type { LiveTrackerEmbedData } from "../../live-tracker/types";
 
 // Mutable version of TeamMapping for internal state management
 // The shared readonly TeamMapping type from contracts is used for cross-system communication

@@ -17,9 +17,9 @@ import type {
   LiveTrackerRepostResponse,
   LiveTrackerState,
   LiveTrackerRefreshCooldownErrorResponse,
-} from "../../../durable-objects/types";
-import type { LiveTrackerDO } from "../../../durable-objects/live-tracker-do";
-import { aFakeDurableObjectId } from "../../../durable-objects/fakes/live-tracker-do.fake";
+} from "../../../durable-objects/live-tracker/types";
+import type { LiveTrackerDO } from "../../../durable-objects/live-tracker/live-tracker-do";
+import { aFakeDurableObjectId } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
