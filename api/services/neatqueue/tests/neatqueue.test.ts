@@ -28,7 +28,7 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
-import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config";

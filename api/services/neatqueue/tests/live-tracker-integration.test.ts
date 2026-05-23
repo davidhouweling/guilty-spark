@@ -32,8 +32,8 @@ import type {
   LiveTrackerSubstitutionResponse,
   LiveTrackerStopResponse,
   LiveTrackerRefreshResponse,
-} from "../../../durable-objects/types";
-import { aFakeLiveTrackerStateWith } from "../../../durable-objects/fakes/live-tracker-do.fake";
+} from "../../../durable-objects/live-tracker/types";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 
 describe("NeatQueueService Live Tracker Integration", () => {
   // align this with time just after ctf.json match completed

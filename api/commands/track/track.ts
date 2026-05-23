@@ -24,8 +24,8 @@ import type {
 import { BaseCommand } from "../base/base-command";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { InteractionComponent } from "../../embeds/live-tracker-embed";
-import type { LiveTrackerState } from "../../durable-objects/types";
-import { isCooldownError } from "../../durable-objects/types";
+import type { LiveTrackerState } from "../../durable-objects/live-tracker/types";
+import { isCooldownError } from "../../durable-objects/live-tracker/types";
 
 interface UserContext {
   userId: string;
