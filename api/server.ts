@@ -1,26 +1,23 @@
 import type { AutoRouterType } from "itty-router";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { installServices } from "./services/install";
-import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
 import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
+import { discordInteractionsRoute } from "./routes/discord/interactions";
 
 interface ServerOpts {
   router: AutoRouterType;
   installServices: typeof installServices;
-  getCommands: typeof getCommands;
 }
 
 export class Server {
   readonly router: AutoRouterType;
   private readonly installServices: typeof installServices;
-  private readonly getCommands: typeof getCommands;
 
-  constructor({ router, installServices, getCommands }: ServerOpts) {
+  constructor({ router, installServices }: ServerOpts) {
     this.router = router;
     this.installServices = installServices;
-    this.getCommands = getCommands;
 
     this.addRoutes();
   }
@@ -44,6 +41,8 @@ export class Server {
     });
 
     authRoutesRegisterHandler(this.router, this.installServices);
+
+    discordInteractionsRoute(this.router, this.installServices);
 
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
@@ -78,40 +77,6 @@ export class Server {
       } catch (error) {
         console.error("WebSocket route error:", error);
         return new Response("Internal Server Error", { status: 500 });
-      }
-    });
-
-    this.router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
-      try {
-        const services = this.installServices({ env });
-        const { discordService } = services;
-        const commands = this.getCommands(services, env);
-        discordService.setCommands(commands);
-
-        const { isValid, interaction, rawBody } = await discordService.verifyDiscordRequest(request);
-        if (!isValid || !interaction) {
-          services.logService.warn(
-            "Invalid Discord request (failed verification)",
-            new Map([
-              ["rawBody", rawBody],
-              ["headers", JSON.stringify(Array.from(request.headers.entries()))],
-            ]),
-          );
-          return new Response("Bad request signature.", { status: 401 });
-        }
-
-        const { response, jobToComplete } = discordService.handleInteraction(interaction);
-
-        if (jobToComplete) {
-          ctx.waitUntil(jobToComplete());
-        }
-
-        return response;
-      } catch (error) {
-        console.error(error);
-        console.trace();
-
-        return new Response("Internal error", { status: 500 });
       }
     });
 
