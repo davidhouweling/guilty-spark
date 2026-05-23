@@ -13,7 +13,6 @@ const CORS_CONFIG: CorsConfig = {
   // Allowed origins for CORS requests
   allowedOrigins: [
     "http://localhost:4321", // Development
-    "https://dev.guilty-spark.app", // Development
     "https://staging.guilty-spark.app", // Staging
     "https://guilty-spark.app", // Production
     "https://www.guilty-spark.app", // Production (www)

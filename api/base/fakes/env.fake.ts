@@ -65,8 +65,8 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const liveTrackerGet = aFakeLiveTrackerDOWith();
 
   const defaultOpts: Env = {
-    HOST_URL: "https://dev-api.guilty-spark.app",
-    PAGES_URL: "https://dev.guilty-spark.app",
+    HOST_URL: "http://localhost:8787",
+    PAGES_URL: "http://localhost:4321",
     MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",
