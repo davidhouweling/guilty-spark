@@ -147,34 +147,3 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
     id: aFakeDurableObjectId(),
   };
 }
-
-export function aFakeDurableObjectStubWith(opts: FakeLiveTrackerDOOpts = {}): DurableObjectStub {
-  const fakeDO = aFakeLiveTrackerDOWith(opts);
-  return {
-    ...fakeDO,
-    id: aFakeDurableObjectId(),
-    connect: (): Socket => {
-      throw new Error("Socket connections not supported in fake");
-    },
-  };
-}
-
-export function aFakeDurableObjectNamespaceWith(
-  opts: {
-    stubResponse?: FakeLiveTrackerDOOpts;
-    idValue?: string;
-  } = {},
-): DurableObjectNamespace {
-  const { stubResponse = {}, idValue = "fake-do-id" } = opts;
-
-  const durableObjectNamespace: DurableObjectNamespace = {
-    get: () => aFakeDurableObjectStubWith(stubResponse),
-    idFromName: () => aFakeDurableObjectId(idValue),
-    getByName: () => aFakeDurableObjectStubWith(stubResponse),
-    idFromString: () => aFakeDurableObjectId(idValue),
-    jurisdiction: () => durableObjectNamespace,
-    newUniqueId: () => aFakeDurableObjectId(),
-  };
-
-  return durableObjectNamespace;
-}

@@ -7,17 +7,17 @@ import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spar
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
-import type { LogService } from "../services/log/types";
-import type { DiscordService } from "../services/discord/discord";
-import type { HaloService } from "../services/halo/halo";
-import type { DatabaseService } from "../services/database/database";
-import { installServices as installServicesImpl } from "../services/install";
-import type { LiveTrackerEmbedData } from "../live-tracker/types";
-import { LiveTrackerEmbed } from "../embeds/live-tracker-embed";
-import { LiveTrackerLoadingEmbed } from "../embeds/live-tracker-loading-embed";
-import { EndUserError, EndUserErrorType } from "../base/end-user-error";
-import { DiscordError } from "../services/discord/discord-error";
-import type { SeriesData } from "../services/halo/types";
+import type { LogService } from "../../services/log/types";
+import type { DiscordService } from "../../services/discord/discord";
+import type { HaloService } from "../../services/halo/halo";
+import type { DatabaseService } from "../../services/database/database";
+import { installServices as installServicesImpl } from "../../services/install";
+import type { LiveTrackerEmbedData } from "../../live-tracker/types";
+import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
+import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import { DiscordError } from "../../services/discord/discord-error";
+import type { SeriesData } from "../../services/halo/types";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerState,

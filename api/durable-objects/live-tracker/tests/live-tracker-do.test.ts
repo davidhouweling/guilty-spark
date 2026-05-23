@@ -5,14 +5,14 @@ import { ChannelType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import { LiveTrackerDO } from "../live-tracker-do";
-import { installFakeServicesWith } from "../../services/fakes/services";
-import { aFakeEnvWith } from "../../base/fakes/env.fake";
-import type { Services } from "../../services/install";
-import { DiscordError } from "../../services/discord/discord-error";
-import { aGuildMemberWith, apiMessage, guild } from "../../services/discord/fakes/data";
+import { installFakeServicesWith } from "../../../services/fakes/services";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import type { Services } from "../../../services/install";
+import { DiscordError } from "../../../services/discord/discord-error";
+import { aGuildMemberWith, apiMessage, guild } from "../../../services/discord/fakes/data";
 import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake";
-import { aFakeGuildConfigRow } from "../../services/database/fakes/database.fake";
-import { getMatchStats } from "../../services/halo/fakes/data";
+import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
+import { getMatchStats } from "../../../services/halo/fakes/data";
 import type { LiveTrackerStartRequest, LiveTrackerState } from "../types";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types

@@ -1,6 +1,6 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
-import type { LiveTrackerDO } from "../../durable-objects/live-tracker-do";
+import type { LiveTrackerDO } from "../../durable-objects/live-tracker/live-tracker-do";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerStartResponse,
@@ -16,7 +16,7 @@ import type {
   LiveTrackerState,
   LiveTrackerRefreshCooldownErrorResponse,
   LiveTrackerRefreshRequest,
-} from "../../durable-objects/types";
+} from "../../durable-objects/live-tracker/types";
 import type { LogService } from "../log/types";
 import type { DiscordService } from "../discord/discord";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";

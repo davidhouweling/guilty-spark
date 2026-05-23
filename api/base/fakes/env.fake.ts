@@ -1,4 +1,7 @@
-import { aFakeDurableObjectId, aFakeLiveTrackerDOWith } from "../../durable-objects/fakes/live-tracker-do.fake";
+import {
+  aFakeDurableObjectId,
+  aFakeLiveTrackerDOWith,
+} from "../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import type { LiveTrackerDO } from "../../worker";
 
 const fakeNamespace = (): KVNamespace =>
