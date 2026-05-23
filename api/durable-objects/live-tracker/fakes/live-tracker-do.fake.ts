@@ -10,6 +10,7 @@ import type {
   LiveTrackerSubstitutionResponse,
 } from "../types";
 import type { LiveTrackerDO } from "../live-tracker-do";
+import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 export interface FakeLiveTrackerDOOpts {
   startResponse?: LiveTrackerStartResponse;
@@ -25,13 +26,6 @@ export interface FakeLiveTrackerDOOpts {
 }
 
 export type FakeLiveTrackerDO = DurableObjectStub<LiveTrackerDO> & Rpc.DurableObjectBranded;
-
-export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
-  return {
-    toString: () => value,
-    equals: (other: DurableObjectId) => other.toString() === value,
-  };
-}
 
 export function aFakeLiveTrackerStateWith(opts: Partial<LiveTrackerState> = {}): LiveTrackerState {
   return {

@@ -10,10 +10,10 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import { DiscordError } from "../../../services/discord/discord-error";
 import { aGuildMemberWith, apiMessage, guild } from "../../../services/discord/fakes/data";
-import { aFakeDurableObjectId } from "../fakes/live-tracker-do.fake";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { getMatchStats } from "../../../services/halo/fakes/data";
 import type { LiveTrackerStartRequest, LiveTrackerState } from "../types";
+import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {

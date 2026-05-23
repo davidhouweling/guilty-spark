@@ -19,12 +19,12 @@ import type {
   LiveTrackerRefreshCooldownErrorResponse,
 } from "../../../durable-objects/live-tracker/types";
 import type { LiveTrackerDO } from "../../../durable-objects/live-tracker/live-tracker-do";
-import { aFakeDurableObjectId } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage, discordNeatQueueData, fakeButtonClickInteraction } from "../../discord/fakes/data";
 import type { LiveTrackerEmbedData } from "../../../live-tracker/types";
+import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 describe("LiveTrackerService", () => {
   let service: LiveTrackerService;
