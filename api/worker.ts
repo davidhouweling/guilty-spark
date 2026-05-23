@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { AutoRouter } from "itty-router";
 import { installServices } from "./services/install";
-import { getCommands } from "./commands/commands";
 import { Server } from "./server";
 
 // Export Durable Object classes
@@ -10,7 +9,6 @@ export { LiveTrackerDO } from "./durable-objects/live-tracker/live-tracker-do";
 const server = new Server({
   router: AutoRouter(),
   installServices,
-  getCommands,
 });
 
 export default Sentry.withSentry(
