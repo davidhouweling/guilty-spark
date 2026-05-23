@@ -4,21 +4,12 @@ import type { installServices } from "./services/install";
 import type { getCommands } from "./commands/commands";
 import type { SessionTokenPayload } from "./services/auth/types";
 import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
+import { authRoutesRegisterHandler } from "./routes/auth/auth";
 
 interface ServerOpts {
   router: AutoRouterType;
   installServices: typeof installServices;
   getCommands: typeof getCommands;
-}
-
-function createNoStoreJsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json",
-    },
-  });
 }
 
 export class Server {
@@ -52,156 +43,7 @@ export class Server {
       );
     });
 
-    this.router.get("/auth/microsoft/start", async (request, env: Env) => {
-      try {
-        const services = this.installServices({ env });
-        const { authService } = services;
-
-        const { url, state, codeVerifier } = await authService.generateAuthorizationUrl();
-
-        const response = createNoStoreJsonResponse(
-          {
-            authUrl: url.toString(),
-            state,
-          },
-          200,
-        );
-
-        await authService.setPkceStateCookie(response, {
-          codeVerifier,
-          state,
-          issuedAt: Date.now(),
-        });
-
-        return addCorsHeaders(response, request, true);
-      } catch (error) {
-        console.error("Auth start error:", error);
-        return addCorsHeaders(
-          createNoStoreJsonResponse(
-            {
-              error: "Failed to generate authorization URL",
-            },
-            500,
-          ),
-          request,
-          true,
-        );
-      }
-    });
-
-    this.router.get("/auth/microsoft/callback", async (request, env: Env) => {
-      try {
-        const url = new URL(request.url);
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
-
-        if (code == null || state == null) {
-          return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
-        }
-
-        const services = this.installServices({ env });
-        const { authService } = services;
-
-        // Exchange code for tokens and create session
-        const sessionPayload = await authService.handleCallback(request, code, state);
-        const sessionToken = await authService.createSessionToken(sessionPayload);
-
-        // Create response with Set-Cookie header
-        const response = createNoStoreJsonResponse(
-          {
-            success: true,
-            userId: sessionPayload.userId,
-          },
-          200,
-        );
-
-        // Set session cookie
-        authService.setSessionCookie(response, sessionToken);
-        authService.clearPkceStateCookie(response);
-
-        return addCorsHeaders(response, request, true);
-      } catch (error) {
-        console.error("Auth callback error:", error);
-        return addCorsHeaders(
-          createNoStoreJsonResponse(
-            {
-              error: "Authentication failed",
-            },
-            400,
-          ),
-          request,
-          true,
-        );
-      }
-    });
-
-    this.router.post("/auth/logout", async (request, env: Env) => {
-      try {
-        const services = this.installServices({ env });
-        const { authService } = services;
-        const response = createNoStoreJsonResponse({ success: true }, 200);
-
-        await authService.invalidateSession(request).catch((error: unknown) => {
-          console.error("Auth logout revocation error:", error);
-        });
-
-        authService.clearSessionCookie(response);
-
-        return addCorsHeaders(response, request, true);
-      } catch (error) {
-        console.error("Auth logout error:", error);
-        return addCorsHeaders(createNoStoreJsonResponse({ error: "Logout failed" }, 500), request, true);
-      }
-    });
-
-    this.router.get("/auth/session", async (request, env: Env) => {
-      try {
-        const services = this.installServices({ env });
-        const { authService } = services;
-
-        const session = await authService.validateSession(request);
-
-        if (session === null) {
-          return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false }, 401), request, true);
-        }
-
-        let authenticatedSession = session;
-        if (session.isExpired) {
-          try {
-            const refreshedSession = await authService.refreshSession(session);
-            if (refreshedSession == null) {
-              const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
-              authService.clearSessionCookie(response);
-              return addCorsHeaders(response, request, true);
-            }
-
-            authenticatedSession = {
-              ...session,
-              accessToken: refreshedSession.accessToken,
-              refreshToken: refreshedSession.refreshToken,
-              expiresAt: refreshedSession.expiresAt,
-              isExpired: false,
-            };
-          } catch {
-            const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
-            authService.clearSessionCookie(response);
-            return addCorsHeaders(response, request, true);
-          }
-        }
-
-        return addCorsHeaders(
-          createNoStoreJsonResponse(
-            { authenticated: true, userId: authenticatedSession.userId, expiresAt: authenticatedSession.expiresAt },
-            200,
-          ),
-          request,
-          true,
-        );
-      } catch (error) {
-        console.error("Auth session error:", error);
-        return addCorsHeaders(createNoStoreJsonResponse({ error: "Failed to retrieve session" }, 500), request, true);
-      }
-    });
+    authRoutesRegisterHandler(this.router, this.installServices);
 
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
