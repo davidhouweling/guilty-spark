@@ -4,15 +4,15 @@ import type { RoutesRegisterHandler } from "../base/types";
 export const discordInteractionsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.post("/interactions", async (request, env: Env, ctx: EventContext<Env, "", unknown>) => {
     const services = installServices({ env });
+    const { discordService, logService } = services;
 
     try {
-      const { discordService } = services;
       const commands = getCommands(services, env);
       discordService.setCommands(commands);
 
       const { isValid, interaction, rawBody } = await discordService.verifyDiscordRequest(request);
       if (!isValid || !interaction) {
-        services.logService.warn(
+        logService.warn(
           "Invalid Discord request (failed verification)",
           new Map([
             ["rawBody", rawBody],
@@ -30,7 +30,7 @@ export const discordInteractionsRoute: RoutesRegisterHandler = (router, installS
 
       return response;
     } catch (error) {
-      services.logService.error(error as Error);
+      logService.error(error as Error, new Map([["message", "Discord interaction error"]]));
 
       return new Response("Internal error", { status: 500 });
     }
