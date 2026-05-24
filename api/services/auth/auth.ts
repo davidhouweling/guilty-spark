@@ -1,10 +1,35 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
-import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload } from "./types";
+import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload, AuthCallbackResult } from "./types";
+
+const sessionCookiePayloadSchema = z.object({
+  sessionId: z.string().min(1),
+  sessionExpiresAt: z.number(),
+});
+
+const pkceStatePayloadSchema = z.object({
+  codeVerifier: z.string().min(1),
+  state: z.string().min(1),
+  issuedAt: z.number(),
+  redirectTo: z.string(),
+});
+
+function normalizeRedirectPath(redirectTo?: string): string {
+  if (redirectTo == null || redirectTo === "") {
+    return "/";
+  }
+
+  if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/";
+  }
+
+  return redirectTo;
+}
 
 /**
  * Main authentication orchestrator.
@@ -57,7 +82,7 @@ export class AuthService {
   /**
    * Handle OAuth callback: verify state, exchange code for tokens, create session.
    */
-  public async handleCallback(request: Request, code: string, state: string): Promise<SessionTokenPayload> {
+  public async handleCallback(request: Request, code: string, state: string): Promise<AuthCallbackResult> {
     const pkceState = await this.readPkceState(request, state);
 
     // Check if state is still fresh (within 10 minutes)
@@ -87,7 +112,10 @@ export class AuthService {
 
     await this.persistSession(sessionPayload, user.email, user.name, user.preferredUsername);
 
-    return sessionPayload;
+    return {
+      sessionPayload,
+      redirectTo: pkceState.redirectTo,
+    };
   }
 
   /**
@@ -186,9 +214,12 @@ export class AuthService {
 
   public async setPkceStateCookie(
     response: Response,
-    pkceState: Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">,
+    pkceState: Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo">,
   ): Promise<void> {
-    const token = JSON.stringify(pkceState);
+    const token = JSON.stringify({
+      ...pkceState,
+      redirectTo: normalizeRedirectPath(pkceState.redirectTo),
+    });
     const signedToken = await this.sessionManager.createSignedToken(token);
     this.sessionManager.setPkceStateCookie(response, signedToken);
   }
@@ -200,7 +231,7 @@ export class AuthService {
   private async readPkceState(
     request: Request,
     state: string,
-  ): Promise<Pick<PKCEState, "codeVerifier" | "state" | "issuedAt">> {
+  ): Promise<Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo">> {
     const token = this.sessionManager.extractPkceStateToken(request);
     if (token == null) {
       throw new Error("Invalid or expired state parameter");
@@ -282,46 +313,21 @@ export class AuthService {
   }
 
   private parseSessionCookiePayload(value: unknown): SessionCookiePayload | null {
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "sessionId" in value &&
-      typeof value.sessionId === "string" &&
-      value.sessionId !== "" &&
-      "sessionExpiresAt" in value &&
-      typeof value.sessionExpiresAt === "number" &&
-      Number.isFinite(value.sessionExpiresAt)
-    ) {
-      return {
-        sessionId: value.sessionId,
-        sessionExpiresAt: value.sessionExpiresAt,
-      };
-    }
+    const parsedPayload = sessionCookiePayloadSchema.safeParse(value);
 
-    return null;
+    return parsedPayload.success ? parsedPayload.data : null;
   }
 
-  private parsePkceStatePayload(value: unknown): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt"> | null {
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "codeVerifier" in value &&
-      typeof value.codeVerifier === "string" &&
-      value.codeVerifier !== "" &&
-      "state" in value &&
-      typeof value.state === "string" &&
-      value.state !== "" &&
-      "issuedAt" in value &&
-      typeof value.issuedAt === "number" &&
-      Number.isFinite(value.issuedAt)
-    ) {
-      return {
-        codeVerifier: value.codeVerifier,
-        state: value.state,
-        issuedAt: value.issuedAt,
-      };
-    }
+  private parsePkceStatePayload(
+    value: unknown,
+  ): Pick<PKCEState, "codeVerifier" | "state" | "issuedAt" | "redirectTo"> | null {
+    const parsed = pkceStatePayloadSchema.safeParse(value);
 
-    return null;
+    return parsed.success
+      ? {
+          ...parsed.data,
+          redirectTo: normalizeRedirectPath(parsed.data.redirectTo),
+        }
+      : null;
   }
 }

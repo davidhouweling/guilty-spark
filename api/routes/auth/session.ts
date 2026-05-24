@@ -5,10 +5,9 @@ import type { RoutesRegisterHandler } from "../base/types";
 export const authSessionRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/session", async (request, env: Env) => {
     const services = installServices({ env });
+    const { authService, logService } = services;
 
     try {
-      const { authService } = services;
-
       const session = await authService.validateSession(request);
 
       if (session === null) {
@@ -48,7 +47,7 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         true,
       );
     } catch (error) {
-      services.logService.error(error as Error, new Map([["message", "Auth session error:"]]));
+      logService.error(error as Error, new Map([["message", "Auth session error"]]));
       return addCorsHeaders(createNoStoreJsonResponse({ error: "Failed to retrieve session" }, 500), request, true);
     }
   });

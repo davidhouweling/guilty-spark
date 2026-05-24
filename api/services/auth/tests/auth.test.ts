@@ -101,6 +101,7 @@ describe("AuthService", () => {
       state,
       codeVerifier,
       issuedAt: Date.now(),
+      redirectTo: "/individual-tracker",
     });
 
     const cookieHeader = response.headers.get("Set-Cookie") ?? "";
@@ -111,10 +112,11 @@ describe("AuthService", () => {
       },
     });
 
-    const session = await service.handleCallback(request, "code", state);
+    const { sessionPayload, redirectTo } = await service.handleCallback(request, "code", state);
 
-    expect(session.sessionId).toBeTruthy();
-    expect(session.userId).toBe("user-123");
+    expect(sessionPayload.sessionId).toBeTruthy();
+    expect(sessionPayload.userId).toBe("user-123");
+    expect(redirectTo).toBe("/individual-tracker");
     expect(upsertUserSessionSpy).toHaveBeenCalled();
     const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
     expect(persistedSession?.AccessToken).toContain("enc-v1.");

@@ -36,6 +36,7 @@ export function aFakePKCEState(overrides?: Partial<PKCEState>): PKCEState {
     codeChallenge: "code_challenge_base64url_encoded",
     state: "state_xyz123",
     issuedAt: Date.now(),
+    redirectTo: "/",
     ...overrides,
   };
 }
