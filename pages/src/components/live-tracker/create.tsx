@@ -1,7 +1,4 @@
 import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
-import TimeAgo from "javascript-time-ago";
-import en from "javascript-time-ago/locale/en";
-import { installServices } from "../../services/install";
 import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
@@ -17,17 +14,11 @@ import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
-interface LiveTrackerAppProps {
-  readonly apiHost: string;
-}
-
-interface LiveTrackerFactoryProps {
+interface LiveTrackerProps {
   readonly services: Services;
 }
 
-TimeAgo.addDefaultLocale(en);
-
-export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React.ReactElement {
+export function LiveTracker({ services }: LiveTrackerProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
@@ -198,77 +189,6 @@ export function LiveTrackerFactory({ services }: LiveTrackerFactoryProps): React
           <LiveTrackerView />
         </LiveTrackerProvider>
       }
-    />
-  );
-}
-
-export function LiveTracker({ apiHost }: LiveTrackerAppProps): React.ReactElement {
-  const [loadingServices, setLoadingServices] = React.useState(ComponentLoaderStatus.PENDING);
-  const [services, setServices] = React.useState<Services | null>(null);
-  const [shouldConnectToTracker, setShouldConnectToTracker] = React.useState(false);
-
-  // Check URL params to determine if we need to connect to a tracker
-  // Use useEffect to avoid hydration mismatch (server has no window)
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(window.location.href);
-    const server = url.searchParams.get("server");
-    const queue = url.searchParams.get("queue");
-
-    // Team mode: needs both server and queue
-    if (server !== null && server.length > 0 && queue !== null && queue.length > 0) {
-      setShouldConnectToTracker(true);
-    }
-  }, []);
-
-  // Load services when we have tracker params
-  useEffect(() => {
-    if (!shouldConnectToTracker) {
-      return;
-    }
-
-    let isCancelled = false;
-
-    setServices(null);
-    setLoadingServices(ComponentLoaderStatus.PENDING);
-
-    installServices(apiHost)
-      .then((installedServices) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setServices(installedServices);
-        setLoadingServices(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
-        if (isCancelled) {
-          return;
-        }
-        setLoadingServices(ComponentLoaderStatus.ERROR);
-      });
-
-    return (): void => {
-      isCancelled = true;
-    };
-  }, [apiHost, shouldConnectToTracker]);
-
-  if (!shouldConnectToTracker) {
-    return <ErrorState message={LiveTrackerPresenter.usageText} />;
-  }
-
-  if (!services) {
-    return <LoadingState />;
-  }
-
-  return (
-    <ComponentLoader
-      status={loadingServices}
-      loading={<LoadingState />}
-      error={<ErrorState />}
-      loaded={<LiveTrackerFactory services={services} />}
     />
   );
 }
