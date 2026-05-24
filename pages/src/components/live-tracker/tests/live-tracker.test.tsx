@@ -8,7 +8,7 @@ import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../.
 import type { Services } from "../../../services/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
-import { LiveTrackerFactory } from "../create";
+import { LiveTracker } from "../create";
 
 function isSteppableLiveTrackerConnection(
   connection: LiveTrackerConnection,
@@ -84,7 +84,7 @@ describe("LiveTracker", () => {
       liveTrackerService,
     };
 
-    render(<LiveTrackerFactory services={services} />);
+    render(<LiveTracker services={services} />);
 
     await waitFor(() => {
       expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();

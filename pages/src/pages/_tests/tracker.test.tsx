@@ -9,13 +9,13 @@ vi.mock("../../components/icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
 }));
 
-import { LiveTracker } from "../../components/live-tracker/create";
+import { LiveTrackerApp } from "../../apps/live-tracker/create";
 
 describe("/tracker page wiring", () => {
   it("boots the tracker island via the services installer", async () => {
     window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
-    render(<LiveTracker apiHost="http://example.local" />);
+    render(<LiveTrackerApp apiHost="http://example.local" />);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Dog\s*Crew/i })).toBeInTheDocument();
