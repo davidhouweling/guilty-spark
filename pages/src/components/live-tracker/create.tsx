@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
-import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
@@ -8,6 +7,7 @@ import type { MatchStatsData } from "../stats/types";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
+import type { LiveTrackerService } from "../../services/live-tracker/types";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -15,19 +15,19 @@ import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
 interface LiveTrackerProps {
-  readonly services: Services;
+  readonly liveTrackerService: LiveTrackerService;
 }
 
-export function LiveTracker({ services }: LiveTrackerProps): React.ReactElement {
+export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
     return new LiveTrackerPresenter({
-      services,
+      liveTrackerService,
       getUrl: (): URL => new URL(window.location.href),
       store,
     });
-  }, [services, store]);
+  }, [liveTrackerService, store]);
 
   useEffect(() => {
     presenter.start();

@@ -122,9 +122,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      services: {
-        liveTrackerService: mockService,
-      },
+      liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
     });
 
@@ -194,9 +192,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      services: {
-        liveTrackerService: mockService,
-      },
+      liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
     });
 
@@ -244,9 +240,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      services: {
-        liveTrackerService: mockService,
-      },
+      liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
     });
 

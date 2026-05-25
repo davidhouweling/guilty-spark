@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
-import { installServices } from "../../services/install";
-import type { Services } from "../../services/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { LiveTracker } from "../../components/live-tracker/create";
+import type { Services } from "./services";
+import { installServices } from "./services";
 
 TimeAgo.addDefaultLocale(en);
 
@@ -79,7 +79,13 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): React.ReactEle
       status={loadingServices}
       loading={<LoadingState />}
       error={<ErrorState />}
-      loaded={services ? <LiveTracker services={services} /> : <ErrorState message="Services failed to load" />}
+      loaded={
+        services ? (
+          <LiveTracker liveTrackerService={services.liveTrackerService} />
+        ) : (
+          <ErrorState message="Services failed to load" />
+        )
+      }
     />
   );
 }
