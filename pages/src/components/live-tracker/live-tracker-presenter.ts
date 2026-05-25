@@ -1,8 +1,8 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
-import type { Services } from "../../services/types";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
+  LiveTrackerService,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
@@ -10,7 +10,7 @@ import type { LiveTrackerViewModel } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
-  readonly services: Services;
+  readonly liveTrackerService: LiveTrackerService;
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStore;
 }
@@ -319,7 +319,7 @@ export class LiveTrackerPresenter {
 
     this.cleanupConnection();
 
-    const nextConnection = await this.config.services.liveTrackerService.connect(identity);
+    const nextConnection = await this.config.liveTrackerService.connect(identity);
     this.connection = nextConnection;
 
     const current = this.config.store.getSnapshot();

@@ -5,7 +5,6 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../../../services/live-tracker/types";
-import type { Services } from "../../../services/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { LiveTracker } from "../create";
@@ -80,11 +79,7 @@ describe("LiveTracker", () => {
       return Promise.resolve(connection);
     });
 
-    const services: Services = {
-      liveTrackerService,
-    };
-
-    render(<LiveTracker services={services} />);
+    render(<LiveTracker liveTrackerService={liveTrackerService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();
