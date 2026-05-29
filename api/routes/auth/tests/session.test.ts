@@ -86,6 +86,7 @@ describe("GET /auth/session", () => {
         expiresAt: refreshedExpiresAt,
         issuedAt: Date.now(),
       });
+      vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockRejectedValue(new Error("no xbox"));
       return services;
     });
 
@@ -112,6 +113,7 @@ describe("GET /auth/session", () => {
         expiresAt,
         isExpired: false,
       });
+      vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockRejectedValue(new Error("no xbox"));
       return services;
     });
 
@@ -121,6 +123,90 @@ describe("GET /auth/session", () => {
     const res = (await router.fetch(req, env)) as Response;
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
+    const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number }>();
+    expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt });
+  });
+
+  it("lazily resolves and persists the xbox profile when the session has none yet", async () => {
+    const expiresAt = Date.now() + 3600000;
+    let attachSessionProfileSpy!: ReturnType<typeof vi.spyOn>;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+        sessionId: "session-123",
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: undefined,
+        expiresAt,
+        isExpired: false,
+      });
+      vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockResolvedValue({
+        xuid: "2533274",
+        gamertag: "Spartan117",
+        avatarUrl: "https://avatar.example/pic.png",
+      });
+      attachSessionProfileSpy = vi.spyOn(services.authService, "attachSessionProfile").mockResolvedValue();
+      return services;
+    });
+
+    authSessionRoute(router, localInstallServices);
+
+    const req = new Request("http://localhost/auth/session", { method: "GET" });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(attachSessionProfileSpy).toHaveBeenCalledWith(
+      "session-123",
+      expect.objectContaining({
+        xboxXuid: "2533274",
+        avatarUrl: "https://avatar.example/pic.png",
+        xboxGamertag: "Spartan117",
+      }),
+    );
+    const body = await res.json<{
+      authenticated: boolean;
+      userId: string;
+      expiresAt: number;
+      avatarUrl: string;
+      xboxGamertag: string;
+      xboxXuid: string;
+    }>();
+    expect(body).toEqual({
+      authenticated: true,
+      userId: "user-123",
+      expiresAt,
+      avatarUrl: "https://avatar.example/pic.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+  });
+
+  it("does not re-attempt enrichment once a prior attempt was recorded", async () => {
+    const expiresAt = Date.now() + 3600000;
+    let getXboxUserSpy!: ReturnType<typeof vi.spyOn>;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+        sessionId: "session-123",
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: undefined,
+        expiresAt,
+        isExpired: false,
+        // No xuid resolved, but a prior attempt was recorded — the lazy path must not re-run.
+        xboxProfileCheckedAt: Date.now() - 1000,
+      });
+      getXboxUserSpy = vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken");
+      return services;
+    });
+
+    authSessionRoute(router, localInstallServices);
+
+    const req = new Request("http://localhost/auth/session", { method: "GET" });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(getXboxUserSpy).not.toHaveBeenCalled();
     const body = await res.json<{ authenticated: boolean; userId: string; expiresAt: number }>();
     expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt });
   });

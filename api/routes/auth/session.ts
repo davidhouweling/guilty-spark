@@ -2,6 +2,7 @@ import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
 import { addCorsHeaders } from "../../base/cors";
 import type { RoutesRegisterHandler } from "../base/types";
+import { enrichSessionProfile } from "./profile-enrichment";
 
 export const authSessionRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/session", async (request, env: Env) => {
@@ -46,6 +47,22 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
           );
           authService.clearSessionCookie(response);
           return addCorsHeaders(response, request, true);
+        }
+      }
+
+      // Self-heal: if the Xbox profile has never been resolved AND we haven't attempted it
+      // yet, try once. The xboxProfileCheckedAt marker (stamped on every attempt) keeps this
+      // off the hot path for sessions whose profile can't be resolved, instead of re-running
+      // the Xbox token exchange on every request.
+      if (authenticatedSession.xboxXuid == null && authenticatedSession.xboxProfileCheckedAt == null) {
+        const profile = await enrichSessionProfile(
+          services,
+          authenticatedSession.sessionId,
+          Date.now(),
+          authenticatedSession.accessToken,
+        );
+        if (profile != null) {
+          authenticatedSession = { ...authenticatedSession, ...profile };
         }
       }
 

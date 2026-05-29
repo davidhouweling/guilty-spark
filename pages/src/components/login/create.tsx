@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
+import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { z } from "zod";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
@@ -23,12 +24,7 @@ function getRedirectPathFromUrl(): string {
     return "/";
   }
 
-  const { redirect } = parseQueryParamsResult.data;
-  if (redirect == null || redirect === "" || !redirect.startsWith("/") || redirect.startsWith("//")) {
-    return "/";
-  }
-
-  return redirect;
+  return safeRedirectPath(parseQueryParamsResult.data.redirect, window.location.origin);
 }
 
 export function LoginPage({ authService }: LoginPageProps): React.ReactElement {

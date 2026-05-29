@@ -125,6 +125,58 @@ describe("AuthService", () => {
     expect(persistedSession?.RefreshToken).not.toContain("refresh-token");
   });
 
+  it("normalizes a backslash open-redirect payload to root through the callback round-trip", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      issuerTemplate: "https://login.microsoftonline.com/{tenantid}/v2.0",
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            id_token: signedToken.token,
+            token_type: "Bearer",
+            scope: "openid email",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
+    const { state, codeVerifier } = aFakePKCEState();
+    const response = new Response();
+    // "/\evil.com" passes a naive "//" prefix check but the URL parser resolves it to https://evil.com/.
+    await service.setPkceStateCookie(response, {
+      state,
+      codeVerifier,
+      issuedAt: Date.now(),
+      redirectTo: "/\\evil.com",
+    });
+
+    const cookieHeader = response.headers.get("Set-Cookie") ?? "";
+    const pkceCookie = cookieHeader.split(";")[0] ?? "";
+    const request = new Request("http://localhost", { headers: { Cookie: pkceCookie } });
+
+    const { redirectTo } = await service.handleCallback(request, "code", state);
+    expect(redirectTo).toBe("/");
+  });
+
   it("sets session cookie in response", async () => {
     const payload = aFakeSessionTokenPayload();
     const token = await service.createSessionToken(payload);

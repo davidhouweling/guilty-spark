@@ -61,11 +61,14 @@ describe("GET /auth/microsoft/callback", () => {
       expect(setCookie).toContain("auth-session=signed-session-token");
       expect(setCookie).toContain("Max-Age=2592000");
 
-      expect(attachSessionProfileSpy).toHaveBeenCalledWith("session-123", {
-        avatarUrl: "https://avatar.example/pic.png",
-        xboxGamertag: "Spartan117",
-        xboxXuid: "2533274",
-      });
+      expect(attachSessionProfileSpy).toHaveBeenCalledWith(
+        "session-123",
+        expect.objectContaining({
+          avatarUrl: "https://avatar.example/pic.png",
+          xboxGamertag: "Spartan117",
+          xboxXuid: "2533274",
+        }),
+      );
 
       const expiresAtMatch = setCookie?.match(/auth-session=[^]*?Expires=([^;]+GMT)/);
       expect(expiresAtMatch).not.toBeNull();
@@ -113,7 +116,10 @@ describe("GET /auth/microsoft/callback", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/`);
     expect(res.headers.get("Set-Cookie")).toContain("auth-session=signed-session-token");
-    expect(attachSessionProfileSpy).not.toHaveBeenCalled();
+    // Lookup failed, but the attempt is still recorded (marker only) so the session route's
+    // lazy re-enrichment won't retry on every request.
+    expect(attachSessionProfileSpy).toHaveBeenCalledTimes(1);
+    expect(attachSessionProfileSpy).toHaveBeenCalledWith("session-123", expect.anything());
   });
 
   it("returns a generic authentication error when callback handling fails", async () => {

@@ -1,4 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
@@ -27,6 +28,7 @@ const authMetadataSchema = z.object({
   avatarUrl: z.string().optional(),
   xboxGamertag: z.string().optional(),
   xboxXuid: z.string().optional(),
+  xboxProfileCheckedAt: z.number().optional(),
 });
 
 const pkceStatePayloadSchema = z.object({
@@ -37,15 +39,9 @@ const pkceStatePayloadSchema = z.object({
 });
 
 function normalizeRedirectPath(redirectTo?: string): string {
-  if (redirectTo == null || redirectTo === "") {
-    return "/";
-  }
-
-  if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
-    return "/";
-  }
-
-  return redirectTo;
+  // Placeholder origin: any cross-origin escape changes the origin away from it, and a
+  // resulting protocol-relative ("//host") pathname is rejected by the shared guard.
+  return safeRedirectPath(redirectTo, "https://placeholder.invalid");
 }
 
 /**
@@ -150,6 +146,7 @@ export class AuthService {
       ...(profile.avatarUrl != null ? { avatarUrl: profile.avatarUrl } : {}),
       ...(profile.xboxGamertag != null ? { xboxGamertag: profile.xboxGamertag } : {}),
       ...(profile.xboxXuid != null ? { xboxXuid: profile.xboxXuid } : {}),
+      ...(profile.xboxProfileCheckedAt != null ? { xboxProfileCheckedAt: profile.xboxProfileCheckedAt } : {}),
     };
 
     await this.databaseService.upsertUserSession({
@@ -345,6 +342,7 @@ export class AuthService {
       ...(metadata.avatarUrl != null ? { avatarUrl: metadata.avatarUrl } : {}),
       ...(metadata.xboxGamertag != null ? { xboxGamertag: metadata.xboxGamertag } : {}),
       ...(metadata.xboxXuid != null ? { xboxXuid: metadata.xboxXuid } : {}),
+      ...(metadata.xboxProfileCheckedAt != null ? { xboxProfileCheckedAt: metadata.xboxProfileCheckedAt } : {}),
     };
   }
 

@@ -54,7 +54,14 @@ export class RealAuthService implements AuthService {
     });
 
     if (response.status === 401) {
-      const unauthenticated: SessionResponse = { authenticated: false };
+      // The 401 body is still a valid SessionResponse (authenticated: false, optionally
+      // expired: true) — parse it so callers can distinguish "expired" from "never logged in".
+      let unauthenticated: SessionResponse = { authenticated: false };
+      try {
+        unauthenticated = await sessionContract.fromResponse(response);
+      } catch {
+        // Fall back to the plain unauthenticated shape if the body is missing/invalid.
+      }
       this.onSessionResolved?.(unauthenticated);
       return unauthenticated;
     }

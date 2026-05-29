@@ -54,6 +54,32 @@ describe("LoginPage", () => {
     });
   });
 
+  it.each([
+    ["backslash", "%2F%5Cevil.com"], // "/\evil.com"
+    ["dot-double-slash", "%2F..%2F%2Fevil.com"], // "/..//evil.com" -> resolves to pathname "//evil.com"
+  ])("rejects the %s open-redirect payload and falls back to root", async (_label, encodedRedirect) => {
+    const user = userEvent.setup();
+    window.history.pushState({}, "", `/login?redirect=${encodedRedirect}`);
+
+    vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+    const startMicrosoftAuthSpy = vi
+      .spyOn(authService, "startMicrosoftAuth")
+      .mockRejectedValue(new Error("Sign-in start failed"));
+
+    render(<LoginPage authService={authService} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Continue With Microsoft" })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Continue With Microsoft" }));
+
+    await waitFor(() => {
+      const [firstRedirect] = startMicrosoftAuthSpy.mock.calls[0] ?? [];
+      expect(firstRedirect).toBe("/");
+    });
+  });
+
   it("uses root redirect when login page has no redirect query", async () => {
     const user = userEvent.setup();
 
