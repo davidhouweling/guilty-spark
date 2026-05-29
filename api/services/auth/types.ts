@@ -50,7 +50,28 @@ export interface AuthSession {
   readonly refreshToken: string | undefined;
   readonly expiresAt: number;
   readonly isExpired: boolean;
+  readonly avatarUrl?: string;
+  readonly xboxGamertag?: string;
+  readonly xboxXuid?: string;
 }
+
+/**
+ * Non-secret profile data persisted alongside the session in
+ * `UserSessionsRow.AuthMetadataJson`. Captured from Microsoft and Xbox at login.
+ */
+export interface AuthMetadata {
+  readonly email?: string;
+  readonly name?: string;
+  readonly preferredUsername?: string;
+  readonly avatarUrl?: string;
+  readonly xboxGamertag?: string;
+  readonly xboxXuid?: string;
+}
+
+/**
+ * Subset of {@link AuthMetadata} resolved from the user's Xbox profile after OAuth.
+ */
+export type XboxSessionProfile = Pick<AuthMetadata, "avatarUrl" | "xboxGamertag" | "xboxXuid">;
 
 /**
  * PKCE state: code_verifier for securing auth flow.

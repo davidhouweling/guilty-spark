@@ -125,6 +125,47 @@ describe("GET /auth/session", () => {
     expect(body).toEqual({ authenticated: true, userId: "user-123", expiresAt });
   });
 
+  it("includes the xbox avatar and profile when present on the session", async () => {
+    const expiresAt = Date.now() + 3600000;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+        sessionId: "session-123",
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: undefined,
+        expiresAt,
+        isExpired: false,
+        avatarUrl: "https://avatar.example/pic.png",
+        xboxGamertag: "Spartan117",
+        xboxXuid: "2533274",
+      });
+      return services;
+    });
+
+    authSessionRoute(router, localInstallServices);
+
+    const req = new Request("http://localhost/auth/session", { method: "GET" });
+    const res = (await router.fetch(req, env)) as Response;
+    expect(res.status).toBe(200);
+    const body = await res.json<{
+      authenticated: boolean;
+      userId: string;
+      expiresAt: number;
+      avatarUrl: string;
+      xboxGamertag: string;
+      xboxXuid: string;
+    }>();
+    expect(body).toEqual({
+      authenticated: true,
+      userId: "user-123",
+      expiresAt,
+      avatarUrl: "https://avatar.example/pic.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+  });
+
   it("returns 500 with error message when validateSession throws", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });

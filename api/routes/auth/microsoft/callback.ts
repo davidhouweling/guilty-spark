@@ -1,13 +1,8 @@
-import z from "zod";
+import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
+import { authCallbackQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/callback";
+import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { addCorsHeaders } from "../../../base/cors";
-import { parseQueryParams } from "../../../base/request-parsing";
-import { createNoStoreJsonResponse } from "../../../base/response";
 import type { RoutesRegisterHandler } from "../../base/types";
-
-const authCallbackQuerySchema = z.object({
-  code: z.string(),
-  state: z.string(),
-});
 
 export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/microsoft/callback", async (request, env: Env) => {
@@ -15,16 +10,34 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
-        return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
+        return addCorsHeaders(
+          errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true }),
+          request,
+          true,
+        );
       }
 
       const { code, state } = parsedQuery.data;
 
       const services = installServices({ env });
-      const { authService } = services;
+      const { authService, xboxService, logService } = services;
 
       // Exchange code for tokens and create session
       const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
+
+      // Best-effort: enrich the session with the user's Xbox profile (avatar, gamertag, xuid).
+      // A failed lookup must not block login.
+      try {
+        const xboxUser = await xboxService.getUserFromMicrosoftAccessToken(sessionPayload.accessToken);
+        await authService.attachSessionProfile(sessionPayload.sessionId, {
+          ...(xboxUser.avatarUrl != null ? { avatarUrl: xboxUser.avatarUrl } : {}),
+          xboxGamertag: xboxUser.gamertag,
+          xboxXuid: xboxUser.xuid,
+        });
+      } catch (error) {
+        logService.error(error as Error, new Map([["message", "Failed to resolve Xbox profile during auth callback"]]));
+      }
+
       const sessionToken = await authService.createSessionToken(sessionPayload);
       const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
 
@@ -43,12 +56,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
     } catch (error) {
       console.error("Auth callback error:", error);
       return addCorsHeaders(
-        createNoStoreJsonResponse(
-          {
-            error: "Authentication failed",
-          },
-          400,
-        ),
+        errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true }),
         request,
         true,
       );

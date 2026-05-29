@@ -1,12 +1,8 @@
-import z from "zod";
-import { createNoStoreJsonResponse } from "../../../base/response";
+import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
+import { authStartQuerySchema, microsoftStartContract } from "@guilty-spark/shared/contracts/auth/microsoft/start";
+import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { addCorsHeaders } from "../../../base/cors";
 import type { RoutesRegisterHandler } from "../../base/types";
-import { parseQueryParams } from "../../../base/request-parsing";
-
-const authStartQuerySchema = z.object({
-  redirect: z.string().optional(),
-});
 
 export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/microsoft/start", async (request, env: Env): Promise<Response> => {
@@ -24,12 +20,12 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
 
       const { url: authorizationUrl, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
-      const response = createNoStoreJsonResponse(
+      const response = microsoftStartContract.toResponse(
         {
           authUrl: authorizationUrl.toString(),
           state,
         },
-        200,
+        { noStore: true },
       );
 
       await authService.setPkceStateCookie(response, {
@@ -43,12 +39,7 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
     } catch (error) {
       services.logService.error(error as Error, new Map([["message", "Auth start error"]]));
       return addCorsHeaders(
-        createNoStoreJsonResponse(
-          {
-            error: "Failed to generate authorization URL",
-          },
-          500,
-        ),
+        errorContract.toResponse({ error: "Failed to generate authorization URL" }, { status: 500, noStore: true }),
         request,
         true,
       );

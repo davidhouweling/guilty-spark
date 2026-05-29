@@ -1,5 +1,6 @@
+import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
 import { addCorsHeaders } from "../../base/cors";
-import { createNoStoreJsonResponse } from "../../base/response";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const authSessionRoute: RoutesRegisterHandler = (router, installServices) => {
@@ -11,7 +12,11 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
       const session = await authService.validateSession(request);
 
       if (session === null) {
-        return addCorsHeaders(createNoStoreJsonResponse({ authenticated: false }, 401), request, true);
+        return addCorsHeaders(
+          sessionContract.toResponse({ authenticated: false }, { status: 401, noStore: true }),
+          request,
+          true,
+        );
       }
 
       let authenticatedSession = session;
@@ -19,7 +24,10 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         try {
           const refreshedSession = await authService.refreshSession(session);
           if (refreshedSession == null) {
-            const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+            const response = sessionContract.toResponse(
+              { authenticated: false, expired: true },
+              { status: 401, noStore: true },
+            );
             authService.clearSessionCookie(response);
             return addCorsHeaders(response, request, true);
           }
@@ -32,23 +40,37 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
             isExpired: false,
           };
         } catch {
-          const response = createNoStoreJsonResponse({ authenticated: false, expired: true }, 401);
+          const response = sessionContract.toResponse(
+            { authenticated: false, expired: true },
+            { status: 401, noStore: true },
+          );
           authService.clearSessionCookie(response);
           return addCorsHeaders(response, request, true);
         }
       }
 
       return addCorsHeaders(
-        createNoStoreJsonResponse(
-          { authenticated: true, userId: authenticatedSession.userId, expiresAt: authenticatedSession.expiresAt },
-          200,
+        sessionContract.toResponse(
+          {
+            authenticated: true,
+            userId: authenticatedSession.userId,
+            expiresAt: authenticatedSession.expiresAt,
+            ...(authenticatedSession.avatarUrl != null ? { avatarUrl: authenticatedSession.avatarUrl } : {}),
+            ...(authenticatedSession.xboxGamertag != null ? { xboxGamertag: authenticatedSession.xboxGamertag } : {}),
+            ...(authenticatedSession.xboxXuid != null ? { xboxXuid: authenticatedSession.xboxXuid } : {}),
+          },
+          { noStore: true },
         ),
         request,
         true,
       );
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Auth session error"]]));
-      return addCorsHeaders(createNoStoreJsonResponse({ error: "Failed to retrieve session" }, 500), request, true);
+      return addCorsHeaders(
+        errorContract.toResponse({ error: "Failed to retrieve session" }, { status: 500, noStore: true }),
+        request,
+        true,
+      );
     }
   });
 };

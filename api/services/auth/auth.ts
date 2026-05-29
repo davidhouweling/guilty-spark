@@ -5,11 +5,28 @@ import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
-import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload, AuthCallbackResult } from "./types";
+import type {
+  PKCEState,
+  SessionTokenPayload,
+  AuthSession,
+  SessionCookiePayload,
+  AuthCallbackResult,
+  AuthMetadata,
+  XboxSessionProfile,
+} from "./types";
 
 const sessionCookiePayloadSchema = z.object({
   sessionId: z.string().min(1),
   sessionExpiresAt: z.number(),
+});
+
+const authMetadataSchema = z.object({
+  email: z.string().optional(),
+  name: z.string().optional(),
+  preferredUsername: z.string().optional(),
+  avatarUrl: z.string().optional(),
+  xboxGamertag: z.string().optional(),
+  xboxXuid: z.string().optional(),
 });
 
 const pkceStatePayloadSchema = z.object({
@@ -116,6 +133,29 @@ export class AuthService {
       sessionPayload,
       redirectTo: pkceState.redirectTo,
     };
+  }
+
+  /**
+   * Merge resolved Xbox profile data into an existing session's metadata.
+   * Best-effort: silently no-ops if the session row no longer exists.
+   */
+  public async attachSessionProfile(sessionId: string, profile: XboxSessionProfile): Promise<void> {
+    const existingSession = await this.databaseService.getUserSession(sessionId);
+    if (existingSession == null) {
+      return;
+    }
+
+    const mergedMetadata = {
+      ...this.parseAuthMetadata(existingSession.AuthMetadataJson),
+      ...(profile.avatarUrl != null ? { avatarUrl: profile.avatarUrl } : {}),
+      ...(profile.xboxGamertag != null ? { xboxGamertag: profile.xboxGamertag } : {}),
+      ...(profile.xboxXuid != null ? { xboxXuid: profile.xboxXuid } : {}),
+    };
+
+    await this.databaseService.upsertUserSession({
+      ...existingSession,
+      AuthMetadataJson: JSON.stringify(mergedMetadata),
+    });
   }
 
   /**
@@ -259,6 +299,11 @@ export class AuthService {
     name?: string,
     preferredUsername?: string,
   ): Promise<void> {
+    const authMetadata: AuthMetadata = {
+      ...(email != null ? { email } : {}),
+      ...(name != null ? { name } : {}),
+      ...(preferredUsername != null ? { preferredUsername } : {}),
+    };
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,
       UserId: payload.userId,
@@ -267,14 +312,19 @@ export class AuthService {
       ExpiresAt: Math.floor(payload.expiresAt / 1000),
       CreatedAt: Math.floor(payload.issuedAt / 1000),
       LastRefreshedAt: Math.floor(payload.issuedAt / 1000),
-      AuthMetadataJson: JSON.stringify({
-        email,
-        name,
-        preferredUsername,
-      }),
+      AuthMetadataJson: JSON.stringify(authMetadata),
     };
 
     await this.databaseService.upsertUserSession(sessionRow);
+  }
+
+  private parseAuthMetadata(authMetadataJson: string): z.infer<typeof authMetadataSchema> {
+    try {
+      const parsed = authMetadataSchema.safeParse(JSON.parse(authMetadataJson));
+      return parsed.success ? parsed.data : {};
+    } catch {
+      return {};
+    }
   }
 
   private async toAuthSession(session: UserSessionsRow): Promise<AuthSession> {
@@ -283,6 +333,7 @@ export class AuthService {
     const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
     const refreshToken =
       session.RefreshToken == null ? undefined : await this.tokenEncryptor.decrypt(session.RefreshToken);
+    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
 
     return {
       sessionId: session.SessionId,
@@ -291,6 +342,9 @@ export class AuthService {
       refreshToken,
       expiresAt,
       isExpired,
+      ...(metadata.avatarUrl != null ? { avatarUrl: metadata.avatarUrl } : {}),
+      ...(metadata.xboxGamertag != null ? { xboxGamertag: metadata.xboxGamertag } : {}),
+      ...(metadata.xboxXuid != null ? { xboxXuid: metadata.xboxXuid } : {}),
     };
   }
 

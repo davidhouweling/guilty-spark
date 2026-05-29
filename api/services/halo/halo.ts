@@ -280,7 +280,10 @@ export class HaloService {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
           },
         }),
-      async () => this.xboxService.getUserByGamertag(gamertag),
+      async () => {
+        const xboxUser = await this.xboxService.getUserByGamertag(gamertag);
+        return { xuid: xboxUser.xuid, gamertag: xboxUser.gamertag };
+      },
       kvCachedUser,
       `gamertag ${gamertag}`,
     );
@@ -321,7 +324,10 @@ export class HaloService {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
           },
         }),
-      async () => this.xboxService.getUsersByXuids(missingXuids),
+      async () => {
+        const xboxUsers = await this.xboxService.getUsersByXuids(missingXuids);
+        return xboxUsers.map((xboxUser) => ({ xuid: xboxUser.xuid, gamertag: xboxUser.gamertag }));
+      },
       staleUsers,
       `${missingXuids.length.toString()} xuids`,
       true,

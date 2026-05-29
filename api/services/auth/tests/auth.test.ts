@@ -289,4 +289,70 @@ describe("AuthService", () => {
     expect(persistedSession?.AccessToken).toContain("enc-v1.");
     expect(persistedSession?.RefreshToken).toContain("enc-v1.");
   });
+
+  it("merges xbox profile into the persisted session metadata", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: "session-123",
+        AuthMetadataJson: JSON.stringify({ email: "user@example.com", name: "User" }),
+      }),
+    );
+    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
+    await service.attachSessionProfile("session-123", {
+      avatarUrl: "https://example.com/avatar.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+
+    const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
+    expect(persistedSession?.SessionId).toBe("session-123");
+    const metadata = JSON.parse(persistedSession?.AuthMetadataJson ?? "{}") as Record<string, string>;
+    expect(metadata).toMatchObject({
+      email: "user@example.com",
+      name: "User",
+      avatarUrl: "https://example.com/avatar.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+  });
+
+  it("does nothing when attaching a profile to a missing session", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(null);
+    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
+    await service.attachSessionProfile("missing-session", { avatarUrl: "https://example.com/avatar.png" });
+
+    expect(upsertUserSessionSpy).not.toHaveBeenCalled();
+  });
+
+  it("surfaces avatar and xbox profile from session metadata", async () => {
+    const payload = aFakeSessionTokenPayload();
+    const token = await service.createSessionToken(payload);
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: payload.sessionId,
+        UserId: payload.userId,
+        AccessToken: payload.accessToken,
+        RefreshToken: payload.refreshToken ?? null,
+        ExpiresAt: Math.floor(payload.expiresAt / 1000),
+        AuthMetadataJson: JSON.stringify({
+          avatarUrl: "https://example.com/avatar.png",
+          xboxGamertag: "Spartan117",
+          xboxXuid: "2533274",
+        }),
+      }),
+    );
+
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: `auth-session=${token}`,
+      },
+    });
+
+    const session = await service.validateSession(request);
+    expect(session?.avatarUrl).toBe("https://example.com/avatar.png");
+    expect(session?.xboxGamertag).toBe("Spartan117");
+    expect(session?.xboxXuid).toBe("2533274");
+  });
 });
