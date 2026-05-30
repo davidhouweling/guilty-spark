@@ -5,6 +5,7 @@ import type { SessionTokenPayload } from "./services/auth/types";
 import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
 import { discordInteractionsRoute } from "./routes/discord/interactions";
+import { individualTrackerRoutesRegisterHandler } from "./routes/individual-tracker/individual-tracker";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -41,6 +42,8 @@ export class Server {
     });
 
     authRoutesRegisterHandler(this.router, this.installServices);
+
+    individualTrackerRoutesRegisterHandler(this.router, this.installServices);
 
     discordInteractionsRoute(this.router, this.installServices);
 

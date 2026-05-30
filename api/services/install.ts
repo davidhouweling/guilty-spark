@@ -9,6 +9,7 @@ import { CustomSpartanTokenProvider } from "./halo/custom-spartan-token-provider
 import { NeatQueueService } from "./neatqueue/neatqueue";
 import { LiveTrackerService } from "./live-tracker/live-tracker";
 import { AuthService } from "./auth/auth";
+import { IndividualTrackerService } from "./individual-tracker/individual-tracker";
 import type { LogService } from "./log/types";
 import { AggregatorClient } from "./log/aggregator-client";
 import { ConsoleLogClient } from "./log/console-log-client";
@@ -27,6 +28,7 @@ export interface Services {
   haloInfiniteClient: HaloInfiniteClient;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
+  individualTrackerService: IndividualTrackerService;
 }
 
 interface InstallServicesOpts {
@@ -82,6 +84,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
+  const individualTrackerService = new IndividualTrackerService({ databaseService });
   const neatQueueService = new NeatQueueService({
     env,
     logService,
@@ -101,5 +104,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     haloInfiniteClient,
     liveTrackerService,
     neatQueueService,
+    individualTrackerService,
   };
 }
