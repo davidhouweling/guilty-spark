@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { Dropdown } from "../dropdown/dropdown";
 import type { AuthService } from "../../services/auth/types";
-import { installServices } from "../../apps/login/services";
+import { installAuthService } from "../../services/auth/install";
 import styles from "./profile-menu.module.css";
 
 interface ProfileMenuProps {
@@ -16,13 +16,13 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
   useEffect(() => {
     let isCancelled = false;
 
-    installServices(apiHost)
-      .then((installedServices): Promise<SessionResponse> | undefined => {
+    installAuthService(apiHost)
+      .then((service): Promise<SessionResponse> | undefined => {
         if (isCancelled) {
           return undefined;
         }
-        setAuthService(installedServices.authService);
-        return installedServices.authService.getSession();
+        setAuthService(service);
+        return service.getSession();
       })
       .then((resolvedSession) => {
         if (isCancelled || resolvedSession == null) {

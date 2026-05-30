@@ -56,10 +56,6 @@ export interface AuthSession {
   readonly xboxProfileCheckedAt?: number;
 }
 
-/**
- * Non-secret profile data persisted alongside the session in
- * `UserSessionsRow.AuthMetadataJson`. Captured from Microsoft and Xbox at login.
- */
 export interface AuthMetadata {
   readonly email?: string;
   readonly name?: string;
@@ -67,15 +63,9 @@ export interface AuthMetadata {
   readonly avatarUrl?: string;
   readonly xboxGamertag?: string;
   readonly xboxXuid?: string;
-  // Unix ms of the last Xbox-profile resolution attempt (success or failure). Gates the
-  // lazy re-enrichment in the session route so it runs at most once per session instead
-  // of on every request when the profile can't be resolved.
   readonly xboxProfileCheckedAt?: number;
 }
 
-/**
- * Subset of {@link AuthMetadata} written when resolving the user's Xbox profile after OAuth.
- */
 export type XboxSessionProfile = Pick<AuthMetadata, "avatarUrl" | "xboxGamertag" | "xboxXuid" | "xboxProfileCheckedAt">;
 
 /**

@@ -252,6 +252,12 @@ export class DatabaseService {
     await stmt.run();
   }
 
+  async updateSessionAuthMetadata(sessionId: string, authMetadataJson: string): Promise<void> {
+    const query = "UPDATE UserSessions SET AuthMetadataJson = ? WHERE SessionId = ?";
+    const stmt = this.DB.prepare(query).bind(authMetadataJson, sessionId);
+    await stmt.run();
+  }
+
   async deleteUserSession(sessionId: string): Promise<void> {
     const query = "DELETE FROM UserSessions WHERE SessionId = ?";
     const stmt = this.DB.prepare(query).bind(sessionId);

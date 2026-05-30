@@ -3,7 +3,6 @@ import { authCallbackQuerySchema } from "@guilty-spark/shared/contracts/auth/mic
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { addCorsHeaders } from "../../../base/cors";
 import type { RoutesRegisterHandler } from "../../base/types";
-import { enrichSessionProfile } from "../profile-enrichment";
 
 export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/microsoft/callback", async (request, env: Env) => {
@@ -14,21 +13,12 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
-        return addCorsHeaders(
-          errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true }),
-          request,
-          true,
-        );
+        return addCorsHeaders(parsedQuery.response, request, true);
       }
 
       const { code, state } = parsedQuery.data;
 
-      // Exchange code for tokens and create session
       const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
-
-      // Best-effort: enrich the session with the user's Xbox profile (avatar, gamertag, xuid).
-      // A failed lookup must not block login.
-      await enrichSessionProfile(services, sessionPayload.sessionId, Date.now(), sessionPayload.accessToken);
 
       const sessionToken = await authService.createSessionToken(sessionPayload);
       const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);

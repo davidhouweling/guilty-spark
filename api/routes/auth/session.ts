@@ -9,6 +9,15 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
     const services = installServices({ env });
     const { authService, logService } = services;
 
+    const expiredResponse = (): Response => {
+      const response = sessionContract.toResponse(
+        { authenticated: false, expired: true },
+        { status: 401, noStore: true },
+      );
+      authService.clearSessionCookie(response);
+      return addCorsHeaders(response, request, true);
+    };
+
     try {
       const session = await authService.validateSession(request);
 
@@ -25,12 +34,7 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         try {
           const refreshedSession = await authService.refreshSession(session);
           if (refreshedSession == null) {
-            const response = sessionContract.toResponse(
-              { authenticated: false, expired: true },
-              { status: 401, noStore: true },
-            );
-            authService.clearSessionCookie(response);
-            return addCorsHeaders(response, request, true);
+            return expiredResponse();
           }
 
           authenticatedSession = {
@@ -41,19 +45,10 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
             isExpired: false,
           };
         } catch {
-          const response = sessionContract.toResponse(
-            { authenticated: false, expired: true },
-            { status: 401, noStore: true },
-          );
-          authService.clearSessionCookie(response);
-          return addCorsHeaders(response, request, true);
+          return expiredResponse();
         }
       }
 
-      // Self-heal: if the Xbox profile has never been resolved AND we haven't attempted it
-      // yet, try once. The xboxProfileCheckedAt marker (stamped on every attempt) keeps this
-      // off the hot path for sessions whose profile can't be resolved, instead of re-running
-      // the Xbox token exchange on every request.
       if (authenticatedSession.xboxXuid == null && authenticatedSession.xboxProfileCheckedAt == null) {
         const profile = await enrichSessionProfile(
           services,

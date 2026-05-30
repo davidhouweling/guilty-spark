@@ -20,7 +20,7 @@ describe("GET /auth/microsoft/callback", () => {
       vi.setSystemTime(new Date("2026-05-17T23:05:18.409Z"));
 
       const accessTokenExpiresAt = Date.now() + 3600 * 1000;
-      let attachSessionProfileSpy!: ReturnType<typeof vi.spyOn>;
+      let getXboxUserSpy!: ReturnType<typeof vi.spyOn>;
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
@@ -35,12 +35,7 @@ describe("GET /auth/microsoft/callback", () => {
           redirectTo: "/individual-tracker",
         });
         vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("signed-session-token");
-        vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockResolvedValue({
-          xuid: "2533274",
-          gamertag: "Spartan117",
-          avatarUrl: "https://avatar.example/pic.png",
-        });
-        attachSessionProfileSpy = vi.spyOn(services.authService, "attachSessionProfile").mockResolvedValue();
+        getXboxUserSpy = vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken");
         return services;
       });
 
@@ -61,14 +56,8 @@ describe("GET /auth/microsoft/callback", () => {
       expect(setCookie).toContain("auth-session=signed-session-token");
       expect(setCookie).toContain("Max-Age=2592000");
 
-      expect(attachSessionProfileSpy).toHaveBeenCalledWith(
-        "session-123",
-        expect.objectContaining({
-          avatarUrl: "https://avatar.example/pic.png",
-          xboxGamertag: "Spartan117",
-          xboxXuid: "2533274",
-        }),
-      );
+      // Login must not block on Xbox — the profile is resolved lazily by the session route.
+      expect(getXboxUserSpy).not.toHaveBeenCalled();
 
       const expiresAtMatch = setCookie?.match(/auth-session=[^]*?Expires=([^;]+GMT)/);
       expect(expiresAtMatch).not.toBeNull();
@@ -77,49 +66,6 @@ describe("GET /auth/microsoft/callback", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it("completes login even when the Xbox profile lookup fails", async () => {
-    let attachSessionProfileSpy!: ReturnType<typeof vi.spyOn>;
-    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
-        sessionPayload: {
-          sessionId: "session-123",
-          userId: "user-123",
-          accessToken: "access-token",
-          refreshToken: "refresh-token",
-          expiresAt: Date.now() + 3600 * 1000,
-          issuedAt: Date.now(),
-        },
-        redirectTo: "/",
-      });
-      vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("signed-session-token");
-      vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken").mockRejectedValue(
-        new Error("Xbox unavailable"),
-      );
-      attachSessionProfileSpy = vi.spyOn(services.authService, "attachSessionProfile").mockResolvedValue();
-      return services;
-    });
-
-    authMicrosoftCallbackRoute(router, localInstallServices);
-
-    const req = new Request("http://localhost/auth/microsoft/callback?code=code-123&state=state-123", {
-      method: "GET",
-      headers: {
-        Origin: env.PAGES_URL,
-      },
-    });
-
-    const res = (await router.fetch(req, env)) as Response;
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/`);
-    expect(res.headers.get("Set-Cookie")).toContain("auth-session=signed-session-token");
-    // Lookup failed, but the attempt is still recorded (marker only) so the session route's
-    // lazy re-enrichment won't retry on every request.
-    expect(attachSessionProfileSpy).toHaveBeenCalledTimes(1);
-    expect(attachSessionProfileSpy).toHaveBeenCalledWith("session-123", expect.anything());
   });
 
   it("returns a generic authentication error when callback handling fails", async () => {

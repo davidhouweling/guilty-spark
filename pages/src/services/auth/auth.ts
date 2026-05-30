@@ -26,10 +26,6 @@ export class RealAuthService implements AuthService {
     return `${baseUrl}${normalizedPath}`;
   }
 
-  /**
-   * Turns a non-ok response into an Error, preferring the shared error envelope
-   * ({ error }) and falling back to the raw body or status code.
-   */
   private async readError(response: Response): Promise<Error> {
     const body = await response.text();
     if (body !== "") {
@@ -39,7 +35,7 @@ export class RealAuthService implements AuthService {
           return new Error(parsed.data.error);
         }
       } catch {
-        // Body was not JSON; fall through to using it verbatim.
+        return new Error(body);
       }
       return new Error(body);
     }
@@ -54,13 +50,11 @@ export class RealAuthService implements AuthService {
     });
 
     if (response.status === 401) {
-      // The 401 body is still a valid SessionResponse (authenticated: false, optionally
-      // expired: true) — parse it so callers can distinguish "expired" from "never logged in".
       let unauthenticated: SessionResponse = { authenticated: false };
       try {
         unauthenticated = await sessionContract.fromResponse(response);
       } catch {
-        // Fall back to the plain unauthenticated shape if the body is missing/invalid.
+        unauthenticated = { authenticated: false };
       }
       this.onSessionResolved?.(unauthenticated);
       return unauthenticated;

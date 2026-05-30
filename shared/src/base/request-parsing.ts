@@ -18,7 +18,7 @@ export function parseQueryParams<T>(url: URL, schema: ZodType<T>, invalidPayload
   if (!parsedQuery.success) {
     return {
       success: false,
-      response: errorContract.toResponse({ error: invalidPayloadMessage }, { status: 400 }),
+      response: errorContract.toResponse({ error: invalidPayloadMessage }, { status: 400, noStore: true }),
     };
   }
 

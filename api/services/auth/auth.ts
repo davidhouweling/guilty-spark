@@ -22,13 +22,13 @@ const sessionCookiePayloadSchema = z.object({
 });
 
 const authMetadataSchema = z.object({
-  email: z.string().optional(),
-  name: z.string().optional(),
-  preferredUsername: z.string().optional(),
-  avatarUrl: z.string().optional(),
-  xboxGamertag: z.string().optional(),
-  xboxXuid: z.string().optional(),
-  xboxProfileCheckedAt: z.number().optional(),
+  email: z.string().optional().catch(undefined),
+  name: z.string().optional().catch(undefined),
+  preferredUsername: z.string().optional().catch(undefined),
+  avatarUrl: z.string().optional().catch(undefined),
+  xboxGamertag: z.string().optional().catch(undefined),
+  xboxXuid: z.string().optional().catch(undefined),
+  xboxProfileCheckedAt: z.number().optional().catch(undefined),
 });
 
 const pkceStatePayloadSchema = z.object({
@@ -39,8 +39,6 @@ const pkceStatePayloadSchema = z.object({
 });
 
 function normalizeRedirectPath(redirectTo?: string): string {
-  // Placeholder origin: any cross-origin escape changes the origin away from it, and a
-  // resulting protocol-relative ("//host") pathname is rejected by the shared guard.
   return safeRedirectPath(redirectTo, "https://placeholder.invalid");
 }
 
@@ -131,10 +129,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Merge resolved Xbox profile data into an existing session's metadata.
-   * Best-effort: silently no-ops if the session row no longer exists.
-   */
   public async attachSessionProfile(sessionId: string, profile: XboxSessionProfile): Promise<void> {
     const existingSession = await this.databaseService.getUserSession(sessionId);
     if (existingSession == null) {
@@ -149,10 +143,7 @@ export class AuthService {
       ...(profile.xboxProfileCheckedAt != null ? { xboxProfileCheckedAt: profile.xboxProfileCheckedAt } : {}),
     };
 
-    await this.databaseService.upsertUserSession({
-      ...existingSession,
-      AuthMetadataJson: JSON.stringify(mergedMetadata),
-    });
+    await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(mergedMetadata));
   }
 
   /**

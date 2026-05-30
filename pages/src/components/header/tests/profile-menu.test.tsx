@@ -7,15 +7,15 @@ import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/sessio
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
 import { ProfileMenu } from "../profile-menu";
 
-const { installServicesMock } = vi.hoisted(() => ({ installServicesMock: vi.fn() }));
+const { installAuthServiceMock } = vi.hoisted(() => ({ installAuthServiceMock: vi.fn() }));
 
-vi.mock("../../../apps/login/services", () => ({
-  installServices: installServicesMock,
+vi.mock("../../../services/auth/install", () => ({
+  installAuthService: installAuthServiceMock,
 }));
 
 function installWithSession(session: SessionResponse): ReturnType<typeof aFakeAuthServiceWith> {
   const authService = aFakeAuthServiceWith({ session });
-  installServicesMock.mockResolvedValue({ authService });
+  installAuthServiceMock.mockResolvedValue(authService);
   return authService;
 }
 
@@ -23,7 +23,7 @@ describe("ProfileMenu", () => {
   let originalLocation: Location;
 
   beforeEach(() => {
-    installServicesMock.mockReset();
+    installAuthServiceMock.mockReset();
     originalLocation = window.location;
     Object.defineProperty(window, "location", { configurable: true, writable: true, value: { href: "" } });
   });

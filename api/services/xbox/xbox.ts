@@ -7,7 +7,6 @@ const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
 const XBOX_LIVE_XSTS_RELYING_PARTY = "http://xboxlive.com";
 const XBOX_LIVE_SANDBOX_ID = "RETAIL";
 const MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE = "t";
-// Microsoft OAuth access tokens use the "d=" RPS preamble (vs "t=" for legacy RPS tickets).
 const MICROSOFT_OAUTH_RPS_PREAMBLE = "d";
 
 export interface XboxServiceOpts {
@@ -77,11 +76,6 @@ export class XboxService {
     };
   }
 
-  /**
-   * Resolves the signed-in user's own Xbox profile (xuid, gamertag, avatar) from
-   * their Microsoft OAuth access token. Unlike the Halo path, this exchanges for an
-   * `xboxlive.com`-scoped XSTS token so the profile API will accept it.
-   */
   async getUserFromMicrosoftAccessToken(accessToken: string): Promise<XboxUserInfo> {
     const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE);
     const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {

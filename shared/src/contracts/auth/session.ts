@@ -1,11 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../base";
 
-/**
- * Session state is a discriminated union on `authenticated`: an authenticated
- * session always carries `userId` and `expiresAt`, so callers that narrow on
- * `authenticated === true` get those fields without optional-chaining.
- */
 export const sessionContract = defineContract(
   z.discriminatedUnion("authenticated", [
     z.object({

@@ -349,7 +349,7 @@ describe("AuthService", () => {
         AuthMetadataJson: JSON.stringify({ email: "user@example.com", name: "User" }),
       }),
     );
-    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
 
     await service.attachSessionProfile("session-123", {
       avatarUrl: "https://example.com/avatar.png",
@@ -357,9 +357,9 @@ describe("AuthService", () => {
       xboxXuid: "2533274",
     });
 
-    const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
-    expect(persistedSession?.SessionId).toBe("session-123");
-    const metadata = JSON.parse(persistedSession?.AuthMetadataJson ?? "{}") as Record<string, string>;
+    const [sessionId, authMetadataJson] = updateMetadataSpy.mock.calls[0] ?? [];
+    expect(sessionId).toBe("session-123");
+    const metadata = JSON.parse(authMetadataJson ?? "{}") as Record<string, string>;
     expect(metadata).toMatchObject({
       email: "user@example.com",
       name: "User",
@@ -371,11 +371,11 @@ describe("AuthService", () => {
 
   it("does nothing when attaching a profile to a missing session", async () => {
     vi.spyOn(databaseService, "getUserSession").mockResolvedValue(null);
-    const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
 
     await service.attachSessionProfile("missing-session", { avatarUrl: "https://example.com/avatar.png" });
 
-    expect(upsertUserSessionSpy).not.toHaveBeenCalled();
+    expect(updateMetadataSpy).not.toHaveBeenCalled();
   });
 
   it("surfaces avatar and xbox profile from session metadata", async () => {
