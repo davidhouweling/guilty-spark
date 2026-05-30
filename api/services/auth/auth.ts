@@ -38,7 +38,12 @@ const pkceStatePayloadSchema = z.object({
   redirectTo: z.string(),
 });
 
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 function normalizeRedirectPath(redirectTo?: string): string {
+  // The origin is only a yardstick for safeRedirectPath's same-origin check; any fixed value
+  // works. The real redirect is resolved against env.PAGES_URL in the callback, and ".invalid"
+  // is a reserved, never-resolving TLD, so it reads clearly as a sentinel.
   return safeRedirectPath(redirectTo, "https://placeholder.invalid");
 }
 
@@ -96,21 +101,14 @@ export class AuthService {
   public async handleCallback(request: Request, code: string, state: string): Promise<AuthCallbackResult> {
     const pkceState = await this.readPkceState(request, state);
 
-    // Check if state is still fresh (within 10 minutes)
     const stateAgeMs = Date.now() - pkceState.issuedAt;
     if (stateAgeMs > 10 * 60 * 1000) {
       throw new Error("State parameter expired (>10 minutes)");
     }
 
-    // Exchange code for tokens
     const tokens = await this.microsoftAuth.exchangeCodeForTokens(code, pkceState.codeVerifier);
-
-    // Parse ID token to get user info
     const user = await this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
-
     const sessionId = crypto.randomUUID();
-
-    // Create session token
     const expiresAt = Date.now() + tokens.expires_in * 1000;
     const sessionPayload: SessionTokenPayload = {
       sessionId,
@@ -135,13 +133,19 @@ export class AuthService {
       return;
     }
 
-    const mergedMetadata = {
-      ...this.parseAuthMetadata(existingSession.AuthMetadataJson),
-      ...(profile.avatarUrl != null ? { avatarUrl: profile.avatarUrl } : {}),
-      ...(profile.xboxGamertag != null ? { xboxGamertag: profile.xboxGamertag } : {}),
-      ...(profile.xboxXuid != null ? { xboxXuid: profile.xboxXuid } : {}),
-      ...(profile.xboxProfileCheckedAt != null ? { xboxProfileCheckedAt: profile.xboxProfileCheckedAt } : {}),
-    };
+    const mergedMetadata = this.parseAuthMetadata(existingSession.AuthMetadataJson);
+    if (profile.avatarUrl != null) {
+      mergedMetadata.avatarUrl = profile.avatarUrl;
+    }
+    if (profile.xboxGamertag != null) {
+      mergedMetadata.xboxGamertag = profile.xboxGamertag;
+    }
+    if (profile.xboxXuid != null) {
+      mergedMetadata.xboxXuid = profile.xboxXuid;
+    }
+    if (profile.xboxProfileCheckedAt != null) {
+      mergedMetadata.xboxProfileCheckedAt = profile.xboxProfileCheckedAt;
+    }
 
     await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(mergedMetadata));
   }
@@ -287,11 +291,16 @@ export class AuthService {
     name?: string,
     preferredUsername?: string,
   ): Promise<void> {
-    const authMetadata: AuthMetadata = {
-      ...(email != null ? { email } : {}),
-      ...(name != null ? { name } : {}),
-      ...(preferredUsername != null ? { preferredUsername } : {}),
-    };
+    const authMetadata: Mutable<AuthMetadata> = {};
+    if (email != null) {
+      authMetadata.email = email;
+    }
+    if (name != null) {
+      authMetadata.name = name;
+    }
+    if (preferredUsername != null) {
+      authMetadata.preferredUsername = preferredUsername;
+    }
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,
       UserId: payload.userId,
@@ -323,18 +332,27 @@ export class AuthService {
       session.RefreshToken == null ? undefined : await this.tokenEncryptor.decrypt(session.RefreshToken);
     const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
 
-    return {
+    const authSession: Mutable<AuthSession> = {
       sessionId: session.SessionId,
       userId: session.UserId,
       accessToken,
       refreshToken,
       expiresAt,
       isExpired,
-      ...(metadata.avatarUrl != null ? { avatarUrl: metadata.avatarUrl } : {}),
-      ...(metadata.xboxGamertag != null ? { xboxGamertag: metadata.xboxGamertag } : {}),
-      ...(metadata.xboxXuid != null ? { xboxXuid: metadata.xboxXuid } : {}),
-      ...(metadata.xboxProfileCheckedAt != null ? { xboxProfileCheckedAt: metadata.xboxProfileCheckedAt } : {}),
     };
+    if (metadata.avatarUrl != null) {
+      authSession.avatarUrl = metadata.avatarUrl;
+    }
+    if (metadata.xboxGamertag != null) {
+      authSession.xboxGamertag = metadata.xboxGamertag;
+    }
+    if (metadata.xboxXuid != null) {
+      authSession.xboxXuid = metadata.xboxXuid;
+    }
+    if (metadata.xboxProfileCheckedAt != null) {
+      authSession.xboxProfileCheckedAt = metadata.xboxProfileCheckedAt;
+    }
+    return authSession;
   }
 
   private async readSessionCookiePayload(token: string): Promise<SessionCookiePayload | null> {
