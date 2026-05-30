@@ -138,11 +138,7 @@ export class XboxService {
       throw new Error(`User with gamertag ${gamertag} not found`);
     }
 
-    const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
-    return {
-      xuid: profileUser.id,
-      gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
-    };
+    return profileUserToXboxUserInfo(profileUser);
   }
 
   async getUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
@@ -176,11 +172,7 @@ export class XboxService {
           return null;
         }
 
-        const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
-        return {
-          xuid: profileUser.id,
-          gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
-        };
+        return profileUserToXboxUserInfo(profileUser);
       })
       .filter((user): user is XboxUserInfo => user !== null);
   }

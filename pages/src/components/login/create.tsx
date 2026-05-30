@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
-import { z } from "zod";
+import { authStartQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/start";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
@@ -9,17 +9,13 @@ import type { AuthService } from "../../services/auth/types";
 import { Login } from "./login";
 import styles from "./login.module.css";
 
-const searchParamsSchema = z.object({
-  redirect: z.string().optional(),
-});
-
 interface LoginPageProps {
   readonly authService: AuthService;
 }
 
 function getRedirectPathFromUrl(): string {
   const url = new URL(window.location.href);
-  const parseQueryParamsResult = parseQueryParams(url, searchParamsSchema, "Invalid query parameters");
+  const parseQueryParamsResult = parseQueryParams(url, authStartQuerySchema, "Invalid query parameters");
   if (!parseQueryParamsResult.success) {
     return "/";
   }
