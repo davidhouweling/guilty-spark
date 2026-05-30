@@ -8,16 +8,13 @@ import type { AuthService } from "./types";
 
 interface AuthServiceOpts {
   readonly apiHost: string;
-  readonly onSessionResolved?: (session: SessionResponse) => void;
 }
 
 export class RealAuthService implements AuthService {
   private readonly apiHost: string;
-  private readonly onSessionResolved: ((session: SessionResponse) => void) | undefined;
 
-  public constructor({ apiHost, onSessionResolved }: AuthServiceOpts) {
+  public constructor({ apiHost }: AuthServiceOpts) {
     this.apiHost = apiHost;
-    this.onSessionResolved = onSessionResolved;
   }
 
   private buildUrl(path: string): string {
@@ -56,7 +53,6 @@ export class RealAuthService implements AuthService {
       } catch {
         unauthenticated = { authenticated: false };
       }
-      this.onSessionResolved?.(unauthenticated);
       return unauthenticated;
     }
 
@@ -64,9 +60,7 @@ export class RealAuthService implements AuthService {
       throw await this.readError(response);
     }
 
-    const session = await sessionContract.fromResponse(response);
-    this.onSessionResolved?.(session);
-    return session;
+    return sessionContract.fromResponse(response);
   }
 
   public async startMicrosoftAuth(redirectTo?: string): Promise<MicrosoftStartResponse> {

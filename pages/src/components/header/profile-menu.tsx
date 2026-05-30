@@ -12,6 +12,7 @@ interface ProfileMenuProps {
 export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const [session, setSession] = useState<SessionResponse>({ authenticated: false });
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -28,6 +29,7 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
         if (isCancelled || resolvedSession == null) {
           return;
         }
+        setAvatarFailed(false);
         setSession(resolvedSession);
       })
       .catch(() => {
@@ -45,8 +47,15 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
 
   const avatar = (
     <span className={styles.profileAvatar} aria-hidden="true">
-      {avatarUrl != null && avatarUrl !== "" ? (
-        <img src={avatarUrl} className={styles.profileAvatarImage} alt="" />
+      {avatarUrl != null && avatarUrl !== "" && !avatarFailed ? (
+        <img
+          src={avatarUrl}
+          className={styles.profileAvatarImage}
+          alt=""
+          onError={() => {
+            setAvatarFailed(true);
+          }}
+        />
       ) : (
         <span className={styles.profileAvatarGeneric}>
           <span className={styles.avatarHead} />

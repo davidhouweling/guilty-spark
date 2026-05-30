@@ -57,7 +57,9 @@ describe("LoginPage", () => {
   it.each([
     ["backslash", "%2F%5Cevil.com"], // "/\evil.com"
     ["dot-double-slash", "%2F..%2F%2Fevil.com"], // "/..//evil.com" -> resolves to pathname "//evil.com"
-  ])("rejects the %s open-redirect payload and falls back to root", async (_label, encodedRedirect) => {
+    ["self-referential login", "%2Flogin"], // "/login" -> would loop back to the login page
+    ["self-referential login with query", "%2Flogin%3Fredirect%3D%2Flogin"], // "/login?redirect=/login"
+  ])("rejects the %s redirect target and falls back to root", async (_label, encodedRedirect) => {
     const user = userEvent.setup();
     window.history.pushState({}, "", `/login?redirect=${encodedRedirect}`);
 

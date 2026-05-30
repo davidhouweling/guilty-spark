@@ -24,7 +24,8 @@ function getRedirectPathFromUrl(): string {
     return "/";
   }
 
-  return safeRedirectPath(parseQueryParamsResult.data.redirect, window.location.origin);
+  const path = safeRedirectPath(parseQueryParamsResult.data.redirect, window.location.origin);
+  return path.split(/[?#]/)[0] === "/login" ? "/" : path;
 }
 
 export function LoginPage({ authService }: LoginPageProps): React.ReactElement {
