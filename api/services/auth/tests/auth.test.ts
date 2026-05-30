@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import type { MockInstance } from "vitest";
 import { AuthService } from "../auth";
 import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
-import { aFakeDatabaseServiceWith, aFakeUserSessionsRow } from "../../database/fakes/database.fake";
+import {
+  aFakeDatabaseServiceWith,
+  aFakeLinkedIdentitiesRow,
+  aFakeUserSessionsRow,
+} from "../../database/fakes/database.fake";
+import type { DatabaseService } from "../../database/database";
 import { aSignedMicrosoftIdTokenWith } from "./id-token-signing";
 
 describe("AuthService", () => {
@@ -350,6 +356,8 @@ describe("AuthService", () => {
       }),
     );
     const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+    vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+    vi.spyOn(databaseService, "upsertLinkedIdentity").mockResolvedValue();
 
     await service.attachSessionProfile("session-123", {
       avatarUrl: "https://example.com/avatar.png",
@@ -376,6 +384,63 @@ describe("AuthService", () => {
     await service.attachSessionProfile("missing-session", { avatarUrl: "https://example.com/avatar.png" });
 
     expect(updateMetadataSpy).not.toHaveBeenCalled();
+  });
+
+  it("links the xbox identity from the resolved profile", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({ SessionId: "session-123", UserId: "user-123", AuthMetadataJson: "{}" }),
+    );
+    vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+    vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([]);
+    const upsertSpy: MockInstance<DatabaseService["upsertLinkedIdentity"]> = vi
+      .spyOn(databaseService, "upsertLinkedIdentity")
+      .mockResolvedValue();
+
+    await service.attachSessionProfile("session-123", { xboxXuid: "2533274", xboxGamertag: "Spartan117" });
+
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        UserId: "user-123",
+        Provider: "xbox",
+        ProviderUserId: "2533274",
+        Gamertag: "Spartan117",
+        IsActive: 1,
+      }),
+    );
+  });
+
+  it("deactivates a previously linked xbox identity that has a different xuid", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({ SessionId: "session-123", UserId: "user-123", AuthMetadataJson: "{}" }),
+    );
+    vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+    vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+      aFakeLinkedIdentitiesRow({ IdentityId: "old", UserId: "user-123", ProviderUserId: "1111", IsActive: 1 }),
+    ]);
+    const upsertSpy: MockInstance<DatabaseService["upsertLinkedIdentity"]> = vi
+      .spyOn(databaseService, "upsertLinkedIdentity")
+      .mockResolvedValue();
+
+    await service.attachSessionProfile("session-123", { xboxXuid: "2533274", xboxGamertag: "Spartan117" });
+
+    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ IdentityId: "old", IsActive: 0 }));
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ ProviderUserId: "2533274", IsActive: 1, UserId: "user-123" }),
+    );
+  });
+
+  it("does not link an identity when the profile has no xuid", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({ SessionId: "session-123", AuthMetadataJson: "{}" }),
+    );
+    vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+    const upsertSpy: MockInstance<DatabaseService["upsertLinkedIdentity"]> = vi
+      .spyOn(databaseService, "upsertLinkedIdentity")
+      .mockResolvedValue();
+
+    await service.attachSessionProfile("session-123", { avatarUrl: "https://example.com/avatar.png" });
+
+    expect(upsertSpy).not.toHaveBeenCalled();
   });
 
   it("surfaces avatar and xbox profile from session metadata", async () => {

@@ -148,6 +148,35 @@ export class AuthService {
     }
 
     await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(mergedMetadata));
+
+    if (profile.xboxXuid != null) {
+      await this.linkXboxIdentity(existingSession.UserId, profile.xboxXuid, profile.xboxGamertag);
+    }
+  }
+
+  private async linkXboxIdentity(userId: string, xuid: string, gamertag: string | undefined): Promise<void> {
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const identities = await this.databaseService.findLinkedIdentitiesByUserId(userId);
+
+    for (const identity of identities) {
+      if (identity.Provider === "xbox" && identity.IsActive === 1 && identity.ProviderUserId !== xuid) {
+        await this.databaseService.upsertLinkedIdentity({ ...identity, IsActive: 0, UpdatedAt: nowEpoch });
+      }
+    }
+
+    const existing = identities.find((identity) => identity.Provider === "xbox" && identity.ProviderUserId === xuid);
+
+    await this.databaseService.upsertLinkedIdentity({
+      IdentityId: existing?.IdentityId ?? crypto.randomUUID(),
+      UserId: userId,
+      Provider: "xbox",
+      ProviderUserId: xuid,
+      Gamertag: gamertag ?? existing?.Gamertag ?? null,
+      TwitchId: existing?.TwitchId ?? null,
+      IsActive: 1,
+      CreatedAt: existing?.CreatedAt ?? nowEpoch,
+      UpdatedAt: nowEpoch,
+    });
   }
 
   /**

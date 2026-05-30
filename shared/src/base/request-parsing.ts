@@ -27,3 +27,31 @@ export function parseQueryParams<T>(url: URL, schema: ZodType<T>, invalidPayload
     data: parsedQuery.data,
   };
 }
+
+export async function parseJsonBody<T>(
+  request: Request,
+  schema: ZodType<T>,
+  invalidPayloadMessage: string,
+): Promise<ParsedBodyResult<T>> {
+  const invalid: ParsedBodyResult<T> = {
+    success: false,
+    response: errorContract.toResponse({ error: invalidPayloadMessage }, { status: 400, noStore: true }),
+  };
+
+  let jsonBody: unknown;
+  try {
+    jsonBody = await request.json();
+  } catch {
+    return invalid;
+  }
+
+  const parsedBody = schema.safeParse(jsonBody);
+  if (!parsedBody.success) {
+    return invalid;
+  }
+
+  return {
+    success: true,
+    data: parsedBody.data,
+  };
+}
