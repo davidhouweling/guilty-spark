@@ -1,5 +1,5 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
-import { authStartQuerySchema, microsoftStartContract } from "@guilty-spark/shared/contracts/auth/microsoft/start";
+import { authStartQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/start";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { addCorsHeaders } from "../../../base/cors";
 import type { RoutesRegisterHandler } from "../../base/types";
@@ -20,13 +20,13 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
 
       const { url: authorizationUrl, state, codeVerifier } = await authService.generateAuthorizationUrl();
 
-      const response = microsoftStartContract.toResponse(
-        {
-          authUrl: authorizationUrl.toString(),
-          state,
+      const response = new Response(null, {
+        status: 302,
+        headers: {
+          Location: authorizationUrl.toString(),
+          "Cache-Control": "no-store",
         },
-        { noStore: true },
-      );
+      });
 
       await authService.setPkceStateCookie(response, {
         codeVerifier,

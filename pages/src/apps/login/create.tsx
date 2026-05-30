@@ -49,7 +49,11 @@ export function LoginApp({ apiHost }: LoginAppProps): ReactElement {
       loading={<LoadingState text="Checking current session..." />}
       error={<ErrorState message="Failed to load login page" />}
       loaded={
-        authService != null ? <LoginPage authService={authService} /> : <ErrorState message="Services failed to load" />
+        authService != null ? (
+          <LoginPage authService={authService} apiHost={apiHost} />
+        ) : (
+          <ErrorState message="Services failed to load" />
+        )
       }
     />
   );

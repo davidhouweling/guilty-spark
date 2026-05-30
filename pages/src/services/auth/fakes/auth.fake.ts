@@ -1,5 +1,4 @@
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
-import type { MicrosoftStartResponse } from "@guilty-spark/shared/contracts/auth/microsoft/start";
 import type { AuthService } from "../types";
 
 // Self-contained SVG data URI so fake mode renders an avatar without any network access.
@@ -15,39 +14,24 @@ const DEFAULT_FAKE_SESSION: SessionResponse = {
   xboxXuid: "2533274800000001",
 };
 
-const DEFAULT_FAKE_MICROSOFT_START: MicrosoftStartResponse = {
-  authUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-  state: "fake-state",
-};
-
 interface FakeAuthServiceOptions {
   readonly session: SessionResponse;
-  readonly microsoftStartResponse: MicrosoftStartResponse;
 }
 
 export interface FakeAuthServiceFactoryOpts {
   readonly session?: SessionResponse;
-  readonly microsoftStartResponse?: MicrosoftStartResponse;
 }
 
 export class FakeAuthService implements AuthService {
   private session: SessionResponse;
-  private readonly microsoftStartResponse: MicrosoftStartResponse;
 
   public constructor(options?: Partial<FakeAuthServiceOptions>) {
     this.session = options?.session ?? DEFAULT_FAKE_SESSION;
-    this.microsoftStartResponse = options?.microsoftStartResponse ?? DEFAULT_FAKE_MICROSOFT_START;
   }
 
   public async getSession(): Promise<SessionResponse> {
     await Promise.resolve();
     return this.session;
-  }
-
-  public async startMicrosoftAuth(redirectTo?: string): Promise<MicrosoftStartResponse> {
-    void redirectTo;
-    await Promise.resolve();
-    return this.microsoftStartResponse;
   }
 
   public async logout(): Promise<void> {
@@ -59,6 +43,5 @@ export class FakeAuthService implements AuthService {
 export function aFakeAuthServiceWith(opts: FakeAuthServiceFactoryOpts = {}): FakeAuthService {
   return new FakeAuthService({
     ...(opts.session !== undefined ? { session: opts.session } : {}),
-    ...(opts.microsoftStartResponse !== undefined ? { microsoftStartResponse: opts.microsoftStartResponse } : {}),
   });
 }

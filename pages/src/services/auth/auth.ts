@@ -1,7 +1,5 @@
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
-import type { MicrosoftStartResponse } from "@guilty-spark/shared/contracts/auth/microsoft/start";
-import { microsoftStartContract } from "@guilty-spark/shared/contracts/auth/microsoft/start";
 import { logoutContract } from "@guilty-spark/shared/contracts/auth/logout";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { AuthService } from "./types";
@@ -61,28 +59,6 @@ export class RealAuthService implements AuthService {
     }
 
     return sessionContract.fromResponse(response);
-  }
-
-  public async startMicrosoftAuth(redirectTo?: string): Promise<MicrosoftStartResponse> {
-    const params = new URLSearchParams();
-    if (redirectTo != null && redirectTo !== "") {
-      params.set("redirect", redirectTo);
-    }
-
-    const path = params.size > 0 ? "/auth/microsoft/start?" + params.toString() : "/auth/microsoft/start";
-    const response = await fetch(this.buildUrl(path), {
-      credentials: "include",
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw await this.readError(response);
-    }
-
-    return microsoftStartContract.fromResponse(response);
   }
 
   public async logout(): Promise<void> {

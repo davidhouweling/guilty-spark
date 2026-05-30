@@ -11,6 +11,7 @@ import styles from "./login.module.css";
 
 interface LoginPageProps {
   readonly authService: AuthService;
+  readonly apiHost: string;
 }
 
 function getRedirectPathFromUrl(): string {
@@ -24,7 +25,13 @@ function getRedirectPathFromUrl(): string {
   return path.split(/[?#]/)[0] === "/login" ? "/" : path;
 }
 
-export function LoginPage({ authService }: LoginPageProps): React.ReactElement {
+function buildSignInHref(apiHost: string): string {
+  const startUrl = new URL("/auth/microsoft/start", apiHost);
+  startUrl.searchParams.set("redirect", getRedirectPathFromUrl());
+  return startUrl.toString();
+}
+
+export function LoginPage({ authService, apiHost }: LoginPageProps): React.ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.LOADING);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -52,25 +59,13 @@ export function LoginPage({ authService }: LoginPageProps): React.ReactElement {
     void checkSession();
   }, [checkSession]);
 
-  const startSignIn = useCallback(async (): Promise<void> => {
-    setErrorMessage(null);
-
-    try {
-      const redirectPath = getRedirectPathFromUrl();
-      const { authUrl } = await authService.startMicrosoftAuth(redirectPath);
-      window.location.assign(authUrl);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to start Microsoft sign-in");
-    }
-  }, [authService]);
-
   return (
     <div className={styles.container}>
       <ComponentLoader
         status={state}
         loading={<LoadingState text="Checking current session..." />}
         error={<ErrorState message={errorMessage ?? "Failed to load login page"} onRetry={() => void checkSession()} />}
-        loaded={<Login onSignIn={() => void startSignIn()} errorMessage={errorMessage} />}
+        loaded={<Login signInHref={buildSignInHref(apiHost)} />}
       />
     </div>
   );

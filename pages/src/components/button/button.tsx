@@ -5,6 +5,7 @@ import styles from "./button.module.css";
 
 interface ButtonProps {
   readonly onClick?: () => void;
+  readonly href?: string;
   readonly variant?: "primary" | "secondary";
   readonly size?: "default" | "small" | "large";
   readonly disabled?: boolean;
@@ -17,6 +18,7 @@ interface ButtonProps {
 
 export function Button({
   onClick,
+  href,
   variant = "primary",
   size = "default",
   disabled = false,
@@ -28,22 +30,19 @@ export function Button({
 }: ButtonProps): React.ReactElement {
   const isImageIcon = icon !== null && icon !== undefined && typeof icon === "object" && "src" in icon;
 
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={classNames(
-        styles.haloBtn,
-        {
-          [styles.btnPrimary]: variant === "primary",
-          [styles.btnSecondary]: variant === "secondary",
-          [styles.large]: size === "large",
-          [styles.small]: size === "small",
-        },
-        className,
-      )}
-    >
+  const buttonClassName = classNames(
+    styles.haloBtn,
+    {
+      [styles.btnPrimary]: variant === "primary",
+      [styles.btnSecondary]: variant === "secondary",
+      [styles.large]: size === "large",
+      [styles.small]: size === "small",
+    },
+    className,
+  );
+
+  const content = (
+    <>
       <span className={classNames(styles.btnCorner, styles.tl)}></span>
       <span className={classNames(styles.btnCorner, styles.tr)}></span>
       <span className={classNames(styles.btnCorner, styles.bl)}></span>
@@ -60,6 +59,20 @@ export function Button({
         )}
         {children}
       </span>
+    </>
+  );
+
+  if (href !== undefined) {
+    return (
+      <a href={href} className={buttonClassName}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} className={buttonClassName}>
+      {content}
     </button>
   );
 }

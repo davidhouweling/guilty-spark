@@ -34,26 +34,6 @@ describe("RealAuthService", () => {
     expect(session).toEqual({ authenticated: false });
   });
 
-  it("returns microsoft auth start payload", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse({
-        authUrl: "https://login.microsoftonline.com/authorize",
-        state: "state-123",
-      }),
-    );
-
-    const response = await service.startMicrosoftAuth("/individual-tracker");
-
-    expect(response).toEqual({
-      authUrl: "https://login.microsoftonline.com/authorize",
-      state: "state-123",
-    });
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/auth/microsoft/start?redirect=%2Findividual-tracker",
-      expect.objectContaining({ credentials: "include", method: "GET" }),
-    );
-  });
-
   it("posts to the logout endpoint with credentials", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
 
