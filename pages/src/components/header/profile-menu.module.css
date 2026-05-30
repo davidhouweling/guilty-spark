@@ -1,0 +1,117 @@
+.profileIconButton {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--halo-teal-primary);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  position: relative;
+}
+
+.profileIconButton:hover {
+  color: var(--halo-white);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
+}
+
+.profileIconButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--halo-teal-primary);
+  outline-offset: 2px;
+}
+
+.profileAvatar {
+  align-items: center;
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: 9999px;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  width: 28px;
+}
+
+.profileAvatarImage {
+  border-radius: 9999px;
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.profileAvatarGeneric {
+  display: contents;
+}
+
+.avatarHead {
+  background: currentcolor;
+  border-radius: 9999px;
+  display: block;
+  height: 7px;
+  left: 9px;
+  position: absolute;
+  top: 5px;
+  width: 7px;
+}
+
+.avatarBody {
+  background: currentcolor;
+  border-radius: 7px 7px 3px 3px;
+  display: block;
+  height: 8px;
+  left: 7px;
+  position: absolute;
+  top: 14px;
+  width: 11px;
+}
+
+.profileMenuList {
+  display: flex;
+  flex-direction: column;
+}
+
+.profileMenuLabel {
+  border-bottom: 1px solid var(--halo-teal-darker);
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  overflow: hidden;
+  padding: var(--space-3) var(--space-4);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.profileMenuItem {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--halo-teal-darker);
+  color: var(--halo-teal-primary);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  min-height: 40px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.profileMenuItem:last-child {
+  border-bottom: 0;
+}
+
+.profileMenuItem:hover {
+  background: color-mix(in srgb, var(--halo-teal-primary) 14%, transparent);
+  color: var(--halo-white);
+}

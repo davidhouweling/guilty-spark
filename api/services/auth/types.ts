@@ -50,7 +50,23 @@ export interface AuthSession {
   readonly refreshToken: string | undefined;
   readonly expiresAt: number;
   readonly isExpired: boolean;
+  readonly avatarUrl?: string;
+  readonly xboxGamertag?: string;
+  readonly xboxXuid?: string;
+  readonly xboxProfileCheckedAt?: number;
 }
+
+export interface AuthMetadata {
+  readonly email?: string;
+  readonly name?: string;
+  readonly preferredUsername?: string;
+  readonly avatarUrl?: string;
+  readonly xboxGamertag?: string;
+  readonly xboxXuid?: string;
+  readonly xboxProfileCheckedAt?: number;
+}
+
+export type XboxSessionProfile = Pick<AuthMetadata, "avatarUrl" | "xboxGamertag" | "xboxXuid" | "xboxProfileCheckedAt">;
 
 /**
  * PKCE state: code_verifier for securing auth flow.

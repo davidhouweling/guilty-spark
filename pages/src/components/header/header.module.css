@@ -118,6 +118,7 @@
   }
 
   .navLinks {
+    align-items: center;
     background: transparent;
     border-bottom: none;
     flex-direction: row;

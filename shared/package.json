@@ -5,11 +5,13 @@
   "type": "module",
   "exports": {
     "./base/*": "./src/base/*.ts",
+    "./contracts/*": "./src/contracts/*.ts",
     "./halo/*": "./src/halo/*.ts",
     "./live-tracker/*": "./src/live-tracker/*.ts",
     "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.ts"
   },
   "dependencies": {
-    "halo-infinite-api": "^14.3.1"
+    "halo-infinite-api": "^14.3.1",
+    "zod": "^4.4.3"
   }
 }

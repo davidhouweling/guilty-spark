@@ -1,9 +1,11 @@
 import type { AutoRouterType } from "itty-router";
 import { AutoRouter } from "itty-router";
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../../services/fakes/services";
 import { authMicrosoftCallbackRoute } from "../callback";
+import type { XboxService } from "../../../../services/xbox/xbox";
 
 describe("GET /auth/microsoft/callback", () => {
   let env: Env;
@@ -20,6 +22,7 @@ describe("GET /auth/microsoft/callback", () => {
       vi.setSystemTime(new Date("2026-05-17T23:05:18.409Z"));
 
       const accessTokenExpiresAt = Date.now() + 3600 * 1000;
+      let getXboxUserSpy!: MockInstance<XboxService["getUserFromMicrosoftAccessToken"]>;
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "handleCallback").mockResolvedValue({
@@ -34,6 +37,7 @@ describe("GET /auth/microsoft/callback", () => {
           redirectTo: "/individual-tracker",
         });
         vi.spyOn(services.authService, "createSessionToken").mockResolvedValue("signed-session-token");
+        getXboxUserSpy = vi.spyOn(services.xboxService, "getUserFromMicrosoftAccessToken");
         return services;
       });
 
@@ -53,6 +57,9 @@ describe("GET /auth/microsoft/callback", () => {
       const setCookie = res.headers.get("Set-Cookie");
       expect(setCookie).toContain("auth-session=signed-session-token");
       expect(setCookie).toContain("Max-Age=2592000");
+
+      // Login must not block on Xbox — the profile is resolved lazily by the session route.
+      expect(getXboxUserSpy).not.toHaveBeenCalled();
 
       const expiresAtMatch = setCookie?.match(/auth-session=[^]*?Expires=([^;]+GMT)/);
       expect(expiresAtMatch).not.toBeNull();

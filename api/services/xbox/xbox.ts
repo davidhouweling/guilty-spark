@@ -4,11 +4,25 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
 
 const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
+const XBOX_LIVE_XSTS_RELYING_PARTY = "http://xboxlive.com";
+const XBOX_LIVE_SANDBOX_ID = "RETAIL";
 const MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE = "t";
+const MICROSOFT_OAUTH_RPS_PREAMBLE = "d";
 
 export interface XboxServiceOpts {
   env: Env;
   authenticate: typeof authenticate;
+}
+
+function profileUserToXboxUserInfo(profileUser: ProfileUser): XboxUserInfo {
+  const gamertag = profileUser.settings.find((setting) => setting.id === "Gamertag")?.value ?? "Unknown";
+  const avatarUrl = profileUser.settings.find((setting) => setting.id === "GameDisplayPicRaw")?.value;
+
+  return {
+    xuid: profileUser.id,
+    gamertag,
+    ...(avatarUrl != null && avatarUrl !== "" ? { avatarUrl } : {}),
+  };
 }
 
 export class XboxService {
@@ -62,6 +76,42 @@ export class XboxService {
     };
   }
 
+  async getUserFromMicrosoftAccessToken(accessToken: string): Promise<XboxUserInfo> {
+    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE);
+    const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
+      sandboxId: XBOX_LIVE_SANDBOX_ID,
+      XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
+    });
+
+    const [displayClaim] = xstsTokenResponse.DisplayClaims.xui;
+    const userHash = displayClaim?.uhs;
+    const xuid = displayClaim?.xid;
+    if (userHash == null || userHash === "") {
+      throw new Error("Xbox XSTS response missing user hash");
+    }
+    if (xuid == null || xuid === "") {
+      throw new Error("Xbox XSTS response missing xuid");
+    }
+
+    const profileResponse = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
+      `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
+      {
+        options: { contractVersion: 2, userHash, XSTSToken: xstsTokenResponse.Token },
+      },
+    );
+
+    if (profileResponse.statusCode !== 200) {
+      throw new Error(`Xbox profile lookup failed (${profileResponse.statusCode.toString()})`);
+    }
+
+    const [profileUser] = profileResponse.data.profileUsers;
+    if (profileUser == null) {
+      throw new Error("Xbox profile response missing user");
+    }
+
+    return profileUserToXboxUserInfo(profileUser);
+  }
+
   async getUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
     if (!gamertag) {
       throw new Error("Gamertag cannot be empty");
@@ -88,11 +138,7 @@ export class XboxService {
       throw new Error(`User with gamertag ${gamertag} not found`);
     }
 
-    const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
-    return {
-      xuid: profileUser.id,
-      gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
-    };
+    return profileUserToXboxUserInfo(profileUser);
   }
 
   async getUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
@@ -126,11 +172,7 @@ export class XboxService {
           return null;
         }
 
-        const gamertagSetting = profileUser.settings.find((s) => s.id === "Gamertag");
-        return {
-          xuid: profileUser.id,
-          gamertag: gamertagSetting ? gamertagSetting.value : "Unknown",
-        };
+        return profileUserToXboxUserInfo(profileUser);
       })
       .filter((user): user is XboxUserInfo => user !== null);
   }

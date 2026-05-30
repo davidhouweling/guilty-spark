@@ -223,6 +223,105 @@ describe("Xbox Service", () => {
     });
   });
 
+  describe("getUserFromMicrosoftAccessToken", () => {
+    let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
+
+    beforeEach(() => {
+      xsapiClientGetSpy = vi.spyOn(XSAPIClient, "get");
+    });
+
+    function mockXboxTokenExchange(xui: { uhs?: string; xid?: string }[]): void {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "user-token",
+            DisplayClaims: { xui: [{ uhs: "user_hash" }] },
+          }),
+        )
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "xsts_token",
+            DisplayClaims: { xui },
+          }),
+        );
+    }
+
+    it("resolves the user's xbox profile including avatar", async () => {
+      mockXboxTokenExchange([{ uhs: "user_hash", xid: "2533274" }]);
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274",
+            hostId: "2533274",
+            settings: [
+              { id: "Gamertag", value: "Spartan117" },
+              { id: "GameDisplayPicRaw", value: "https://avatar.example/pic.png" },
+            ],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token");
+
+      expect(result).toEqual({
+        xuid: "2533274",
+        gamertag: "Spartan117",
+        avatarUrl: "https://avatar.example/pic.png",
+      });
+      expect(xsapiClientGetSpy).toHaveBeenCalledWith(
+        "https://profile.xboxlive.com/users/xuid(2533274)/profile/settings?settings=Gamertag,GameDisplayPicRaw",
+        expect.objectContaining({
+          options: expect.objectContaining({
+            contractVersion: 2,
+            userHash: "user_hash",
+            XSTSToken: "xsts_token",
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it("omits the avatar when the profile has no GameDisplayPicRaw", async () => {
+      mockXboxTokenExchange([{ uhs: "user_hash", xid: "2533274" }]);
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274",
+            hostId: "2533274",
+            settings: [{ id: "Gamertag", value: "Spartan117" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token");
+
+      expect(result).toEqual({ xuid: "2533274", gamertag: "Spartan117" });
+    });
+
+    it("throws when the XSTS response is missing the user hash", async () => {
+      mockXboxTokenExchange([]);
+
+      await expect(xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token")).rejects.toThrow(
+        "Xbox XSTS response missing user hash",
+      );
+      expect(xsapiClientGetSpy).not.toHaveBeenCalled();
+    });
+
+    it("throws when the XSTS response is missing the xuid", async () => {
+      mockXboxTokenExchange([{ uhs: "user_hash" }]);
+
+      await expect(xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token")).rejects.toThrow(
+        "Xbox XSTS response missing xuid",
+      );
+      expect(xsapiClientGetSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getUsersByXuids", () => {
     let xsapiClientGetSpy: MockInstance<typeof XSAPIClient.get>;
 

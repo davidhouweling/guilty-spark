@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { ReactElement } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
@@ -14,11 +15,11 @@ interface LiveTrackerAppProps {
   readonly apiHost: string;
 }
 
-export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): React.ReactElement {
-  const [loadingServices, setLoadingServices] = React.useState(ComponentLoaderStatus.PENDING);
-  const [services, setServices] = React.useState<Services | null>(null);
-  const [shouldConnectToTracker, setShouldConnectToTracker] = React.useState(false);
-  const [invalidParams, setInvalidParams] = React.useState(false);
+export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
+  const [loadingServices, setLoadingServices] = useState(ComponentLoaderStatus.PENDING);
+  const [services, setServices] = useState<Services | null>(null);
+  const [shouldConnectToTracker, setShouldConnectToTracker] = useState(false);
+  const [invalidParams, setInvalidParams] = useState(false);
 
   // Check URL params to determine if we need to connect to a tracker
   // Use useEffect to avoid hydration mismatch (server has no window)

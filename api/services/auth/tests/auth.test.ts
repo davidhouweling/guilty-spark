@@ -125,6 +125,58 @@ describe("AuthService", () => {
     expect(persistedSession?.RefreshToken).not.toContain("refresh-token");
   });
 
+  it("normalizes a backslash open-redirect payload to root through the callback round-trip", async () => {
+    const signedToken = await aSignedMicrosoftIdTokenWith({
+      clientId: "test-client-id",
+      issuerTemplate: "https://login.microsoftonline.com/{tenantid}/v2.0",
+      tenantId: "test-tenant-id",
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "access-token",
+            expires_in: 3600,
+            refresh_token: "refresh-token",
+            id_token: signedToken.token,
+            token_type: "Bearer",
+            scope: "openid email",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.openIdConfiguration), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(signedToken.jwkSet), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+
+    const { state, codeVerifier } = aFakePKCEState();
+    const response = new Response();
+    // "/\evil.com" passes a naive "//" prefix check but the URL parser resolves it to https://evil.com/.
+    await service.setPkceStateCookie(response, {
+      state,
+      codeVerifier,
+      issuedAt: Date.now(),
+      redirectTo: "/\\evil.com",
+    });
+
+    const cookieHeader = response.headers.get("Set-Cookie") ?? "";
+    const pkceCookie = cookieHeader.split(";")[0] ?? "";
+    const request = new Request("http://localhost", { headers: { Cookie: pkceCookie } });
+
+    const { redirectTo } = await service.handleCallback(request, "code", state);
+    expect(redirectTo).toBe("/");
+  });
+
   it("sets session cookie in response", async () => {
     const payload = aFakeSessionTokenPayload();
     const token = await service.createSessionToken(payload);
@@ -288,5 +340,71 @@ describe("AuthService", () => {
     const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
     expect(persistedSession?.AccessToken).toContain("enc-v1.");
     expect(persistedSession?.RefreshToken).toContain("enc-v1.");
+  });
+
+  it("merges xbox profile into the persisted session metadata", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: "session-123",
+        AuthMetadataJson: JSON.stringify({ email: "user@example.com", name: "User" }),
+      }),
+    );
+    const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+
+    await service.attachSessionProfile("session-123", {
+      avatarUrl: "https://example.com/avatar.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+
+    const [sessionId, authMetadataJson] = updateMetadataSpy.mock.calls[0] ?? [];
+    expect(sessionId).toBe("session-123");
+    const metadata = JSON.parse(authMetadataJson ?? "{}") as Record<string, string>;
+    expect(metadata).toMatchObject({
+      email: "user@example.com",
+      name: "User",
+      avatarUrl: "https://example.com/avatar.png",
+      xboxGamertag: "Spartan117",
+      xboxXuid: "2533274",
+    });
+  });
+
+  it("does nothing when attaching a profile to a missing session", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(null);
+    const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+
+    await service.attachSessionProfile("missing-session", { avatarUrl: "https://example.com/avatar.png" });
+
+    expect(updateMetadataSpy).not.toHaveBeenCalled();
+  });
+
+  it("surfaces avatar and xbox profile from session metadata", async () => {
+    const payload = aFakeSessionTokenPayload();
+    const token = await service.createSessionToken(payload);
+    vi.spyOn(databaseService, "getUserSession").mockResolvedValue(
+      aFakeUserSessionsRow({
+        SessionId: payload.sessionId,
+        UserId: payload.userId,
+        AccessToken: payload.accessToken,
+        RefreshToken: payload.refreshToken ?? null,
+        ExpiresAt: Math.floor(payload.expiresAt / 1000),
+        AuthMetadataJson: JSON.stringify({
+          avatarUrl: "https://example.com/avatar.png",
+          xboxGamertag: "Spartan117",
+          xboxXuid: "2533274",
+        }),
+      }),
+    );
+
+    const request = new Request("http://localhost", {
+      headers: {
+        Cookie: `auth-session=${token}`,
+      },
+    });
+
+    const session = await service.validateSession(request);
+    expect(session?.avatarUrl).toBe("https://example.com/avatar.png");
+    expect(session?.xboxGamertag).toBe("Spartan117");
+    expect(session?.xboxXuid).toBe("2533274");
   });
 });

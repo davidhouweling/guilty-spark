@@ -1,15 +1,34 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
-import type { PKCEState, SessionTokenPayload, AuthSession, SessionCookiePayload, AuthCallbackResult } from "./types";
+import type {
+  PKCEState,
+  SessionTokenPayload,
+  AuthSession,
+  SessionCookiePayload,
+  AuthCallbackResult,
+  AuthMetadata,
+  XboxSessionProfile,
+} from "./types";
 
 const sessionCookiePayloadSchema = z.object({
   sessionId: z.string().min(1),
   sessionExpiresAt: z.number(),
+});
+
+const authMetadataSchema = z.object({
+  email: z.string().optional().catch(undefined),
+  name: z.string().optional().catch(undefined),
+  preferredUsername: z.string().optional().catch(undefined),
+  avatarUrl: z.string().optional().catch(undefined),
+  xboxGamertag: z.string().optional().catch(undefined),
+  xboxXuid: z.string().optional().catch(undefined),
+  xboxProfileCheckedAt: z.number().optional().catch(undefined),
 });
 
 const pkceStatePayloadSchema = z.object({
@@ -19,16 +38,13 @@ const pkceStatePayloadSchema = z.object({
   redirectTo: z.string(),
 });
 
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 function normalizeRedirectPath(redirectTo?: string): string {
-  if (redirectTo == null || redirectTo === "") {
-    return "/";
-  }
-
-  if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
-    return "/";
-  }
-
-  return redirectTo;
+  // The origin is only a yardstick for safeRedirectPath's same-origin check; any fixed value
+  // works. The real redirect is resolved against env.PAGES_URL in the callback, and ".invalid"
+  // is a reserved, never-resolving TLD, so it reads clearly as a sentinel.
+  return safeRedirectPath(redirectTo, "https://placeholder.invalid");
 }
 
 /**
@@ -85,21 +101,14 @@ export class AuthService {
   public async handleCallback(request: Request, code: string, state: string): Promise<AuthCallbackResult> {
     const pkceState = await this.readPkceState(request, state);
 
-    // Check if state is still fresh (within 10 minutes)
     const stateAgeMs = Date.now() - pkceState.issuedAt;
     if (stateAgeMs > 10 * 60 * 1000) {
       throw new Error("State parameter expired (>10 minutes)");
     }
 
-    // Exchange code for tokens
     const tokens = await this.microsoftAuth.exchangeCodeForTokens(code, pkceState.codeVerifier);
-
-    // Parse ID token to get user info
     const user = await this.microsoftAuth.parseIdToken(tokens.id_token ?? "");
-
     const sessionId = crypto.randomUUID();
-
-    // Create session token
     const expiresAt = Date.now() + tokens.expires_in * 1000;
     const sessionPayload: SessionTokenPayload = {
       sessionId,
@@ -116,6 +125,29 @@ export class AuthService {
       sessionPayload,
       redirectTo: pkceState.redirectTo,
     };
+  }
+
+  public async attachSessionProfile(sessionId: string, profile: XboxSessionProfile): Promise<void> {
+    const existingSession = await this.databaseService.getUserSession(sessionId);
+    if (existingSession == null) {
+      return;
+    }
+
+    const mergedMetadata = this.parseAuthMetadata(existingSession.AuthMetadataJson);
+    if (profile.avatarUrl != null) {
+      mergedMetadata.avatarUrl = profile.avatarUrl;
+    }
+    if (profile.xboxGamertag != null) {
+      mergedMetadata.xboxGamertag = profile.xboxGamertag;
+    }
+    if (profile.xboxXuid != null) {
+      mergedMetadata.xboxXuid = profile.xboxXuid;
+    }
+    if (profile.xboxProfileCheckedAt != null) {
+      mergedMetadata.xboxProfileCheckedAt = profile.xboxProfileCheckedAt;
+    }
+
+    await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(mergedMetadata));
   }
 
   /**
@@ -259,6 +291,16 @@ export class AuthService {
     name?: string,
     preferredUsername?: string,
   ): Promise<void> {
+    const authMetadata: Mutable<AuthMetadata> = {};
+    if (email != null) {
+      authMetadata.email = email;
+    }
+    if (name != null) {
+      authMetadata.name = name;
+    }
+    if (preferredUsername != null) {
+      authMetadata.preferredUsername = preferredUsername;
+    }
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,
       UserId: payload.userId,
@@ -267,14 +309,19 @@ export class AuthService {
       ExpiresAt: Math.floor(payload.expiresAt / 1000),
       CreatedAt: Math.floor(payload.issuedAt / 1000),
       LastRefreshedAt: Math.floor(payload.issuedAt / 1000),
-      AuthMetadataJson: JSON.stringify({
-        email,
-        name,
-        preferredUsername,
-      }),
+      AuthMetadataJson: JSON.stringify(authMetadata),
     };
 
     await this.databaseService.upsertUserSession(sessionRow);
+  }
+
+  private parseAuthMetadata(authMetadataJson: string): z.infer<typeof authMetadataSchema> {
+    try {
+      const parsed = authMetadataSchema.safeParse(JSON.parse(authMetadataJson));
+      return parsed.success ? parsed.data : {};
+    } catch {
+      return {};
+    }
   }
 
   private async toAuthSession(session: UserSessionsRow): Promise<AuthSession> {
@@ -283,8 +330,9 @@ export class AuthService {
     const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
     const refreshToken =
       session.RefreshToken == null ? undefined : await this.tokenEncryptor.decrypt(session.RefreshToken);
+    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
 
-    return {
+    const authSession: Mutable<AuthSession> = {
       sessionId: session.SessionId,
       userId: session.UserId,
       accessToken,
@@ -292,6 +340,19 @@ export class AuthService {
       expiresAt,
       isExpired,
     };
+    if (metadata.avatarUrl != null) {
+      authSession.avatarUrl = metadata.avatarUrl;
+    }
+    if (metadata.xboxGamertag != null) {
+      authSession.xboxGamertag = metadata.xboxGamertag;
+    }
+    if (metadata.xboxXuid != null) {
+      authSession.xboxXuid = metadata.xboxXuid;
+    }
+    if (metadata.xboxProfileCheckedAt != null) {
+      authSession.xboxProfileCheckedAt = metadata.xboxProfileCheckedAt;
+    }
+    return authSession;
   }
 
   private async readSessionCookiePayload(token: string): Promise<SessionCookiePayload | null> {

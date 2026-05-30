@@ -1,30 +1,25 @@
-import z from "zod";
+import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
+import { authCallbackQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/callback";
+import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { addCorsHeaders } from "../../../base/cors";
-import { parseQueryParams } from "../../../base/request-parsing";
-import { createNoStoreJsonResponse } from "../../../base/response";
 import type { RoutesRegisterHandler } from "../../base/types";
-
-const authCallbackQuerySchema = z.object({
-  code: z.string(),
-  state: z.string(),
-});
 
 export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/microsoft/callback", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, logService } = services;
+
     try {
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
-        return addCorsHeaders(createNoStoreJsonResponse({ error: "Authentication failed" }, 400), request, true);
+        return addCorsHeaders(parsedQuery.response, request, true);
       }
 
       const { code, state } = parsedQuery.data;
 
-      const services = installServices({ env });
-      const { authService } = services;
-
-      // Exchange code for tokens and create session
       const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
+
       const sessionToken = await authService.createSessionToken(sessionPayload);
       const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
 
@@ -41,14 +36,9 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
 
       return addCorsHeaders(response, request, true);
     } catch (error) {
-      console.error("Auth callback error:", error);
+      logService.error(error as Error, new Map([["message", "Auth callback error"]]));
       return addCorsHeaders(
-        createNoStoreJsonResponse(
-          {
-            error: "Authentication failed",
-          },
-          400,
-        ),
+        errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true }),
         request,
         true,
       );
