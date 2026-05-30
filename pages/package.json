@@ -19,13 +19,13 @@
     "stylelint:fix": "stylelint 'src/**/*.css' 'src/**/*.astro' --fix"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.5.4",
-    "@astrojs/react": "^5.0.5",
+    "@astrojs/cloudflare": "^13.6.0",
+    "@astrojs/react": "^5.0.6",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^8.21.3",
-    "astro": "^6.3.7",
+    "astro": "^6.4.2",
     "classnames": "^2.5.1",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "javascript-time-ago": "^2.6.4",
     "modern-normalize": "^3.0.1",
     "react": "^19.2.6",
@@ -57,6 +57,6 @@
     "stylelint-config-standard": "^40.0.0",
     "stylelint-order": "^8.1.1",
     "typescript": "^5.9.3",
-    "wrangler": "^4.94.0"
+    "wrangler": "^4.95.0"
   }
 }
