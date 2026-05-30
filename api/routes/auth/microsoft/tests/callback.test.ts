@@ -1,9 +1,11 @@
 import type { AutoRouterType } from "itty-router";
 import { AutoRouter } from "itty-router";
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../../services/fakes/services";
 import { authMicrosoftCallbackRoute } from "../callback";
+import type { XboxService } from "../../../../services/xbox/xbox";
 
 describe("GET /auth/microsoft/callback", () => {
   let env: Env;
@@ -20,7 +22,7 @@ describe("GET /auth/microsoft/callback", () => {
       vi.setSystemTime(new Date("2026-05-17T23:05:18.409Z"));
 
       const accessTokenExpiresAt = Date.now() + 3600 * 1000;
-      let getXboxUserSpy!: ReturnType<typeof vi.spyOn>;
+      let getXboxUserSpy!: MockInstance<XboxService["getUserFromMicrosoftAccessToken"]>;
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.authService, "handleCallback").mockResolvedValue({

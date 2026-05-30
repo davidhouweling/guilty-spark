@@ -1,9 +1,12 @@
 import type { AutoRouterType } from "itty-router";
 import { AutoRouter } from "itty-router";
+import type { MockInstance} from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { authSessionRoute } from "../session";
+import type { AuthService } from "../../../services/auth/auth";
+import type { XboxService } from "../../../services/xbox/xbox";
 
 describe("GET /auth/session", () => {
   let env: Env;
@@ -129,7 +132,7 @@ describe("GET /auth/session", () => {
 
   it("lazily resolves and persists the xbox profile when the session has none yet", async () => {
     const expiresAt = Date.now() + 3600000;
-    let attachSessionProfileSpy!: ReturnType<typeof vi.spyOn>;
+    let attachSessionProfileSpy!: MockInstance<AuthService["attachSessionProfile"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue({
@@ -183,7 +186,7 @@ describe("GET /auth/session", () => {
 
   it("does not re-attempt enrichment once a prior attempt was recorded", async () => {
     const expiresAt = Date.now() + 3600000;
-    let getXboxUserSpy!: ReturnType<typeof vi.spyOn>;
+    let getXboxUserSpy!: MockInstance<XboxService["getUserFromMicrosoftAccessToken"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue({
