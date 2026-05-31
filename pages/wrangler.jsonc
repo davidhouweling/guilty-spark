@@ -8,6 +8,14 @@
     "directory": "./dist",
     "binding": "ASSETS",
   },
+  // The @astrojs/cloudflare adapter enables Astro KV sessions and binds them to "SESSION".
+  // Declaring the existing namespace by id stops Wrangler from re-provisioning it on every deploy.
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "42913da988334480aa9273db24556291",
+    },
+  ],
   "observability": {
     "enabled": true,
   },
