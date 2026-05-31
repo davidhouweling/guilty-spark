@@ -12,7 +12,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 import {
   aFakeIndividualTrackerDOWith,
-  aFakeIndividualTrackerStateSanitizedWith,
+  aFakeIndividualTrackerStateWith,
   type FakeIndividualTrackerDO,
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import type { IndividualTrackerDO } from "../../../worker";
@@ -88,7 +88,7 @@ describe("/api/individual-tracker manage routes", () => {
     const doStub = aFakeIndividualTrackerDOWith({
       startResponse: {
         success: true,
-        state: aFakeIndividualTrackerStateSanitizedWith({ trackerId: "new-tracker", gamertag: "ResolvedTag" }),
+        state: aFakeIndividualTrackerStateWith({ trackerId: "new-tracker", gamertag: "ResolvedTag" }),
       },
     });
     const startSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
@@ -201,7 +201,7 @@ describe("/api/individual-tracker manage routes", () => {
 
   it("lists the user's trackers hydrated with DO status", async () => {
     const doStub = aFakeIndividualTrackerDOWith({
-      statusResponse: { state: aFakeIndividualTrackerStateSanitizedWith({ trackerId: "t1", status: "active" }) },
+      statusResponse: { state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "active" }) },
     });
     const localEnv = envWithTrackerDo(doStub);
 
@@ -248,7 +248,7 @@ describe("/api/individual-tracker manage routes", () => {
   it("returns the DO sanitized status for an owned tracker", async () => {
     const doStub = aFakeIndividualTrackerDOWith({
       statusResponse: {
-        state: aFakeIndividualTrackerStateSanitizedWith({ trackerId: "t1", gamertag: "MyTag", status: "active" }),
+        state: aFakeIndividualTrackerStateWith({ trackerId: "t1", gamertag: "MyTag", status: "active" }),
       },
     });
     const localEnv = envWithTrackerDo(doStub);

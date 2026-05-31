@@ -2,8 +2,8 @@ import type {
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
   IndividualTrackerStartResponse,
+  IndividualTrackerInternalState,
   IndividualTrackerState,
-  IndividualTrackerStateSanitized,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
 } from "../types";
@@ -22,7 +22,9 @@ export interface FakeIndividualTrackerDOOpts {
 
 export type FakeIndividualTrackerDO = DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded;
 
-export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerState> = {}): IndividualTrackerState {
+export function aFakeIndividualTrackerInternalStateWith(
+  opts: Partial<IndividualTrackerInternalState> = {},
+): IndividualTrackerInternalState {
   return {
     userId: "fake-user-id",
     trackerId: "fake-tracker-id",
@@ -45,9 +47,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
   };
 }
 
-export function aFakeIndividualTrackerStateSanitizedWith(
-  opts: Partial<IndividualTrackerStateSanitized> = {},
-): IndividualTrackerStateSanitized {
+export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerState> = {}): IndividualTrackerState {
   return {
     userId: "fake-user-id",
     trackerId: "fake-tracker-id",
@@ -63,7 +63,7 @@ export function aFakeIndividualTrackerStateSanitizedWith(
 }
 
 export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts = {}): FakeIndividualTrackerDO {
-  const defaultState = aFakeIndividualTrackerStateSanitizedWith();
+  const defaultState = aFakeIndividualTrackerStateWith();
 
   const startResponse: IndividualTrackerStartResponse = opts.startResponse ?? { success: true, state: defaultState };
   const pauseResponse: IndividualTrackerPauseResponse = opts.pauseResponse ?? { success: true, state: defaultState };

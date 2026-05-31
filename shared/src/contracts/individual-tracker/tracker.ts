@@ -4,7 +4,7 @@ import { defineContract } from "../base";
 export const trackerStatusSchema = z.enum(["active", "paused", "stopped"]);
 export type TrackerStatus = z.infer<typeof trackerStatusSchema>;
 
-export const trackerSanitizedStateSchema = z.object({
+export const trackerStateSchema = z.object({
   userId: z.string(),
   trackerId: z.string(),
   xuid: z.string(),
@@ -15,7 +15,7 @@ export const trackerSanitizedStateSchema = z.object({
   lastUpdateTime: z.string(),
   idleTimeoutHours: z.number(),
 });
-export type TrackerSanitizedState = z.infer<typeof trackerSanitizedStateSchema>;
+export type TrackerState = z.infer<typeof trackerStateSchema>;
 
 export const trackerSchema = z.object({
   trackerId: z.string(),
@@ -23,7 +23,7 @@ export const trackerSchema = z.object({
   xuid: z.string(),
   status: trackerStatusSchema,
   isLive: z.boolean(),
-  state: trackerSanitizedStateSchema.nullable(),
+  state: trackerStateSchema.nullable(),
 });
 export type Tracker = z.infer<typeof trackerSchema>;
 

@@ -1,8 +1,8 @@
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
-import type { Tracker, TrackerSanitizedState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { IndividualTrackerStateSanitized } from "../../durable-objects/individual-tracker/types";
+import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { IndividualTrackerProfilesRow } from "../../services/database/types/individual_tracker_profiles";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
+import type { IndividualTrackerState } from "../../durable-objects/individual-tracker/types";
 
 export function toTrackerProfile(row: IndividualTrackerProfilesRow): TrackerProfile {
   return {
@@ -12,7 +12,7 @@ export function toTrackerProfile(row: IndividualTrackerProfilesRow): TrackerProf
   };
 }
 
-function toSanitizedState(state: IndividualTrackerStateSanitized): TrackerSanitizedState {
+function toTrackerState(state: IndividualTrackerState): TrackerState {
   return {
     userId: state.userId,
     trackerId: state.trackerId,
@@ -26,13 +26,13 @@ function toSanitizedState(state: IndividualTrackerStateSanitized): TrackerSaniti
   };
 }
 
-export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerStateSanitized | null): Tracker {
+export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerState | null): Tracker {
   return {
     trackerId: row.TrackerId,
     gamertag: row.Gamertag,
     xuid: row.Xuid,
     status: row.Status,
     isLive: row.IsLive === 1,
-    state: state == null ? null : toSanitizedState(state),
+    state: state == null ? null : toTrackerState(state),
   };
 }

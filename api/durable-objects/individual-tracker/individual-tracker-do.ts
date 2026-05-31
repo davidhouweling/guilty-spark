@@ -4,8 +4,8 @@ import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl } from "../../services/install";
 import type {
   IndividualTrackerStartRequest,
+  IndividualTrackerInternalState,
   IndividualTrackerState,
-  IndividualTrackerStateSanitized,
   IndividualTrackerStartResponse,
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
@@ -99,7 +99,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const body = await request.json<IndividualTrackerStartRequest>();
     const now = new Date().toISOString();
 
-    const trackerState: IndividualTrackerState = {
+    const trackerState: IndividualTrackerInternalState = {
       userId: body.userId,
       trackerId: body.trackerId,
       xuid: body.xuid,
@@ -175,16 +175,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
-  private async getState(): Promise<IndividualTrackerState | null> {
-    const state = await this.state.storage.get<IndividualTrackerState>(STATE_STORAGE_KEY);
+  private async getState(): Promise<IndividualTrackerInternalState | null> {
+    const state = await this.state.storage.get<IndividualTrackerInternalState>(STATE_STORAGE_KEY);
     return state ?? null;
   }
 
-  private async setState(state: IndividualTrackerState): Promise<void> {
+  private async setState(state: IndividualTrackerInternalState): Promise<void> {
     await this.state.storage.put(STATE_STORAGE_KEY, state);
   }
 
-  private sanitizeState(state: IndividualTrackerState): IndividualTrackerStateSanitized {
+  private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerState {
     return {
       userId: state.userId,
       trackerId: state.trackerId,

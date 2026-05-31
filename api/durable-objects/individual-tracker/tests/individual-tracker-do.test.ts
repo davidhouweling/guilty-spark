@@ -7,13 +7,13 @@ import type { Services } from "../../../services/install";
 import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
 import type {
   IndividualTrackerStartRequest,
-  IndividualTrackerState,
+  IndividualTrackerInternalState,
   IndividualTrackerStartResponse,
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
   IndividualTrackerStatusResponse,
 } from "../types";
-import { aFakeIndividualTrackerStateWith } from "../fakes/individual-tracker-do.fake";
+import { aFakeIndividualTrackerInternalStateWith } from "../fakes/individual-tracker-do.fake";
 
 const createMockStartRequest = (
   overrides: Partial<IndividualTrackerStartRequest> = {},
@@ -33,8 +33,8 @@ describe("IndividualTrackerDO", () => {
   let mockStorage: DurableObjectStorage;
   let services: Services;
   let env: Env;
-  let storageGetSpy: MockInstance<(key: string) => Promise<IndividualTrackerState | null>>;
-  let storagePutSpy: MockInstance<(key: string, value: IndividualTrackerState) => Promise<void>>;
+  let storageGetSpy: MockInstance<(key: string) => Promise<IndividualTrackerInternalState | null>>;
+  let storagePutSpy: MockInstance<(key: string, value: IndividualTrackerInternalState) => Promise<void>>;
   let storageDeleteSpy: MockInstance<typeof mockStorage.delete>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
   let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
@@ -158,7 +158,7 @@ describe("IndividualTrackerDO", () => {
 
   describe("handlePause()", () => {
     it("sets state to paused and persists", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith());
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const response = await individualTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -173,7 +173,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("clears the alarm", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith());
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       await individualTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -191,7 +191,7 @@ describe("IndividualTrackerDO", () => {
 
   describe("handleResume()", () => {
     it("sets state to active and persists", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith({ status: "paused", isPaused: true }));
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "paused", isPaused: true }));
 
       const response = await individualTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -202,7 +202,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("schedules an alarm", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith({ status: "paused", isPaused: true }));
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "paused", isPaused: true }));
 
       await individualTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
 
@@ -230,7 +230,7 @@ describe("IndividualTrackerDO", () => {
 
   describe("handleStatus()", () => {
     it("returns sanitized state when present", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith());
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const response = await individualTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
 
@@ -250,7 +250,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("excludes internal-only fields from the returned state", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith());
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const response = await individualTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
       const body: IndividualTrackerStatusResponse = await response.json();
@@ -268,7 +268,7 @@ describe("IndividualTrackerDO", () => {
 
   describe("alarm()", () => {
     it("bumps check count and reschedules when active", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith({ checkCount: 2 }));
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ checkCount: 2 }));
 
       await individualTrackerDO.alarm();
 
@@ -286,7 +286,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does nothing when paused", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerStateWith({ isPaused: true, status: "paused" }));
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ isPaused: true, status: "paused" }));
 
       await individualTrackerDO.alarm();
 

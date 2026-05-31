@@ -10,9 +10,9 @@ import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerStartResponse,
+  IndividualTrackerState,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
-  IndividualTrackerStateSanitized,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
@@ -28,10 +28,7 @@ function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObje
   return env.INDIVIDUAL_TRACKER_DO.get(doId);
 }
 
-async function startTrackerDo(
-  env: Env,
-  startRequest: IndividualTrackerStartRequest,
-): Promise<IndividualTrackerStateSanitized> {
+async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequest): Promise<IndividualTrackerState> {
   const stub = trackerDoStub(env, startRequest.userId, startRequest.trackerId);
   const response = await stub.fetch("http://do/start", {
     method: "POST",
@@ -48,11 +45,7 @@ async function stopTrackerDo(env: Env, userId: string, trackerId: string): Promi
   await response.json<IndividualTrackerStopResponse>();
 }
 
-async function statusTrackerDo(
-  env: Env,
-  userId: string,
-  trackerId: string,
-): Promise<IndividualTrackerStateSanitized | null> {
+async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState | null> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/status", { method: "GET" });
   const result = await response.json<IndividualTrackerStatusResponse>();

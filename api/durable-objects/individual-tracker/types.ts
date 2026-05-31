@@ -9,7 +9,7 @@ export interface IndividualTrackerStartRequest {
   idleTimeoutHours: number;
 }
 
-export interface IndividualTrackerState {
+export interface IndividualTrackerInternalState {
   userId: string;
   trackerId: string;
   xuid: string;
@@ -30,7 +30,7 @@ export interface IndividualTrackerState {
   };
 }
 
-export interface IndividualTrackerStateSanitized {
+export interface IndividualTrackerState {
   userId: string;
   trackerId: string;
   xuid: string;
@@ -44,17 +44,17 @@ export interface IndividualTrackerStateSanitized {
 
 export interface IndividualTrackerStartResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerPauseResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerResumeResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerStopResponse {
@@ -62,7 +62,7 @@ export interface IndividualTrackerStopResponse {
 }
 
 export interface IndividualTrackerStatusResponse {
-  state: IndividualTrackerStateSanitized | null;
+  state: IndividualTrackerState | null;
 }
 
 export type IndividualTrackerAction = "start" | "pause" | "resume" | "stop" | "status";
