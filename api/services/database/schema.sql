@@ -97,3 +97,18 @@ CREATE TABLE IF NOT EXISTS StreamerViewSettings (
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     FOREIGN KEY (ProfileId) REFERENCES IndividualTrackerProfiles(ProfileId) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS IndividualTrackers (
+    TrackerId TEXT PRIMARY KEY NOT NULL,
+    UserId TEXT NOT NULL,
+    Gamertag TEXT NOT NULL,
+    Xuid TEXT NOT NULL,
+    Status TEXT NOT NULL DEFAULT 'stopped' CHECK (Status IN ('active', 'paused', 'stopped')),
+    IsLive INTEGER NOT NULL DEFAULT 0 CHECK (IsLive IN (0, 1)),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackersUserId ON IndividualTrackers (UserId);
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackersXuid ON IndividualTrackers (Xuid);
+CREATE UNIQUE INDEX IF NOT EXISTS UqIndividualTrackersLivePerUser ON IndividualTrackers (UserId) WHERE IsLive = 1;

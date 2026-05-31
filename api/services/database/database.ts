@@ -10,6 +10,7 @@ import type { LinkedIdentitiesRow, IdentityProvider } from "./types/linked_ident
 import type { IndividualTrackerProfilesRow } from "./types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "./types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "./types/streamer_view_settings";
+import type { IndividualTrackersRow } from "./types/individual_trackers";
 
 export interface DatabaseServiceOpts {
   env: Env;
@@ -413,5 +414,69 @@ export class DatabaseService {
       settings.UpdatedAt,
     );
     await stmt.run();
+  }
+
+  async findIndividualTrackersByUserId(userId: string): Promise<IndividualTrackersRow[]> {
+    const query = "SELECT * FROM IndividualTrackers WHERE UserId = ? ORDER BY CreatedAt ASC";
+    const stmt = this.DB.prepare(query).bind(userId);
+    const response = await stmt.all<IndividualTrackersRow>();
+    return response.results;
+  }
+
+  async getIndividualTracker(trackerId: string): Promise<IndividualTrackersRow | null> {
+    const query = "SELECT * FROM IndividualTrackers WHERE TrackerId = ?";
+    const stmt = this.DB.prepare(query).bind(trackerId);
+    return await stmt.first<IndividualTrackersRow>();
+  }
+
+  async findIndividualTrackersByXuids(xuids: string[]): Promise<IndividualTrackersRow[]> {
+    if (xuids.length === 0) {
+      return [];
+    }
+    const placeholders = xuids.map(() => "?").join(",");
+    const query = `SELECT * FROM IndividualTrackers WHERE Xuid IN (${placeholders})`;
+    const stmt = this.DB.prepare(query).bind(...xuids);
+    const response = await stmt.all<IndividualTrackersRow>();
+    return response.results;
+  }
+
+  async findLiveIndividualTrackerByUserId(userId: string): Promise<IndividualTrackersRow | null> {
+    const query = "SELECT * FROM IndividualTrackers WHERE UserId = ? AND IsLive = 1";
+    const stmt = this.DB.prepare(query).bind(userId);
+    return await stmt.first<IndividualTrackersRow>();
+  }
+
+  async upsertIndividualTracker(tracker: IndividualTrackersRow): Promise<void> {
+    const query = `
+      INSERT INTO IndividualTrackers (TrackerId, UserId, Gamertag, Xuid, Status, IsLive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, Xuid=excluded.Xuid, Status=excluded.Status, IsLive=excluded.IsLive, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(
+      tracker.TrackerId,
+      tracker.UserId,
+      tracker.Gamertag,
+      tracker.Xuid,
+      tracker.Status,
+      tracker.IsLive,
+      tracker.CreatedAt,
+      tracker.UpdatedAt,
+    );
+    await stmt.run();
+  }
+
+  async deleteIndividualTracker(trackerId: string): Promise<void> {
+    const stmt = this.DB.prepare("DELETE FROM IndividualTrackers WHERE TrackerId = ?").bind(trackerId);
+    await stmt.run();
+  }
+
+  async setLiveIndividualTracker(userId: string, trackerId: string): Promise<void> {
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const clearStmt = this.DB.prepare(
+      "UPDATE IndividualTrackers SET IsLive = 0, UpdatedAt = ? WHERE UserId = ? AND IsLive = 1 AND TrackerId != ?",
+    ).bind(nowEpoch, userId, trackerId);
+    const setStmt = this.DB.prepare(
+      "UPDATE IndividualTrackers SET IsLive = 1, UpdatedAt = ? WHERE TrackerId = ? AND UserId = ?",
+    ).bind(nowEpoch, trackerId, userId);
+    await this.DB.batch([clearStmt, setStmt]);
   }
 }
