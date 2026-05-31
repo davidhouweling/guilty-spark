@@ -18,10 +18,13 @@ export interface IndividualTrackerState {
   isPaused: boolean;
   startTime: string;
   lastUpdateTime: string;
+  idleTimeoutHours: number;
+}
+
+export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
   checkCount: number;
-  idleTimeoutHours: number;
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -30,31 +33,19 @@ export interface IndividualTrackerState {
   };
 }
 
-export interface IndividualTrackerStateSanitized {
-  userId: string;
-  trackerId: string;
-  xuid: string;
-  gamertag: string;
-  status: IndividualTrackerStatus;
-  isPaused: boolean;
-  startTime: string;
-  lastUpdateTime: string;
-  idleTimeoutHours: number;
-}
-
 export interface IndividualTrackerStartResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerPauseResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerResumeResponse {
   success: true;
-  state: IndividualTrackerStateSanitized;
+  state: IndividualTrackerState;
 }
 
 export interface IndividualTrackerStopResponse {
@@ -62,7 +53,7 @@ export interface IndividualTrackerStopResponse {
 }
 
 export interface IndividualTrackerStatusResponse {
-  state: IndividualTrackerStateSanitized | null;
+  state: IndividualTrackerState | null;
 }
 
 export type IndividualTrackerAction = "start" | "pause" | "resume" | "stop" | "status";
