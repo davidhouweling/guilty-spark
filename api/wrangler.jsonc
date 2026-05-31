@@ -30,6 +30,10 @@
         "name": "LIVE_TRACKER_DO",
         "class_name": "LiveTrackerDO",
       },
+      {
+        "name": "INDIVIDUAL_TRACKER_DO",
+        "class_name": "IndividualTrackerDO",
+      },
     ],
   },
 
@@ -46,6 +50,10 @@
     {
       "tag": "v3",
       "deleted_classes": ["LiveTrackerIndividualDO"],
+    },
+    {
+      "tag": "v4",
+      "new_classes": ["IndividualTrackerDO"],
     },
   ],
 
@@ -98,6 +106,10 @@
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
           },
+          {
+            "name": "INDIVIDUAL_TRACKER_DO",
+            "class_name": "IndividualTrackerDO",
+          },
         ],
       },
       "vars": {
@@ -140,6 +152,10 @@
           {
             "name": "LIVE_TRACKER_DO",
             "class_name": "LiveTrackerDO",
+          },
+          {
+            "name": "INDIVIDUAL_TRACKER_DO",
+            "class_name": "IndividualTrackerDO",
           },
         ],
       },
