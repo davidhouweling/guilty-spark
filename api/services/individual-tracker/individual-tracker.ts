@@ -1,8 +1,11 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
-import { IdentityNotOwnedError, ProfileNotFoundError } from "./errors";
-import type { UpdateProfileOptions } from "./types";
+import type { IndividualTrackersRow } from "../database/types/individual_trackers";
+import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
+import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
+
+export const MAX_TRACKERS_PER_USER = 5;
 
 export interface IndividualTrackerServiceOpts {
   databaseService: DatabaseService;
@@ -58,6 +61,53 @@ export class IndividualTrackerService {
     await this.databaseService.updateIndividualTrackerProfile(options.profileId, updates);
     const updated = await this.databaseService.getIndividualTrackerProfile(options.profileId);
     return Preconditions.checkExists(updated, "Profile disappeared after update");
+  }
+
+  async listTrackers(userId: string): Promise<IndividualTrackersRow[]> {
+    return await this.databaseService.findIndividualTrackersByUserId(userId);
+  }
+
+  async createTracker(options: CreateTrackerOptions): Promise<IndividualTrackersRow> {
+    const existing = await this.databaseService.findIndividualTrackersByUserId(options.userId);
+    const alreadyTracked = existing.find((tracker) => tracker.Xuid === options.xuid);
+
+    if (alreadyTracked == null && existing.length >= MAX_TRACKERS_PER_USER) {
+      throw new TrackerLimitReachedError();
+    }
+
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const trackerId = alreadyTracked?.TrackerId ?? crypto.randomUUID();
+    const tracker: IndividualTrackersRow = {
+      TrackerId: trackerId,
+      UserId: options.userId,
+      Gamertag: options.gamertag,
+      Xuid: options.xuid,
+      Status: "active",
+      IsLive: alreadyTracked?.IsLive ?? 0,
+      CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
+      UpdatedAt: nowEpoch,
+    };
+    await this.databaseService.upsertIndividualTracker(tracker);
+    return tracker;
+  }
+
+  async getOwnedTracker(userId: string, trackerId: string): Promise<IndividualTrackersRow> {
+    const tracker = await this.databaseService.getIndividualTracker(trackerId);
+    if (tracker?.UserId !== userId) {
+      throw new TrackerNotFoundError();
+    }
+    return tracker;
+  }
+
+  async markTrackerStopped(tracker: IndividualTrackersRow): Promise<IndividualTrackersRow> {
+    const stopped: IndividualTrackersRow = {
+      ...tracker,
+      Status: "stopped",
+      IsLive: 0,
+      UpdatedAt: Math.floor(Date.now() / 1000),
+    };
+    await this.databaseService.upsertIndividualTracker(stopped);
+    return stopped;
   }
 
   private async assertIdentityOwned(userId: string, activeIdentityId: string | null | undefined): Promise<void> {

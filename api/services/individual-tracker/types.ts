@@ -4,3 +4,9 @@ export interface UpdateProfileOptions {
   name?: string;
   activeIdentityId?: string | null;
 }
+
+export interface CreateTrackerOptions {
+  userId: string;
+  gamertag: string;
+  xuid: string;
+}

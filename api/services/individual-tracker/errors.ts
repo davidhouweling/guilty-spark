@@ -11,3 +11,17 @@ export class IdentityNotOwnedError extends Error {
     this.name = "IdentityNotOwnedError";
   }
 }
+
+export class TrackerLimitReachedError extends Error {
+  constructor(message = "Tracker limit reached") {
+    super(message);
+    this.name = "TrackerLimitReachedError";
+  }
+}
+
+export class TrackerNotFoundError extends Error {
+  constructor(message = "Tracker not found") {
+    super(message);
+    this.name = "TrackerNotFoundError";
+  }
+}

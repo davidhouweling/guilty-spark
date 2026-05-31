@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   aFakeDatabaseServiceWith,
   aFakeIndividualTrackerProfilesRow,
+  aFakeIndividualTrackersRow,
   aFakeLinkedIdentitiesRow,
 } from "../../database/fakes/database.fake";
 import type { DatabaseService } from "../../database/database";
-import { IndividualTrackerService } from "../individual-tracker";
-import { IdentityNotOwnedError, ProfileNotFoundError } from "../errors";
+import { IndividualTrackerService, MAX_TRACKERS_PER_USER } from "../individual-tracker";
+import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "../errors";
 
 describe("IndividualTrackerService", () => {
   let databaseService: DatabaseService;
@@ -131,6 +132,107 @@ describe("IndividualTrackerService", () => {
         service.updateProfile({ userId: "user-1", profileId: "p1", activeIdentityId: "not-mine" }),
       ).rejects.toThrow(IdentityNotOwnedError);
       expect(updateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listTrackers", () => {
+    it("returns the trackers found for the user", async () => {
+      const rows = [aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1" })];
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(rows);
+
+      expect(await service.listTrackers("user-1")).toEqual(rows);
+    });
+  });
+
+  describe("createTracker", () => {
+    it("creates a new active tracker row and upserts it", async () => {
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const tracker = await service.createTracker({ userId: "user-1", gamertag: "Foo", xuid: "xuid-1" });
+
+      expect(tracker.UserId).toBe("user-1");
+      expect(tracker.Gamertag).toBe("Foo");
+      expect(tracker.Xuid).toBe("xuid-1");
+      expect(tracker.Status).toBe("active");
+      expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ Xuid: "xuid-1", Status: "active" }));
+    });
+
+    it("throws TrackerLimitReachedError when the user is at the limit with a new gamertag", async () => {
+      const existing = Array.from({ length: MAX_TRACKERS_PER_USER }, (_value, index) =>
+        aFakeIndividualTrackersRow({
+          TrackerId: `t${index.toString()}`,
+          UserId: "user-1",
+          Xuid: `xuid-${index.toString()}`,
+        }),
+      );
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existing);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      await expect(service.createTracker({ userId: "user-1", gamertag: "New", xuid: "xuid-new" })).rejects.toThrow(
+        TrackerLimitReachedError,
+      );
+      expect(upsertSpy).not.toHaveBeenCalled();
+    });
+
+    it("re-uses the existing tracker id when the gamertag is already tracked at the limit", async () => {
+      const existing = Array.from({ length: MAX_TRACKERS_PER_USER }, (_value, index) =>
+        aFakeIndividualTrackersRow({
+          TrackerId: `t${index.toString()}`,
+          UserId: "user-1",
+          Xuid: `xuid-${index.toString()}`,
+        }),
+      );
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existing);
+      vi.spyOn(databaseService, "upsertIndividualTracker").mockResolvedValue();
+
+      const tracker = await service.createTracker({ userId: "user-1", gamertag: "Foo", xuid: "xuid-1" });
+
+      expect(tracker.TrackerId).toBe("t1");
+    });
+  });
+
+  describe("getOwnedTracker", () => {
+    it("returns the tracker when owned by the user", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1" });
+      vi.spyOn(databaseService, "getIndividualTracker").mockResolvedValue(row);
+
+      expect(await service.getOwnedTracker("user-1", "t1")).toEqual(row);
+    });
+
+    it("throws TrackerNotFoundError when the tracker is missing", async () => {
+      vi.spyOn(databaseService, "getIndividualTracker").mockResolvedValue(null);
+
+      await expect(service.getOwnedTracker("user-1", "t1")).rejects.toThrow(TrackerNotFoundError);
+    });
+
+    it("throws TrackerNotFoundError when the tracker belongs to another user", async () => {
+      vi.spyOn(databaseService, "getIndividualTracker").mockResolvedValue(
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "other" }),
+      );
+
+      await expect(service.getOwnedTracker("user-1", "t1")).rejects.toThrow(TrackerNotFoundError);
+    });
+  });
+
+  describe("markTrackerStopped", () => {
+    it("upserts the tracker row with stopped status and not live", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active", IsLive: 1 });
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const stopped = await service.markTrackerStopped(row);
+
+      expect(stopped.Status).toBe("stopped");
+      expect(stopped.IsLive).toBe(0);
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ TrackerId: "t1", Status: "stopped", IsLive: 0 }),
+      );
     });
   });
 });
