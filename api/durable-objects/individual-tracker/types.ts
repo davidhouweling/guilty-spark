@@ -9,27 +9,6 @@ export interface IndividualTrackerStartRequest {
   idleTimeoutHours: number;
 }
 
-export interface IndividualTrackerInternalState {
-  userId: string;
-  trackerId: string;
-  xuid: string;
-  gamertag: string;
-  status: IndividualTrackerStatus;
-  isPaused: boolean;
-  startTime: string;
-  lastUpdateTime: string;
-  searchStartTime: string;
-  lastMatchDiscoveredAt: string | undefined;
-  checkCount: number;
-  idleTimeoutHours: number;
-  errorState: {
-    consecutiveErrors: number;
-    backoffMinutes: number;
-    lastSuccessTime: string;
-    lastErrorMessage?: string | undefined;
-  };
-}
-
 export interface IndividualTrackerState {
   userId: string;
   trackerId: string;
@@ -40,6 +19,18 @@ export interface IndividualTrackerState {
   startTime: string;
   lastUpdateTime: string;
   idleTimeoutHours: number;
+}
+
+export interface IndividualTrackerInternalState extends IndividualTrackerState {
+  searchStartTime: string;
+  lastMatchDiscoveredAt: string | undefined;
+  checkCount: number;
+  errorState: {
+    consecutiveErrors: number;
+    backoffMinutes: number;
+    lastSuccessTime: string;
+    lastErrorMessage?: string | undefined;
+  };
 }
 
 export interface IndividualTrackerStartResponse {
