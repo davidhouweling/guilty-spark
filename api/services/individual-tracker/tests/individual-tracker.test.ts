@@ -219,20 +219,71 @@ describe("IndividualTrackerService", () => {
     });
   });
 
-  describe("markTrackerStopped", () => {
+  describe("markTrackerStatus", () => {
     it("upserts the tracker row with stopped status and not live", async () => {
       const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active", IsLive: 1 });
       const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
         .spyOn(databaseService, "upsertIndividualTracker")
         .mockResolvedValue();
 
-      const stopped = await service.markTrackerStopped(row);
+      const stopped = await service.markTrackerStatus(row, "stopped");
 
       expect(stopped.Status).toBe("stopped");
       expect(stopped.IsLive).toBe(0);
       expect(upsertSpy).toHaveBeenCalledWith(
         expect.objectContaining({ TrackerId: "t1", Status: "stopped", IsLive: 0 }),
       );
+    });
+
+    it("upserts the tracker row with paused status while preserving live", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active", IsLive: 1 });
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const paused = await service.markTrackerStatus(row, "paused");
+
+      expect(paused.Status).toBe("paused");
+      expect(paused.IsLive).toBe(1);
+      expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ TrackerId: "t1", Status: "paused", IsLive: 1 }));
+    });
+
+    it("upserts the tracker row with active status when resuming", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "paused", IsLive: 0 });
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const resumed = await service.markTrackerStatus(row, "active");
+
+      expect(resumed.Status).toBe("active");
+      expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ TrackerId: "t1", Status: "active" }));
+    });
+  });
+
+  describe("setLiveTracker", () => {
+    it("throws TrackerNotFoundError when the tracker is not owned", async () => {
+      vi.spyOn(databaseService, "getIndividualTracker").mockResolvedValue(null);
+      const setLiveSpy: MockInstance<DatabaseService["setLiveIndividualTracker"]> = vi
+        .spyOn(databaseService, "setLiveIndividualTracker")
+        .mockResolvedValue();
+
+      await expect(service.setLiveTracker("user-1", "t1")).rejects.toThrow(TrackerNotFoundError);
+      expect(setLiveSpy).not.toHaveBeenCalled();
+    });
+
+    it("sets the tracker live and returns the refreshed row", async () => {
+      const owned = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", IsLive: 0 });
+      const refreshed = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", IsLive: 1 });
+      vi.spyOn(databaseService, "getIndividualTracker").mockResolvedValueOnce(owned).mockResolvedValueOnce(refreshed);
+      const setLiveSpy: MockInstance<DatabaseService["setLiveIndividualTracker"]> = vi
+        .spyOn(databaseService, "setLiveIndividualTracker")
+        .mockResolvedValue();
+
+      const result = await service.setLiveTracker("user-1", "t1");
+
+      expect(result.IsLive).toBe(1);
+      expect(setLiveSpy).toHaveBeenCalledWith("user-1", "t1");
     });
   });
 });

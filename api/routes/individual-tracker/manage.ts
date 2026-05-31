@@ -1,6 +1,7 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
+  selectActiveTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
@@ -8,6 +9,8 @@ import {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type {
+  IndividualTrackerPauseResponse,
+  IndividualTrackerResumeResponse,
   IndividualTrackerStartRequest,
   IndividualTrackerStartResponse,
   IndividualTrackerState,
@@ -36,6 +39,20 @@ async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequ
     body: JSON.stringify(startRequest),
   });
   const result = await response.json<IndividualTrackerStartResponse>();
+  return result.state;
+}
+
+async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/pause", { method: "POST" });
+  const result = await response.json<IndividualTrackerPauseResponse>();
+  return result.state;
+}
+
+async function resumeTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/resume", { method: "POST" });
+  const result = await response.json<IndividualTrackerResumeResponse>();
   return result.state;
 }
 
@@ -130,12 +147,114 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       }
 
       await stopTrackerDo(env, auth.session.userId, tracker.TrackerId);
-      await individualTrackerService.markTrackerStopped(tracker);
+      await individualTrackerService.markTrackerStatus(tracker, "stopped");
 
       return stopTrackerContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker stop error"]]));
       return errorContract.toResponse({ error: "Failed to stop tracker" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/:trackerId/pause", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      const state = await pauseTrackerDo(env, auth.session.userId, tracker.TrackerId);
+      const paused = await individualTrackerService.markTrackerStatus(tracker, "paused");
+
+      return trackerContract.toResponse({ tracker: toTracker(paused, state) }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker pause error"]]));
+      return errorContract.toResponse({ error: "Failed to pause tracker" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/:trackerId/resume", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      const state = await resumeTrackerDo(env, auth.session.userId, tracker.TrackerId);
+      const resumed = await individualTrackerService.markTrackerStatus(tracker, "active");
+
+      return trackerContract.toResponse({ tracker: toTracker(resumed, state) }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker resume error"]]));
+      return errorContract.toResponse({ error: "Failed to resume tracker" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/manage/select-active", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsed = await parseJsonBody(
+        request,
+        selectActiveTrackerRequestSchema,
+        "Invalid select active tracker request",
+      );
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.setLiveTracker(auth.session.userId, parsed.data.trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      const state = await statusTrackerDo(env, auth.session.userId, tracker.TrackerId);
+
+      return trackerContract.toResponse({ tracker: toTracker(tracker, state) }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker select active error"]]));
+      return errorContract.toResponse({ error: "Failed to select active tracker" }, { status: 500, noStore: true });
     }
   });
 

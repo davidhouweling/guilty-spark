@@ -1,7 +1,7 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
-import type { IndividualTrackersRow } from "../database/types/individual_trackers";
+import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
 import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
 
@@ -99,15 +99,25 @@ export class IndividualTrackerService {
     return tracker;
   }
 
-  async markTrackerStopped(tracker: IndividualTrackersRow): Promise<IndividualTrackersRow> {
-    const stopped: IndividualTrackersRow = {
+  async markTrackerStatus(
+    tracker: IndividualTrackersRow,
+    status: IndividualTrackerStatus,
+  ): Promise<IndividualTrackersRow> {
+    const updated: IndividualTrackersRow = {
       ...tracker,
-      Status: "stopped",
-      IsLive: 0,
+      Status: status,
+      IsLive: status === "stopped" ? 0 : tracker.IsLive,
       UpdatedAt: Math.floor(Date.now() / 1000),
     };
-    await this.databaseService.upsertIndividualTracker(stopped);
-    return stopped;
+    await this.databaseService.upsertIndividualTracker(updated);
+    return updated;
+  }
+
+  async setLiveTracker(userId: string, trackerId: string): Promise<IndividualTrackersRow> {
+    await this.getOwnedTracker(userId, trackerId);
+    await this.databaseService.setLiveIndividualTracker(userId, trackerId);
+    const refreshed = await this.databaseService.getIndividualTracker(trackerId);
+    return Preconditions.checkExists(refreshed, "Tracker disappeared after setting live");
   }
 
   private async assertIdentityOwned(userId: string, activeIdentityId: string | null | undefined): Promise<void> {
