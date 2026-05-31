@@ -2,7 +2,6 @@ import type { AutoRouterType } from "itty-router";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { installServices } from "./services/install";
 import type { SessionTokenPayload } from "./services/auth/types";
-import { addCorsHeaders, handleCorsPreflightRequest } from "./base/cors";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
 import { discordInteractionsRoute } from "./routes/discord/interactions";
 import { individualTrackerRoutesRegisterHandler } from "./routes/individual-tracker/individual-tracker";
@@ -24,17 +23,6 @@ export class Server {
   }
 
   private addRoutes(): void {
-    // Handle CORS preflight requests for API routes
-    this.router.options("/api/*", (request) => {
-      return handleCorsPreflightRequest(request, true);
-    });
-    this.router.options("/auth/*", (request) => {
-      return handleCorsPreflightRequest(request, true);
-    });
-    this.router.options("/proxy/halo-infinite", (request) => {
-      return handleCorsPreflightRequest(request, true);
-    });
-
     this.router.get("/", (_request, env: Env) => {
       return new Response(
         `👋 G'day from Guilty Spark (env.DISCORD_APP_ID: ${env.DISCORD_APP_ID})... Interested? https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands 🚀`,
@@ -118,13 +106,9 @@ export class Server {
 
     this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
       try {
-        const withCorsHeaders = (response: Response): Response => {
-          return addCorsHeaders(response, request, true);
-        };
-
         const authHeader = request.headers.get("x-proxy-auth");
         if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
-          return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
+          return new Response("Unauthorized", { status: 401 });
         }
 
         const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
@@ -137,7 +121,7 @@ export class Server {
           services = this.installServices({ env });
           const session = await services.authService.validateSession(request);
           if (session === null) {
-            return withCorsHeaders(new Response("Unauthorized", { status: 401 }));
+            return new Response("Unauthorized", { status: 401 });
           }
 
           if (session.isExpired) {
@@ -146,13 +130,13 @@ export class Server {
             } catch {
               const response = new Response("Unauthorized", { status: 401 });
               services.authService.clearSessionCookie(response);
-              return withCorsHeaders(response);
+              return response;
             }
 
             if (refreshedSessionPayload === null) {
               const response = new Response("Unauthorized", { status: 401 });
               services.authService.clearSessionCookie(response);
-              return withCorsHeaders(response);
+              return response;
             }
 
             microsoftAccessToken = refreshedSessionPayload.accessToken;
@@ -165,7 +149,7 @@ export class Server {
         try {
           body = await request.json();
         } catch {
-          return withCorsHeaders(new Response("Invalid JSON body", { status: 400 }));
+          return new Response("Invalid JSON body", { status: 400 });
         }
 
         if (
@@ -174,7 +158,7 @@ export class Server {
           typeof (body as { method?: unknown }).method !== "string" ||
           !Array.isArray((body as { args?: unknown[] }).args)
         ) {
-          return withCorsHeaders(new Response("Invalid request format", { status: 400 }));
+          return new Response("Invalid request format", { status: 400 });
         }
 
         const { method, args } = body as { method: string; args: unknown[] };
@@ -201,29 +185,23 @@ export class Server {
           );
         };
         if (!isFunctionProperty(haloInfiniteClient, method)) {
-          return withCorsHeaders(new Response(`Method not found: ${method}`, { status: 404 }));
+          return new Response(`Method not found: ${method}`, { status: 404 });
         }
 
         const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
 
         const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
 
-        const response = new Response(JSON.stringify({ result }), {
+        return new Response(JSON.stringify({ result }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
-
-        return withCorsHeaders(response);
       } catch (error) {
         console.error("Halo proxy error:", error);
-        return addCorsHeaders(
-          new Response(JSON.stringify({ error: "Proxy request failed" }), {
-            status: 500,
-            headers: { "content-type": "application/json" },
-          }),
-          request,
-          true,
-        );
+        return new Response(JSON.stringify({ error: "Proxy request failed" }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
       }
     });
 

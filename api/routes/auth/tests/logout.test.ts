@@ -1,7 +1,7 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApiRouter } from "../../../base/router";
 import type { DatabaseService } from "../../../services/database/database";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -13,7 +13,7 @@ describe("POST /auth/logout", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("returns 200, revokes the server session, and clears the session cookie", async () => {

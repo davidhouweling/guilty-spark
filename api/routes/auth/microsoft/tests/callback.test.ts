@@ -1,7 +1,7 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApiRouter } from "../../../../base/router";
 import { aFakeEnvWith } from "../../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../../services/fakes/services";
 import { authMicrosoftCallbackRoute } from "../callback";
@@ -13,7 +13,7 @@ describe("GET /auth/microsoft/callback", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("attaches the xbox profile and sets a long-lived session cookie on success", async () => {

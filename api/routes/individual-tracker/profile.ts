@@ -4,7 +4,6 @@ import {
   updateTrackerProfileRequestSchema,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
-import { addCorsHeaders } from "../../base/cors";
 import { IdentityNotOwnedError, ProfileNotFoundError } from "../../services/individual-tracker/errors";
 import type { UpdateProfileOptions } from "../../services/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -24,18 +23,10 @@ export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (route
 
       const profile = await individualTrackerService.getOrCreateProfile(auth.session.userId);
 
-      return addCorsHeaders(
-        trackerProfileContract.toResponse({ profile: toTrackerProfile(profile) }, { noStore: true }),
-        request,
-        true,
-      );
+      return trackerProfileContract.toResponse({ profile: toTrackerProfile(profile) }, { noStore: true });
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker profile get error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Failed to fetch profile" }, { status: 500, noStore: true }),
-        request,
-        true,
-      );
+      return errorContract.toResponse({ error: "Failed to fetch profile" }, { status: 500, noStore: true });
     }
   });
 
@@ -51,7 +42,7 @@ export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (route
 
       const parsed = await parseJsonBody(request, updateTrackerProfileRequestSchema, "Invalid profile update request");
       if (!parsed.success) {
-        return addCorsHeaders(parsed.response, request, true);
+        return parsed.response;
       }
 
       const options: UpdateProfileOptions = { userId: auth.session.userId, profileId: parsed.data.profileId };
@@ -64,38 +55,22 @@ export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (route
 
       try {
         const profile = await individualTrackerService.updateProfile(options);
-        return addCorsHeaders(
-          trackerProfileContract.toResponse({ profile: toTrackerProfile(profile) }, { noStore: true }),
-          request,
-          true,
-        );
+        return trackerProfileContract.toResponse({ profile: toTrackerProfile(profile) }, { noStore: true });
       } catch (error) {
         if (error instanceof ProfileNotFoundError) {
-          return addCorsHeaders(
-            errorContract.toResponse({ error: "Profile not found" }, { status: 404, noStore: true }),
-            request,
-            true,
-          );
+          return errorContract.toResponse({ error: "Profile not found" }, { status: 404, noStore: true });
         }
         if (error instanceof IdentityNotOwnedError) {
-          return addCorsHeaders(
-            errorContract.toResponse(
-              { error: "Active identity is not linked to this user" },
-              { status: 400, noStore: true },
-            ),
-            request,
-            true,
+          return errorContract.toResponse(
+            { error: "Active identity is not linked to this user" },
+            { status: 400, noStore: true },
           );
         }
         throw error;
       }
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker profile update error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Failed to update profile" }, { status: 500, noStore: true }),
-        request,
-        true,
-      );
+      return errorContract.toResponse({ error: "Failed to update profile" }, { status: 500, noStore: true });
     }
   });
 };

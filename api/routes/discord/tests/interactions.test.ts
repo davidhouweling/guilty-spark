@@ -1,7 +1,7 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InteractionType } from "discord-interactions";
+import { createApiRouter } from "../../../base/router";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { discordInteractionsRoute } from "../interactions";
@@ -13,7 +13,7 @@ describe("POST /interactions", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("returns 401 when Discord verification fails", async () => {

@@ -1,7 +1,6 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { authCallbackQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/callback";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { addCorsHeaders } from "../../../base/cors";
 import type { XboxUserInfo } from "../../../services/xbox/types";
 import type { RoutesRegisterHandler } from "../../base/types";
 
@@ -14,7 +13,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
-        return addCorsHeaders(parsedQuery.response, request, true);
+        return parsedQuery.response;
       }
 
       const { code, state } = parsedQuery.data;
@@ -31,7 +30,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
         rejectUrl.searchParams.set("error", "xbox-required");
         const rejectResponse = new Response(null, { status: 302, headers: { Location: rejectUrl.toString() } });
         authService.clearPkceStateCookie(rejectResponse);
-        return addCorsHeaders(rejectResponse, request, true);
+        return rejectResponse;
       }
 
       try {
@@ -60,14 +59,10 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       authService.setSessionCookie(response, sessionToken);
       authService.clearPkceStateCookie(response);
 
-      return addCorsHeaders(response, request, true);
+      return response;
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Auth callback error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true }),
-        request,
-        true,
-      );
+      return errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true });
     }
   });
 };

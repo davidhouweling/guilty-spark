@@ -1,5 +1,4 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { addCorsHeaders } from "../../base/cors";
 import type { AuthService } from "../../services/auth/auth";
 import type { AuthSession } from "../../services/auth/types";
 
@@ -11,7 +10,7 @@ export async function requireSession(request: Request, authService: AuthService)
     if (clearCookie) {
       authService.clearSessionCookie(response);
     }
-    return { ok: false, response: addCorsHeaders(response, request, true) };
+    return { ok: false, response };
   };
 
   const session = await authService.validateSession(request);

@@ -1,7 +1,7 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApiRouter } from "../../../../base/router";
 import { aFakeEnvWith } from "../../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../../services/fakes/services";
 import { authMicrosoftStartRoute } from "../start";
@@ -13,7 +13,7 @@ describe("GET /auth/microsoft/start", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("redirects to the Microsoft authorization URL with credentialed CORS headers", async () => {
