@@ -12,6 +12,7 @@ import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
+import type { IndividualTrackersRow } from "../types/individual_trackers";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -155,6 +156,25 @@ export function aFakeStreamerViewSettingsRow(opts: Partial<StreamerViewSettingsR
     VisibleSectionsJson: "[]",
     StyleFlagsJson: "{}",
     UpdatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeIndividualTrackersRow(opts: Partial<IndividualTrackersRow> = {}): IndividualTrackersRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: IndividualTrackersRow = {
+    TrackerId: "tracker-1",
+    UserId: "user-1",
+    Gamertag: "Gamertag01",
+    Xuid: "2533274000000001",
+    Status: "stopped",
+    IsLive: 0,
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
   };
 
   return {

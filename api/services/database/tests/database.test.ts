@@ -9,6 +9,7 @@ import {
   aFakeIndividualTrackerProfilesRow,
   aFakeIndividualTrackerGamesRow,
   aFakeStreamerViewSettingsRow,
+  aFakeIndividualTrackersRow,
 } from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
@@ -784,6 +785,137 @@ describe("Database Service", () => {
         settings.UpdatedAt,
       );
       expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("IndividualTrackers", () => {
+    it("finds individual trackers by user id", async () => {
+      const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1" });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [tracker] });
+
+      const result = await databaseService.findIndividualTrackersByUserId("user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM IndividualTrackers WHERE UserId = ? ORDER BY CreatedAt ASC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("user-1");
+      expect(result).toEqual([tracker]);
+    });
+
+    it("gets an individual tracker by id", async () => {
+      const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1" });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(tracker);
+
+      const result = await databaseService.getIndividualTracker("t1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM IndividualTrackers WHERE TrackerId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("t1");
+      expect(result).toEqual(tracker);
+    });
+
+    it("finds individual trackers by xuids", async () => {
+      const tracker = aFakeIndividualTrackersRow({ Xuid: "111" });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [tracker] });
+
+      const result = await databaseService.findIndividualTrackersByXuids(["111", "222"]);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM IndividualTrackers WHERE Xuid IN (?,?)");
+      expect(bindSpy).toHaveBeenCalledWith("111", "222");
+      expect(result).toEqual([tracker]);
+    });
+
+    it("returns an empty array without querying when no xuids are given", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      const result = await databaseService.findIndividualTrackersByXuids([]);
+
+      expect(prepareSpy).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+
+    it("finds the live individual tracker for a user", async () => {
+      const tracker = aFakeIndividualTrackersRow({ UserId: "user-1", IsLive: 1 });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(tracker);
+
+      const result = await databaseService.findLiveIndividualTrackerByUserId("user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM IndividualTrackers WHERE UserId = ? AND IsLive = 1");
+      expect(bindSpy).toHaveBeenCalledWith("user-1");
+      expect(result).toEqual(tracker);
+    });
+
+    it("upserts an individual tracker", async () => {
+      const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Gamertag: "GT", Xuid: "111" });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertIndividualTracker(tracker);
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO IndividualTrackers"));
+      expect(bindSpy).toHaveBeenCalledWith(
+        tracker.TrackerId,
+        tracker.UserId,
+        tracker.Gamertag,
+        tracker.Xuid,
+        tracker.Status,
+        tracker.IsLive,
+        tracker.CreatedAt,
+        tracker.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("deletes an individual tracker", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteIndividualTracker("t1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM IndividualTrackers WHERE TrackerId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("t1");
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("sets one tracker live and clears the others in a batch", async () => {
+      const clearStatement = new FakePreparedStatement();
+      const setStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(clearStatement)
+        .mockReturnValueOnce(setStatement);
+      const clearBindSpy = vi.spyOn(clearStatement, "bind");
+      const setBindSpy = vi.spyOn(setStatement, "bind");
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.setLiveIndividualTracker("user-1", "t1");
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        1,
+        "UPDATE IndividualTrackers SET IsLive = 0, UpdatedAt = ? WHERE UserId = ? AND IsLive = 1 AND TrackerId != ?",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "UPDATE IndividualTrackers SET IsLive = 1, UpdatedAt = ? WHERE TrackerId = ? AND UserId = ?",
+      );
+      expect(clearBindSpy).toHaveBeenCalledWith(expect.any(Number), "user-1", "t1");
+      expect(setBindSpy).toHaveBeenCalledWith(expect.any(Number), "t1", "user-1");
+      expect(batchSpy).toHaveBeenCalledWith([clearStatement, setStatement]);
     });
   });
 });
