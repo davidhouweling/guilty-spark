@@ -1,6 +1,5 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { logoutContract } from "@guilty-spark/shared/contracts/auth/logout";
-import { addCorsHeaders } from "../../base/cors";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const authLogoutRoute: RoutesRegisterHandler = (router, installServices) => {
@@ -19,14 +18,10 @@ export const authLogoutRoute: RoutesRegisterHandler = (router, installServices) 
 
       authService.clearSessionCookie(response);
 
-      return addCorsHeaders(response, request, true);
+      return response;
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Auth logout error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Logout failed" }, { status: 500, noStore: true }),
-        request,
-        true,
-      );
+      return errorContract.toResponse({ error: "Logout failed" }, { status: 500, noStore: true });
     }
   });
 };

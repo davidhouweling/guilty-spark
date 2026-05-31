@@ -1,7 +1,7 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerProfileResponse } from "@guilty-spark/shared/contracts/individual-tracker/profile";
+import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeIndividualTrackerProfilesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -23,7 +23,7 @@ describe("/api/individual-tracker/profile", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("returns 401 when not authenticated", async () => {

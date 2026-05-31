@@ -1,9 +1,9 @@
 import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
-import { AutoRouter } from "itty-router";
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
+import { createApiRouter } from "../base/router";
 import { Server } from "../server";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
@@ -28,7 +28,7 @@ describe("Server", () => {
     env = aFakeEnvWith();
     installServices = installFakeServicesWith;
     server = new Server({
-      router: AutoRouter(),
+      router: createApiRouter(),
       installServices,
     });
   });
@@ -112,7 +112,7 @@ describe("Server", () => {
         return services;
       });
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
 
@@ -157,7 +157,7 @@ describe("Server", () => {
         return services;
       });
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
       const req = new Request("http://localhost/proxy/halo-infinite", {
@@ -208,7 +208,7 @@ describe("Server", () => {
         return services;
       });
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
 
@@ -241,7 +241,7 @@ describe("Server", () => {
         return services;
       });
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
 
@@ -287,7 +287,7 @@ describe("Server", () => {
         return services;
       });
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
       const req = new Request("http://localhost/proxy/halo-infinite", {
@@ -404,7 +404,7 @@ describe("Server", () => {
         haloInfiniteClient: localHaloInfiniteClient,
       }));
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
       const req = new Request("http://localhost/proxy/halo-infinite", {
@@ -450,7 +450,7 @@ describe("Server", () => {
       });
 
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
 
@@ -482,7 +482,7 @@ describe("Server", () => {
       });
 
       server = new Server({
-        router: AutoRouter(),
+        router: createApiRouter(),
         installServices: localInstallServices,
       });
 

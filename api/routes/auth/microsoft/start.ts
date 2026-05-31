@@ -1,7 +1,6 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { authStartQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/start";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { addCorsHeaders } from "../../../base/cors";
 import type { RoutesRegisterHandler } from "../../base/types";
 
 export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installServices) => {
@@ -13,7 +12,7 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authStartQuerySchema, "Failed to generate authorization URL");
       if (!parsedQuery.success) {
-        return addCorsHeaders(parsedQuery.response, request, true);
+        return parsedQuery.response;
       }
 
       const { redirect } = parsedQuery.data;
@@ -35,13 +34,12 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
         redirectTo: redirect ?? "/",
       });
 
-      return addCorsHeaders(response, request, true);
+      return response;
     } catch (error) {
       services.logService.error(error as Error, new Map([["message", "Auth start error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Failed to generate authorization URL" }, { status: 500, noStore: true }),
-        request,
-        true,
+      return errorContract.toResponse(
+        { error: "Failed to generate authorization URL" },
+        { status: 500, noStore: true },
       );
     }
   });

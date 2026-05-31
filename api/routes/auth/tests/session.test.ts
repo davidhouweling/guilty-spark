@@ -1,6 +1,6 @@
 import type { AutoRouterType } from "itty-router";
-import { AutoRouter } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { authSessionRoute } from "../session";
@@ -11,7 +11,7 @@ describe("GET /auth/session", () => {
 
   beforeEach(() => {
     env = aFakeEnvWith();
-    router = AutoRouter();
+    router = createApiRouter();
   });
 
   it("returns 401 with authenticated false when no session cookie is present", async () => {
@@ -38,7 +38,6 @@ describe("GET /auth/session", () => {
 
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
     expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
-    expect(res.headers.get("Vary")).toBe("Origin");
   });
 
   it("returns 401 with expired flag when session is expired", async () => {

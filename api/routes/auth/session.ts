@@ -1,6 +1,5 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
-import { addCorsHeaders } from "../../base/cors";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const authSessionRoute: RoutesRegisterHandler = (router, installServices) => {
@@ -14,18 +13,14 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         { status: 401, noStore: true },
       );
       authService.clearSessionCookie(response);
-      return addCorsHeaders(response, request, true);
+      return response;
     };
 
     try {
       const session = await authService.validateSession(request);
 
       if (session === null) {
-        return addCorsHeaders(
-          sessionContract.toResponse({ authenticated: false }, { status: 401, noStore: true }),
-          request,
-          true,
-        );
+        return sessionContract.toResponse({ authenticated: false }, { status: 401, noStore: true });
       }
 
       let authenticatedSession = session;
@@ -48,28 +43,20 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         }
       }
 
-      return addCorsHeaders(
-        sessionContract.toResponse(
-          {
-            authenticated: true,
-            userId: authenticatedSession.userId,
-            expiresAt: authenticatedSession.expiresAt,
-            ...(authenticatedSession.avatarUrl != null ? { avatarUrl: authenticatedSession.avatarUrl } : {}),
-            ...(authenticatedSession.xboxGamertag != null ? { xboxGamertag: authenticatedSession.xboxGamertag } : {}),
-            ...(authenticatedSession.xboxXuid != null ? { xboxXuid: authenticatedSession.xboxXuid } : {}),
-          },
-          { noStore: true },
-        ),
-        request,
-        true,
+      return sessionContract.toResponse(
+        {
+          authenticated: true,
+          userId: authenticatedSession.userId,
+          expiresAt: authenticatedSession.expiresAt,
+          ...(authenticatedSession.avatarUrl != null ? { avatarUrl: authenticatedSession.avatarUrl } : {}),
+          ...(authenticatedSession.xboxGamertag != null ? { xboxGamertag: authenticatedSession.xboxGamertag } : {}),
+          ...(authenticatedSession.xboxXuid != null ? { xboxXuid: authenticatedSession.xboxXuid } : {}),
+        },
+        { noStore: true },
       );
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Auth session error"]]));
-      return addCorsHeaders(
-        errorContract.toResponse({ error: "Failed to retrieve session" }, { status: 500, noStore: true }),
-        request,
-        true,
-      );
+      return errorContract.toResponse({ error: "Failed to retrieve session" }, { status: 500, noStore: true });
     }
   });
 };
