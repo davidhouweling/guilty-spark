@@ -25,7 +25,7 @@ export class Server {
   private addRoutes(): void {
     // Handle CORS preflight requests for API routes
     this.router.options("/api/*", (request) => {
-      return handleCorsPreflightRequest(request);
+      return handleCorsPreflightRequest(request, true);
     });
     this.router.options("/auth/*", (request) => {
       return handleCorsPreflightRequest(request, true);

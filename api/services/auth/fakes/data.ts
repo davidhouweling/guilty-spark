@@ -1,4 +1,16 @@
-import type { SessionTokenPayload, AuthenticatedUser, PKCEState } from "../types";
+import type { SessionTokenPayload, AuthenticatedUser, PKCEState, AuthSession } from "../types";
+
+export function aFakeAuthSessionWith(overrides?: Partial<AuthSession>): AuthSession {
+  return {
+    sessionId: "session-123",
+    userId: "user-123",
+    accessToken: "access-token",
+    refreshToken: undefined,
+    expiresAt: Date.now() + 3600 * 1000,
+    isExpired: false,
+    ...overrides,
+  };
+}
 
 /**
  * Fake authenticated user for tests.

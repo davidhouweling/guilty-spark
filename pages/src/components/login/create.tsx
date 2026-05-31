@@ -31,6 +31,14 @@ function buildSignInHref(apiHost: string): string {
   return startUrl.toString();
 }
 
+function readSignInErrorMessage(): string | null {
+  const error = new URL(window.location.href).searchParams.get("error");
+  if (error === "xbox-required") {
+    return "We couldn't verify your Xbox profile. Make sure your Microsoft account has Xbox set up, then try again.";
+  }
+  return null;
+}
+
 export function LoginPage({ authService, apiHost }: LoginPageProps): React.ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.LOADING);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,6 +46,13 @@ export function LoginPage({ authService, apiHost }: LoginPageProps): React.React
   const checkSession = useCallback(async (): Promise<void> => {
     setState(ComponentLoaderStatus.LOADING);
     setErrorMessage(null);
+
+    const signInErrorMessage = readSignInErrorMessage();
+    if (signInErrorMessage != null) {
+      setErrorMessage(signInErrorMessage);
+      setState(ComponentLoaderStatus.ERROR);
+      return;
+    }
 
     try {
       const redirectPath = getRedirectPathFromUrl();
@@ -55,6 +70,15 @@ export function LoginPage({ authService, apiHost }: LoginPageProps): React.React
     }
   }, [authService]);
 
+  const handleRetry = useCallback((): void => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("error")) {
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    void checkSession();
+  }, [checkSession]);
+
   useEffect(() => {
     void checkSession();
   }, [checkSession]);
@@ -64,7 +88,7 @@ export function LoginPage({ authService, apiHost }: LoginPageProps): React.React
       <ComponentLoader
         status={state}
         loading={<LoadingState text="Checking current session..." />}
-        error={<ErrorState message={errorMessage ?? "Failed to load login page"} onRetry={() => void checkSession()} />}
+        error={<ErrorState message={errorMessage ?? "Failed to load login page"} onRetry={handleRetry} />}
         loaded={<Login signInHref={buildSignInHref(apiHost)} />}
       />
     </div>

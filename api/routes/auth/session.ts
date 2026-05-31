@@ -2,7 +2,6 @@ import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
 import { addCorsHeaders } from "../../base/cors";
 import type { RoutesRegisterHandler } from "../base/types";
-import { enrichSessionProfile } from "./profile-enrichment";
 
 export const authSessionRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/auth/session", async (request, env: Env) => {
@@ -46,18 +45,6 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
           };
         } catch {
           return expiredResponse();
-        }
-      }
-
-      if (authenticatedSession.xboxXuid == null && authenticatedSession.xboxProfileCheckedAt == null) {
-        const profile = await enrichSessionProfile(
-          services,
-          authenticatedSession.sessionId,
-          Date.now(),
-          authenticatedSession.accessToken,
-        );
-        if (profile != null) {
-          authenticatedSession = { ...authenticatedSession, ...profile };
         }
       }
 

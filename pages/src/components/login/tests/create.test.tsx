@@ -70,4 +70,24 @@ describe("LoginPage", () => {
       expect(getSessionSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("shows the xbox-required error when sign-in was rejected, then clears it on retry", async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, "", "/login?error=xbox-required");
+    const getSessionSpy = vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+
+    render(<LoginPage authService={authService} apiHost={API_HOST} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/couldn't verify your Xbox profile/i)).toBeInTheDocument();
+    });
+    expect(getSessionSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Retry Connection" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Continue With Microsoft" })).toBeInTheDocument();
+      expect(getSessionSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
