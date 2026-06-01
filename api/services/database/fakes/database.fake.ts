@@ -8,6 +8,7 @@ import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from 
 import type { NeatQueueConfigRow } from "../types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../types/neat_queue_config";
 import type { UserSessionsRow } from "../types/user_sessions";
+import type { UserCredentialsRow } from "../types/user_credentials";
 import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
@@ -82,6 +83,19 @@ export function aFakeUserSessionsRow(opts: Partial<UserSessionsRow> = {}): UserS
     CreatedAt: Math.floor(Date.now() / 1000),
     LastRefreshedAt: null,
     AuthMetadataJson: "{}",
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeUserCredentialsRow(opts: Partial<UserCredentialsRow> = {}): UserCredentialsRow {
+  const defaultOpts: UserCredentialsRow = {
+    UserId: "user-1",
+    RefreshToken: "encrypted-refresh-token",
+    UpdatedAt: Math.floor(Date.now() / 1000),
   };
 
   return {

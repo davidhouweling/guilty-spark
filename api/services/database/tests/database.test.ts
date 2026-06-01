@@ -5,6 +5,7 @@ import { DatabaseService } from "../database";
 import {
   aFakeDiscordAssociationsRow,
   aFakeUserSessionsRow,
+  aFakeUserCredentialsRow,
   aFakeLinkedIdentitiesRow,
   aFakeIndividualTrackerProfilesRow,
   aFakeIndividualTrackerGamesRow,
@@ -509,6 +510,95 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserSessions WHERE CreatedAt <= ?");
       expect(bindSpy).toHaveBeenCalledWith(12345 - SESSION_COOKIE_MAX_AGE_SECONDS);
+      expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("getUserCredentials()", () => {
+    it("returns user credentials by user id", async () => {
+      const credentials = aFakeUserCredentialsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(credentials);
+
+      const result = await databaseService.getUserCredentials(credentials.UserId);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM UserCredentials WHERE UserId = ?");
+      expect(bindSpy).toHaveBeenCalledWith(credentials.UserId);
+      expect(result).toEqual(credentials);
+    });
+
+    it("returns null when no credentials exist for the user", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+      const result = await databaseService.getUserCredentials("unknown-user");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("upsertUserCredentials()", () => {
+    it("upserts user credentials", async () => {
+      const credentials = aFakeUserCredentialsRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertUserCredentials(credentials);
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        `
+      INSERT INTO UserCredentials (UserId, RefreshToken, UpdatedAt) VALUES (?, ?, ?)
+      ON CONFLICT(UserId) DO UPDATE SET RefreshToken=excluded.RefreshToken, UpdatedAt=excluded.UpdatedAt
+    `,
+      );
+      expect(bindSpy).toHaveBeenCalledWith(credentials.UserId, credentials.RefreshToken, credentials.UpdatedAt);
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("round-trips the upserted credentials via get", async () => {
+      const credentials = aFakeUserCredentialsRow({ RefreshToken: "encrypted-1", UpdatedAt: 1000 });
+      const upsertStatement = new FakePreparedStatement();
+      const getStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(upsertStatement).mockReturnValueOnce(getStatement);
+      vi.spyOn(upsertStatement, "bind").mockReturnThis();
+      vi.spyOn(getStatement, "bind").mockReturnThis();
+      vi.spyOn(getStatement, "first").mockResolvedValue(credentials);
+
+      await databaseService.upsertUserCredentials(credentials);
+      const result = await databaseService.getUserCredentials(credentials.UserId);
+
+      expect(result).toEqual(credentials);
+    });
+
+    it("updates the token and UpdatedAt on conflict", async () => {
+      const updated = aFakeUserCredentialsRow({ RefreshToken: "encrypted-2", UpdatedAt: 2000 });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+
+      await databaseService.upsertUserCredentials(updated);
+
+      expect(bindSpy).toHaveBeenCalledWith(updated.UserId, "encrypted-2", 2000);
+    });
+  });
+
+  describe("deleteUserCredentials()", () => {
+    it("deletes user credentials by user id", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteUserCredentials("user-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM UserCredentials WHERE UserId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("user-1");
       expect(runSpy).toHaveBeenCalled();
     });
   });

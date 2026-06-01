@@ -6,6 +6,7 @@ import type { GuildConfigRow } from "./types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "./types/guild_config";
 import type { NeatQueueConfigRow, NeatQueuePostSeriesDisplayMode } from "./types/neat_queue_config";
 import type { UserSessionsRow } from "./types/user_sessions";
+import type { UserCredentialsRow } from "./types/user_credentials";
 import type { LinkedIdentitiesRow, IdentityProvider } from "./types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "./types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "./types/individual_tracker_games";
@@ -269,6 +270,27 @@ export class DatabaseService {
     const sessionExpiryCutoffEpochSeconds = nowEpochSeconds - SESSION_COOKIE_MAX_AGE_SECONDS;
     const query = "DELETE FROM UserSessions WHERE CreatedAt <= ?";
     const stmt = this.DB.prepare(query).bind(sessionExpiryCutoffEpochSeconds);
+    await stmt.run();
+  }
+
+  async getUserCredentials(userId: string): Promise<UserCredentialsRow | null> {
+    const query = "SELECT * FROM UserCredentials WHERE UserId = ?";
+    const stmt = this.DB.prepare(query).bind(userId);
+    return await stmt.first<UserCredentialsRow>();
+  }
+
+  async upsertUserCredentials(row: UserCredentialsRow): Promise<void> {
+    const query = `
+      INSERT INTO UserCredentials (UserId, RefreshToken, UpdatedAt) VALUES (?, ?, ?)
+      ON CONFLICT(UserId) DO UPDATE SET RefreshToken=excluded.RefreshToken, UpdatedAt=excluded.UpdatedAt
+    `;
+    const stmt = this.DB.prepare(query).bind(row.UserId, row.RefreshToken, row.UpdatedAt);
+    await stmt.run();
+  }
+
+  async deleteUserCredentials(userId: string): Promise<void> {
+    const query = "DELETE FROM UserCredentials WHERE UserId = ?";
+    const stmt = this.DB.prepare(query).bind(userId);
     await stmt.run();
   }
 

@@ -100,6 +100,7 @@ describe("AuthService", () => {
       );
 
     const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const upsertUserCredentialsSpy = vi.spyOn(databaseService, "upsertUserCredentials").mockResolvedValue();
 
     const { state, codeVerifier } = aFakePKCEState();
     const response = new Response();
@@ -129,6 +130,13 @@ describe("AuthService", () => {
     expect(persistedSession?.AccessToken).not.toContain("access-token");
     expect(persistedSession?.RefreshToken).toContain("enc-v1.");
     expect(persistedSession?.RefreshToken).not.toContain("refresh-token");
+
+    expect(upsertUserCredentialsSpy).toHaveBeenCalled();
+    const persistedCredentials = upsertUserCredentialsSpy.mock.calls[0]?.[0];
+    expect(persistedCredentials?.UserId).toBe("user-123");
+    expect(persistedCredentials?.RefreshToken).toBe(persistedSession?.RefreshToken);
+    expect(persistedCredentials?.RefreshToken).not.toContain("refresh-token");
+    expect(typeof persistedCredentials?.UpdatedAt).toBe("number");
   });
 
   it("normalizes a backslash open-redirect payload to root through the callback round-trip", async () => {
@@ -333,6 +341,7 @@ describe("AuthService", () => {
       aFakeUserSessionsRow({ SessionId: session.sessionId }),
     );
     const upsertUserSessionSpy = vi.spyOn(databaseService, "upsertUserSession").mockResolvedValue();
+    const upsertUserCredentialsSpy = vi.spyOn(databaseService, "upsertUserCredentials").mockResolvedValue();
 
     const refreshed = await service.refreshSession(session);
 
@@ -346,6 +355,12 @@ describe("AuthService", () => {
     const persistedSession = upsertUserSessionSpy.mock.calls[0]?.[0];
     expect(persistedSession?.AccessToken).toContain("enc-v1.");
     expect(persistedSession?.RefreshToken).toContain("enc-v1.");
+
+    expect(upsertUserCredentialsSpy).toHaveBeenCalled();
+    const persistedCredentials = upsertUserCredentialsSpy.mock.calls[0]?.[0];
+    expect(persistedCredentials?.UserId).toBe("user-123");
+    expect(persistedCredentials?.RefreshToken).toBe(persistedSession?.RefreshToken);
+    expect(persistedCredentials?.RefreshToken).not.toContain("new-refresh-token");
   });
 
   it("merges xbox profile into the persisted session metadata", async () => {

@@ -247,14 +247,24 @@ export class AuthService {
       issuedAt: now,
     };
 
+    const encryptedRefreshToken =
+      refreshedSession.refreshToken == null ? null : await this.tokenEncryptor.encrypt(refreshedSession.refreshToken);
+
     await this.databaseService.upsertUserSession({
       ...existingSession,
       AccessToken: await this.tokenEncryptor.encrypt(refreshedSession.accessToken),
-      RefreshToken:
-        refreshedSession.refreshToken == null ? null : await this.tokenEncryptor.encrypt(refreshedSession.refreshToken),
+      RefreshToken: encryptedRefreshToken,
       ExpiresAt: Math.floor(refreshedSession.expiresAt / 1000),
       LastRefreshedAt: Math.floor(now / 1000),
     });
+
+    if (encryptedRefreshToken != null) {
+      await this.databaseService.upsertUserCredentials({
+        UserId: refreshedSession.userId,
+        RefreshToken: encryptedRefreshToken,
+        UpdatedAt: Math.floor(now / 1000),
+      });
+    }
 
     return refreshedSession;
   }
@@ -330,11 +340,13 @@ export class AuthService {
     if (preferredUsername != null) {
       authMetadata.preferredUsername = preferredUsername;
     }
+    const encryptedRefreshToken =
+      payload.refreshToken == null ? null : await this.tokenEncryptor.encrypt(payload.refreshToken);
     const sessionRow: UserSessionsRow = {
       SessionId: payload.sessionId,
       UserId: payload.userId,
       AccessToken: await this.tokenEncryptor.encrypt(payload.accessToken),
-      RefreshToken: payload.refreshToken == null ? null : await this.tokenEncryptor.encrypt(payload.refreshToken),
+      RefreshToken: encryptedRefreshToken,
       ExpiresAt: Math.floor(payload.expiresAt / 1000),
       CreatedAt: Math.floor(payload.issuedAt / 1000),
       LastRefreshedAt: Math.floor(payload.issuedAt / 1000),
@@ -342,6 +354,14 @@ export class AuthService {
     };
 
     await this.databaseService.upsertUserSession(sessionRow);
+
+    if (encryptedRefreshToken != null) {
+      await this.databaseService.upsertUserCredentials({
+        UserId: payload.userId,
+        RefreshToken: encryptedRefreshToken,
+        UpdatedAt: Math.floor(payload.issuedAt / 1000),
+      });
+    }
   }
 
   private parseAuthMetadata(authMetadataJson: string): z.infer<typeof authMetadataSchema> {
