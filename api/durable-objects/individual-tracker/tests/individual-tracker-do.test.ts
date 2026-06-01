@@ -1,9 +1,13 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
+import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
+import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
 import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
 import type {
   IndividualTrackerStartRequest,
@@ -27,6 +31,27 @@ const createMockStartRequest = (
   ...overrides,
 });
 
+const aFakePlayerMatch = (matchId: string, startTime: string): PlayerMatchHistory =>
+  ({
+    MatchId: matchId,
+    MatchInfo: {
+      StartTime: startTime,
+      EndTime: startTime,
+      MapVariant: { AssetId: "map-asset", VersionId: "v1" },
+      UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
+    },
+  }) as unknown as PlayerMatchHistory;
+
+const lastPersistedState = (
+  spy: MockInstance<(key: string, value: IndividualTrackerInternalState) => Promise<void>>,
+): IndividualTrackerInternalState => {
+  const lastCall = spy.mock.calls.at(-1);
+  if (lastCall == null) {
+    throw new Error("expected state to be persisted");
+  }
+  return lastCall[1];
+};
+
 describe("IndividualTrackerDO", () => {
   let individualTrackerDO: IndividualTrackerDO;
   let mockState: DurableObjectState;
@@ -38,6 +63,9 @@ describe("IndividualTrackerDO", () => {
   let storageDeleteSpy: MockInstance<typeof mockStorage.delete>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
   let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
+  let ownerClient: MockProxy<HaloInfiniteClient>;
+  let getClientForUser: MockInstance<UserTokenProvider["getClientForUser"]>;
+  let userTokenProvider: UserTokenProvider;
 
   beforeEach(() => {
     vi.useFakeTimers({
@@ -46,7 +74,13 @@ describe("IndividualTrackerDO", () => {
 
     mockState = aFakeDurableObjectStateWith();
     mockStorage = mockState.storage;
-    services = installFakeServicesWith();
+
+    ownerClient = mock<HaloInfiniteClient>();
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
+    getClientForUser = vi.fn<UserTokenProvider["getClientForUser"]>().mockResolvedValue(ownerClient);
+    userTokenProvider = { getClientForUser } as unknown as UserTokenProvider;
+
+    services = installFakeServicesWith({ userTokenProvider });
     env = aFakeEnvWith();
 
     storageGetSpy = vi.spyOn(mockStorage, "get");
@@ -267,13 +301,182 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("alarm()", () => {
-    it("bumps check count and reschedules when active", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ checkCount: 2 }));
+    const NORMAL_INTERVAL_MS = 3 * 60 * 1000 - 8 * 1000;
+    const now = new Date("2024-11-26T12:00:00.000Z");
+
+    it("bumps check count and reschedules at the normal interval on success", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ checkCount: 2, startTime: now.toISOString() }),
+      );
 
       await individualTrackerDO.alarm();
 
       expect(storagePutSpy).toHaveBeenCalledWith("individualTrackerState", expect.objectContaining({ checkCount: 3 }));
-      expect(storageSetAlarmSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + NORMAL_INTERVAL_MS);
+    });
+
+    it("polls getPlayerMatches and appends only genuinely-new matches at/after searchStartTime", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      ownerClient.getPlayerMatches.mockResolvedValue([
+        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
+        aFakePlayerMatch("match-existing", "2024-11-26T11:40:00.000Z"),
+        aFakePlayerMatch("match-too-old", "2024-11-26T10:00:00.000Z"),
+      ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: ["match-existing"],
+          discoveredMatches: {
+            "match-existing": {
+              matchId: "match-existing",
+              startTime: "2024-11-26T11:40:00.000Z",
+              endTime: "2024-11-26T11:40:00.000Z",
+              mapAssetId: "map-asset",
+              modeAssetId: "mode-asset",
+            },
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith("fake-xuid", 0, 25);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.matchIds).toEqual(["match-existing", "match-new"]);
+      expect(persisted.discoveredMatches["match-new"]).toMatchObject({
+        matchId: "match-new",
+        mapAssetId: "map-asset",
+        modeAssetId: "mode-asset",
+      });
+      expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
+    });
+
+    it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          errorState: { consecutiveErrors: 2, backoffMinutes: 10, lastSuccessTime: "old", lastErrorMessage: "boom" },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.lastMatchDiscoveredAt).toBe(now.toISOString());
+      expect(persisted.errorState.consecutiveErrors).toBe(0);
+      expect(persisted.errorState.backoffMinutes).toBe(3);
+      expect(persisted.errorState.lastErrorMessage).toBeUndefined();
+    });
+
+    it("does not set lastMatchDiscoveredAt when no new matches are found", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ startTime: now.toISOString(), lastMatchDiscoveredAt: undefined }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.lastMatchDiscoveredAt).toBeUndefined();
+    });
+
+    it("auto-stops and deletes the alarm when idle beyond idleTimeoutHours", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ status: "stopped" }),
+      );
+      expect(storageDeleteAlarmSpy).toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+    });
+
+    it("increments consecutiveErrors, grows backoff, reschedules at backoff and does not throw on poll failure", async () => {
+      ownerClient.getPlayerMatches.mockRejectedValue(new Error("Halo unavailable"));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+        }),
+      );
+
+      await expect(individualTrackerDO.alarm()).resolves.toBeUndefined();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.errorState.consecutiveErrors).toBe(1);
+      expect(persisted.errorState.backoffMinutes).toBe(8);
+      expect(persisted.errorState.lastErrorMessage).toBe("Halo unavailable");
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 8 * 60 * 1000);
+    });
+
+    it("caps backoff at the maximum interval", async () => {
+      ownerClient.getPlayerMatches.mockRejectedValue(new Error("still down"));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          errorState: { consecutiveErrors: 5, backoffMinutes: 10, lastSuccessTime: "old" },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.errorState.consecutiveErrors).toBe(6);
+      expect(persisted.errorState.backoffMinutes).toBe(10);
+    });
+
+    it("mints the owner client via userTokenProvider.getClientForUser", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ startTime: now.toISOString(), userId: "owner-123" }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(getClientForUser).toHaveBeenCalledWith("owner-123");
+    });
+
+    it("treats a null client as a poll error (backoff) without crashing", async () => {
+      getClientForUser.mockResolvedValue(null);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ startTime: now.toISOString() }));
+
+      await expect(individualTrackerDO.alarm()).resolves.toBeUndefined();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.errorState.consecutiveErrors).toBe(1);
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 8 * 60 * 1000);
+    });
+
+    it("reuses the cached client across polls (getClientForUser not called every alarm)", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ startTime: now.toISOString() }));
+
+      await individualTrackerDO.alarm();
+      await individualTrackerDO.alarm();
+
+      expect(getClientForUser).toHaveBeenCalledTimes(1);
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(2);
+    });
+
+    it("clears the cached client on auth failure so the next poll re-mints", async () => {
+      ownerClient.getPlayerMatches
+        .mockRejectedValueOnce(new Error("401 Unauthorized: spartan token expired"))
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ startTime: now.toISOString() }));
+
+      await individualTrackerDO.alarm();
+      await individualTrackerDO.alarm();
+
+      expect(getClientForUser).toHaveBeenCalledTimes(2);
     });
 
     it("does nothing when state is absent", async () => {
@@ -283,6 +486,7 @@ describe("IndividualTrackerDO", () => {
 
       expect(storagePutSpy).not.toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(getClientForUser).not.toHaveBeenCalled();
     });
 
     it("does nothing when paused", async () => {
@@ -292,6 +496,17 @@ describe("IndividualTrackerDO", () => {
 
       expect(storagePutSpy).not.toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(getClientForUser).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when stopped", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "stopped" }));
+
+      await individualTrackerDO.alarm();
+
+      expect(storagePutSpy).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+      expect(getClientForUser).not.toHaveBeenCalled();
     });
   });
 });

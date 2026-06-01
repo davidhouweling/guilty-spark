@@ -37,6 +37,8 @@ export function aFakeIndividualTrackerInternalStateWith(
     searchStartTime: new Date().toISOString(),
     lastMatchDiscoveredAt: undefined,
     checkCount: 0,
+    matchIds: [],
+    discoveredMatches: {},
     idleTimeoutHours: 6,
     errorState: {
       consecutiveErrors: 0,

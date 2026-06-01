@@ -21,10 +21,20 @@ export interface IndividualTrackerState {
   idleTimeoutHours: number;
 }
 
+export interface IndividualTrackerMatchSummary {
+  matchId: string;
+  startTime: string;
+  endTime: string;
+  mapAssetId: string;
+  modeAssetId: string;
+}
+
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
   checkCount: number;
+  matchIds: string[];
+  discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
