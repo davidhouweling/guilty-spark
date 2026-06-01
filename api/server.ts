@@ -1,10 +1,9 @@
 import type { AutoRouterType } from "itty-router";
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { installServices } from "./services/install";
-import type { SessionTokenPayload } from "./services/auth/types";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
 import { discordInteractionsRoute } from "./routes/discord/interactions";
 import { individualTrackerRoutesRegisterHandler } from "./routes/individual-tracker/individual-tracker";
+import { haloProxyRoutesRegisterHandler } from "./routes/halo-proxy/halo-proxy";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -32,6 +31,8 @@ export class Server {
     authRoutesRegisterHandler(this.router, this.installServices);
 
     individualTrackerRoutesRegisterHandler(this.router, this.installServices);
+
+    haloProxyRoutesRegisterHandler(this.router, this.installServices);
 
     discordInteractionsRoute(this.router, this.installServices);
 
@@ -101,107 +102,6 @@ export class Server {
         console.trace();
 
         return new Response("Internal error", { status: 500 });
-      }
-    });
-
-    this.router.post("/proxy/halo-infinite", async (request, env: Env) => {
-      try {
-        const authHeader = request.headers.get("x-proxy-auth");
-        if (authHeader != null && authHeader !== env.PROXY_WORKER_TOKEN) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-
-        const hasValidWorkerToken = authHeader === env.PROXY_WORKER_TOKEN;
-
-        let services: ReturnType<typeof this.installServices> | null = null;
-        let microsoftAccessToken: string | null = null;
-        let refreshedSessionPayload: SessionTokenPayload | null = null;
-
-        if (!hasValidWorkerToken) {
-          services = this.installServices({ env });
-          const session = await services.authService.validateSession(request);
-          if (session === null) {
-            return new Response("Unauthorized", { status: 401 });
-          }
-
-          if (session.isExpired) {
-            try {
-              refreshedSessionPayload = await services.authService.refreshSession(session);
-            } catch {
-              const response = new Response("Unauthorized", { status: 401 });
-              services.authService.clearSessionCookie(response);
-              return response;
-            }
-
-            if (refreshedSessionPayload === null) {
-              const response = new Response("Unauthorized", { status: 401 });
-              services.authService.clearSessionCookie(response);
-              return response;
-            }
-
-            microsoftAccessToken = refreshedSessionPayload.accessToken;
-          } else {
-            microsoftAccessToken = session.accessToken;
-          }
-        }
-
-        let body: unknown;
-        try {
-          body = await request.json();
-        } catch {
-          return new Response("Invalid JSON body", { status: 400 });
-        }
-
-        if (
-          typeof body !== "object" ||
-          body === null ||
-          typeof (body as { method?: unknown }).method !== "string" ||
-          !Array.isArray((body as { args?: unknown[] }).args)
-        ) {
-          return new Response("Invalid request format", { status: 400 });
-        }
-
-        const { method, args } = body as { method: string; args: unknown[] };
-
-        const activeServices = services ?? this.installServices({ env });
-        let haloInfiniteClient: HaloInfiniteClient;
-        if (microsoftAccessToken !== null) {
-          const xstsTokenInfo =
-            await activeServices.xboxService.exchangeMicrosoftAccessTokenForXstsToken(microsoftAccessToken);
-          haloInfiniteClient = new HaloInfiniteClient(
-            new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken),
-          );
-        } else {
-          ({ haloInfiniteClient } = activeServices);
-        }
-
-        const isFunctionProperty = <T>(
-          obj: T,
-          key: string,
-        ): obj is T & Record<string, (...args: unknown[]) => unknown> => {
-          return (
-            Object.prototype.hasOwnProperty.call(obj, key) &&
-            typeof (obj as Record<string, unknown>)[key] === "function"
-          );
-        };
-        if (!isFunctionProperty(haloInfiniteClient, method)) {
-          return new Response(`Method not found: ${method}`, { status: 404 });
-        }
-
-        const targetMethod = haloInfiniteClient[method] as (...a: unknown[]) => unknown;
-
-        const result: unknown = await targetMethod.apply(haloInfiniteClient, args);
-
-        return new Response(JSON.stringify({ result }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
-      } catch (error) {
-        console.error("Halo proxy error:", error);
-        return new Response(JSON.stringify({ error: "Proxy request failed" }), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
       }
     });
 

@@ -1,4 +1,8 @@
 import { RequestError, type HaloInfiniteClient } from "halo-infinite-api";
+import {
+  appendHaloProxyArgsToUrl,
+  resolveHaloProxyOperation,
+} from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
 
 function isProxyErrorResponse(
   data: unknown,
@@ -8,10 +12,6 @@ function isProxyErrorResponse(
     data !== null &&
     ("message" in data || "error" in data || "stack" in data || "name" in data)
   );
-}
-
-function isProxySuccessResponse(data: unknown): data is { result: unknown } {
-  return typeof data === "object" && data !== null && "result" in data;
 }
 
 async function handleProxyResponse(response: Response): Promise<unknown> {
@@ -37,10 +37,8 @@ async function handleProxyResponse(response: Response): Promise<unknown> {
 
     throw requestError;
   }
-  if (isProxySuccessResponse(data)) {
-    return data.result;
-  }
-  throw new Error("Malformed proxy response");
+
+  return data;
 }
 
 export function createHaloInfiniteClientProxy({ env }: { env: Env }): HaloInfiniteClient {
@@ -52,15 +50,29 @@ export function createHaloInfiniteClientProxy({ env }: { env: Env }): HaloInfini
         if (typeof prop !== "string") {
           return undefined;
         }
+
         return async (...args: unknown[]): Promise<unknown> => {
-          const response = await fetch(`${env.PROXY_WORKER_URL}/proxy/halo-infinite`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-proxy-auth": env.PROXY_WORKER_TOKEN,
-            },
-            body: JSON.stringify({ method: prop, args }),
-          });
+          const operation = resolveHaloProxyOperation(prop);
+          if (operation === null) {
+            throw new Error(`Halo proxy operation not allowed: ${prop}`);
+          }
+
+          const url = new URL(`${env.PROXY_WORKER_URL}/proxy/halo-infinite/${prop}`);
+          const headers = new Headers();
+          const requestInit: RequestInit & { credentials: "include" } = {
+            method: operation.httpMethod,
+            headers,
+            credentials: "include",
+          };
+
+          if (operation.httpMethod === "GET") {
+            appendHaloProxyArgsToUrl(url, args);
+          } else {
+            headers.set("content-type", "application/json");
+            requestInit.body = JSON.stringify({ args });
+          }
+
+          const response = await fetch(url.toString(), requestInit);
           return handleProxyResponse(response);
         };
       },
