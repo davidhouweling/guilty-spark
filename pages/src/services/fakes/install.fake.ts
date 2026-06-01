@@ -9,19 +9,47 @@ interface FakeServices {
 }
 
 export async function installFakeServices(): Promise<FakeServices> {
-  const [{ FakeAuthService }, { FakeIndividualTrackerService }, { FakeLiveTrackerService }, { createSampleScenario }] =
-    await Promise.all([
-      import("../auth/fakes/auth.fake"),
-      import("../individual-tracker/fakes/individual-tracker.fake"),
-      import("../live-tracker/fakes/live-tracker.fake"),
-      import("../live-tracker/fakes/scenario"),
-    ]);
+  const [
+    { FakeAuthService },
+    { FakeIndividualTrackerService, aFakeTrackerWith },
+    { FakeLiveTrackerService },
+    { createSampleScenario },
+  ] = await Promise.all([
+    import("../auth/fakes/auth.fake"),
+    import("../individual-tracker/fakes/individual-tracker.fake"),
+    import("../live-tracker/fakes/live-tracker.fake"),
+    import("../live-tracker/fakes/scenario"),
+  ]);
 
   const scenario = createSampleScenario();
 
   return {
     authService: new FakeAuthService(),
-    individualTrackerService: new FakeIndividualTrackerService(),
+    individualTrackerService: new FakeIndividualTrackerService({
+      trackers: [
+        aFakeTrackerWith({
+          trackerId: "fake-tracker-1",
+          gamertag: "Fake Spartan",
+          xuid: "2533274800000001",
+          status: "active",
+          isLive: true,
+        }),
+        aFakeTrackerWith({
+          trackerId: "fake-tracker-2",
+          gamertag: "Master Chief",
+          xuid: "2533274800000002",
+          status: "paused",
+          isLive: false,
+        }),
+        aFakeTrackerWith({
+          trackerId: "fake-tracker-3",
+          gamertag: "Cortana",
+          xuid: "2533274800000003",
+          status: "stopped",
+          isLive: false,
+        }),
+      ],
+    }),
     liveTrackerService: new FakeLiveTrackerService(scenario),
   };
 }

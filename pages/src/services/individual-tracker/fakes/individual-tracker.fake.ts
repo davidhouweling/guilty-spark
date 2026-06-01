@@ -112,16 +112,17 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   public async pauseTracker(trackerId: string): Promise<TrackerResponse> {
     await Promise.resolve();
-    return { tracker: this.findTracker(trackerId, "paused") };
+    return { tracker: this.mutateTrackerStatus(trackerId, "paused") };
   }
 
   public async resumeTracker(trackerId: string): Promise<TrackerResponse> {
     await Promise.resolve();
-    return { tracker: this.findTracker(trackerId, "active") };
+    return { tracker: this.mutateTrackerStatus(trackerId, "active") };
   }
 
   public async selectActive(trackerId: string): Promise<TrackerResponse> {
     await Promise.resolve();
+    this.trackers = this.trackers.map((tracker) => ({ ...tracker, isLive: tracker.trackerId === trackerId }));
     return { tracker: this.findTracker(trackerId) };
   }
 
@@ -130,10 +131,21 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return { tracker: this.findTracker(trackerId) };
   }
 
-  private findTracker(trackerId: string, status?: Tracker["status"]): Tracker {
+  private findTracker(trackerId: string): Tracker {
+    return this.trackers.find((tracker) => tracker.trackerId === trackerId) ?? aFakeTrackerWith({ trackerId });
+  }
+
+  private mutateTrackerStatus(trackerId: string, status: Tracker["status"]): Tracker {
     const existing = this.trackers.find((tracker) => tracker.trackerId === trackerId);
-    const base = existing ?? aFakeTrackerWith({ trackerId });
-    return status !== undefined ? aFakeTrackerWith({ ...base, status }) : base;
+    const updated = aFakeTrackerWith({
+      trackerId,
+      gamertag: existing?.gamertag ?? "Fake Spartan",
+      xuid: existing?.xuid ?? "2533274800000001",
+      isLive: existing?.isLive ?? false,
+      status,
+    });
+    this.trackers = this.trackers.map((tracker) => (tracker.trackerId === trackerId ? updated : tracker));
+    return updated;
   }
 }
 
