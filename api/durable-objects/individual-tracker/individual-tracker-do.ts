@@ -1,10 +1,12 @@
 import * as Sentry from "@sentry/cloudflare";
-import { addMilliseconds } from "date-fns";
+import { addMilliseconds, differenceInHours } from "date-fns";
+import { type HaloInfiniteClient, MatchType } from "halo-infinite-api";
 import type { LogService } from "../../services/log/types";
-import { installServices as installServicesImpl } from "../../services/install";
+import { installServices as installServicesImpl, type Services } from "../../services/install";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
+  IndividualTrackerMatchSummary,
   IndividualTrackerState,
   IndividualTrackerStartResponse,
   IndividualTrackerPauseResponse,
@@ -18,19 +20,25 @@ const EXECUTION_BUFFER_MS = 8 * 1000;
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS;
 
 const NORMAL_INTERVAL_MINUTES = 3;
+const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
+const MAX_BACKOFF_INTERVAL_MINUTES = 10;
+
+const PLAYER_MATCHES_PAGE_SIZE = 25;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
+  private readonly services: Services;
   private readonly logService: LogService;
+  private ownerClient: HaloInfiniteClient | null = null;
 
   constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
     this.state = state;
 
-    const services = installServices({ env });
-    this.logService = services.logService;
+    this.services = installServices({ env });
+    this.logService = this.services.logService;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -87,12 +95,126 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         return;
       }
 
-      trackerState.lastUpdateTime = new Date().toISOString();
-      trackerState.checkCount += 1;
-      await this.setState(trackerState);
+      Sentry.setContext("trackerState", {
+        userId: trackerState.userId,
+        trackerId: trackerState.trackerId,
+        gamertag: trackerState.gamertag,
+        checkCount: trackerState.checkCount,
+        errorCount: trackerState.errorState.consecutiveErrors,
+      });
 
-      await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+      const lastActivity = new Date(
+        Math.max(
+          new Date(trackerState.startTime).getTime(),
+          trackerState.lastMatchDiscoveredAt == null
+            ? new Date(trackerState.startTime).getTime()
+            : new Date(trackerState.lastMatchDiscoveredAt).getTime(),
+        ),
+      );
+      if (differenceInHours(new Date(), lastActivity) >= trackerState.idleTimeoutHours) {
+        trackerState.status = "stopped";
+        trackerState.lastUpdateTime = new Date().toISOString();
+        await this.state.storage.deleteAlarm();
+        await this.setState(trackerState);
+        return;
+      }
+
+      try {
+        await this.poll(trackerState);
+      } catch (error) {
+        this.logService.error("IndividualTracker: alarm poll failed", new Map([["error", String(error)]]));
+        Sentry.captureException(error);
+        this.handleError(trackerState, error);
+      }
+
+      await this.setState(trackerState);
+      await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
     });
+  }
+
+  private async poll(trackerState: IndividualTrackerInternalState): Promise<void> {
+    const haloClient = await this.getOwnerClient(trackerState.userId);
+
+    let matches: Awaited<ReturnType<HaloInfiniteClient["getPlayerMatches"]>>;
+    try {
+      matches = await haloClient.getPlayerMatches(trackerState.xuid, MatchType.All, PLAYER_MATCHES_PAGE_SIZE);
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.ownerClient = null;
+      }
+      throw error;
+    }
+
+    const searchStart = new Date(trackerState.searchStartTime);
+    let discoveredNewMatch = false;
+    for (const match of matches) {
+      const matchId = match.MatchId;
+      if (trackerState.matchIds.includes(matchId)) {
+        continue;
+      }
+      if (new Date(match.MatchInfo.StartTime) < searchStart) {
+        continue;
+      }
+
+      const summary: IndividualTrackerMatchSummary = {
+        matchId,
+        startTime: match.MatchInfo.StartTime,
+        endTime: match.MatchInfo.EndTime,
+        mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+      };
+      trackerState.discoveredMatches[matchId] = summary;
+      trackerState.matchIds.push(matchId);
+      discoveredNewMatch = true;
+    }
+
+    const now = new Date().toISOString();
+    if (discoveredNewMatch) {
+      trackerState.lastMatchDiscoveredAt = now;
+    }
+
+    trackerState.checkCount += 1;
+    trackerState.lastUpdateTime = now;
+    trackerState.errorState.consecutiveErrors = 0;
+    trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
+    trackerState.errorState.lastSuccessTime = now;
+    trackerState.errorState.lastErrorMessage = undefined;
+  }
+
+  private async getOwnerClient(userId: string): Promise<HaloInfiniteClient> {
+    if (this.ownerClient != null) {
+      return this.ownerClient;
+    }
+
+    const client = await this.services.userTokenProvider.getClientForUser(userId);
+    if (client == null) {
+      throw new Error("No Halo credentials available for tracker owner");
+    }
+
+    this.ownerClient = client;
+    return client;
+  }
+
+  private isAuthError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /\b401\b|unauthorized|expired|spartan token/i.test(message);
+  }
+
+  private handleError(trackerState: IndividualTrackerInternalState, error: unknown): void {
+    trackerState.errorState.consecutiveErrors += 1;
+    trackerState.errorState.lastErrorMessage = error instanceof Error ? error.message : String(error);
+    trackerState.errorState.backoffMinutes = Math.min(
+      NORMAL_INTERVAL_MINUTES + trackerState.errorState.consecutiveErrors * CONSECUTIVE_ERROR_INTERVAL_MINUTES,
+      MAX_BACKOFF_INTERVAL_MINUTES,
+    );
+    trackerState.lastUpdateTime = new Date().toISOString();
+  }
+
+  private getNextAlarmInterval(trackerState: IndividualTrackerInternalState): number {
+    if (trackerState.errorState.consecutiveErrors > 0) {
+      return trackerState.errorState.backoffMinutes * 60 * 1000;
+    }
+    return ALARM_INTERVAL_MS;
   }
 
   private async handleStart(request: Request): Promise<Response> {
@@ -111,6 +233,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       searchStartTime: body.searchStartTime,
       lastMatchDiscoveredAt: undefined,
       checkCount: 0,
+      matchIds: [],
+      discoveredMatches: {},
       idleTimeoutHours: body.idleTimeoutHours,
       errorState: {
         consecutiveErrors: 0,
