@@ -49,7 +49,7 @@ describe("createHaloInfiniteClientProxy", () => {
     expect(result).toEqual({ xuid: "123" });
   });
 
-  it("calls a POST operation with arguments encoded in the JSON body", async () => {
+  it("calls the multi-user operation as a GET with the array argument encoded in the query string", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(createMockResponse([{ xuid: "123" }]));
 
     const proxy = createHaloInfiniteClientProxy({ env });
@@ -59,10 +59,12 @@ describe("createHaloInfiniteClientProxy", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${env.PROXY_WORKER_URL}/proxy/halo-infinite/getUsers`);
-    expect(options.method).toBe("POST");
+    const parsedUrl = new URL(url);
+    expect(parsedUrl.pathname).toBe("/proxy/halo-infinite/getUsers");
+    expect(parsedUrl.searchParams.getAll("arg")).toEqual([JSON.stringify(["xuid(123)"])]);
+    expect(options.method).toBe("GET");
     expect((options as RequestInit & { credentials?: string }).credentials).toBe("include");
-    expect(JSON.parse(options.body as string)).toEqual({ args: [["xuid(123)"]] });
+    expect(options.body).toBeUndefined();
 
     expect(result).toEqual([{ xuid: "123" }]);
   });

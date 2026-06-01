@@ -2,7 +2,6 @@ import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "h
 import {
   buildHaloProxyCacheControl,
   isHaloProxyOperationName,
-  parseHaloProxyArgsFromBody,
   parseHaloProxyArgsFromUrl,
   resolveHaloProxyOperation,
 } from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
@@ -57,26 +56,8 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
   return { ok: true, resolved: { client: services.haloInfiniteClient } };
 }
 
-async function readHaloProxyArgs(
-  request: Request,
-  httpMethod: "GET" | "POST",
-): Promise<{ ok: true; args: unknown[] } | { ok: false; response: Response }> {
-  if (httpMethod === "GET") {
-    const parsed = parseHaloProxyArgsFromUrl(new URL(request.url));
-    if (!parsed.ok) {
-      return { ok: false, response: new Response(parsed.error, { status: 400 }) };
-    }
-    return { ok: true, args: parsed.args };
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return { ok: false, response: new Response("Invalid JSON body", { status: 400 }) };
-  }
-
-  const parsed = parseHaloProxyArgsFromBody(body);
+function readHaloProxyArgs(request: Request): { ok: true; args: unknown[] } | { ok: false; response: Response } {
+  const parsed = parseHaloProxyArgsFromUrl(new URL(request.url));
   if (!parsed.ok) {
     return { ok: false, response: new Response(parsed.error, { status: 400 }) };
   }
@@ -93,7 +74,7 @@ function callHaloProxyOperation(
 }
 
 export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices: InstallServices) => {
-  router.all("/proxy/halo-infinite/:operation", async (request, env: Env) => {
+  router.all("/proxy/halo-infinite/:operation", async (request, env: Env, ctx: ExecutionContext) => {
     try {
       const { operation } = request.params;
       if (operation == null || !isHaloProxyOperationName(operation)) {
@@ -109,7 +90,13 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
         return new Response("Method not allowed", { status: 405 });
       }
 
-      const argsResult = await readHaloProxyArgs(request, operationDefinition.httpMethod);
+      const cache = caches.default;
+      const cached = await cache.match(request);
+      if (cached) {
+        return cached;
+      }
+
+      const argsResult = readHaloProxyArgs(request);
       if (!argsResult.ok) {
         return argsResult.response;
       }
@@ -122,10 +109,14 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
 
       const result = await callHaloProxyOperation(clientResult.resolved.client, operation, argsResult.args);
 
-      return Response.json(result, {
+      const response = Response.json(result, {
         status: 200,
         headers: { "Cache-Control": buildHaloProxyCacheControl(operationDefinition) },
       });
+
+      ctx.waitUntil(cache.put(request, response.clone()));
+
+      return response;
     } catch (error) {
       console.error("Halo proxy error:", error instanceof Error ? error.message : String(error));
       return Response.json({ error: "Proxy request failed" }, { status: 500 });

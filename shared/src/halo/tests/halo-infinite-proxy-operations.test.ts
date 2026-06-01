@@ -3,7 +3,6 @@ import {
   appendHaloProxyArgsToUrl,
   buildHaloProxyCacheControl,
   isHaloProxyOperationName,
-  parseHaloProxyArgsFromBody,
   parseHaloProxyArgsFromUrl,
   resolveHaloProxyOperation,
 } from "../halo-infinite-proxy-operations";
@@ -38,9 +37,9 @@ describe("resolveHaloProxyOperation", () => {
     });
   });
 
-  it("returns the POST definition for the multi-user operation", () => {
+  it("returns the GET definition for the multi-user operation", () => {
     expect(resolveHaloProxyOperation("getUsers")).toEqual({
-      httpMethod: "POST",
+      httpMethod: "GET",
       cacheTtlSeconds: 3600,
       staleWhileRevalidateSeconds: 3600,
     });
@@ -112,31 +111,5 @@ describe("parseHaloProxyArgsFromUrl", () => {
     const result = parseHaloProxyArgsFromUrl(url);
 
     expect(result).toEqual({ ok: true, args: ["0000000000001", null, 25] });
-  });
-});
-
-describe("parseHaloProxyArgsFromBody", () => {
-  it("returns the args array from a well-formed body", () => {
-    const result = parseHaloProxyArgsFromBody({ args: [["xuid(1)"]] });
-
-    expect(result).toEqual({ ok: true, args: [["xuid(1)"]] });
-  });
-
-  it("returns an error when args is missing", () => {
-    const result = parseHaloProxyArgsFromBody({ foo: "bar" });
-
-    expect(result).toEqual({ ok: false, error: "Invalid request format" });
-  });
-
-  it("returns an error when args is not an array", () => {
-    const result = parseHaloProxyArgsFromBody({ args: "nope" });
-
-    expect(result).toEqual({ ok: false, error: "Invalid request format" });
-  });
-
-  it("returns an error when the body is not an object", () => {
-    const result = parseHaloProxyArgsFromBody(null);
-
-    expect(result).toEqual({ ok: false, error: "Invalid request format" });
   });
 });

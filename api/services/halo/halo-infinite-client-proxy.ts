@@ -65,12 +65,7 @@ export function createHaloInfiniteClientProxy({ env }: { env: Env }): HaloInfini
             credentials: "include",
           };
 
-          if (operation.httpMethod === "GET") {
-            appendHaloProxyArgsToUrl(url, args);
-          } else {
-            headers.set("content-type", "application/json");
-            requestInit.body = JSON.stringify({ args });
-          }
+          appendHaloProxyArgsToUrl(url, args);
 
           const response = await fetch(url.toString(), requestInit);
           return handleProxyResponse(response);

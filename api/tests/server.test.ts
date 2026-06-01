@@ -1,11 +1,12 @@
 import type { MockInstance } from "vitest";
-import { describe, it, beforeEach, expect, vi } from "vitest";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import { createApiRouter } from "../base/router";
 import { Server } from "../server";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
+import { aFakeCacheStorage } from "../base/fakes/cache.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import type { TokenInfo } from "../services/xbox/types";
 
@@ -71,6 +72,17 @@ describe("Server", () => {
   });
 
   describe("/proxy/halo-infinite/:operation", () => {
+    let ctx: EventContext<Env, "", unknown>;
+
+    beforeEach(() => {
+      vi.stubGlobal("caches", aFakeCacheStorage());
+      ctx = { waitUntil: vi.fn() } as unknown as EventContext<Env, "", unknown>;
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it("returns 404 when the operation is not in the allowlist", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite/notARealMethod", { method: "GET" });
       const res = (await server.router.fetch(req, env)) as Response;
@@ -96,7 +108,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({
@@ -117,19 +129,18 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(200);
       expect(res.headers.get("Cache-Control")).toBe("public, max-age=86400, stale-while-revalidate=3600");
     });
 
-    it("returns 200 for a POST operation with arguments parsed from the JSON body", async () => {
+    it("returns 200 for the multi-user GET operation with the array argument round-tripped through the query", async () => {
       vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
-      const req = new Request("http://localhost/proxy/halo-infinite/getUsers", {
-        method: "POST",
-        body: JSON.stringify({ args: [["xuid0000000000001"]] }),
-        headers: { "content-type": "application/json" },
+      const arg = encodeURIComponent(JSON.stringify(["xuid0000000000001"]));
+      const req = new Request(`http://localhost/proxy/halo-infinite/getUsers?arg=${arg}`, {
+        method: "GET",
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual([
@@ -145,30 +156,6 @@ describe("Server", () => {
         },
       ]);
       expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600, stale-while-revalidate=3600");
-    });
-
-    it("returns 400 for a POST operation with an invalid JSON body", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite/getUsers", {
-        method: "POST",
-        body: "{not-json}",
-        headers: { "content-type": "application/json" },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(400);
-      const text = await res.text();
-      expect(text).toBe("Invalid JSON body");
-    });
-
-    it("returns 400 for a POST operation when the body args field is missing", async () => {
-      const req = new Request("http://localhost/proxy/halo-infinite/getUsers", {
-        method: "POST",
-        body: JSON.stringify({ foo: "bar" }),
-        headers: { "content-type": "application/json" },
-      });
-      const res = (await server.router.fetch(req, env)) as Response;
-      expect(res.status).toBe(400);
-      const text = await res.text();
-      expect(text).toBe("Invalid request format");
     });
 
     it("returns 400 for a GET operation with non-JSON query arguments", async () => {
@@ -216,7 +203,7 @@ describe("Server", () => {
         method: "GET",
         headers: { cookie: "auth-session=valid-token", Origin: env.PAGES_URL },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({
@@ -282,7 +269,7 @@ describe("Server", () => {
         method: "GET",
         headers: { cookie: "auth-session=expired-token" },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(200);
       expect(res.headers.get("Set-Cookie")).toBeNull();
 
@@ -336,10 +323,88 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
       expect(res.status).toBe(500);
       const body = await res.json<{ error: string }>();
       expect(body).toEqual({ error: "Proxy request failed" });
+    });
+
+    it("stores a successful GET response into the edge cache on a miss", async () => {
+      const cache = caches.default;
+      const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
+
+      const firstReq = new Request(url, { method: "GET" });
+      const firstRes = (await server.router.fetch(firstReq, env, ctx)) as Response;
+      expect(firstRes.status).toBe(200);
+      expect(firstRes.headers.get("Cache-Control")).toBe("public, max-age=86400, stale-while-revalidate=3600");
+
+      const stored = await cache.match(new Request(url, { method: "GET" }));
+      expect(stored).toBeDefined();
+      expect(stored?.status).toBe(200);
+      expect(await stored?.json()).toEqual({
+        xuid: "0000000000001",
+        gamerpic: {
+          small: "small01.png",
+          medium: "medium01.png",
+          large: "large01.png",
+          xlarge: "xlarge01.png",
+        },
+        gamertag: "gamertag01",
+      });
+    });
+
+    it("serves a cache hit without invoking the Halo client a second time", async () => {
+      const localHaloInfiniteClient = aFakeHaloInfiniteClient();
+      const getUserSpy = vi.spyOn(localHaloInfiniteClient, "getUser");
+      const localInstallServices = vi.fn<typeof installServices>(() => ({
+        ...installFakeServicesWith({ env }),
+        haloInfiniteClient: localHaloInfiniteClient,
+      }));
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
+
+      const firstRes = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      expect(firstRes.status).toBe(200);
+      expect(getUserSpy).toHaveBeenCalledTimes(1);
+
+      const secondRes = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      expect(secondRes.status).toBe(200);
+      expect(await secondRes.json()).toEqual({
+        xuid: "0000000000001",
+        gamerpic: {
+          small: "small01.png",
+          medium: "medium01.png",
+          large: "large01.png",
+          xlarge: "xlarge01.png",
+        },
+        gamertag: "gamertag01",
+      });
+      expect(getUserSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not cache a non-200 response", async () => {
+      const cache = caches.default;
+      const localHaloInfiniteClient = aFakeHaloInfiniteClient();
+      vi.spyOn(localHaloInfiniteClient, "getUser").mockRejectedValue(new Error("fail!"));
+      const localInstallServices = vi.fn<typeof installServices>(() => ({
+        ...installFakeServicesWith({ env }),
+        haloInfiniteClient: localHaloInfiniteClient,
+      }));
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
+      const res = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      expect(res.status).toBe(500);
+
+      const stored = await cache.match(new Request(url, { method: "GET" }));
+      expect(stored).toBeUndefined();
     });
   });
 

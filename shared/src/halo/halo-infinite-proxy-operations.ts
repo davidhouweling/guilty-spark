@@ -1,6 +1,6 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 
-export type HaloProxyHttpMethod = "GET" | "POST";
+export type HaloProxyHttpMethod = "GET";
 
 interface HaloProxyOperationDefinition {
   readonly httpMethod: HaloProxyHttpMethod;
@@ -15,7 +15,7 @@ const HALO_PROXY_OPERATION_DEFINITIONS = {
   getSpecificAssetVersion: { httpMethod: "GET", cacheTtlSeconds: 604800, staleWhileRevalidateSeconds: 86400 },
   getPlaylist: { httpMethod: "GET", cacheTtlSeconds: 86400, staleWhileRevalidateSeconds: 3600 },
   getUser: { httpMethod: "GET", cacheTtlSeconds: 86400, staleWhileRevalidateSeconds: 3600 },
-  getUsers: { httpMethod: "POST", cacheTtlSeconds: 3600, staleWhileRevalidateSeconds: 3600 },
+  getUsers: { httpMethod: "GET", cacheTtlSeconds: 3600, staleWhileRevalidateSeconds: 3600 },
   getPlaylistCsr: { httpMethod: "GET", cacheTtlSeconds: 86400, staleWhileRevalidateSeconds: 3600 },
   getPlayerMatchCount: { httpMethod: "GET", cacheTtlSeconds: 60, staleWhileRevalidateSeconds: 30 },
   getPlayerMatches: { httpMethod: "GET", cacheTtlSeconds: 60, staleWhileRevalidateSeconds: 30 },
@@ -57,19 +57,6 @@ export function parseHaloProxyArgsFromUrl(url: URL): ParseHaloProxyArgsResult {
     } catch {
       return { ok: false, error: "Invalid query arguments" };
     }
-  }
-
-  return { ok: true, args };
-}
-
-export function parseHaloProxyArgsFromBody(body: unknown): ParseHaloProxyArgsResult {
-  if (typeof body !== "object" || body === null || !("args" in body)) {
-    return { ok: false, error: "Invalid request format" };
-  }
-
-  const { args } = body;
-  if (!Array.isArray(args)) {
-    return { ok: false, error: "Invalid request format" };
   }
 
   return { ok: true, args };
