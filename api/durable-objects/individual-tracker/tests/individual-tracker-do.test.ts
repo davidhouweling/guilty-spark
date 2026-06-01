@@ -16,6 +16,7 @@ import type {
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
   IndividualTrackerStatusResponse,
+  IndividualTrackerViewStateResponse,
 } from "../types";
 import { aFakeIndividualTrackerInternalStateWith } from "../fakes/individual-tracker-do.fake";
 
@@ -296,6 +297,84 @@ describe("IndividualTrackerDO", () => {
         expect(body.state).not.toHaveProperty("checkCount");
         expect(body.state).not.toHaveProperty("lastMatchDiscoveredAt");
         expect(Object.keys(body.state)).toHaveLength(9);
+      }
+    });
+  });
+
+  describe("handleViewState()", () => {
+    it("returns the allowlisted projection with matches in matchIds order", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "ViewTag",
+          status: "active",
+          lastUpdateTime: "2024-11-26T12:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
+          matchIds: ["match-2", "match-1"],
+          discoveredMatches: {
+            "match-1": {
+              matchId: "match-1",
+              startTime: "2024-11-26T11:00:00.000Z",
+              endTime: "2024-11-26T11:10:00.000Z",
+              mapAssetId: "map-1",
+              modeAssetId: "mode-1",
+            },
+            "match-2": {
+              matchId: "match-2",
+              startTime: "2024-11-26T11:30:00.000Z",
+              endTime: "2024-11-26T11:40:00.000Z",
+              mapAssetId: "map-2",
+              modeAssetId: "mode-2",
+            },
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body: IndividualTrackerViewStateResponse = await response.json();
+      expect(body.state?.gamertag).toBe("ViewTag");
+      expect(body.state?.status).toBe("active");
+      expect(body.state?.lastMatchDiscoveredAt).toBe("2024-11-26T11:55:00.000Z");
+      expect(body.state?.matches.map((match) => match.matchId)).toEqual(["match-2", "match-1"]);
+    });
+
+    it("returns lastMatchDiscoveredAt as null when no match has been discovered", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ lastMatchDiscoveredAt: undefined }));
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.lastMatchDiscoveredAt).toBeNull();
+    });
+
+    it("returns null state when absent", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body: IndividualTrackerViewStateResponse = await response.json();
+      expect(body.state).toBeNull();
+    });
+
+    it("excludes internal-only fields from the projection", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect.assertions(7);
+      if (body.state != null) {
+        expect(body.state).not.toHaveProperty("errorState");
+        expect(body.state).not.toHaveProperty("checkCount");
+        expect(body.state).not.toHaveProperty("searchStartTime");
+        expect(body.state).not.toHaveProperty("idleTimeoutHours");
+        expect(body.state).not.toHaveProperty("isPaused");
+        expect(body.state).not.toHaveProperty("userId");
+        expect(Object.keys(body.state).sort()).toEqual(
+          ["gamertag", "lastMatchDiscoveredAt", "lastUpdateTime", "matches", "status", "trackerId"].sort(),
+        );
       }
     });
   });

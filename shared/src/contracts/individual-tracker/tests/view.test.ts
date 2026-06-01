@@ -1,0 +1,57 @@
+import { describe, expect, it } from "vitest";
+import { trackerViewContract, type TrackerViewResponse } from "../view";
+
+describe("trackerViewContract", () => {
+  const validResponse: TrackerViewResponse = {
+    view: {
+      trackerId: "t1",
+      gamertag: "MyTag",
+      status: "active",
+      isLive: true,
+      matches: [
+        {
+          matchId: "match-1",
+          startTime: "2024-11-26T11:00:00.000Z",
+          endTime: "2024-11-26T11:10:00.000Z",
+          mapAssetId: "map-1",
+          modeAssetId: "mode-1",
+        },
+      ],
+      lastUpdateTime: "2024-11-26T12:00:00.000Z",
+      lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
+    },
+  };
+
+  it("parses a valid view response", () => {
+    expect(trackerViewContract.parse(validResponse)).toEqual(validResponse);
+  });
+
+  it("round-trips through toResponse/fromResponse", async () => {
+    const response = trackerViewContract.toResponse(validResponse, { noStore: true });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(trackerViewContract.fromResponse(response)).resolves.toEqual(validResponse);
+  });
+
+  it("accepts a null lastMatchDiscoveredAt and empty matches", () => {
+    const result = trackerViewContract.safeParse({
+      view: {
+        trackerId: "t2",
+        gamertag: "StoppedTag",
+        status: "stopped",
+        isLive: false,
+        matches: [],
+        lastUpdateTime: "",
+        lastMatchDiscoveredAt: null,
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown status", () => {
+    const result = trackerViewContract.safeParse({
+      ...validResponse,
+      view: { ...validResponse.view, status: "bogus" },
+    });
+    expect(result.success).toBe(false);
+  });
+});
