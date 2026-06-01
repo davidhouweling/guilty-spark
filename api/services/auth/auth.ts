@@ -270,6 +270,36 @@ export class AuthService {
   }
 
   /**
+   * Mint a fresh Microsoft access token for a user from their durable credential store.
+   * Fails closed: returns null on missing credentials or any failure (never throws to callers).
+   * The decrypted token is returned only to in-process callers; the stored value stays encrypted,
+   * and a rotated refresh token is re-encrypted on persist.
+   */
+  public async getMicrosoftAccessTokenForUser(userId: string): Promise<string | null> {
+    try {
+      const credentials = await this.databaseService.getUserCredentials(userId);
+      if (credentials == null) {
+        return null;
+      }
+
+      const refreshToken = await this.tokenEncryptor.decrypt(credentials.RefreshToken);
+      const tokens = await this.microsoftAuth.refreshAccessToken(refreshToken);
+
+      if (tokens.refresh_token != null && tokens.refresh_token !== "") {
+        await this.databaseService.upsertUserCredentials({
+          UserId: userId,
+          RefreshToken: await this.tokenEncryptor.encrypt(tokens.refresh_token),
+          UpdatedAt: Math.floor(Date.now() / 1000),
+        });
+      }
+
+      return tokens.access_token;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Set session cookie in response.
    */
   public setSessionCookie(response: Response, token: string): void {

@@ -8,6 +8,7 @@ import { Server } from "../server";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeCacheStorage } from "../base/fakes/cache.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
+import { aFakeLinkedIdentitiesRow } from "../services/database/fakes/database.fake";
 import type { TokenInfo } from "../services/xbox/types";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
@@ -405,6 +406,139 @@ describe("Server", () => {
 
       const stored = await cache.match(new Request(url, { method: "GET" }));
       expect(stored).toBeUndefined();
+    });
+
+    it("uses the owner's client when a known gamertag resolves to an active xbox identity", async () => {
+      const ownerClient = aFakeHaloInfiniteClient();
+      let getClientForUserSpy!: MockInstance;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({ UserId: "owner-user-1", Gamertag: "OwnerTag", IsActive: 1, Provider: "xbox" }),
+        );
+        getClientForUserSpy = vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(ownerClient);
+        return services;
+      });
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const req = new Request(
+        "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&gamertag=OwnerTag",
+        {
+          method: "GET",
+        },
+      );
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      expect(res.status).toBe(200);
+      const body = await res.json();
+
+      expect(getClientForUserSpy).toHaveBeenCalledWith("owner-user-1");
+      expect(ownerClient.getUser).toHaveBeenCalledWith("discord_user_01");
+      // The owner's spartan/XSTS/access token is never returned to the browser; only the Halo result is.
+      expect(JSON.stringify(body)).not.toContain("xsts");
+      expect(JSON.stringify(body)).not.toContain("token");
+    });
+
+    it("falls back to the bot client when the gamertag has no active xbox identity", async () => {
+      const botClient = aFakeHaloInfiniteClient();
+      const botGetUserSpy = vi.spyOn(botClient, "getUser");
+      let getClientForUserSpy!: MockInstance;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env, haloInfiniteClient: botClient });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(null);
+        getClientForUserSpy = vi.spyOn(services.userTokenProvider, "getClientForUser");
+        return services;
+      });
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const req = new Request(
+        "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&gamertag=Unknown",
+        {
+          method: "GET",
+        },
+      );
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toMatchObject({ xuid: "0000000000001", gamertag: "gamertag01" });
+
+      expect(getClientForUserSpy).not.toHaveBeenCalled();
+      expect(botGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+    });
+
+    it("falls back to the bot client when owner credentials cannot mint a client", async () => {
+      const botClient = aFakeHaloInfiniteClient();
+      const botGetUserSpy = vi.spyOn(botClient, "getUser");
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env, haloInfiniteClient: botClient });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({ UserId: "owner-user-1", Gamertag: "OwnerTag" }),
+        );
+        vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(null);
+        return services;
+      });
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const req = new Request(
+        "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&gamertag=OwnerTag",
+        {
+          method: "GET",
+        },
+      );
+      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      expect(res.status).toBe(200);
+      expect(botGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+    });
+
+    it("shares the same cache key whether or not the gamertag query param is present", async () => {
+      const cache = caches.default;
+      const ownerClient = aFakeHaloInfiniteClient();
+      const ownerGetUserSpy = vi.spyOn(ownerClient, "getUser");
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(
+          aFakeLinkedIdentitiesRow({ UserId: "owner-user-1", Gamertag: "OwnerTag" }),
+        );
+        vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(ownerClient);
+        return services;
+      });
+      server = new Server({
+        router: createApiRouter(),
+        installServices: localInstallServices,
+      });
+
+      const baseUrl = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
+
+      // Populate the cache via a request that carries ?gamertag=.
+      const ownerReq = new Request(`${baseUrl}&gamertag=OwnerTag`, { method: "GET" });
+      const ownerRes = (await server.router.fetch(ownerReq, env, ctx)) as Response;
+      expect(ownerRes.status).toBe(200);
+      expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
+
+      // The cache entry is keyed without the gamertag param, so a plain request hits the SAME entry.
+      const storedWithoutGamertag = await cache.match(new Request(baseUrl, { method: "GET" }));
+      expect(storedWithoutGamertag).toBeDefined();
+
+      // A subsequent route request with a DIFFERENT gamertag is served from that shared entry
+      // (the gamertag is stripped before keying), so the Halo client is not invoked again.
+      const otherReq = new Request(`${baseUrl}&gamertag=SomeoneElse`, { method: "GET" });
+      const otherRes = (await server.router.fetch(otherReq, env, ctx)) as Response;
+      expect(otherRes.status).toBe(200);
+      expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
+
+      // And a plain request (no gamertag) is likewise served from the same shared entry.
+      const plainReq = new Request(baseUrl, { method: "GET" });
+      const plainRes = (await server.router.fetch(plainReq, env, ctx)) as Response;
+      expect(plainRes.status).toBe(200);
+      expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
     });
   });
 

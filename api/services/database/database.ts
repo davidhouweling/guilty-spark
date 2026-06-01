@@ -310,6 +310,13 @@ export class DatabaseService {
     return await stmt.first<LinkedIdentitiesRow>();
   }
 
+  async findActiveXboxIdentityByGamertag(gamertag: string): Promise<LinkedIdentitiesRow | null> {
+    const query =
+      "SELECT * FROM LinkedIdentities WHERE Provider = 'xbox' AND IsActive = 1 AND Gamertag = ? ORDER BY UpdatedAt DESC";
+    const stmt = this.DB.prepare(query).bind(gamertag);
+    return await stmt.first<LinkedIdentitiesRow>();
+  }
+
   async upsertLinkedIdentity(identity: LinkedIdentitiesRow): Promise<void> {
     const query = `
       INSERT INTO LinkedIdentities (IdentityId, UserId, Provider, ProviderUserId, Gamertag, TwitchId, IsActive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

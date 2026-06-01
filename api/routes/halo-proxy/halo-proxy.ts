@@ -20,6 +20,23 @@ type ResolveHaloProxyClientResult =
   | { readonly ok: true; readonly resolved: ResolvedHaloProxyClient }
   | { readonly ok: false; readonly response: Response };
 
+async function resolveOwnerClient(request: Request, services: Services): Promise<HaloInfiniteClient | null> {
+  const gamertag = new URL(request.url).searchParams.get("gamertag");
+  if (gamertag == null || gamertag === "") {
+    return null;
+  }
+
+  try {
+    const identity = await services.databaseService.findActiveXboxIdentityByGamertag(gamertag);
+    if (identity == null) {
+      return null;
+    }
+    return await services.userTokenProvider.getClientForUser(identity.UserId);
+  } catch {
+    return null;
+  }
+}
+
 async function resolveHaloProxyClient(request: Request, services: Services): Promise<ResolveHaloProxyClientResult> {
   const session = await services.authService.validateSession(request);
 
@@ -50,10 +67,21 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
     return { ok: true, resolved: { client } };
   }
 
-  // Future PR (B3b): insert gamertag -> owner-token resolution here, between the
-  // authenticated-session branch above and the bot-account fallback below.
+  const ownerClient = await resolveOwnerClient(request, services);
+  if (ownerClient != null) {
+    return { ok: true, resolved: { client: ownerClient } };
+  }
 
   return { ok: true, resolved: { client: services.haloInfiniteClient } };
+}
+
+function toCacheKeyRequest(request: Request): Request {
+  const url = new URL(request.url);
+  if (!url.searchParams.has("gamertag")) {
+    return request;
+  }
+  url.searchParams.delete("gamertag");
+  return new Request(url.toString(), request);
 }
 
 function readHaloProxyArgs(request: Request): { ok: true; args: unknown[] } | { ok: false; response: Response } {
@@ -91,7 +119,8 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
       }
 
       const cache = caches.default;
-      const cached = await cache.match(request);
+      const cacheKeyRequest = toCacheKeyRequest(request);
+      const cached = await cache.match(cacheKeyRequest);
       if (cached) {
         return cached;
       }
@@ -114,7 +143,7 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
         headers: { "Cache-Control": buildHaloProxyCacheControl(operationDefinition) },
       });
 
-      ctx.waitUntil(cache.put(request, response.clone()));
+      ctx.waitUntil(cache.put(cacheKeyRequest, response.clone()));
 
       return response;
     } catch (error) {

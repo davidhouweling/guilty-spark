@@ -639,6 +639,35 @@ describe("Database Service", () => {
     });
   });
 
+  describe("findActiveXboxIdentityByGamertag()", () => {
+    it("returns the active xbox identity matching the gamertag", async () => {
+      const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow({ Gamertag: "OwnerGamertag" });
+      const fakePreparedStatement = new FakePreparedStatement<LinkedIdentitiesRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(identity);
+
+      const result = await databaseService.findActiveXboxIdentityByGamertag("OwnerGamertag");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM LinkedIdentities WHERE Provider = 'xbox' AND IsActive = 1 AND Gamertag = ? ORDER BY UpdatedAt DESC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("OwnerGamertag");
+      expect(result).toEqual(identity);
+    });
+
+    it("returns null when no active xbox identity matches (inactive or non-xbox filtered by the query)", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+      const result = await databaseService.findActiveXboxIdentityByGamertag("Nobody");
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("upsertLinkedIdentity()", () => {
     it("upserts linked identity", async () => {
       const identity = aFakeLinkedIdentitiesRow();
