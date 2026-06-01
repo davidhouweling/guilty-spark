@@ -16,6 +16,10 @@ function getRequest(path: string): Request {
   return new Request(`http://localhost${path}`, { method: "GET" });
 }
 
+function wsRequest(path: string): Request {
+  return new Request(`http://localhost${path}`, { method: "GET", headers: { Upgrade: "websocket" } });
+}
+
 describe("/api/individual-tracker view route", () => {
   let env: Env;
   let router: AutoRouterType;
@@ -113,5 +117,45 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.isLive).toBe(false);
     expect(body.view.matches).toEqual([]);
     expect(body.view.lastMatchDiscoveredAt).toBeNull();
+  });
+
+  describe("ws", () => {
+    it("forwards the websocket upgrade to the DO for a known tracker without a session", async () => {
+      const doStub = aFakeIndividualTrackerDOWith();
+      const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/api/individual-tracker/t1/ws"), localEnv)) as Response;
+
+      expect(res.headers.get("x-fake-upgrade")).toBe("websocket");
+    });
+
+    it("returns 404 for an unknown tracker", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(null);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/api/individual-tracker/unknown/ws"), env)) as Response;
+
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 426 when the request is not a websocket upgrade", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(getRequest("/api/individual-tracker/t1/ws"), env)) as Response;
+
+      expect(res.status).toBe(426);
+    });
   });
 });

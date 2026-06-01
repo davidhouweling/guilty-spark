@@ -37,3 +37,17 @@ export function defineContract<S extends z.ZodType>(schema: S): Contract<S> {
     },
   };
 }
+
+export interface MessageContract<S extends z.ZodType> {
+  readonly schema: S;
+  parse(raw: string): z.infer<S>;
+  serialize(data: z.infer<S>): string;
+}
+
+export function defineMessageContract<S extends z.ZodType>(schema: S): MessageContract<S> {
+  return {
+    schema,
+    parse: (raw) => schema.parse(JSON.parse(raw)),
+    serialize: (data) => JSON.stringify(schema.parse(data)),
+  };
+}

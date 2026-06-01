@@ -1,5 +1,7 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -8,7 +10,11 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
-import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectStateWith, aFakeWebSocket } from "../../../base/fakes/do.fake";
+import {
+  aFakeWebSocketHibernationAdapter,
+  type FakeWebSocketHibernationAdapter,
+} from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
@@ -586,6 +592,108 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(getClientForUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("websocket", () => {
+    let webSocketAdapter: FakeWebSocketHibernationAdapter;
+
+    beforeEach(() => {
+      webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      individualTrackerDO = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+    });
+
+    const wsRequest = (): Request =>
+      new Request("http://do/websocket", { method: "GET", headers: { Upgrade: "websocket" } });
+
+    it("returns 426 when the Upgrade header is missing", async () => {
+      const response = await individualTrackerDO.fetch(new Request("http://do/websocket", { method: "GET" }));
+
+      expect(response.status).toBe(426);
+    });
+
+    it("upgrades via the adapter and returns its response", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(wsRequest());
+
+      expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
+    });
+
+    it("sends the current view as the initial message when state exists", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "t1",
+          gamertag: "Tag1",
+          status: "active",
+          matchIds: ["m1"],
+          discoveredMatches: {
+            m1: { matchId: "m1", startTime: "s", endTime: "e", mapAssetId: "map", modeAssetId: "mode" },
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(wsRequest());
+
+      expect(webSocketAdapter.initialMessages).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0]));
+      expect(parsed.type).toBe("view");
+      expect(parsed.view.trackerId).toBe("t1");
+      expect(parsed.view.status).toBe("active");
+      expect(parsed.view.matches).toHaveLength(1);
+    });
+
+    it("does not send an initial message when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      await individualTrackerDO.fetch(wsRequest());
+
+      expect(webSocketAdapter.initialMessages).toEqual([undefined]);
+    });
+
+    it("broadcasts the allowlisted view when a poll discovers a new match", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([
+        aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString()),
+      ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ matchIds: [], searchStartTime: "2024-11-26T12:00:00.000Z" }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      expect(parsed.type).toBe("view");
+      expect(parsed.view.matches[0]?.matchId).toBe("new-match");
+    });
+
+    it("does not broadcast when a poll discovers no new match", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([]);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(0);
+    });
+
+    it("broadcasts a stopped view and closes sockets on stop", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "active" }));
+
+      await individualTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      expect(parsed.view.status).toBe("stopped");
+      expect(webSocketAdapter.closes[0]?.code).toBe(1000);
+    });
+
+    it("ignores client messages and does not throw on close/error", () => {
+      const ws = aFakeWebSocket();
+      expect(() => {
+        individualTrackerDO.webSocketMessage(ws, "hello");
+        individualTrackerDO.webSocketClose(ws, 1000, "bye", true);
+        individualTrackerDO.webSocketError(ws, new Error("boom"));
+      }).not.toThrow();
     });
   });
 });

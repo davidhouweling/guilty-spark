@@ -53,6 +53,11 @@ export function aFakeDurableObjectStorageWith(opts: Partial<DurableObjectStorage
   };
 }
 
+export function aFakeWebSocket(): WebSocket {
+  // The hibernation handlers ignore the socket argument; a minimal object suffices.
+  return {} as WebSocket;
+}
+
 export function aFakeDurableObjectStateWith(
   opts: Partial<DurableObjectState & { storage: DurableObjectStorage }> = {},
 ): DurableObjectState & { storage: DurableObjectStorage } {

@@ -1,8 +1,13 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
+import {
+  CloudflareWebSocketHibernationAdapter,
+  type WebSocketHibernationAdapter,
+} from "../../base/websocket-hibernation-adapter";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
@@ -35,12 +40,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly services: Services;
   private readonly logService: LogService;
   private ownerClient: HaloInfiniteClient | null = null;
+  private readonly webSocketAdapter: WebSocketHibernationAdapter;
 
-  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+  constructor(
+    state: DurableObjectState,
+    env: Env,
+    installServices = installServicesImpl,
+    webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
+  ) {
     this.state = state;
 
     this.services = installServices({ env });
     this.logService = this.services.logService;
+    this.webSocketAdapter = webSocketAdapter;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -74,6 +86,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "view-state": {
             return await this.handleViewState();
+          }
+          case "websocket": {
+            return await this.handleWebSocket(request);
           }
           case undefined: {
             return new Response("Bad Request", { status: 400 });
@@ -121,11 +136,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
         await this.setState(trackerState);
+        this.broadcastViewState(trackerState);
         return;
       }
 
+      let discoveredNewMatch = false;
       try {
-        await this.poll(trackerState);
+        discoveredNewMatch = await this.poll(trackerState);
       } catch (error) {
         this.logService.error("IndividualTracker: alarm poll failed", new Map([["error", String(error)]]));
         Sentry.captureException(error);
@@ -133,11 +150,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       await this.setState(trackerState);
+      if (discoveredNewMatch) {
+        this.broadcastViewState(trackerState);
+      }
       await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
     });
   }
 
-  private async poll(trackerState: IndividualTrackerInternalState): Promise<void> {
+  private async poll(trackerState: IndividualTrackerInternalState): Promise<boolean> {
     const haloClient = await this.getOwnerClient(trackerState.userId);
 
     let matches: Awaited<ReturnType<HaloInfiniteClient["getPlayerMatches"]>>;
@@ -184,6 +204,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
     trackerState.errorState.lastSuccessTime = now;
     trackerState.errorState.lastErrorMessage = undefined;
+
+    return discoveredNewMatch;
   }
 
   private async getOwnerClient(userId: string): Promise<HaloInfiniteClient> {
@@ -267,6 +289,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.state.storage.deleteAlarm();
     await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerPauseResponse = { success: true, state: this.sanitizeState(trackerState) };
     return Response.json(response);
@@ -283,14 +306,24 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+    this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerResumeResponse = { success: true, state: this.sanitizeState(trackerState) };
     return Response.json(response);
   }
 
   private async handleStop(): Promise<Response> {
+    const trackerState = await this.getState();
+
     await this.state.storage.deleteAlarm();
     await this.state.storage.delete(STATE_STORAGE_KEY);
+
+    if (trackerState != null) {
+      trackerState.status = "stopped";
+      trackerState.lastUpdateTime = new Date().toISOString();
+      this.broadcastViewState(trackerState);
+      this.closeWebSockets("Tracker stopped");
+    }
 
     const response: IndividualTrackerStopResponse = { success: true };
     return Response.json(response);
@@ -344,5 +377,58 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       lastUpdateTime: state.lastUpdateTime,
       lastMatchDiscoveredAt: state.lastMatchDiscoveredAt ?? null,
     };
+  }
+
+  private viewMessage(state: IndividualTrackerInternalState): string {
+    return trackerViewMessageContract.serialize({ type: "view", view: this.toViewState(state) });
+  }
+
+  private async handleWebSocket(request: Request): Promise<Response> {
+    const upgradeHeader = request.headers.get("Upgrade");
+    if (upgradeHeader !== "websocket") {
+      return new Response("Expected WebSocket upgrade", { status: 426 });
+    }
+
+    const trackerState = await this.getState();
+    try {
+      return this.webSocketAdapter.upgrade(
+        this.state,
+        trackerState != null ? this.viewMessage(trackerState) : undefined,
+      );
+    } catch (error) {
+      this.logService.error("IndividualTracker: failed to establish WebSocket", new Map([["error", String(error)]]));
+      Sentry.captureException(error);
+      return new Response("Failed to establish WebSocket connection", { status: 500 });
+    }
+  }
+
+  webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): void {
+    this.logService.debug(
+      "IndividualTracker: WebSocket message received (ignored)",
+      new Map([["messageType", typeof message]]),
+    );
+  }
+
+  webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): void {
+    this.logService.debug(
+      "IndividualTracker: WebSocket client disconnected",
+      new Map([
+        ["code", code.toString()],
+        ["reason", reason],
+        ["wasClean", wasClean.toString()],
+      ]),
+    );
+  }
+
+  webSocketError(_ws: WebSocket, error: unknown): void {
+    this.logService.warn("IndividualTracker: WebSocket error", new Map([["error", String(error)]]));
+  }
+
+  private broadcastViewState(state: IndividualTrackerInternalState): void {
+    this.webSocketAdapter.broadcast(this.state, this.viewMessage(state));
+  }
+
+  private closeWebSockets(reason: string): void {
+    this.webSocketAdapter.closeAll(this.state, 1000, reason);
   }
 }
