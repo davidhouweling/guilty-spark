@@ -11,7 +11,7 @@ import {
 import type { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { IndividualTrackerManagerPage } from "../create";
 
-describe("IndividualTrackerManagerPage", () => {
+describe("IndividualTrackerManagerView", () => {
   let service: FakeIndividualTrackerService;
 
   beforeEach(() => {
@@ -127,9 +127,10 @@ describe("IndividualTrackerManagerPage", () => {
     });
 
     expect(screen.getByRole("button", { name: "Track" })).toBeDisabled();
+    expect(screen.getByText(/reached the limit of 5 trackers/i)).toBeInTheDocument();
   });
 
-  it("invokes startTracker with the entered gamertag when adding a tracker", async () => {
+  it("invokes startTracker with the entered gamertag and adds its row after the list refreshes", async () => {
     const user = userEvent.setup();
     const startSpy: MockInstance = vi.spyOn(service, "startTracker");
 
@@ -144,6 +145,10 @@ describe("IndividualTrackerManagerPage", () => {
 
     await waitFor(() => {
       expect(startSpy).toHaveBeenCalledWith({ gamertag: "New Recruit" });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("New Recruit")).toBeInTheDocument();
     });
   });
 

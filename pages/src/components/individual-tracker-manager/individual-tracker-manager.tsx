@@ -2,20 +2,10 @@ import React from "react";
 import classNames from "classnames";
 import { Button } from "../button/button";
 import { Input } from "../input/input";
-import type { ManagerModel, TrackerRowAction, TrackerRowModel } from "./manager-model";
-import { MAX_TRACKERS, isValidGamertagInput } from "./manager-model";
+import type { TrackerRowAction, TrackerRowModel } from "./manager-model";
+import { MAX_TRACKERS } from "./manager-model";
+import { useManagerActions, useManagerModel } from "./individual-tracker-manager-context";
 import styles from "./individual-tracker-manager.module.css";
-
-interface IndividualTrackerManagerProps {
-  readonly model: ManagerModel;
-  readonly profileName: string;
-  readonly gamertagInput: string;
-  readonly addPending: boolean;
-  readonly pendingTrackerId: string | null;
-  readonly onGamertagInputChange: (value: string) => void;
-  readonly onAddTracker: () => void;
-  readonly onRowAction: (trackerId: string, action: TrackerRowAction) => void;
-}
 
 function StatusBadge({ row }: { readonly row: TrackerRowModel }): React.ReactElement {
   return (
@@ -102,17 +92,9 @@ function TrackerRow({ row, pending, onRowAction }: TrackerRowProps): React.React
   );
 }
 
-export function IndividualTrackerManager({
-  model,
-  profileName,
-  gamertagInput,
-  addPending,
-  pendingTrackerId,
-  onGamertagInputChange,
-  onAddTracker,
-  onRowAction,
-}: IndividualTrackerManagerProps): React.ReactElement {
-  const addDisabled = !model.canAddTracker || addPending || !isValidGamertagInput(gamertagInput);
+export function IndividualTrackerManagerView(): React.ReactElement {
+  const { model, profileName, gamertagInput, addPending, pendingTrackerId, addDisabled } = useManagerModel();
+  const { onGamertagInputChange, onAddTracker, onRowAction } = useManagerActions();
 
   return (
     <div className={styles.container}>

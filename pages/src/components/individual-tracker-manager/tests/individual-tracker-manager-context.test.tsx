@@ -1,0 +1,78 @@
+import "@testing-library/jest-dom/vitest";
+
+import { describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { aFakeTrackerWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { toManagerModel } from "../manager-model";
+import type { IndividualTrackerManagerViewModel } from "../types";
+import {
+  IndividualTrackerManagerProvider,
+  useManagerActions,
+  useManagerModel,
+} from "../individual-tracker-manager-context";
+
+function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewModel>): IndividualTrackerManagerViewModel {
+  return {
+    model: toManagerModel([aFakeTrackerWith({ trackerId: "t-1", gamertag: "Alpha" })]),
+    profileName: "Spartan Profile",
+    gamertagInput: "",
+    addPending: false,
+    pendingTrackerId: null,
+    addDisabled: true,
+    ...overrides,
+  };
+}
+
+const noopActions = {
+  onGamertagInputChange: (): void => undefined,
+  onAddTracker: (): void => undefined,
+  onRowAction: (): void => undefined,
+};
+
+describe("IndividualTrackerManagerContext", () => {
+  it("throws when the model hook is used outside the provider", () => {
+    expect(() => {
+      renderHook(() => useManagerModel());
+    }).toThrow("useIndividualTrackerManagerContext must be used within IndividualTrackerManagerProvider");
+  });
+
+  it("provides the view model to the model hook", () => {
+    const model = aFakeViewModelWith();
+
+    const { result } = renderHook(() => useManagerModel(), {
+      wrapper: ({ children }) => (
+        <IndividualTrackerManagerProvider model={model} actions={noopActions}>
+          {children}
+        </IndividualTrackerManagerProvider>
+      ),
+    });
+
+    expect(result.current.profileName).toBe("Spartan Profile");
+    expect(result.current.model.rows[0]?.gamertag).toBe("Alpha");
+  });
+
+  it("provides the bound actions to the actions hook", () => {
+    const onAddTracker = vi.fn();
+    const onRowAction = vi.fn();
+    const onGamertagInputChange = vi.fn();
+
+    const { result } = renderHook(() => useManagerActions(), {
+      wrapper: ({ children }) => (
+        <IndividualTrackerManagerProvider
+          model={aFakeViewModelWith()}
+          actions={{ onAddTracker, onRowAction, onGamertagInputChange }}
+        >
+          {children}
+        </IndividualTrackerManagerProvider>
+      ),
+    });
+
+    result.current.onAddTracker();
+    result.current.onRowAction("t-1", "stop");
+    result.current.onGamertagInputChange("Bravo");
+
+    expect(onAddTracker).toHaveBeenCalledTimes(1);
+    expect(onRowAction).toHaveBeenCalledWith("t-1", "stop");
+    expect(onGamertagInputChange).toHaveBeenCalledWith("Bravo");
+  });
+});
