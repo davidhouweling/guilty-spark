@@ -3,6 +3,10 @@ import { addMilliseconds, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, MatchType } from "halo-infinite-api";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
+import {
+  CloudflareWebSocketHibernationAdapter,
+  type WebSocketHibernationAdapter,
+} from "../../base/websocket-hibernation-adapter";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
@@ -35,12 +39,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly services: Services;
   private readonly logService: LogService;
   private ownerClient: HaloInfiniteClient | null = null;
+  private readonly webSocketAdapter: WebSocketHibernationAdapter;
 
-  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+  constructor(
+    state: DurableObjectState,
+    env: Env,
+    installServices = installServicesImpl,
+    webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
+  ) {
     this.state = state;
 
     this.services = installServices({ env });
     this.logService = this.services.logService;
+    this.webSocketAdapter = webSocketAdapter;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -377,27 +388,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    const webSocketPair = new WebSocketPair();
-    const client = webSocketPair[0];
-    const server = webSocketPair[1];
-
+    const trackerState = await this.getState();
     try {
-      this.state.acceptWebSocket(server);
-
-      const trackerState = await this.getState();
-      if (trackerState != null) {
-        server.send(this.viewMessage(trackerState));
-      }
-
-      return new Response(null, { status: 101, webSocket: client });
+      return this.webSocketAdapter.upgrade(
+        this.state,
+        trackerState != null ? this.viewMessage(trackerState) : undefined,
+      );
     } catch (error) {
       this.logService.error("IndividualTracker: failed to establish WebSocket", new Map([["error", String(error)]]));
       Sentry.captureException(error);
-      try {
-        server.close(1011, "Internal error");
-      } catch {
-        void 0;
-      }
       return new Response("Failed to establish WebSocket connection", { status: 500 });
     }
   }
@@ -425,34 +424,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private broadcastViewState(state: IndividualTrackerInternalState): void {
-    const allWebSockets = this.state.getWebSockets();
-    if (allWebSockets.length === 0) {
-      return;
-    }
-
-    const message = this.viewMessage(state);
-    for (const client of allWebSockets) {
-      try {
-        client.send(message);
-      } catch (error) {
-        this.logService.warn(
-          "IndividualTracker: failed to send to WebSocket client",
-          new Map([["error", String(error)]]),
-        );
-      }
-    }
+    this.webSocketAdapter.broadcast(this.state, this.viewMessage(state));
   }
 
   private closeWebSockets(reason: string): void {
-    for (const client of this.state.getWebSockets()) {
-      try {
-        client.close(1000, reason);
-      } catch (error) {
-        this.logService.warn(
-          "IndividualTracker: failed to close WebSocket client",
-          new Map([["error", String(error)]]),
-        );
-      }
-    }
+    this.webSocketAdapter.closeAll(this.state, 1000, reason);
   }
 }

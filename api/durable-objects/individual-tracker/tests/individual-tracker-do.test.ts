@@ -9,12 +9,11 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
+import { aFakeDurableObjectStateWith, aFakeWebSocket } from "../../../base/fakes/do.fake";
 import {
-  aFakeDurableObjectStateWith,
-  aFakeServerWebSocket,
-  installFakeWebSocketPair,
-  type FakeServerWebSocket,
-} from "../../../base/fakes/do.fake";
+  aFakeWebSocketHibernationAdapter,
+  type FakeWebSocketHibernationAdapter,
+} from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
@@ -596,64 +595,31 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("websocket", () => {
-    let sockets: FakeServerWebSocket[];
-    let acceptedServer: object | undefined;
-    let pair: { client: object; server: object };
-    const OriginalResponse = globalThis.Response;
+    let webSocketAdapter: FakeWebSocketHibernationAdapter;
 
     beforeEach(() => {
-      sockets = [];
-      acceptedServer = undefined;
-      pair = installFakeWebSocketPair();
-
-      class LenientResponse {
-        readonly fakeStatus: number;
-        readonly fakeWebSocket: unknown;
-        constructor(_body?: unknown, init?: { status?: number; webSocket?: unknown }) {
-          this.fakeStatus = init?.status ?? 200;
-          this.fakeWebSocket = init?.webSocket;
-        }
-      }
-      (globalThis as unknown as { Response: unknown }).Response = LenientResponse;
-
-      mockState = aFakeDurableObjectStateWith({
-        storage: mockStorage,
-        acceptWebSocket: (ws: WebSocket) => {
-          acceptedServer = ws;
-        },
-        getWebSockets: () => sockets as unknown as WebSocket[],
-      });
-      individualTrackerDO = new IndividualTrackerDO(mockState, env, () => services);
-    });
-
-    afterEach(() => {
-      (globalThis as unknown as { Response: unknown }).Response = OriginalResponse;
+      webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      individualTrackerDO = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
     });
 
     const wsRequest = (): Request =>
       new Request("http://do/websocket", { method: "GET", headers: { Upgrade: "websocket" } });
 
-    const wsStatus = (response: Response): number => (response as unknown as { fakeStatus: number }).fakeStatus;
-
     it("returns 426 when the Upgrade header is missing", async () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/websocket", { method: "GET" }));
 
-      expect(wsStatus(response)).toBe(426);
+      expect(response.status).toBe(426);
     });
 
-    it("upgrades to a websocket (101) and accepts the server socket", async () => {
+    it("upgrades via the adapter and returns its response", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(wsRequest());
 
-      expect(wsStatus(response)).toBe(101);
-      expect(acceptedServer).toBe(pair.server);
-      expect((response as unknown as { fakeWebSocket: unknown }).fakeWebSocket).toBe(pair.client);
+      expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
     });
 
     it("sends the current view as the initial message when state exists", async () => {
-      const initial = aFakeServerWebSocket();
-      sockets = [initial];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           trackerId: "t1",
@@ -666,11 +632,10 @@ describe("IndividualTrackerDO", () => {
         }),
       );
 
-      const response = await individualTrackerDO.fetch(wsRequest());
+      await individualTrackerDO.fetch(wsRequest());
 
-      expect(wsStatus(response)).toBe(101);
-      const [initialMessage] = (acceptedServer as unknown as FakeServerWebSocket).sent;
-      const parsed = JSON.parse(Preconditions.checkExists(initialMessage)) as {
+      expect(webSocketAdapter.initialMessages).toHaveLength(1);
+      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0])) as {
         type: string;
         view: { trackerId: string; matches: unknown[]; status: string };
       };
@@ -685,13 +650,10 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.fetch(wsRequest());
 
-      expect((acceptedServer as unknown as FakeServerWebSocket).sent).toHaveLength(0);
+      expect(webSocketAdapter.initialMessages).toEqual([undefined]);
     });
 
-    it("broadcasts the allowlisted view to all connected sockets when a poll discovers a new match", async () => {
-      const a = aFakeServerWebSocket();
-      const b = aFakeServerWebSocket();
-      sockets = [a, b];
+    it("broadcasts the allowlisted view when a poll discovers a new match", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([
         aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString()),
       ]);
@@ -701,9 +663,8 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
 
-      expect(a.sent).toHaveLength(1);
-      expect(b.sent).toHaveLength(1);
-      const parsed = JSON.parse(Preconditions.checkExists(a.sent[0])) as {
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0])) as {
         type: string;
         view: { matches: { matchId: string }[]; isLive?: unknown };
       };
@@ -713,43 +674,30 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not broadcast when a poll discovers no new match", async () => {
-      const a = aFakeServerWebSocket();
-      sockets = [a];
       ownerClient.getPlayerMatches.mockResolvedValue([]);
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
 
       await individualTrackerDO.alarm();
 
-      expect(a.sent).toHaveLength(0);
+      expect(webSocketAdapter.broadcasts).toHaveLength(0);
     });
 
     it("broadcasts a stopped view and closes sockets on stop", async () => {
-      const a = aFakeServerWebSocket();
-      sockets = [a];
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "active" }));
 
       await individualTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
-      expect(a.sent).toHaveLength(1);
-      const parsed = JSON.parse(Preconditions.checkExists(a.sent[0])) as { type: string; view: { status: string } };
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0])) as {
+        type: string;
+        view: { status: string };
+      };
       expect(parsed.view.status).toBe("stopped");
-      expect(a.closes[0]?.code).toBe(1000);
-    });
-
-    it("survives a socket that throws on send during broadcast", async () => {
-      const failing = aFakeServerWebSocket({ failSend: true });
-      const ok = aFakeServerWebSocket();
-      sockets = [failing, ok];
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "active" }));
-
-      await expect(
-        individualTrackerDO.fetch(new Request("http://do/pause", { method: "POST" })),
-      ).resolves.toBeDefined();
-      expect(ok.sent).toHaveLength(1);
+      expect(webSocketAdapter.closes[0]?.code).toBe(1000);
     });
 
     it("ignores client messages and does not throw on close/error", () => {
-      const ws = aFakeServerWebSocket() as unknown as WebSocket;
+      const ws = aFakeWebSocket();
       expect(() => {
         individualTrackerDO.webSocketMessage(ws, "hello");
         individualTrackerDO.webSocketClose(ws, 1000, "bye", true);

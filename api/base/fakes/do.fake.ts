@@ -53,39 +53,9 @@ export function aFakeDurableObjectStorageWith(opts: Partial<DurableObjectStorage
   };
 }
 
-export interface FakeServerWebSocket {
-  readonly sent: string[];
-  readonly closes: { code: number; reason: string }[];
-  send: (message: string) => void;
-  close: (code: number, reason: string) => void;
-}
-
-export function aFakeServerWebSocket(opts: { failSend?: boolean } = {}): FakeServerWebSocket {
-  const sent: string[] = [];
-  const closes: { code: number; reason: string }[] = [];
-  return {
-    sent,
-    closes,
-    send: (message: string): void => {
-      if (opts.failSend === true) {
-        throw new Error("send failed");
-      }
-      sent.push(message);
-    },
-    close: (code: number, reason: string): void => {
-      closes.push({ code, reason });
-    },
-  };
-}
-
-export function installFakeWebSocketPair(): { client: object; server: FakeServerWebSocket } {
-  const pair = { client: {}, server: aFakeServerWebSocket() };
-  const FakeWebSocketPair = function (this: Record<number, object>): void {
-    this[0] = pair.client;
-    this[1] = pair.server;
-  };
-  (globalThis as unknown as { WebSocketPair: unknown }).WebSocketPair = FakeWebSocketPair;
-  return pair;
+export function aFakeWebSocket(): WebSocket {
+  // The hibernation handlers ignore the socket argument; a minimal object suffices.
+  return {} as WebSocket;
 }
 
 export function aFakeDurableObjectStateWith(
