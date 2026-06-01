@@ -55,3 +55,23 @@ export async function parseJsonBody<T>(
     data: parsedBody.data,
   };
 }
+
+export function parsePathParams<T>(
+  params: Record<string, string | undefined>,
+  schema: ZodType<T>,
+  invalidPayloadMessage: string,
+): ParsedBodyResult<T> {
+  const parsed = schema.safeParse(params);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      response: errorContract.toResponse({ error: invalidPayloadMessage }, { status: 400, noStore: true }),
+    };
+  }
+
+  return {
+    success: true,
+    data: parsed.data,
+  };
+}

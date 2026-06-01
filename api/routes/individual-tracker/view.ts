@@ -1,5 +1,6 @@
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { trackerIdParamsSchema } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type {
   IndividualTrackerViewState,
@@ -26,7 +27,11 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
     const { databaseService, logService } = services;
 
     try {
-      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+      const parsedParams = parsePathParams(request.params, trackerIdParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
 
       const row = await databaseService.getIndividualTracker(trackerId);
       if (row == null) {
