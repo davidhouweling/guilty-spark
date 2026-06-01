@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS UserSessions (
 CREATE INDEX IF NOT EXISTS IdxUserSessionsUserId ON UserSessions (UserId);
 CREATE INDEX IF NOT EXISTS IdxUserSessionsExpiresAt ON UserSessions (ExpiresAt);
 
+CREATE TABLE IF NOT EXISTS UserCredentials (
+    UserId TEXT PRIMARY KEY NOT NULL,
+    RefreshToken TEXT NOT NULL,
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE TABLE IF NOT EXISTS LinkedIdentities (
     IdentityId TEXT PRIMARY KEY NOT NULL,
     UserId TEXT NOT NULL,
