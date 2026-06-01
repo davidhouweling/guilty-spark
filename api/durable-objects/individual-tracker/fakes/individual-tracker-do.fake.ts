@@ -6,6 +6,8 @@ import type {
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
+  IndividualTrackerViewState,
+  IndividualTrackerViewStateResponse,
 } from "../types";
 import type { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -16,6 +18,7 @@ export interface FakeIndividualTrackerDOOpts {
   resumeResponse?: IndividualTrackerResumeResponse;
   stopResponse?: IndividualTrackerStopResponse;
   statusResponse?: IndividualTrackerStatusResponse;
+  viewStateResponse?: IndividualTrackerViewStateResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
@@ -64,6 +67,20 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
   };
 }
 
+export function aFakeIndividualTrackerViewStateWith(
+  opts: Partial<IndividualTrackerViewState> = {},
+): IndividualTrackerViewState {
+  return {
+    trackerId: "fake-tracker-id",
+    gamertag: "FakeGamertag",
+    status: "active",
+    matches: [],
+    lastUpdateTime: new Date().toISOString(),
+    lastMatchDiscoveredAt: null,
+    ...opts,
+  };
+}
+
 export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts = {}): FakeIndividualTrackerDO {
   const defaultState = aFakeIndividualTrackerStateWith();
 
@@ -72,6 +89,9 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
   const resumeResponse: IndividualTrackerResumeResponse = opts.resumeResponse ?? { success: true, state: defaultState };
   const stopResponse: IndividualTrackerStopResponse = opts.stopResponse ?? { success: true };
   const statusResponse: IndividualTrackerStatusResponse = opts.statusResponse ?? { state: defaultState };
+  const viewStateResponse: IndividualTrackerViewStateResponse = opts.viewStateResponse ?? {
+    state: aFakeIndividualTrackerViewStateWith(),
+  };
   const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
   const fetchMock: FakeIndividualTrackerDO["fetch"] = async (input) => {
@@ -107,6 +127,9 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
         break;
       case "/status":
         responseBody = JSON.stringify(statusResponse);
+        break;
+      case "/view-state":
+        responseBody = JSON.stringify(viewStateResponse);
         break;
       default:
         responseBody = JSON.stringify({ success: false, error: `Unknown endpoint: ${path}` });

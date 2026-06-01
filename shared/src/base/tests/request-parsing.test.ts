@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { parseJsonBody, parseQueryParams } from "../request-parsing";
+import { parseJsonBody, parsePathParams, parseQueryParams } from "../request-parsing";
 
 const schema = z.object({ name: z.string() });
 
@@ -59,6 +59,28 @@ describe("parseJsonBody", () => {
   it("returns a 400 response when the body fails schema validation", async () => {
     expect.assertions(2);
     const result = await parseJsonBody(jsonRequest(JSON.stringify({ wrong: true })), schema, "bad payload");
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.response.status).toBe(400);
+    }
+  });
+});
+
+describe("parsePathParams", () => {
+  it("returns parsed data for valid path params", () => {
+    expect.assertions(2);
+    const result = parsePathParams({ name: "spartan" }, schema, "bad params");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({ name: "spartan" });
+    }
+  });
+
+  it("returns a 400 response when path params fail schema validation", () => {
+    expect.assertions(2);
+    const result = parsePathParams({}, schema, "bad params");
 
     expect(result.success).toBe(false);
     if (!result.success) {

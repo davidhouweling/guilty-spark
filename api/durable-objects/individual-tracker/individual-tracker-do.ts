@@ -13,6 +13,8 @@ import type {
   IndividualTrackerResumeResponse,
   IndividualTrackerStopResponse,
   IndividualTrackerStatusResponse,
+  IndividualTrackerViewState,
+  IndividualTrackerViewStateResponse,
 } from "./types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
@@ -69,6 +71,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "status": {
             return await this.handleStatus();
+          }
+          case "view-state": {
+            return await this.handleViewState();
           }
           case undefined: {
             return new Response("Bad Request", { status: 400 });
@@ -299,6 +304,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
+  private async handleViewState(): Promise<Response> {
+    const trackerState = await this.getState();
+    const response: IndividualTrackerViewStateResponse = {
+      state: trackerState == null ? null : this.toViewState(trackerState),
+    };
+    return Response.json(response);
+  }
+
   private async getState(): Promise<IndividualTrackerInternalState | null> {
     const state = await this.state.storage.get<IndividualTrackerInternalState>(STATE_STORAGE_KEY);
     return state ?? null;
@@ -319,6 +332,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       startTime: state.startTime,
       lastUpdateTime: state.lastUpdateTime,
       idleTimeoutHours: state.idleTimeoutHours,
+    };
+  }
+
+  private toViewState(state: IndividualTrackerInternalState): IndividualTrackerViewState {
+    return {
+      trackerId: state.trackerId,
+      gamertag: state.gamertag,
+      status: state.status,
+      matches: state.matchIds.map((matchId) => state.discoveredMatches[matchId]).filter((match) => match != null),
+      lastUpdateTime: state.lastUpdateTime,
+      lastMatchDiscoveredAt: state.lastMatchDiscoveredAt ?? null,
     };
   }
 }

@@ -7,6 +7,20 @@ export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
   };
 }
 
+export function aFakeDurableObjectNamespaceWith<T extends Rpc.DurableObjectBranded>(
+  stub: DurableObjectStub<T>,
+): DurableObjectNamespace<T> {
+  const id = aFakeDurableObjectId();
+  return {
+    idFromName: () => id,
+    idFromString: () => id,
+    newUniqueId: () => id,
+    getByName: () => stub,
+    get: () => stub,
+    jurisdiction: () => ({}) as DurableObjectNamespace<T>,
+  };
+}
+
 export function aFakeSqlStorage(opts: Partial<SqlStorage> = {}): SqlStorage {
   return {
     exec: vi.fn(),

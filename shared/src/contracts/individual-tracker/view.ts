@@ -1,0 +1,26 @@
+import { z } from "zod";
+import { defineContract } from "../base";
+import { trackerStatusSchema } from "./tracker";
+
+export const trackerMatchSummarySchema = z.object({
+  matchId: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  mapAssetId: z.string(),
+  modeAssetId: z.string(),
+});
+export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
+
+export const trackerViewStateSchema = z.object({
+  trackerId: z.string(),
+  gamertag: z.string(),
+  status: trackerStatusSchema,
+  isLive: z.boolean(),
+  matches: z.array(trackerMatchSummarySchema),
+  lastUpdateTime: z.string(),
+  lastMatchDiscoveredAt: z.string().nullable(),
+});
+export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
+
+export const trackerViewContract = defineContract(z.object({ view: trackerViewStateSchema }));
+export type TrackerViewResponse = z.infer<typeof trackerViewContract.schema>;

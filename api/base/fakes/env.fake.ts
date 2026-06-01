@@ -1,7 +1,6 @@
 import { aFakeLiveTrackerDOWith } from "../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackerDOWith } from "../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
-import type { IndividualTrackerDO, LiveTrackerDO } from "../../worker";
-import { aFakeDurableObjectId } from "./do.fake";
+import { aFakeDurableObjectNamespaceWith } from "./do.fake";
 
 const fakeNamespace = (): KVNamespace =>
   ({
@@ -59,9 +58,7 @@ const fakeDb = (): D1Database => ({
 });
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
-  const liveTrackerDOId = aFakeDurableObjectId();
   const liveTrackerGet = aFakeLiveTrackerDOWith();
-  const individualTrackerDOId = aFakeDurableObjectId();
   const individualTrackerGet = aFakeIndividualTrackerDOWith();
 
   const defaultOpts: Env = {
@@ -85,22 +82,8 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     MICROSOFT_SCOPES: "openid email offline_access XboxLive.signin XboxLive.offline_access",
     SESSION_SECRET: "a".repeat(64),
     TOKEN_ENCRYPTION_SECRET: "c".repeat(64),
-    LIVE_TRACKER_DO: {
-      idFromName: () => liveTrackerDOId,
-      idFromString: () => liveTrackerDOId,
-      newUniqueId: () => liveTrackerDOId,
-      getByName: () => liveTrackerGet,
-      get: () => liveTrackerGet,
-      jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
-    },
-    INDIVIDUAL_TRACKER_DO: {
-      idFromName: () => individualTrackerDOId,
-      idFromString: () => individualTrackerDOId,
-      newUniqueId: () => individualTrackerDOId,
-      getByName: () => individualTrackerGet,
-      get: () => individualTrackerGet,
-      jurisdiction: () => ({}) as DurableObjectNamespace<IndividualTrackerDO>,
-    },
+    LIVE_TRACKER_DO: aFakeDurableObjectNamespaceWith(liveTrackerGet),
+    INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(individualTrackerGet),
   };
 
   return {

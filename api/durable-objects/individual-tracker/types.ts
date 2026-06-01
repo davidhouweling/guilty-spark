@@ -66,7 +66,20 @@ export interface IndividualTrackerStatusResponse {
   state: IndividualTrackerState | null;
 }
 
-export type IndividualTrackerAction = "start" | "pause" | "resume" | "stop" | "status";
+export interface IndividualTrackerViewState {
+  trackerId: string;
+  gamertag: string;
+  status: IndividualTrackerStatus;
+  matches: IndividualTrackerMatchSummary[];
+  lastUpdateTime: string;
+  lastMatchDiscoveredAt: string | null;
+}
+
+export interface IndividualTrackerViewStateResponse {
+  state: IndividualTrackerViewState | null;
+}
+
+export type IndividualTrackerAction = "start" | "pause" | "resume" | "stop" | "status" | "view-state";
 
 export interface IndividualTrackerApiMap {
   start: {
@@ -88,6 +101,10 @@ export interface IndividualTrackerApiMap {
   status: {
     request: never;
     response: IndividualTrackerStatusResponse;
+  };
+  "view-state": {
+    request: never;
+    response: IndividualTrackerViewStateResponse;
   };
 }
 

@@ -39,6 +39,11 @@ export const selectActiveTrackerRequestSchema = z.object({
 });
 export type SelectActiveTrackerRequest = z.infer<typeof selectActiveTrackerRequestSchema>;
 
+export const trackerParamsSchema = z.object({
+  trackerId: z.string().min(1),
+});
+export type TrackerParams = z.infer<typeof trackerParamsSchema>;
+
 export const trackerContract = defineContract(z.object({ tracker: trackerSchema }));
 export type TrackerResponse = z.infer<typeof trackerContract.schema>;
 
