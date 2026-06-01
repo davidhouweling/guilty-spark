@@ -6,7 +6,10 @@ export interface IndividualTrackerManagerSnapshot {
   readonly errorMessage: string | null;
   readonly profileName: string;
   readonly trackers: readonly Tracker[];
+  readonly isAddDialogOpen: boolean;
   readonly gamertagInput: string;
+  readonly searchStartTime: string;
+  readonly idleTimeoutHours: string;
   readonly addPending: boolean;
   readonly pendingTrackerId: string | null;
 }
@@ -21,7 +24,10 @@ export class IndividualTrackerManagerStore {
       errorMessage: null,
       profileName: "",
       trackers: [],
+      isAddDialogOpen: false,
       gamertagInput: "",
+      searchStartTime: "",
+      idleTimeoutHours: "",
       addPending: false,
       pendingTrackerId: null,
     };
@@ -59,8 +65,20 @@ export class IndividualTrackerManagerStore {
     this.update({ trackers });
   }
 
+  public setAddDialogOpen(isAddDialogOpen: boolean): void {
+    this.update({ isAddDialogOpen });
+  }
+
   public setGamertagInput(gamertagInput: string): void {
     this.update({ gamertagInput });
+  }
+
+  public setSearchStartTime(searchStartTime: string): void {
+    this.update({ searchStartTime });
+  }
+
+  public setIdleTimeoutHours(idleTimeoutHours: string): void {
+    this.update({ idleTimeoutHours });
   }
 
   public setAddPending(addPending: boolean): void {

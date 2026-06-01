@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { aFakeTrackerWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
-import { MAX_TRACKERS, isValidGamertagInput, toManagerModel, toTrackerRowModel } from "../manager-model";
+import {
+  MAX_TRACKERS,
+  isValidGamertagInput,
+  isValidIdleTimeoutHoursInput,
+  isValidSearchStartTimeInput,
+  parseIdleTimeoutHours,
+  parseSearchStartTime,
+  toManagerModel,
+  toTrackerRowModel,
+} from "../manager-model";
 
 describe("toTrackerRowModel", () => {
   it("maps an active live tracker to a row with stop and pause enabled and set-live hidden", () => {
@@ -85,5 +94,61 @@ describe("isValidGamertagInput", () => {
   it("rejects an empty or whitespace-only value", () => {
     expect(isValidGamertagInput("")).toBe(false);
     expect(isValidGamertagInput("   ")).toBe(false);
+  });
+});
+
+describe("parseIdleTimeoutHours", () => {
+  it("returns null for blank input", () => {
+    expect(parseIdleTimeoutHours("")).toBeNull();
+    expect(parseIdleTimeoutHours("   ")).toBeNull();
+  });
+
+  it("returns null for a non-positive or non-numeric value", () => {
+    expect(parseIdleTimeoutHours("0")).toBeNull();
+    expect(parseIdleTimeoutHours("-2")).toBeNull();
+    expect(parseIdleTimeoutHours("abc")).toBeNull();
+  });
+
+  it("parses a positive number", () => {
+    expect(parseIdleTimeoutHours(" 12 ")).toBe(12);
+    expect(parseIdleTimeoutHours("1.5")).toBe(1.5);
+  });
+});
+
+describe("isValidIdleTimeoutHoursInput", () => {
+  it("accepts blank input and positive numbers", () => {
+    expect(isValidIdleTimeoutHoursInput("")).toBe(true);
+    expect(isValidIdleTimeoutHoursInput("6")).toBe(true);
+  });
+
+  it("rejects non-positive or non-numeric input", () => {
+    expect(isValidIdleTimeoutHoursInput("0")).toBe(false);
+    expect(isValidIdleTimeoutHoursInput("nope")).toBe(false);
+  });
+});
+
+describe("parseSearchStartTime", () => {
+  it("returns null for blank input", () => {
+    expect(parseSearchStartTime("")).toBeNull();
+    expect(parseSearchStartTime("   ")).toBeNull();
+  });
+
+  it("returns null for an unparseable datetime", () => {
+    expect(parseSearchStartTime("not-a-date")).toBeNull();
+  });
+
+  it("normalises a valid datetime to an ISO string", () => {
+    expect(parseSearchStartTime("2026-01-02T03:04")).toBe(new Date("2026-01-02T03:04").toISOString());
+  });
+});
+
+describe("isValidSearchStartTimeInput", () => {
+  it("accepts blank input and valid datetimes", () => {
+    expect(isValidSearchStartTimeInput("")).toBe(true);
+    expect(isValidSearchStartTimeInput("2026-01-02T03:04")).toBe(true);
+  });
+
+  it("rejects an unparseable datetime", () => {
+    expect(isValidSearchStartTimeInput("not-a-date")).toBe(false);
   });
 });

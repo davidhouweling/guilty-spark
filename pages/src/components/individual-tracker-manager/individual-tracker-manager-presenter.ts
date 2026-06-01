@@ -5,7 +5,14 @@ import type {
   IndividualTrackerManagerStore,
 } from "./individual-tracker-manager-store";
 import type { TrackerRowAction } from "./manager-model";
-import { isValidGamertagInput, toManagerModel } from "./manager-model";
+import {
+  isValidGamertagInput,
+  isValidIdleTimeoutHoursInput,
+  isValidSearchStartTimeInput,
+  parseIdleTimeoutHours,
+  parseSearchStartTime,
+  toManagerModel,
+} from "./manager-model";
 import type { IndividualTrackerManagerViewModel } from "./types";
 
 interface Config {
@@ -23,13 +30,22 @@ export class IndividualTrackerManagerPresenter {
 
   public static present(snapshot: IndividualTrackerManagerSnapshot): IndividualTrackerManagerViewModel {
     const model = toManagerModel(snapshot.trackers);
+    const addDisabled =
+      !model.canAddTracker ||
+      snapshot.addPending ||
+      !isValidGamertagInput(snapshot.gamertagInput) ||
+      !isValidSearchStartTimeInput(snapshot.searchStartTime) ||
+      !isValidIdleTimeoutHoursInput(snapshot.idleTimeoutHours);
     return {
       model,
       profileName: snapshot.profileName,
+      isAddDialogOpen: snapshot.isAddDialogOpen,
       gamertagInput: snapshot.gamertagInput,
+      searchStartTime: snapshot.searchStartTime,
+      idleTimeoutHours: snapshot.idleTimeoutHours,
       addPending: snapshot.addPending,
       pendingTrackerId: snapshot.pendingTrackerId,
-      addDisabled: !model.canAddTracker || snapshot.addPending || !isValidGamertagInput(snapshot.gamertagInput),
+      addDisabled,
     };
   }
 
@@ -41,6 +57,22 @@ export class IndividualTrackerManagerPresenter {
     this.isDisposed = true;
   }
 
+  public openAddDialog(): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.resetAddFields();
+    this.config.store.setAddDialogOpen(true);
+  }
+
+  public closeAddDialog(): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setAddDialogOpen(false);
+    this.resetAddFields();
+  }
+
   public setGamertagInput(value: string): void {
     if (this.isDisposed) {
       return;
@@ -48,22 +80,50 @@ export class IndividualTrackerManagerPresenter {
     this.config.store.setGamertagInput(value);
   }
 
+  public setSearchStartTime(value: string): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setSearchStartTime(value);
+  }
+
+  public setIdleTimeoutHours(value: string): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setIdleTimeoutHours(value);
+  }
+
   public addTracker(): void {
-    const { gamertagInput } = this.config.store.getSnapshot();
+    if (this.isDisposed) {
+      return;
+    }
+    const { gamertagInput, searchStartTime, idleTimeoutHours } = this.config.store.getSnapshot();
     if (!isValidGamertagInput(gamertagInput)) {
       return;
     }
-    const gamertag = gamertagInput.trim();
+    if (!isValidSearchStartTimeInput(searchStartTime) || !isValidIdleTimeoutHoursInput(idleTimeoutHours)) {
+      return;
+    }
+
+    const parsedSearchStartTime = parseSearchStartTime(searchStartTime);
+    const parsedIdleTimeoutHours = parseIdleTimeoutHours(idleTimeoutHours);
+    const request = {
+      gamertag: gamertagInput.trim(),
+      ...(parsedSearchStartTime !== null ? { searchStartTime: parsedSearchStartTime } : {}),
+      ...(parsedIdleTimeoutHours !== null ? { idleTimeoutHours: parsedIdleTimeoutHours } : {}),
+    };
 
     this.config.store.setAddPending(true);
     this.config.individualTrackerService
-      .startTracker({ gamertag })
+      .startTracker(request)
       .then(async () => this.refreshTrackers())
       .then(() => {
         if (this.isDisposed) {
           return;
         }
-        this.config.store.setGamertagInput("");
+        this.config.store.setAddDialogOpen(false);
+        this.resetAddFields();
       })
       .catch((error: unknown) => {
         if (this.isDisposed) {
@@ -95,6 +155,12 @@ export class IndividualTrackerManagerPresenter {
         }
         this.config.store.setPendingTrackerId(null);
       });
+  }
+
+  private resetAddFields(): void {
+    this.config.store.setGamertagInput("");
+    this.config.store.setSearchStartTime("");
+    this.config.store.setIdleTimeoutHours("");
   }
 
   private async load(): Promise<void> {

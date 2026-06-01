@@ -3,7 +3,11 @@ import type { TrackerRowAction } from "./manager-model";
 import type { IndividualTrackerManagerViewModel } from "./types";
 
 interface IndividualTrackerManagerActions {
+  readonly onOpenAddDialog: () => void;
+  readonly onCloseAddDialog: () => void;
   readonly onGamertagInputChange: (value: string) => void;
+  readonly onSearchStartTimeChange: (value: string) => void;
+  readonly onIdleTimeoutHoursChange: (value: string) => void;
   readonly onAddTracker: () => void;
   readonly onRowAction: (trackerId: string, action: TrackerRowAction) => void;
 }

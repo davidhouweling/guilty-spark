@@ -15,7 +15,10 @@ function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewMode
   return {
     model: toManagerModel([aFakeTrackerWith({ trackerId: "t-1", gamertag: "Alpha" })]),
     profileName: "Spartan Profile",
+    isAddDialogOpen: false,
     gamertagInput: "",
+    searchStartTime: "",
+    idleTimeoutHours: "",
     addPending: false,
     pendingTrackerId: null,
     addDisabled: true,
@@ -24,7 +27,11 @@ function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewMode
 }
 
 const noopActions = {
+  onOpenAddDialog: (): void => undefined,
+  onCloseAddDialog: (): void => undefined,
   onGamertagInputChange: (): void => undefined,
+  onSearchStartTimeChange: (): void => undefined,
+  onIdleTimeoutHoursChange: (): void => undefined,
   onAddTracker: (): void => undefined,
   onRowAction: (): void => undefined,
 };
@@ -60,7 +67,7 @@ describe("IndividualTrackerManagerContext", () => {
       wrapper: ({ children }) => (
         <IndividualTrackerManagerProvider
           model={aFakeViewModelWith()}
-          actions={{ onAddTracker, onRowAction, onGamertagInputChange }}
+          actions={{ ...noopActions, onAddTracker, onRowAction, onGamertagInputChange }}
         >
           {children}
         </IndividualTrackerManagerProvider>

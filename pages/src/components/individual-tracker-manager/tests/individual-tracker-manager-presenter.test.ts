@@ -104,6 +104,115 @@ describe("IndividualTrackerManagerPresenter", () => {
 
       expect(store.getSnapshot().errorMessage).toBe("Start failed");
     });
+
+    it("closes the dialog and clears all fields on success", async () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const { store, presenter } = aHarness(service);
+
+      presenter.openAddDialog();
+      store.setGamertagInput("New Recruit");
+      store.setSearchStartTime("2026-01-02T03:04");
+      store.setIdleTimeoutHours("12");
+      presenter.addTracker();
+
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().addPending).toBe(false);
+      });
+
+      expect(store.getSnapshot().isAddDialogOpen).toBe(false);
+      expect(store.getSnapshot().gamertagInput).toBe("");
+      expect(store.getSnapshot().searchStartTime).toBe("");
+      expect(store.getSnapshot().idleTimeoutHours).toBe("");
+    });
+
+    it("omits idleTimeoutHours when blank and includes a parsed searchStartTime when provided", async () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const startSpy: MockInstance = vi.spyOn(service, "startTracker");
+      const { store, presenter } = aHarness(service);
+
+      store.setGamertagInput("New Recruit");
+      store.setSearchStartTime("2026-01-02T03:04");
+      store.setIdleTimeoutHours("   ");
+      presenter.addTracker();
+
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().addPending).toBe(false);
+      });
+
+      expect(startSpy).toHaveBeenCalledWith({
+        gamertag: "New Recruit",
+        searchStartTime: new Date("2026-01-02T03:04").toISOString(),
+      });
+    });
+
+    it("includes a parsed idleTimeoutHours when provided", async () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const startSpy: MockInstance = vi.spyOn(service, "startTracker");
+      const { store, presenter } = aHarness(service);
+
+      store.setGamertagInput("New Recruit");
+      store.setIdleTimeoutHours("12");
+      presenter.addTracker();
+
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().addPending).toBe(false);
+      });
+
+      expect(startSpy).toHaveBeenCalledWith({ gamertag: "New Recruit", idleTimeoutHours: 12 });
+    });
+
+    it("does not call the service when the searchStartTime is not a valid datetime", () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const startSpy: MockInstance = vi.spyOn(service, "startTracker");
+      const { store, presenter } = aHarness(service);
+
+      store.setGamertagInput("New Recruit");
+      store.setSearchStartTime("not-a-date");
+      presenter.addTracker();
+
+      expect(startSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not call the service when the idleTimeoutHours is not a positive number", () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const startSpy: MockInstance = vi.spyOn(service, "startTracker");
+      const { store, presenter } = aHarness(service);
+
+      store.setGamertagInput("New Recruit");
+      store.setIdleTimeoutHours("-3");
+      presenter.addTracker();
+
+      expect(startSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("openAddDialog / closeAddDialog", () => {
+    it("opens the dialog and resets the fields", () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const { store, presenter } = aHarness(service);
+
+      store.setGamertagInput("Stale");
+      store.setSearchStartTime("2026-01-02T03:04");
+      store.setIdleTimeoutHours("9");
+      presenter.openAddDialog();
+
+      expect(store.getSnapshot().isAddDialogOpen).toBe(true);
+      expect(store.getSnapshot().gamertagInput).toBe("");
+      expect(store.getSnapshot().searchStartTime).toBe("");
+      expect(store.getSnapshot().idleTimeoutHours).toBe("");
+    });
+
+    it("closes the dialog and resets the fields", () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const { store, presenter } = aHarness(service);
+
+      presenter.openAddDialog();
+      store.setGamertagInput("Stale");
+      presenter.closeAddDialog();
+
+      expect(store.getSnapshot().isAddDialogOpen).toBe(false);
+      expect(store.getSnapshot().gamertagInput).toBe("");
+    });
   });
 
   describe("runRowAction", () => {
@@ -219,6 +328,19 @@ describe("IndividualTrackerManagerPresenter", () => {
       presenter.setGamertagInput("New Recruit");
 
       expect(store.getSnapshot().gamertagInput).toBe("");
+    });
+
+    it("ignores addTracker after dispose", () => {
+      const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+      const startSpy = vi.spyOn(service, "startTracker");
+      const { store, presenter } = aHarness(service);
+
+      presenter.setGamertagInput("New Recruit");
+      presenter.dispose();
+      presenter.addTracker();
+
+      expect(startSpy).not.toHaveBeenCalled();
+      expect(store.getSnapshot().addPending).toBe(false);
     });
   });
 });

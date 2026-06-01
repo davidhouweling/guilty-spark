@@ -69,3 +69,35 @@ export function toManagerModel(trackers: readonly Tracker[]): ManagerModel {
 export function isValidGamertagInput(value: string): boolean {
   return value.trim().length > 0;
 }
+
+export function parseIdleTimeoutHours(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+export function isValidIdleTimeoutHoursInput(value: string): boolean {
+  return value.trim().length === 0 || parseIdleTimeoutHours(value) !== null;
+}
+
+export function parseSearchStartTime(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const timestamp = Date.parse(trimmed);
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+  return new Date(timestamp).toISOString();
+}
+
+export function isValidSearchStartTimeInput(value: string): boolean {
+  return value.trim().length === 0 || parseSearchStartTime(value) !== null;
+}

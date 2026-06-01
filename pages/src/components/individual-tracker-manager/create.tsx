@@ -40,8 +40,20 @@ export function IndividualTrackerManagerPage({
 
   const actions = useMemo(
     () => ({
+      onOpenAddDialog: (): void => {
+        presenter.openAddDialog();
+      },
+      onCloseAddDialog: (): void => {
+        presenter.closeAddDialog();
+      },
       onGamertagInputChange: (value: string): void => {
         presenter.setGamertagInput(value);
+      },
+      onSearchStartTimeChange: (value: string): void => {
+        presenter.setSearchStartTime(value);
+      },
+      onIdleTimeoutHoursChange: (value: string): void => {
+        presenter.setIdleTimeoutHours(value);
       },
       onAddTracker: (): void => {
         presenter.addTracker();
