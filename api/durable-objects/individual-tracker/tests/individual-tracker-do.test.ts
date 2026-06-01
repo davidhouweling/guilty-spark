@@ -1,6 +1,7 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -635,10 +636,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.fetch(wsRequest());
 
       expect(webSocketAdapter.initialMessages).toHaveLength(1);
-      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0])) as {
-        type: string;
-        view: { trackerId: string; matches: unknown[]; status: string };
-      };
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0]));
       expect(parsed.type).toBe("view");
       expect(parsed.view.trackerId).toBe("t1");
       expect(parsed.view.status).toBe("active");
@@ -664,13 +662,9 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
-      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0])) as {
-        type: string;
-        view: { matches: { matchId: string }[]; isLive?: unknown };
-      };
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.type).toBe("view");
       expect(parsed.view.matches[0]?.matchId).toBe("new-match");
-      expect(parsed.view.isLive).toBeUndefined();
     });
 
     it("does not broadcast when a poll discovers no new match", async () => {
@@ -688,10 +682,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
-      const parsed = JSON.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0])) as {
-        type: string;
-        view: { status: string };
-      };
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.view.status).toBe("stopped");
       expect(webSocketAdapter.closes[0]?.code).toBe(1000);
     });

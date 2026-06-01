@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineContract } from "../base";
+import { defineContract, defineMessageContract } from "../base";
 import { trackerStatusSchema } from "./tracker";
 
 export const trackerMatchSummarySchema = z.object({
@@ -32,3 +32,5 @@ export const trackerViewMessageSchema = z.object({
   view: trackerLiveViewSchema,
 });
 export type TrackerViewMessage = z.infer<typeof trackerViewMessageSchema>;
+
+export const trackerViewMessageContract = defineMessageContract(trackerViewMessageSchema);

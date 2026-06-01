@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -379,7 +380,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private viewMessage(state: IndividualTrackerInternalState): string {
-    return JSON.stringify({ type: "view", view: this.toViewState(state) });
+    return trackerViewMessageContract.serialize({ type: "view", view: this.toViewState(state) });
   }
 
   private async handleWebSocket(request: Request): Promise<Response> {

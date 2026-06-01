@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   trackerViewContract,
+  trackerViewMessageContract,
   trackerViewMessageSchema,
   type TrackerViewMessage,
   type TrackerViewResponse,
@@ -93,5 +94,27 @@ describe("trackerViewMessageSchema", () => {
   it("rejects a message with the wrong type literal", () => {
     const result = trackerViewMessageSchema.safeParse({ ...validMessage, type: "state" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("trackerViewMessageContract", () => {
+  const message: TrackerViewMessage = {
+    type: "view",
+    view: {
+      trackerId: "t1",
+      gamertag: "MyTag",
+      status: "active",
+      matches: [],
+      lastUpdateTime: "2024-11-26T12:00:00.000Z",
+      lastMatchDiscoveredAt: null,
+    },
+  };
+
+  it("serialize/parse round-trips a view message", () => {
+    expect(trackerViewMessageContract.parse(trackerViewMessageContract.serialize(message))).toEqual(message);
+  });
+
+  it("parse throws on a message with the wrong type literal", () => {
+    expect(() => trackerViewMessageContract.parse(JSON.stringify({ ...message, type: "state" }))).toThrow();
   });
 });
