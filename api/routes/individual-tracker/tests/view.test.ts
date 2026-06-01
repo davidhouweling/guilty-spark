@@ -3,30 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 import {
   aFakeIndividualTrackerDOWith,
   aFakeIndividualTrackerViewStateWith,
-  type FakeIndividualTrackerDO,
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
-import type { IndividualTrackerDO } from "../../../worker";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
-
-function envWithTrackerDo(stub: FakeIndividualTrackerDO): Env {
-  const id = aFakeDurableObjectId();
-  return aFakeEnvWith({
-    INDIVIDUAL_TRACKER_DO: {
-      idFromName: () => id,
-      idFromString: () => id,
-      newUniqueId: () => id,
-      getByName: () => stub,
-      get: () => stub,
-      jurisdiction: () => ({}) as DurableObjectNamespace<IndividualTrackerDO>,
-    },
-  });
-}
 
 function getRequest(path: string): Request {
   return new Request(`http://localhost${path}`, { method: "GET" });
@@ -74,7 +58,7 @@ describe("/api/individual-tracker view route", () => {
         }),
       },
     });
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({
       TrackerId: "t1",
@@ -105,7 +89,7 @@ describe("/api/individual-tracker view route", () => {
 
   it("returns 200 with empty matches and the row's status when the DO has no state", async () => {
     const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({
       TrackerId: "t2",

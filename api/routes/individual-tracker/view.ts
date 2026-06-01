@@ -1,6 +1,6 @@
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { trackerIdParamsSchema } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import { trackerParamsSchema } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type {
   IndividualTrackerViewState,
@@ -27,7 +27,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
     const { databaseService, logService } = services;
 
     try {
-      const parsedParams = parsePathParams(request.params, trackerIdParamsSchema, "Invalid tracker id");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
       }
