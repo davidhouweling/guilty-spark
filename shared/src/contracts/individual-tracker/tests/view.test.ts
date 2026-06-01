@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { trackerViewContract, type TrackerViewResponse } from "../view";
+import {
+  trackerViewContract,
+  trackerViewMessageSchema,
+  type TrackerViewMessage,
+  type TrackerViewResponse,
+} from "../view";
 
 describe("trackerViewContract", () => {
   const validResponse: TrackerViewResponse = {
@@ -52,6 +57,41 @@ describe("trackerViewContract", () => {
       ...validResponse,
       view: { ...validResponse.view, status: "bogus" },
     });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("trackerViewMessageSchema", () => {
+  const validMessage: TrackerViewMessage = {
+    type: "view",
+    view: {
+      trackerId: "t1",
+      gamertag: "MyTag",
+      status: "active",
+      matches: [
+        {
+          matchId: "match-1",
+          startTime: "2024-11-26T11:00:00.000Z",
+          endTime: "2024-11-26T11:10:00.000Z",
+          mapAssetId: "map-1",
+          modeAssetId: "mode-1",
+        },
+      ],
+      lastUpdateTime: "2024-11-26T12:00:00.000Z",
+      lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
+    },
+  };
+
+  it("round-trips a valid view message", () => {
+    expect(trackerViewMessageSchema.parse(validMessage)).toEqual(validMessage);
+  });
+
+  it("does not include isLive in the live-view payload", () => {
+    expect("isLive" in validMessage.view).toBe(false);
+  });
+
+  it("rejects a message with the wrong type literal", () => {
+    const result = trackerViewMessageSchema.safeParse({ ...validMessage, type: "state" });
     expect(result.success).toBe(false);
   });
 });

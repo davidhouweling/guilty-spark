@@ -131,6 +131,8 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
       case "/view-state":
         responseBody = JSON.stringify(viewStateResponse);
         break;
+      case "/websocket":
+        return Promise.resolve(new Response(null, { status: 200, headers: { "x-fake-upgrade": "websocket" } }));
       default:
         responseBody = JSON.stringify({ success: false, error: `Unknown endpoint: ${path}` });
         break;
