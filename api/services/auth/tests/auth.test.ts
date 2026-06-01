@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { AuthService } from "../auth";
+import { TokenEncryptor } from "../token-encryptor";
 import { aFakeSessionTokenPayload, aFakePKCEState } from "../fakes/data";
 import type { AuthSession } from "../types";
 import {
@@ -361,6 +362,71 @@ describe("AuthService", () => {
     expect(persistedCredentials?.UserId).toBe("user-123");
     expect(persistedCredentials?.RefreshToken).toBe(persistedSession?.RefreshToken);
     expect(persistedCredentials?.RefreshToken).not.toContain("new-refresh-token");
+  });
+
+  describe("getMicrosoftAccessTokenForUser()", () => {
+    const tokenEncryptionSecret = "b".repeat(64);
+
+    it("returns the access token and re-persists a rotated refresh token encrypted", async () => {
+      const encryptor = new TokenEncryptor(tokenEncryptionSecret);
+      const encryptedStored = await encryptor.encrypt("stored-refresh-token");
+
+      vi.spyOn(databaseService, "getUserCredentials").mockResolvedValue({
+        UserId: "user-123",
+        RefreshToken: encryptedStored,
+        UpdatedAt: Math.floor(Date.now() / 1000),
+      });
+      const upsertUserCredentialsSpy = vi.spyOn(databaseService, "upsertUserCredentials").mockResolvedValue();
+
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            access_token: "fresh-access-token",
+            expires_in: 3600,
+            refresh_token: "rotated-refresh-token",
+            token_type: "Bearer",
+            scope: "openid profile",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+      const result = await service.getMicrosoftAccessTokenForUser("user-123");
+
+      expect(result).toBe("fresh-access-token");
+      expect(upsertUserCredentialsSpy).toHaveBeenCalledTimes(1);
+      const persisted = upsertUserCredentialsSpy.mock.calls[0]?.[0];
+      expect(persisted?.UserId).toBe("user-123");
+      expect(persisted?.RefreshToken).toContain("enc-v1.");
+      expect(persisted?.RefreshToken).not.toContain("rotated-refresh-token");
+      expect(await encryptor.decrypt(persisted?.RefreshToken ?? "")).toBe("rotated-refresh-token");
+    });
+
+    it("returns null when the user has no stored credentials", async () => {
+      vi.spyOn(databaseService, "getUserCredentials").mockResolvedValue(null);
+      const upsertUserCredentialsSpy = vi.spyOn(databaseService, "upsertUserCredentials").mockResolvedValue();
+
+      const result = await service.getMicrosoftAccessTokenForUser("unknown-user");
+
+      expect(result).toBeNull();
+      expect(upsertUserCredentialsSpy).not.toHaveBeenCalled();
+    });
+
+    it("fails closed (returns null) when the refresh request throws", async () => {
+      const encryptor = new TokenEncryptor(tokenEncryptionSecret);
+      vi.spyOn(databaseService, "getUserCredentials").mockResolvedValue({
+        UserId: "user-123",
+        RefreshToken: await encryptor.encrypt("revoked-refresh-token"),
+        UpdatedAt: Math.floor(Date.now() / 1000),
+      });
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response("invalid_grant", { status: 400, statusText: "Bad Request" }),
+      );
+
+      const result = await service.getMicrosoftAccessTokenForUser("user-123");
+
+      expect(result).toBeNull();
+    });
   });
 
   it("merges xbox profile into the persisted session metadata", async () => {

@@ -3,6 +3,7 @@ import { aFakeDatabaseServiceWith } from "../database/fakes/database.fake";
 import { aFakeDiscordServiceWith } from "../discord/fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../halo/fakes/halo.fake";
 import { aFakeHaloInfiniteClient } from "../halo/fakes/infinite-client.fake";
+import { aFakeUserTokenProviderWith } from "../halo/fakes/user-token-provider.fake";
 import type { Services } from "../install";
 import { aFakeLogServiceWith } from "../log/fakes/log.fake";
 import { aFakeNeatQueueServiceWith } from "../neatqueue/fakes/neatqueue.fake";
@@ -20,6 +21,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const xboxService = opts.xboxService ?? aFakeXboxServiceWith({ env });
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ infiniteClient: haloInfiniteClient, databaseService });
+  const userTokenProvider = opts.userTokenProvider ?? aFakeUserTokenProviderWith({ authService, xboxService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =
@@ -36,6 +38,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
     xboxService,
     haloService,
     haloInfiniteClient,
+    userTokenProvider,
     liveTrackerService,
     neatQueueService,
     individualTrackerService,

@@ -17,6 +17,7 @@ import { SentryLogClient } from "./log/sentry-log-client";
 import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy";
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
+import { UserTokenProvider } from "./halo/user-token-provider";
 
 export interface Services {
   logService: LogService;
@@ -26,6 +27,7 @@ export interface Services {
   xboxService: XboxService;
   haloService: HaloService;
   haloInfiniteClient: HaloInfiniteClient;
+  userTokenProvider: UserTokenProvider;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
   individualTrackerService: IndividualTrackerService;
@@ -83,6 +85,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
+  const userTokenProvider = new UserTokenProvider({ authService, xboxService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ databaseService });
   const neatQueueService = new NeatQueueService({
@@ -102,6 +105,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     xboxService,
     haloService,
     haloInfiniteClient,
+    userTokenProvider,
     liveTrackerService,
     neatQueueService,
     individualTrackerService,
