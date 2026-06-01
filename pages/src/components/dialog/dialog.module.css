@@ -1,0 +1,40 @@
+.overlay {
+  align-items: center;
+  background: rgb(0 0 0 / 60%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--space-4);
+  position: fixed;
+  z-index: var(--z-modal);
+}
+
+.panel {
+  background: var(--halo-bg-secondary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  max-width: 480px;
+  padding: var(--space-6);
+  width: 100%;
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}
+
+.title {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-4);
+  text-transform: uppercase;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

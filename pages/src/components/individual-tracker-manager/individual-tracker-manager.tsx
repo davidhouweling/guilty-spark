@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { Button } from "../button/button";
+import { Dialog } from "../dialog/dialog";
 import { Input } from "../input/input";
 import type { TrackerRowAction, TrackerRowModel } from "./manager-model";
 import { MAX_TRACKERS } from "./manager-model";
@@ -93,8 +94,26 @@ function TrackerRow({ row, pending, onRowAction }: TrackerRowProps): React.React
 }
 
 export function IndividualTrackerManagerView(): React.ReactElement {
-  const { model, profileName, gamertagInput, addPending, pendingTrackerId, addDisabled } = useManagerModel();
-  const { onGamertagInputChange, onAddTracker, onRowAction } = useManagerActions();
+  const {
+    model,
+    profileName,
+    isAddDialogOpen,
+    gamertagInput,
+    searchStartTime,
+    idleTimeoutHours,
+    addPending,
+    pendingTrackerId,
+    addDisabled,
+  } = useManagerModel();
+  const {
+    onOpenAddDialog,
+    onCloseAddDialog,
+    onGamertagInputChange,
+    onSearchStartTimeChange,
+    onIdleTimeoutHoursChange,
+    onAddTracker,
+    onRowAction,
+  } = useManagerActions();
 
   return (
     <div className={styles.container}>
@@ -103,27 +122,61 @@ export function IndividualTrackerManagerView(): React.ReactElement {
         <p className={styles.subtext}>{profileName}</p>
       </div>
 
-      <form
-        className={styles.addForm}
-        onSubmit={(event) => {
-          event.preventDefault();
-          onAddTracker();
-        }}
-      >
-        <Input
-          label="Gamertag"
-          containerClassName={styles.addInput}
-          value={gamertagInput}
-          placeholder="Enter a gamertag"
-          disabled={!model.canAddTracker || addPending}
-          onChange={(event) => {
-            onGamertagInputChange(event.target.value);
-          }}
-        />
-        <Button type="submit" disabled={addDisabled}>
-          Track
+      <div className={styles.addBar}>
+        <Button type="button" disabled={!model.canAddTracker} onClick={onOpenAddDialog}>
+          Add tracker
         </Button>
-      </form>
+      </div>
+
+      <Dialog open={isAddDialogOpen} title="Add tracker" onClose={onCloseAddDialog}>
+        <form
+          className={styles.addForm}
+          onSubmit={(event) => {
+            event.preventDefault();
+            onAddTracker();
+          }}
+        >
+          <Input
+            label="Gamertag"
+            value={gamertagInput}
+            placeholder="Enter a gamertag"
+            disabled={addPending}
+            onChange={(event) => {
+              onGamertagInputChange(event.target.value);
+            }}
+          />
+          <Input
+            label="Search start time"
+            type="datetime-local"
+            hint="Optional. Only track matches from this time onward."
+            value={searchStartTime}
+            disabled={addPending}
+            onChange={(event) => {
+              onSearchStartTimeChange(event.target.value);
+            }}
+          />
+          <Input
+            label="Idle timeout (hours)"
+            type="number"
+            min={0}
+            step="any"
+            hint="Optional. Pause the tracker after this many idle hours."
+            value={idleTimeoutHours}
+            disabled={addPending}
+            onChange={(event) => {
+              onIdleTimeoutHoursChange(event.target.value);
+            }}
+          />
+          <div className={styles.dialogActions}>
+            <Button type="button" variant="secondary" onClick={onCloseAddDialog}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addDisabled}>
+              Track
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       {model.isAtLimit && (
         <p className={styles.limitNotice}>
@@ -132,7 +185,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
       )}
 
       {model.isEmpty ? (
-        <div className={styles.empty}>No trackers yet. Add a gamertag above to start tracking.</div>
+        <div className={styles.empty}>No trackers yet. Use Add tracker to start tracking a gamertag.</div>
       ) : (
         <div className={styles.list}>
           {model.rows.map((row) => (

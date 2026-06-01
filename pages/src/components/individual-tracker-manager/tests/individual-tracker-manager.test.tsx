@@ -126,11 +126,11 @@ describe("IndividualTrackerManagerView", () => {
       expect(screen.getByText("Spartan 0")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: "Track" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add tracker" })).toBeDisabled();
     expect(screen.getByText(/reached the limit of 5 trackers/i)).toBeInTheDocument();
   });
 
-  it("invokes startTracker with the entered gamertag and adds its row after the list refreshes", async () => {
+  it("opens the add dialog and invokes startTracker with the entered gamertag, then adds its row", async () => {
     const user = userEvent.setup();
     const startSpy: MockInstance = vi.spyOn(service, "startTracker");
 
@@ -140,15 +140,49 @@ describe("IndividualTrackerManagerView", () => {
       expect(screen.getByText("Active Spartan")).toBeInTheDocument();
     });
 
-    await user.type(screen.getByLabelText("Gamertag"), "New Recruit");
-    await user.click(screen.getByRole("button", { name: "Track" }));
+    await user.click(screen.getByRole("button", { name: "Add tracker" }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.type(dialog.getByLabelText("Gamertag"), "New Recruit");
+    await user.click(dialog.getByRole("button", { name: "Track" }));
 
     await waitFor(() => {
       expect(startSpy).toHaveBeenCalledWith({ gamertag: "New Recruit" });
     });
 
     await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
       expect(screen.getByText("New Recruit")).toBeInTheDocument();
+    });
+  });
+
+  it("sends the optional search start time and idle timeout when provided in the dialog", async () => {
+    const user = userEvent.setup();
+    const startSpy: MockInstance = vi.spyOn(service, "startTracker");
+
+    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Active Spartan")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Add tracker" }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.type(dialog.getByLabelText("Gamertag"), "New Recruit");
+    await user.type(dialog.getByLabelText("Search start time"), "2026-01-02T03:04");
+    await user.type(dialog.getByLabelText("Idle timeout (hours)"), "12");
+    await user.click(dialog.getByRole("button", { name: "Track" }));
+
+    await waitFor(() => {
+      expect(startSpy).toHaveBeenCalledWith({
+        gamertag: "New Recruit",
+        searchStartTime: new Date("2026-01-02T03:04").toISOString(),
+        idleTimeoutHours: 12,
+      });
     });
   });
 
