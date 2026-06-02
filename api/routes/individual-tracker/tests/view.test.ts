@@ -57,6 +57,8 @@ describe("/api/individual-tracker view route", () => {
               endTime: "2024-11-26T11:10:00.000Z",
               mapAssetId: "map-1",
               modeAssetId: "mode-1",
+              outcome: "Win",
+              score: "50:42",
             },
           ],
         }),
@@ -88,6 +90,8 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.isLive).toBe(true);
     expect(body.view.matches).toHaveLength(1);
     expect(body.view.matches[0]?.matchId).toBe("match-1");
+    expect(body.view.matches[0]?.outcome).toBe("Win");
+    expect(body.view.matches[0]?.score).toBe("50:42");
     expect(body.view.lastMatchDiscoveredAt).toBe("2024-11-26T11:55:00.000Z");
   });
 
