@@ -26,7 +26,10 @@ export interface IndividualTrackerMatchSummary {
   startTime: string;
   endTime: string;
   mapAssetId: string;
+  mapVersionId: string;
+  mapName: string;
   modeAssetId: string;
+  gameVariantCategory: number;
   outcome: string;
   score: string;
 }

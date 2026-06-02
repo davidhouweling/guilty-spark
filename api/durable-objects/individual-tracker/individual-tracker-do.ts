@@ -186,12 +186,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
       const score = await this.enrichScore(haloClient, matchId);
+      const mapName = await this.resolveMapName(
+        match.MatchInfo.MapVariant.AssetId,
+        match.MatchInfo.MapVariant.VersionId,
+      );
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
         endTime: match.MatchInfo.EndTime,
         mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        mapVersionId: match.MatchInfo.MapVariant.VersionId,
+        mapName,
         modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
         outcome,
         score,
       };
@@ -254,6 +261,21 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     return buildMatchScore(matchStats);
+  }
+
+  private async resolveMapName(assetId: string, versionId: string): Promise<string> {
+    try {
+      return await this.services.haloService.getMapName(assetId, versionId);
+    } catch (error) {
+      this.logService.warn(
+        "IndividualTracker: getMapName failed",
+        new Map([
+          ["assetId", assetId],
+          ["error", String(error)],
+        ]),
+      );
+      return "";
+    }
   }
 
   private async getOwnerClient(userId: string): Promise<HaloInfiniteClient> {

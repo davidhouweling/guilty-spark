@@ -7,7 +7,10 @@ export const trackerMatchSummarySchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
   mapAssetId: z.string(),
+  mapVersionId: z.string(),
+  mapName: z.string(),
   modeAssetId: z.string(),
+  gameVariantCategory: z.number(),
   outcome: z.string(),
   score: z.string(),
 });

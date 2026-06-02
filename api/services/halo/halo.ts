@@ -1340,7 +1340,7 @@ export class HaloService {
       .sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
   }
 
-  private async getMapName(assetId: string, versionId: string): Promise<string> {
+  async getMapName(assetId: string, versionId: string): Promise<string> {
     const cacheKey = `${assetId}:${versionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
