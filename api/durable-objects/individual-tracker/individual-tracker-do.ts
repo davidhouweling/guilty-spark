@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
-import { type HaloInfiniteClient, type MatchStats, MatchType } from "halo-infinite-api";
+import { type HaloInfiniteClient, type MatchStats, MatchType, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   analyzeMatchGroupings,
@@ -150,6 +150,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         await this.state.storage.deleteAlarm();
         await this.setState(trackerState);
         this.broadcastViewState(trackerState);
+        this.closeWebSockets("Tracker idle timeout");
         return;
       }
 
@@ -322,6 +323,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private isAuthError(error: unknown): boolean {
+    if (error instanceof RequestError) {
+      return error.response.status === 401;
+    }
     const message = error instanceof Error ? error.message : String(error);
     return /\b401\b|unauthorized|expired|spartan token/i.test(message);
   }
