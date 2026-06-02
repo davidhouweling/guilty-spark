@@ -185,6 +185,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
+      const score = await this.enrichScore(haloClient, matchId);
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
@@ -192,9 +193,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         mapAssetId: match.MatchInfo.MapVariant.AssetId,
         modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
         outcome,
-        score: "",
+        score,
       };
-      summary.score = await this.enrichScore(haloClient, matchId);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       newlyDiscovered.add(matchId);
