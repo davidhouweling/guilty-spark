@@ -27,6 +27,8 @@ export interface IndividualTrackerMatchSummary {
   endTime: string;
   mapAssetId: string;
   modeAssetId: string;
+  outcome: string;
+  score: string;
 }
 
 export interface IndividualTrackerInternalState extends IndividualTrackerState {

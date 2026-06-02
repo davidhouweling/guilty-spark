@@ -8,6 +8,8 @@ export const trackerMatchSummarySchema = z.object({
   endTime: z.string(),
   mapAssetId: z.string(),
   modeAssetId: z.string(),
+  outcome: z.string(),
+  score: z.string(),
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 

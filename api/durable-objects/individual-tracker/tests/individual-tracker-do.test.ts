@@ -2,6 +2,7 @@ import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
 import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -26,6 +27,21 @@ import type {
 } from "../types";
 import { aFakeIndividualTrackerInternalStateWith } from "../fakes/individual-tracker-do.fake";
 
+const aFakeWinMatchStats = (): ReturnType<typeof aFakeMatchStatsWith> =>
+  aFakeMatchStatsWith({
+    MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 },
+    Teams: [
+      aFakeTeamWith({
+        TeamId: 0,
+        Stats: { CoreStats: aFakeCoreStatsWith({ Score: 50 }), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } },
+      }),
+      aFakeTeamWith({
+        TeamId: 1,
+        Stats: { CoreStats: aFakeCoreStatsWith({ Score: 42 }), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } },
+      }),
+    ],
+  });
+
 const createMockStartRequest = (
   overrides: Partial<IndividualTrackerStartRequest> = {},
 ): IndividualTrackerStartRequest => ({
@@ -38,9 +54,10 @@ const createMockStartRequest = (
   ...overrides,
 });
 
-const aFakePlayerMatch = (matchId: string, startTime: string): PlayerMatchHistory =>
+const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2): PlayerMatchHistory =>
   ({
     MatchId: matchId,
+    Outcome: outcome,
     MatchInfo: {
       StartTime: startTime,
       EndTime: startTime,
@@ -84,6 +101,7 @@ describe("IndividualTrackerDO", () => {
 
     ownerClient = mock<HaloInfiniteClient>();
     ownerClient.getPlayerMatches.mockResolvedValue([]);
+    ownerClient.getMatchStats.mockResolvedValue(aFakeWinMatchStats());
     getClientForUser = vi.fn<UserTokenProvider["getClientForUser"]>().mockResolvedValue(ownerClient);
     userTokenProvider = { getClientForUser } as unknown as UserTokenProvider;
 
@@ -323,6 +341,8 @@ describe("IndividualTrackerDO", () => {
               endTime: "2024-11-26T11:10:00.000Z",
               mapAssetId: "map-1",
               modeAssetId: "mode-1",
+              outcome: "Win",
+              score: "50:42",
             },
             "match-2": {
               matchId: "match-2",
@@ -330,6 +350,8 @@ describe("IndividualTrackerDO", () => {
               endTime: "2024-11-26T11:40:00.000Z",
               mapAssetId: "map-2",
               modeAssetId: "mode-2",
+              outcome: "Loss",
+              score: "42:50",
             },
           },
         }),
@@ -419,6 +441,8 @@ describe("IndividualTrackerDO", () => {
               endTime: "2024-11-26T11:40:00.000Z",
               mapAssetId: "map-asset",
               modeAssetId: "mode-asset",
+              outcome: "Win",
+              score: "50:42",
             },
           },
         }),
@@ -433,8 +457,71 @@ describe("IndividualTrackerDO", () => {
         matchId: "match-new",
         mapAssetId: "map-asset",
         modeAssetId: "mode-asset",
+        outcome: "Win",
+        score: "50:42",
       });
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
+    });
+
+    it("stores outcome and score from getMatchStats for a newly discovered match", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.discoveredMatches["match-new"]?.outcome).toBe("Loss");
+      expect(persisted.discoveredMatches["match-new"]?.score).toBe("50:42");
+      expect(ownerClient.getMatchStats).toHaveBeenCalledWith("match-new");
+    });
+
+    it("falls back to an empty score and re-enriches on the next poll when getMatchStats fails", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getMatchStats.mockRejectedValueOnce(new Error("stats not ready"));
+      const state = aFakeIndividualTrackerInternalStateWith({
+        startTime: now.toISOString(),
+        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: [],
+        discoveredMatches: {},
+      });
+      storageGetSpy.mockResolvedValue(state);
+
+      await individualTrackerDO.alarm();
+
+      const afterFirst = lastPersistedState(storagePutSpy);
+      expect(afterFirst.discoveredMatches["match-new"]?.outcome).toBe("Win");
+      expect(afterFirst.discoveredMatches["match-new"]?.score).toBe("");
+
+      await individualTrackerDO.alarm();
+
+      const afterSecond = lastPersistedState(storagePutSpy);
+      expect(afterSecond.discoveredMatches["match-new"]?.score).toBe("50:42");
+    });
+
+    it("clears the cached client and backs off when getMatchStats throws an auth error", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getMatchStats.mockRejectedValue(new Error("401 Unauthorized: spartan token expired"));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+        }),
+      );
+
+      await expect(individualTrackerDO.alarm()).resolves.toBeUndefined();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.errorState.consecutiveErrors).toBe(1);
     });
 
     it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
@@ -628,7 +715,15 @@ describe("IndividualTrackerDO", () => {
           status: "active",
           matchIds: ["m1"],
           discoveredMatches: {
-            m1: { matchId: "m1", startTime: "s", endTime: "e", mapAssetId: "map", modeAssetId: "mode" },
+            m1: {
+              matchId: "m1",
+              startTime: "s",
+              endTime: "e",
+              mapAssetId: "map",
+              modeAssetId: "mode",
+              outcome: "Win",
+              score: "50:42",
+            },
           },
         }),
       );

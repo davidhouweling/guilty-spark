@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, differenceInHours } from "date-fns";
-import { type HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { type HaloInfiniteClient, type MatchStats, MatchType } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { buildMatchScore, getMatchOutcomeLabel } from "@guilty-spark/shared/halo/match-enrichment";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -172,6 +173,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const searchStart = new Date(trackerState.searchStartTime);
     let discoveredNewMatch = false;
+    let viewChanged = false;
+    const newlyDiscovered = new Set<string>();
     for (const match of matches) {
       const matchId = match.MatchId;
       if (trackerState.matchIds.includes(matchId)) {
@@ -181,21 +184,44 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
+      const outcome = getMatchOutcomeLabel(match.Outcome);
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
         endTime: match.MatchInfo.EndTime,
         mapAssetId: match.MatchInfo.MapVariant.AssetId,
         modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+        outcome,
+        score: "",
       };
+      summary.score = await this.enrichScore(haloClient, matchId);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
+      newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
+    }
+
+    for (const matchId of trackerState.matchIds) {
+      if (newlyDiscovered.has(matchId)) {
+        continue;
+      }
+      const summary = trackerState.discoveredMatches[matchId];
+      if (summary == null || summary.score !== "") {
+        continue;
+      }
+      const enrichedScore = await this.enrichScore(haloClient, matchId);
+      if (enrichedScore !== summary.score) {
+        summary.score = enrichedScore;
+        viewChanged = true;
+      }
     }
 
     const now = new Date().toISOString();
     if (discoveredNewMatch) {
       trackerState.lastMatchDiscoveredAt = now;
+    }
+    if (viewChanged) {
+      discoveredNewMatch = true;
     }
 
     trackerState.checkCount += 1;
@@ -206,6 +232,28 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.errorState.lastErrorMessage = undefined;
 
     return discoveredNewMatch;
+  }
+
+  private async enrichScore(haloClient: HaloInfiniteClient, matchId: string): Promise<string> {
+    let matchStats: MatchStats;
+    try {
+      matchStats = await haloClient.getMatchStats(matchId);
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.ownerClient = null;
+        throw error;
+      }
+      this.logService.warn(
+        "IndividualTracker: getMatchStats failed",
+        new Map([
+          ["matchId", matchId],
+          ["error", String(error)],
+        ]),
+      );
+      return "";
+    }
+
+    return buildMatchScore(matchStats);
   }
 
   private async getOwnerClient(userId: string): Promise<HaloInfiniteClient> {

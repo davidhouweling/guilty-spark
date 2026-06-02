@@ -50,7 +50,18 @@ export function toTrackerView(
     gamertag: row.Gamertag,
     status: row.Status,
     isLive: row.IsLive === 1,
-    matches: doState == null ? [] : doState.matches,
+    matches:
+      doState == null
+        ? []
+        : doState.matches.map((match) => ({
+            matchId: match.matchId,
+            startTime: match.startTime,
+            endTime: match.endTime,
+            mapAssetId: match.mapAssetId,
+            modeAssetId: match.modeAssetId,
+            outcome: match.outcome,
+            score: match.score,
+          })),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
   };
