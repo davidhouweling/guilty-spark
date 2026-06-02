@@ -1,13 +1,13 @@
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
   selectActiveTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
+  trackerParamsSchema,
   trackersContract,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
+import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import type {
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
@@ -134,7 +134,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return auth.response;
       }
 
-      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
 
       let tracker: IndividualTrackersRow;
       try {
@@ -166,7 +170,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return auth.response;
       }
 
-      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
 
       let tracker: IndividualTrackersRow;
       try {
@@ -198,7 +206,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return auth.response;
       }
 
-      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
 
       let tracker: IndividualTrackersRow;
       try {
@@ -293,7 +305,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return auth.response;
       }
 
-      const trackerId = Preconditions.checkExists(request.params["trackerId"], "Missing trackerId");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
 
       let tracker: IndividualTrackersRow;
       try {

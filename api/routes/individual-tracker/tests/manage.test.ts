@@ -10,33 +10,18 @@ import type {
 import type { ErrorResponse } from "@guilty-spark/shared/contracts/error";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 import {
   aFakeIndividualTrackerDOWith,
   aFakeIndividualTrackerStateWith,
   type FakeIndividualTrackerDO,
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
-import type { IndividualTrackerDO } from "../../../worker";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/individual-tracker";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../../services/individual-tracker/errors";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
 import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
-
-function envWithTrackerDo(stub: FakeIndividualTrackerDO): Env {
-  const id = aFakeDurableObjectId();
-  return aFakeEnvWith({
-    INDIVIDUAL_TRACKER_DO: {
-      idFromName: () => id,
-      idFromString: () => id,
-      newUniqueId: () => id,
-      getByName: () => stub,
-      get: () => stub,
-      jurisdiction: () => ({}) as DurableObjectNamespace<IndividualTrackerDO>,
-    },
-  });
-}
 
 function postRequest(path: string, body: unknown): Request {
   return new Request(`http://localhost${path}`, {
@@ -93,7 +78,7 @@ describe("/api/individual-tracker manage routes", () => {
       },
     });
     const startSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({
       TrackerId: "new-tracker",
@@ -176,7 +161,7 @@ describe("/api/individual-tracker manage routes", () => {
   it("stops a tracker: calls the DO stop and marks the registry row stopped", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     const stopSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -222,7 +207,7 @@ describe("/api/individual-tracker manage routes", () => {
       },
     });
     const pauseSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -268,7 +253,7 @@ describe("/api/individual-tracker manage routes", () => {
       },
     });
     const resumeSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "paused" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -326,7 +311,7 @@ describe("/api/individual-tracker manage routes", () => {
     const doStub = aFakeIndividualTrackerDOWith({
       statusResponse: { state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "active" }) },
     });
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const liveRow = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active", IsLive: 1 });
     let setLiveSpy: MockInstance<IndividualTrackerService["setLiveTracker"]> | null = null;
@@ -354,7 +339,7 @@ describe("/api/individual-tracker manage routes", () => {
     const doStub = aFakeIndividualTrackerDOWith({
       statusResponse: { state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "active" }) },
     });
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const rows = [
       aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" }),
@@ -402,7 +387,7 @@ describe("/api/individual-tracker manage routes", () => {
         state: aFakeIndividualTrackerStateWith({ trackerId: "t1", gamertag: "MyTag", status: "active" }),
       },
     });
-    const localEnv = envWithTrackerDo(doStub);
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({
       TrackerId: "t1",
