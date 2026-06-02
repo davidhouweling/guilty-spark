@@ -234,9 +234,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       if (summary.teamOutcomes === null) {
         await this.enrichScore(haloClient, summary);
-        if (summary.teamOutcomes !== null) {
-          viewChanged = true;
-        }
+      }
+      if (summary.teamOutcomes !== null) {
+        viewChanged = true;
       }
 
       if (summary.mapName === "") {
