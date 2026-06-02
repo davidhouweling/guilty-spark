@@ -3,6 +3,7 @@ import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "h
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { UserTokenProvider } from "../user-token-provider";
 import { aFakeAuthServiceWith } from "../../auth/fakes/auth.fake";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 import type { TokenInfo } from "../../xbox/types";
 
@@ -31,7 +32,7 @@ describe("UserTokenProvider", () => {
       expiresOn: new Date("2030-01-01T00:00:00.000Z"),
     } satisfies TokenInfo);
 
-    const provider = new UserTokenProvider({ authService, xboxService });
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
     const client = await provider.getClientForUser("user-123");
 
     expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
@@ -46,22 +47,25 @@ describe("UserTokenProvider", () => {
     vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue(null);
     const exchangeSpy = vi.spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
 
-    const provider = new UserTokenProvider({ authService, xboxService });
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
     const client = await provider.getClientForUser("user-123");
 
     expect(client).toBeNull();
     expect(exchangeSpy).not.toHaveBeenCalled();
   });
 
-  it("fails closed (returns null) when the xbox exchange throws", async () => {
+  it("fails closed (returns null) and logs when the xbox exchange throws", async () => {
     const authService = aFakeAuthServiceWith();
     const xboxService = aFakeXboxServiceWith();
+    const logService = aFakeLogServiceWith();
+    const warnSpy = vi.spyOn(logService, "warn");
     vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue("owner-access-token");
     vi.spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockRejectedValue(new Error("xbox down"));
 
-    const provider = new UserTokenProvider({ authService, xboxService });
+    const provider = new UserTokenProvider({ authService, xboxService, logService });
     const client = await provider.getClientForUser("user-123");
 
     expect(client).toBeNull();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });

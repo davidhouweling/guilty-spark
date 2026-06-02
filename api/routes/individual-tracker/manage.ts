@@ -85,7 +85,12 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return parsed.response;
       }
 
-      const xboxUser = await xboxService.getUserByGamertag(parsed.data.gamertag);
+      let xboxUser: Awaited<ReturnType<typeof xboxService.getUserByGamertag>>;
+      try {
+        xboxUser = await xboxService.getUserByGamertag(parsed.data.gamertag);
+      } catch {
+        return errorContract.toResponse({ error: "Gamertag not found" }, { status: 404, noStore: true });
+      }
 
       const createOptions: CreateTrackerOptions = {
         userId: auth.session.userId,
@@ -283,7 +288,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       const rows = await individualTrackerService.listTrackers(auth.session.userId);
       const trackers = await Promise.all(
         rows.map(async (row) => {
-          const state = await statusTrackerDo(env, auth.session.userId, row.TrackerId);
+          const state = await statusTrackerDo(env, auth.session.userId, row.TrackerId).catch(() => null);
           return toTracker(row, state);
         }),
       );

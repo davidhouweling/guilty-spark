@@ -85,7 +85,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
-  const userTokenProvider = new UserTokenProvider({ authService, xboxService });
+  const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ databaseService });
   const neatQueueService = new NeatQueueService({

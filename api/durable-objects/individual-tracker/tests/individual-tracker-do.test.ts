@@ -1002,6 +1002,23 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(0);
     });
 
+    it("does not broadcast on a steady-state poll where an already-enriched match is unchanged", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1"],
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3], mapName: "Aquarius" }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(0);
+    });
+
     it("broadcasts a stopped view and closes sockets on stop", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "active" }));
 

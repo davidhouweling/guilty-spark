@@ -98,7 +98,10 @@ export class IndividualTrackerManagerPresenter {
     if (this.isDisposed) {
       return;
     }
-    const { gamertagInput, searchStartTime, idleTimeoutHours } = this.config.store.getSnapshot();
+    const { gamertagInput, searchStartTime, idleTimeoutHours, addPending } = this.config.store.getSnapshot();
+    if (addPending) {
+      return;
+    }
     if (!isValidGamertagInput(gamertagInput)) {
       return;
     }
@@ -140,6 +143,9 @@ export class IndividualTrackerManagerPresenter {
   }
 
   public runRowAction(trackerId: string, action: TrackerRowAction): void {
+    if (this.isDisposed) {
+      return;
+    }
     this.config.store.setPendingTrackerId(trackerId);
     this.invokeRowAction(trackerId, action)
       .then(async () => this.refreshTrackers())

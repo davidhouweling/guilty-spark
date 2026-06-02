@@ -51,6 +51,7 @@ describe("Dialog", () => {
   });
 
   it("calls onClose when the overlay is clicked", async () => {
+    expect.assertions(2);
     const user = userEvent.setup();
     const onClose = vi.fn();
 

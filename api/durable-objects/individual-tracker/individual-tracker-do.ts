@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/cloudflare";
-import { addMilliseconds, differenceInHours } from "date-fns";
+import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, type MatchStats, MatchType } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
@@ -233,10 +233,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        await this.enrichScore(haloClient, summary);
-      }
-      if (summary.teamOutcomes !== null) {
-        viewChanged = true;
+        const enriched = await this.enrichScore(haloClient, summary);
+        if (enriched) {
+          viewChanged = true;
+        }
       }
 
       if (summary.mapName === "") {
@@ -266,7 +266,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<void> {
+  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);
@@ -283,12 +283,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       summary.score = "";
-      return;
+      return false;
     }
 
     summary.score = buildMatchScore(matchStats);
     summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
+    return true;
   }
 
   private async resolveMapName(assetId: string, versionId: string): Promise<string> {
@@ -470,7 +471,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const summaries = state.matchIds
       .map((matchId) => state.discoveredMatches[matchId])
       .filter((match): match is IndividualTrackerMatchSummary => match != null)
-      .sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime());
+      .sort((left, right) => compareAsc(new Date(left.startTime), new Date(right.startTime)));
 
     const summariesById = new Map(summaries.map((summary) => [summary.matchId, summary]));
 
