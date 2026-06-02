@@ -2,7 +2,18 @@ import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, type MatchStats, MatchType } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import { buildMatchScore, getMatchOutcomeLabel } from "@guilty-spark/shared/halo/match-enrichment";
+import {
+  analyzeMatchGroupings,
+  buildMatchScore,
+  buildTeamRosterSignature,
+  getMatchOutcomeLabel,
+} from "@guilty-spark/shared/halo/match-enrichment";
+import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
+import {
+  buildSeriesGroupKey,
+  getDefaultSeriesGroupSubtitle,
+  getDefaultSeriesGroupTitle,
+} from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -13,6 +24,7 @@ import type {
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
+  IndividualTrackerSeriesGroup,
   IndividualTrackerState,
   IndividualTrackerStartResponse,
   IndividualTrackerPauseResponse,
@@ -185,7 +197,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
-      const score = await this.enrichScore(haloClient, matchId);
       const mapName = await this.resolveMapName(
         match.MatchInfo.MapVariant.AssetId,
         match.MatchInfo.MapVariant.VersionId,
@@ -200,8 +211,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
         gameVariantCategory: match.MatchInfo.GameVariantCategory,
         outcome,
-        score,
+        score: "",
+        isMatchmaking: match.MatchInfo.Playlist != null,
+        teamRosterSignature: null,
+        teamOutcomes: null,
       };
+      await this.enrichScore(haloClient, summary);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       newlyDiscovered.add(matchId);
@@ -213,13 +228,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
       const summary = trackerState.discoveredMatches[matchId];
-      if (summary?.score !== "") {
+      if (summary == null) {
         continue;
       }
-      const enrichedScore = await this.enrichScore(haloClient, matchId);
-      if (enrichedScore !== summary.score) {
-        summary.score = enrichedScore;
-        viewChanged = true;
+
+      if (summary.teamOutcomes === null) {
+        await this.enrichScore(haloClient, summary);
+        if (summary.teamOutcomes !== null) {
+          viewChanged = true;
+        }
+      }
+
+      if (summary.mapName === "") {
+        const mapName = await this.resolveMapName(summary.mapAssetId, summary.mapVersionId);
+        if (mapName !== "") {
+          summary.mapName = mapName;
+          viewChanged = true;
+        }
       }
     }
 
@@ -241,10 +266,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, matchId: string): Promise<string> {
+  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<void> {
     let matchStats: MatchStats;
     try {
-      matchStats = await haloClient.getMatchStats(matchId);
+      matchStats = await haloClient.getMatchStats(summary.matchId);
     } catch (error) {
       if (this.isAuthError(error)) {
         this.ownerClient = null;
@@ -253,14 +278,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.logService.warn(
         "IndividualTracker: getMatchStats failed",
         new Map([
-          ["matchId", matchId],
+          ["matchId", summary.matchId],
           ["error", String(error)],
         ]),
       );
-      return "";
+      summary.score = "";
+      return;
     }
 
-    return buildMatchScore(matchStats);
+    summary.score = buildMatchScore(matchStats);
+    summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
+    summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
   }
 
   private async resolveMapName(assetId: string, versionId: string): Promise<string> {
@@ -439,11 +467,70 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private toViewState(state: IndividualTrackerInternalState): IndividualTrackerViewState {
+    const summaries = state.matchIds
+      .map((matchId) => state.discoveredMatches[matchId])
+      .filter((match): match is IndividualTrackerMatchSummary => match != null)
+      .sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime());
+
+    const summariesById = new Map(summaries.map((summary) => [summary.matchId, summary]));
+
+    const groupings = analyzeMatchGroupings(
+      summaries.map((summary) => ({
+        matchId: summary.matchId,
+        isMatchmaking: summary.isMatchmaking,
+        teamRosterSignature: summary.teamRosterSignature,
+      })),
+    );
+
+    const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
+      const groupSummaries = matchIds
+        .map((matchId) => summariesById.get(matchId))
+        .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
+
+      const teamWins = computeSeriesTeamWins(
+        groupSummaries.map((summary) => ({
+          startTime: summary.startTime,
+          mapAssetId: summary.mapAssetId,
+          mapVersionId: summary.mapVersionId,
+          gameVariantCategory: summary.gameVariantCategory,
+          teamOutcomes: summary.teamOutcomes ?? [],
+        })),
+      );
+
+      return {
+        id: `series:${buildSeriesGroupKey(matchIds)}`,
+        matchIds,
+        score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
+        title: getDefaultSeriesGroupTitle(),
+        subtitle: getDefaultSeriesGroupSubtitle(
+          groupSummaries.map((summary) => ({
+            startTime: summary.startTime,
+            mapAssetId: summary.mapAssetId,
+            mapVersionId: summary.mapVersionId,
+            gameVariantCategory: summary.gameVariantCategory,
+            outcome: summary.outcome,
+          })),
+        ),
+      };
+    });
+
     return {
       trackerId: state.trackerId,
       gamertag: state.gamertag,
       status: state.status,
-      matches: state.matchIds.map((matchId) => state.discoveredMatches[matchId]).filter((match) => match != null),
+      matches: summaries.map((summary) => ({
+        matchId: summary.matchId,
+        startTime: summary.startTime,
+        endTime: summary.endTime,
+        mapAssetId: summary.mapAssetId,
+        mapVersionId: summary.mapVersionId,
+        mapName: summary.mapName,
+        modeAssetId: summary.modeAssetId,
+        gameVariantCategory: summary.gameVariantCategory,
+        outcome: summary.outcome,
+        score: summary.score,
+      })),
+      series,
       lastUpdateTime: state.lastUpdateTime,
       lastMatchDiscoveredAt: state.lastMatchDiscoveredAt ?? null,
     };

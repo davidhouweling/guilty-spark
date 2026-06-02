@@ -16,11 +16,21 @@ export const trackerMatchSummarySchema = z.object({
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 
+export const trackerSeriesGroupSchema = z.object({
+  id: z.string(),
+  matchIds: z.array(z.string()),
+  score: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+});
+export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
+
 export const trackerLiveViewSchema = z.object({
   trackerId: z.string(),
   gamertag: z.string(),
   status: trackerStatusSchema,
   matches: z.array(trackerMatchSummarySchema),
+  series: z.array(trackerSeriesGroupSchema),
   lastUpdateTime: z.string(),
   lastMatchDiscoveredAt: z.string().nullable(),
 });

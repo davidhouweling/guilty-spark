@@ -3,6 +3,7 @@ import type {
   IndividualTrackerResumeResponse,
   IndividualTrackerStartResponse,
   IndividualTrackerInternalState,
+  IndividualTrackerMatchSummary,
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
@@ -24,6 +25,27 @@ export interface FakeIndividualTrackerDOOpts {
 }
 
 export type FakeIndividualTrackerDO = DurableObjectStub<IndividualTrackerDO> & Rpc.DurableObjectBranded;
+
+export function aFakeIndividualTrackerMatchSummaryWith(
+  opts: Partial<IndividualTrackerMatchSummary> = {},
+): IndividualTrackerMatchSummary {
+  return {
+    matchId: "fake-match-id",
+    startTime: "2024-11-26T11:00:00.000Z",
+    endTime: "2024-11-26T11:10:00.000Z",
+    mapAssetId: "fake-map-asset",
+    mapVersionId: "fake-map-version",
+    mapName: "Fake Map",
+    modeAssetId: "fake-mode-asset",
+    gameVariantCategory: 6,
+    outcome: "Win",
+    score: "50:42",
+    isMatchmaking: false,
+    teamRosterSignature: null,
+    teamOutcomes: null,
+    ...opts,
+  };
+}
 
 export function aFakeIndividualTrackerInternalStateWith(
   opts: Partial<IndividualTrackerInternalState> = {},
@@ -75,6 +97,7 @@ export function aFakeIndividualTrackerViewStateWith(
     gamertag: "FakeGamertag",
     status: "active",
     matches: [],
+    series: [],
     lastUpdateTime: new Date().toISOString(),
     lastMatchDiscoveredAt: null,
     ...opts,

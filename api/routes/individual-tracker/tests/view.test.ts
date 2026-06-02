@@ -64,6 +64,15 @@ describe("/api/individual-tracker view route", () => {
               score: "50:42",
             },
           ],
+          series: [
+            {
+              id: "series:match-1:match-2",
+              matchIds: ["match-1", "match-2"],
+              score: "2:1",
+              title: "Eagle vs Cobra",
+              subtitle: "Best of 3",
+            },
+          ],
         }),
       },
     });
@@ -98,6 +107,12 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.matches[0]?.gameVariantCategory).toBe(6);
     expect(body.view.matches[0]?.outcome).toBe("Win");
     expect(body.view.matches[0]?.score).toBe("50:42");
+    expect(body.view.series).toHaveLength(1);
+    expect(body.view.series[0]?.id).toBe("series:match-1:match-2");
+    expect(body.view.series[0]?.matchIds).toEqual(["match-1", "match-2"]);
+    expect(body.view.series[0]?.score).toBe("2:1");
+    expect(body.view.series[0]?.title).toBe("Eagle vs Cobra");
+    expect(body.view.series[0]?.subtitle).toBe("Best of 3");
     expect(body.view.lastMatchDiscoveredAt).toBe("2024-11-26T11:55:00.000Z");
   });
 
@@ -126,6 +141,7 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.status).toBe("stopped");
     expect(body.view.isLive).toBe(false);
     expect(body.view.matches).toEqual([]);
+    expect(body.view.series).toEqual([]);
     expect(body.view.lastMatchDiscoveredAt).toBeNull();
   });
 

@@ -32,6 +32,30 @@ export interface IndividualTrackerMatchSummary {
   gameVariantCategory: number;
   outcome: string;
   score: string;
+  isMatchmaking: boolean;
+  teamRosterSignature: string | null;
+  teamOutcomes: number[] | null;
+}
+
+export interface IndividualTrackerViewMatch {
+  matchId: string;
+  startTime: string;
+  endTime: string;
+  mapAssetId: string;
+  mapVersionId: string;
+  mapName: string;
+  modeAssetId: string;
+  gameVariantCategory: number;
+  outcome: string;
+  score: string;
+}
+
+export interface IndividualTrackerSeriesGroup {
+  id: string;
+  matchIds: string[];
+  score: string;
+  title: string;
+  subtitle: string;
 }
 
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
@@ -75,7 +99,8 @@ export interface IndividualTrackerViewState {
   trackerId: string;
   gamertag: string;
   status: IndividualTrackerStatus;
-  matches: IndividualTrackerMatchSummary[];
+  matches: IndividualTrackerViewMatch[];
+  series: IndividualTrackerSeriesGroup[];
   lastUpdateTime: string;
   lastMatchDiscoveredAt: string | null;
 }
