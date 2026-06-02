@@ -88,7 +88,14 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       let xboxUser: Awaited<ReturnType<typeof xboxService.getUserByGamertag>>;
       try {
         xboxUser = await xboxService.getUserByGamertag(parsed.data.gamertag);
-      } catch {
+      } catch (error) {
+        logService.warn(
+          "Individual tracker start: gamertag lookup failed",
+          new Map([
+            ["gamertag", parsed.data.gamertag],
+            ["error", String(error)],
+          ]),
+        );
         return errorContract.toResponse({ error: "Gamertag not found" }, { status: 404, noStore: true });
       }
 
