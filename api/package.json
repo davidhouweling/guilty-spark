@@ -21,10 +21,10 @@
   "dependencies": {
     "@guilty-spark/shared": "file:../shared",
     "@sentry/cli": "^3.4.3",
-    "@sentry/cloudflare": "^10.53.1",
+    "@sentry/cloudflare": "^10.55.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
-    "date-fns": "^4.3.0",
-    "discord-api-types": "^0.38.47",
+    "date-fns": "^4.4.0",
+    "discord-api-types": "^0.38.48",
     "discord-interactions": "^4.4.0",
     "halo-infinite-api": "^14.3.1",
     "itty-router": "^5.0.23",
@@ -35,6 +35,6 @@
   "devDependencies": {
     "@types/luxon": "^3.7.1",
     "dotenv": "^17.4.2",
-    "wrangler": "^4.94.0"
+    "wrangler": "^4.96.0"
   }
 }
