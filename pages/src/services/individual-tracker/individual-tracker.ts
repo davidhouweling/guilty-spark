@@ -41,10 +41,10 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         if (parsed.success && parsed.data.error !== "") {
           return new Error(parsed.data.error);
         }
+        return new Error(`Request failed (${String(response.status)})`);
       } catch {
         return new Error(body);
       }
-      return new Error(body);
     }
 
     return new Error(`Request failed (${String(response.status)})`);

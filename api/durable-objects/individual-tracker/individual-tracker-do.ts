@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
-import { addMilliseconds, differenceInHours } from "date-fns";
-import { type HaloInfiniteClient, type MatchStats, MatchType } from "halo-infinite-api";
+import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
+import { type HaloInfiniteClient, type MatchStats, MatchType, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   analyzeMatchGroupings,
@@ -150,6 +150,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         await this.state.storage.deleteAlarm();
         await this.setState(trackerState);
         this.broadcastViewState(trackerState);
+        this.closeWebSockets("Tracker idle timeout");
+        await this.markRegistryStopped(trackerState);
         return;
       }
 
@@ -233,10 +235,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        await this.enrichScore(haloClient, summary);
-      }
-      if (summary.teamOutcomes !== null) {
-        viewChanged = true;
+        const enriched = await this.enrichScore(haloClient, summary);
+        if (enriched) {
+          viewChanged = true;
+        }
       }
 
       if (summary.mapName === "") {
@@ -266,7 +268,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<void> {
+  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);
@@ -283,12 +285,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       summary.score = "";
-      return;
+      return false;
     }
 
     summary.score = buildMatchScore(matchStats);
     summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
+    return true;
   }
 
   private async resolveMapName(assetId: string, versionId: string): Promise<string> {
@@ -303,6 +306,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       return "";
+    }
+  }
+
+  private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<void> {
+    try {
+      const row = await this.services.databaseService.getIndividualTracker(trackerState.trackerId);
+      if (row != null) {
+        await this.services.individualTrackerService.markTrackerStatus(row, "stopped");
+      }
+    } catch (error) {
+      this.logService.warn(
+        "IndividualTracker: failed to mark registry stopped on idle timeout",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["error", String(error)],
+        ]),
+      );
     }
   }
 
@@ -321,6 +341,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private isAuthError(error: unknown): boolean {
+    if (error instanceof RequestError) {
+      return error.response.status === 401;
+    }
     const message = error instanceof Error ? error.message : String(error);
     return /\b401\b|unauthorized|expired|spartan token/i.test(message);
   }
@@ -470,7 +493,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const summaries = state.matchIds
       .map((matchId) => state.discoveredMatches[matchId])
       .filter((match): match is IndividualTrackerMatchSummary => match != null)
-      .sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime());
+      .sort((left, right) => compareAsc(new Date(left.startTime), new Date(right.startTime)));
 
     const summariesById = new Map(summaries.map((summary) => [summary.matchId, summary]));
 

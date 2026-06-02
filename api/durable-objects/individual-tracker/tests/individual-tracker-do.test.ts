@@ -3,7 +3,7 @@ import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
-import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
+import { type HaloInfiniteClient, type PlayerMatchHistory, RequestError } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
@@ -29,6 +29,7 @@ import {
   aFakeIndividualTrackerInternalStateWith,
   aFakeIndividualTrackerMatchSummaryWith,
 } from "../fakes/individual-tracker-do.fake";
+import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 
 const aFakeWinMatchStats = (): ReturnType<typeof aFakeMatchStatsWith> =>
   aFakeMatchStatsWith({
@@ -752,6 +753,47 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.errorState.consecutiveErrors).toBe(1);
     });
 
+    it("treats a typed RequestError 401 as an auth error and clears the cached client", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getMatchStats.mockRejectedValue(
+        new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
+      );
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+      await individualTrackerDO.alarm();
+
+      expect(getClientForUser).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not treat a non-401 RequestError as an auth error", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getMatchStats.mockRejectedValue(
+        new RequestError(new URL("https://halo"), new Response(null, { status: 500 })),
+      );
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+      await individualTrackerDO.alarm();
+
+      expect(getClientForUser).toHaveBeenCalledTimes(1);
+    });
+
     it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
       storageGetSpy.mockResolvedValue(
@@ -800,6 +842,24 @@ describe("IndividualTrackerDO", () => {
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+    });
+
+    it("marks the registry row stopped when it auto-stops on idle timeout", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "idle-tracker", Status: "active" });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      const markSpy = vi.spyOn(services.individualTrackerService, "markTrackerStatus");
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "idle-tracker",
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(markSpy).toHaveBeenCalledWith(row, "stopped");
     });
 
     it("increments consecutiveErrors, grows backoff, reschedules at backoff and does not throw on poll failure", async () => {
@@ -1002,6 +1062,23 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(0);
     });
 
+    it("does not broadcast on a steady-state poll where an already-enriched match is unchanged", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1"],
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3], mapName: "Aquarius" }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(0);
+    });
+
     it("broadcasts a stopped view and closes sockets on stop", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "active" }));
 
@@ -1011,6 +1088,21 @@ describe("IndividualTrackerDO", () => {
       const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.view.status).toBe("stopped");
       expect(webSocketAdapter.closes[0]?.code).toBe(1000);
+    });
+
+    it("closes sockets when the tracker auto-stops on idle timeout", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          status: "active",
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.closes).toHaveLength(1);
     });
 
     it("ignores client messages and does not throw on close/error", () => {

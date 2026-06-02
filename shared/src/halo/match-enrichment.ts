@@ -1,5 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
+import { compareAsc } from "date-fns";
 import { getPlayerXuid } from "./match-stats";
 
 export function getMatchOutcomeLabel(outcomeCode: number | null): "Win" | "Loss" | "Tie" | "DNF" | "Unknown" {
@@ -138,8 +139,8 @@ function haveSameSequentialSeriesSignature(
 }
 
 export function collapseSequentialSeriesEntries<T extends SequentialSeriesEntry>(entries: readonly T[]): T[] {
-  const sortedEntries = [...entries].sort(
-    (left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime(),
+  const sortedEntries = [...entries].sort((left, right) =>
+    compareAsc(new Date(left.startTime), new Date(right.startTime)),
   );
   const collapsedEntries: T[] = [];
 

@@ -114,6 +114,9 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.series[0]?.title).toBe("Eagle vs Cobra");
     expect(body.view.series[0]?.subtitle).toBe("Best of 3");
     expect(body.view.lastMatchDiscoveredAt).toBe("2024-11-26T11:55:00.000Z");
+    expect(body.view).not.toHaveProperty("userId");
+    expect(body.view).not.toHaveProperty("xuid");
+    expect(JSON.stringify(body)).not.toContain("user-123");
   });
 
   it("returns 200 with empty matches and the row's status when the DO has no state", async () => {
