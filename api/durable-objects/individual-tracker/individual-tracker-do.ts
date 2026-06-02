@@ -206,7 +206,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
       const summary = trackerState.discoveredMatches[matchId];
-      if (summary == null || summary.score !== "") {
+      if (summary?.score !== "") {
         continue;
       }
       const enrichedScore = await this.enrichScore(haloClient, matchId);
