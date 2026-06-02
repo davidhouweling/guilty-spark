@@ -65,6 +65,16 @@ export function toTrackerView(
             outcome: match.outcome,
             score: match.score,
           })),
+    series:
+      doState == null
+        ? []
+        : doState.series.map((group) => ({
+            id: group.id,
+            matchIds: group.matchIds,
+            score: group.score,
+            title: group.title,
+            subtitle: group.subtitle,
+          })),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
   };

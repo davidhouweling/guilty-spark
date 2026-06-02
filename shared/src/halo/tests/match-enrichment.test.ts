@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
-import { aFakeMatchStatsWith, aFakeTeamWith, aFakeCoreStatsWith } from "../fakes/data";
-import { buildMatchScore, getMatchOutcomeLabel } from "../match-enrichment";
+import { aFakeMatchStatsWith, aFakeTeamWith, aFakeCoreStatsWith, aFakePlayerWith } from "../fakes/data";
+import {
+  analyzeMatchGroupings,
+  buildMatchScore,
+  buildTeamRosterSignature,
+  collapseSequentialSeriesEntries,
+  getMatchOutcomeLabel,
+} from "../match-enrichment";
 
 describe("getMatchOutcomeLabel()", () => {
   it.each([
@@ -58,5 +64,154 @@ describe("buildMatchScore()", () => {
     });
 
     expect(buildMatchScore(matchStats)).toBe("3:2 (50:42)");
+  });
+});
+
+describe("buildTeamRosterSignature()", () => {
+  it("serializes present-at-beginning real players grouped by team, sorted deterministically", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({ PlayerId: "xuid(20)", LastTeamId: 1 }),
+        aFakePlayerWith({ PlayerId: "xuid(10)", LastTeamId: 1 }),
+        aFakePlayerWith({ PlayerId: "xuid(30)", LastTeamId: 0 }),
+      ],
+    });
+
+    expect(buildTeamRosterSignature(matchStats)).toBe("0:30|1:10,20");
+  });
+
+  it("produces the same signature regardless of player order", () => {
+    const first = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({ PlayerId: "xuid(1)", LastTeamId: 0 }),
+        aFakePlayerWith({ PlayerId: "xuid(2)", LastTeamId: 1 }),
+      ],
+    });
+    const second = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({ PlayerId: "xuid(2)", LastTeamId: 1 }),
+        aFakePlayerWith({ PlayerId: "xuid(1)", LastTeamId: 0 }),
+      ],
+    });
+
+    expect(buildTeamRosterSignature(first)).toBe(buildTeamRosterSignature(second));
+  });
+
+  it("ignores bots and players not present at the beginning", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({ PlayerId: "xuid(1)", LastTeamId: 0 }),
+        aFakePlayerWith({ PlayerId: "bid(2)", PlayerType: 2, LastTeamId: 1 }),
+        aFakePlayerWith({
+          PlayerId: "xuid(3)",
+          LastTeamId: 1,
+          ParticipationInfo: { ...aFakePlayerWith().ParticipationInfo, PresentAtBeginning: false },
+        }),
+      ],
+    });
+
+    expect(buildTeamRosterSignature(matchStats)).toBe("0:1");
+  });
+
+  it("returns null when no present-at-beginning real players exist", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [aFakePlayerWith({ PlayerId: "bid(1)", PlayerType: 2, LastTeamId: 0 })],
+    });
+
+    expect(buildTeamRosterSignature(matchStats)).toBeNull();
+  });
+});
+
+describe("analyzeMatchGroupings()", () => {
+  it("groups consecutive non-matchmaking matches that share a roster signature", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "c", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+      ]),
+    ).toEqual([["a", "b", "c"]]);
+  });
+
+  it("does not break on a map or mode change while the roster is unchanged", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+      ]),
+    ).toEqual([["a", "b"]]);
+  });
+
+  it("breaks the group on a matchmaking match", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "mm", isMatchmaking: true, teamRosterSignature: "0:1|1:2" },
+        { matchId: "c", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "d", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+      ]),
+    ).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
+  });
+
+  it("breaks the group when a roster signature is null", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: null },
+        { matchId: "c", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "d", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+      ]),
+    ).toEqual([["c", "d"]]);
+  });
+
+  it("breaks the group when the roster signature changes", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "c", isMatchmaking: false, teamRosterSignature: "0:9|1:8" },
+        { matchId: "d", isMatchmaking: false, teamRosterSignature: "0:9|1:8" },
+      ]),
+    ).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
+  });
+
+  it("drops groups with fewer than two matches", () => {
+    expect(analyzeMatchGroupings([{ matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" }])).toEqual([]);
+  });
+});
+
+describe("collapseSequentialSeriesEntries()", () => {
+  it("drops an entry when the next entry shares map asset, version and category", () => {
+    const entries = [
+      { startTime: "2024-11-26T11:00:00.000Z", mapAssetId: "m", mapVersionId: "v", gameVariantCategory: 6 },
+      { startTime: "2024-11-26T11:10:00.000Z", mapAssetId: "m", mapVersionId: "v", gameVariantCategory: 6 },
+      { startTime: "2024-11-26T11:20:00.000Z", mapAssetId: "m2", mapVersionId: "v", gameVariantCategory: 6 },
+    ];
+
+    expect(collapseSequentialSeriesEntries(entries)).toEqual([entries[1], entries[2]]);
+  });
+
+  it("sorts entries by start time ascending before collapsing", () => {
+    const later = {
+      startTime: "2024-11-26T11:20:00.000Z",
+      mapAssetId: "m2",
+      mapVersionId: "v",
+      gameVariantCategory: 6,
+    };
+    const earlier = {
+      startTime: "2024-11-26T11:00:00.000Z",
+      mapAssetId: "m1",
+      mapVersionId: "v",
+      gameVariantCategory: 6,
+    };
+
+    expect(collapseSequentialSeriesEntries([later, earlier])).toEqual([earlier, later]);
   });
 });
