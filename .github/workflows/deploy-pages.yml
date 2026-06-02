@@ -43,6 +43,26 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
 
+      - name: Compute preview alias
+        if: github.event_name == 'pull_request_target' && (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling')
+        id: preview-alias
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          # Cloudflare preview-alias URLs are "<alias>-<worker>.<subdomain>.workers.dev";
+          # the leftmost DNS label (alias + "-guilty-spark-web") must be <= 63 chars, so
+          # cap the alias at 40 and reduce the branch to lowercase [a-z0-9-].
+          alias=$(printf '%s' "$HEAD_REF" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+            | cut -c1-40 \
+            | sed -E 's/-+$//')
+          if [ -z "$alias" ]; then
+            alias="pr-${PR_NUMBER}"
+          fi
+          echo "alias=$alias" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Preview (Dependabot only)
         if: github.event_name == 'pull_request_target' && (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling')
         id: deploy-preview
@@ -51,7 +71,27 @@ jobs:
           workingDirectory: "pages"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env preview
+          # Upload a per-branch preview version (does not touch the production
+          # deployment); --preview-alias gives a stable branch-specific URL.
+          command: versions upload --preview-alias ${{ steps.preview-alias.outputs.alias }}
+
+      - name: Resolve preview URL
+        if: github.event_name == 'pull_request_target' && (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling')
+        id: preview-url
+        env:
+          WRANGLER_OUTPUT: ${{ steps.deploy-preview.outputs.command-output }}
+          ALIAS: ${{ steps.preview-alias.outputs.alias }}
+        run: |
+          # Prefer the stable branch alias URL; fall back to the per-version preview URL.
+          url=$(printf '%s' "$WRANGLER_OUTPUT" \
+            | grep -oE "https://${ALIAS}-guilty-spark-web\.[a-z0-9-]+\.workers\.dev" \
+            | head -1)
+          if [ -z "$url" ]; then
+            url=$(printf '%s' "$WRANGLER_OUTPUT" \
+              | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' \
+              | head -1)
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Update GitHub deployment
         if: github.event_name == 'push' || github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling'
@@ -60,6 +100,6 @@ jobs:
         with:
           token: "${{ secrets.DEPLOY_TOKEN }}"
           environment: ${{ github.event_name == 'push' && 'production' || 'preview' }}
-          environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.deploy-preview.outputs.deployment-url }}
+          environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.preview-url.outputs.url }}
           initial-status: success
           transient-environment: ${{ github.event_name != 'push' }}
