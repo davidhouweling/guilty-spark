@@ -61,6 +61,7 @@ const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2): Play
     MatchInfo: {
       StartTime: startTime,
       EndTime: startTime,
+      GameVariantCategory: 6,
       MapVariant: { AssetId: "map-asset", VersionId: "v1" },
       UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
     },
@@ -340,7 +341,10 @@ describe("IndividualTrackerDO", () => {
               startTime: "2024-11-26T11:00:00.000Z",
               endTime: "2024-11-26T11:10:00.000Z",
               mapAssetId: "map-1",
+              mapVersionId: "map-v-1",
+              mapName: "Aquarius",
               modeAssetId: "mode-1",
+              gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
             },
@@ -349,7 +353,10 @@ describe("IndividualTrackerDO", () => {
               startTime: "2024-11-26T11:30:00.000Z",
               endTime: "2024-11-26T11:40:00.000Z",
               mapAssetId: "map-2",
+              mapVersionId: "map-v-2",
+              mapName: "Live Fire",
               modeAssetId: "mode-2",
+              gameVariantCategory: 7,
               outcome: "Loss",
               score: "42:50",
             },
@@ -440,7 +447,10 @@ describe("IndividualTrackerDO", () => {
               startTime: "2024-11-26T11:40:00.000Z",
               endTime: "2024-11-26T11:40:00.000Z",
               mapAssetId: "map-asset",
+              mapVersionId: "v1",
+              mapName: "Recharge",
               modeAssetId: "mode-asset",
+              gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
             },
@@ -456,15 +466,18 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches["match-new"]).toMatchObject({
         matchId: "match-new",
         mapAssetId: "map-asset",
+        mapVersionId: "v1",
         modeAssetId: "mode-asset",
+        gameVariantCategory: 6,
         outcome: "Win",
         score: "50:42",
       });
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
     });
 
-    it("stores outcome and score from getMatchStats for a newly discovered match", async () => {
+    it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)]);
+      const getMapNameSpy = vi.spyOn(services.haloService, "getMapName").mockResolvedValue("Aquarius");
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -479,6 +492,8 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.discoveredMatches["match-new"]?.outcome).toBe("Loss");
       expect(persisted.discoveredMatches["match-new"]?.score).toBe("50:42");
+      expect(persisted.discoveredMatches["match-new"]?.mapName).toBe("Aquarius");
+      expect(getMapNameSpy).toHaveBeenCalledWith("map-asset", "v1");
       expect(ownerClient.getMatchStats).toHaveBeenCalledWith("match-new");
     });
 
@@ -720,7 +735,10 @@ describe("IndividualTrackerDO", () => {
               startTime: "s",
               endTime: "e",
               mapAssetId: "map",
+              mapVersionId: "map-v",
+              mapName: "Streets",
               modeAssetId: "mode",
+              gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
             },

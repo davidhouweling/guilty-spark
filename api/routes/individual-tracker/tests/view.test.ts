@@ -56,7 +56,10 @@ describe("/api/individual-tracker view route", () => {
               startTime: "2024-11-26T11:00:00.000Z",
               endTime: "2024-11-26T11:10:00.000Z",
               mapAssetId: "map-1",
+              mapVersionId: "map-v-1",
+              mapName: "Aquarius",
               modeAssetId: "mode-1",
+              gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
             },
@@ -90,6 +93,9 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.isLive).toBe(true);
     expect(body.view.matches).toHaveLength(1);
     expect(body.view.matches[0]?.matchId).toBe("match-1");
+    expect(body.view.matches[0]?.mapVersionId).toBe("map-v-1");
+    expect(body.view.matches[0]?.mapName).toBe("Aquarius");
+    expect(body.view.matches[0]?.gameVariantCategory).toBe(6);
     expect(body.view.matches[0]?.outcome).toBe("Win");
     expect(body.view.matches[0]?.score).toBe("50:42");
     expect(body.view.lastMatchDiscoveredAt).toBe("2024-11-26T11:55:00.000Z");
