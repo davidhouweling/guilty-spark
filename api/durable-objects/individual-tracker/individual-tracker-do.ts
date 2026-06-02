@@ -151,6 +151,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         await this.setState(trackerState);
         this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
+        await this.markRegistryStopped(trackerState);
         return;
       }
 
@@ -305,6 +306,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       return "";
+    }
+  }
+
+  private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<void> {
+    try {
+      const row = await this.services.databaseService.getIndividualTracker(trackerState.trackerId);
+      if (row != null) {
+        await this.services.individualTrackerService.markTrackerStatus(row, "stopped");
+      }
+    } catch (error) {
+      this.logService.warn(
+        "IndividualTracker: failed to mark registry stopped on idle timeout",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["error", String(error)],
+        ]),
+      );
     }
   }
 

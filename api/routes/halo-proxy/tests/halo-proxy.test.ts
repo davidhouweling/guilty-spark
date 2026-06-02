@@ -6,6 +6,7 @@ import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "h
 import type { TokenInfo } from "../../../services/xbox/types";
 import type { XboxService } from "../../../services/xbox/xbox";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
+import type { DatabaseService } from "../../../services/database/database";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeCacheStorage } from "../../../base/fakes/cache.fake";
@@ -107,6 +108,51 @@ describe("/proxy/halo-infinite/:operation route", () => {
     expect(exchangeSpy).toHaveBeenCalledWith("access-token");
     expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("session-xsts-token");
     expect(sessionGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+  });
+
+  it("prefers the session client and ignores the gamertag when both are present", async () => {
+    const sessionClient = aFakeHaloInfiniteClient();
+    const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
+    vi.mocked(HaloInfiniteClient).mockClear();
+    vi.mocked(HaloInfiniteClient).mockImplementation(function () {
+      return sessionClient;
+    });
+    let getClientForUserSpy!: MockInstance<UserTokenProvider["getClientForUser"]>;
+    let findIdentitySpy!: MockInstance<DatabaseService["findActiveXboxIdentityByGamertag"]>;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
+        sessionId: "session-123",
+        userId: "user-123",
+        accessToken: "access-token",
+        refreshToken: undefined,
+        expiresAt: Date.now() + 3600000,
+        isExpired: false,
+      });
+      vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+        XSTSToken: "session-xsts-token",
+        userHash: "session-user-hash",
+        expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+      } satisfies TokenInfo);
+      findIdentitySpy = vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag");
+      getClientForUserSpy = vi.spyOn(services.userTokenProvider, "getClientForUser");
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request(
+      "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&gamertag=OwnerTag",
+      {
+        method: "GET",
+        headers: { cookie: "auth-session=valid-token" },
+      },
+    );
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(sessionGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+    expect(findIdentitySpy).not.toHaveBeenCalled();
+    expect(getClientForUserSpy).not.toHaveBeenCalled();
   });
 
   it("uses the owner client when a gamertag resolves to an active xbox identity without a session", async () => {

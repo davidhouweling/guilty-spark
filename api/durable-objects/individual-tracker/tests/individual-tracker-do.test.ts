@@ -29,6 +29,7 @@ import {
   aFakeIndividualTrackerInternalStateWith,
   aFakeIndividualTrackerMatchSummaryWith,
 } from "../fakes/individual-tracker-do.fake";
+import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 
 const aFakeWinMatchStats = (): ReturnType<typeof aFakeMatchStatsWith> =>
   aFakeMatchStatsWith({
@@ -841,6 +842,24 @@ describe("IndividualTrackerDO", () => {
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+    });
+
+    it("marks the registry row stopped when it auto-stops on idle timeout", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "idle-tracker", Status: "active" });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      const markSpy = vi.spyOn(services.individualTrackerService, "markTrackerStatus");
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "idle-tracker",
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(markSpy).toHaveBeenCalledWith(row, "stopped");
     });
 
     it("increments consecutiveErrors, grows backoff, reschedules at backoff and does not throw on poll failure", async () => {

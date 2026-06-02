@@ -146,6 +146,9 @@ export class IndividualTrackerManagerPresenter {
     if (this.isDisposed) {
       return;
     }
+    if (this.config.store.getSnapshot().pendingTrackerId !== null) {
+      return;
+    }
     this.config.store.setPendingTrackerId(trackerId);
     this.invokeRowAction(trackerId, action)
       .then(async () => this.refreshTrackers())
