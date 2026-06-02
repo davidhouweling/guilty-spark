@@ -15,6 +15,8 @@ import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError }
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
+import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
@@ -204,31 +206,16 @@ export class HaloService {
   }
 
   getSeriesScore(matches: MatchStats[], locale: string): string {
-    const teamScores: Record<number, number> = {};
-    const sortedMatches = [...matches].sort((a, b) =>
-      isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1,
-    );
-    for (const [index, match] of sortedMatches.entries()) {
-      const nextMatch = sortedMatches[index + 1];
-      if (
-        nextMatch?.MatchInfo.MapVariant.AssetId === match.MatchInfo.MapVariant.AssetId &&
-        nextMatch.MatchInfo.MapVariant.VersionId === match.MatchInfo.MapVariant.VersionId &&
-        nextMatch.MatchInfo.GameVariantCategory === match.MatchInfo.GameVariantCategory
-      ) {
-        // we only want the final game of the same map + game type
-        continue;
-      }
-      for (const [teamIndex, team] of match.Teams.entries()) {
-        teamScores[teamIndex] = (teamScores[teamIndex] ?? 0) + (team.Outcome === MatchOutcome.Win.valueOf() ? 1 : 0);
-      }
-    }
-
-    const values = Object.values(teamScores);
-    const score = values.map((value) => value.toLocaleString(locale)).join(":") || "🦅 0:0 🐍";
-    if (values.length === 2) {
-      return `🦅 ${score} 🐍`;
-    }
-    return score;
+    const entries: SeriesScoreEntry[] = matches.map((match) => ({
+      startTime: match.MatchInfo.StartTime,
+      mapAssetId: match.MatchInfo.MapVariant.AssetId,
+      mapVersionId: match.MatchInfo.MapVariant.VersionId,
+      gameVariantCategory: match.MatchInfo.GameVariantCategory,
+      teamOutcomes: match.Teams.map((team) => team.Outcome),
+    }));
+    const wins = computeSeriesTeamWins(entries);
+    const score = wins.map((value) => value.toLocaleString(locale)).join(":") || "🦅 0:0 🐍";
+    return wins.length === 2 ? `🦅 ${score} 🐍` : score;
   }
 
   wrapPlayerXuid(xuid: string): string {
