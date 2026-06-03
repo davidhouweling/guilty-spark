@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { IndividualTrackerViewer } from "./individual-tracker-viewer";
-import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
-import { IndividualTrackerViewerStore } from "./viewer-store";
+import { useIndividualTrackerViewer } from "./use-individual-tracker-viewer";
 
 interface IndividualTrackerViewerPageProps {
   readonly individualTrackerViewService: IndividualTrackerViewService;
@@ -19,40 +18,17 @@ export function IndividualTrackerViewerPage({
   haloClient,
   trackerId,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
-  const store = useMemo(() => new IndividualTrackerViewerStore(), []);
-
-  const presenter = useMemo(() => {
-    return new IndividualTrackerViewerPresenter({ individualTrackerViewService, haloClient, store, trackerId });
-  }, [individualTrackerViewService, haloClient, store, trackerId]);
-
-  useEffect(() => {
-    presenter.start();
-
-    return (): void => {
-      presenter.dispose();
-    };
-  }, [presenter]);
-
-  const snapshot = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.getSnapshot(),
-    () => store.getSnapshot(),
-  );
-
-  const model = useMemo(() => IndividualTrackerViewerPresenter.present(snapshot), [snapshot]);
+  const { snapshot, model, onSelectMatch, onDeselect, onRetry } = useIndividualTrackerViewer({
+    individualTrackerViewService,
+    haloClient,
+    trackerId,
+  });
 
   return (
     <ComponentLoader
       status={snapshot.status}
       loading={<LoadingState text="Loading tracker..." />}
-      error={
-        <ErrorState
-          message={snapshot.errorMessage ?? "Failed to load tracker"}
-          onRetry={() => {
-            presenter.start();
-          }}
-        />
-      }
+      error={<ErrorState message={snapshot.errorMessage ?? "Failed to load tracker"} onRetry={onRetry} />}
       loaded={
         model.renderModel != null ? (
           <IndividualTrackerViewer
@@ -60,12 +36,8 @@ export function IndividualTrackerViewerPage({
             connectionStatus={model.connectionStatus}
             selectedMatchId={model.selectedMatchId}
             matchStatsState={model.matchStatsState}
-            onSelectMatch={(matchId) => {
-              presenter.selectMatch(matchId);
-            }}
-            onDeselect={() => {
-              presenter.deselectMatch();
-            }}
+            onSelectMatch={onSelectMatch}
+            onDeselect={onDeselect}
           />
         ) : (
           <LoadingState />
