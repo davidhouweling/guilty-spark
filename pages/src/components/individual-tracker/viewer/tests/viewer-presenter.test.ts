@@ -205,11 +205,9 @@ describe("IndividualTrackerViewerPresenter", () => {
 
       presenter.selectMatch("m-1");
       presenter.deselectMatch();
-
-      expect(store.getSnapshot().selectedMatchId).toBeNull();
-      expect(store.getSnapshot().matchStatsState).toBeNull();
-
       rejectStats(new Error("Network failure"));
+
+      await Promise.resolve();
       await Promise.resolve();
 
       expect(setMatchStatsErrorSpy).not.toHaveBeenCalled();

@@ -68,6 +68,25 @@ describe("createHaloInfiniteClientProxy", () => {
     }
   });
 
+  it("truncates a plain-text error body to 200 chars and uses it as the error message", async () => {
+    expect.assertions(2);
+    const longBody = "x".repeat(300);
+    fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(longBody, { status: 502, headers: { "Content-Type": "text/plain" } }));
+
+    const client = createHaloInfiniteClientProxy({ proxyBaseUrl: "https://api.example.com" });
+
+    try {
+      await client.getMatchStats("abc-123");
+    } catch (error) {
+      if (error instanceof ProxyRequestError) {
+        expect(error.statusCode).toBe(502);
+        expect(error.message).toBe("x".repeat(200));
+      }
+    }
+  });
+
   it("throws ProxyRequestError with a default message when the error response body cannot be read", async () => {
     expect.assertions(2);
     const failingResponse = {
