@@ -30,7 +30,16 @@ describe("IndividualTrackerViewer", () => {
       ],
     });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("Spartan One")).toBeInTheDocument();
     expect(screen.getByTestId("record")).toHaveTextContent("1:1");
@@ -41,7 +50,16 @@ describe("IndividualTrackerViewer", () => {
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius", score: "50:30" })],
     });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     const card = screen.getByTestId("match-card");
     expect(card).toHaveTextContent("Aquarius");
@@ -54,7 +72,16 @@ describe("IndividualTrackerViewer", () => {
       series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
     });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     const card = screen.getByTestId("series-card");
     expect(card).toHaveTextContent("Ranked Series");
@@ -65,7 +92,16 @@ describe("IndividualTrackerViewer", () => {
   it("renders a Live badge when the tracker is live", () => {
     const view = aFakeTrackerViewStateWith({ isLive: true });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("Live")).toBeInTheDocument();
   });
@@ -73,7 +109,16 @@ describe("IndividualTrackerViewer", () => {
   it("renders an empty state when there are no matches", () => {
     const view = aFakeTrackerViewStateWith({ matches: [], series: [] });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("No matches tracked yet.")).toBeInTheDocument();
   });
@@ -81,7 +126,16 @@ describe("IndividualTrackerViewer", () => {
   it("renders a connection notice for non-connected states", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="disconnected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="disconnected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByTestId("connection-notice")).toHaveTextContent("Reconnecting...");
   });
@@ -93,7 +147,16 @@ describe("IndividualTrackerViewer", () => {
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", startTime: "not-a-date" })],
     });
 
-    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        selectedMatchId={null}
+        matchStatsState={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("Spartan One")).toBeInTheDocument();
     expect(screen.getByText("Last updated unknown")).toBeInTheDocument();
