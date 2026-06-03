@@ -1,12 +1,20 @@
+import type { MatchStats } from "halo-infinite-api";
 import type { TrackerLiveView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+
+export type MatchStatsState =
+  | { readonly status: "loading" }
+  | { readonly status: "loaded"; readonly stats: MatchStats }
+  | { readonly status: "error"; readonly message: string };
 
 export interface IndividualTrackerViewerSnapshot {
   readonly status: ComponentLoaderStatus;
   readonly errorMessage: string | null;
   readonly view: TrackerViewState | null;
   readonly connectionStatus: TrackerViewConnectionStatus;
+  readonly selectedMatchId: string | null;
+  readonly matchStatsState: MatchStatsState | null;
 }
 
 export class IndividualTrackerViewerStore {
@@ -19,6 +27,8 @@ export class IndividualTrackerViewerStore {
       errorMessage: null,
       view: null,
       connectionStatus: "connecting",
+      selectedMatchId: null,
+      matchStatsState: null,
     };
   }
 
@@ -52,6 +62,24 @@ export class IndividualTrackerViewerStore {
 
   public setConnectionStatus(connectionStatus: TrackerViewConnectionStatus): void {
     this.update({ connectionStatus });
+  }
+
+  public setSelectedMatchId(id: string | null): void {
+    this.update({ selectedMatchId: id, matchStatsState: id != null ? { status: "loading" } : null });
+  }
+
+  public setMatchStats(matchId: string, stats: MatchStats): void {
+    if (this.snapshot.selectedMatchId !== matchId) {
+      return;
+    }
+    this.update({ matchStatsState: { status: "loaded", stats } });
+  }
+
+  public setMatchStatsError(matchId: string, message: string): void {
+    if (this.snapshot.selectedMatchId !== matchId) {
+      return;
+    }
+    this.update({ matchStatsState: { status: "error", message } });
   }
 
   private update(partial: Partial<IndividualTrackerViewerSnapshot>): void {

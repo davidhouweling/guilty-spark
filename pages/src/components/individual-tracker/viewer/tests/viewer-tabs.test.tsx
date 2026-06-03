@@ -21,7 +21,14 @@ describe("TabsBar", () => {
     });
     const { timeline } = buildViewerRenderModel({ view });
 
-    render(<TabsBar timeline={timeline} />);
+    render(
+      <TabsBar
+        timeline={timeline}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("50:30")).toBeInTheDocument();
   });
@@ -33,7 +40,14 @@ describe("TabsBar", () => {
     });
     const { timeline } = buildViewerRenderModel({ view });
 
-    render(<TabsBar timeline={timeline} />);
+    render(
+      <TabsBar
+        timeline={timeline}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("Ranked Series")).toBeInTheDocument();
   });
@@ -45,7 +59,14 @@ describe("TabsBar", () => {
     });
     const { timeline } = buildViewerRenderModel({ view });
 
-    render(<TabsBar timeline={timeline} />);
+    render(
+      <TabsBar
+        timeline={timeline}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("2:1")).toBeInTheDocument();
   });
@@ -56,7 +77,14 @@ describe("TabsBar", () => {
     });
     const { timeline } = buildViewerRenderModel({ view });
 
-    const { container } = render(<TabsBar timeline={timeline} />);
+    const { container } = render(
+      <TabsBar
+        timeline={timeline}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
 
     expect(container.querySelector('[title="Aquarius 50:30"]')).toBeInTheDocument();
   });

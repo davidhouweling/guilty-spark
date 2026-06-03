@@ -6,12 +6,18 @@ import { Container } from "../../container/container";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { relativeTime, Timeline } from "../timeline/timeline";
 import type { IndividualTrackerViewerRenderModel } from "./types";
+import type { MatchStatsState } from "./viewer-store";
 import { TabsBar } from "./viewer-tabs";
+import { StatsPanel } from "./stats-panel";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly connectionStatus: TrackerViewConnectionStatus;
+  readonly selectedMatchId: string | null;
+  readonly matchStatsState: MatchStatsState | null;
+  readonly onSelectMatch: (matchId: string) => void;
+  readonly onDeselect: () => void;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -66,6 +72,10 @@ function recordText(renderModel: IndividualTrackerViewerRenderModel): string {
 export function IndividualTrackerViewer({
   renderModel,
   connectionStatus,
+  selectedMatchId,
+  matchStatsState,
+  onSelectMatch,
+  onDeselect,
 }: IndividualTrackerViewerProps): React.ReactElement {
   const notice = connectionNotice(connectionStatus);
 
@@ -101,7 +111,14 @@ export function IndividualTrackerViewer({
         </p>
       )}
 
-      <TabsBar timeline={renderModel.timeline} />
+      <TabsBar
+        timeline={renderModel.timeline}
+        selectedMatchId={selectedMatchId}
+        onSelectMatch={onSelectMatch}
+        onDeselect={onDeselect}
+      />
+
+      <StatsPanel state={matchStatsState} />
 
       <Timeline timeline={renderModel.timeline} />
     </Container>

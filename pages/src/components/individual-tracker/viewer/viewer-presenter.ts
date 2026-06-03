@@ -1,3 +1,4 @@
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -9,6 +10,7 @@ import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface Config {
   readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
 }
@@ -19,6 +21,7 @@ export class IndividualTrackerViewerPresenter {
   private connection: TrackerViewConnection | null = null;
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
+  private selectedMatchId: string | null = null;
 
   public constructor(config: Config) {
     this.config = config;
@@ -28,7 +31,35 @@ export class IndividualTrackerViewerPresenter {
     return {
       renderModel: snapshot.view == null ? null : buildViewerRenderModel({ view: snapshot.view }),
       connectionStatus: snapshot.connectionStatus,
+      selectedMatchId: snapshot.selectedMatchId,
+      matchStatsState: snapshot.matchStatsState,
     };
+  }
+
+  public selectMatch(matchId: string): void {
+    this.selectedMatchId = matchId;
+    this.config.store.setSelectedMatchId(matchId);
+    void this.fetchMatchStats(matchId);
+  }
+
+  public deselectMatch(): void {
+    this.selectedMatchId = null;
+    this.config.store.setSelectedMatchId(null);
+  }
+
+  private async fetchMatchStats(matchId: string): Promise<void> {
+    try {
+      const stats = await this.config.haloClient.getMatchStats(matchId);
+      if (this.isDisposed || this.selectedMatchId !== matchId) {
+        return;
+      }
+      this.config.store.setMatchStats(matchId, stats);
+    } catch (error) {
+      if (this.isDisposed || this.selectedMatchId !== matchId) {
+        return;
+      }
+      this.config.store.setMatchStatsError(matchId, error instanceof Error ? error.message : "Failed to load stats");
+    }
   }
 
   public start(): void {
