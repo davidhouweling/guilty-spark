@@ -1,23 +1,17 @@
 import React from "react";
 import classNames from "classnames";
-import { formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import { Alert } from "../../alert/alert";
 import { Container } from "../../container/container";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
-import { gameModeIconSrc } from "./game-mode-icon";
-import type {
-  IndividualTrackerViewerRenderModel,
-  IndividualTrackerViewerViewModel,
-  ViewerMatchTab,
-  ViewerSeriesTab,
-  ViewerTimelineItem,
-} from "./types";
+import { relativeTime, Timeline } from "../timeline/timeline";
+import type { IndividualTrackerViewerRenderModel } from "./types";
+import { TabsBar } from "./viewer-tabs";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
-  readonly model: IndividualTrackerViewerViewModel;
+  readonly renderModel: IndividualTrackerViewerRenderModel;
+  readonly connectionStatus: TrackerViewConnectionStatus;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -40,7 +34,7 @@ function statusLabel(status: TrackerStatus): string {
 function connectionNotice(status: TrackerViewConnectionStatus): string | null {
   switch (status) {
     case "connecting": {
-      return "Connecting…";
+      return "Connecting...";
     }
     case "connected": {
       return null;
@@ -52,7 +46,7 @@ function connectionNotice(status: TrackerViewConnectionStatus): string | null {
       return "Connection error.";
     }
     case "disconnected": {
-      return "Reconnecting…";
+      return "Reconnecting...";
     }
     case "not_found": {
       return "Tracker not found.";
@@ -65,138 +59,15 @@ function connectionNotice(status: TrackerViewConnectionStatus): string | null {
 
 function recordText(renderModel: IndividualTrackerViewerRenderModel): string {
   const { wins, losses, ties } = renderModel.accumulated;
-  const base = `${wins.toString()}–${losses.toString()}`;
-  return ties > 0 ? `${base}–${ties.toString()}` : base;
+  const base = `${wins.toString()}:${losses.toString()}`;
+  return ties > 0 ? `${base}:${ties.toString()}` : base;
 }
 
-function accentStyle(colorHex: string | undefined): React.CSSProperties | undefined {
-  return colorHex == null ? undefined : { borderLeftColor: colorHex };
-}
-
-function relativeTime(iso: string): string {
-  const date = parseISO(iso);
-  return isValid(date) ? formatDistanceToNow(date, { addSuffix: true }) : "unknown";
-}
-
-function MatchTab({ match }: { readonly match: ViewerMatchTab }): React.ReactElement {
-  return (
-    <div
-      className={classNames(styles.tab, { [styles.tabAccented]: match.colorHex != null })}
-      style={accentStyle(match.colorHex)}
-      title={`${match.mapName} ${match.score}`}
-    >
-      <img className={styles.tabIcon} src={gameModeIconSrc(match.gameVariantCategory)} alt="" />
-      <span className={styles.tabScore}>{match.score}</span>
-    </div>
-  );
-}
-
-function SeriesTab({ series }: { readonly series: ViewerSeriesTab }): React.ReactElement {
-  return (
-    <div className={classNames(styles.tab, styles.tabSeries)} title={`${series.title} ${series.score}`}>
-      <span className={styles.tabSeriesTitle}>{series.title}</span>
-      <span className={styles.tabScore}>{series.score}</span>
-      <div className={styles.tabIcons}>
-        {series.matches.map((match) => (
-          <img key={match.matchId} className={styles.tabIcon} src={gameModeIconSrc(match.gameVariantCategory)} alt="" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TabsBar({ timeline }: { readonly timeline: readonly ViewerTimelineItem[] }): React.ReactElement {
-  return (
-    <div className={styles.tabBar}>
-      {timeline.map((item) => {
-        switch (item.type) {
-          case "match": {
-            return <MatchTab key={item.match.matchId} match={item.match} />;
-          }
-          case "series": {
-            return <SeriesTab key={item.series.id} series={item.series} />;
-          }
-          default: {
-            throw new UnreachableError(item);
-          }
-        }
-      })}
-    </div>
-  );
-}
-
-function MatchCard({ match }: { readonly match: ViewerMatchTab }): React.ReactElement {
-  return (
-    <div
-      className={classNames(styles.matchCard, { [styles.matchCardAccented]: match.colorHex != null })}
-      style={accentStyle(match.colorHex)}
-      data-testid="match-card"
-    >
-      <img className={styles.matchIcon} src={gameModeIconSrc(match.gameVariantCategory)} alt="" />
-      <div className={styles.matchBody}>
-        <span className={styles.matchMap}>{match.mapName}</span>
-        <span className={styles.matchMeta}>{relativeTime(match.startTime)}</span>
-      </div>
-      <span className={styles.matchScore}>{match.score}</span>
-    </div>
-  );
-}
-
-function SeriesCard({ series }: { readonly series: ViewerSeriesTab }): React.ReactElement {
-  return (
-    <div className={styles.seriesCard} data-testid="series-card">
-      <div className={styles.seriesHeader}>
-        <div className={styles.seriesTitleRow}>
-          <span className={styles.seriesTitle}>{series.title}</span>
-          <span className={styles.seriesSubtitle}>{series.subtitle}</span>
-        </div>
-        <span className={styles.seriesScore}>{series.score}</span>
-      </div>
-      <div className={styles.seriesMatches}>
-        {series.matches.map((match) => (
-          <MatchCard key={match.matchId} match={match} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Timeline({ timeline }: { readonly timeline: readonly ViewerTimelineItem[] }): React.ReactElement {
-  if (timeline.length === 0) {
-    return <Alert variant="info">No matches tracked yet.</Alert>;
-  }
-
-  return (
-    <div className={styles.timeline}>
-      {timeline.map((item) => {
-        switch (item.type) {
-          case "match": {
-            return <MatchCard key={item.match.matchId} match={item.match} />;
-          }
-          case "series": {
-            return <SeriesCard key={item.series.id} series={item.series} />;
-          }
-          default: {
-            throw new UnreachableError(item);
-          }
-        }
-      })}
-    </div>
-  );
-}
-
-export function IndividualTrackerViewer({ model }: IndividualTrackerViewerProps): React.ReactElement {
-  const { renderModel } = model;
-
-  if (renderModel == null) {
-    return (
-      <Container>
-        <Alert variant="info">Waiting for tracker state…</Alert>
-      </Container>
-    );
-  }
-
-  const notice = connectionNotice(model.connectionStatus);
+export function IndividualTrackerViewer({
+  renderModel,
+  connectionStatus,
+}: IndividualTrackerViewerProps): React.ReactElement {
+  const notice = connectionNotice(connectionStatus);
 
   return (
     <Container>
@@ -232,9 +103,7 @@ export function IndividualTrackerViewer({ model }: IndividualTrackerViewerProps)
 
       <TabsBar timeline={renderModel.timeline} />
 
-      <section className={styles.timelineSection}>
-        <Timeline timeline={renderModel.timeline} />
-      </section>
+      <Timeline timeline={renderModel.timeline} />
     </Container>
   );
 }

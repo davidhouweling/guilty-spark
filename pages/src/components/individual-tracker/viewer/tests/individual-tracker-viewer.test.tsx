@@ -8,14 +8,11 @@ import {
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { buildViewerRenderModel } from "../viewer-render-model";
-import type { IndividualTrackerViewerViewModel } from "../types";
+import type { IndividualTrackerViewerRenderModel } from "../types";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 
-function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualTrackerViewerViewModel {
-  return {
-    renderModel: buildViewerRenderModel({ view }),
-    connectionStatus: "connected",
-  };
+function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualTrackerViewerRenderModel {
+  return buildViewerRenderModel({ view });
 }
 
 describe("IndividualTrackerViewer", () => {
@@ -33,10 +30,10 @@ describe("IndividualTrackerViewer", () => {
       ],
     });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     expect(screen.getByText("Spartan One")).toBeInTheDocument();
-    expect(screen.getByTestId("record")).toHaveTextContent("1–1");
+    expect(screen.getByTestId("record")).toHaveTextContent("1:1");
   });
 
   it("renders a standalone match card with its map and score", () => {
@@ -44,7 +41,7 @@ describe("IndividualTrackerViewer", () => {
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius", score: "50:30" })],
     });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     const card = screen.getByTestId("match-card");
     expect(card).toHaveTextContent("Aquarius");
@@ -57,7 +54,7 @@ describe("IndividualTrackerViewer", () => {
       series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
     });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     const card = screen.getByTestId("series-card");
     expect(card).toHaveTextContent("Ranked Series");
@@ -68,7 +65,7 @@ describe("IndividualTrackerViewer", () => {
   it("renders a Live badge when the tracker is live", () => {
     const view = aFakeTrackerViewStateWith({ isLive: true });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     expect(screen.getByText("Live")).toBeInTheDocument();
   });
@@ -76,9 +73,17 @@ describe("IndividualTrackerViewer", () => {
   it("renders an empty state when there are no matches", () => {
     const view = aFakeTrackerViewStateWith({ matches: [], series: [] });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     expect(screen.getByText("No matches tracked yet.")).toBeInTheDocument();
+  });
+
+  it("renders a connection notice for non-connected states", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="disconnected" />);
+
+    expect(screen.getByTestId("connection-notice")).toHaveTextContent("Reconnecting...");
   });
 
   it("renders without crashing when timestamps are not valid dates", () => {
@@ -88,7 +93,7 @@ describe("IndividualTrackerViewer", () => {
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", startTime: "not-a-date" })],
     });
 
-    render(<IndividualTrackerViewer model={aModel(view)} />);
+    render(<IndividualTrackerViewer renderModel={aModel(view)} connectionStatus="connected" />);
 
     expect(screen.getByText("Spartan One")).toBeInTheDocument();
     expect(screen.getByText("Last updated unknown")).toBeInTheDocument();

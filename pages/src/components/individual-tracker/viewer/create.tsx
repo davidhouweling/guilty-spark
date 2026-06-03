@@ -50,7 +50,13 @@ export function IndividualTrackerViewerPage({
           }}
         />
       }
-      loaded={<IndividualTrackerViewer model={model} />}
+      loaded={
+        model.renderModel != null ? (
+          <IndividualTrackerViewer renderModel={model.renderModel} connectionStatus={model.connectionStatus} />
+        ) : (
+          <LoadingState />
+        )
+      }
     />
   );
 }

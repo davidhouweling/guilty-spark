@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
-import attritionPng from "../../../../assets/game-modes/attrition.png";
-import captureTheFlagPng from "../../../../assets/game-modes/capture-the-flag.png";
-import firefightPng from "../../../../assets/game-modes/firefight.png";
-import oddballPng from "../../../../assets/game-modes/oddball.png";
-import slayerPng from "../../../../assets/game-modes/slayer.png";
-import strongholdsPng from "../../../../assets/game-modes/strongholds.png";
+import attritionPng from "../../../assets/game-modes/attrition.png";
+import captureTheFlagPng from "../../../assets/game-modes/capture-the-flag.png";
+import firefightPng from "../../../assets/game-modes/firefight.png";
+import oddballPng from "../../../assets/game-modes/oddball.png";
+import slayerPng from "../../../assets/game-modes/slayer.png";
+import strongholdsPng from "../../../assets/game-modes/strongholds.png";
 import { gameModeIconSrc } from "../game-mode-icon";
 
 describe("gameModeIconSrc", () => {
