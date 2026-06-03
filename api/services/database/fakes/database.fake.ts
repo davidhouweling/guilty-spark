@@ -189,6 +189,7 @@ export function aFakeIndividualTrackersRow(opts: Partial<IndividualTrackersRow> 
     IsLive: 0,
     CreatedAt: nowEpoch,
     UpdatedAt: nowEpoch,
+    StreamerViewSettingsJson: "{}",
   };
 
   return {

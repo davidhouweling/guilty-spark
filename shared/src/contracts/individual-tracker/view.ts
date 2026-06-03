@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defineContract, defineMessageContract } from "../base";
+import { streamerViewSettingsSchema } from "../../individual-tracker/streamer-view-settings";
 import { trackerStatusSchema } from "./tracker";
 
 export const trackerMatchSummarySchema = z.object({
@@ -36,7 +37,10 @@ export const trackerLiveViewSchema = z.object({
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 
-export const trackerViewStateSchema = trackerLiveViewSchema.extend({ isLive: z.boolean() });
+export const trackerViewStateSchema = trackerLiveViewSchema.extend({
+  isLive: z.boolean(),
+  streamerSettings: streamerViewSettingsSchema.optional(),
+});
 export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
 
 export const trackerViewContract = defineContract(z.object({ view: trackerViewStateSchema }));

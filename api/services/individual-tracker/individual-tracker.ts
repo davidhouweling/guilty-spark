@@ -86,6 +86,7 @@ export class IndividualTrackerService {
       IsLive: alreadyTracked?.IsLive ?? 0,
       CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
       UpdatedAt: nowEpoch,
+      StreamerViewSettingsJson: alreadyTracked?.StreamerViewSettingsJson ?? "{}",
     };
     await this.databaseService.upsertIndividualTracker(tracker);
     return tracker;

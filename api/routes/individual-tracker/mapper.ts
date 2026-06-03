@@ -1,6 +1,7 @@
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerProfilesRow } from "../../services/database/types/individual_tracker_profiles";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type {
@@ -77,5 +78,6 @@ export function toTrackerView(
           })),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
+    streamerSettings: parseStreamerViewSettings(row.StreamerViewSettingsJson),
   };
 }

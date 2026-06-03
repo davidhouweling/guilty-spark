@@ -477,7 +477,7 @@ export class DatabaseService {
 
   async upsertIndividualTracker(tracker: IndividualTrackersRow): Promise<void> {
     const query = `
-      INSERT INTO IndividualTrackers (TrackerId, UserId, Gamertag, Xuid, Status, IsLive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO IndividualTrackers (TrackerId, UserId, Gamertag, Xuid, Status, IsLive, StreamerViewSettingsJson, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, Xuid=excluded.Xuid, Status=excluded.Status, IsLive=excluded.IsLive, UpdatedAt=excluded.UpdatedAt
     `;
     const stmt = this.DB.prepare(query).bind(
@@ -487,6 +487,7 @@ export class DatabaseService {
       tracker.Xuid,
       tracker.Status,
       tracker.IsLive,
+      tracker.StreamerViewSettingsJson,
       tracker.CreatedAt,
       tracker.UpdatedAt,
     );
@@ -496,6 +497,13 @@ export class DatabaseService {
   async deleteIndividualTracker(trackerId: string): Promise<void> {
     const stmt = this.DB.prepare("DELETE FROM IndividualTrackers WHERE TrackerId = ?").bind(trackerId);
     await stmt.run();
+  }
+
+  async updateIndividualTrackerSettings(trackerId: string, settingsJson: string): Promise<void> {
+    const query = "UPDATE IndividualTrackers SET StreamerViewSettingsJson = ?, UpdatedAt = ? WHERE TrackerId = ?";
+    await this.DB.prepare(query)
+      .bind(settingsJson, Math.floor(Date.now() / 1000), trackerId)
+      .run();
   }
 
   async setLiveIndividualTracker(userId: string, trackerId: string): Promise<void> {

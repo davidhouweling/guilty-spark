@@ -992,6 +992,7 @@ describe("Database Service", () => {
         tracker.Xuid,
         tracker.Status,
         tracker.IsLive,
+        tracker.StreamerViewSettingsJson,
         tracker.CreatedAt,
         tracker.UpdatedAt,
       );

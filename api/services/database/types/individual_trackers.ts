@@ -9,4 +9,5 @@ export interface IndividualTrackersRow {
   IsLive: 0 | 1;
   CreatedAt: number;
   UpdatedAt: number;
+  StreamerViewSettingsJson: string;
 }
