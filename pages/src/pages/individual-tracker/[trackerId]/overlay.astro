@@ -1,0 +1,13 @@
+---
+export const prerender = false;
+
+import OverlayLayout from "../../../layouts/overlay-layout.astro";
+import { API_HOST } from "../../../constants";
+import { IndividualTrackerOverlayApp } from "../../../apps/individual-tracker-overlay/create";
+
+const { trackerId } = Astro.params;
+---
+
+<OverlayLayout title="Tracker Overlay - Guilty Spark">
+  <IndividualTrackerOverlayApp client:only="react" apiHost={API_HOST} trackerId={trackerId ?? ""} />
+</OverlayLayout>

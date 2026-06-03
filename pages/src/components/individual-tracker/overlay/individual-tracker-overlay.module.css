@@ -1,0 +1,6 @@
+.overlayRoot {
+  background: transparent;
+  inset: 0;
+  overflow: hidden;
+  position: fixed;
+}
