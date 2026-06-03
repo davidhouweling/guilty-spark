@@ -1,6 +1,8 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { appendHaloProxyArgsToUrl, resolveHaloProxyOperation } from "./halo-infinite-proxy-operations";
 
+const MAX_ERROR_BODY_DISPLAY_LENGTH = 200;
+
 export interface CreateHaloInfiniteClientProxyOpts {
   readonly proxyBaseUrl: string;
   readonly proxyPath?: string;
@@ -43,7 +45,7 @@ async function readErrorMessage(response: Response): Promise<string> {
         }
       }
     } catch {
-      return text.slice(0, 200);
+      return text.slice(0, MAX_ERROR_BODY_DISPLAY_LENGTH);
     }
   } catch {
     // body read failed (e.g. network drop after headers)

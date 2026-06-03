@@ -201,6 +201,7 @@ describe("IndividualTrackerViewerPresenter", () => {
           rejectStats = reject;
         }),
       );
+      const setMatchStatsErrorSpy = vi.spyOn(store, "setMatchStatsError");
 
       presenter.selectMatch("m-1");
       presenter.deselectMatch();
@@ -209,11 +210,9 @@ describe("IndividualTrackerViewerPresenter", () => {
       expect(store.getSnapshot().matchStatsState).toBeNull();
 
       rejectStats(new Error("Network failure"));
+      await Promise.resolve();
 
-      await vi.waitFor(() => {
-        expect(haloClient.getMatchStats).toHaveBeenCalledOnce();
-      });
-
+      expect(setMatchStatsErrorSpy).not.toHaveBeenCalled();
       expect(store.getSnapshot().selectedMatchId).toBeNull();
       expect(store.getSnapshot().matchStatsState).toBeNull();
     });
