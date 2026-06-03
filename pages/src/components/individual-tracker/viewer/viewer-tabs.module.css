@@ -1,0 +1,48 @@
+.tabBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.tab {
+  align-items: center;
+  background: var(--halo-bg-card);
+  border: 1px solid color-mix(in srgb, var(--halo-gray) 30%, transparent);
+  border-radius: var(--radius-base);
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.tabAccented {
+  border-left-style: solid;
+  border-left-width: 3px;
+}
+
+.tabSeries {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+}
+
+.tabSeriesTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+
+.tabIcon {
+  height: 20px;
+  width: 20px;
+}
+
+.tabIcons {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tabScore {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+}
