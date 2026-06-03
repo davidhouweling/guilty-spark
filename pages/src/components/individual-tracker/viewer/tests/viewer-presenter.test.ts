@@ -204,9 +204,15 @@ describe("IndividualTrackerViewerPresenter", () => {
 
       presenter.selectMatch("m-1");
       presenter.deselectMatch();
+
+      expect(store.getSnapshot().selectedMatchId).toBeNull();
+      expect(store.getSnapshot().matchStatsState).toBeNull();
+
       rejectStats(new Error("Network failure"));
 
-      await Promise.resolve();
+      await vi.waitFor(() => {
+        expect(haloClient.getMatchStats).toHaveBeenCalledOnce();
+      });
 
       expect(store.getSnapshot().selectedMatchId).toBeNull();
       expect(store.getSnapshot().matchStatsState).toBeNull();

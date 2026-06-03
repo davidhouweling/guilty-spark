@@ -43,7 +43,7 @@ async function readErrorMessage(response: Response): Promise<string> {
         }
       }
     } catch {
-      return text;
+      return text.slice(0, 200);
     }
   } catch {
     // body read failed (e.g. network drop after headers)

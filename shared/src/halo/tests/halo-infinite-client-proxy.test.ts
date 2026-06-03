@@ -50,6 +50,24 @@ describe("createHaloInfiniteClientProxy", () => {
     }
   });
 
+  it("throws ProxyRequestError with a default message when the error body is valid JSON without a message or error field", async () => {
+    expect.assertions(2);
+    fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ code: 42 }), { status: 429 }));
+
+    const client = createHaloInfiniteClientProxy({ proxyBaseUrl: "https://api.example.com" });
+
+    try {
+      await client.getMatchStats("abc-123");
+    } catch (error) {
+      if (error instanceof ProxyRequestError) {
+        expect(error.statusCode).toBe(429);
+        expect(error.message).toBe("Proxy error");
+      }
+    }
+  });
+
   it("throws ProxyRequestError with a default message when the error response body cannot be read", async () => {
     expect.assertions(2);
     const failingResponse = {
