@@ -192,6 +192,26 @@ describe("IndividualTrackerViewerPresenter", () => {
       }
     });
 
+    it("discards a stale error when the match is deselected before a rejection arrives", async () => {
+      const service = aFakeIndividualTrackerViewServiceWith();
+      let rejectStats!: (error: Error) => void;
+      const { haloClient, store, presenter } = aHarness(service);
+      haloClient.getMatchStats.mockReturnValue(
+        new Promise((_, reject) => {
+          rejectStats = reject;
+        }),
+      );
+
+      presenter.selectMatch("m-1");
+      presenter.deselectMatch();
+      rejectStats(new Error("Network failure"));
+
+      await Promise.resolve();
+
+      expect(store.getSnapshot().selectedMatchId).toBeNull();
+      expect(store.getSnapshot().matchStatsState).toBeNull();
+    });
+
     it("sets matchStatsState to error when getMatchStats rejects", async () => {
       expect.assertions(2);
       const service = aFakeIndividualTrackerViewServiceWith();

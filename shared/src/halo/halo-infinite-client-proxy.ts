@@ -26,29 +26,34 @@ function isProxyErrorResponse(data: unknown): data is { message?: string; error?
   return typeof data === "object" && data !== null && ("message" in data || "error" in data);
 }
 
-async function handleProxyResponse(response: Response, url: URL): Promise<unknown> {
-  if (!response.ok) {
-    let errorMessage = "Proxy error";
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+    if (text === "") {
+      return "Proxy error";
+    }
     try {
-      const text = await response.text();
-      if (text !== "") {
-        try {
-          const data: unknown = JSON.parse(text);
-          if (isProxyErrorResponse(data)) {
-            if (typeof data.message === "string") {
-              errorMessage = data.message;
-            } else if (typeof data.error === "string") {
-              errorMessage = data.error;
-            }
-          }
-        } catch {
-          errorMessage = text;
+      const data: unknown = JSON.parse(text);
+      if (isProxyErrorResponse(data)) {
+        if (typeof data.message === "string") {
+          return data.message;
+        }
+        if (typeof data.error === "string") {
+          return data.error;
         }
       }
     } catch {
-      // body read failed (e.g. network drop after headers) — use the default message
+      return text;
     }
-    throw new ProxyRequestError(response.status, url.toString(), errorMessage);
+  } catch {
+    // body read failed (e.g. network drop after headers)
+  }
+  return "Proxy error";
+}
+
+async function handleProxyResponse(response: Response, url: URL): Promise<unknown> {
+  if (!response.ok) {
+    throw new ProxyRequestError(response.status, url.toString(), await readErrorMessage(response));
   }
   try {
     return await response.json();

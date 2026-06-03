@@ -50,6 +50,45 @@ describe("createHaloInfiniteClientProxy", () => {
     }
   });
 
+  it("throws ProxyRequestError with a default message when the error response body cannot be read", async () => {
+    expect.assertions(2);
+    const failingResponse = {
+      ok: false,
+      status: 503,
+      text: vi.fn<() => Promise<string>>().mockRejectedValue(new TypeError("network error")),
+    } as unknown as Response;
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(failingResponse);
+
+    const client = createHaloInfiniteClientProxy({ proxyBaseUrl: "https://api.example.com" });
+
+    try {
+      await client.getMatchStats("abc-123");
+    } catch (error) {
+      if (error instanceof ProxyRequestError) {
+        expect(error.statusCode).toBe(503);
+        expect(error.message).toBe("Proxy error");
+      }
+    }
+  });
+
+  it("throws ProxyRequestError when a 2xx response body is not valid JSON", async () => {
+    expect.assertions(2);
+    fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("<html>Error</html>", { status: 200, headers: { "Content-Type": "text/html" } }));
+
+    const client = createHaloInfiniteClientProxy({ proxyBaseUrl: "https://api.example.com" });
+
+    try {
+      await client.getMatchStats("abc-123");
+    } catch (error) {
+      if (error instanceof ProxyRequestError) {
+        expect(error.statusCode).toBe(200);
+        expect(error.message).toBe("Proxy returned a non-JSON response");
+      }
+    }
+  });
+
   it("sends the credentials option when specified", async () => {
     fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
 
