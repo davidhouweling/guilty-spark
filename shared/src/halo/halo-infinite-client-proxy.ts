@@ -29,24 +29,32 @@ function isProxyErrorResponse(data: unknown): data is { message?: string; error?
 async function handleProxyResponse(response: Response, url: URL): Promise<unknown> {
   if (!response.ok) {
     let errorMessage = "Proxy error";
-    const text = await response.text();
-    if (text !== "") {
-      try {
-        const data: unknown = JSON.parse(text);
-        if (isProxyErrorResponse(data)) {
-          if (typeof data.message === "string") {
-            errorMessage = data.message;
-          } else if (typeof data.error === "string") {
-            errorMessage = data.error;
+    try {
+      const text = await response.text();
+      if (text !== "") {
+        try {
+          const data: unknown = JSON.parse(text);
+          if (isProxyErrorResponse(data)) {
+            if (typeof data.message === "string") {
+              errorMessage = data.message;
+            } else if (typeof data.error === "string") {
+              errorMessage = data.error;
+            }
           }
+        } catch {
+          errorMessage = text;
         }
-      } catch {
-        errorMessage = text;
       }
+    } catch {
+      // body read failed (e.g. network drop after headers) — use the default message
     }
     throw new ProxyRequestError(response.status, url.toString(), errorMessage);
   }
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new ProxyRequestError(response.status, url.toString(), "Proxy returned a non-JSON response");
+  }
 }
 
 function resolveAdditionalHeaders(additionalHeaders?: HeadersInit | (() => HeadersInit)): Headers {

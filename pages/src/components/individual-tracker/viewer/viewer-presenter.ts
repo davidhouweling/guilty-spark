@@ -50,15 +50,19 @@ export class IndividualTrackerViewerPresenter {
     this.config.store.setSelectedMatchId(null);
   }
 
+  private isStale(matchId: string): boolean {
+    return this.isDisposed || this.selectedMatchId !== matchId;
+  }
+
   private async fetchMatchStats(matchId: string): Promise<void> {
     try {
       const stats = await this.config.haloClient.getMatchStats(matchId);
-      if (this.isDisposed || this.selectedMatchId !== matchId) {
+      if (this.isStale(matchId)) {
         return;
       }
       this.config.store.setMatchStats(matchId, stats);
     } catch (error) {
-      if (this.isDisposed || this.selectedMatchId !== matchId) {
+      if (this.isStale(matchId)) {
         return;
       }
       this.config.store.setMatchStatsError(matchId, error instanceof Error ? error.message : "Failed to load stats");
