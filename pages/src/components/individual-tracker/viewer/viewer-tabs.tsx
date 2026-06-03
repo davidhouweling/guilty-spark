@@ -85,10 +85,10 @@ export function TabsBar({ timeline, selectedMatchId, onSelectMatch, onDeselect }
             );
           }
           case "series": {
-            const [firstMatch] = item.series.matches;
             if (item.series.matches.length === 0) {
               return null;
             }
+            const [firstMatch] = item.series.matches;
             const isSelected = item.series.matches.some((m) => m.matchId === selectedMatchId);
             const handleSeriesSelect = isSelected
               ? onDeselect

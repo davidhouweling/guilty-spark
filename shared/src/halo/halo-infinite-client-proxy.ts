@@ -27,19 +27,26 @@ function isProxyErrorResponse(data: unknown): data is { message?: string; error?
 }
 
 async function handleProxyResponse(response: Response, url: URL): Promise<unknown> {
-  const data: unknown = await response.json();
   if (!response.ok) {
     let errorMessage = "Proxy error";
-    if (isProxyErrorResponse(data)) {
-      if (typeof data.message === "string") {
-        errorMessage = data.message;
-      } else if (typeof data.error === "string") {
-        errorMessage = data.error;
+    const text = await response.text();
+    if (text !== "") {
+      try {
+        const data: unknown = JSON.parse(text);
+        if (isProxyErrorResponse(data)) {
+          if (typeof data.message === "string") {
+            errorMessage = data.message;
+          } else if (typeof data.error === "string") {
+            errorMessage = data.error;
+          }
+        }
+      } catch {
+        errorMessage = text;
       }
     }
     throw new ProxyRequestError(response.status, url.toString(), errorMessage);
   }
-  return data;
+  return response.json();
 }
 
 function resolveAdditionalHeaders(additionalHeaders?: HeadersInit | (() => HeadersInit)): Headers {

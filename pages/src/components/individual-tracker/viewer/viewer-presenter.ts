@@ -37,6 +37,9 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public selectMatch(matchId: string): void {
+    if (this.selectedMatchId === matchId) {
+      return;
+    }
     this.selectedMatchId = matchId;
     this.config.store.setSelectedMatchId(matchId);
     void this.fetchMatchStats(matchId);
