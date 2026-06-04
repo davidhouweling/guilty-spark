@@ -7,7 +7,41 @@ import type { IndividualTrackersRow } from "../../services/database/types/indivi
 import type {
   IndividualTrackerState,
   IndividualTrackerViewState,
+  IndividualTrackerViewStateResponse,
 } from "../../durable-objects/individual-tracker/types";
+
+export async function fetchTrackerDoViewState(
+  env: Env,
+  userId: string,
+  trackerId: string,
+): Promise<IndividualTrackerViewState | null> {
+  const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
+  const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+  const response = await stub.fetch("http://do/view-state", { method: "GET" });
+  const result = await response.json<IndividualTrackerViewStateResponse>();
+  return result.state;
+}
+
+export function computeAccumulated(matches: readonly { outcome: string }[]): {
+  total: number;
+  wins: number;
+  losses: number;
+  ties: number;
+} {
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  for (const match of matches) {
+    if (match.outcome === "Win") {
+      wins++;
+    } else if (match.outcome === "Loss") {
+      losses++;
+    } else if (match.outcome === "Tie") {
+      ties++;
+    }
+  }
+  return { total: matches.length, wins, losses, ties };
+}
 
 export function toTrackerProfile(row: IndividualTrackerProfilesRow): TrackerProfile {
   return {

@@ -2,24 +2,8 @@ import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerParamsSchema } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type {
-  IndividualTrackerViewState,
-  IndividualTrackerViewStateResponse,
-} from "../../durable-objects/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
-import { toTrackerView } from "./mapper";
-
-async function viewStateTrackerDo(
-  env: Env,
-  userId: string,
-  trackerId: string,
-): Promise<IndividualTrackerViewState | null> {
-  const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
-  const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-  const response = await stub.fetch("http://do/view-state", { method: "GET" });
-  const result = await response.json<IndividualTrackerViewStateResponse>();
-  return result.state;
-}
+import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
 export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/:trackerId/view", async (request, env: Env) => {
@@ -39,7 +23,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       const [doState, streamerSettings] = await Promise.all([
-        viewStateTrackerDo(env, row.UserId, trackerId),
+        fetchTrackerDoViewState(env, row.UserId, trackerId),
         individualTrackerService.getSettingsForView(row.UserId),
       ]);
 
