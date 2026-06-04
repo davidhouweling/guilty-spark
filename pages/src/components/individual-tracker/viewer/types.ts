@@ -1,4 +1,5 @@
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsState } from "./viewer-store";
 
@@ -50,4 +51,5 @@ export interface IndividualTrackerViewerViewModel {
   readonly connectionStatus: TrackerViewConnectionStatus;
   readonly selectedMatchId: string | null;
   readonly matchStatsState: MatchStatsState | null;
+  readonly streamerSettings: StreamerViewSettings | undefined;
 }
