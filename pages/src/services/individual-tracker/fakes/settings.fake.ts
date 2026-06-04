@@ -9,14 +9,12 @@ export class FakeIndividualTrackerSettingsService implements IndividualTrackerSe
   }
 
   public async getSettings(): Promise<StreamerViewSettings> {
-    await Promise.resolve();
-    return this.settings;
+    return Promise.resolve(this.settings);
   }
 
   public async updateSettings(settings: StreamerViewSettings): Promise<StreamerViewSettings> {
-    await Promise.resolve();
     this.settings = settings;
-    return this.settings;
+    return Promise.resolve(this.settings);
   }
 }
 
