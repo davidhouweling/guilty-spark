@@ -1,7 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
@@ -19,20 +18,19 @@ export function IndividualTrackerOverlayPage({
   haloClient,
   trackerId,
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
-  const { snapshot, model, onSelectMatch, onDeselect } = useIndividualTrackerViewer({
+  const { snapshot, model, onSelectMatch, onDeselect, onRetry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     haloClient,
     trackerId,
   });
 
-  switch (snapshot.status) {
-    case ComponentLoaderStatus.PENDING:
-    case ComponentLoaderStatus.LOADING: {
-      return <LoadingState text="Loading tracker..." />;
-    }
-    case ComponentLoaderStatus.LOADED: {
-      if (model.renderModel != null) {
-        return (
+  return (
+    <ComponentLoader
+      status={snapshot.status}
+      loading={<LoadingState text="Loading tracker..." />}
+      error={<ErrorState message={snapshot.errorMessage ?? "Failed to load tracker"} onRetry={onRetry} />}
+      loaded={
+        model.renderModel != null ? (
           <IndividualTrackerOverlay
             renderModel={model.renderModel}
             matchStatsState={model.matchStatsState}
@@ -40,15 +38,10 @@ export function IndividualTrackerOverlayPage({
             onSelectMatch={onSelectMatch}
             onDeselect={onDeselect}
           />
-        );
+        ) : (
+          <LoadingState />
+        )
       }
-      return <LoadingState />;
-    }
-    case ComponentLoaderStatus.ERROR: {
-      return <ErrorState message={snapshot.errorMessage ?? "Failed to load tracker"} />;
-    }
-    default: {
-      throw new UnreachableError(snapshot.status);
-    }
-  }
+    />
+  );
 }

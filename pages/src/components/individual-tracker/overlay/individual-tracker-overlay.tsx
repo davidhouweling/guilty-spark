@@ -99,10 +99,6 @@ export function IndividualTrackerOverlay({
     return <StatsPanel state={matchStatsState} />;
   }, [matchStatsState]);
 
-  const handleClosePanel = useCallback((): void => {
-    onDeselect();
-  }, [onDeselect]);
-
   const tabsBarSlot = useMemo(
     () => (
       <TabsBar
@@ -140,7 +136,7 @@ export function IndividualTrackerOverlay({
         fontSizeStyles={{}}
         settingsUi={null}
         panelOpen={isPanelOpen}
-        onClosePanel={handleClosePanel}
+        onClosePanel={onDeselect}
         renderPanelContent={renderPanelContent}
       />
     </div>
