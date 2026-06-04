@@ -41,6 +41,7 @@ export class RealIndividualTrackerViewService implements IndividualTrackerViewSe
   public async getView(trackerId: string): Promise<TrackerViewResponse> {
     const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}/view`), {
       method: "GET",
+      credentials: "include",
     });
 
     if (!response.ok) {

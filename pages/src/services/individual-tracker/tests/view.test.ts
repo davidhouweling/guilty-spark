@@ -34,7 +34,7 @@ describe("RealIndividualTrackerViewService", () => {
     fetchSpy.mockRestore();
   });
 
-  it("gets the view without credentials", async () => {
+  it("gets the view with credentials included", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ view: FAKE_VIEW }));
 
     const result = await service.getView("tracker 1");
@@ -45,7 +45,7 @@ describe("RealIndividualTrackerViewService", () => {
     );
     const [firstCall] = fetchSpy.mock.calls;
     const [, init] = firstCall;
-    expect(init).not.toHaveProperty("credentials");
+    expect(init).toHaveProperty("credentials", "include");
     expect(result).toEqual({ view: FAKE_VIEW });
   });
 
