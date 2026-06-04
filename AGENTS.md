@@ -1,283 +1,161 @@
 # AGENTS.md
 
-## Project Overview
+Guidance for all AI agents working in this repository. Read this file in full before writing any code.
 
-Discord bot built on Cloudflare Workers with Node.js ESM support. The bot provides Halo Infinite statistics, live match tracking, and strong integration with NeatQueue for Halo custom games.
+## Repository Overview
 
-**Tech Stack**: TypeScript, Cloudflare Workers, D1 Database, Durable Objects, Discord API
+Guilty Spark is a Discord bot + web platform for Halo Infinite NeatQueue league tracking. TypeScript monorepo with three npm workspaces:
 
-**Monorepo Structure**:
+- **`api/`** — Cloudflare Worker (Discord bot, REST API, Durable Objects)
+- **`pages/`** — Astro 6 + React 19 website (streamer tools, viewer pages)
+- **`shared/`** — Shared Zod contracts, types, and utilities
 
-- `api/` - Discord bot Cloudflare Worker
-- `pages/` - Cloudflare Pages website
-- `contracts/` - Shared types and contracts between workspaces
-
-## Setup Commands
+## Commands
 
 ```bash
-# Install dependencies
-npm install
+# Development
+npm start                   # Both API and Pages dev servers
+npm run start:api           # API only (wrangler dev)
+npm run start:pages         # Pages only (astro dev)
 
-# Start development server
-npm start
+# Testing
+npm test                    # All workspaces
+npx vitest run <path>       # Single file or directory
+npm run test:coverage       # Coverage report
 
-# Deploy commands to Discord
-npm run register
+# Quality
+npm run typecheck           # Both api + pages
+npm run typecheck:api       # API only (tsc --noEmit)
+npm run typecheck:pages     # Pages only (astro check)
+npm run lint                # ESLint + Stylelint
+npm run lint:fix            # Auto-fix lint issues
+npm run format:fix          # Auto-format (Prettier)
+npm run done                # Full pipeline: format + typecheck + lint + test
 
-# Run tests
-npm test
-
-# Type checking
-npm run typecheck
-
-# Linting and formatting
-npm run lint:fix
-npm run format:fix
+# Build & Deploy
+npm run build:api           # tsc build
+npm run build:pages         # astro build
+npm run deploy:api          # wrangler deploy
+npm run deploy:pages        # astro build + wrangler deploy
 ```
 
-## Project Architecture
+## Architecture
 
-**Core Services**:
+### API Worker (`api/`)
 
-- `api/worker.ts` - Main Cloudflare Worker entry point
-- `api/server.ts` - Request routing and dependency injection
-- `api/services/install.ts` - Service configuration and wiring
-- `api/commands/` - Discord slash commands and interactions
-- `api/durable-objects/` - Persistent state management for live tracking
+**Entry**: `worker.ts` exports the default fetch handler (Sentry-wrapped) and all Durable Object classes.
 
-**Key Commands**:
+**Router** (`server.ts`): `itty-router` AutoRouter with CORS. Routes are registered via named `RoutesRegisterHandler` functions and called in `server.ts`:
 
-- `/connect` - Link Discord to Xbox gamertag
-- `/stats` - Show Halo Infinite match statistics
-- `/maps` - Generate maps for custom games
-- `/track` - Live match tracking with real-time updates
+```typescript
+export type RoutesRegisterHandler = (router: AutoRouterType, installServices: InstallServices) => void;
+// In server.ts: authRoutesRegisterHandler(router, installServices);
+```
 
-## File Structure & Conventions
+**Dependency Injection** (`services/install.ts`): All services are instantiated once per request via `installServices({ env })`. Tests inject fakes via `installFakeServicesWith`. Services include `authService`, `databaseService`, `haloService`, `individualTrackerService`, etc.
 
-- `api/` - Discord bot (`.ts` extensions); `pages/` - Website (Astro); `contracts/` - Shared types
-- Tests in `tests/` folders, fakes in `fakes/` folders
-- Use extensionless imports for internal TypeScript modules
-- **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top level
-- **Types**: Colocate in `types.ts` files with implementation
-- **Fakes**: `<feature>/fakes/data.ts` for fixtures, separate files for behavior
-- **Imports**: Prefer package entrypoints (e.g. `@guilty-spark/contracts/live-tracker/types`)
-- **Astro**: Import components directly; avoid `.astro` barrels; consolidate in subfolders
+**Contracts** (`shared/src/contracts/`): Zod schemas wrapped with `defineContract()` which adds `parse`, `safeParse`, `fromResponse(response)`, and `toResponse(data, opts)`. Always use the shared package entrypoint: `@guilty-spark/shared/contracts/individual-tracker/settings`.
+
+```typescript
+export const settingsContract = defineContract(z.object({ settings: streamerViewSettingsSchema }));
+// Route:  return settingsContract.toResponse({ settings }, { noStore: true });
+// Client: const data = await settingsContract.fromResponse(response);
+```
+
+**Durable Objects**: `IndividualTrackerDO` handles WebSocket hibernation, alarm-based polling, and state persistence. IDs via `env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`)`.
+
+**Database**: D1 (SQLite) via `DatabaseService`. Schema in `api/services/database/schema.sql`. Row types in `api/services/database/types/`.
+
+**Halo Proxy**: `GET /proxy/halo-infinite/:operation` — allowlisted, GET-only, edge-cached. Client uses `createHaloInfiniteClientProxy` from `shared/src/halo/halo-infinite-client-proxy.ts`.
+
+### Pages Site (`pages/`)
+
+**Rendering**: Hybrid Astro — most pages statically prerendered; dynamic routes use `export const prerender = false` with `client:only="react"`. The `cockatiel` dep requires a Vite alias in `astro.config.ts` (its ESM barrel doesn't ship).
+
+**App Islands**: Each feature in `pages/src/apps/` has `create.tsx` (React island entry) and `services.ts` (real vs fake via `getMode()`). Astro page passes `apiHost={API_HOST}` to the island.
+
+**Presenter/Store Pattern** (all stateful components):
+
+```typescript
+// Store owns snapshot state; presenter owns business logic
+const store = useMemo(() => new FooStore(), []);
+const presenter = useMemo(() => new FooPresenter({ store, service }), [store, service]);
+useEffect(() => { presenter.start(); return () => presenter.dispose(); }, [presenter]);
+const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+const model = useMemo(() => FooPresenter.present(snapshot), [snapshot]);
+```
+
+**Fake mode**: `getMode() === "FAKE"` routes all service installs to in-memory fakes in `pages/src/services/fakes/`. Useful for UI dev without a running API.
+
+### Shared Package (`shared/`)
+
+Exported via glob patterns in `package.json` `exports`. Always import via package entrypoint, not relative path.
+
+## File Conventions
+
+- **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top-level
+- **Types**: Colocate in `types.ts` alongside implementation
+- **Fakes**: In `fakes/` subfolders; factories named `aFake…With(overrides?)`
+- **Tests**: In `tests/` subfolders
+- **Imports**: Extensionless for internal TypeScript modules; package entrypoints for cross-workspace
 
 ## Code Style
 
-- **TypeScript**: Strict mode, explicit types, no `any`/`unknown`/`!`; use `Preconditions.checkExists()` for null safety
-- **Imports**: Prefer extensionless imports for internal TypeScript modules
-- **Loops**: Prefer `for...of` over `forEach`
-- **Switch**: wrap all cases with curly brackets
-- **Errors**: Use `EndUserError` for user-facing errors
-- **Dates**: Use `date-fns` for operations; `react-time-ago` (relative) or `Date.toLocaleString()` (absolute) for display
-- **Rendering**: Data-driven patterns with typed arrays; preserve ARIA attributes
+**TypeScript**: Strict mode. No `any`, `unknown`, non-null `!`, or `as` casts in production code. Use `Preconditions.checkExists(value, "message")` instead of `!`. The only accepted exception is `as unknown as X` for test global stubs (e.g. `global.WebSocket = MockWebSocket as unknown as typeof WebSocket`).
 
-## CSS/Styling (Pages Project)
-
-- **Mobile-First**: Base styles for mobile, progressively enhance for larger screens
-- **Media Queries**: Use PostCSS custom media from `pages/src/styles/variables.css`:
-  - `@media (--mobile-viewport)` - max-width: 749.9px (rarely needed)
-  - `@media (--tablet-viewport)` - min-width: 750px
-  - `@media (--desktop-viewport)` - min-width: 1000px
-  - `@media (--ultrawide-viewport)` - min-width: 1200px
-- **Organization**: Group media queries at bottom with section headers; never use `max-width` queries
-- **Design Tokens**: Use `pages/src/styles/variables.css` tokens (e.g. font size, spacing, colors, border radius)
-- **Classes and styles**: We use CSS modules, all styling is to be done via CSS modules. Only use `style` attribute to pass a value via a CSS variable.
-- **Conditional classes**: do not use template literals to do conditional classes, instead use `classnames` package
-
-## Type Safety
-
-- Never use `as` casting; use typed parsing and type guards
-- Define explicit interfaces for all API interactions
-- Use discriminated unions with `isSuccessResponse()` patterns
-- **Exhaustive Switch Statements**: For discriminated unions, use switch statements with exhaustive case coverage rather than if-else chains. Always include a `default: throw new UnreachableError(value)` case to ensure compile-time detection of unhandled types
-- Keep types in `types.ts` files alongside implementation
-- Add `import type` for framework types (e.g., `ImageMetadata`)
-- Prefer compile-time errors over runtime failures
-- You are forbidden to modify eslint config and tsconfig files. In situations where it is required, you must tell prompter, explain the need and what it solves, and ask the prompter to manually do this.
-
-### Exhaustive Switch Pattern
-
-**Problem**: If-else chains for discriminated unions don't provide compile-time exhaustiveness checking:
+**Exhaustive switches**: Every `switch` on a union type must include curly braces on every case and `default: throw new UnreachableError(value)`:
 
 ```typescript
-// BAD - No compile-time check if new type is added
-if (group.type === "neatqueue-series") {
-  // handle series
-} else if (group.type === "grouped-matches") {
-  // handle grouped
-} else {
-  // handle single-match - but what if a new type is added?
+switch (item.type) {
+  case "match": { ... break; }
+  case "series": { ... break; }
+  default: { throw new UnreachableError(item); }
 }
 ```
 
-**Solution**: Use switch statements with `UnreachableError` in the default case:
+**Errors**: `EndUserError` for user-facing validation errors. System errors propagate to Sentry.
 
-```typescript
-// GOOD - Compile error if new type added but not handled
-switch (group.type) {
-  case "neatqueue-series": {
-    // handle series
-    break;
-  }
-  case "grouped-matches": {
-    // handle grouped
-    break;
-  }
-  case "single-match": {
-    // handle single
-    break;
-  }
-  default: {
-    throw new UnreachableError(group.type); // Compile error if cases incomplete
-  }
-}
-```
+**Loops**: `for...of`, never `.forEach`.
 
-Benefits:
+**Dates**: `date-fns` for all date operations.
 
-- **Type Safety**: TypeScript catches missing cases at compile time
-- **Maintainability**: Adding new union types forces code updates
-- **Runtime Safety**: `UnreachableError` catches impossible states
-- **Self-Documenting**: All possible types visible in one place
+**Imports**: Extensionless for internal modules. `import type` for type-only imports.
 
-Use this pattern for:
+## CSS / Styling
 
-- Discriminated union type fields (`type`, `kind`, `status`, etc.)
-- Any branching logic based on string literal union types
-- Mapping or transforming data based on type discriminators
+CSS Modules only — all styling via `.module.css`. Use `classnames` package for conditional classes; never template-literal class strings. Pass dynamic values via CSS variables in the `style` prop: `style={{ "--accent": color }}` (only acceptable `style` usage).
 
-## Testing Instructions
+Media queries use PostCSS custom media from `pages/src/styles/variables.css`:
+- `@media (--tablet-viewport)` — min-width: 750px
+- `@media (--desktop-viewport)` — min-width: 1000px
+- `@media (--ultrawide-viewport)` — min-width: 1200px
 
-- **Test Runner**: Use vitest only (`npm test`)
-- **Structure**: Use `describe` and `it`, separate tests with blank lines
-- **Test Descriptions**: Use factual present tense ("returns X", "throws error") rather than indicative ("should return X")
-- **Black Box**: Test inputs/outputs only, no internal mocking
-- **Dependencies**: Only mock constructor dependencies, never internal methods
-- **Data**: Use fake factories (`aFake...With()`) for test data
-- **Conditional Assertions**: Use `expect.assertions(n)` when assertions are inside conditionals (if statements, type guards, loops) to ensure they execute
-- Tests must pass before committing
+Never use `max-width` queries. Base styles are mobile-first.
 
-### Conditional Assertion Pattern
+## Testing
 
-**Problem**: Assertions inside conditionals can silently pass if the condition is false:
+**Runner**: Vitest only (`npm test`). Three environments: `node` (api, shared), `jsdom` (pages).
 
-```typescript
-// BAD - Test passes even if type guard fails
-const result = parseData();
-if (result?.type === "expected") {
-  expect(result.field).toBe("value"); // Never runs if type is wrong
-}
-```
+**Structure**: `describe` / `it` blocks. Factual present-tense descriptions ("returns X when Y", not "should return X").
 
-**Solution**: Declare expected assertion count at the start:
+**Black-box**: Test inputs/outputs only. Mock only constructor-injected dependencies (services), never internal methods. Use `vi.spyOn` over `vi.mock` where possible.
 
-```typescript
-// GOOD - Test fails if assertion doesn't run
-expect.assertions(2); // Declare expected count
-const result = parseData();
-if (result?.type === "expected") {
-  expect(result.field).toBe("value"); // Must run or test fails
-}
-```
+**Data**: Use `aFake…With(overrides?)` factory functions from `fakes/` folders.
 
-Use this pattern for:
+**Conditional assertions**: Use `expect.assertions(n)` when assertions are inside conditionals or loops.
 
-- Type guard conditionals (`if (x?.type === "...")`)
-- Discriminated union narrowing
-- Loop iterations with assertions
-- Any assertion inside control flow
+**Typed mocks**: Always type mocks — `vi.fn<T>()` not bare `vi.fn()`. Use `MockInstance<typeof target.method>` not `ReturnType<typeof vi.spyOn>`.
 
-### Mock and Spy Type Safety
+**Layer-specific patterns**:
 
-**Prefer `vi.spyOn()` over `vi.mock()` when possible**
+- API route tests: `createApiRouter()` + `installFakeServicesWith({ env })`, spy on service methods
+- DO tests: `aFakeIndividualTrackerDOWith()` + `FakePreparedStatement`
+- Pages presenter tests: construct `Store` + `Presenter` directly (no React), drive via public methods, assert on `store.getSnapshot()`
+- Pages component tests: `@testing-library/react` — `render`/`screen`/`userEvent`; mock icons/providers
+- Proxy client tests: `vi.spyOn(globalThis, "fetch")`
 
-When mocking or spying, always use strongly-typed approaches:
+## Security
 
-1. **For `vi.spyOn()` on methods:**
-
-   ```typescript
-   import type { MockInstance } from "vitest";
-
-   let spy: MockInstance<typeof console.info>;
-   spy = vi.spyOn(console, "info").mockImplementation(() => {});
-   ```
-
-2. **For mocked objects implementing an interface:**
-
-   ```typescript
-   import type { Mocked } from "vitest";
-
-   let mockClient: Mocked<LogService>;
-   mockClient = {
-     debug: vi.fn<LogService["debug"]>(),
-     info: vi.fn<LogService["info"]>(),
-   };
-   ```
-
-3. **For hoisted module mocks (with `vi.mock()`):**
-
-   ```typescript
-   import type { captureException } from "@sentry/cloudflare";
-
-   const { captureExceptionMock } = vi.hoisted(() => ({
-     captureExceptionMock: vi.fn<typeof captureException>(),
-   }));
-
-   vi.mock("@sentry/cloudflare", () => ({
-     captureException: captureExceptionMock,
-   }));
-   ```
-
-- Do not use `vi.fn()` without type parameters
-- Do not use `ReturnType<typeof vi.spyOn>` - use `MockInstance<typeof target.method>` instead
-- Do not override properties using `X.y = vi.fn()`, use `vi.spyOn()` to preserve the original implementation
-
-4. **Mocking and overloads**
-
-```typescript
-const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-kvGetSpy.mockResolvedValue(null);
-```
-
-- Used when a method signature has overloads and the right type cannot be selected
-- Create a spy with the type `MockInstance`
-- On a separate line, mock the value accordingly
-
-## Architecture & Environment
-
-**Stack**:
-
-- Cloudflare Workers (edge computing), Durable Objects (persistent state), D1 (relational), KV (fast temporary)
-- Node.js 24.11.0+, TypeScript strict mode, Node ESM
-
-**Patterns**:
-
-- Dependency injection (constructor injection), Command pattern (Discord interactions), Service layer (business logic)
-- Black-box testing with fake factories (`aFake...With()`)
-
-**Development**:
-
-- Use `.dev.vars` for local environment
-- Run commands from project root
-- Validate with `npm run typecheck` after refactors
-
-## Agent Workflow
-
-**Communication**: Factual statements only, no emotive language
-
-**Approach**: Explore code first, follow nearest-neighbor patterns, ask before assuming
-
-**Implementation Steps**:
-
-1. Propose plan and gain alignment
-2. Implement solution
-3. Validate: `npm run typecheck`, `npm run lint:ts:fix`, `npm run stylelint:pages:fix` (for CSS)
-4. Confirm with user
-5. Add/update tests if applicable (`npm test`)
-6. Format: `npm run format:fix`
-
-**Security**:
-
-- Never read from `.env`, `api/.dev.vars`, or `api/.production.vars`. You can read an example from `api/.example.dev.vars`.
+- Never read from `.env`, `api/.dev.vars`, or `api/.production.vars`. Read examples from `api/.example.dev.vars` only.
+- Never modify `eslint.config.*` or `tsconfig*.json` — explain the need and ask the user to do it manually.
+- Tokens must never be returned to the browser. Proxy owner-token path is server-side only, fails closed to bot.
