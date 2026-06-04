@@ -12,6 +12,12 @@ interface IndividualTrackerViewerAppProps {
   readonly trackerId: string;
 }
 
+function redirectToLogin(): void {
+  const loginUrl = new URL("/login", window.location.origin);
+  loginUrl.searchParams.set("redirect", window.location.pathname);
+  window.location.assign(loginUrl.toString());
+}
+
 export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTrackerViewerAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
@@ -27,10 +33,17 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
     setState(ComponentLoaderStatus.PENDING);
 
     installServices(apiHost)
-      .then((installedServices) => {
+      .then(async (installedServices) => {
+        const session = await installedServices.authService.getSession();
         if (isCancelled) {
           return;
         }
+
+        if (!session.authenticated) {
+          redirectToLogin();
+          return;
+        }
+
         setServices(installedServices);
         setState(ComponentLoaderStatus.LOADED);
       })
@@ -53,7 +66,7 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
   return (
     <ComponentLoader
       status={state}
-      loading={<LoadingState text="Loading tracker..." />}
+      loading={<LoadingState text="Checking current session..." />}
       error={<ErrorState message="Failed to load tracker" />}
       loaded={
         services ? (

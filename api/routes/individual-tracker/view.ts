@@ -7,6 +7,7 @@ import type {
   IndividualTrackerViewStateResponse,
 } from "../../durable-objects/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
+import { requireSession } from "../base/require-session";
 import { toTrackerView } from "./mapper";
 
 async function viewStateTrackerDo(
@@ -24,9 +25,14 @@ async function viewStateTrackerDo(
 export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/:trackerId/view", async (request, env: Env) => {
     const services = installServices({ env });
-    const { databaseService, logService } = services;
+    const { authService, databaseService, logService } = services;
 
     try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
       const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
@@ -34,7 +40,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       const { trackerId } = parsedParams.data;
 
       const row = await databaseService.getIndividualTracker(trackerId);
-      if (row == null) {
+      if (row?.UserId !== auth.session.userId) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
@@ -49,9 +55,14 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
   router.get("/api/individual-tracker/:trackerId/ws", async (request, env: Env) => {
     const services = installServices({ env });
-    const { databaseService, logService } = services;
+    const { authService, databaseService, logService } = services;
 
     try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
       const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
@@ -63,7 +74,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       const row = await databaseService.getIndividualTracker(trackerId);
-      if (row == null) {
+      if (row?.UserId !== auth.session.userId) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
