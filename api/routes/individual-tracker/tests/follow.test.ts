@@ -1,5 +1,5 @@
 import type { AutoRouterType } from "itty-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerDirectoryResponse } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { trackerDirectoryMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { createApiRouter } from "../../../base/router";
@@ -46,6 +46,10 @@ describe("/u/:gamertag follow routes", () => {
     vi.stubGlobal("WebSocketPair", function () {
       return { 0: client, 1: server };
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("GET /u/:gamertag/view", () => {
@@ -261,12 +265,11 @@ describe("/u/:gamertag follow routes", () => {
 
       const res = (await router.fetch(getRequest("/u/SettingsPlayer/view"), localEnv)) as Response;
 
-      expect.assertions(2);
+      expect.assertions(3);
       expect(res.status).toBe(200);
       const body = await res.json<TrackerDirectoryResponse>();
-      if (body.streamerSettings != null) {
-        expect(body.streamerSettings.layoutOptions?.viewMode).toBe("wide");
-      }
+      expect(body.streamerSettings).toBeDefined();
+      expect(body.streamerSettings?.layoutOptions?.viewMode).toBe("wide");
     });
   });
 
@@ -282,6 +285,52 @@ describe("/u/:gamertag follow routes", () => {
       const res = (await router.fetch(wsRequest("/u/UnknownTag/ws"), env)) as Response;
 
       expect(res.status).toBe(404);
+    });
+
+    it("returns 101 with empty trackers array when user has no active trackers", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "EmptyWsTag" });
+      const stoppedTracker = aFakeIndividualTrackersRow({ UserId: "user-1", Status: "stopped" });
+
+      let capturedServer: WebSocket | undefined;
+      const client = makeFakeWebSocket();
+      const server = makeFakeWebSocket();
+      vi.stubGlobal("WebSocketPair", function () {
+        capturedServer = server;
+        return { 0: client, 1: server };
+      });
+
+      const OriginalResponse = globalThis.Response;
+      vi.stubGlobal(
+        "Response",
+        class FakeResponse extends OriginalResponse {
+          constructor(body: BodyInit | null, init?: ResponseInit & { webSocket?: WebSocket }) {
+            super(body, { ...init, status: init?.status === 101 ? 200 : (init?.status ?? 200) });
+            if (init?.status === 101) {
+              Object.defineProperty(this, "status", { value: 101 });
+            }
+          }
+        },
+      );
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([stoppedTracker]);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/u/EmptyWsTag/ws"), env)) as Response;
+
+      expect.assertions(4);
+      expect(res.status).toBe(101);
+      const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
+      const sendMock = serverMocks?.["send"];
+      expect(sendMock).toHaveBeenCalledOnce();
+      const [[sentArg]] = sendMock?.mock.calls ?? [];
+      expect(typeof sentArg).toBe("string");
+      const msg = trackerDirectoryMessageContract.parse(sentArg as string);
+      expect(msg.directory.trackers).toEqual([]);
     });
 
     it("returns 426 when the request is not a websocket upgrade", async () => {
@@ -342,7 +391,7 @@ describe("/u/:gamertag follow routes", () => {
 
       const res = (await router.fetch(wsRequest("/u/WsPlayer/ws"), localEnv)) as Response;
 
-      expect.assertions(4);
+      expect.assertions(5);
       expect(res.status).toBe(101);
 
       type MockRecord = Record<string, ReturnType<typeof vi.fn>>;
@@ -353,10 +402,9 @@ describe("/u/:gamertag follow routes", () => {
       expect(sendMock).toHaveBeenCalledOnce();
       const firstCall = sendMock?.mock.calls[0] as unknown[] | undefined;
       const [sentArg] = firstCall ?? [];
-      if (typeof sentArg === "string") {
-        const msg = trackerDirectoryMessageContract.parse(sentArg);
-        expect(msg.type).toBe("directory");
-      }
+      expect(typeof sentArg).toBe("string");
+      const msg = trackerDirectoryMessageContract.parse(sentArg as string);
+      expect(msg.type).toBe("directory");
     });
   });
 });
