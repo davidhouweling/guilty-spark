@@ -1,6 +1,7 @@
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerProfilesRow } from "../../services/database/types/individual_tracker_profiles";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type {
@@ -44,12 +45,14 @@ export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerSt
 export function toTrackerView(
   row: IndividualTrackersRow,
   doState: IndividualTrackerViewState | null,
+  streamerSettings?: StreamerViewSettings,
 ): TrackerViewState {
   return {
     trackerId: row.TrackerId,
     gamertag: row.Gamertag,
     status: row.Status,
     isLive: row.IsLive === 1,
+    ...(streamerSettings !== undefined ? { streamerSettings } : {}),
     matches:
       doState == null
         ? []

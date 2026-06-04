@@ -25,7 +25,7 @@ async function viewStateTrackerDo(
 export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/:trackerId/view", async (request, env: Env) => {
     const services = installServices({ env });
-    const { authService, databaseService, logService } = services;
+    const { authService, databaseService, individualTrackerService, logService } = services;
 
     try {
       const auth = await requireSession(request, authService);
@@ -44,9 +44,12 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
-      const doState = await viewStateTrackerDo(env, row.UserId, trackerId);
+      const [doState, streamerSettings] = await Promise.all([
+        viewStateTrackerDo(env, row.UserId, trackerId),
+        individualTrackerService.getSettingsForView(auth.session.userId),
+      ]);
 
-      return trackerViewContract.toResponse({ view: toTrackerView(row, doState) }, { noStore: true });
+      return trackerViewContract.toResponse({ view: toTrackerView(row, doState, streamerSettings) }, { noStore: true });
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker view error"]]));
       return errorContract.toResponse({ error: "Failed to fetch tracker view" }, { status: 500, noStore: true });
