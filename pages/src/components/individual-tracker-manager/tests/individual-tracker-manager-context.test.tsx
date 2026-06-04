@@ -5,6 +5,7 @@ import { renderHook } from "@testing-library/react";
 import { aFakeTrackerWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { toManagerModel } from "../manager-model";
 import type { IndividualTrackerManagerViewModel } from "../types";
+
 import {
   IndividualTrackerManagerProvider,
   useManagerActions,
@@ -22,6 +23,9 @@ function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewMode
     addPending: false,
     pendingTrackerId: null,
     addDisabled: true,
+    settings: {},
+    settingsSaving: false,
+    settingsError: null,
     ...overrides,
   };
 }
@@ -34,6 +38,7 @@ const noopActions = {
   onIdleTimeoutHoursChange: (): void => undefined,
   onAddTracker: (): void => undefined,
   onRowAction: (): void => undefined,
+  onUpdateSettings: (): void => undefined,
 };
 
 describe("IndividualTrackerManagerContext", () => {

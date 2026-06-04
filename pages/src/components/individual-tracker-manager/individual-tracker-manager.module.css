@@ -180,6 +180,22 @@
   margin: var(--space-3) 0 0;
 }
 
+.settingsSection {
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+}
+
+.settingsSectionTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-6);
+  text-transform: uppercase;
+}
+
 @media (--tablet-viewport) {
   .container {
     padding: var(--space-8) var(--gutter-desktop);

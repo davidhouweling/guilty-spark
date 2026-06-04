@@ -6,6 +6,7 @@ import { Input } from "../input/input";
 import type { TrackerRowAction, TrackerRowModel } from "./manager-model";
 import { MAX_TRACKERS } from "./manager-model";
 import { useManagerActions, useManagerModel } from "./individual-tracker-manager-context";
+import { StreamerSettings } from "./settings/streamer-settings";
 import styles from "./individual-tracker-manager.module.css";
 
 function StatusBadge({ row }: { readonly row: TrackerRowModel }): React.ReactElement {
@@ -104,6 +105,9 @@ export function IndividualTrackerManagerView(): React.ReactElement {
     addPending,
     pendingTrackerId,
     addDisabled,
+    settings,
+    settingsSaving,
+    settingsError,
   } = useManagerModel();
   const {
     onOpenAddDialog,
@@ -113,6 +117,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
     onIdleTimeoutHoursChange,
     onAddTracker,
     onRowAction,
+    onUpdateSettings,
   } = useManagerActions();
 
   return (
@@ -177,6 +182,16 @@ export function IndividualTrackerManagerView(): React.ReactElement {
           </div>
         </form>
       </Dialog>
+
+      <section className={styles.settingsSection}>
+        <h2 className={styles.settingsSectionTitle}>Streaming Settings</h2>
+        <StreamerSettings
+          settings={settings}
+          saving={settingsSaving}
+          errorMessage={settingsError}
+          onSave={onUpdateSettings}
+        />
+      </section>
 
       {model.isAtLimit && (
         <p className={styles.limitNotice}>

@@ -1,4 +1,5 @@
 import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 
 export interface IndividualTrackerManagerSnapshot {
@@ -12,6 +13,9 @@ export interface IndividualTrackerManagerSnapshot {
   readonly idleTimeoutHours: string;
   readonly addPending: boolean;
   readonly pendingTrackerId: string | null;
+  readonly settings: StreamerViewSettings;
+  readonly settingsSaving: boolean;
+  readonly settingsError: string | null;
 }
 
 export class IndividualTrackerManagerStore {
@@ -30,6 +34,9 @@ export class IndividualTrackerManagerStore {
       idleTimeoutHours: "",
       addPending: false,
       pendingTrackerId: null,
+      settings: {},
+      settingsSaving: false,
+      settingsError: null,
     };
   }
 
@@ -87,6 +94,18 @@ export class IndividualTrackerManagerStore {
 
   public setPendingTrackerId(pendingTrackerId: string | null): void {
     this.update({ pendingTrackerId });
+  }
+
+  public setSettings(settings: StreamerViewSettings): void {
+    this.update({ settings });
+  }
+
+  public setSettingsSaving(settingsSaving: boolean): void {
+    this.update({ settingsSaving });
+  }
+
+  public setSettingsError(settingsError: string | null): void {
+    this.update({ settingsError });
   }
 
   private update(partial: Partial<IndividualTrackerManagerSnapshot>): void {
