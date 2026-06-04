@@ -327,9 +327,8 @@ describe("/u/:gamertag follow routes", () => {
       const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
       const sendMock = serverMocks?.["send"];
       expect(sendMock).toHaveBeenCalledOnce();
-      const [[sentArg]] = sendMock?.mock.calls ?? [];
-      expect(typeof sentArg).toBe("string");
-      const msg = trackerDirectoryMessageContract.parse(sentArg as string);
+      expect(sendMock).toHaveBeenCalledWith(expect.any(String));
+      const msg = trackerDirectoryMessageContract.parse(sendMock?.mock.calls[0]?.[0] as string);
       expect(msg.directory.trackers).toEqual([]);
     });
 
