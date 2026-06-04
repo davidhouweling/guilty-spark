@@ -59,9 +59,7 @@ describe("IndividualTrackerManagerPresenter", () => {
     });
 
     it("loads settings into the snapshot alongside the profile and trackers", async () => {
-      const settingsService = aFakeIndividualTrackerSettingsServiceWith({
-        settings: { styleFlags: { colorMode: "observer" } },
-      });
+      const settingsService = aFakeIndividualTrackerSettingsServiceWith({ styleFlags: { colorMode: "observer" } });
       const { store, presenter } = aHarness(aFakeIndividualTrackerServiceWith({ trackers: [] }), settingsService);
 
       presenter.start();

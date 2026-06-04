@@ -1,7 +1,5 @@
 import { getMode } from "../mode";
 import { RealIndividualTrackerService } from "./individual-tracker";
-import { RealIndividualTrackerSettingsService } from "./settings";
-import type { IndividualTrackerSettingsService } from "./settings-types";
 import type { IndividualTrackerService } from "./types";
 import { RealIndividualTrackerSettingsService } from "./settings";
 import type { IndividualTrackerSettingsService } from "./settings-types";
