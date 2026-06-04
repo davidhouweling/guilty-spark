@@ -70,37 +70,6 @@ describe("RealFollowLiveService.getDirectory", () => {
   });
 });
 
-describe("RealFollowLiveService.getTrackerView", () => {
-  it("fetches /api/individual-tracker/<id>/view with no credentials", async () => {
-    const service = new RealFollowLiveService({ apiHost: "https://api.example.com" });
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          view: {
-            trackerId: "t1",
-            gamertag: "Spartan",
-            status: "active",
-            matches: [],
-            series: [],
-            lastUpdateTime: "2100-01-01T00:00:00.000Z",
-            lastMatchDiscoveredAt: null,
-            isLive: true,
-          },
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
-
-    await service.getTrackerView("t1");
-
-    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/api/individual-tracker/t1/view", { method: "GET" });
-    fetchSpy.mockRestore();
-  });
-});
-
 describe("RealFollowLiveService.connectDirectory", () => {
   let originalWebSocket: typeof WebSocket;
 

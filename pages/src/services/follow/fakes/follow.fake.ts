@@ -1,6 +1,4 @@
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
-import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import { aFakeTrackerViewStateWith } from "../../individual-tracker/fakes/view.fake";
 import type {
   DirectoryConnection,
   DirectoryConnectionStatus,
@@ -50,21 +48,16 @@ class FakeDirectoryConnection implements DirectoryConnection {
   }
 }
 
-interface FakeFollowLiveServiceOptions {
-  readonly directory?: TrackerDirectory;
-}
-
 export class FakeFollowLiveService implements FollowLiveService {
   private readonly directory: TrackerDirectory;
   public lastConnection: FakeDirectoryConnection | null = null;
 
-  public constructor(options?: FakeFollowLiveServiceOptions) {
+  public constructor(options?: { readonly directory?: TrackerDirectory }) {
     this.directory = options?.directory ?? { trackers: [] };
   }
 
   public async getDirectory(): Promise<TrackerDirectory> {
-    await Promise.resolve();
-    return this.directory;
+    return Promise.resolve(this.directory);
   }
 
   public connectDirectory(): DirectoryConnection {
@@ -72,19 +65,8 @@ export class FakeFollowLiveService implements FollowLiveService {
     this.lastConnection = connection;
     return connection;
   }
-
-  public async getTrackerView(): Promise<TrackerViewResponse> {
-    await Promise.resolve();
-    return { view: aFakeTrackerViewStateWith() };
-  }
 }
 
-export interface FakeFollowLiveServiceFactoryOpts {
-  readonly directory?: TrackerDirectory;
-}
-
-export function aFakeFollowLiveServiceWith(opts: FakeFollowLiveServiceFactoryOpts = {}): FakeFollowLiveService {
-  return new FakeFollowLiveService({
-    ...(opts.directory !== undefined ? { directory: opts.directory } : {}),
-  });
+export function aFakeFollowLiveServiceWith(opts: { directory?: TrackerDirectory } = {}): FakeFollowLiveService {
+  return new FakeFollowLiveService(opts);
 }

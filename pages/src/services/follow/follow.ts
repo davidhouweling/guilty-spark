@@ -1,8 +1,6 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerDirectoryContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
-import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { RealDirectoryConnection } from "./follow-connection";
 import type { DirectoryConnection, FollowLiveService } from "./follow-types";
 
@@ -89,17 +87,5 @@ export class RealFollowLiveService implements FollowLiveService {
     };
 
     return connection;
-  }
-
-  public async getTrackerView(trackerId: string): Promise<TrackerViewResponse> {
-    const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}/view`), {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw await this.readError(response);
-    }
-
-    return trackerViewContract.fromResponse(response);
   }
 }
