@@ -7,19 +7,30 @@ import {
   aFakeTrackerWith,
 } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import type { FakeIndividualTrackerSettingsService } from "../../../services/individual-tracker/fakes/settings.fake";
+import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
 import { IndividualTrackerManagerPresenter } from "../individual-tracker-manager-presenter";
 import { IndividualTrackerManagerStore } from "../individual-tracker-manager-store";
 
 interface Harness {
   readonly service: FakeIndividualTrackerService;
+  readonly settingsService: FakeIndividualTrackerSettingsService;
   readonly store: IndividualTrackerManagerStore;
   readonly presenter: IndividualTrackerManagerPresenter;
 }
 
-function aHarness(service: FakeIndividualTrackerService): Harness {
+function aHarness(
+  service: FakeIndividualTrackerService,
+  settingsService?: FakeIndividualTrackerSettingsService,
+): Harness {
+  const resolvedSettingsService = settingsService ?? aFakeIndividualTrackerSettingsServiceWith();
   const store = new IndividualTrackerManagerStore();
-  const presenter = new IndividualTrackerManagerPresenter({ individualTrackerService: service, store });
-  return { service, store, presenter };
+  const presenter = new IndividualTrackerManagerPresenter({
+    individualTrackerService: service,
+    settingsService: resolvedSettingsService,
+    store,
+  });
+  return { service, settingsService: resolvedSettingsService, store, presenter };
 }
 
 describe("IndividualTrackerManagerPresenter", () => {
@@ -45,6 +56,18 @@ describe("IndividualTrackerManagerPresenter", () => {
       expect(snapshot.profileName).toBe("Spartan Profile");
       expect(snapshot.trackers.map((tracker) => tracker.gamertag)).toStrictEqual(["Alpha"]);
       expect(snapshot.errorMessage).toBeNull();
+    });
+
+    it("loads settings into the snapshot alongside the profile and trackers", async () => {
+      const settingsService = aFakeIndividualTrackerSettingsServiceWith({ styleFlags: { colorMode: "observer" } });
+      const { store, presenter } = aHarness(aFakeIndividualTrackerServiceWith({ trackers: [] }), settingsService);
+
+      presenter.start();
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().status).toBe(ComponentLoaderStatus.LOADED);
+      });
+
+      expect(store.getSnapshot().settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
     });
 
     it("sets an error snapshot when loading the tracker list fails", async () => {
@@ -368,5 +391,70 @@ describe("IndividualTrackerManagerPresenter.present", () => {
 
     expect(model.model.rows).toHaveLength(1);
     expect(model.addDisabled).toBe(false);
+  });
+
+  it("includes settings fields from the snapshot", () => {
+    const store = new IndividualTrackerManagerStore();
+    store.setSettings({ styleFlags: { colorMode: "observer" } });
+    store.setSettingsSaving(true);
+    store.setSettingsError("Save failed");
+
+    const model = IndividualTrackerManagerPresenter.present(store.getSnapshot());
+
+    expect(model.settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
+    expect(model.settingsSaving).toBe(true);
+    expect(model.settingsError).toBe("Save failed");
+  });
+});
+
+describe("IndividualTrackerManagerPresenter updateSettings", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sets settingsSaving to true, saves, then clears settingsSaving and updates settings", async () => {
+    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+    const { store, presenter } = aHarness(service);
+
+    presenter.updateSettings({ styleFlags: { colorMode: "observer" } });
+
+    expect(store.getSnapshot().settingsSaving).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().settingsSaving).toBe(false);
+    });
+
+    expect(store.getSnapshot().settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
+    expect(store.getSnapshot().settingsError).toBeNull();
+  });
+
+  it("sets settingsError when the save fails", async () => {
+    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+    const settingsService = aFakeIndividualTrackerSettingsServiceWith();
+    vi.spyOn(settingsService, "updateSettings").mockRejectedValue(new Error("Network error"));
+    const { store, presenter } = aHarness(service, settingsService);
+
+    presenter.updateSettings({ styleFlags: { colorMode: "player" } });
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().settingsSaving).toBe(false);
+    });
+
+    expect(store.getSnapshot().settingsError).toBe("Network error");
+  });
+
+  it("ignores the result after dispose", async () => {
+    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
+    const { store, presenter } = aHarness(service);
+    const updateSpy = vi.spyOn(store, "setSettings");
+
+    presenter.updateSettings({ styleFlags: { colorMode: "observer" } });
+    presenter.dispose();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(store.getSnapshot().settings).toStrictEqual({});
   });
 });

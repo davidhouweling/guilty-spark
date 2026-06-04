@@ -9,12 +9,15 @@ import {
   aFakeTrackerWith,
 } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { FakeIndividualTrackerService } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
 import { IndividualTrackerManagerPage } from "../create";
 
 describe("IndividualTrackerManagerView", () => {
   let service: FakeIndividualTrackerService;
+  let settingsService: ReturnType<typeof aFakeIndividualTrackerSettingsServiceWith>;
 
   beforeEach(() => {
+    settingsService = aFakeIndividualTrackerSettingsServiceWith();
     service = aFakeIndividualTrackerServiceWith({
       trackers: [
         aFakeTrackerWith({ trackerId: "t-1", gamertag: "Active Spartan", status: "active", isLive: true }),
@@ -29,7 +32,7 @@ describe("IndividualTrackerManagerView", () => {
   });
 
   it("renders a row per tracker with gamertag, status badge, and a live indicator", async () => {
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Active Spartan")).toBeInTheDocument();
@@ -51,7 +54,7 @@ describe("IndividualTrackerManagerView", () => {
     const user = userEvent.setup();
     const pauseSpy: MockInstance = vi.spyOn(service, "pauseTracker");
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Active Spartan")).toBeInTheDocument();
@@ -69,7 +72,7 @@ describe("IndividualTrackerManagerView", () => {
     const user = userEvent.setup();
     const stopSpy: MockInstance = vi.spyOn(service, "stopTracker");
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Paused Spartan")).toBeInTheDocument();
@@ -92,7 +95,7 @@ describe("IndividualTrackerManagerView", () => {
     const user = userEvent.setup();
     const selectActiveSpy: MockInstance = vi.spyOn(service, "selectActive");
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Paused Spartan")).toBeInTheDocument();
@@ -120,7 +123,7 @@ describe("IndividualTrackerManagerView", () => {
       ),
     });
 
-    render(<IndividualTrackerManagerPage individualTrackerService={fullService} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={fullService} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Spartan 0")).toBeInTheDocument();
@@ -134,7 +137,7 @@ describe("IndividualTrackerManagerView", () => {
     const user = userEvent.setup();
     const startSpy: MockInstance = vi.spyOn(service, "startTracker");
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Active Spartan")).toBeInTheDocument();
@@ -163,7 +166,7 @@ describe("IndividualTrackerManagerView", () => {
     const user = userEvent.setup();
     const startSpy: MockInstance = vi.spyOn(service, "startTracker");
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Active Spartan")).toBeInTheDocument();
@@ -189,7 +192,7 @@ describe("IndividualTrackerManagerView", () => {
   it("shows an empty state when the owner has no trackers", async () => {
     const emptyService = aFakeIndividualTrackerServiceWith({ trackers: [] });
 
-    render(<IndividualTrackerManagerPage individualTrackerService={emptyService} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={emptyService} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText(/No trackers yet/i)).toBeInTheDocument();
@@ -200,7 +203,7 @@ describe("IndividualTrackerManagerView", () => {
   it("renders the error state when loading trackers fails", async () => {
     vi.spyOn(service, "listTrackers").mockRejectedValue(new Error("Trackers unavailable"));
 
-    render(<IndividualTrackerManagerPage individualTrackerService={service} />);
+    render(<IndividualTrackerManagerPage individualTrackerService={service} settingsService={settingsService} />);
 
     await waitFor(() => {
       expect(screen.getByText("Trackers unavailable")).toBeInTheDocument();

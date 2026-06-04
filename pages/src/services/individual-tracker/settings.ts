@@ -1,6 +1,6 @@
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { settingsBodySchema, settingsContract } from "@guilty-spark/shared/contracts/individual-tracker/settings";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { settingsBodySchema, settingsContract } from "@guilty-spark/shared/contracts/individual-tracker/settings";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "./settings-types";
 
 interface IndividualTrackerSettingsServiceOpts {

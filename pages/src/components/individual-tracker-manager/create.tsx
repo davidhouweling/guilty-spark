@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
+import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import { ComponentLoader } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
-import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import { IndividualTrackerManagerPresenter } from "./individual-tracker-manager-presenter";
 import { IndividualTrackerManagerStore } from "./individual-tracker-manager-store";
 import { IndividualTrackerManagerProvider } from "./individual-tracker-manager-context";
@@ -11,16 +13,18 @@ import type { TrackerRowAction } from "./manager-model";
 
 interface IndividualTrackerManagerPageProps {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly settingsService: IndividualTrackerSettingsService;
 }
 
 export function IndividualTrackerManagerPage({
   individualTrackerService,
+  settingsService,
 }: IndividualTrackerManagerPageProps): React.ReactElement {
   const store = useMemo(() => new IndividualTrackerManagerStore(), []);
 
   const presenter = useMemo(() => {
-    return new IndividualTrackerManagerPresenter({ individualTrackerService, store });
-  }, [individualTrackerService, store]);
+    return new IndividualTrackerManagerPresenter({ individualTrackerService, settingsService, store });
+  }, [individualTrackerService, settingsService, store]);
 
   useEffect(() => {
     presenter.start();
@@ -60,6 +64,9 @@ export function IndividualTrackerManagerPage({
       },
       onRowAction: (trackerId: string, action: TrackerRowAction): void => {
         presenter.runRowAction(trackerId, action);
+      },
+      onUpdateSettings: (settings: StreamerViewSettings): void => {
+        presenter.updateSettings(settings);
       },
     }),
     [presenter],

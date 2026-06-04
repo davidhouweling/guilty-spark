@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo } from "react";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerRowAction } from "./manager-model";
 import type { IndividualTrackerManagerViewModel } from "./types";
 
@@ -10,6 +11,7 @@ interface IndividualTrackerManagerActions {
   readonly onIdleTimeoutHoursChange: (value: string) => void;
   readonly onAddTracker: () => void;
   readonly onRowAction: (trackerId: string, action: TrackerRowAction) => void;
+  readonly onUpdateSettings: (settings: StreamerViewSettings) => void;
 }
 
 interface IndividualTrackerManagerContextValue {

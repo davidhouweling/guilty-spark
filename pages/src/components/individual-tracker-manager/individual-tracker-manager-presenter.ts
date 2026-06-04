@@ -1,4 +1,6 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type {
   IndividualTrackerManagerSnapshot,
@@ -17,6 +19,7 @@ import type { IndividualTrackerManagerViewModel } from "./types";
 
 interface Config {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly settingsService: IndividualTrackerSettingsService;
   readonly store: IndividualTrackerManagerStore;
 }
 
@@ -46,6 +49,9 @@ export class IndividualTrackerManagerPresenter {
       addPending: snapshot.addPending,
       pendingTrackerId: snapshot.pendingTrackerId,
       addDisabled,
+      settings: snapshot.settings,
+      settingsSaving: snapshot.settingsSaving,
+      settingsError: snapshot.settingsError,
     };
   }
 
@@ -172,17 +178,45 @@ export class IndividualTrackerManagerPresenter {
     this.config.store.setIdleTimeoutHours("");
   }
 
+  public updateSettings(settings: StreamerViewSettings): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setSettingsSaving(true);
+    this.config.store.setSettingsError(null);
+    this.config.settingsService
+      .updateSettings(settings)
+      .then((saved) => {
+        if (!this.isDisposed) {
+          this.config.store.setSettings(saved);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!this.isDisposed) {
+          this.config.store.setSettingsError(err instanceof Error ? err.message : "Failed to save settings");
+        }
+      })
+      .finally(() => {
+        if (this.isDisposed) {
+          return;
+        }
+        this.config.store.setSettingsSaving(false);
+      });
+  }
+
   private async load(): Promise<void> {
     this.config.store.setLoading();
     try {
-      const [profileResponse, trackersResponse] = await Promise.all([
+      const [profileResponse, trackersResponse, settings] = await Promise.all([
         this.config.individualTrackerService.getProfile(),
         this.config.individualTrackerService.listTrackers(),
+        this.config.settingsService.getSettings().catch((): StreamerViewSettings => ({})),
       ]);
       if (this.isDisposed) {
         return;
       }
       this.config.store.setLoaded(profileResponse.profile.name, trackersResponse.trackers);
+      this.config.store.setSettings(settings);
     } catch (error) {
       if (this.isDisposed) {
         return;
