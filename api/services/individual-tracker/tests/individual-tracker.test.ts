@@ -5,6 +5,7 @@ import {
   aFakeIndividualTrackerProfilesRow,
   aFakeIndividualTrackersRow,
   aFakeLinkedIdentitiesRow,
+  aFakeStreamerViewSettingsRow,
 } from "../../database/fakes/database.fake";
 import type { DatabaseService } from "../../database/database";
 import { IndividualTrackerService, MAX_TRACKERS_PER_USER } from "../individual-tracker";
@@ -258,6 +259,87 @@ describe("IndividualTrackerService", () => {
 
       expect(resumed.Status).toBe("active");
       expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ TrackerId: "t1", Status: "active" }));
+    });
+  });
+
+  describe("getSettings", () => {
+    it("returns empty object when no settings row exists", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow({ ProfileId: "p1", UserId: "user-1" });
+      vi.spyOn(databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([profile]);
+      vi.spyOn(databaseService, "getStreamerViewSettings").mockResolvedValue(null);
+
+      expect(await service.getSettings("user-1")).toEqual({});
+    });
+
+    it("parses and returns settings from the row when one exists", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow({ ProfileId: "p1", UserId: "user-1" });
+      const row = aFakeStreamerViewSettingsRow({
+        ProfileId: "p1",
+        StyleFlagsJson: JSON.stringify({ colorMode: "player" }),
+        VisibleSectionsJson: "{}",
+        LayoutOptionsJson: "{}",
+      });
+      vi.spyOn(databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([profile]);
+      vi.spyOn(databaseService, "getStreamerViewSettings").mockResolvedValue(row);
+
+      const result = await service.getSettings("user-1");
+
+      expect(result.styleFlags?.colorMode).toBe("player");
+    });
+
+    it("returns empty object when all JSON columns parse to empty objects", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow({ ProfileId: "p1", UserId: "user-1" });
+      const row = aFakeStreamerViewSettingsRow({
+        ProfileId: "p1",
+        StyleFlagsJson: "{}",
+        VisibleSectionsJson: "{}",
+        LayoutOptionsJson: "{}",
+      });
+      vi.spyOn(databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([profile]);
+      vi.spyOn(databaseService, "getStreamerViewSettings").mockResolvedValue(row);
+
+      expect(await service.getSettings("user-1")).toEqual({});
+    });
+  });
+
+  describe("updateSettings", () => {
+    it("calls upsertStreamerViewSettings with correct JSON columns and returns the settings", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow({ ProfileId: "p1", UserId: "user-1" });
+      vi.spyOn(databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([profile]);
+      const upsertSpy: MockInstance<DatabaseService["upsertStreamerViewSettings"]> = vi
+        .spyOn(databaseService, "upsertStreamerViewSettings")
+        .mockResolvedValue();
+
+      const settings = { styleFlags: { colorMode: "observer" as const }, layoutOptions: { viewMode: "wide" as const } };
+      const result = await service.updateSettings("user-1", settings);
+
+      expect(result).toEqual(settings);
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ProfileId: "p1",
+          StyleFlagsJson: JSON.stringify({ colorMode: "observer" }),
+          VisibleSectionsJson: JSON.stringify({}),
+          LayoutOptionsJson: JSON.stringify({ viewMode: "wide" }),
+        }),
+      );
+    });
+
+    it("serialises missing sub-objects as empty JSON objects", async () => {
+      const profile = aFakeIndividualTrackerProfilesRow({ ProfileId: "p1", UserId: "user-1" });
+      vi.spyOn(databaseService, "findIndividualTrackerProfilesByUserId").mockResolvedValue([profile]);
+      const upsertSpy: MockInstance<DatabaseService["upsertStreamerViewSettings"]> = vi
+        .spyOn(databaseService, "upsertStreamerViewSettings")
+        .mockResolvedValue();
+
+      await service.updateSettings("user-1", {});
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          StyleFlagsJson: "{}",
+          VisibleSectionsJson: "{}",
+          LayoutOptionsJson: "{}",
+        }),
+      );
     });
   });
 

@@ -1,4 +1,6 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
 import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
@@ -118,6 +120,42 @@ export class IndividualTrackerService {
     await this.databaseService.setLiveIndividualTracker(userId, trackerId);
     const refreshed = await this.databaseService.getIndividualTracker(trackerId);
     return Preconditions.checkExists(refreshed, "Tracker disappeared after setting live");
+  }
+
+  async getSettings(userId: string): Promise<StreamerViewSettings> {
+    const profile = await this.getOrCreateProfile(userId);
+    const row = await this.databaseService.getStreamerViewSettings(profile.ProfileId);
+    if (row == null) {
+      return {};
+    }
+    return parseStreamerViewSettings(row);
+  }
+
+  async getSettingsForView(userId: string): Promise<StreamerViewSettings> {
+    const profiles = await this.databaseService.findIndividualTrackerProfilesByUserId(userId);
+    const [profile] = profiles;
+    if (profile == null) {
+      return {};
+    }
+    const row = await this.databaseService.getStreamerViewSettings(profile.ProfileId);
+    if (row == null) {
+      return {};
+    }
+    return parseStreamerViewSettings(row);
+  }
+
+  async updateSettings(userId: string, settings: StreamerViewSettings): Promise<StreamerViewSettings> {
+    const profile = await this.getOrCreateProfile(userId);
+    const now = Math.floor(Date.now() / 1000);
+    const storedRow = {
+      ProfileId: profile.ProfileId,
+      LayoutOptionsJson: JSON.stringify(settings.layoutOptions ?? {}),
+      VisibleSectionsJson: JSON.stringify(settings.visibleSections ?? {}),
+      StyleFlagsJson: JSON.stringify(settings.styleFlags ?? {}),
+      UpdatedAt: now,
+    };
+    await this.databaseService.upsertStreamerViewSettings(storedRow);
+    return parseStreamerViewSettings(storedRow);
   }
 
   private async assertIdentityOwned(userId: string, activeIdentityId: string | null | undefined): Promise<void> {
