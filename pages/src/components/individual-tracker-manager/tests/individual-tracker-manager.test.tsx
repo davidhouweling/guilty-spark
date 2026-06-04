@@ -14,9 +14,10 @@ import { IndividualTrackerManagerPage } from "../create";
 
 describe("IndividualTrackerManagerView", () => {
   let service: FakeIndividualTrackerService;
-  const settingsService = aFakeIndividualTrackerSettingsServiceWith();
+  let settingsService: ReturnType<typeof aFakeIndividualTrackerSettingsServiceWith>;
 
   beforeEach(() => {
+    settingsService = aFakeIndividualTrackerSettingsServiceWith();
     service = aFakeIndividualTrackerServiceWith({
       trackers: [
         aFakeTrackerWith({ trackerId: "t-1", gamertag: "Active Spartan", status: "active", isLive: true }),

@@ -58,6 +58,20 @@ describe("IndividualTrackerManagerPresenter", () => {
       expect(snapshot.errorMessage).toBeNull();
     });
 
+    it("loads settings into the snapshot alongside the profile and trackers", async () => {
+      const settingsService = aFakeIndividualTrackerSettingsServiceWith({
+        settings: { styleFlags: { colorMode: "observer" } },
+      });
+      const { store, presenter } = aHarness(aFakeIndividualTrackerServiceWith({ trackers: [] }), settingsService);
+
+      presenter.start();
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().status).toBe(ComponentLoaderStatus.LOADED);
+      });
+
+      expect(store.getSnapshot().settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
+    });
+
     it("sets an error snapshot when loading the tracker list fails", async () => {
       const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
       vi.spyOn(service, "listTrackers").mockRejectedValue(new Error("Trackers unavailable"));
