@@ -1,6 +1,8 @@
 import { getMode } from "../mode";
 import { RealIndividualTrackerService } from "./individual-tracker";
 import type { IndividualTrackerService } from "./types";
+import { RealIndividualTrackerSettingsService } from "./settings";
+import type { IndividualTrackerSettingsService } from "./settings-types";
 import { RealIndividualTrackerViewService } from "./view";
 import type { IndividualTrackerViewService } from "./view-types";
 
@@ -12,6 +14,17 @@ export async function installIndividualTrackerService(apiHost: string): Promise<
   }
 
   return new RealIndividualTrackerService({ apiHost });
+}
+
+export async function installIndividualTrackerSettingsService(
+  apiHost: string,
+): Promise<IndividualTrackerSettingsService> {
+  if (getMode() === "FAKE") {
+    const { aFakeIndividualTrackerSettingsServiceWith } = await import("./fakes/settings.fake");
+    return aFakeIndividualTrackerSettingsServiceWith();
+  }
+
+  return new RealIndividualTrackerSettingsService({ apiHost });
 }
 
 export async function installIndividualTrackerViewService(apiHost: string): Promise<IndividualTrackerViewService> {
