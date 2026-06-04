@@ -34,7 +34,7 @@ export function FollowLiveViewer({
           className={cn(styles.connectionBanner, { [styles.disconnected]: directoryStatus === "disconnected" })}
           data-testid="connection-banner"
         >
-          {directoryStatus === "error" ? "Connection error — data may be stale" : "Reconnecting..."}
+          {directoryStatus === "error" ? "Connection error — data may be stale" : "Disconnected — reload to refresh"}
         </div>
       )}
       {directory !== null && directory.trackers.length > 0 && (

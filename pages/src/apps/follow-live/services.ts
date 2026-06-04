@@ -4,6 +4,7 @@ import { installFollowLiveService } from "../../services/follow/install";
 import type { FollowLiveService } from "../../services/follow/follow-types";
 import { installIndividualTrackerViewService } from "../../services/individual-tracker/install";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import { getMode } from "../../services/mode";
 
 export interface Services {
   readonly followLiveService: FollowLiveService;
@@ -12,6 +13,20 @@ export interface Services {
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
+  if (getMode() === "FAKE") {
+    const [{ aFakeFollowLiveServiceWith }, { aFakeIndividualTrackerViewServiceWith }, { aFakeHaloClientWith }] =
+      await Promise.all([
+        import("../../services/follow/fakes/follow.fake"),
+        import("../../services/individual-tracker/fakes/view.fake"),
+        import("../../services/fakes/halo-client.fake"),
+      ]);
+    return {
+      followLiveService: aFakeFollowLiveServiceWith(),
+      individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+      haloClient: aFakeHaloClientWith(),
+    };
+  }
+
   const [followLiveService, individualTrackerViewService] = await Promise.all([
     installFollowLiveService(apiHost),
     installIndividualTrackerViewService(apiHost),

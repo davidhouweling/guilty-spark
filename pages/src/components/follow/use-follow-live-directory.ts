@@ -42,9 +42,11 @@ export function useFollowLiveDirectory({
   directoryRef.current = directory;
 
   const prevLiveTrackerIdRef = useRef<string | null>(null);
+  const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
     let isCancelled = false;
+    initialLoadDoneRef.current = false;
 
     const connection = followLiveService.connectDirectory(gamertag);
 
@@ -59,16 +61,18 @@ export function useFollowLiveDirectory({
         prevLiveTrackerIdRef.current = liveId;
         setSelectedTrackerId(liveId);
         setDirectoryStatus("connected");
+        initialLoadDoneRef.current = true;
       })
       .catch(() => {
         if (isCancelled) {
           return;
         }
         setDirectoryStatus("error");
+        initialLoadDoneRef.current = true;
       });
 
     const dirSubscription = connection.subscribe((updatedDirectory) => {
-      if (isCancelled) {
+      if (isCancelled || !initialLoadDoneRef.current) {
         return;
       }
       setDirectory(updatedDirectory);
