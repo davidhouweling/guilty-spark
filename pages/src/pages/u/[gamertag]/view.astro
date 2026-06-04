@@ -1,0 +1,11 @@
+---
+export const prerender = false;
+import Layout from "../../../layouts/layout.astro";
+import { API_HOST } from "../../../constants";
+import { FollowLiveApp } from "../../../apps/follow-live/create";
+const { gamertag } = Astro.params;
+---
+
+<Layout title={`${gamertag ?? ""} — Guilty Spark`} description="Follow this player live">
+  <FollowLiveApp client:only="react" apiHost={API_HOST} gamertag={gamertag ?? ""} />
+</Layout>
