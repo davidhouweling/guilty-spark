@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { RealIndividualTrackerSettingsService } from "../settings";
 
@@ -15,13 +15,17 @@ describe("RealIndividualTrackerSettingsService", () => {
   let fetchSpy: MockInstance;
   let service: RealIndividualTrackerSettingsService;
 
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, "fetch");
+    service = new RealIndividualTrackerSettingsService({ apiHost: "https://api.example.com" });
+  });
+
   afterEach(() => {
     fetchSpy.mockRestore();
   });
 
   it("gets settings with credentials included", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ settings: FAKE_SETTINGS }));
-    service = new RealIndividualTrackerSettingsService({ apiHost: "https://api.example.com" });
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ settings: FAKE_SETTINGS }));
 
     const result = await service.getSettings();
 
@@ -33,28 +37,31 @@ describe("RealIndividualTrackerSettingsService", () => {
   });
 
   it("throws when getSettings returns a non-ok response", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, 401));
-    service = new RealIndividualTrackerSettingsService({ apiHost: "https://api.example.com" });
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, 401));
 
     await expect(service.getSettings()).rejects.toThrow("Unauthorized");
   });
 
-  it("patches settings and returns the updated value", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ settings: FAKE_SETTINGS }));
-    service = new RealIndividualTrackerSettingsService({ apiHost: "https://api.example.com" });
+  it("patches settings with the correct method, credentials, content-type, and wrapped body", async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ settings: FAKE_SETTINGS }));
 
     const result = await service.updateSettings(FAKE_SETTINGS);
 
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.example.com/api/individual-tracker/settings",
+      expect.objectContaining({
+        method: "PATCH",
+        credentials: "include",
+        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+      }),
+    );
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(init.method).toBe("PATCH");
-    expect(init.credentials).toBe("include");
     expect(JSON.parse(init.body as string)).toEqual({ settings: FAKE_SETTINGS });
     expect(result).toEqual(FAKE_SETTINGS);
   });
 
   it("throws when updateSettings returns a non-ok response", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("", { status: 500 }));
-    service = new RealIndividualTrackerSettingsService({ apiHost: "https://api.example.com" });
+    fetchSpy.mockResolvedValueOnce(new Response("", { status: 500 }));
 
     await expect(service.updateSettings({})).rejects.toThrow("Request failed (500)");
   });
