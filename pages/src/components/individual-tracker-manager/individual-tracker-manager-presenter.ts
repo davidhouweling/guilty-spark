@@ -197,6 +197,9 @@ export class IndividualTrackerManagerPresenter {
         }
       })
       .finally(() => {
+        if (this.isDisposed) {
+          return;
+        }
         this.config.store.setSettingsSaving(false);
       });
   }
