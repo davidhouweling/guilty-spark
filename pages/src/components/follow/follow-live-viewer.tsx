@@ -1,6 +1,6 @@
 import React from "react";
-import cn from "classnames";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import { Alert } from "../alert/alert";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import type { FollowLiveService } from "../../services/follow/follow-types";
@@ -30,16 +30,13 @@ export function FollowLiveViewer({
   return (
     <div className={styles.container}>
       {showBanner && (
-        <div
-          className={cn(styles.connectionBanner, { [styles.disconnected]: directoryStatus === "disconnected" })}
-          data-testid="connection-banner"
-        >
+        <Alert variant={directoryStatus === "disconnected" ? "warning" : "error"}>
           {directoryStatus === "error"
             ? directory !== null
               ? "Connection error — data may be stale"
               : "Failed to load tracker directory"
             : "Disconnected — reload to refresh"}
-        </div>
+        </Alert>
       )}
       {directory !== null && directory.trackers.length > 0 && (
         <FollowTrackerTabs
