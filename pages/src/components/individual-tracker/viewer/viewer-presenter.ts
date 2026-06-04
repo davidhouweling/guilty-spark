@@ -28,11 +28,21 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {
+    const streamerSettings = snapshot.view?.streamerSettings;
+    const styleFlags = streamerSettings?.styleFlags;
     return {
-      renderModel: snapshot.view == null ? null : buildViewerRenderModel({ view: snapshot.view }),
+      renderModel:
+        snapshot.view == null
+          ? null
+          : buildViewerRenderModel({
+              view: snapshot.view,
+              preferredTeamColorId: styleFlags?.playerTeamColor ?? styleFlags?.teamColor,
+              preferredEnemyColorId: styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor,
+            }),
       connectionStatus: snapshot.connectionStatus,
       selectedMatchId: snapshot.selectedMatchId,
       matchStatsState: snapshot.matchStatsState,
+      streamerSettings,
     };
   }
 
