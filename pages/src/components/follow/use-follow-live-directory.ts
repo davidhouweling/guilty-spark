@@ -47,6 +47,11 @@ export function useFollowLiveDirectory({
   useEffect(() => {
     let isCancelled = false;
     initialLoadDoneRef.current = false;
+    prevLiveTrackerIdRef.current = null;
+    setDirectory(null);
+    setSelectedTrackerId(null);
+    setIsFollowingLive(true);
+    setDirectoryStatus("connecting");
 
     const connection = followLiveService.connectDirectory(gamertag);
 

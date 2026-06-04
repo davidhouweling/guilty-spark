@@ -34,7 +34,11 @@ export function FollowLiveViewer({
           className={cn(styles.connectionBanner, { [styles.disconnected]: directoryStatus === "disconnected" })}
           data-testid="connection-banner"
         >
-          {directoryStatus === "error" ? "Connection error — data may be stale" : "Disconnected — reload to refresh"}
+          {directoryStatus === "error"
+            ? directory !== null
+              ? "Connection error — data may be stale"
+              : "Failed to load tracker directory"
+            : "Disconnected — reload to refresh"}
         </div>
       )}
       {directory !== null && directory.trackers.length > 0 && (
@@ -54,8 +58,10 @@ export function FollowLiveViewer({
             haloClient={haloClient}
             trackerId={selectedTrackerId}
           />
-        ) : (
+        ) : directoryStatus === "error" && directory === null ? null : directory === null ? (
           <LoadingState text="Loading tracker directory..." />
+        ) : (
+          <LoadingState text="No active tracker — waiting for a live game" />
         )}
       </div>
     </div>
