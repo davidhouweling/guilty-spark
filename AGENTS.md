@@ -80,7 +80,10 @@ export const settingsContract = defineContract(z.object({ settings: streamerView
 // Store owns snapshot state; presenter owns business logic
 const store = useMemo(() => new FooStore(), []);
 const presenter = useMemo(() => new FooPresenter({ store, service }), [store, service]);
-useEffect(() => { presenter.start(); return () => presenter.dispose(); }, [presenter]);
+useEffect(() => {
+  presenter.start();
+  return () => presenter.dispose();
+}, [presenter]);
 const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 const model = useMemo(() => FooPresenter.present(snapshot), [snapshot]);
 ```
@@ -126,6 +129,7 @@ switch (item.type) {
 CSS Modules only — all styling via `.module.css`. Use `classnames` package for conditional classes; never template-literal class strings. Pass dynamic values via CSS variables in the `style` prop: `style={{ "--accent": color }}` (only acceptable `style` usage).
 
 Media queries use PostCSS custom media from `pages/src/styles/variables.css`:
+
 - `@media (--tablet-viewport)` — min-width: 750px
 - `@media (--desktop-viewport)` — min-width: 1000px
 - `@media (--ultrawide-viewport)` — min-width: 1200px
