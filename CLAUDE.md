@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Read [AGENTS.md](./AGENTS.md) in full before writing any code.** It contains the mandatory coding standards for this repository (TypeScript constraints, test conventions, CSS rules, error handling, import style, and more). CLAUDE.md covers commands and architecture; AGENTS.md covers how to write code.
+
 ## Repository Overview
 
 Guilty Spark is a Discord bot + web platform for Halo Infinite NeatQueue league tracking. It is a TypeScript monorepo with three npm workspaces:
@@ -120,31 +122,13 @@ const model = useMemo(() => FooPresenter.present(snapshot), [snapshot]);
 
 The `useIndividualTrackerViewer` hook in `pages/src/components/individual-tracker/viewer/use-individual-tracker-viewer.ts` encapsulates this wiring and is reused by multiple pages.
 
-**Styling**: CSS Modules only. Use `classnames` for conditional classes. Design tokens in `pages/src/styles/variables.css` (spacing, colours, fonts, breakpoints). No template-literal class strings. CSS variables are passed via typed `style={{ borderLeftColor: hex }}` (not CSS variable `as React.CSSProperties` casts).
+**Styling**: CSS Modules only. Use `classnames` for conditional classes. Design tokens in `pages/src/styles/variables.css` (spacing, colours, fonts, breakpoints). No template-literal class strings.
 
 **Fake mode**: `getMode() === "FAKE"` (set via `--mode fake` in Vite) routes all service installs to in-memory fakes in `pages/src/services/fakes/`. Useful for UI development without a running API.
 
 ### Shared Package (`shared/`)
 
 Exported via `package.json` `exports` field using glob patterns (`"./contracts/*"`, `"./halo/*"`, etc.). Always use the package entrypoint in imports: `@guilty-spark/shared/contracts/individual-tracker/settings`.
-
-## Key Conventions (from AGENTS.md)
-
-**TypeScript**: No `any`, `unknown`, non-null `!`, or `as` casts in production code. Use `Preconditions.checkExists(value, "message")` instead of `!`. The only accepted exception is `as unknown as X` for test global stubs (e.g. `global.WebSocket = MockWebSocket as unknown as typeof WebSocket`).
-
-**Exhaustive switches**: Every `switch` on a union type must have `default: throw new UnreachableError(value)` and curly braces on every case.
-
-**Error types**: `EndUserError` for user-facing validation errors. System errors propagate to Sentry.
-
-**Iteration**: `for...of` not `.forEach`.
-
-**Imports**: Extensionless for internal modules (`import { Foo } from "./foo"` not `"./foo.ts"`).
-
-**Tests — black-box only**: Mock only constructor-injected dependencies (services). Never mock internal implementation. Use `aFake…With(overrides)` factory functions from `fakes/` folders. Use `expect.assertions(n)` inside conditionals/async branches. Use `vi.fn<T>()` typed mocks and `MockInstance<typeof x>` for spy types.
-
-**No comments** unless the WHY is non-obvious. No JSDoc. Tests document behaviour.
-
-**CSS**: CSS Modules only, `classnames` for conditionals, no template-literal class strings.
 
 ## Environment Variables
 
