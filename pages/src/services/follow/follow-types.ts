@@ -2,7 +2,6 @@ import type {
   TrackerDirectory,
   TrackerDirectoryMessage,
 } from "@guilty-spark/shared/contracts/individual-tracker/follow";
-import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
 
 export type { TrackerDirectory, TrackerDirectoryMessage };
 
@@ -25,5 +24,4 @@ export interface DirectoryConnection {
 export interface FollowLiveService {
   getDirectory(gamertag: string): Promise<TrackerDirectory>;
   connectDirectory(gamertag: string): DirectoryConnection;
-  getTrackerView(trackerId: string): Promise<TrackerViewResponse>;
 }
