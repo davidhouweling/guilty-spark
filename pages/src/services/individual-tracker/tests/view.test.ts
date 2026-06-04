@@ -34,7 +34,7 @@ describe("RealIndividualTrackerViewService", () => {
     fetchSpy.mockRestore();
   });
 
-  it("gets the view with credentials included", async () => {
+  it("gets the view without credentials (public route)", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ view: FAKE_VIEW }));
 
     const result = await service.getView("tracker 1");
@@ -45,8 +45,20 @@ describe("RealIndividualTrackerViewService", () => {
     );
     const [firstCall] = fetchSpy.mock.calls;
     const [, init] = firstCall;
-    expect(init).toHaveProperty("credentials", "include");
+    expect(init).not.toHaveProperty("credentials");
     expect(result).toEqual({ view: FAKE_VIEW });
+  });
+
+  it("forwards streamerSettings from the view response when present", async () => {
+    const viewWithSettings = {
+      ...FAKE_VIEW,
+      streamerSettings: { styleFlags: { colorMode: "observer" as const } },
+    };
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ view: viewWithSettings }));
+
+    const result = await service.getView("tracker-1");
+
+    expect(result.view.streamerSettings).toEqual({ styleFlags: { colorMode: "observer" } });
   });
 
   it("throws the error envelope message when the request fails", async () => {
