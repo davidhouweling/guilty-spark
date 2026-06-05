@@ -34,10 +34,7 @@ export function IndividualTrackerOverlay({
 
   const teamColors = useMemo(() => getDefaultTeamColors(), []);
 
-  const activeSeries = useMemo(
-    () => getActiveSeries(renderModel.timeline),
-    [renderModel.timeline],
-  );
+  const activeSeries = useMemo(() => getActiveSeries(renderModel.timeline), [renderModel.timeline]);
 
   const topSection = useMemo(
     () =>
@@ -59,10 +56,7 @@ export function IndividualTrackerOverlay({
 
   const tabs = useMemo(() => buildTabs(renderModel.timeline), [renderModel.timeline]);
 
-  const selectedTabIndex = useMemo(
-    () => getSelectedTabIndex(tabs, selectedMatchId),
-    [tabs, selectedMatchId],
-  );
+  const selectedTabIndex = useMemo(() => getSelectedTabIndex(tabs, selectedMatchId), [tabs, selectedMatchId]);
 
   const tickerMatchGroups = useMemo(
     () => buildTickerGroups(matchStatsState, selectedTabIndex),

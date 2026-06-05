@@ -348,7 +348,7 @@ function NeatQueueStreamerOverlay({
         }
         return seriesStats != null && neatQueueState.matches.length > 0;
       }
-      return allMatchStats[tabIndex]?.data != null && neatQueueState.matches[tabIndex] != null;
+      return allMatchStats[tabIndex]?.data != null && Boolean(neatQueueState.matches[tabIndex]);
     },
     [allMatchStats, neatQueueState, seriesStats],
   );
@@ -562,7 +562,12 @@ function NeatQueueStreamerOverlay({
   );
 }
 
-export function StreamerOverlay({ teamColors, gameModeIconUrl, settings, settingsUi }: StreamerOverlayProps): React.ReactElement {
+export function StreamerOverlay({
+  teamColors,
+  gameModeIconUrl,
+  settings,
+  settingsUi,
+}: StreamerOverlayProps): React.ReactElement {
   const state = useTrackerState();
 
   if (state?.type !== "neatqueue") {

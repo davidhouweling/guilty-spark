@@ -52,10 +52,7 @@ export function getSelectedTabIndex(tabs: readonly OverlayTab[], selectedMatchId
 }
 
 export function isPanelOpen(selectedMatchId: string | null, matchStatsState: MatchStatsState | null): boolean {
-  return (
-    selectedMatchId != null &&
-    (matchStatsState?.status === "loaded" || matchStatsState?.status === "error")
-  );
+  return selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error");
 }
 
 export function buildTickerGroups(matchStatsState: MatchStatsState | null, matchIndex: number): TickerMatchGroup[] {

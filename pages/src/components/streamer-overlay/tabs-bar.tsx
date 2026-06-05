@@ -51,9 +51,7 @@ const TabButton = memo(function TabButton({
 }: TabButtonProps): React.ReactElement {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
   const tabIcons =
-    tab.type === "match"
-      ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []))
-      : [];
+    tab.type === "match" ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : [])) : [];
 
   return (
     <button

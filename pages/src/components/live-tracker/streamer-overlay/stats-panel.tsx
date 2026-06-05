@@ -37,11 +37,7 @@ function StatsPanelContentComponent({
 }: StatsPanelContentProps): React.ReactElement | null {
   if (selectedTab === -1 && matchesLength === 0 && playersAssociationData != null) {
     return (
-      <PlayerPreSeriesInfo
-        teams={teams}
-        playersAssociationData={playersAssociationData}
-        teamColors={teamColors}
-      />
+      <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
     );
   }
 
