@@ -1327,6 +1327,38 @@ describe("IndividualTrackerDO", () => {
       expect(b2.state?.topBarStats?.[0]).toEqual({ label: "Kills", value: "15" });
     });
 
+    it("computes series-win-loss from sorted match groupings", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: trackedXuid,
+          matchIds: ["m2", "m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "2024-11-26T11:00:00.000Z",
+              outcome: "Win",
+              isMatchmaking: false,
+              teamRosterSignature: "0:1|1:2",
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T11:30:00.000Z",
+              outcome: "Win",
+              isMatchmaking: false,
+              teamRosterSignature: "0:1|1:2",
+            }),
+          },
+        }),
+      );
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["series-win-loss"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Series Won:Loss", value: "1:0" });
+    });
+
     it("returns N/A for rank/esra slots (G4 deferred)", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
