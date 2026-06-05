@@ -69,6 +69,7 @@ export interface AccumulatedPlayerTotals {
   damageTaken: number;
   totalLifeSeconds: number;
   totalSpawns: number;
+  totalLifeSpawns?: number;
 }
 
 export interface TopBarStatItem {

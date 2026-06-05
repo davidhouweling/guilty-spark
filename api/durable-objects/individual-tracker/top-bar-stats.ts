@@ -1,5 +1,5 @@
 import { compareAsc } from "date-fns";
-import { type MatchStats } from "halo-infinite-api";
+import { type MatchStats, type PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
 import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
@@ -8,6 +8,7 @@ import {
   type IndividualTopBarStatOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { PlayerEsraData } from "../../services/halo/types";
 import type {
   AccumulatedPlayerTotals,
   IndividualTrackerInternalState,
@@ -27,7 +28,7 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
     return false;
   }
 
-  const totals = state.accumulatedPlayerTotals ?? {
+  const totals = {
     kills: 0,
     deaths: 0,
     assists: 0,
@@ -38,6 +39,8 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
     damageTaken: 0,
     totalLifeSeconds: 0,
     totalSpawns: 0,
+    totalLifeSpawns: 0,
+    ...state.accumulatedPlayerTotals,
   };
 
   totals.kills += playerStats.Kills;
@@ -51,6 +54,7 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
   totals.totalSpawns += playerStats.Spawns;
   try {
     totals.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
+    totals.totalLifeSpawns += playerStats.Spawns;
   } catch {
     // malformed AverageLifeDuration — skip life-seconds for this match
   }
@@ -123,10 +127,12 @@ interface TopBarStatContext {
   matchmaking: number;
   customOrLocal: number;
   state: IndividualTrackerInternalState;
+  csrContainer: PlaylistCsrContainer | null | undefined;
+  esraData: PlayerEsraData | null | undefined;
 }
 
 function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarStatContext): string | null {
-  const { totals, total, wins, losses, matchmaking, customOrLocal, state } = ctx;
+  const { totals, total, wins, losses, matchmaking, customOrLocal, state, csrContainer, esraData } = ctx;
 
   switch (option) {
     case "matches-win-loss": {
@@ -145,11 +151,21 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
     case "custom-local-games": {
       return customOrLocal.toString();
     }
-    case "current-rank":
-    case "season-peak":
-    case "all-time-peak":
+    case "current-rank": {
+      const value = csrContainer?.Current.Value;
+      return value != null && value > 0 ? formatStatValue(value) : "–";
+    }
+    case "season-peak": {
+      const value = csrContainer?.SeasonMax.Value;
+      return value != null && value > 0 ? formatStatValue(value) : "–";
+    }
+    case "all-time-peak": {
+      const value = csrContainer?.AllTimeMax.Value;
+      return value != null && value > 0 ? formatStatValue(value) : "–";
+    }
     case "esra": {
-      return null;
+      const esra = esraData?.esra;
+      return esra != null && esra >= 0 ? formatStatValue(Math.round(esra)) : "–";
     }
     case "kills": {
       return totals != null ? formatStatValue(totals.kills) : null;
@@ -191,17 +207,19 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       return totals != null ? formatDamageRatio(totals.damageDealt, totals.damageTaken) : null;
     }
     case "avg-life-time": {
-      if (totals == null || totals.totalSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      const avgSeconds = totals.totalLifeSeconds / totals.totalSpawns;
+      const avgSeconds = totals.totalLifeSeconds / lifeSpawns;
       return getReadableDuration(getDurationInIsoString(avgSeconds));
     }
     case "avg-damage-per-life": {
-      if (totals == null || totals.totalSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      return formatDamageRatio(totals.damageDealt, totals.totalSpawns);
+      return formatDamageRatio(totals.damageDealt, lifeSpawns);
     }
     case "kills-deaths-kd": {
       if (totals == null) {
@@ -230,12 +248,13 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       return `${formatStatValue(totals.damageDealt)}:${formatStatValue(totals.damageTaken)} (${formatDamageRatio(totals.damageDealt, totals.damageTaken)})`;
     }
     case "avg-life-damage-per-life": {
-      if (totals == null || totals.totalSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      const avgSeconds = totals.totalLifeSeconds / totals.totalSpawns;
+      const avgSeconds = totals.totalLifeSeconds / lifeSpawns;
       const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
-      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.totalSpawns);
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, lifeSpawns);
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
@@ -247,6 +266,8 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
 export function computeTopBarStats(
   state: IndividualTrackerInternalState,
   topBarStatSlots: readonly IndividualTopBarStatOption[],
+  csrContainer?: PlaylistCsrContainer | null,
+  esraData?: PlayerEsraData | null,
 ): readonly TopBarStatItem[] {
   const totals = state.accumulatedPlayerTotals;
   const matches = state.matchIds
@@ -260,7 +281,17 @@ export function computeTopBarStats(
 
   return topBarStatSlots.map((option): TopBarStatItem => {
     const label = getTopBarStatLabel(option);
-    const value = formatTopBarStatOption(option, { totals, total, wins, losses, matchmaking, customOrLocal, state });
+    const value = formatTopBarStatOption(option, {
+      totals,
+      total,
+      wins,
+      losses,
+      matchmaking,
+      customOrLocal,
+      state,
+      csrContainer,
+      esraData,
+    });
     return { label, value: value ?? "N/A" };
   });
 }
