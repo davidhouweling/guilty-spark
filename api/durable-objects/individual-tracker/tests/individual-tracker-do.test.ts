@@ -1287,6 +1287,46 @@ describe("IndividualTrackerDO", () => {
       expect(b1.state?.topBarStats).toEqual(b2.state?.topBarStats);
     });
 
+    it("recomputes topBarStats when accumulatedMatchIds grows (re-enrichment of older match)", async () => {
+      const baseState = aFakeIndividualTrackerInternalStateWith({
+        xuid: trackedXuid,
+        matchIds: ["m1", "m2"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }),
+          m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", outcome: "Win" }),
+        },
+        accumulatedPlayerTotals: {
+          kills: 5, deaths: 2, assists: 1, headshotKills: 1,
+          shotsFired: 50, shotsHit: 25, damageDealt: 2000, damageTaken: 1000,
+          totalLifeSeconds: 60, totalSpawns: 2,
+        },
+        accumulatedMatchIds: ["m2"],
+      });
+      storageGetSpy.mockResolvedValue(baseState);
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["kills"]));
+
+      const r1 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const b1: IndividualTrackerViewStateResponse = await r1.json();
+      expect(b1.state?.topBarStats?.[0]).toEqual({ label: "Kills", value: "5" });
+
+      const updatedState = aFakeIndividualTrackerInternalStateWith({
+        ...baseState,
+        accumulatedPlayerTotals: {
+          kills: 15, deaths: 4, assists: 2, headshotKills: 2,
+          shotsFired: 100, shotsHit: 50, damageDealt: 4000, damageTaken: 2000,
+          totalLifeSeconds: 120, totalSpawns: 4,
+        },
+        accumulatedMatchIds: ["m2", "m1"],
+      });
+      storageGetSpy.mockResolvedValue(updatedState);
+
+      const r2 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const b2: IndividualTrackerViewStateResponse = await r2.json();
+      expect(b2.state?.topBarStats?.[0]).toEqual({ label: "Kills", value: "15" });
+    });
+
     it("returns N/A for rank/esra slots (G4 deferred)", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({

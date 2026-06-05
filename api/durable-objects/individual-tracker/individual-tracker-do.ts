@@ -147,6 +147,12 @@ function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: num
   return { won, lost };
 }
 
+function computeKdaValue(totals: AccumulatedPlayerTotals): number {
+  return totals.deaths === 0
+    ? totals.kills + totals.assists / 3
+    : (totals.kills + totals.assists / 3) / totals.deaths;
+}
+
 interface TopBarStatContext {
   totals: AccumulatedPlayerTotals | undefined;
   total: number;
@@ -196,9 +202,7 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       if (totals == null) {
         return null;
       }
-      const kda =
-        totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
-      return formatStatValue(kda);
+      return formatStatValue(computeKdaValue(totals));
     }
     case "headshot-kills": {
       return totals != null ? formatStatValue(totals.headshotKills) : null;
@@ -249,9 +253,7 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       if (totals == null) {
         return null;
       }
-      const kda =
-        totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
-      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)}:${formatStatValue(totals.assists)} (${formatStatValue(kda)})`;
+      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)}:${formatStatValue(totals.assists)} (${formatStatValue(computeKdaValue(totals))})`;
     }
     case "shots-hit-fired-accuracy": {
       if (totals == null || totals.shotsFired === 0) {
@@ -754,7 +756,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     topBarStatSlots: readonly IndividualTopBarStatOption[],
   ): readonly TopBarStatItem[] {
     const latestMatchId = state.matchIds.at(-1) ?? "";
-    const cacheKey = `${latestMatchId}:${JSON.stringify(topBarStatSlots)}`;
+    const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
+    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
     if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
       return this.cachedTopBarStats;
