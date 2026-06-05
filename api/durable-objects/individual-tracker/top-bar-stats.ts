@@ -1,6 +1,5 @@
 import { compareAsc } from "date-fns";
 import { type MatchStats, type PlaylistCsrContainer } from "halo-infinite-api";
-import type { PlayerEsraData } from "../../services/halo/types";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
 import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
@@ -9,6 +8,7 @@ import {
   type IndividualTopBarStatOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { PlayerEsraData } from "../../services/halo/types";
 import type {
   AccumulatedPlayerTotals,
   IndividualTrackerInternalState,
@@ -41,6 +41,8 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
     totalSpawns: 0,
     totalLifeSpawns: 0,
   };
+
+  totals.totalLifeSpawns ??= 0;
 
   totals.kills += playerStats.Kills;
   totals.deaths += playerStats.Deaths;
@@ -250,7 +252,7 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       }
       const avgSeconds = totals.totalLifeSeconds / totals.totalLifeSpawns;
       const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
-      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.totalSpawns);
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.totalLifeSpawns);
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
@@ -277,7 +279,17 @@ export function computeTopBarStats(
 
   return topBarStatSlots.map((option): TopBarStatItem => {
     const label = getTopBarStatLabel(option);
-    const value = formatTopBarStatOption(option, { totals, total, wins, losses, matchmaking, customOrLocal, state, csrContainer, esraData });
+    const value = formatTopBarStatOption(option, {
+      totals,
+      total,
+      wins,
+      losses,
+      matchmaking,
+      customOrLocal,
+      state,
+      csrContainer,
+      esraData,
+    });
     return { label, value: value ?? "N/A" };
   });
 }
