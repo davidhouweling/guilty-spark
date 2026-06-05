@@ -18,6 +18,5 @@ export interface IndividualTrackerService {
   resumeTracker(trackerId: string): Promise<TrackerResponse>;
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
-  excludeMatch(trackerId: string, matchId: string): Promise<void>;
-  includeMatch(trackerId: string, matchId: string): Promise<void>;
+  selectMatches(trackerId: string, matchIds: readonly string[]): Promise<void>;
 }

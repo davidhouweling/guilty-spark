@@ -64,12 +64,8 @@ export class IndividualTrackerViewerPresenter {
     this.config.store.setSelectedMatchId(null);
   }
 
-  public async excludeMatch(matchId: string): Promise<void> {
-    await this.config.individualTrackerService?.excludeMatch(this.config.trackerId, matchId);
-  }
-
-  public async includeMatch(matchId: string): Promise<void> {
-    await this.config.individualTrackerService?.includeMatch(this.config.trackerId, matchId);
+  public async selectMatches(matchIds: readonly string[]): Promise<void> {
+    await this.config.individualTrackerService?.selectMatches(this.config.trackerId, matchIds);
   }
 
   private isStale(matchId: string): boolean {

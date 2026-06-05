@@ -1,8 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
-  excludeMatchContract,
-  excludeMatchParamsSchema,
-  excludeMatchRequestSchema,
+  selectMatchesContract,
+  selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
@@ -19,7 +18,7 @@ import type {
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
-  IndividualTrackerExcludeMatchResponse,
+  IndividualTrackerSelectMatchesResponse,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
@@ -84,22 +83,15 @@ async function statusTrackerDo(env: Env, userId: string, trackerId: string): Pro
   return result.state;
 }
 
-async function excludeMatchDo(
-  env: Env,
-  userId: string,
-  trackerId: string,
-  matchId: string,
-  excluded: boolean,
-): Promise<void> {
+async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchIds: string[]): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
-  const url = `http://do/exclude-match?matchId=${encodeURIComponent(matchId)}`;
-  const response = await stub.fetch(url, {
-    method: "PATCH",
+  const response = await stub.fetch("http://do/select-matches", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ excluded }),
+    body: JSON.stringify({ matchIds }),
   });
   assertDoOk(response);
-  await response.json<IndividualTrackerExcludeMatchResponse>();
+  await response.json<IndividualTrackerSelectMatchesResponse>();
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -375,7 +367,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     }
   });
 
-  router.patch("/api/individual-tracker/manage/:trackerId/matches/:matchId", async (request, env: Env) => {
+  router.put("/api/individual-tracker/manage/:trackerId/matches", async (request, env: Env) => {
     const services = installServices({ env });
     const { authService, individualTrackerService, logService } = services;
 
@@ -385,13 +377,13 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return auth.response;
       }
 
-      const parsedParams = parsePathParams(request.params, excludeMatchParamsSchema, "Invalid tracker or match id");
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
       }
-      const { trackerId, matchId } = parsedParams.data;
+      const { trackerId } = parsedParams.data;
 
-      const parsed = await parseJsonBody(request, excludeMatchRequestSchema, "Invalid exclude match request");
+      const parsed = await parseJsonBody(request, selectMatchesRequestSchema, "Invalid select matches request");
       if (!parsed.success) {
         return parsed.response;
       }
@@ -406,12 +398,12 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         throw error;
       }
 
-      await excludeMatchDo(env, auth.session.userId, tracker.TrackerId, matchId, parsed.data.excluded);
+      await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, parsed.data.matchIds);
 
-      return excludeMatchContract.toResponse({ success: true }, { noStore: true });
+      return selectMatchesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker exclude match error"]]));
-      return errorContract.toResponse({ error: "Failed to update match exclusion" }, { status: 500, noStore: true });
+      logService.error(error as Error, new Map([["message", "Individual tracker select matches error"]]));
+      return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
     }
   });
 };

@@ -83,7 +83,7 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   checkCount: number;
   matchIds: string[];
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
-  excludedMatchIds?: readonly string[];
+  selectedMatchIds?: readonly string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
   errorState: {
@@ -94,11 +94,11 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   };
 }
 
-export interface IndividualTrackerExcludeMatchRequest {
-  excluded: boolean;
+export interface IndividualTrackerSelectMatchesRequest {
+  matchIds: string[];
 }
 
-export interface IndividualTrackerExcludeMatchResponse {
+export interface IndividualTrackerSelectMatchesResponse {
   success: true;
 }
 
@@ -140,7 +140,14 @@ export interface IndividualTrackerViewStateResponse {
   state: IndividualTrackerViewState | null;
 }
 
-export type IndividualTrackerAction = "start" | "pause" | "resume" | "stop" | "status" | "view-state" | "exclude-match";
+export type IndividualTrackerAction =
+  | "start"
+  | "pause"
+  | "resume"
+  | "stop"
+  | "status"
+  | "view-state"
+  | "select-matches";
 
 export interface IndividualTrackerApiMap {
   start: {
@@ -167,9 +174,9 @@ export interface IndividualTrackerApiMap {
     request: never;
     response: IndividualTrackerViewStateResponse;
   };
-  "exclude-match": {
-    request: IndividualTrackerExcludeMatchRequest;
-    response: IndividualTrackerExcludeMatchResponse;
+  "select-matches": {
+    request: IndividualTrackerSelectMatchesRequest;
+    response: IndividualTrackerSelectMatchesResponse;
   };
 }
 

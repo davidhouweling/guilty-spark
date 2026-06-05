@@ -78,9 +78,9 @@ function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
 }
 
 function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: number; lost: number } {
-  const excluded = new Set(state.excludedMatchIds ?? []);
+  const activeIds = new Set(state.selectedMatchIds ?? state.matchIds);
   const summaries = state.matchIds
-    .filter((id) => !excluded.has(id))
+    .filter((id) => activeIds.has(id))
     .map((id) => state.discoveredMatches[id])
     .filter((s): s is IndividualTrackerMatchSummary => s != null)
     .sort((a, b) => compareAsc(new Date(a.startTime), new Date(b.startTime)));
@@ -272,9 +272,9 @@ export function computeTopBarStats(
   esraData?: PlayerEsraData | null,
 ): readonly TopBarStatItem[] {
   const totals = state.accumulatedPlayerTotals;
-  const excluded = new Set(state.excludedMatchIds ?? []);
+  const activeIds = new Set(state.selectedMatchIds ?? state.matchIds);
   const matches = state.matchIds
-    .filter((id) => !excluded.has(id))
+    .filter((id) => activeIds.has(id))
     .map((id) => state.discoveredMatches[id])
     .filter((s): s is IndividualTrackerMatchSummary => s != null);
   const total = matches.length;

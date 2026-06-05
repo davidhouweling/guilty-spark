@@ -131,11 +131,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return { tracker: this.findTracker(trackerId) };
   }
 
-  public async excludeMatch(): Promise<void> {
-    await Promise.resolve();
-  }
-
-  public async includeMatch(): Promise<void> {
+  public async selectMatches(): Promise<void> {
     await Promise.resolve();
   }
 

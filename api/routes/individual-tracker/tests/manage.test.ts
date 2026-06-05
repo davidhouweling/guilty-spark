@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
-  ExcludeMatchResponse,
+  SelectMatchesResponse,
   StopTrackerResponse,
   TrackerResponse,
   TrackersResponse,
@@ -413,7 +413,7 @@ describe("/api/individual-tracker manage routes", () => {
     expect(body.tracker.state?.gamertag).toBe("MyTag");
   });
 
-  it("returns 401 on exclude match when not authenticated", async () => {
+  it("returns 401 on select matches when not authenticated", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
@@ -421,17 +421,17 @@ describe("/api/individual-tracker manage routes", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
-      method: "PATCH",
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ excluded: true }),
+      body: JSON.stringify({ matchIds: ["match-1"] }),
     });
     const res = (await router.fetch(req, env)) as Response;
 
     expect(res.status).toBe(401);
   });
 
-  it("returns 404 on exclude match when the tracker is not owned", async () => {
+  it("returns 404 on select matches when the tracker is not owned", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
@@ -440,17 +440,17 @@ describe("/api/individual-tracker manage routes", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
-      method: "PATCH",
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ excluded: true }),
+      body: JSON.stringify({ matchIds: ["match-1"] }),
     });
     const res = (await router.fetch(req, env)) as Response;
 
     expect(res.status).toBe(404);
   });
 
-  it("calls the DO exclude-match endpoint and returns success", async () => {
+  it("calls the DO select-matches endpoint and returns success", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
@@ -464,19 +464,16 @@ describe("/api/individual-tracker manage routes", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
-      method: "PATCH",
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ excluded: true }),
+      body: JSON.stringify({ matchIds: ["match-1", "match-2"] }),
     });
     const res = (await router.fetch(req, localEnv)) as Response;
 
     expect(res.status).toBe(200);
-    const body = await res.json<ExcludeMatchResponse>();
+    const body = await res.json<SelectMatchesResponse>();
     expect(body.success).toBe(true);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/exclude-match?matchId=match-1"),
-      expect.objectContaining({ method: "PATCH" }),
-    );
+    expect(fetchSpy).toHaveBeenCalledWith("http://do/select-matches", expect.objectContaining({ method: "PUT" }));
   });
 });

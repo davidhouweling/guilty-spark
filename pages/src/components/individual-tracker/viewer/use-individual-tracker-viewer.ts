@@ -20,8 +20,7 @@ export interface IndividualTrackerViewerHookResult {
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;
   readonly onRetry: () => void;
-  readonly onExcludeMatch: (matchId: string) => void;
-  readonly onIncludeMatch: (matchId: string) => void;
+  readonly onSelectMatches: (matchIds: readonly string[]) => void;
 }
 
 export function useIndividualTrackerViewer({
@@ -74,19 +73,12 @@ export function useIndividualTrackerViewer({
     presenter.start();
   }, [presenter]);
 
-  const onExcludeMatch = useCallback(
-    (matchId: string): void => {
-      void presenter.excludeMatch(matchId);
+  const onSelectMatches = useCallback(
+    (matchIds: readonly string[]): void => {
+      void presenter.selectMatches(matchIds);
     },
     [presenter],
   );
 
-  const onIncludeMatch = useCallback(
-    (matchId: string): void => {
-      void presenter.includeMatch(matchId);
-    },
-    [presenter],
-  );
-
-  return { snapshot, model, onSelectMatch, onDeselect, onRetry, onExcludeMatch, onIncludeMatch };
+  return { snapshot, model, onSelectMatch, onDeselect, onRetry, onSelectMatches };
 }

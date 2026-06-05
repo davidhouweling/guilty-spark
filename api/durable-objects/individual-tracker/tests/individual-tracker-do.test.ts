@@ -24,7 +24,7 @@ import type {
   IndividualTrackerResumeResponse,
   IndividualTrackerStatusResponse,
   IndividualTrackerViewStateResponse,
-  IndividualTrackerExcludeMatchResponse,
+  IndividualTrackerSelectMatchesResponse,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -59,13 +59,14 @@ const createMockStartRequest = (
   ...overrides,
 });
 
-const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2): PlayerMatchHistory =>
+const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2, duration = "PT10M"): PlayerMatchHistory =>
   ({
     MatchId: matchId,
     Outcome: outcome,
     MatchInfo: {
       StartTime: startTime,
       EndTime: startTime,
+      Duration: duration,
       GameVariantCategory: 6,
       MapVariant: { AssetId: "map-asset", VersionId: "v1" },
       UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
@@ -568,86 +569,56 @@ describe("IndividualTrackerDO", () => {
     });
   });
 
-  describe("handleExcludeMatch()", () => {
-    const excludeRequest = (matchId: string, excluded: boolean, method = "PATCH"): Request =>
-      new Request(`http://do/exclude-match?matchId=${encodeURIComponent(matchId)}`, {
-        method,
+  describe("handleSelectMatches()", () => {
+    const selectRequest = (matchIds: string[]): Request =>
+      new Request("http://do/select-matches", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ excluded }),
+        body: JSON.stringify({ matchIds }),
       });
-
-    it("returns 400 when matchId query param is missing", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
-
-      const response = await individualTrackerDO.fetch(
-        new Request("http://do/exclude-match", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ excluded: true }),
-        }),
-      );
-
-      expect(response.status).toBe(400);
-    });
 
     it("returns 404 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
-      const response = await individualTrackerDO.fetch(excludeRequest("match-1", true));
+      const response = await individualTrackerDO.fetch(selectRequest(["match-1"]));
 
       expect(response.status).toBe(404);
     });
 
-    it("adds a matchId to excludedMatchIds when excluded is true", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1"] }));
+    it("sets selectedMatchIds from the request body and returns success", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1", "match-2"] }));
 
-      const response = await individualTrackerDO.fetch(excludeRequest("match-1", true));
+      const response = await individualTrackerDO.fetch(selectRequest(["match-2"]));
 
       expect(response.status).toBe(200);
-      const body: IndividualTrackerExcludeMatchResponse = await response.json();
+      const body: IndividualTrackerSelectMatchesResponse = await response.json();
       expect(body.success).toBe(true);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
-        expect.objectContaining({ excludedMatchIds: ["match-1"] }),
+        expect.objectContaining({ selectedMatchIds: ["match-2"] }),
       );
     });
 
-    it("does not add a duplicate when matchId is already excluded", async () => {
+    it("replaces an existing selectedMatchIds with the new list", async () => {
       storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1"], excludedMatchIds: ["match-1"] }),
+        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2", "m3"], selectedMatchIds: ["m1", "m2"] }),
       );
 
-      await individualTrackerDO.fetch(excludeRequest("match-1", true));
+      await individualTrackerDO.fetch(selectRequest(["m2", "m3"]));
 
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
-        expect.objectContaining({ excludedMatchIds: ["match-1"] }),
-      );
-    });
-
-    it("removes a matchId from excludedMatchIds when excluded is false", async () => {
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({
-          matchIds: ["match-1", "match-2"],
-          excludedMatchIds: ["match-1"],
-        }),
-      );
-
-      await individualTrackerDO.fetch(excludeRequest("match-1", false));
-
-      expect(storagePutSpy).toHaveBeenCalledWith(
-        "individualTrackerState",
-        expect.objectContaining({ excludedMatchIds: [] }),
+        expect.objectContaining({ selectedMatchIds: ["m2", "m3"] }),
       );
     });
   });
 
-  describe("toViewState() exclusion filtering", () => {
-    it("omits excluded matches from the view-state matches array", async () => {
+  describe("toViewState() selection filtering", () => {
+    it("shows only selectedMatchIds matches when selectedMatchIds is set", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
-          excludedMatchIds: ["m1"],
+          selectedMatchIds: ["m2"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
             m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
@@ -661,11 +632,28 @@ describe("IndividualTrackerDO", () => {
       expect(body.state?.matches.map((m) => m.matchId)).toEqual(["m2"]);
     });
 
-    it("omits excluded matches from series groupings in view-state", async () => {
+    it("shows all matches when selectedMatchIds is undefined", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
-          excludedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.matches.map((m) => m.matchId)).toEqual(["m1", "m2"]);
+    });
+
+    it("filters series groupings to selectedMatchIds", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m2"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
@@ -748,6 +736,67 @@ describe("IndividualTrackerDO", () => {
         score: "50:42",
       });
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
+    });
+
+    it("auto-appends a new match to selectedMatchIds when selectedMatchIds is set and duration >= 120s", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([
+        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M"),
+      ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["match-existing"],
+          discoveredMatches: {
+            "match-existing": aFakeIndividualTrackerMatchSummaryWith({ matchId: "match-existing" }),
+          },
+          selectedMatchIds: ["match-existing"],
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.selectedMatchIds).toEqual(["match-existing", "match-new"]);
+    });
+
+    it("does not append a new match to selectedMatchIds when duration < 120s", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([
+        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT1M"),
+      ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["match-existing"],
+          discoveredMatches: {
+            "match-existing": aFakeIndividualTrackerMatchSummaryWith({ matchId: "match-existing" }),
+          },
+          selectedMatchIds: ["match-existing"],
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.selectedMatchIds).toEqual(["match-existing"]);
+    });
+
+    it("does not touch selectedMatchIds when it is undefined", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.selectedMatchIds).toBeUndefined();
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
