@@ -73,7 +73,7 @@ export function IndividualTrackerOverlay({
 
   const teamColors = useMemo(() => [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)], []);
 
-  const activeSeries = getActiveSeries(renderModel.timeline);
+  const activeSeries = useMemo(() => getActiveSeries(renderModel.timeline), [renderModel.timeline]);
 
   const topSection = useMemo(
     () =>
