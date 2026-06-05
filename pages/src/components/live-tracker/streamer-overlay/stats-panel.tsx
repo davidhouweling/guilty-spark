@@ -1,5 +1,4 @@
 import React, { memo } from "react";
-import { CSSTransition } from "react-transition-group";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { MatchStats as MatchStatsView } from "../../stats/match-stats";
@@ -8,12 +7,8 @@ import type { MatchStatsData } from "../../stats/types";
 import type { SeriesMetadata } from "../../stats/series-metadata";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
-import styles from "./streamer-overlay.module.css";
 
-interface StatsPanelProps {
-  readonly isPanelOpen: boolean;
-  readonly nodeRef: React.RefObject<HTMLDivElement | null>;
-  readonly onClosePanel: () => void;
+interface StatsPanelContentProps {
   readonly selectedTab: number;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
@@ -29,10 +24,7 @@ interface StatsPanelProps {
   readonly gameModeIconUrl: (gameMode: string) => string;
 }
 
-function StatsPanelComponent({
-  isPanelOpen,
-  nodeRef,
-  onClosePanel,
+function StatsPanelContentComponent({
   selectedTab,
   teams,
   playersAssociationData,
@@ -42,66 +34,49 @@ function StatsPanelComponent({
   selectedMatch,
   teamColors,
   gameModeIconUrl,
-}: StatsPanelProps): React.ReactElement {
-  return (
-    <CSSTransition
-      in={isPanelOpen}
-      timeout={300}
-      classNames={{
-        enter: styles.panelEnter,
-        enterActive: styles.panelEnterActive,
-        exit: styles.panelExit,
-        exitActive: styles.panelExitActive,
-      }}
-      nodeRef={nodeRef}
-      unmountOnExit
-    >
-      <div ref={nodeRef} className={styles.statsPanel} onClick={onClosePanel}>
-        <div
-          className={styles.statsPanelContent}
-          onClick={(e): void => {
-            e.stopPropagation();
-          }}
-        >
-          <button type="button" className={styles.closeButton} onClick={onClosePanel}>
-            ✕
-          </button>
-          {selectedTab === -1 && matchesLength === 0 && playersAssociationData != null ? (
-            <PlayerPreSeriesInfo
-              teams={teams}
-              playersAssociationData={playersAssociationData}
-              teamColors={teamColors}
-            />
-          ) : null}
-          {selectedTab === -1 && seriesStats != null && matchesLength > 0 ? (
-            <SeriesStats
-              teamData={seriesStats.teamData}
-              playerData={seriesStats.playerData}
-              title="Series Totals"
-              metadata={seriesStats.metadata}
-              teamColors={teamColors}
-            />
-          ) : null}
-          {selectedTab >= 0 && selectedMatchStats != null && selectedMatch != null ? (
-            <MatchStatsView
-              data={selectedMatchStats}
-              id={selectedMatch.matchId}
-              backgroundImageUrl={selectedMatch.gameMapThumbnailUrl}
-              gameModeIconUrl={gameModeIconUrl(selectedMatch.gameType)}
-              gameModeAlt={selectedMatch.gameType}
-              matchNumber={selectedTab + 1}
-              gameTypeAndMap={selectedMatch.gameTypeAndMap}
-              duration={selectedMatch.duration}
-              score={selectedMatch.gameScore}
-              startTime={selectedMatch.startTime}
-              endTime={selectedMatch.endTime}
-              teamColors={teamColors}
-            />
-          ) : null}
-        </div>
-      </div>
-    </CSSTransition>
-  );
+}: StatsPanelContentProps): React.ReactElement | null {
+  if (selectedTab === -1 && matchesLength === 0 && playersAssociationData != null) {
+    return (
+      <PlayerPreSeriesInfo
+        teams={teams}
+        playersAssociationData={playersAssociationData}
+        teamColors={teamColors}
+      />
+    );
+  }
+
+  if (selectedTab === -1 && seriesStats != null && matchesLength > 0) {
+    return (
+      <SeriesStats
+        teamData={seriesStats.teamData}
+        playerData={seriesStats.playerData}
+        title="Series Totals"
+        metadata={seriesStats.metadata}
+        teamColors={teamColors}
+      />
+    );
+  }
+
+  if (selectedTab >= 0 && selectedMatchStats != null && selectedMatch != null) {
+    return (
+      <MatchStatsView
+        data={selectedMatchStats}
+        id={selectedMatch.matchId}
+        backgroundImageUrl={selectedMatch.gameMapThumbnailUrl}
+        gameModeIconUrl={gameModeIconUrl(selectedMatch.gameType)}
+        gameModeAlt={selectedMatch.gameType}
+        matchNumber={selectedTab + 1}
+        gameTypeAndMap={selectedMatch.gameTypeAndMap}
+        duration={selectedMatch.duration}
+        score={selectedMatch.gameScore}
+        startTime={selectedMatch.startTime}
+        endTime={selectedMatch.endTime}
+        teamColors={teamColors}
+      />
+    );
+  }
+
+  return null;
 }
 
-export const StatsPanel = memo(StatsPanelComponent);
+export const StatsPanelContent = memo(StatsPanelContentComponent);

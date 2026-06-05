@@ -5,7 +5,7 @@ import type { TickerMatchGroup } from "../../information-ticker/information-tick
 import { createMatchStatsPresenter } from "../../stats/create";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
-import { TabsBar } from "../viewer/viewer-tabs";
+import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import { StatsPanel } from "../viewer/stats-panel";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "../viewer/viewer-store";
@@ -65,7 +65,6 @@ export function IndividualTrackerOverlay({
   renderModel,
   matchStatsState,
   selectedMatchId,
-  onSelectMatch,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
   const isPanelOpen =
@@ -92,23 +91,35 @@ export function IndividualTrackerOverlay({
 
   const tickerMatchGroups = useMemo(() => buildTickerGroups(matchStatsState), [matchStatsState]);
 
-  const renderPanelContent = useCallback((): React.ReactElement | null => {
-    if (matchStatsState == null) {
-      return null;
-    }
-    return <StatsPanel state={matchStatsState} />;
-  }, [matchStatsState]);
+  const tabs = useMemo((): readonly OverlayTab[] => {
+    let matchIdx = 0;
+    return renderModel.timeline.map((item): OverlayTab => {
+      if (item.type === "series") {
+        return {
+          type: "series",
+          index: -1,
+          label: item.series.title,
+          score: item.series.score,
+          teamColor: undefined,
+        };
+      }
+      return {
+        type: "match",
+        index: matchIdx++,
+        matchId: item.match.matchId,
+        label: item.match.mapName,
+        score: item.match.score,
+        icon: "",
+        teamColor: item.match.colorHex,
+      };
+    });
+  }, [renderModel.timeline]);
 
-  const tabsBarSlot = useMemo(
-    () => (
-      <TabsBar
-        timeline={renderModel.timeline}
-        selectedMatchId={selectedMatchId}
-        onSelectMatch={onSelectMatch}
-        onDeselect={onDeselect}
-      />
-    ),
-    [renderModel.timeline, selectedMatchId, onSelectMatch, onDeselect],
+  const hasPanelContent = useCallback((_tabIndex: number): boolean => false, []);
+
+  const renderPanelContent = useCallback(
+    (_tabIndex: number): React.ReactElement | null => <StatsPanel state={matchStatsState} />,
+    [matchStatsState],
   );
 
   return (
@@ -125,7 +136,7 @@ export function IndividualTrackerOverlay({
         topSection={topSection}
         pinTopSection={activeSeries != null}
         teamColors={teamColors}
-        tabsBarSlot={tabsBarSlot}
+        tabs={tabs}
         tickerMatchGroups={tickerMatchGroups}
         showTabs={renderModel.timeline.length > 0}
         showTicker={true}
@@ -135,9 +146,10 @@ export function IndividualTrackerOverlay({
         previewMode="observer"
         fontSizeStyles={{}}
         settingsUi={null}
+        hasPanelContent={hasPanelContent}
+        renderPanelContent={renderPanelContent}
         panelOpen={isPanelOpen}
         onClosePanel={onDeselect}
-        renderPanelContent={renderPanelContent}
       />
     </div>
   );

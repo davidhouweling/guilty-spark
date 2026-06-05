@@ -2,19 +2,19 @@ import React, { memo } from "react";
 import { CSSTransition } from "react-transition-group";
 import styles from "./streamer-overlay.module.css";
 
-interface OverlayStatsPanelProps {
+interface StatsPanelProps {
   readonly isPanelOpen: boolean;
   readonly nodeRef: React.RefObject<HTMLDivElement | null>;
   readonly onClosePanel: () => void;
   readonly panelContent: React.ReactElement | null;
 }
 
-function OverlayStatsPanelComponent({
+function StatsPanelComponent({
   isPanelOpen,
   nodeRef,
   onClosePanel,
   panelContent,
-}: OverlayStatsPanelProps): React.ReactElement {
+}: StatsPanelProps): React.ReactElement {
   return (
     <CSSTransition
       in={isPanelOpen}
@@ -45,4 +45,4 @@ function OverlayStatsPanelComponent({
   );
 }
 
-export const OverlayStatsPanel = memo(OverlayStatsPanelComponent);
+export const StatsPanel = memo(StatsPanelComponent);

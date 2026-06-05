@@ -2,15 +2,16 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
+import type { OverlayTab } from "./tabs-bar";
 import { BottomSection } from "./bottom-section";
-import { OverlayStatsPanel } from "./overlay-stats-panel";
+import { StatsPanel } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
 
 export interface StreamerOverlayProps {
   readonly topSection: React.ReactNode;
   readonly pinTopSection?: boolean;
   readonly teamColors: TeamColor[];
-  readonly tabsBarSlot: React.ReactNode;
+  readonly tabs: readonly OverlayTab[];
   readonly tickerMatchGroups: readonly TickerMatchGroup[];
   readonly showTabs: boolean;
   readonly showTicker: boolean;
@@ -20,8 +21,10 @@ export interface StreamerOverlayProps {
   readonly previewMode: "player" | "observer";
   readonly fontSizeStyles: React.CSSProperties;
   readonly settingsUi: React.ReactNode;
+  readonly hasPanelContent: (tabIndex: number) => boolean;
+  readonly renderPanelContent: (tabIndex: number) => React.ReactElement | null;
+  // Optional external overrides — used when panel state is driven by props rather than tab clicks.
   readonly panelOpen?: boolean;
-  readonly renderPanelContent: () => React.ReactElement | null;
   readonly onClosePanel?: () => void;
 }
 
@@ -29,7 +32,7 @@ export function StreamerOverlay({
   topSection,
   pinTopSection = false,
   teamColors,
-  tabsBarSlot,
+  tabs,
   tickerMatchGroups,
   showTabs,
   showTicker,
@@ -39,16 +42,18 @@ export function StreamerOverlay({
   previewMode,
   fontSizeStyles,
   settingsUi,
-  panelOpen,
+  hasPanelContent,
   renderPanelContent,
+  panelOpen,
   onClosePanel,
 }: StreamerOverlayProps): React.ReactElement {
+  const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
   const [internalIsPanelOpen, setInternalIsPanelOpen] = useState(false);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [previousMatchCount, setPreviousMatchCount] = useState(0);
-  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
-  const isPanelOpen = panelOpen ?? internalIsPanelOpen;
+  const isPanelOpen = panelOpen !== undefined ? panelOpen : internalIsPanelOpen;
 
   const handleScrollComplete = (): void => {
     if (tickerMatchGroups.length === 0) {
@@ -83,19 +88,33 @@ export function StreamerOverlay({
     setPreviousMatchCount(currentMatchCount);
   }, [matchesLength, showTicker, tickerMatchGroups, previousMatchCount]);
 
+  const handleTabClick = useCallback(
+    (tabIndex: number): void => {
+      if (!hasPanelContent(tabIndex)) {
+        return;
+      }
+
+      const openPanel = selectedTab === tabIndex ? !internalIsPanelOpen : true;
+      setSelectedTab(tabIndex);
+      setInternalIsPanelOpen(openPanel);
+    },
+    [hasPanelContent, internalIsPanelOpen, selectedTab],
+  );
+
   const handleClosePanel = useCallback((): void => {
-    if (onClosePanel !== undefined) {
-      onClosePanel();
-    } else {
-      setInternalIsPanelOpen(false);
-    }
+    setInternalIsPanelOpen(false);
+    onClosePanel?.();
   }, [onClosePanel]);
 
   const hasTickerGroups = tickerMatchGroups.length > 0;
   const currentMatchGroup = hasTickerGroups
     ? tickerMatchGroups[currentMatchIndex % tickerMatchGroups.length]
     : undefined;
-  const panelContent = useMemo<React.ReactElement | null>(() => renderPanelContent(), [renderPanelContent]);
+  const activeTabIndex = showTicker && hasTickerGroups ? currentMatchGroup?.matchIndex : undefined;
+  const panelContent = useMemo<React.ReactElement | null>(
+    () => renderPanelContent(selectedTab),
+    [renderPanelContent, selectedTab],
+  );
 
   return (
     <div
@@ -116,11 +135,15 @@ export function StreamerOverlay({
         matchesLength={matchesLength}
         currentMatchGroup={currentMatchGroup}
         teamColors={teamColors}
-        tabsBarSlot={tabsBarSlot}
+        tabs={tabs}
+        activeTabIndex={activeTabIndex}
+        selectedTab={selectedTab}
+        isPanelOpen={isPanelOpen}
+        onTabClick={handleTabClick}
         onScrollComplete={handleScrollComplete}
       />
 
-      <OverlayStatsPanel
+      <StatsPanel
         isPanelOpen={isPanelOpen}
         nodeRef={nodeRef}
         onClosePanel={handleClosePanel}
