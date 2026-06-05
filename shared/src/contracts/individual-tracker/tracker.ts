@@ -52,3 +52,17 @@ export type TrackersResponse = z.infer<typeof trackersContract.schema>;
 
 export const stopTrackerContract = defineContract(z.object({ success: z.literal(true) }));
 export type StopTrackerResponse = z.infer<typeof stopTrackerContract.schema>;
+
+export const excludeMatchParamsSchema = z.object({
+  trackerId: z.string().min(1),
+  matchId: z.string().min(1),
+});
+export type ExcludeMatchParams = z.infer<typeof excludeMatchParamsSchema>;
+
+export const excludeMatchRequestSchema = z.object({
+  excluded: z.boolean(),
+});
+export type ExcludeMatchRequest = z.infer<typeof excludeMatchRequestSchema>;
+
+export const excludeMatchContract = defineContract(z.object({ success: z.literal(true) }));
+export type ExcludeMatchResponse = z.infer<typeof excludeMatchContract.schema>;

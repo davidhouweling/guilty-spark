@@ -1,4 +1,7 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -9,6 +12,7 @@ import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } fr
 import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface Config {
+  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
@@ -60,6 +64,14 @@ export class IndividualTrackerViewerPresenter {
     this.config.store.setSelectedMatchId(null);
   }
 
+  public async excludeMatch(matchId: string): Promise<void> {
+    await this.config.individualTrackerService?.excludeMatch(this.config.trackerId, matchId);
+  }
+
+  public async includeMatch(matchId: string): Promise<void> {
+    await this.config.individualTrackerService?.includeMatch(this.config.trackerId, matchId);
+  }
+
   private isStale(matchId: string): boolean {
     return this.isDisposed || this.selectedMatchId !== matchId;
   }
@@ -70,7 +82,24 @@ export class IndividualTrackerViewerPresenter {
       if (this.isStale(matchId)) {
         return;
       }
-      this.config.store.setMatchStats(matchId, stats);
+      const xuids = stats.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
+      const [users, medalsMetadataFile] = await Promise.all([
+        this.config.haloClient.getUsers(xuids),
+        this.config.haloClient.getMedalsMetadataFile(),
+      ]);
+      if (this.isStale(matchId)) {
+        return;
+      }
+      const playerMap = new Map(users.map((u) => [u.xuid, u.gamertag]));
+      for (const xuid of xuids) {
+        if (!playerMap.has(xuid)) {
+          playerMap.set(xuid, xuid);
+        }
+      }
+      const medalMetadata: MedalMetadata = Object.fromEntries(
+        medalsMetadataFile.medals.map((m) => [m.nameId, { name: m.name.value, sortingWeight: m.sortingWeight }]),
+      );
+      this.config.store.setMatchStats(matchId, stats, playerMap, medalMetadata);
     } catch (error) {
       if (this.isStale(matchId)) {
         return;

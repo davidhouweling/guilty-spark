@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
+  ExcludeMatchResponse,
   StopTrackerResponse,
   TrackerResponse,
   TrackersResponse,
@@ -410,5 +411,72 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<TrackerResponse>();
     expect(body.tracker.trackerId).toBe("t1");
     expect(body.tracker.state?.gamertag).toBe("MyTag");
+  });
+
+  it("returns 401 on exclude match when not authenticated", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excluded: true }),
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 on exclude match when the tracker is not owned", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockRejectedValue(new TrackerNotFoundError());
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excluded: true }),
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(404);
+  });
+
+  it("calls the DO exclude-match endpoint and returns success", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches/match-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excluded: true }),
+    });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<ExcludeMatchResponse>();
+    expect(body.success).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/exclude-match?matchId=match-1"),
+      expect.objectContaining({ method: "PATCH" }),
+    );
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
 import type { IndividualTrackerViewerSnapshot } from "./viewer-store";
@@ -7,6 +8,7 @@ import { IndividualTrackerViewerStore } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface UseIndividualTrackerViewerOpts {
+  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
@@ -18,9 +20,12 @@ export interface IndividualTrackerViewerHookResult {
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;
   readonly onRetry: () => void;
+  readonly onExcludeMatch: (matchId: string) => void;
+  readonly onIncludeMatch: (matchId: string) => void;
 }
 
 export function useIndividualTrackerViewer({
+  individualTrackerService,
   individualTrackerViewService,
   haloClient,
   trackerId,
@@ -28,8 +33,15 @@ export function useIndividualTrackerViewer({
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
 
   const presenter = useMemo(
-    () => new IndividualTrackerViewerPresenter({ individualTrackerViewService, haloClient, store, trackerId }),
-    [individualTrackerViewService, haloClient, store, trackerId],
+    () =>
+      new IndividualTrackerViewerPresenter({
+        individualTrackerService,
+        individualTrackerViewService,
+        haloClient,
+        store,
+        trackerId,
+      }),
+    [individualTrackerService, individualTrackerViewService, haloClient, store, trackerId],
   );
 
   useEffect(() => {
@@ -62,5 +74,19 @@ export function useIndividualTrackerViewer({
     presenter.start();
   }, [presenter]);
 
-  return { snapshot, model, onSelectMatch, onDeselect, onRetry };
+  const onExcludeMatch = useCallback(
+    (matchId: string): void => {
+      void presenter.excludeMatch(matchId);
+    },
+    [presenter],
+  );
+
+  const onIncludeMatch = useCallback(
+    (matchId: string): void => {
+      void presenter.includeMatch(matchId);
+    },
+    [presenter],
+  );
+
+  return { snapshot, model, onSelectMatch, onDeselect, onRetry, onExcludeMatch, onIncludeMatch };
 }

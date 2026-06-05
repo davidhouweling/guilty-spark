@@ -34,6 +34,8 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
+  IndividualTrackerExcludeMatchRequest,
+  IndividualTrackerExcludeMatchResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats } from "./top-bar-stats";
@@ -105,6 +107,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "view-state": {
             return await this.handleViewState(request);
+          }
+          case "exclude-match": {
+            return await this.handleExcludeMatch(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -472,6 +477,33 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
+  private async handleExcludeMatch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const matchId = url.searchParams.get("matchId");
+    if (matchId == null || matchId === "") {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const body = await request.json<IndividualTrackerExcludeMatchRequest>();
+    const existing = trackerState.excludedMatchIds ?? [];
+    if (body.excluded) {
+      trackerState.excludedMatchIds = existing.includes(matchId) ? existing : [...existing, matchId];
+    } else {
+      trackerState.excludedMatchIds = existing.filter((id) => id !== matchId);
+    }
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerExcludeMatchResponse = { success: true };
+    return Response.json(response);
+  }
+
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     const response: IndividualTrackerStatusResponse = {
@@ -526,7 +558,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
         (s) => s.teamRosterSignature != null,
       ).length;
-      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+      const excludedKey = (state.excludedMatchIds ?? []).slice().sort().join(",");
+      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${excludedKey}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
         return this.cachedTopBarStats;
@@ -583,7 +616,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private toViewState(state: IndividualTrackerInternalState): IndividualTrackerViewState {
+    const excluded = new Set(state.excludedMatchIds ?? []);
     const summaries = state.matchIds
+      .filter((matchId) => !excluded.has(matchId))
       .map((matchId) => state.discoveredMatches[matchId])
       .filter((match): match is IndividualTrackerMatchSummary => match != null)
       .sort((left, right) => compareAsc(new Date(left.startTime), new Date(right.startTime)));

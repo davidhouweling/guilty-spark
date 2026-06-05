@@ -9,6 +9,7 @@ import {
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { FakeIndividualTrackerViewService } from "../../../../services/individual-tracker/fakes/view.fake";
+import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
@@ -16,7 +17,7 @@ import { IndividualTrackerViewerStore } from "../viewer-store";
 
 interface Harness {
   readonly service: FakeIndividualTrackerViewService;
-  readonly haloClient: Mocked<Pick<HaloInfiniteClient, "getMatchStats">>;
+  readonly haloClient: Mocked<Pick<HaloInfiniteClient, "getMatchStats" | "getUsers" | "getMedalsMetadataFile">>;
   readonly store: IndividualTrackerViewerStore;
   readonly presenter: IndividualTrackerViewerPresenter;
 }
@@ -25,8 +26,13 @@ function aHarness(service: FakeIndividualTrackerViewService): Harness {
   const store = new IndividualTrackerViewerStore();
   const haloClient = {
     getMatchStats: vi.fn<HaloInfiniteClient["getMatchStats"]>().mockResolvedValue(aFakeMatchStatsWith()),
+    getUsers: vi.fn<HaloInfiniteClient["getUsers"]>().mockResolvedValue([]),
+    getMedalsMetadataFile: vi
+      .fn<HaloInfiniteClient["getMedalsMetadataFile"]>()
+      .mockResolvedValue({ difficulties: [], types: [], sprites: {}, medals: [] }),
   };
   const presenter = new IndividualTrackerViewerPresenter({
+    individualTrackerService: aFakeIndividualTrackerServiceWith(),
     individualTrackerViewService: service,
     haloClient: aFakeHaloClientWith(haloClient),
     store,
@@ -119,7 +125,6 @@ describe("IndividualTrackerViewerPresenter", () => {
 
   describe("selectMatch", () => {
     it("sets selectedMatchId in the store and transitions matchStatsState to loaded", async () => {
-      expect.assertions(4);
       const fakeStats = aFakeMatchStatsWith({ MatchId: "m-99" });
       const service = aFakeIndividualTrackerViewServiceWith();
       const { haloClient, store, presenter } = aHarness(service);
@@ -130,13 +135,14 @@ describe("IndividualTrackerViewerPresenter", () => {
       expect(store.getSnapshot().selectedMatchId).toBe("m-99");
       expect(store.getSnapshot().matchStatsState?.status).toBe("loading");
 
-      await vi.waitFor(() => store.getSnapshot().matchStatsState?.status === "loaded");
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().matchStatsState?.status).toBe("loaded");
+      });
 
       const statsState = store.getSnapshot().matchStatsState;
       if (statsState?.status === "loaded") {
         expect(statsState.stats.MatchId).toBe("m-99");
       }
-      expect(store.getSnapshot().matchStatsState?.status).toBe("loaded");
     });
 
     it("discards a stale result when the match is deselected before the response arrives", async () => {
@@ -160,7 +166,6 @@ describe("IndividualTrackerViewerPresenter", () => {
     });
 
     it("discards a superseded result when a second selectMatch fires before the first resolves", async () => {
-      expect.assertions(2);
       const service = aFakeIndividualTrackerViewServiceWith();
       let resolveA!: (stats: Awaited<ReturnType<HaloInfiniteClient["getMatchStats"]>>) => void;
       const { haloClient, store, presenter } = aHarness(service);
@@ -178,7 +183,9 @@ describe("IndividualTrackerViewerPresenter", () => {
       presenter.selectMatch("m-A");
       presenter.selectMatch("m-B");
 
-      await vi.waitFor(() => store.getSnapshot().matchStatsState?.status === "loaded");
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().matchStatsState?.status).toBe("loaded");
+      });
 
       resolveA(statsA);
       await Promise.resolve();

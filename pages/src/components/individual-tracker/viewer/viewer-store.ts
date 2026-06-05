@@ -1,11 +1,17 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { TrackerLiveView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 
 export type MatchStatsState =
   | { readonly status: "loading" }
-  | { readonly status: "loaded"; readonly stats: MatchStats }
+  | {
+      readonly status: "loaded";
+      readonly stats: MatchStats;
+      readonly playerMap: Map<string, string>;
+      readonly medalMetadata: MedalMetadata;
+    }
   | { readonly status: "error"; readonly message: string };
 
 export interface IndividualTrackerViewerSnapshot {
@@ -70,11 +76,16 @@ export class IndividualTrackerViewerStore {
     this.update({ selectedMatchId: id, matchStatsState: id != null ? { status: "loading" } : null });
   }
 
-  public setMatchStats(matchId: string, stats: MatchStats): void {
+  public setMatchStats(
+    matchId: string,
+    stats: MatchStats,
+    playerMap: Map<string, string>,
+    medalMetadata: MedalMetadata,
+  ): void {
     if (this.snapshot.selectedMatchId !== matchId) {
       return;
     }
-    this.update({ matchStatsState: { status: "loaded", stats } });
+    this.update({ matchStatsState: { status: "loaded", stats, playerMap, medalMetadata } });
   }
 
   public setMatchStatsError(matchId: string, message: string): void {

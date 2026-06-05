@@ -10,6 +10,7 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
+  excludeMatchContract,
   stopTrackerContract,
   trackerContract,
   trackersContract,
@@ -186,5 +187,45 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     return trackerContract.fromResponse(response);
+  }
+
+  public async excludeMatch(trackerId: string, matchId: string): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(
+        `/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/matches/${encodeURIComponent(matchId)}`,
+      ),
+      {
+        credentials: "include",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded: true }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    await excludeMatchContract.fromResponse(response);
+  }
+
+  public async includeMatch(trackerId: string, matchId: string): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(
+        `/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/matches/${encodeURIComponent(matchId)}`,
+      ),
+      {
+        credentials: "include",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded: false }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    await excludeMatchContract.fromResponse(response);
   }
 }

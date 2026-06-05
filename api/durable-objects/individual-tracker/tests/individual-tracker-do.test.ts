@@ -24,6 +24,7 @@ import type {
   IndividualTrackerResumeResponse,
   IndividualTrackerStatusResponse,
   IndividualTrackerViewStateResponse,
+  IndividualTrackerExcludeMatchResponse,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -564,6 +565,127 @@ describe("IndividualTrackerDO", () => {
       const body: IndividualTrackerViewStateResponse = await response.json();
 
       expect(body.state?.series).toEqual([]);
+    });
+  });
+
+  describe("handleExcludeMatch()", () => {
+    const excludeRequest = (matchId: string, excluded: boolean, method = "PATCH"): Request =>
+      new Request(`http://do/exclude-match?matchId=${encodeURIComponent(matchId)}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded }),
+      });
+
+    it("returns 400 when matchId query param is missing", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/exclude-match", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ excluded: true }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 404 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(excludeRequest("match-1", true));
+
+      expect(response.status).toBe(404);
+    });
+
+    it("adds a matchId to excludedMatchIds when excluded is true", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1"] }));
+
+      const response = await individualTrackerDO.fetch(excludeRequest("match-1", true));
+
+      expect(response.status).toBe(200);
+      const body: IndividualTrackerExcludeMatchResponse = await response.json();
+      expect(body.success).toBe(true);
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ excludedMatchIds: ["match-1"] }),
+      );
+    });
+
+    it("does not add a duplicate when matchId is already excluded", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1"], excludedMatchIds: ["match-1"] }),
+      );
+
+      await individualTrackerDO.fetch(excludeRequest("match-1", true));
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ excludedMatchIds: ["match-1"] }),
+      );
+    });
+
+    it("removes a matchId from excludedMatchIds when excluded is false", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["match-1", "match-2"],
+          excludedMatchIds: ["match-1"],
+        }),
+      );
+
+      await individualTrackerDO.fetch(excludeRequest("match-1", false));
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ excludedMatchIds: [] }),
+      );
+    });
+  });
+
+  describe("toViewState() exclusion filtering", () => {
+    it("omits excluded matches from the view-state matches array", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          excludedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.matches.map((m) => m.matchId)).toEqual(["m2"]);
+    });
+
+    it("omits excluded matches from series groupings in view-state", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          excludedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.matches).toHaveLength(1);
+      expect(body.state?.matches[0]?.matchId).toBe("m2");
     });
   });
 
