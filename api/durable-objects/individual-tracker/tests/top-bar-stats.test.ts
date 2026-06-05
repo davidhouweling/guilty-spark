@@ -481,6 +481,22 @@ describe("topBarStats", () => {
       expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "–" });
     });
 
+    it("returns – for CSR slots when Value is 0 (placement/unranked sentinel)", async () => {
+      const unrankedCsr = { ...fakeCsr, Value: 0, Tier: "", MeasurementMatchesRemaining: 3 };
+      vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(
+        new Map([[trackedXuid, { Current: unrankedCsr, SeasonMax: unrankedCsr, AllTimeMax: unrankedCsr }]]),
+      );
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["current-rank", "season-peak", "all-time-peak"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "–" });
+      expect(body.state?.topBarStats?.[1]).toEqual({ label: "Season Peak", value: "–" });
+      expect(body.state?.topBarStats?.[2]).toEqual({ label: "All Time Peak", value: "–" });
+    });
+
     it("does not call getRankedArenaCsrs or getPlayerEsra when those slots are not requested", async () => {
       const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs");
       const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra");
