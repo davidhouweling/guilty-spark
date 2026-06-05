@@ -1,0 +1,9 @@
+---
+import Layout from "../../layouts/layout.astro";
+import { API_HOST } from "../../constants";
+import { IndividualTrackerManagerApp } from "../../apps/individual-tracker-manager/create";
+---
+
+<Layout title="Trackers - Guilty Spark" description="Manage your individual live trackers">
+  <IndividualTrackerManagerApp client:load apiHost={API_HOST} />
+</Layout>

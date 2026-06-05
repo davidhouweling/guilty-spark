@@ -160,6 +160,17 @@ export class FakeIndividualTrackerViewService implements IndividualTrackerViewSe
     this.lastConnection = connection;
     return connection;
   }
+
+  public async getViewByXuid(): Promise<TrackerViewResponse> {
+    await Promise.resolve();
+    return { view: this.view };
+  }
+
+  public connectByXuid(): TrackerViewConnection {
+    const connection = new FakeTrackerViewConnection();
+    this.lastConnection = connection;
+    return connection;
+  }
 }
 
 export interface FakeIndividualTrackerViewServiceFactoryOpts {

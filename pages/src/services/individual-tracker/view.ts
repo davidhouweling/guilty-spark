@@ -51,9 +51,29 @@ export class RealIndividualTrackerViewService implements IndividualTrackerViewSe
   }
 
   public connect(trackerId: string): TrackerViewConnection {
+    return this.openWebSocket(`/api/individual-tracker/${encodeURIComponent(trackerId)}/ws`);
+  }
+
+  public async getViewByXuid(xuid: string): Promise<TrackerViewResponse> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/xuid/${encodeURIComponent(xuid)}/view`), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    return trackerViewContract.fromResponse(response);
+  }
+
+  public connectByXuid(xuid: string): TrackerViewConnection {
+    return this.openWebSocket(`/api/individual-tracker/xuid/${encodeURIComponent(xuid)}/ws`);
+  }
+
+  private openWebSocket(path: string): TrackerViewConnection {
     const apiUrl = new URL(this.apiHost);
     const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${apiUrl.host}/api/individual-tracker/${encodeURIComponent(trackerId)}/ws`;
+    const wsUrl = `${protocol}//${apiUrl.host}${path}`;
 
     const ws = new WebSocket(wsUrl);
     const connection = new RealTrackerViewConnection(ws);

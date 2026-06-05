@@ -25,4 +25,6 @@ export interface TrackerViewConnection {
 export interface IndividualTrackerViewService {
   getView(trackerId: string): Promise<TrackerViewResponse>;
   connect(trackerId: string): TrackerViewConnection;
+  getViewByXuid(xuid: string): Promise<TrackerViewResponse>;
+  connectByXuid(xuid: string): TrackerViewConnection;
 }
