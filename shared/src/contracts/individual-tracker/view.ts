@@ -37,9 +37,16 @@ export const trackerLiveViewSchema = z.object({
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 
+export const topBarStatItemSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+export type TopBarStatItem = z.infer<typeof topBarStatItemSchema>;
+
 export const trackerViewStateSchema = trackerLiveViewSchema.extend({
   isLive: z.boolean(),
   streamerSettings: streamerViewSettingsSchema.optional(),
+  topBarStats: z.array(topBarStatItemSchema).optional(),
 });
 export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
 

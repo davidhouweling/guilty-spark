@@ -2,18 +2,25 @@ import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, type MatchStats, MatchType, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
   getMatchOutcomeLabel,
 } from "@guilty-spark/shared/halo/match-enrichment";
+import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import {
   buildSeriesGroupKey,
   getDefaultSeriesGroupSubtitle,
   getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import {
+  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS,
+  type IndividualTopBarStatOption,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -21,6 +28,7 @@ import {
   type WebSocketHibernationAdapter,
 } from "../../base/websocket-hibernation-adapter";
 import type {
+  AccumulatedPlayerTotals,
   IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
@@ -33,6 +41,7 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
+  TopBarStatItem,
 } from "./types";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
@@ -47,6 +56,248 @@ const PLAYER_MATCHES_PAGE_SIZE = 25;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
+function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats: MatchStats): void {
+  const trackedXuid = state.xuid;
+  const player = matchStats.Players.find((p) => getPlayerXuid(p) === trackedXuid);
+  if (player == null) {
+    return;
+  }
+
+  const playerStats = player.PlayerTeamStats[0]?.Stats.CoreStats;
+  if (playerStats == null) {
+    return;
+  }
+
+  const totals = state.accumulatedPlayerTotals ?? {
+    kills: 0,
+    deaths: 0,
+    assists: 0,
+    headshotKills: 0,
+    shotsFired: 0,
+    shotsHit: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    totalLifeSeconds: 0,
+    totalSpawns: 0,
+  };
+
+  totals.kills += playerStats.Kills;
+  totals.deaths += playerStats.Deaths;
+  totals.assists += playerStats.Assists;
+  totals.headshotKills += playerStats.HeadshotKills;
+  totals.shotsFired += playerStats.ShotsFired;
+  totals.shotsHit += playerStats.ShotsHit;
+  totals.damageDealt += playerStats.DamageDealt;
+  totals.damageTaken += playerStats.DamageTaken;
+  totals.totalSpawns += playerStats.Spawns;
+  totals.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
+
+  state.accumulatedPlayerTotals = totals;
+}
+
+const optionLabelByValue = new Map<IndividualTopBarStatOption, string>(
+  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((d) => [d.value, d.label]),
+);
+
+function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
+  if (option === "matches-win-loss") {
+    return "Won:Loss";
+  }
+  if (option === "series-win-loss") {
+    return "Series Won:Loss";
+  }
+  return optionLabelByValue.get(option) ?? option;
+}
+
+function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: number; lost: number } {
+  const summaries = state.matchIds
+    .map((id) => state.discoveredMatches[id])
+    .filter((s): s is IndividualTrackerMatchSummary => s != null);
+
+  const groupings = analyzeMatchGroupings(
+    summaries.map((s) => ({
+      matchId: s.matchId,
+      isMatchmaking: s.isMatchmaking,
+      teamRosterSignature: s.teamRosterSignature,
+    })),
+  );
+
+  let won = 0;
+  let lost = 0;
+  for (const matchIds of groupings) {
+    let wins = 0;
+    let losses = 0;
+    for (const matchId of matchIds) {
+      const s = state.discoveredMatches[matchId];
+      if (s?.outcome === "Win") {
+        wins++;
+      }
+      if (s?.outcome === "Loss") {
+        losses++;
+      }
+    }
+    if (wins > losses) {
+      won++;
+    }
+    if (losses > wins) {
+      lost++;
+    }
+  }
+  return { won, lost };
+}
+
+interface TopBarStatContext {
+  totals: AccumulatedPlayerTotals | undefined;
+  total: number;
+  wins: number;
+  losses: number;
+  matchmaking: number;
+  customOrLocal: number;
+  state: IndividualTrackerInternalState;
+}
+
+function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarStatContext): string | null {
+  const { totals, total, wins, losses, matchmaking, customOrLocal, state } = ctx;
+
+  switch (option) {
+    case "matches-win-loss": {
+      return `${wins.toString()}:${losses.toString()}`;
+    }
+    case "series-win-loss": {
+      const series = computeSeriesWonLoss(state);
+      return `${series.won.toString()}:${series.lost.toString()}`;
+    }
+    case "total-games": {
+      return total.toString();
+    }
+    case "matchmaking-games": {
+      return matchmaking.toString();
+    }
+    case "custom-local-games": {
+      return customOrLocal.toString();
+    }
+    case "current-rank":
+    case "season-peak":
+    case "all-time-peak":
+    case "esra": {
+      return null;
+    }
+    case "kills": {
+      return totals != null ? formatStatValue(totals.kills) : null;
+    }
+    case "deaths": {
+      return totals != null ? formatStatValue(totals.deaths) : null;
+    }
+    case "assists": {
+      return totals != null ? formatStatValue(totals.assists) : null;
+    }
+    case "kda": {
+      if (totals == null) {
+        return null;
+      }
+      const kda =
+        totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
+      return formatStatValue(kda);
+    }
+    case "headshot-kills": {
+      return totals != null ? formatStatValue(totals.headshotKills) : null;
+    }
+    case "shots-hit": {
+      return totals != null ? formatStatValue(totals.shotsHit) : null;
+    }
+    case "shots-fired": {
+      return totals != null ? formatStatValue(totals.shotsFired) : null;
+    }
+    case "accuracy": {
+      if (totals == null || totals.shotsFired === 0) {
+        return null;
+      }
+      return `${formatStatValue((totals.shotsHit / totals.shotsFired) * 100)}%`;
+    }
+    case "damage-dealt": {
+      return totals != null ? formatStatValue(totals.damageDealt) : null;
+    }
+    case "damage-taken": {
+      return totals != null ? formatStatValue(totals.damageTaken) : null;
+    }
+    case "damage-ratio": {
+      return totals != null ? formatDamageRatio(totals.damageDealt, totals.damageTaken) : null;
+    }
+    case "avg-life-time": {
+      if (totals == null || totals.totalSpawns === 0) {
+        return null;
+      }
+      const avgSeconds = totals.totalLifeSeconds / totals.totalSpawns;
+      return getReadableDuration(getDurationInIsoString(avgSeconds));
+    }
+    case "avg-damage-per-life": {
+      return totals != null ? formatDamageRatio(totals.damageDealt, totals.deaths) : null;
+    }
+    case "kills-deaths-kd": {
+      if (totals == null) {
+        return null;
+      }
+      const kdRatio = totals.deaths === 0 ? totals.kills : totals.kills / totals.deaths;
+      const kd = Number.isFinite(kdRatio) ? kdRatio.toFixed(2) : "0.00";
+      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)} (${kd})`;
+    }
+    case "kills-deaths-assists-kda": {
+      if (totals == null) {
+        return null;
+      }
+      const kda =
+        totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
+      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)}:${formatStatValue(totals.assists)} (${formatStatValue(kda)})`;
+    }
+    case "shots-hit-fired-accuracy": {
+      if (totals == null || totals.shotsFired === 0) {
+        return null;
+      }
+      const acc = (totals.shotsHit / totals.shotsFired) * 100;
+      return `${formatStatValue(totals.shotsHit)}:${formatStatValue(totals.shotsFired)} (${formatStatValue(acc)}%)`;
+    }
+    case "damage-dealt-taken-ratio": {
+      if (totals == null) {
+        return null;
+      }
+      return `${formatStatValue(totals.damageDealt)}:${formatStatValue(totals.damageTaken)} (${formatDamageRatio(totals.damageDealt, totals.damageTaken)})`;
+    }
+    case "avg-life-damage-per-life": {
+      if (totals == null || totals.totalSpawns === 0) {
+        return null;
+      }
+      const avgSeconds = totals.totalLifeSeconds / totals.totalSpawns;
+      const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.deaths);
+      return `${lifeDisplay} (${dmgPerLife})`;
+    }
+    default: {
+      return null;
+    }
+  }
+}
+
+function computeTopBarStats(
+  state: IndividualTrackerInternalState,
+  topBarStatSlots: readonly IndividualTopBarStatOption[],
+): readonly TopBarStatItem[] {
+  const totals = state.accumulatedPlayerTotals;
+  const matches = state.matchIds
+    .map((id) => state.discoveredMatches[id])
+    .filter((s): s is IndividualTrackerMatchSummary => s != null);
+  const total = matches.length;
+  const wins = matches.filter((m) => m.outcome === "Win").length;
+  const losses = matches.filter((m) => m.outcome === "Loss").length;
+  const matchmaking = matches.filter((m) => m.isMatchmaking).length;
+  const customOrLocal = total - matchmaking;
+
+  return topBarStatSlots.map((option): TopBarStatItem => {
+    const label = getTopBarStatLabel(option);
+    const value = formatTopBarStatOption(option, { totals, total, wins, losses, matchmaking, customOrLocal, state });
+    return { label, value: value ?? "N/A" };
+  });
+}
+
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -54,6 +305,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly logService: LogService;
   private ownerClient: HaloInfiniteClient | null = null;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private topBarStatsCacheKey: string | undefined;
+  private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
 
   constructor(
     state: DurableObjectState,
@@ -98,7 +351,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             return await this.handleStatus();
           }
           case "view-state": {
-            return await this.handleViewState();
+            return await this.handleViewState(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -218,7 +471,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         teamRosterSignature: null,
         teamOutcomes: null,
       };
-      await this.enrichScore(haloClient, summary);
+      await this.enrichScore(haloClient, summary, trackerState);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       newlyDiscovered.add(matchId);
@@ -235,7 +488,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        const enriched = await this.enrichScore(haloClient, summary);
+        const enriched = await this.enrichScore(haloClient, summary, trackerState);
         if (enriched) {
           viewChanged = true;
         }
@@ -268,7 +521,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
+  private async enrichScore(
+    haloClient: HaloInfiniteClient,
+    summary: IndividualTrackerMatchSummary,
+    trackerState: IndividualTrackerInternalState,
+  ): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);
@@ -291,6 +548,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     summary.score = buildMatchScore(matchStats);
     summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
+
+    const accumulatedIds = trackerState.accumulatedMatchIds ?? [];
+    if (!accumulatedIds.includes(summary.matchId)) {
+      accumulatePlayerStats(trackerState, matchStats);
+      trackerState.accumulatedMatchIds = [...accumulatedIds, summary.matchId];
+    }
+
     return true;
   }
 
@@ -458,12 +722,43 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
-  private async handleViewState(): Promise<Response> {
+  private async handleViewState(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const slotsParam = url.searchParams.get("topBarStatSlots");
+    const topBarStatSlots: readonly IndividualTopBarStatOption[] =
+      slotsParam != null ? (JSON.parse(slotsParam) as IndividualTopBarStatOption[]) : [];
+
     const trackerState = await this.getState();
+    const topBarStats =
+      trackerState != null && topBarStatSlots.length > 0 ? this.buildTopBarStats(trackerState, topBarStatSlots) : undefined;
+
     const response: IndividualTrackerViewStateResponse = {
-      state: trackerState == null ? null : this.toViewState(trackerState),
+      state:
+        trackerState == null
+          ? null
+          : {
+              ...this.toViewState(trackerState),
+              ...(topBarStats != null ? { topBarStats } : {}),
+            },
     };
     return Response.json(response);
+  }
+
+  private buildTopBarStats(
+    state: IndividualTrackerInternalState,
+    topBarStatSlots: readonly IndividualTopBarStatOption[],
+  ): readonly TopBarStatItem[] {
+    const latestMatchId = state.matchIds.at(-1) ?? "";
+    const cacheKey = `${latestMatchId}:${JSON.stringify(topBarStatSlots)}`;
+
+    if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
+      return this.cachedTopBarStats;
+    }
+
+    const stats = computeTopBarStats(state, topBarStatSlots);
+    this.topBarStatsCacheKey = cacheKey;
+    this.cachedTopBarStats = stats;
+    return stats;
   }
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {

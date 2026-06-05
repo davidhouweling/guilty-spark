@@ -14,10 +14,15 @@ export async function fetchTrackerDoViewState(
   env: Env,
   userId: string,
   trackerId: string,
+  topBarStatSlots?: readonly string[],
 ): Promise<IndividualTrackerViewState | null> {
   const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
   const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-  const response = await stub.fetch("http://do/view-state", { method: "GET" });
+  const url = new URL("http://do/view-state");
+  if (topBarStatSlots != null && topBarStatSlots.length > 0) {
+    url.searchParams.set("topBarStatSlots", JSON.stringify(topBarStatSlots));
+  }
+  const response = await stub.fetch(url.toString(), { method: "GET" });
   const result = await response.json<IndividualTrackerViewStateResponse>();
   return result.state;
 }
@@ -114,5 +119,6 @@ export function toTrackerView(
           })),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
+    ...(doState?.topBarStats != null ? { topBarStats: [...doState.topBarStats] } : {}),
   };
 }
