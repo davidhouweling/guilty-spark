@@ -10,16 +10,22 @@ interface SeriesTab {
   readonly teamColor: undefined;
 }
 
-interface MatchTab {
+interface MatchTabBase {
   readonly type: "match";
   readonly index: number;
   readonly matchId: string;
   readonly label: string;
   readonly score: string;
-  readonly icon: string;
   readonly teamColor: string | undefined;
 }
 
+type SingleIconMatchTab = MatchTabBase & { readonly icon: string; readonly icons?: never };
+type MultiIconMatchTab = MatchTabBase & {
+  readonly icons: readonly { readonly src: string; readonly dimmed: boolean }[];
+  readonly icon?: never;
+};
+
+export type MatchTab = SingleIconMatchTab | MultiIconMatchTab;
 export type OverlayTab = SeriesTab | MatchTab;
 
 interface OverlayTabsBarProps {
@@ -44,6 +50,8 @@ const TabButton = memo(function TabButton({
   onTabClick,
 }: TabButtonProps): React.ReactElement {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
+  const tabIcons =
+    tab.type === "match" ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : [])) : [];
 
   return (
     <button
@@ -66,7 +74,20 @@ const TabButton = memo(function TabButton({
       }
     >
       <div className={styles.tabContent}>
-        {tab.type === "match" && tab.icon && <img src={tab.icon} alt="" className={styles.tabIcon} />}
+        {tabIcons.length > 0 && (
+          <div className={styles.tabIcons}>
+            {tabIcons.map((icon, index) => (
+              <img
+                key={`${icon.src}-${index.toString()}`}
+                src={icon.src}
+                alt=""
+                className={classNames(styles.tabIcon, {
+                  [styles.tabIconDimmed]: icon.dimmed,
+                })}
+              />
+            ))}
+          </div>
+        )}
         <span className={styles.tabLabel}>{tab.label}</span>
         {tab.score && (
           <>

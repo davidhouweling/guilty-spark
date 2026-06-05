@@ -1,6 +1,6 @@
 import React, { memo } from "react";
-import type { TeamColor } from "../../team-colors/team-colors";
-import { TeamIcon } from "../../icons/team-icon";
+import type { TeamColor } from "../team-colors/team-colors";
+import { TeamIcon } from "../icons/team-icon";
 import styles from "./streamer-overlay.module.css";
 
 interface TopSectionProps {
@@ -26,6 +26,7 @@ function TopSectionComponent({
   teamLeft,
   teamRight,
 }: TopSectionProps): React.ReactElement {
+  const [leftScore = "0", rightScore = "0"] = seriesScore.split(":");
   return (
     <div className={styles.topSection}>
       {title != null && <div className={styles.title}>{title}</div>}
@@ -38,10 +39,10 @@ function TopSectionComponent({
       {showScore && (
         <>
           <div className={styles.teamLeftScore} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>
-            {seriesScore.split(":")[0]}
+            {leftScore}
           </div>
           <div className={styles.teamRightScore} style={{ "--team-color": teamColors[1]?.hex } as React.CSSProperties}>
-            {seriesScore.split(":")[1]}
+            {rightScore}
           </div>
         </>
       )}

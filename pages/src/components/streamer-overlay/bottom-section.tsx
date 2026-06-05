@@ -1,6 +1,6 @@
 import React, { memo } from "react";
-import type { TeamColor } from "../../team-colors/team-colors";
-import { InformationTicker, type TickerMatchGroup } from "../../information-ticker/information-ticker";
+import type { TeamColor } from "../team-colors/team-colors";
+import { InformationTicker, type TickerMatchGroup } from "../information-ticker/information-ticker";
 import { OverlayTabsBar, type OverlayTab } from "./tabs-bar";
 import styles from "./streamer-overlay.module.css";
 

@@ -1,0 +1,416 @@
+/* ============================================ */
+
+/* Streamer Overlay - OBS Mode Layout          */
+
+/* ============================================ */
+
+.overlay {
+  background: transparent;
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  inset: 0;
+  overflow: hidden;
+  position: fixed;
+  z-index: var(--z-overlay);
+}
+
+.topSectionPinnedWrapper {
+  left: 50%;
+  position: fixed;
+  top: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 22;
+}
+
+/* View Mode Selector positioned in top-right */
+.viewModeContainer {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  z-index: 100;
+}
+
+/* Preview backgrounds for development */
+.previewPlayer {
+  background-image: url("/in-game-player.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.previewObserver {
+  background-image: url("/in-game-observer.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* ============================================ */
+
+/* Top Section: Teams and Score                 */
+
+/* ============================================ */
+
+.topSection {
+  align-items: center;
+  display: grid;
+  gap: 0;
+  grid-template: "teamLeft scoreLeft serverIcon scoreRight teamRight" min-content "title title serverIcon subtitle subtitle" min-content / 1fr min-content min-content min-content 1fr;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+}
+
+.title,
+.subtitle {
+  border: 2px solid var(--halo-bg-primary);
+  border-top: 0;
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-base) * var(--font-size-queue-info, 1));
+  font-weight: 700;
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+}
+
+.title {
+  border-right: 0;
+  grid-area: title;
+  justify-self: end;
+}
+
+.subtitle {
+  border-left: 0;
+  grid-area: subtitle;
+  justify-self: start;
+}
+
+.serverIconSlot {
+  aspect-ratio: 1;
+  grid-area: serverIcon;
+  place-self: stretch center;
+}
+
+.serverIcon {
+  display: block;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.teamLeftScore,
+.teamRightScore {
+  align-items: center;
+  align-self: stretch;
+  background-color: color-mix(in srgb, var(--team-color, transparent) 80%, transparent);
+  border: 2px solid var(--team-color, var(--halo-teal-primary));
+  border-radius: var(--radius-sm);
+  border-top: 0;
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: calc(var(--text-2xl) * var(--font-size-score, 1));
+  font-weight: 700;
+  line-height: 1;
+  padding: var(--space-1) var(--space-3);
+}
+
+.teamLeftScore {
+  grid-area: scoreLeft;
+  justify-self: end;
+}
+
+.teamRightScore {
+  grid-area: scoreRight;
+  justify-self: start;
+}
+
+.teamLeft,
+.teamRight {
+  --team-icon-size: calc(var(--text-base) * var(--font-size-teams, 1) * 1.25);
+  --team-icon-shadow-offset: calc(var(--team-icon-size) * 3);
+
+  align-items: center;
+  align-self: stretch;
+  background-color: color-mix(in srgb, var(--team-color, transparent) 40%, transparent);
+  border: 2px solid var(--team-color, var(--halo-teal-primary));
+  border-top: 0;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+  overflow: hidden;
+  padding: var(--space-1) var(--space-3);
+  position: relative;
+  width: 675px;
+
+  > img {
+    filter: drop-shadow(0 var(--team-icon-shadow-offset) 0 var(--team-color));
+    height: var(--team-icon-size);
+    margin-bottom: calc(var(--space-1) * -1);
+    margin-top: calc(var(--space-1) * -1);
+    transform: translateY(calc(var(--team-icon-shadow-offset) * -1));
+    width: var(--team-icon-size);
+  }
+}
+
+.teamLeft {
+  border-right: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  grid-area: teamLeft;
+  justify-self: end;
+  padding-left: calc(var(--space-3) + 10px);
+}
+
+.teamRight {
+  border-left: 0;
+  grid-area: teamRight;
+  justify-self: start;
+  padding-right: calc(var(--space-3) + 10px);
+}
+
+.teamWithPlayers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+}
+
+.teamWithPlayers .teamName,
+.teamWithPlayers .teamPlayersScroll {
+  grid-area: 1 / 1;
+  justify-self: center;
+}
+
+.animateTeamNames .teamName {
+  animation: fadeTeamName 40s infinite;
+  z-index: 2;
+}
+
+.animateTeamNames .teamPlayersScroll {
+  animation: fadePlayerNames 40s infinite;
+  z-index: 1;
+}
+
+@keyframes fadeTeamName {
+  0% {
+    opacity: 1;
+  }
+
+  47% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+
+  97% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadePlayerNames {
+  0% {
+    opacity: 0;
+  }
+
+  47% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  97% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.teamName,
+.teamPlayers {
+  color: var(--halo-white);
+  flex: 1 1 auto;
+  font-size: calc(var(--text-base) * var(--font-size-teams, 1));
+  font-weight: 700;
+  position: relative;
+  text-align: center;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+}
+
+.teamPlayers {
+  overflow: hidden;
+}
+
+.playerIcon {
+  display: inline-block;
+  height: 16px;
+  margin-inline: 2px;
+  vertical-align: middle;
+  width: 16px;
+}
+
+/* ============================================ */
+
+/* Bottom Tab Bar                               */
+
+/* ============================================ */
+
+.bottomSection {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  z-index: 10;
+}
+
+.tabBar {
+  display: flex;
+  font-size: calc(var(--text-sm) * var(--font-size-tabs, 1));
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.tickerPlaceholder {
+  align-items: center;
+  background: rgb(15 40 48 / 90%);
+  color: var(--halo-gray);
+  display: flex;
+  font-size: calc(var(--text-sm) * var(--font-size-ticker, 1));
+  justify-content: center;
+  min-height: 60px;
+  padding: var(--space-3);
+  text-align: center;
+}
+
+.title,
+.subtitle,
+.tab {
+  background: rgb(15 40 48 / 90%);
+  background-color: color-mix(in srgb, var(--tab-team-color, transparent) 20%, rgb(15 40 48 / 90%));
+  background-image:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent),
+      color-mix(in srgb, var(--tab-team-color, transparent) 30%, transparent)
+    ),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px);
+  background-position:
+    center,
+    0 0,
+    center;
+  background-repeat: no-repeat, repeat, no-repeat;
+  background-size:
+    100% 100%,
+    10px 10px,
+    cover;
+}
+
+.tab {
+  align-items: center;
+  border: 2px solid var(--tab-team-color, var(--halo-bg-primary));
+  border-bottom: 0;
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-body);
+  font-size: inherit;
+  font-weight: 700;
+  justify-content: center;
+  min-width: 80px;
+  padding: var(--space-1) var(--space-2);
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 80%),
+    0 0 10px rgb(0 0 0 / 60%);
+  transition: all var(--transition-fast);
+}
+
+.tabSeries {
+  font-family: var(--font-heading);
+  min-width: 100px;
+}
+
+.tabContent {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-1);
+}
+
+.tabIcons {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.tab:hover {
+  background-color: color-mix(in srgb, var(--tab-team-color, var(--halo-bg-primary)) 30%, rgb(15 40 48 / 90%));
+  border-color: var(--halo-accent);
+  transform: translateY(-2px);
+}
+
+.tabActive {
+  outline: 2px solid var(--tab-team-color, var(--halo-bg-primary));
+  position: relative;
+}
+
+.tabActive::after {
+  border-color: var(--tab-team-color, var(--halo-bg-primary)) transparent transparent;
+  border-style: solid;
+  border-width: 12px 9px 0;
+  bottom: -12px;
+  content: "";
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.tabActive::before {
+  border-color: color-mix(in srgb, var(--tab-team-color, var(--halo-bg-primary)) 40%, rgb(15 40 48 / 90%)) transparent
+    transparent;
+  border-style: solid;
+  border-width: 9px 6px 0;
+  bottom: -9px;
+  content: "";
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.tabSelected {
+  border-color: var(--halo-accent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--halo-accent) 50%, transparent);
+}
+
+.tabIcon {
+  height: 20px;
+  width: 20px;
+}
+
+.tabIconDimmed {
+  opacity: 0.5;
+}
+
+.tabLabel {
+  font-weight: 600;
+}
+
+.tabScore {
+  font-weight: 700;
+}
