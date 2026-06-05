@@ -10,10 +10,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
 import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
-import type {
-  IndividualTrackerInternalState,
-  IndividualTrackerViewStateResponse,
-} from "../types";
+import type { IndividualTrackerInternalState, IndividualTrackerViewStateResponse } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
   aFakeIndividualTrackerMatchSummaryWith,
@@ -56,7 +53,10 @@ describe("topBarStats", () => {
 
   const trackedXuid = "9999999999";
 
-  const aMatchStatsForTrackedPlayer = (matchId: string, coreStatsOverrides?: Partial<Stats["CoreStats"]>): ReturnType<typeof aFakeMatchStatsWith> =>
+  const aMatchStatsForTrackedPlayer = (
+    matchId: string,
+    coreStatsOverrides?: Partial<Stats["CoreStats"]>,
+  ): ReturnType<typeof aFakeMatchStatsWith> =>
     aFakeMatchStatsWith({
       MatchId: matchId,
       Players: [
@@ -68,7 +68,19 @@ describe("topBarStats", () => {
             {
               TeamId: 0,
               Stats: {
-                CoreStats: aFakeCoreStatsWith({ Kills: 10, Deaths: 5, Assists: 3, ShotsFired: 100, ShotsHit: 52, DamageDealt: 5000, DamageTaken: 3000, Spawns: 5, AverageLifeDuration: "PT30S", HeadshotKills: 4, ...coreStatsOverrides }),
+                CoreStats: aFakeCoreStatsWith({
+                  Kills: 10,
+                  Deaths: 5,
+                  Assists: 3,
+                  ShotsFired: 100,
+                  ShotsHit: 52,
+                  DamageDealt: 5000,
+                  DamageTaken: 3000,
+                  Spawns: 5,
+                  AverageLifeDuration: "PT30S",
+                  HeadshotKills: 4,
+                  ...coreStatsOverrides,
+                }),
                 PvpStats: { Kills: 10, Deaths: 5, Assists: 3, KDA: 2 },
               },
             },
@@ -105,9 +117,7 @@ describe("topBarStats", () => {
   });
 
   it("accumulates player stats from getMatchStats on alarm", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValue([
-      aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z"),
-    ]);
+    ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
     ownerClient.getMatchStats.mockResolvedValue(aMatchStatsForTrackedPlayer("m1"));
     storageGetSpy.mockResolvedValue(
       aFakeIndividualTrackerInternalStateWith({
@@ -128,9 +138,7 @@ describe("topBarStats", () => {
   });
 
   it("does not double-accumulate if a match is re-enriched on a later poll", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValue([
-      aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z"),
-    ]);
+    ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
     ownerClient.getMatchStats
       .mockRejectedValueOnce(new Error("stats not ready"))
       .mockResolvedValue(aMatchStatsForTrackedPlayer("m1"));
@@ -217,7 +225,10 @@ describe("topBarStats", () => {
 
   it("returns undefined topBarStats when topBarStatSlots is empty", async () => {
     storageGetSpy.mockResolvedValue(
-      aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1"], discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) } }),
+      aFakeIndividualTrackerInternalStateWith({
+        matchIds: ["m1"],
+        discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
+      }),
     );
 
     const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
@@ -232,9 +243,16 @@ describe("topBarStats", () => {
       matchIds: ["m1"],
       discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }) },
       accumulatedPlayerTotals: {
-        kills: 5, deaths: 2, assists: 1, headshotKills: 1,
-        shotsFired: 50, shotsHit: 25, damageDealt: 2000, damageTaken: 1000,
-        totalLifeSeconds: 60, totalSpawns: 2,
+        kills: 5,
+        deaths: 2,
+        assists: 1,
+        headshotKills: 1,
+        shotsFired: 50,
+        shotsHit: 25,
+        damageDealt: 2000,
+        damageTaken: 1000,
+        totalLifeSeconds: 60,
+        totalSpawns: 2,
       },
       accumulatedMatchIds: ["m1"],
     });
@@ -261,9 +279,16 @@ describe("topBarStats", () => {
         m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", outcome: "Win" }),
       },
       accumulatedPlayerTotals: {
-        kills: 5, deaths: 2, assists: 1, headshotKills: 1,
-        shotsFired: 50, shotsHit: 25, damageDealt: 2000, damageTaken: 1000,
-        totalLifeSeconds: 60, totalSpawns: 2,
+        kills: 5,
+        deaths: 2,
+        assists: 1,
+        headshotKills: 1,
+        shotsFired: 50,
+        shotsHit: 25,
+        damageDealt: 2000,
+        damageTaken: 1000,
+        totalLifeSeconds: 60,
+        totalSpawns: 2,
       },
       accumulatedMatchIds: ["m2"],
     });
@@ -279,9 +304,16 @@ describe("topBarStats", () => {
     const updatedState = aFakeIndividualTrackerInternalStateWith({
       ...baseState,
       accumulatedPlayerTotals: {
-        kills: 15, deaths: 4, assists: 2, headshotKills: 2,
-        shotsFired: 100, shotsHit: 50, damageDealt: 4000, damageTaken: 2000,
-        totalLifeSeconds: 120, totalSpawns: 4,
+        kills: 15,
+        deaths: 4,
+        assists: 2,
+        headshotKills: 2,
+        shotsFired: 100,
+        shotsHit: 50,
+        damageDealt: 4000,
+        damageTaken: 2000,
+        totalLifeSeconds: 120,
+        totalSpawns: 4,
       },
       accumulatedMatchIds: ["m2", "m1"],
     });

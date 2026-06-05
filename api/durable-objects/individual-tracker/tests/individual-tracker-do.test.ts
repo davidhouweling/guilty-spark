@@ -1114,5 +1114,4 @@ describe("IndividualTrackerDO", () => {
       }).not.toThrow();
     });
   });
-
 });

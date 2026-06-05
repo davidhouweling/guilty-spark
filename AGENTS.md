@@ -124,6 +124,8 @@ switch (item.type) {
 
 **Imports**: Extensionless for internal modules. `import type` for type-only imports.
 
+**Functions**: Functions to be single single responsibility, when needing to do multiple things, break it down into individual functions that are called / chained.
+
 ## CSS / Styling
 
 CSS Modules only — all styling via `.module.css`. Use `classnames` package for conditional classes; never template-literal class strings. Pass dynamic values via CSS variables in the `style` prop: `style={{ "--accent": color }}` (only acceptable `style` usage).
@@ -163,3 +165,16 @@ Never use `max-width` queries. Base styles are mobile-first.
 - Never read from `.env`, `api/.dev.vars`, or `api/.production.vars`. Read examples from `api/.example.dev.vars` only.
 - Never modify `eslint.config.*` or `tsconfig*.json` — explain the need and ask the user to do it manually.
 - Tokens must never be returned to the browser. Proxy owner-token path is server-side only, fails closed to bot.
+
+## Feature development loop
+
+1. Understand the requirements in full, ask prompter for clarification when uncertain
+2. Aim for pull requests to be 300 lines, with a hard limit at 500. If larger, work with prompter to break down the feature.
+3. When set of requirements exceeds 3 pull requests, create a plan document but do not check it in
+4. Building a feature:
+   1. Follow nearest neighbor approach in terms of software engineering patterns, practices, and architecture
+   2. When feature is deemed "complete", commit the change
+   3. Then put yourself (or a subagent) into a loop of doing "/code-review" and fixing issues that are identified until clean. Commit each iteration.
+   4. Run format + lint + typecheck + test ensuring all pass and commit any outstanding issues.
+5. If instructed by prompter, raise PR with concise description of the feature.
+6. Provide summary of changes, link to pull request, and confirmation that `/code-review` has ran until clean with what fixes were done.

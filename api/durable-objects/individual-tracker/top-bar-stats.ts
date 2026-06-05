@@ -112,9 +112,7 @@ function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: num
 }
 
 function computeKdaValue(totals: AccumulatedPlayerTotals): number {
-  return totals.deaths === 0
-    ? totals.kills + totals.assists / 3
-    : (totals.kills + totals.assists / 3) / totals.deaths;
+  return totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
 }
 
 interface TopBarStatContext {

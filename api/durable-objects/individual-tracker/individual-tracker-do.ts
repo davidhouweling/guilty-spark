@@ -50,8 +50,6 @@ const PLAYER_MATCHES_PAGE_SIZE = 25;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
-
-
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -490,7 +488,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const trackerState = await this.getState();
     const topBarStats =
-      trackerState != null && topBarStatSlots.length > 0 ? this.buildTopBarStats(trackerState, topBarStatSlots) : undefined;
+      trackerState != null && topBarStatSlots.length > 0
+        ? this.buildTopBarStats(trackerState, topBarStatSlots)
+        : undefined;
 
     const response: IndividualTrackerViewStateResponse = {
       state:
@@ -510,7 +510,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   ): readonly TopBarStatItem[] {
     const latestMatchId = state.matchIds.at(-1) ?? "";
     const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-    this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
+    this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
+      (s) => s.teamRosterSignature != null,
+    ).length;
     const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
     if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
