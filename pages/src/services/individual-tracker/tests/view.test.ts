@@ -72,4 +72,32 @@ describe("RealIndividualTrackerViewService", () => {
 
     await expect(service.getView("tracker-1")).rejects.toThrow("Request failed (500)");
   });
+
+  describe("getViewByXuid", () => {
+    it("fetches the xuid view endpoint with the encoded xuid", async () => {
+      fetchSpy.mockResolvedValueOnce(jsonResponse({ view: FAKE_VIEW }));
+
+      const result = await service.getViewByXuid("2533274 000");
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://api.example.com/api/individual-tracker/xuid/2533274%20000/view",
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual({ view: FAKE_VIEW });
+    });
+
+    it("throws the error envelope message when the xuid request fails", async () => {
+      fetchSpy.mockResolvedValueOnce(jsonResponse({ error: "Tracker not found" }, 404));
+
+      await expect(service.getViewByXuid("9999")).rejects.toThrow("Tracker not found");
+    });
+  });
+
+  describe("connectByXuid", () => {
+    it("opens a connection to the xuid ws endpoint", () => {
+      const connection = service.connectByXuid("2533274001");
+
+      expect(connection).toBeDefined();
+    });
+  });
 });
