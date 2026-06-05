@@ -56,16 +56,16 @@ const PLAYER_MATCHES_PAGE_SIZE = 25;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
-function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats: MatchStats): void {
+function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats: MatchStats): boolean {
   const trackedXuid = state.xuid;
   const player = matchStats.Players.find((p) => getPlayerXuid(p) === trackedXuid);
   if (player == null) {
-    return;
+    return false;
   }
 
   const playerStats = player.PlayerTeamStats[0]?.Stats.CoreStats;
   if (playerStats == null) {
-    return;
+    return false;
   }
 
   const totals = state.accumulatedPlayerTotals ?? {
@@ -93,6 +93,7 @@ function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats
   totals.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
 
   state.accumulatedPlayerTotals = totals;
+  return true;
 }
 
 const optionLabelByValue = new Map<IndividualTopBarStatOption, string>(
@@ -231,7 +232,10 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       return getReadableDuration(getDurationInIsoString(avgSeconds));
     }
     case "avg-damage-per-life": {
-      return totals != null ? formatDamageRatio(totals.damageDealt, totals.deaths) : null;
+      if (totals == null || totals.totalSpawns === 0) {
+        return null;
+      }
+      return formatDamageRatio(totals.damageDealt, totals.totalSpawns);
     }
     case "kills-deaths-kd": {
       if (totals == null) {
@@ -268,7 +272,7 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       }
       const avgSeconds = totals.totalLifeSeconds / totals.totalSpawns;
       const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
-      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.deaths);
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.totalSpawns);
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
@@ -551,8 +555,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const accumulatedIds = trackerState.accumulatedMatchIds ?? [];
     if (!accumulatedIds.includes(summary.matchId)) {
-      accumulatePlayerStats(trackerState, matchStats);
-      trackerState.accumulatedMatchIds = [...accumulatedIds, summary.matchId];
+      if (accumulatePlayerStats(trackerState, matchStats)) {
+        trackerState.accumulatedMatchIds = [...accumulatedIds, summary.matchId];
+      }
     }
 
     return true;
