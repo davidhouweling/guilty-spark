@@ -1,7 +1,12 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import { type HaloInfiniteClient, type PlayerMatchHistory, type PlaylistCsrContainer, type Stats } from "halo-infinite-api";
+import {
+  type HaloInfiniteClient,
+  type PlayerMatchHistory,
+  type PlaylistCsrContainer,
+  type Stats,
+} from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
@@ -183,6 +188,29 @@ describe("topBarStats", () => {
     const persisted = lastPersistedState(storagePutSpy);
     expect(persisted.accumulatedPlayerTotals?.kills).toBe(25);
     expect(persisted.accumulatedPlayerTotals?.deaths).toBe(12);
+  });
+
+  it("keeps totalSpawns but skips totalLifeSpawns for a match with malformed AverageLifeDuration", async () => {
+    ownerClient.getPlayerMatches.mockResolvedValueOnce([
+      aFakePlayerMatch("m1", "2024-11-26T11:00:00.000Z"),
+      aFakePlayerMatch("m2", "2024-11-26T11:30:00.000Z"),
+    ]);
+    ownerClient.getMatchStats
+      .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m1", { Spawns: 5, AverageLifeDuration: "NOT_VALID" }))
+      .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m2", { Spawns: 3, AverageLifeDuration: "PT30S" }));
+    storageGetSpy.mockResolvedValue(
+      aFakeIndividualTrackerInternalStateWith({
+        xuid: trackedXuid,
+        startTime: "2024-11-26T12:00:00.000Z",
+        searchStartTime: "2024-11-26T11:00:00.000Z",
+      }),
+    );
+
+    await individualTrackerDO.alarm();
+
+    const persisted = lastPersistedState(storagePutSpy);
+    expect(persisted.accumulatedPlayerTotals?.totalSpawns).toBe(8);
+    expect(persisted.accumulatedPlayerTotals?.totalLifeSpawns).toBe(3);
   });
 
   it("returns topBarStats in handleViewState when topBarStatSlots provided", async () => {

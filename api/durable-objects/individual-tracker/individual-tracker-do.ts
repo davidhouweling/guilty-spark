@@ -483,8 +483,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async handleViewState(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const slotsParam = url.searchParams.get("topBarStatSlots");
-    const topBarStatSlots: readonly IndividualTopBarStatOption[] =
-      slotsParam != null ? (JSON.parse(slotsParam) as IndividualTopBarStatOption[]) : [];
+    let topBarStatSlots: readonly IndividualTopBarStatOption[] = [];
+    if (slotsParam != null) {
+      try {
+        topBarStatSlots = JSON.parse(slotsParam) as IndividualTopBarStatOption[];
+      } catch {
+        // malformed JSON — treat as empty slots
+      }
+    }
 
     const trackerState = await this.getState();
     const topBarStats =
@@ -517,7 +523,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (!hasRankSlot && !hasEsraSlot) {
       const latestMatchId = state.matchIds.at(-1) ?? "";
       const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-      this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
+      this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
+        (s) => s.teamRosterSignature != null,
+      ).length;
       const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
