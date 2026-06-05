@@ -757,7 +757,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   ): readonly TopBarStatItem[] {
     const latestMatchId = state.matchIds.at(-1) ?? "";
     const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+    const resolvedRosterCount = Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
+    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${resolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
     if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
       return this.cachedTopBarStats;
