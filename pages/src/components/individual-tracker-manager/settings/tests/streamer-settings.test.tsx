@@ -175,4 +175,43 @@ describe("StreamerSettings", () => {
       expect(screen.getByRole("checkbox", { name: /show team details/i })).toBeChecked();
     });
   });
+
+  describe("top bar stat slots", () => {
+    it("renders 6 slot selects with None selected by default", () => {
+      renderSettings();
+
+      const slotSelects = screen.getAllByRole("combobox");
+      expect(slotSelects).toHaveLength(6);
+      for (const select of slotSelects) {
+        expect(select).toHaveValue("");
+      }
+    });
+
+    it("pre-populates slot selects from saved settings", () => {
+      renderSettings({ visibleSections: { topBarStatSlots: ["kills", "kda"] } });
+
+      expect(screen.getByRole("combobox", { name: /slot 1/i })).toHaveValue("kills");
+      expect(screen.getByRole("combobox", { name: /slot 2/i })).toHaveValue("kda");
+      expect(screen.getByRole("combobox", { name: /slot 3/i })).toHaveValue("");
+    });
+
+    it("saves selected slots (filtering empty) when form is submitted", async () => {
+      expect.assertions(2);
+      const user = userEvent.setup();
+      let savedSettings: StreamerViewSettings | undefined;
+      const onSave = (s: StreamerViewSettings): void => {
+        savedSettings = s;
+      };
+
+      renderSettings({ visibleSections: { topBarStatSlots: ["kills"] } }, false, null, onSave);
+
+      await user.selectOptions(screen.getByRole("combobox", { name: /slot 2/i }), "kda");
+      await user.click(screen.getByRole("button", { name: /save/i }));
+
+      if (savedSettings !== undefined) {
+        expect(savedSettings.visibleSections?.topBarStatSlots).toEqual(["kills", "kda"]);
+      }
+      expect(savedSettings).toBeDefined();
+    });
+  });
 });

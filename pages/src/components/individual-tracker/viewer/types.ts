@@ -1,3 +1,4 @@
+import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
@@ -44,6 +45,7 @@ export interface IndividualTrackerViewerRenderModel {
   readonly lastUpdateTime: string;
   readonly timeline: readonly ViewerTimelineItem[];
   readonly accumulated: ViewerAccumulatedStats;
+  readonly topBarStats: readonly TopBarStatItem[] | undefined;
 }
 
 export interface IndividualTrackerViewerViewModel {

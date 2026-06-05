@@ -1,0 +1,31 @@
+.topBarStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.stat {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 4rem;
+}
+
+.statLabel {
+  color: var(--halo-light-grey);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.statValue {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: bold;
+  text-align: center;
+}

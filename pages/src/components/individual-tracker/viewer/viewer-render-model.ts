@@ -171,5 +171,6 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     lastUpdateTime: view.lastUpdateTime,
     timeline,
     accumulated,
+    topBarStats: view.topBarStats,
   };
 }
