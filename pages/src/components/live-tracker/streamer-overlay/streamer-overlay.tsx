@@ -18,6 +18,15 @@ import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
 import "javascript-time-ago/locale/en";
 
+const timeAgo = new TimeAgo("en");
+
+const DIFFICULTY_RANGE = new Map([
+  [0, [0, 99]],
+  [1, [100, 149]],
+  [2, [150, 199]],
+  [3, [200, Infinity]],
+]);
+
 export interface StreamerOverlayProps {
   readonly teamColors: TeamColor[];
   readonly gameModeIconUrl: (gameMode: string) => string;
@@ -55,7 +64,6 @@ function NeatQueueStreamerOverlay({
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
   const trackerInfo = useTrackerInfo();
-  const timeAgo = new TimeAgo("en");
 
   const title =
     settings.series.titleOverride !== null && settings.series.titleOverride !== ""
@@ -87,12 +95,6 @@ function NeatQueueStreamerOverlay({
     };
 
     const medalWeights = new Map(Object.values(neatQueueState.medalMetadata).map((m) => [m.name, m.sortingWeight]));
-    const difficultyRange = new Map([
-      [0, [0, 99]],
-      [1, [100, 149]],
-      [2, [150, 199]],
-      [3, [200, Infinity]],
-    ]);
     const filterMedals = (medals: TickerStatRow["medals"]): TickerStatRow["medals"] => {
       return medals.filter((medal) => {
         const weight = medalWeights.get(medal.name);
@@ -100,7 +102,7 @@ function NeatQueueStreamerOverlay({
           return false;
         }
 
-        for (const [difficultyIndex, [minWeight, maxWeight]] of difficultyRange.entries()) {
+        for (const [difficultyIndex, [minWeight, maxWeight]] of DIFFICULTY_RANGE.entries()) {
           if (weight >= minWeight && weight <= maxWeight) {
             return settings.global.ticker.medalRarityFilter.includes(difficultyIndex);
           }
@@ -523,18 +525,21 @@ function NeatQueueStreamerOverlay({
     ],
   );
 
-  const topSection = (
-    <TopSection
-      title={title}
-      subtitle={subtitle}
-      iconUrl={iconUrl}
-      showScore={showScore}
-      showTeamDetails={showTeamDetails}
-      seriesScore={neatQueueState.seriesScore}
-      teamColors={teamColors}
-      teamLeft={teamLeft}
-      teamRight={teamRight}
-    />
+  const topSection = useMemo(
+    () => (
+      <TopSection
+        title={title}
+        subtitle={subtitle}
+        iconUrl={iconUrl}
+        showScore={showScore}
+        showTeamDetails={showTeamDetails}
+        seriesScore={neatQueueState.seriesScore}
+        teamColors={teamColors}
+        teamLeft={teamLeft}
+        teamRight={teamRight}
+      />
+    ),
+    [iconUrl, neatQueueState.seriesScore, showScore, showTeamDetails, subtitle, teamColors, teamLeft, teamRight, title],
   );
 
   return (

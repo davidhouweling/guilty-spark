@@ -127,10 +127,14 @@ export function IndividualTrackerOverlay({
       }
       const tab = tabs.find((t) => t.type === "match" && t.index === tabIndex);
       if (tab?.type === "match") {
-        onSelectMatch(tab.matchId);
+        if (tab.matchId === selectedMatchId) {
+          onDeselect();
+        } else {
+          onSelectMatch(tab.matchId);
+        }
       }
     },
-    [onDeselect, onSelectMatch, tabs],
+    [onDeselect, onSelectMatch, selectedMatchId, tabs],
   );
 
   const hasPanelContent = useCallback((_tabIndex: number): boolean => false, []);
