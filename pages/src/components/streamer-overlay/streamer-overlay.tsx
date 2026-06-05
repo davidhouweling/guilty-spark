@@ -54,7 +54,7 @@ export function StreamerOverlay({
   const [previousMatchCount, setPreviousMatchCount] = useState(0);
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  const isPanelOpen = panelOpen !== undefined ? panelOpen : internalIsPanelOpen;
+  const isPanelOpen = panelOpen ?? internalIsPanelOpen;
 
   const handleScrollComplete = (): void => {
     if (tickerMatchGroups.length === 0) {

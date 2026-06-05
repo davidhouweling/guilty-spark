@@ -52,11 +52,7 @@ const TabButton = memo(function TabButton({
   const tabIndex = tab.type === "series" ? -1 : tab.index;
   const tabIcons =
     tab.type === "match"
-      ? (tab.icons != null
-          ? tab.icons
-          : tab.icon != null && tab.icon !== ""
-            ? [{ src: tab.icon, dimmed: false as const }]
-            : [])
+      ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []))
       : [];
 
   return (

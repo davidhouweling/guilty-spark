@@ -4,7 +4,15 @@ import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
 import type { IndividualTrackerViewerRenderModel } from "../viewer/types";
 import type { MatchStatsState } from "../viewer/viewer-store";
-import { IndividualTrackerOverlayPresenter } from "./individual-tracker-overlay-presenter";
+import {
+  buildTabs,
+  buildTickerGroups,
+  getActiveSeries,
+  getDefaultTeamColors,
+  getSelectedTabIndex,
+  getShowTabs,
+  isPanelOpen as computeIsPanelOpen,
+} from "./individual-tracker-overlay-presenter";
 import styles from "./individual-tracker-overlay.module.css";
 
 interface IndividualTrackerOverlayProps {
@@ -22,12 +30,12 @@ export function IndividualTrackerOverlay({
   onSelectMatch,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
-  const isPanelOpen = IndividualTrackerOverlayPresenter.isPanelOpen(selectedMatchId, matchStatsState);
+  const isPanelOpen = computeIsPanelOpen(selectedMatchId, matchStatsState);
 
-  const teamColors = useMemo(() => IndividualTrackerOverlayPresenter.getDefaultTeamColors(), []);
+  const teamColors = useMemo(() => getDefaultTeamColors(), []);
 
   const activeSeries = useMemo(
-    () => IndividualTrackerOverlayPresenter.getActiveSeries(renderModel.timeline),
+    () => getActiveSeries(renderModel.timeline),
     [renderModel.timeline],
   );
 
@@ -49,18 +57,15 @@ export function IndividualTrackerOverlay({
     [activeSeries, teamColors],
   );
 
-  const tabs = useMemo(
-    () => IndividualTrackerOverlayPresenter.buildTabs(renderModel.timeline),
-    [renderModel.timeline],
-  );
+  const tabs = useMemo(() => buildTabs(renderModel.timeline), [renderModel.timeline]);
 
   const selectedTabIndex = useMemo(
-    () => IndividualTrackerOverlayPresenter.getSelectedTabIndex(tabs, selectedMatchId),
+    () => getSelectedTabIndex(tabs, selectedMatchId),
     [tabs, selectedMatchId],
   );
 
   const tickerMatchGroups = useMemo(
-    () => IndividualTrackerOverlayPresenter.buildTickerGroups(matchStatsState, selectedTabIndex),
+    () => buildTickerGroups(matchStatsState, selectedTabIndex),
     [matchStatsState, selectedTabIndex],
   );
 
@@ -82,10 +87,10 @@ export function IndividualTrackerOverlay({
     [onDeselect, onSelectMatch, selectedMatchId, tabs],
   );
 
-  const hasPanelContent = useCallback((_tabIndex: number): boolean => false, []);
+  const hasPanelContent = useCallback((): boolean => false, []);
 
   const renderPanelContent = useCallback(
-    (_tabIndex: number): React.ReactElement | null => <StatsPanel state={matchStatsState} />,
+    (): React.ReactElement | null => <StatsPanel state={matchStatsState} />,
     [matchStatsState],
   );
 
@@ -105,7 +110,7 @@ export function IndividualTrackerOverlay({
         teamColors={teamColors}
         tabs={tabs}
         tickerMatchGroups={tickerMatchGroups}
-        showTabs={IndividualTrackerOverlayPresenter.getShowTabs(renderModel)}
+        showTabs={getShowTabs(renderModel)}
         showTicker={true}
         showPreSeriesInfo={false}
         matchesLength={renderModel.accumulated.total}
