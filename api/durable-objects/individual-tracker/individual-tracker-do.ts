@@ -90,7 +90,11 @@ function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats
   totals.damageDealt += playerStats.DamageDealt;
   totals.damageTaken += playerStats.DamageTaken;
   totals.totalSpawns += playerStats.Spawns;
-  totals.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
+  try {
+    totals.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
+  } catch {
+    // malformed AverageLifeDuration — skip life-seconds for this match
+  }
 
   state.accumulatedPlayerTotals = totals;
   return true;
@@ -313,6 +317,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
   private topBarStatsCacheKey: string | undefined;
   private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
+  private cachedResolvedRosterCount: number | undefined;
 
   constructor(
     state: DurableObjectState,
@@ -552,6 +557,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     summary.score = buildMatchScore(matchStats);
+    if (summary.teamRosterSignature == null) {
+      this.cachedResolvedRosterCount = (this.cachedResolvedRosterCount ?? 0) + 1;
+    }
     summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
 
@@ -757,8 +765,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   ): readonly TopBarStatItem[] {
     const latestMatchId = state.matchIds.at(-1) ?? "";
     const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-    const resolvedRosterCount = Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
-    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${resolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+    if (this.cachedResolvedRosterCount == null) {
+      this.cachedResolvedRosterCount = Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
+    }
+    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
     if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
       return this.cachedTopBarStats;

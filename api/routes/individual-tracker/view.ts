@@ -22,11 +22,9 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
-      const settingsPromise = individualTrackerService.getSettingsForView(row.UserId);
-      const [streamerSettings, doState] = await Promise.all([
-        settingsPromise,
-        settingsPromise.then((s) => fetchTrackerDoViewState(env, row.UserId, trackerId, s.visibleSections?.topBarStatSlots)),
-      ]);
+      const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);
+      const topBarStatSlots = streamerSettings.visibleSections?.topBarStatSlots;
+      const doState = await fetchTrackerDoViewState(env, row.UserId, trackerId, topBarStatSlots);
 
       return trackerViewContract.toResponse({ view: toTrackerView(row, doState, streamerSettings) }, { noStore: true });
     } catch (error) {
