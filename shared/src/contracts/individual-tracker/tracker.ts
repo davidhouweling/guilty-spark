@@ -54,7 +54,7 @@ export const stopTrackerContract = defineContract(z.object({ success: z.literal(
 export type StopTrackerResponse = z.infer<typeof stopTrackerContract.schema>;
 
 export const selectMatchesRequestSchema = z.object({
-  matchIds: z.array(z.string()),
+  matchIds: z.array(z.string().min(1)),
 });
 export type SelectMatchesRequest = z.infer<typeof selectMatchesRequestSchema>;
 

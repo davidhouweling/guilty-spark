@@ -611,6 +611,17 @@ describe("IndividualTrackerDO", () => {
         expect.objectContaining({ selectedMatchIds: ["m2", "m3"] }),
       );
     });
+
+    it("filters out matchIds that are not in the known matchIds list", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }));
+
+      await individualTrackerDO.fetch(selectRequest(["m1", "unknown-id"]));
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ selectedMatchIds: ["m1"] }),
+      );
+    });
   });
 
   describe("toViewState() selection filtering", () => {

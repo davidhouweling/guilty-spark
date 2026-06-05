@@ -39,7 +39,7 @@ import type {
   IndividualTrackerSelectMatchesResponse,
   TopBarStatItem,
 } from "./types";
-import { accumulatePlayerStats, computeTopBarStats } from "./top-bar-stats";
+import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -491,7 +491,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const body = await request.json<IndividualTrackerSelectMatchesRequest>();
-    trackerState.selectedMatchIds = body.matchIds;
+    const known = new Set(trackerState.matchIds);
+    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id));
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
@@ -612,7 +613,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private toViewState(state: IndividualTrackerInternalState): IndividualTrackerViewState {
-    const activeIds = new Set(state.selectedMatchIds ?? state.matchIds);
+    const activeIds = getActiveMatchIds(state);
     const summaries = state.matchIds
       .filter((matchId) => activeIds.has(matchId))
       .map((matchId) => state.discoveredMatches[matchId])
