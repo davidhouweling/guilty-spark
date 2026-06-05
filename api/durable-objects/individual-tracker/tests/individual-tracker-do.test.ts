@@ -25,6 +25,7 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerClearMatchesResponse,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -620,6 +621,32 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
         expect.objectContaining({ selectedMatchIds: ["m1"] }),
+      );
+    });
+  });
+
+  describe("handleClearMatches()", () => {
+    it("returns 404 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/clear-matches", { method: "DELETE" }));
+
+      expect(response.status).toBe(404);
+    });
+
+    it("clears selectedMatchIds back to undefined and returns success", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"], selectedMatchIds: ["m1"] }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/clear-matches", { method: "DELETE" }));
+
+      expect(response.status).toBe(200);
+      const body: IndividualTrackerClearMatchesResponse = await response.json();
+      expect(body.success).toBe(true);
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({ selectedMatchIds: undefined }),
       );
     });
   });

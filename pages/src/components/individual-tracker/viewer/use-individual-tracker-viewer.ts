@@ -21,6 +21,7 @@ export interface IndividualTrackerViewerHookResult {
   readonly onDeselect: () => void;
   readonly onRetry: () => void;
   readonly onSelectMatches: (matchIds: readonly string[]) => void;
+  readonly onClearMatchSelection: () => void;
 }
 
 export function useIndividualTrackerViewer({
@@ -80,5 +81,9 @@ export function useIndividualTrackerViewer({
     [presenter],
   );
 
-  return { snapshot, model, onSelectMatch, onDeselect, onRetry, onSelectMatches };
+  const onClearMatchSelection = useCallback((): void => {
+    void presenter.clearMatchSelection();
+  }, [presenter]);
+
+  return { snapshot, model, onSelectMatch, onDeselect, onRetry, onSelectMatches, onClearMatchSelection };
 }

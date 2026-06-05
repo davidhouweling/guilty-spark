@@ -37,6 +37,7 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesRequest,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerClearMatchesResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -111,6 +112,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "select-matches": {
             return await this.handleSelectMatches(request);
+          }
+          case "clear-matches": {
+            return await this.handleClearMatches();
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -498,6 +502,21 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerSelectMatchesResponse = { success: true };
+    return Response.json(response);
+  }
+
+  private async handleClearMatches(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    trackerState.selectedMatchIds = undefined;
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerClearMatchesResponse = { success: true };
     return Response.json(response);
   }
 

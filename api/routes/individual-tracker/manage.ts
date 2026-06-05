@@ -2,6 +2,7 @@ import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
   selectMatchesContract,
   selectMatchesRequestSchema,
+  clearMatchesContract,
   selectActiveTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
@@ -19,6 +20,7 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerClearMatchesResponse,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
@@ -81,6 +83,13 @@ async function statusTrackerDo(env: Env, userId: string, trackerId: string): Pro
   assertDoOk(response);
   const result = await response.json<IndividualTrackerStatusResponse>();
   return result.state;
+}
+
+async function clearMatchesDo(env: Env, userId: string, trackerId: string): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/clear-matches", { method: "DELETE" });
+  assertDoOk(response);
+  await response.json<IndividualTrackerClearMatchesResponse>();
 }
 
 async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchIds: string[]): Promise<void> {
@@ -404,6 +413,41 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker select matches error"]]));
       return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.delete("/api/individual-tracker/manage/:trackerId/matches", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      await clearMatchesDo(env, auth.session.userId, tracker.TrackerId);
+
+      return clearMatchesContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker clear matches error"]]));
+      return errorContract.toResponse({ error: "Failed to clear match selection" }, { status: 500, noStore: true });
     }
   });
 };
