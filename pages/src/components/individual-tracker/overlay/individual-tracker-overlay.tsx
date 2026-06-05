@@ -13,6 +13,7 @@ import {
   getShowTabs,
   isPanelOpen as computeIsPanelOpen,
 } from "./individual-tracker-overlay-presenter";
+import { OverlayTopBarStats } from "./overlay-top-bar-stats";
 import styles from "./individual-tracker-overlay.module.css";
 
 interface IndividualTrackerOverlayProps {
@@ -36,8 +37,8 @@ export function IndividualTrackerOverlay({
 
   const activeSeries = useMemo(() => getActiveSeries(renderModel.timeline), [renderModel.timeline]);
 
-  const topSection = useMemo(
-    () =>
+  const topSection = useMemo(() => {
+    const seriesSection =
       activeSeries != null ? (
         <TopSection
           title={activeSeries.title}
@@ -50,9 +51,21 @@ export function IndividualTrackerOverlay({
           teamLeft={null}
           teamRight={null}
         />
-      ) : null,
-    [activeSeries, teamColors],
-  );
+      ) : null;
+    const statsSection =
+      renderModel.topBarStats != null && renderModel.topBarStats.length > 0 ? (
+        <OverlayTopBarStats items={renderModel.topBarStats} />
+      ) : null;
+    if (seriesSection == null && statsSection == null) {
+      return null;
+    }
+    return (
+      <>
+        {seriesSection}
+        {statsSection}
+      </>
+    );
+  }, [activeSeries, teamColors, renderModel.topBarStats]);
 
   const tabs = useMemo(() => buildTabs(renderModel.timeline), [renderModel.timeline]);
 

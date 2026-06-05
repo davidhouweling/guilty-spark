@@ -64,6 +64,35 @@
   gap: var(--space-2);
 }
 
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.slotRow {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.slotLabel {
+  color: var(--halo-gray);
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  min-width: 3.5rem;
+}
+
+.slotSelect {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  flex: 1;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
 .actions {
   align-items: center;
   display: flex;

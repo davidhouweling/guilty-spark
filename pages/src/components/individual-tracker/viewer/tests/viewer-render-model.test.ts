@@ -142,6 +142,24 @@ describe("buildViewerRenderModel", () => {
     ]);
   });
 
+  it("passes topBarStats from the view state through to the render model", () => {
+    const view = aFakeTrackerViewStateWith({
+      topBarStats: [{ label: "KDA", value: "3.2" }],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    expect(model.topBarStats).toEqual([{ label: "KDA", value: "3.2" }]);
+  });
+
+  it("passes undefined topBarStats when absent from the view state", () => {
+    const view = aFakeTrackerViewStateWith();
+
+    const model = buildViewerRenderModel({ view });
+
+    expect(model.topBarStats).toBeUndefined();
+  });
+
   it("flows custom preferred colour ids into the hexes", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
