@@ -246,8 +246,7 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
         return null;
       }
       const kdRatio = totals.deaths === 0 ? totals.kills : totals.kills / totals.deaths;
-      const kd = Number.isFinite(kdRatio) ? kdRatio.toFixed(2) : "0.00";
-      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)} (${kd})`;
+      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)} (${formatStatValue(kdRatio)})`;
     }
     case "kills-deaths-assists-kda": {
       if (totals == null) {
