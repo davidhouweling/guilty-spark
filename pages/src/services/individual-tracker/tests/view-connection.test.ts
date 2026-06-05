@@ -52,6 +52,14 @@ describe("RealIndividualTrackerViewService.connect", () => {
     expect(MockWebSocket.instances[0]?.url).toBe("wss://api.example.com/api/individual-tracker/tracker%201/ws");
   });
 
+  it("connectByXuid derives a wss URL with the /xuid/ segment and encoded xuid", () => {
+    const service = new RealIndividualTrackerViewService({ apiHost: "https://api.example.com" });
+
+    service.connectByXuid("2533274 001");
+
+    expect(MockWebSocket.instances[0]?.url).toBe("wss://api.example.com/api/individual-tracker/xuid/2533274%20001/ws");
+  });
+
   it("derives a ws URL from an http host", () => {
     const service = new RealIndividualTrackerViewService({ apiHost: "http://localhost:8787" });
 

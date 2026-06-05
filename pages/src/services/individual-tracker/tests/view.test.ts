@@ -92,12 +92,4 @@ describe("RealIndividualTrackerViewService", () => {
       await expect(service.getViewByXuid("9999")).rejects.toThrow("Tracker not found");
     });
   });
-
-  describe("connectByXuid", () => {
-    it("opens a connection to the xuid ws endpoint", () => {
-      const connection = service.connectByXuid("2533274001");
-
-      expect(connection).toBeDefined();
-    });
-  });
 });
