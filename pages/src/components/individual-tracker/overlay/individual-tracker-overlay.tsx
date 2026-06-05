@@ -27,7 +27,7 @@ function getActiveSeries(timeline: readonly ViewerTimelineItem[]): ViewerSeriesT
   return null;
 }
 
-function buildTickerGroups(matchStatsState: MatchStatsState | null): TickerMatchGroup[] {
+function buildTickerGroups(matchStatsState: MatchStatsState | null, matchIndex: number): TickerMatchGroup[] {
   if (matchStatsState?.status !== "loaded") {
     return [];
   }
@@ -39,7 +39,7 @@ function buildTickerGroups(matchStatsState: MatchStatsState | null): TickerMatch
 
   return [
     {
-      matchIndex: 0,
+      matchIndex,
       label: "",
       rows: data.flatMap((teamData) => [
         {
@@ -93,8 +93,6 @@ export function IndividualTrackerOverlay({
     [activeSeries, teamColors],
   );
 
-  const tickerMatchGroups = useMemo(() => buildTickerGroups(matchStatsState), [matchStatsState]);
-
   const tabs = useMemo((): readonly OverlayTab[] => {
     let matchIdx = 0;
     return renderModel.timeline.map((item): OverlayTab => {
@@ -118,6 +116,17 @@ export function IndividualTrackerOverlay({
       };
     });
   }, [renderModel.timeline]);
+
+  const selectedTabIndex = useMemo(() => {
+    if (selectedMatchId == null) return 0;
+    const tab = tabs.find((t) => t.type === "match" && t.matchId === selectedMatchId);
+    return tab?.type === "match" ? tab.index : 0;
+  }, [selectedMatchId, tabs]);
+
+  const tickerMatchGroups = useMemo(
+    () => buildTickerGroups(matchStatsState, selectedTabIndex),
+    [matchStatsState, selectedTabIndex],
+  );
 
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
