@@ -1,0 +1,86 @@
+.statsPanel {
+  align-items: flex-end;
+  background: rgb(0 0 0 / 70%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--space-8) var(--space-8) 0;
+  position: fixed;
+  z-index: 100;
+}
+
+/* Transition classes for enter/exit animations */
+.panelEnter {
+  opacity: 0;
+}
+
+.panelEnter .statsPanelContent {
+  transform: translateY(100%);
+}
+
+.panelEnterActive {
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}
+
+.panelEnterActive .statsPanelContent {
+  transform: translateY(0);
+  transition: transform 300ms ease-out;
+}
+
+.panelExit {
+  opacity: 1;
+}
+
+.panelExit .statsPanelContent {
+  transform: translateY(0);
+}
+
+.panelExitActive {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+
+.panelExitActive .statsPanelContent {
+  transform: translateY(100%);
+  transition: transform 300ms ease-in;
+}
+
+.statsPanelContent {
+  background: rgb(15 40 48 / 98%);
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -4px 40px rgb(0 0 0 / 60%);
+  max-height: 95vh;
+  max-width: 1400px;
+  overflow-y: auto;
+  padding: var(--space-6);
+  position: relative;
+  width: 100%;
+}
+
+.closeButton {
+  background: transparent;
+  border: 2px solid var(--halo-teal-primary);
+  border-radius: var(--radius-base);
+  color: var(--halo-white);
+  cursor: pointer;
+  font-size: var(--text-xl);
+  line-height: 1;
+  padding: var(--space-2);
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  transition: all var(--transition-fast);
+}
+
+.closeButton:hover {
+  background: var(--halo-teal-primary);
+  border-color: var(--halo-accent);
+  color: var(--halo-bg-primary);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--halo-accent);
+  outline-offset: 2px;
+}

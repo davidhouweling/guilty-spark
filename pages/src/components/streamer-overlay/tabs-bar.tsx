@@ -10,20 +10,22 @@ interface SeriesTab {
   readonly teamColor: undefined;
 }
 
-interface MatchTab {
+interface MatchTabBase {
   readonly type: "match";
   readonly index: number;
   readonly matchId: string;
   readonly label: string;
   readonly score: string;
-  readonly icon: string;
-  readonly icons?: readonly {
-    readonly src: string;
-    readonly dimmed: boolean;
-  }[];
   readonly teamColor: string | undefined;
 }
 
+type SingleIconMatchTab = MatchTabBase & { readonly icon: string; readonly icons?: never };
+type MultiIconMatchTab = MatchTabBase & {
+  readonly icons: readonly { readonly src: string; readonly dimmed: boolean }[];
+  readonly icon?: never;
+};
+
+export type MatchTab = SingleIconMatchTab | MultiIconMatchTab;
 export type OverlayTab = SeriesTab | MatchTab;
 
 interface OverlayTabsBarProps {
@@ -49,7 +51,13 @@ const TabButton = memo(function TabButton({
 }: TabButtonProps): React.ReactElement {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
   const tabIcons =
-    tab.type === "match" ? (tab.icons ?? (tab.icon === "" ? [] : [{ src: tab.icon, dimmed: false }])) : [];
+    tab.type === "match"
+      ? (tab.icons != null
+          ? tab.icons
+          : tab.icon != null && tab.icon !== ""
+            ? [{ src: tab.icon, dimmed: false as const }]
+            : [])
+      : [];
 
   return (
     <button

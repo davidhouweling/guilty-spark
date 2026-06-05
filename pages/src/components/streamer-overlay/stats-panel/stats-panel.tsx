@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { CSSTransition } from "react-transition-group";
-import styles from "./streamer-overlay.module.css";
+import styles from "./stats-panel.module.css";
 
 interface StatsPanelProps {
   readonly isPanelOpen: boolean;
@@ -35,7 +35,7 @@ function StatsPanelComponent({
             e.stopPropagation();
           }}
         >
-          <button type="button" className={styles.closeButton} onClick={onClosePanel}>
+          <button type="button" aria-label="Close" className={styles.closeButton} onClick={onClosePanel}>
             ✕
           </button>
           {panelContent}

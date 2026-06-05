@@ -70,7 +70,7 @@ describe("IndividualTrackerOverlay", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "✕" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
   });
 
   it("opens the stats panel when stats are loaded for a selected match", () => {
@@ -84,7 +84,7 @@ describe("IndividualTrackerOverlay", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "✕" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   it("opens the stats panel when stats fail to load so the error is visible", () => {
@@ -98,7 +98,7 @@ describe("IndividualTrackerOverlay", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "✕" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.getByText("Network failure")).toBeInTheDocument();
   });
 
@@ -115,7 +115,7 @@ describe("IndividualTrackerOverlay", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "✕" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
     expect(onDeselect).toHaveBeenCalledOnce();
   });

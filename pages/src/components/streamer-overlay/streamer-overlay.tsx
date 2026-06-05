@@ -4,7 +4,7 @@ import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import type { OverlayTab } from "./tabs-bar";
 import { BottomSection } from "./bottom-section";
-import { StatsPanel } from "./stats-panel";
+import { StatsPanel } from "./stats-panel/stats-panel";
 import styles from "./streamer-overlay.module.css";
 
 export interface StreamerOverlayProps {
@@ -23,10 +23,8 @@ export interface StreamerOverlayProps {
   readonly settingsUi: React.ReactNode;
   readonly hasPanelContent: (tabIndex: number) => boolean;
   readonly renderPanelContent: (tabIndex: number) => React.ReactElement | null;
-  // Optional: called on every tab click regardless of hasPanelContent (e.g. to trigger data loading).
-  readonly onTabClick?: (tabIndex: number) => void;
-  // Optional external overrides — used when panel state is driven by props rather than tab clicks.
   readonly panelOpen?: boolean;
+  readonly onTabClick?: (tabIndex: number) => void;
   readonly onClosePanel?: () => void;
 }
 
@@ -46,8 +44,8 @@ export function StreamerOverlay({
   settingsUi,
   hasPanelContent,
   renderPanelContent,
-  onTabClick,
   panelOpen,
+  onTabClick,
   onClosePanel,
 }: StreamerOverlayProps): React.ReactElement {
   const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
