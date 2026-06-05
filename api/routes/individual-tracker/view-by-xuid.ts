@@ -2,10 +2,15 @@ import { z } from "zod";
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { RoutesRegisterHandler } from "../base/types";
 import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
 const xuidParamsSchema = z.object({ xuid: z.string().min(1) });
+
+function pickTrackerRow(rows: readonly IndividualTrackersRow[]): IndividualTrackersRow | null {
+  return rows.find((r) => r.IsLive === 1) ?? rows[0] ?? null;
+}
 
 export const trackerViewByXuidRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/xuid/:xuid/view", async (request, env: Env) => {
@@ -20,7 +25,7 @@ export const trackerViewByXuidRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const { xuid } = parsedParams.data;
 
       const rows = await databaseService.findIndividualTrackersByXuids([xuid]);
-      const row = rows.find((r) => r.IsLive === 1) ?? rows[0] ?? null;
+      const row = pickTrackerRow(rows);
       if (row == null) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
@@ -53,7 +58,7 @@ export const trackerViewByXuidRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const { xuid } = parsedParams.data;
 
       const rows = await databaseService.findIndividualTrackersByXuids([xuid]);
-      const row = rows.find((r) => r.IsLive === 1) ?? rows[0] ?? null;
+      const row = pickTrackerRow(rows);
       if (row == null) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
