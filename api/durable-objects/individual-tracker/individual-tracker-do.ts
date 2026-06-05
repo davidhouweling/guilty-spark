@@ -113,7 +113,8 @@ function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
 function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: number; lost: number } {
   const summaries = state.matchIds
     .map((id) => state.discoveredMatches[id])
-    .filter((s): s is IndividualTrackerMatchSummary => s != null);
+    .filter((s): s is IndividualTrackerMatchSummary => s != null)
+    .sort((a, b) => compareAsc(new Date(a.startTime), new Date(b.startTime)));
 
   const groupings = analyzeMatchGroupings(
     summaries.map((s) => ({
