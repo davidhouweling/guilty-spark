@@ -557,10 +557,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     summary.score = buildMatchScore(matchStats);
-    if (summary.teamRosterSignature == null) {
+    const newRosterSignature = buildTeamRosterSignature(matchStats);
+    if (summary.teamRosterSignature == null && newRosterSignature != null) {
       this.cachedResolvedRosterCount = (this.cachedResolvedRosterCount ?? 0) + 1;
     }
-    summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
+    summary.teamRosterSignature = newRosterSignature;
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
 
     const accumulatedIds = trackerState.accumulatedMatchIds ?? [];
@@ -765,9 +766,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   ): readonly TopBarStatItem[] {
     const latestMatchId = state.matchIds.at(-1) ?? "";
     const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-    if (this.cachedResolvedRosterCount == null) {
-      this.cachedResolvedRosterCount = Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
-    }
+    this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
     const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
 
     if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
