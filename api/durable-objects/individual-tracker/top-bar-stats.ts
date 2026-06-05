@@ -28,7 +28,7 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
     return false;
   }
 
-  const totals = state.accumulatedPlayerTotals ?? {
+  const totals = {
     kills: 0,
     deaths: 0,
     assists: 0,
@@ -40,9 +40,8 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
     totalLifeSeconds: 0,
     totalSpawns: 0,
     totalLifeSpawns: 0,
+    ...state.accumulatedPlayerTotals,
   };
-
-  totals.totalLifeSpawns ??= 0;
 
   totals.kills += playerStats.Kills;
   totals.deaths += playerStats.Deaths;
@@ -208,17 +207,19 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       return totals != null ? formatDamageRatio(totals.damageDealt, totals.damageTaken) : null;
     }
     case "avg-life-time": {
-      if (totals == null || totals.totalLifeSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      const avgSeconds = totals.totalLifeSeconds / totals.totalLifeSpawns;
+      const avgSeconds = totals.totalLifeSeconds / lifeSpawns;
       return getReadableDuration(getDurationInIsoString(avgSeconds));
     }
     case "avg-damage-per-life": {
-      if (totals == null || totals.totalSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      return formatDamageRatio(totals.damageDealt, totals.totalSpawns);
+      return formatDamageRatio(totals.damageDealt, lifeSpawns);
     }
     case "kills-deaths-kd": {
       if (totals == null) {
@@ -247,12 +248,13 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
       return `${formatStatValue(totals.damageDealt)}:${formatStatValue(totals.damageTaken)} (${formatDamageRatio(totals.damageDealt, totals.damageTaken)})`;
     }
     case "avg-life-damage-per-life": {
-      if (totals == null || totals.totalLifeSpawns === 0) {
+      const lifeSpawns = totals?.totalLifeSpawns ?? 0;
+      if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      const avgSeconds = totals.totalLifeSeconds / totals.totalLifeSpawns;
+      const avgSeconds = totals.totalLifeSeconds / lifeSpawns;
       const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
-      const dmgPerLife = formatDamageRatio(totals.damageDealt, totals.totalLifeSpawns);
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, lifeSpawns);
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
