@@ -58,12 +58,32 @@ export interface IndividualTrackerSeriesGroup {
   subtitle: string;
 }
 
+export interface AccumulatedPlayerTotals {
+  kills: number;
+  deaths: number;
+  assists: number;
+  headshotKills: number;
+  shotsFired: number;
+  shotsHit: number;
+  damageDealt: number;
+  damageTaken: number;
+  totalLifeSeconds: number;
+  totalSpawns: number;
+}
+
+export interface TopBarStatItem {
+  label: string;
+  value: string;
+}
+
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
   checkCount: number;
   matchIds: string[];
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
+  accumulatedPlayerTotals?: AccumulatedPlayerTotals;
+  accumulatedMatchIds?: string[];
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -103,6 +123,7 @@ export interface IndividualTrackerViewState {
   series: IndividualTrackerSeriesGroup[];
   lastUpdateTime: string;
   lastMatchDiscoveredAt: string | null;
+  topBarStats?: readonly TopBarStatItem[];
 }
 
 export interface IndividualTrackerViewStateResponse {

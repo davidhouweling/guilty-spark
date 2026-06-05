@@ -14,6 +14,7 @@ import {
   getDefaultSeriesGroupSubtitle,
   getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -33,7 +34,9 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
+  TopBarStatItem,
 } from "./types";
+import { accumulatePlayerStats, computeTopBarStats } from "./top-bar-stats";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -54,6 +57,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly logService: LogService;
   private ownerClient: HaloInfiniteClient | null = null;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private topBarStatsCacheKey: string | undefined;
+  private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
+  private cachedResolvedRosterCount: number | undefined;
 
   constructor(
     state: DurableObjectState,
@@ -98,7 +104,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             return await this.handleStatus();
           }
           case "view-state": {
-            return await this.handleViewState();
+            return await this.handleViewState(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -218,7 +224,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         teamRosterSignature: null,
         teamOutcomes: null,
       };
-      await this.enrichScore(haloClient, summary);
+      await this.enrichScore(haloClient, summary, trackerState);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       newlyDiscovered.add(matchId);
@@ -235,7 +241,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        const enriched = await this.enrichScore(haloClient, summary);
+        const enriched = await this.enrichScore(haloClient, summary, trackerState);
         if (enriched) {
           viewChanged = true;
         }
@@ -268,7 +274,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
+  private async enrichScore(
+    haloClient: HaloInfiniteClient,
+    summary: IndividualTrackerMatchSummary,
+    trackerState: IndividualTrackerInternalState,
+  ): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);
@@ -289,8 +299,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     summary.score = buildMatchScore(matchStats);
-    summary.teamRosterSignature = buildTeamRosterSignature(matchStats);
+    const newRosterSignature = buildTeamRosterSignature(matchStats);
+    if (summary.teamRosterSignature == null && newRosterSignature != null) {
+      this.cachedResolvedRosterCount = (this.cachedResolvedRosterCount ?? 0) + 1;
+    }
+    summary.teamRosterSignature = newRosterSignature;
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
+
+    const accumulatedIds = trackerState.accumulatedMatchIds ?? [];
+    if (!accumulatedIds.includes(summary.matchId)) {
+      if (accumulatePlayerStats(trackerState, matchStats)) {
+        trackerState.accumulatedMatchIds = [...accumulatedIds, summary.matchId];
+      }
+    }
+
     return true;
   }
 
@@ -458,12 +480,49 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
-  private async handleViewState(): Promise<Response> {
+  private async handleViewState(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const slotsParam = url.searchParams.get("topBarStatSlots");
+    const topBarStatSlots: readonly IndividualTopBarStatOption[] =
+      slotsParam != null ? (JSON.parse(slotsParam) as IndividualTopBarStatOption[]) : [];
+
     const trackerState = await this.getState();
+    const topBarStats =
+      trackerState != null && topBarStatSlots.length > 0
+        ? this.buildTopBarStats(trackerState, topBarStatSlots)
+        : undefined;
+
     const response: IndividualTrackerViewStateResponse = {
-      state: trackerState == null ? null : this.toViewState(trackerState),
+      state:
+        trackerState == null
+          ? null
+          : {
+              ...this.toViewState(trackerState),
+              ...(topBarStats != null ? { topBarStats } : {}),
+            },
     };
     return Response.json(response);
+  }
+
+  private buildTopBarStats(
+    state: IndividualTrackerInternalState,
+    topBarStatSlots: readonly IndividualTopBarStatOption[],
+  ): readonly TopBarStatItem[] {
+    const latestMatchId = state.matchIds.at(-1) ?? "";
+    const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
+    this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
+      (s) => s.teamRosterSignature != null,
+    ).length;
+    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+
+    if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
+      return this.cachedTopBarStats;
+    }
+
+    const stats = computeTopBarStats(state, topBarStatSlots);
+    this.topBarStatsCacheKey = cacheKey;
+    this.cachedTopBarStats = stats;
+    return stats;
   }
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {
