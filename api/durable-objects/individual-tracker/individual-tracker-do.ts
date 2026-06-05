@@ -489,7 +489,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const trackerState = await this.getState();
     const topBarStats =
       trackerState != null && topBarStatSlots.length > 0
-        ? this.buildTopBarStats(trackerState, topBarStatSlots)
+        ? await this.buildTopBarStats(trackerState, topBarStatSlots)
         : undefined;
 
     const response: IndividualTrackerViewStateResponse = {
@@ -504,25 +504,51 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
-  private buildTopBarStats(
+  private async buildTopBarStats(
     state: IndividualTrackerInternalState,
     topBarStatSlots: readonly IndividualTopBarStatOption[],
-  ): readonly TopBarStatItem[] {
-    const latestMatchId = state.matchIds.at(-1) ?? "";
-    const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
-    this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
-      (s) => s.teamRosterSignature != null,
-    ).length;
-    const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+  ): Promise<readonly TopBarStatItem[]> {
+    const hasRankSlot =
+      topBarStatSlots.includes("current-rank") ||
+      topBarStatSlots.includes("season-peak") ||
+      topBarStatSlots.includes("all-time-peak");
+    const hasEsraSlot = topBarStatSlots.includes("esra");
 
-    if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
-      return this.cachedTopBarStats;
+    if (!hasRankSlot && !hasEsraSlot) {
+      const latestMatchId = state.matchIds.at(-1) ?? "";
+      const accumulatedCount = state.accumulatedMatchIds?.length ?? 0;
+      this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter((s) => s.teamRosterSignature != null).length;
+      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+
+      if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
+        return this.cachedTopBarStats;
+      }
+
+      const stats = computeTopBarStats(state, topBarStatSlots, undefined, undefined);
+      this.topBarStatsCacheKey = cacheKey;
+      this.cachedTopBarStats = stats;
+      return stats;
     }
 
-    const stats = computeTopBarStats(state, topBarStatSlots);
-    this.topBarStatsCacheKey = cacheKey;
-    this.cachedTopBarStats = stats;
-    return stats;
+    const [csrContainer, esraData] = await Promise.all([
+      hasRankSlot
+        ? this.services.haloService
+            .getRankedArenaCsrs([state.xuid])
+            .then((m) => m.get(state.xuid) ?? null)
+            .catch(() => {
+              this.logService.warn("IndividualTracker: getRankedArenaCsrs failed", new Map([["xuid", state.xuid]]));
+              return null;
+            })
+        : Promise.resolve(null),
+      hasEsraSlot
+        ? this.services.haloService.getPlayerEsra(state.xuid).catch(() => {
+            this.logService.warn("IndividualTracker: getPlayerEsra failed", new Map([["xuid", state.xuid]]));
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+
+    return computeTopBarStats(state, topBarStatSlots, csrContainer, esraData);
   }
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {

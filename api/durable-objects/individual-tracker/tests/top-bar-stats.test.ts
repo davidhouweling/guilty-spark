@@ -1,7 +1,7 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import { type HaloInfiniteClient, type PlayerMatchHistory, type Stats } from "halo-infinite-api";
+import { type HaloInfiniteClient, type PlayerMatchHistory, type PlaylistCsrContainer, type Stats } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
@@ -204,6 +204,7 @@ describe("topBarStats", () => {
           damageTaken: 6000,
           totalLifeSeconds: 300,
           totalSpawns: 10,
+          totalLifeSpawns: 10,
         },
         accumulatedMatchIds: ["m1"],
       }),
@@ -253,6 +254,7 @@ describe("topBarStats", () => {
         damageTaken: 1000,
         totalLifeSeconds: 60,
         totalSpawns: 2,
+        totalLifeSpawns: 2,
       },
       accumulatedMatchIds: ["m1"],
     });
@@ -289,6 +291,7 @@ describe("topBarStats", () => {
         damageTaken: 1000,
         totalLifeSeconds: 60,
         totalSpawns: 2,
+        totalLifeSpawns: 2,
       },
       accumulatedMatchIds: ["m2"],
     });
@@ -314,6 +317,7 @@ describe("topBarStats", () => {
         damageTaken: 2000,
         totalLifeSeconds: 120,
         totalSpawns: 4,
+        totalLifeSpawns: 4,
       },
       accumulatedMatchIds: ["m2", "m1"],
     });
@@ -356,20 +360,109 @@ describe("topBarStats", () => {
     expect(body.state?.topBarStats?.[0]).toEqual({ label: "Series Won:Loss", value: "1:0" });
   });
 
-  it("returns N/A for rank/esra slots (deferred to G4)", async () => {
-    storageGetSpy.mockResolvedValue(
-      aFakeIndividualTrackerInternalStateWith({
-        matchIds: ["m1"],
-        discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
-      }),
-    );
+  describe("rank/ESRA slots", () => {
+    const fakeCsr = {
+      Value: 1567,
+      Tier: "Onyx",
+      SubTier: 0,
+      MeasurementMatchesRemaining: 0,
+      TierStart: 1500,
+      NextTier: "Onyx",
+      NextTierStart: 1600,
+      InitialMeasurementMatches: 10,
+      DemotionProtectionMatchesRemaining: 0,
+      InitialDemotionProtectionMatches: 5,
+      NextSubTier: 0,
+    };
+    const fakeCsrContainer: PlaylistCsrContainer = {
+      Current: { ...fakeCsr, Value: 1567 },
+      SeasonMax: { ...fakeCsr, Value: 1450 },
+      AllTimeMax: { ...fakeCsr, Value: 1600 },
+    };
 
-    const url = new URL("http://do/view-state");
-    url.searchParams.set("topBarStatSlots", JSON.stringify(["current-rank", "esra"]));
-    const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
-    const body: IndividualTrackerViewStateResponse = await response.json();
+    beforeEach(() => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: trackedXuid,
+          matchIds: ["m1"],
+          discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
+        }),
+      );
+    });
 
-    expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "N/A" });
-    expect(body.state?.topBarStats?.[1]).toEqual({ label: "ESRA", value: "N/A" });
+    it("returns formatted CSR for current-rank, season-peak, all-time-peak slots", async () => {
+      vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(
+        new Map([[trackedXuid, fakeCsrContainer]]),
+      );
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["current-rank", "season-peak", "all-time-peak"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "1,567" });
+      expect(body.state?.topBarStats?.[1]).toEqual({ label: "Season Peak", value: "1,450" });
+      expect(body.state?.topBarStats?.[2]).toEqual({ label: "All Time Peak", value: "1,600" });
+    });
+
+    it("returns formatted ESRA for esra slot", async () => {
+      vi.spyOn(services.haloService, "getPlayerEsra").mockResolvedValue({
+        esra: 1234.7,
+        lastRankedGamePlayed: null,
+      });
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["esra"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "ESRA", value: "1,235" });
+    });
+
+    it("returns – when getRankedArenaCsrs throws (graceful degradation)", async () => {
+      vi.spyOn(services.haloService, "getRankedArenaCsrs").mockRejectedValue(new Error("CSR fetch failed"));
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["current-rank", "season-peak"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "–" });
+      expect(body.state?.topBarStats?.[1]).toEqual({ label: "Season Peak", value: "–" });
+    });
+
+    it("returns – when getPlayerEsra throws (graceful degradation)", async () => {
+      vi.spyOn(services.haloService, "getPlayerEsra").mockRejectedValue(new Error("ESRA fetch failed"));
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["esra"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "ESRA", value: "–" });
+    });
+
+    it("returns – when no CSR found for xuid (player not ranked)", async () => {
+      vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["current-rank"]));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "–" });
+    });
+
+    it("does not call getRankedArenaCsrs or getPlayerEsra when those slots are not requested", async () => {
+      const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs");
+      const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra");
+
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["kills", "deaths"]));
+      await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+
+      expect(csrSpy).not.toHaveBeenCalled();
+      expect(esraSpy).not.toHaveBeenCalled();
+    });
   });
 });
