@@ -94,12 +94,12 @@ export function StreamerOverlay({
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
       onTabClick?.(tabIndex);
+      setSelectedTab(tabIndex);
       if (!hasPanelContent(tabIndex)) {
         return;
       }
 
       const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
-      setSelectedTab(tabIndex);
       setInternalIsPanelOpen(openPanel);
     },
     [hasPanelContent, isPanelOpen, onTabClick, selectedTab],
