@@ -25,6 +25,18 @@ export interface StreamerOverlayProps {
   readonly settingsUi: React.ReactNode;
 }
 
+function resolveTeamName(
+  teamId: number,
+  teams: readonly { name: string }[],
+  overrides: { eagleTeamNameOverride: string | null; cobraTeamNameOverride: string | null },
+): string {
+  const override = teamId === 0 ? overrides.eagleTeamNameOverride : overrides.cobraTeamNameOverride;
+  if (override !== null && override !== "") {
+    return override;
+  }
+  return teams[teamId]?.name ?? (teamId === 0 ? "Eagle" : "Cobra");
+}
+
 interface NeatQueueStreamerOverlayProps {
   readonly neatQueueState: LiveTrackerNeatQueueStateRenderModel;
   readonly teamColors: TeamColor[];
@@ -252,15 +264,7 @@ function NeatQueueStreamerOverlay({
 
       for (const teamData of seriesStats.teamData.values()) {
         const { teamId, teamStats, teamMedals } = teamData;
-        const { eagleTeamNameOverride, cobraTeamNameOverride } = settings.series;
-        const teamOverride = teamId === 0 ? eagleTeamNameOverride : cobraTeamNameOverride;
-
-        let teamName = teamId === 0 ? "Eagle" : "Cobra";
-        if (teamOverride !== null && teamOverride !== "") {
-          teamName = teamOverride;
-        } else if (neatQueueState.teams[teamId]?.name) {
-          teamName = neatQueueState.teams[teamId].name;
-        }
+        const teamName = resolveTeamName(teamId, neatQueueState.teams, settings.series);
 
         rows.push({
           type: "team",
@@ -293,15 +297,7 @@ function NeatQueueStreamerOverlay({
 
         for (const teamData of matchStat.data) {
           const { teamId, teamStats, teamMedals } = teamData;
-          const { eagleTeamNameOverride, cobraTeamNameOverride } = settings.series;
-          const teamOverride = teamId === 0 ? eagleTeamNameOverride : cobraTeamNameOverride;
-
-          let teamName = teamId === 0 ? "Eagle" : "Cobra";
-          if (teamOverride !== null && teamOverride !== "") {
-            teamName = teamOverride;
-          } else if (neatQueueState.teams[teamId]?.name) {
-            teamName = neatQueueState.teams[teamId].name;
-          }
+          const teamName = resolveTeamName(teamId, neatQueueState.teams, settings.series);
 
           rows.push({
             type: "team",

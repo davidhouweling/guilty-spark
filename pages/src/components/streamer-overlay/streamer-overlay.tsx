@@ -23,6 +23,8 @@ export interface StreamerOverlayProps {
   readonly settingsUi: React.ReactNode;
   readonly hasPanelContent: (tabIndex: number) => boolean;
   readonly renderPanelContent: (tabIndex: number) => React.ReactElement | null;
+  // Optional: called on every tab click regardless of hasPanelContent (e.g. to trigger data loading).
+  readonly onTabClick?: (tabIndex: number) => void;
   // Optional external overrides — used when panel state is driven by props rather than tab clicks.
   readonly panelOpen?: boolean;
   readonly onClosePanel?: () => void;
@@ -44,6 +46,7 @@ export function StreamerOverlay({
   settingsUi,
   hasPanelContent,
   renderPanelContent,
+  onTabClick,
   panelOpen,
   onClosePanel,
 }: StreamerOverlayProps): React.ReactElement {
@@ -90,15 +93,16 @@ export function StreamerOverlay({
 
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
+      onTabClick?.(tabIndex);
       if (!hasPanelContent(tabIndex)) {
         return;
       }
 
-      const openPanel = selectedTab === tabIndex ? !internalIsPanelOpen : true;
+      const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
       setSelectedTab(tabIndex);
       setInternalIsPanelOpen(openPanel);
     },
-    [hasPanelContent, internalIsPanelOpen, selectedTab],
+    [hasPanelContent, isPanelOpen, onTabClick, selectedTab],
   );
 
   const handleClosePanel = useCallback((): void => {

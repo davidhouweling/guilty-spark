@@ -65,6 +65,7 @@ export function IndividualTrackerOverlay({
   renderModel,
   matchStatsState,
   selectedMatchId,
+  onSelectMatch,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
   const isPanelOpen =
@@ -74,20 +75,23 @@ export function IndividualTrackerOverlay({
 
   const activeSeries = getActiveSeries(renderModel.timeline);
 
-  const topSection =
-    activeSeries != null ? (
-      <TopSection
-        title={activeSeries.title}
-        subtitle={activeSeries.subtitle}
-        iconUrl={null}
-        showScore={true}
-        seriesScore={activeSeries.score}
-        showTeamDetails={false}
-        teamColors={teamColors}
-        teamLeft={null}
-        teamRight={null}
-      />
-    ) : null;
+  const topSection = useMemo(
+    () =>
+      activeSeries != null ? (
+        <TopSection
+          title={activeSeries.title}
+          subtitle={activeSeries.subtitle}
+          iconUrl={null}
+          showScore={true}
+          seriesScore={activeSeries.score}
+          showTeamDetails={false}
+          teamColors={teamColors}
+          teamLeft={null}
+          teamRight={null}
+        />
+      ) : null,
+    [activeSeries, teamColors],
+  );
 
   const tickerMatchGroups = useMemo(() => buildTickerGroups(matchStatsState), [matchStatsState]);
 
@@ -114,6 +118,20 @@ export function IndividualTrackerOverlay({
       };
     });
   }, [renderModel.timeline]);
+
+  const handleTabClick = useCallback(
+    (tabIndex: number): void => {
+      if (tabIndex === -1) {
+        onDeselect();
+        return;
+      }
+      const tab = tabs.find((t) => t.type === "match" && t.index === tabIndex);
+      if (tab?.type === "match") {
+        onSelectMatch(tab.matchId);
+      }
+    },
+    [onDeselect, onSelectMatch, tabs],
+  );
 
   const hasPanelContent = useCallback((_tabIndex: number): boolean => false, []);
 
@@ -148,6 +166,7 @@ export function IndividualTrackerOverlay({
         settingsUi={null}
         hasPanelContent={hasPanelContent}
         renderPanelContent={renderPanelContent}
+        onTabClick={handleTabClick}
         panelOpen={isPanelOpen}
         onClosePanel={onDeselect}
       />
