@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from "react";
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { TrackerRowAction } from "./manager-model";
 import type { IndividualTrackerManagerViewModel } from "./types";
 
@@ -11,12 +11,12 @@ interface IndividualTrackerManagerActions {
   readonly onIdleTimeoutHoursChange: (value: string) => void;
   readonly onAddTracker: () => void;
   readonly onRowAction: (trackerId: string, action: TrackerRowAction) => void;
-  readonly onUpdateSettings: (settings: StreamerViewSettings) => void;
 }
 
 interface IndividualTrackerManagerContextValue {
   readonly model: IndividualTrackerManagerViewModel;
   readonly actions: IndividualTrackerManagerActions;
+  readonly settingsService: IndividualTrackerSettingsService;
 }
 
 const IndividualTrackerManagerContext = createContext<IndividualTrackerManagerContextValue | null>(null);
@@ -24,15 +24,17 @@ const IndividualTrackerManagerContext = createContext<IndividualTrackerManagerCo
 interface IndividualTrackerManagerProviderProps {
   readonly model: IndividualTrackerManagerViewModel;
   readonly actions: IndividualTrackerManagerActions;
+  readonly settingsService: IndividualTrackerSettingsService;
   readonly children: React.ReactNode;
 }
 
 export function IndividualTrackerManagerProvider({
   model,
   actions,
+  settingsService,
   children,
 }: IndividualTrackerManagerProviderProps): React.ReactElement {
-  const value = useMemo(() => ({ model, actions }), [model, actions]);
+  const value = useMemo(() => ({ model, actions, settingsService }), [model, actions, settingsService]);
 
   return <IndividualTrackerManagerContext.Provider value={value}>{children}</IndividualTrackerManagerContext.Provider>;
 }
@@ -51,4 +53,8 @@ export function useManagerModel(): IndividualTrackerManagerViewModel {
 
 export function useManagerActions(): IndividualTrackerManagerActions {
   return useIndividualTrackerManagerContext().actions;
+}
+
+export function useManagerSettingsService(): IndividualTrackerSettingsService {
+  return useIndividualTrackerManagerContext().settingsService;
 }

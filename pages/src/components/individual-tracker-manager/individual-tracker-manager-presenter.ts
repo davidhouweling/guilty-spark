@@ -39,6 +39,7 @@ export class IndividualTrackerManagerPresenter {
       !isValidGamertagInput(snapshot.gamertagInput) ||
       !isValidSearchStartTimeInput(snapshot.searchStartTime) ||
       !isValidIdleTimeoutHoursInput(snapshot.idleTimeoutHours);
+    const liveTracker = snapshot.trackers.find((tracker) => tracker.isLive);
     return {
       model,
       profileName: snapshot.profileName,
@@ -52,6 +53,7 @@ export class IndividualTrackerManagerPresenter {
       settings: snapshot.settings,
       settingsSaving: snapshot.settingsSaving,
       settingsError: snapshot.settingsError,
+      liveXuid: liveTracker?.xuid ?? null,
     };
   }
 
