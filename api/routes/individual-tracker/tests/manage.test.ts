@@ -514,4 +514,48 @@ describe("/api/individual-tracker manage routes", () => {
     expect(body.success).toBe(true);
     expect(fetchSpy).toHaveBeenCalledWith("http://do/clear-matches", expect.objectContaining({ method: "DELETE" }));
   });
+
+  it("returns 404 on select matches when DO has no state (not yet started)", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchIds: ["m1"] }),
+    });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 on clear match selection when DO has no state (not yet started)", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", { method: "DELETE" });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(404);
+  });
 });

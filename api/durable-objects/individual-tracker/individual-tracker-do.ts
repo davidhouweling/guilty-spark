@@ -237,7 +237,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.enrichScore(haloClient, summary, trackerState);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
-      if (trackerState.selectedMatchIds != null) {
+      if (trackerState.selectedMatchIds != null && trackerState.selectedMatchIds.length > 0) {
         const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
         if (durationSeconds >= 120) {
           trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId];
@@ -574,7 +574,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
         (s) => s.teamRosterSignature != null,
       ).length;
-      const selectionKey = state.selectedMatchIds != null ? state.selectedMatchIds.slice().sort().join(",") : "";
+      const selectionKey = state.selectedMatchIds == null ? "all" : state.selectedMatchIds.slice().sort().join(",");
       const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${selectionKey}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {

@@ -88,6 +88,9 @@ async function statusTrackerDo(env: Env, userId: string, trackerId: string): Pro
 async function clearMatchesDo(env: Env, userId: string, trackerId: string): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/clear-matches", { method: "DELETE" });
+  if (response.status === 404) {
+    throw new TrackerNotFoundError();
+  }
   assertDoOk(response);
   await response.json<IndividualTrackerClearMatchesResponse>();
 }
@@ -99,6 +102,9 @@ async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchI
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ matchIds }),
   });
+  if (response.status === 404) {
+    throw new TrackerNotFoundError();
+  }
   assertDoOk(response);
   await response.json<IndividualTrackerSelectMatchesResponse>();
 }
@@ -400,14 +406,13 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       let tracker: IndividualTrackersRow;
       try {
         tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, parsed.data.matchIds);
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
         }
         throw error;
       }
-
-      await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, parsed.data.matchIds);
 
       return selectMatchesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
@@ -435,14 +440,13 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       let tracker: IndividualTrackersRow;
       try {
         tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await clearMatchesDo(env, auth.session.userId, tracker.TrackerId);
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
         }
         throw error;
       }
-
-      await clearMatchesDo(env, auth.session.userId, tracker.TrackerId);
 
       return clearMatchesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {

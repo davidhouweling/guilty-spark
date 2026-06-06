@@ -275,7 +275,7 @@ export function computeTopBarStats(
   csrContainer?: PlaylistCsrContainer | null,
   esraData?: PlayerEsraData | null,
 ): readonly TopBarStatItem[] {
-  const totals = state.accumulatedPlayerTotals;
+  const totals = state.selectedMatchIds == null ? state.accumulatedPlayerTotals : undefined;
   const activeIds = getActiveMatchIds(state);
   const matches = state.matchIds
     .filter((id) => activeIds.has(id))
