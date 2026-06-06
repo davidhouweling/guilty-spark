@@ -477,7 +477,6 @@ describe("/api/individual-tracker manage routes", () => {
     expect(fetchSpy).toHaveBeenCalledWith("http://do/select-matches", expect.objectContaining({ method: "PUT" }));
   });
 
-
   it("returns 404 on select matches when DO has no state (not yet started)", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
@@ -501,5 +500,4 @@ describe("/api/individual-tracker manage routes", () => {
 
     expect(res.status).toBe(404);
   });
-
 });

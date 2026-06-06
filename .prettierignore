@@ -1,4 +1,5 @@
 # Ignore artifacts:
+.claude
 build
 coverage
 worker-configuration.d.ts

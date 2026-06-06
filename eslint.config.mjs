@@ -13,6 +13,7 @@ export default defineConfig(
   importPlugin.flatConfigs.typescript,
   {
     ignores: [
+      ".claude/",
       ".github/",
       ".vscode/",
       ".wrangler/",

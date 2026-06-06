@@ -595,7 +595,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {
     const state = await this.state.storage.get<IndividualTrackerInternalState>(STATE_STORAGE_KEY);
-    if (state != null) state.selectedMatchIds ??= [];
     return state ?? null;
   }
 

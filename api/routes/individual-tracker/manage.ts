@@ -412,5 +412,4 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
     }
   });
-
 };

@@ -187,5 +187,4 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     return trackerContract.fromResponse(response);
   }
-
 }
