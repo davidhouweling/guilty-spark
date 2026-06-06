@@ -340,6 +340,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       try {
         matchStats = await haloClient.getMatchStats(matchId);
       } catch (error) {
+        if (this.isAuthError(error)) {
+          this.ownerClient = null;
+          throw error;
+        }
         this.logService.warn(
           "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed",
           new Map([
@@ -523,13 +527,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Bad Request", { status: 400 });
     }
     const known = new Set(trackerState.matchIds);
-    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id)).sort();
-    delete trackerState.accumulatedPlayerTotals;
-    trackerState.accumulatedMatchIds = [];
+    const incoming = body.matchIds.filter((id) => known.has(id)).sort();
+    const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
+
+    if (!unchanged) {
+      trackerState.selectedMatchIds = incoming;
+      if (!trackerState.isPaused) {
+        delete trackerState.accumulatedPlayerTotals;
+        trackerState.accumulatedMatchIds = [];
+      }
+    }
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
-    await this.state.storage.setAlarm(Date.now());
+    if (!unchanged && !trackerState.isPaused) {
+      await this.state.storage.setAlarm(Date.now());
+    }
 
     const response: IndividualTrackerSelectMatchesResponse = { success: true };
     return Response.json(response);
