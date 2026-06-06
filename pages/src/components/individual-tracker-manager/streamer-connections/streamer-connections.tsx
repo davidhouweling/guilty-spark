@@ -88,6 +88,15 @@ export function StreamerConnectionsSectionView({
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
   const prevSaveStatusRef = useRef<SaveStatus>("idle");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return (): void => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
   const selectedPlayerTeamColor = getTeamColorOrDefault(playerTeamColor, 0);
@@ -133,7 +142,11 @@ export function StreamerConnectionsSectionView({
         return;
       }
       setCopyTarget(target);
-      setTimeout(() => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
         setCopyTarget("idle");
       }, 1500);
     });
@@ -159,7 +172,7 @@ export function StreamerConnectionsSectionView({
         </Alert>
       ) : (
         <div className={styles.urlList}>
-          <div className={styles.urlCard}>
+          <div className={styles.card}>
             <h3 className={styles.cardTitle}>Viewer URL</h3>
             <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
             <p className={styles.urlText}>{urls?.viewUrl}</p>
@@ -181,7 +194,7 @@ export function StreamerConnectionsSectionView({
             </div>
           </div>
 
-          <div className={styles.urlCard}>
+          <div className={styles.card}>
             <h3 className={styles.cardTitle}>Overlay URL</h3>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <p className={styles.urlText}>{urls?.overlayUrl}</p>
@@ -212,7 +225,7 @@ export function StreamerConnectionsSectionView({
         </div>
       )}
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Presentation defaults</h3>
         <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
         <div className={styles.modeRow}>
@@ -237,7 +250,7 @@ export function StreamerConnectionsSectionView({
         </div>
       </div>
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Player View Colors</h3>
         <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
         <div className={styles.pickerGrid}>
@@ -264,7 +277,7 @@ export function StreamerConnectionsSectionView({
         </div>
       </div>
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Observer View Colors</h3>
         <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
         <div className={styles.pickerGrid}>
@@ -291,13 +304,13 @@ export function StreamerConnectionsSectionView({
         </div>
       </div>
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Display Options</h3>
         <p className={styles.cardDescription}>Control what information is shown on the viewer and overlay.</p>
         <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
       </div>
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Information Ticker</h3>
         <p className={styles.cardDescription}>
           In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
@@ -305,7 +318,7 @@ export function StreamerConnectionsSectionView({
         <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
       </div>
 
-      <div className={styles.preferencesCard}>
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Text Sizes</h3>
         <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
         <div className={styles.fontSizeContainer}>

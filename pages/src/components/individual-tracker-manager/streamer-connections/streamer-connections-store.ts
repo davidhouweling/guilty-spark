@@ -13,6 +13,7 @@ export interface StreamerConnectionsSnapshot {
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
   readonly fontSizeSettings: FontSizeSettings;
+  readonly topBarStatSlots: readonly string[];
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
 }
@@ -59,6 +60,7 @@ export class StreamerConnectionsStore {
       displaySettings: DEFAULT_DISPLAY_SETTINGS,
       tickerSettings: DEFAULT_TICKER_SETTINGS,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
+      topBarStatSlots: [],
       saveStatus: "idle",
       saveErrorMessage: null,
     };
@@ -75,8 +77,12 @@ export class StreamerConnectionsStore {
     return this.snapshot;
   }
 
-  public setXuid(gamertag: string | null): void {
+  public setGamertag(gamertag: string | null): void {
     this.update({ gamertag });
+  }
+
+  public batchUpdate(partial: Partial<StreamerConnectionsSnapshot>): void {
+    this.update(partial);
   }
 
   public setDefaultColorMode(defaultColorMode: StreamerViewColorMode): void {

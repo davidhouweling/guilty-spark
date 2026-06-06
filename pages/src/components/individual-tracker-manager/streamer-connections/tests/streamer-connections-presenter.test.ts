@@ -97,6 +97,14 @@ describe("StreamerConnectionsPresenter", () => {
       expect(store.getSnapshot().gamertag).toBe("gamertag-123");
     });
 
+    it("applies topBarStatSlots from visible sections to the store", () => {
+      const { store, presenter } = aHarness();
+
+      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+
+      expect(store.getSnapshot().topBarStatSlots).toEqual(["kills", "deaths"]);
+    });
+
     it("does nothing when disposed", () => {
       const { store, presenter } = aHarness();
 
@@ -105,6 +113,16 @@ describe("StreamerConnectionsPresenter", () => {
 
       expect(store.getSnapshot().defaultColorMode).toBe("player");
       expect(store.getSnapshot().gamertag).toBeNull();
+    });
+
+    it("skips settings reload but updates gamertag when a debounce is pending", () => {
+      const { store, presenter } = aHarness();
+
+      presenter.setDefaultColorMode("observer");
+      presenter.loadSettings({ styleFlags: { colorMode: "player" } }, "gamertag-456");
+
+      expect(store.getSnapshot().defaultColorMode).toBe("observer");
+      expect(store.getSnapshot().gamertag).toBe("gamertag-456");
     });
   });
 
@@ -220,6 +238,24 @@ describe("StreamerConnectionsPresenter", () => {
       const [[saved]] = updateSpy.mock.calls;
       expect(saved.layoutOptions?.fontSizes?.queueInfo).toBe(120);
       expect(saved.layoutOptions?.fontSizes?.score).toBe(100);
+    });
+  });
+
+  describe("snapshotToSettings round-trip", () => {
+    it("preserves topBarStatSlots in the save payload", async () => {
+      const { presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+      presenter.setDefaultColorMode("observer");
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.visibleSections?.topBarStatSlots).toEqual(["kills", "deaths"]);
     });
   });
 

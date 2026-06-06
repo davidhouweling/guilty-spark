@@ -24,17 +24,7 @@
   gap: var(--space-4);
 }
 
-.urlCard {
-  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
-}
-
-.preferencesCard {
+.card {
   background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-radius: var(--radius-md);

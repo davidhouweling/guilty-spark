@@ -51,6 +51,7 @@ function settingsToSnapshot(
       tabs: fontSizes.tabs ?? snapshot.fontSizeSettings.tabs,
       ticker: fontSizes.ticker ?? snapshot.fontSizeSettings.ticker,
     },
+    topBarStatSlots: visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots,
   };
 }
 
@@ -59,13 +60,7 @@ function applyParsedSettingsToStore(
   parsed: Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
   gamertag: string | null,
 ): void {
-  store.setXuid(gamertag);
-  store.setDefaultColorMode(parsed.defaultColorMode);
-  store.setPlayerColors(parsed.playerTeamColor, parsed.playerEnemyColor);
-  store.setObserverColors(parsed.observerTeamColor, parsed.observerEnemyColor);
-  store.setDisplaySettings(parsed.displaySettings);
-  store.setTickerSettings(parsed.tickerSettings);
-  store.setFontSizeSettings(parsed.fontSizeSettings);
+  store.batchUpdate({ gamertag, ...parsed });
 }
 
 function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerViewSettings {
@@ -91,6 +86,7 @@ function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerView
       showScore: snapshot.displaySettings.showScore,
       showTicker: snapshot.tickerSettings.showTicker,
       showTabs: snapshot.tickerSettings.showTabs,
+      topBarStatSlots: [...snapshot.topBarStatSlots],
     },
     layoutOptions: {
       fontSizes: {
@@ -124,6 +120,10 @@ export class StreamerConnectionsPresenter {
 
   public loadSettings(settings: StreamerViewSettings, gamertag: string | null): void {
     if (this.isDisposed) {
+      return;
+    }
+    if (this.debounceTimer !== null) {
+      this.config.store.setGamertag(gamertag);
       return;
     }
     const snapshot = this.config.store.getSnapshot();
