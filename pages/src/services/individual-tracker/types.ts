@@ -78,6 +78,7 @@ export interface StartSeriesRequest {
   readonly titleOverride: string | null;
   readonly subtitleOverride: string | null;
   readonly teams: readonly ManualSeriesTeamForm[];
+  readonly matchIds?: readonly string[];
 }
 
 export interface StartSeriesResponse {

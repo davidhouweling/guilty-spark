@@ -155,3 +155,33 @@ export function collapseSequentialSeriesEntries<T extends SequentialSeriesEntry>
 
   return collapsedEntries;
 }
+
+export function sanitizeMapName(mapName: string): string {
+  return mapName.replace("- Ranked", "").trim();
+}
+
+export function normalizeModeName(modeName: string): string {
+  const trimmedName = modeName.replace("Ranked:", "").replace("Squad Ranked", "").replace("Squad ", "").trim();
+
+  switch (trimmedName) {
+    case "CTF 3 Captures":
+    case "CTF 5 Captures":
+    case "Squad Multi-Flag CTF": {
+      return "Capture the Flag";
+    }
+    case "Assault:Neutral Bomb Ranked":
+    case "Assault:Neutral Bomb Squad Ranked": {
+      return "Neutral Bomb";
+    }
+    case "Team Snipers":
+    case "Tactical Slayer":
+    case "Doubles Slayer":
+    case "FFA Slayer":
+    case "Squad Slayer": {
+      return "Slayer";
+    }
+    default: {
+      return trimmedName;
+    }
+  }
+}

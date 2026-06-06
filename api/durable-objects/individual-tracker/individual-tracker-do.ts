@@ -571,6 +571,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       subtitleOverride: body.subtitleOverride,
       teams: body.teams,
       startedAt: new Date().toISOString(),
+      ...(body.matchIds != null && body.matchIds.length > 0 ? { backfillMatchIds: body.matchIds } : {}),
     };
     trackerState.lastUpdateTime = new Date().toISOString();
 

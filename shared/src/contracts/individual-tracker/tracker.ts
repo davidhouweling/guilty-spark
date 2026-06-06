@@ -71,6 +71,7 @@ export const startSeriesRequestSchema = z.object({
   titleOverride: z.string().nullable(),
   subtitleOverride: z.string().nullable(),
   teams: z.array(startSeriesTeamSchema),
+  matchIds: z.array(z.string()).optional(),
 });
 export type StartSeriesRequest = z.infer<typeof startSeriesRequestSchema>;
 

@@ -419,6 +419,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           titleOverride: request.titleOverride,
           subtitleOverride: request.subtitleOverride,
           teams: request.teams,
+          ...(request.matchIds != null && request.matchIds.length > 0 ? { matchIds: [...request.matchIds] } : {}),
         }),
       },
     );

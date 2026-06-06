@@ -265,6 +265,7 @@ export class ManualSeriesDialogPresenter {
         titleOverride,
         subtitleOverride,
         teams,
+        matchIds: [...snapshot.selectedBackfillMatchIds],
       });
 
       if (this.checkDisposed()) {

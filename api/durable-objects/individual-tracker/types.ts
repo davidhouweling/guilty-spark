@@ -82,6 +82,7 @@ export interface IndividualTrackerManualSeries {
   subtitleOverride: string | null;
   teams: IndividualTrackerSeriesTeam[];
   startedAt: string;
+  backfillMatchIds?: string[];
 }
 
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
@@ -112,6 +113,7 @@ export interface IndividualTrackerStartSeriesRequest {
   titleOverride: string | null;
   subtitleOverride: string | null;
   teams: IndividualTrackerSeriesTeam[];
+  matchIds?: string[];
 }
 
 export interface IndividualTrackerStartSeriesResponse {

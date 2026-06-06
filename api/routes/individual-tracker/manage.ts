@@ -1,9 +1,9 @@
-import { z } from "zod";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
   selectMatchesContract,
   selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
+  startSeriesRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
@@ -11,12 +11,6 @@ import {
   trackersContract,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
-
-const startSeriesRequestSchema = z.object({
-  titleOverride: z.string().nullable(),
-  subtitleOverride: z.string().nullable(),
-  teams: z.array(z.object({ name: z.string(), members: z.array(z.string()) })),
-});
 import type {
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
@@ -473,6 +467,9 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         titleOverride: parsed.data.titleOverride,
         subtitleOverride: parsed.data.subtitleOverride,
         teams: parsed.data.teams.map((team) => ({ name: team.name, members: Array.from(team.members) })),
+        ...(parsed.data.matchIds != null && parsed.data.matchIds.length > 0
+          ? { matchIds: [...parsed.data.matchIds] }
+          : {}),
       });
 
       return Response.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
