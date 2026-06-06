@@ -60,6 +60,3 @@ export type SelectMatchesRequest = z.infer<typeof selectMatchesRequestSchema>;
 
 export const selectMatchesContract = defineContract(z.object({ success: z.literal(true) }));
 export type SelectMatchesResponse = z.infer<typeof selectMatchesContract.schema>;
-
-export const clearMatchesContract = defineContract(z.object({ success: z.literal(true) }));
-export type ClearMatchesResponse = z.infer<typeof clearMatchesContract.schema>;

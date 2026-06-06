@@ -25,7 +25,6 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
-  IndividualTrackerClearMatchesResponse,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -342,6 +341,7 @@ describe("IndividualTrackerDO", () => {
           lastUpdateTime: "2024-11-26T12:00:00.000Z",
           lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
           matchIds: ["match-2", "match-1"],
+          selectedMatchIds: ["match-1", "match-2"],
           discoveredMatches: {
             "match-1": aFakeIndividualTrackerMatchSummaryWith({
               matchId: "match-1",
@@ -424,6 +424,7 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
@@ -462,6 +463,7 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
@@ -505,6 +507,7 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m2", "m1", "m3"],
+          selectedMatchIds: ["m1", "m2", "m3"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
@@ -625,32 +628,6 @@ describe("IndividualTrackerDO", () => {
     });
   });
 
-  describe("handleClearMatches()", () => {
-    it("returns 404 when no state exists", async () => {
-      storageGetSpy.mockResolvedValue(null);
-
-      const response = await individualTrackerDO.fetch(new Request("http://do/clear-matches", { method: "DELETE" }));
-
-      expect(response.status).toBe(404);
-    });
-
-    it("clears selectedMatchIds back to undefined and returns success", async () => {
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"], selectedMatchIds: ["m1"] }),
-      );
-
-      const response = await individualTrackerDO.fetch(new Request("http://do/clear-matches", { method: "DELETE" }));
-
-      expect(response.status).toBe(200);
-      const body: IndividualTrackerClearMatchesResponse = await response.json();
-      expect(body.success).toBe(true);
-      expect(storagePutSpy).toHaveBeenCalledWith(
-        "individualTrackerState",
-        expect.objectContaining({ selectedMatchIds: undefined }),
-      );
-    });
-  });
-
   describe("toViewState() selection filtering", () => {
     it("shows only selectedMatchIds matches when selectedMatchIds is set", async () => {
       storageGetSpy.mockResolvedValue(
@@ -670,10 +647,11 @@ describe("IndividualTrackerDO", () => {
       expect(body.state?.matches.map((m) => m.matchId)).toEqual(["m2"]);
     });
 
-    it("shows all matches when selectedMatchIds is undefined", async () => {
+    it("shows only selected matches when selectedMatchIds is set", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
             m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
@@ -820,13 +798,14 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.selectedMatchIds).toEqual(["match-existing"]);
     });
 
-    it("does not touch selectedMatchIds when it is undefined", async () => {
+    it("does not auto-append to selectedMatchIds when it is empty", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
           searchStartTime: "2024-11-26T11:00:00.000Z",
           matchIds: [],
+          selectedMatchIds: [],
           discoveredMatches: {},
         }),
       );
@@ -834,7 +813,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.selectedMatchIds).toBeUndefined();
+      expect(persisted.selectedMatchIds).toEqual([]);
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
@@ -1211,6 +1190,7 @@ describe("IndividualTrackerDO", () => {
           gamertag: "Tag1",
           status: "active",
           matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
           discoveredMatches: {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
@@ -1251,7 +1231,12 @@ describe("IndividualTrackerDO", () => {
         aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString()),
       ]);
       storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ matchIds: [], searchStartTime: "2024-11-26T12:00:00.000Z" }),
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["old-match"],
+          selectedMatchIds: ["old-match"],
+          discoveredMatches: { "old-match": aFakeIndividualTrackerMatchSummaryWith({ matchId: "old-match" }) },
+          searchStartTime: "2024-11-26T12:00:00.000Z",
+        }),
       );
 
       await individualTrackerDO.alarm();
@@ -1259,7 +1244,7 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
       const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.type).toBe("view");
-      expect(parsed.view.matches[0]?.matchId).toBe("new-match");
+      expect(parsed.view.matches.some((m) => m.matchId === "new-match")).toBe(true);
     });
 
     it("does not broadcast when a poll discovers no new match", async () => {

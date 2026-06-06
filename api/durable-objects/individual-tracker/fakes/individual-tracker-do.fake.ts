@@ -10,7 +10,6 @@ import type {
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
-  IndividualTrackerClearMatchesResponse,
 } from "../types";
 import type { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -23,7 +22,6 @@ export interface FakeIndividualTrackerDOOpts {
   statusResponse?: IndividualTrackerStatusResponse;
   viewStateResponse?: IndividualTrackerViewStateResponse;
   selectMatchesResponse?: IndividualTrackerSelectMatchesResponse;
-  clearMatchesResponse?: IndividualTrackerClearMatchesResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
@@ -68,6 +66,7 @@ export function aFakeIndividualTrackerInternalStateWith(
     checkCount: 0,
     matchIds: [],
     discoveredMatches: {},
+    selectedMatchIds: [],
     idleTimeoutHours: 6,
     errorState: {
       consecutiveErrors: 0,
@@ -120,7 +119,6 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
     state: aFakeIndividualTrackerViewStateWith(),
   };
   const selectMatchesResponse: IndividualTrackerSelectMatchesResponse = opts.selectMatchesResponse ?? { success: true };
-  const clearMatchesResponse: IndividualTrackerClearMatchesResponse = opts.clearMatchesResponse ?? { success: true };
   const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
   const fetchMock: FakeIndividualTrackerDO["fetch"] = async (input) => {
@@ -162,9 +160,6 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
         break;
       case "/select-matches":
         responseBody = JSON.stringify(selectMatchesResponse);
-        break;
-      case "/clear-matches":
-        responseBody = JSON.stringify(clearMatchesResponse);
         break;
       case "/websocket":
         return Promise.resolve(new Response(null, { status: 200, headers: { "x-fake-upgrade": "websocket" } }));

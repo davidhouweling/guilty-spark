@@ -37,7 +37,6 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesRequest,
   IndividualTrackerSelectMatchesResponse,
-  IndividualTrackerClearMatchesResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -112,9 +111,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "select-matches": {
             return await this.handleSelectMatches(request);
-          }
-          case "clear-matches": {
-            return await this.handleClearMatches();
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -237,7 +233,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.enrichScore(haloClient, summary, trackerState);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
-      if (trackerState.selectedMatchIds != null && trackerState.selectedMatchIds.length > 0) {
+      if (trackerState.selectedMatchIds.length > 0) {
         const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
         if (durationSeconds >= 120) {
           trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
@@ -421,6 +417,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       checkCount: 0,
       matchIds: [],
       discoveredMatches: {},
+      selectedMatchIds: [],
       idleTimeoutHours: body.idleTimeoutHours,
       errorState: {
         consecutiveErrors: 0,
@@ -505,21 +502,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
-  private async handleClearMatches(): Promise<Response> {
-    const trackerState = await this.getState();
-    if (trackerState == null) {
-      return new Response("Not Found", { status: 404 });
-    }
-
-    trackerState.selectedMatchIds = undefined;
-
-    await this.setState(trackerState);
-    this.broadcastViewState(trackerState);
-
-    const response: IndividualTrackerClearMatchesResponse = { success: true };
-    return Response.json(response);
-  }
-
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     const response: IndividualTrackerStatusResponse = {
@@ -574,7 +556,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
         (s) => s.teamRosterSignature != null,
       ).length;
-      const selectionKey = state.selectedMatchIds == null ? "all" : state.selectedMatchIds.join(",");
+      const selectionKey = state.selectedMatchIds.join(",");
       const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${selectionKey}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {

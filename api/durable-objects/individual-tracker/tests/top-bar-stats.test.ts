@@ -218,6 +218,7 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         matchIds: ["m1"],
+        selectedMatchIds: ["m1"],
         discoveredMatches: {
           m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", isMatchmaking: true }),
         },
@@ -361,6 +362,7 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         matchIds: ["m2", "m1"],
+        selectedMatchIds: ["m1", "m2"],
         discoveredMatches: {
           m1: aFakeIndividualTrackerMatchSummaryWith({
             matchId: "m1",
@@ -511,44 +513,11 @@ describe("topBarStats", () => {
   });
 
   describe("selectedMatchIds selection behaviour", () => {
-    it("player-stat slots show N/A when selectedMatchIds is set (totals reflect all matches, not the selection)", async () => {
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({
-          xuid: trackedXuid,
-          matchIds: ["m1"],
-          selectedMatchIds: ["m1"],
-          discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }) },
-          accumulatedPlayerTotals: {
-            kills: 20,
-            deaths: 10,
-            assists: 5,
-            headshotKills: 8,
-            shotsFired: 200,
-            shotsHit: 100,
-            damageDealt: 10000,
-            damageTaken: 6000,
-            totalLifeSeconds: 300,
-            totalSpawns: 10,
-            totalLifeSpawns: 10,
-          },
-          accumulatedMatchIds: ["m1"],
-        }),
-      );
-
-      const url = new URL("http://do/view-state");
-      url.searchParams.set("topBarStatSlots", JSON.stringify(["matches-win-loss", "kills", "kda"]));
-      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
-      const body: IndividualTrackerViewStateResponse = await response.json();
-
-      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "1:0" });
-      expect(body.state?.topBarStats?.[1]).toEqual({ label: "Kills", value: "N/A" });
-      expect(body.state?.topBarStats?.[2]).toEqual({ label: "KDA", value: "N/A" });
-    });
-
-    it("cache key distinguishes selectedMatchIds=undefined (show all) from selectedMatchIds=[] (show none)", async () => {
+    it("cache key changes when selection changes", async () => {
       const baseState = aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         matchIds: ["m1"],
+        selectedMatchIds: [],
         discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }) },
         accumulatedMatchIds: ["m1"],
       });
@@ -559,13 +528,13 @@ describe("topBarStats", () => {
 
       const r1 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const b1: IndividualTrackerViewStateResponse = await r1.json();
-      expect(b1.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "1:0" });
+      expect(b1.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "0:0" });
 
-      storageGetSpy.mockResolvedValue({ ...baseState, selectedMatchIds: [] });
+      storageGetSpy.mockResolvedValue({ ...baseState, selectedMatchIds: ["m1"] });
 
       const r2 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const b2: IndividualTrackerViewStateResponse = await r2.json();
-      expect(b2.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "0:0" });
+      expect(b2.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "1:0" });
     });
   });
 });

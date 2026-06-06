@@ -17,7 +17,7 @@ import type {
 } from "./types";
 
 export function getActiveMatchIds(state: IndividualTrackerInternalState): Set<string> {
-  return new Set(state.selectedMatchIds ?? state.matchIds);
+  return new Set(state.selectedMatchIds);
 }
 
 export function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats: MatchStats): boolean {
@@ -275,7 +275,7 @@ export function computeTopBarStats(
   csrContainer?: PlaylistCsrContainer | null,
   esraData?: PlayerEsraData | null,
 ): readonly TopBarStatItem[] {
-  const totals = state.selectedMatchIds == null ? state.accumulatedPlayerTotals : undefined;
+  const totals = state.accumulatedPlayerTotals;
   const activeIds = getActiveMatchIds(state);
   const matches = state.matchIds
     .filter((id) => activeIds.has(id))

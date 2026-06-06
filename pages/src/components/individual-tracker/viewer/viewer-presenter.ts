@@ -68,10 +68,6 @@ export class IndividualTrackerViewerPresenter {
     await this.config.individualTrackerService?.selectMatches(this.config.trackerId, matchIds);
   }
 
-  public async clearMatchSelection(): Promise<void> {
-    await this.config.individualTrackerService?.clearMatchSelection(this.config.trackerId);
-  }
-
   private isStale(matchId: string): boolean {
     return this.isDisposed || this.selectedMatchId !== matchId;
   }
