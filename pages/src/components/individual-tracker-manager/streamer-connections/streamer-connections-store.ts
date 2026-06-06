@@ -4,7 +4,7 @@ import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../li
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export interface StreamerConnectionsSnapshot {
-  readonly xuid: string | null;
+  readonly gamertag: string | null;
   readonly defaultColorMode: StreamerViewColorMode;
   readonly playerTeamColor: string;
   readonly playerEnemyColor: string;
@@ -50,7 +50,7 @@ export class StreamerConnectionsStore {
 
   public constructor() {
     this.snapshot = {
-      xuid: null,
+      gamertag: null,
       defaultColorMode: "player",
       playerTeamColor: "cerulean",
       playerEnemyColor: "salmon",
@@ -75,8 +75,8 @@ export class StreamerConnectionsStore {
     return this.snapshot;
   }
 
-  public setXuid(xuid: string | null): void {
-    this.update({ xuid });
+  public setXuid(gamertag: string | null): void {
+    this.update({ gamertag });
   }
 
   public setDefaultColorMode(defaultColorMode: StreamerViewColorMode): void {

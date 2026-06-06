@@ -57,7 +57,7 @@ const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
 
 function aFakeProps(overrides?: Partial<StreamerConnectionsSectionViewProps>): StreamerConnectionsSectionViewProps {
   return {
-    xuid: "xuid-123",
+    gamertag: "gamertag-123",
     defaultColorMode: "player",
     playerTeamColor: "cerulean",
     playerEnemyColor: "salmon",
@@ -85,18 +85,18 @@ describe("StreamerConnectionsSectionView", () => {
   });
 
   describe("URL panel", () => {
-    it("renders the viewer and overlay URLs when xuid is provided", () => {
+    it("renders the viewer and overlay URLs when gamertag is provided", () => {
       vi.stubGlobal("location", { origin: "https://example.com" });
-      render(<StreamerConnectionsSectionView {...aFakeProps({ xuid: "xuid-abc" })} />);
+      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
-      expect(screen.getByText(/xuid-abc\/view/)).toBeInTheDocument();
-      expect(screen.getByText(/xuid-abc\/overlay/)).toBeInTheDocument();
+      expect(screen.getByText(/\/u\/gamertag-abc\/view/)).toBeInTheDocument();
+      expect(screen.getByText(/\/u\/gamertag-abc\/overlay/)).toBeInTheDocument();
 
       vi.unstubAllGlobals();
     });
 
-    it("renders a warning alert when xuid is null", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ xuid: null })} />);
+    it("renders a warning alert when gamertag is null", () => {
+      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: null })} />);
 
       expect(screen.getByText(/No active Xbox identity is linked/)).toBeInTheDocument();
     });
@@ -107,12 +107,12 @@ describe("StreamerConnectionsSectionView", () => {
       vi.stubGlobal("navigator", { clipboard: { writeText } });
       vi.stubGlobal("location", { origin: "https://example.com" });
 
-      render(<StreamerConnectionsSectionView {...aFakeProps({ xuid: "xuid-abc" })} />);
+      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
       const copyButtons = screen.getAllByRole("button", { name: "Copy" });
       await user.click(copyButtons[0]);
 
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("xuid-abc/view"));
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc/view"));
 
       vi.unstubAllGlobals();
     });
@@ -125,7 +125,7 @@ describe("StreamerConnectionsSectionView", () => {
       });
       vi.stubGlobal("location", { origin: "https://example.com" });
 
-      render(<StreamerConnectionsSectionView {...aFakeProps({ xuid: "xuid-abc" })} />);
+      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
       const copyButtons = screen.getAllByRole("button", { name: "Copy" });
       await user.click(copyButtons[0]);

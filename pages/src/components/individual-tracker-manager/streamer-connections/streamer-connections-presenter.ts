@@ -16,7 +16,7 @@ interface Config {
 function settingsToSnapshot(
   settings: StreamerViewSettings,
   snapshot: StreamerConnectionsSnapshot,
-): Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "xuid"> {
+): Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag"> {
   const styleFlags = settings.styleFlags ?? {};
   const visibleSections = settings.visibleSections ?? {};
   const fontSizes = settings.layoutOptions?.fontSizes ?? {};
@@ -56,10 +56,10 @@ function settingsToSnapshot(
 
 function applyParsedSettingsToStore(
   store: StreamerConnectionsStore,
-  parsed: Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "xuid">,
-  xuid: string | null,
+  parsed: Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
+  gamertag: string | null,
 ): void {
-  store.setXuid(xuid);
+  store.setXuid(gamertag);
   store.setDefaultColorMode(parsed.defaultColorMode);
   store.setPlayerColors(parsed.playerTeamColor, parsed.playerEnemyColor);
   store.setObserverColors(parsed.observerTeamColor, parsed.observerEnemyColor);
@@ -122,13 +122,13 @@ export class StreamerConnectionsPresenter {
     }
   }
 
-  public loadSettings(settings: StreamerViewSettings, xuid: string | null): void {
+  public loadSettings(settings: StreamerViewSettings, gamertag: string | null): void {
     if (this.isDisposed) {
       return;
     }
     const snapshot = this.config.store.getSnapshot();
     const parsed = settingsToSnapshot(settings, snapshot);
-    applyParsedSettingsToStore(this.config.store, parsed, xuid);
+    applyParsedSettingsToStore(this.config.store, parsed, gamertag);
   }
 
   public setDefaultColorMode(mode: StreamerViewColorMode): void {
@@ -207,7 +207,7 @@ export class StreamerConnectionsPresenter {
         }
         const snapshot = this.config.store.getSnapshot();
         const parsed = settingsToSnapshot(saved, snapshot);
-        applyParsedSettingsToStore(this.config.store, parsed, snapshot.xuid);
+        applyParsedSettingsToStore(this.config.store, parsed, snapshot.gamertag);
         this.config.store.setSaved();
       })
       .catch((err: unknown) => {

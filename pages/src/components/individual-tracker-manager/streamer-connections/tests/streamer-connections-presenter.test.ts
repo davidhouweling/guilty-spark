@@ -89,22 +89,22 @@ describe("StreamerConnectionsPresenter", () => {
       expect(store.getSnapshot().tickerSettings.showPreSeriesInfo).toBe(false);
     });
 
-    it("sets the xuid on the store", () => {
+    it("sets the gamertag on the store", () => {
       const { store, presenter } = aHarness();
 
-      presenter.loadSettings({}, "xuid-123");
+      presenter.loadSettings({}, "gamertag-123");
 
-      expect(store.getSnapshot().xuid).toBe("xuid-123");
+      expect(store.getSnapshot().gamertag).toBe("gamertag-123");
     });
 
     it("does nothing when disposed", () => {
       const { store, presenter } = aHarness();
 
       presenter.dispose();
-      presenter.loadSettings({ styleFlags: { colorMode: "observer" } }, "xuid-123");
+      presenter.loadSettings({ styleFlags: { colorMode: "observer" } }, "gamertag-123");
 
       expect(store.getSnapshot().defaultColorMode).toBe("player");
-      expect(store.getSnapshot().xuid).toBeNull();
+      expect(store.getSnapshot().gamertag).toBeNull();
     });
   });
 

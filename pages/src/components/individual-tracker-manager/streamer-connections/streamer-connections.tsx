@@ -8,6 +8,10 @@ import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settin
 import { FontSizeSlider } from "../../live-tracker/settings/font-size-slider";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
+import {
+  buildIndividualTrackerPublicOverlayPath,
+  buildIndividualTrackerPublicViewPath,
+} from "../../individual-tracker/routes";
 import type { SaveStatus } from "./streamer-connections-store";
 import styles from "./streamer-connections.module.css";
 
@@ -18,11 +22,11 @@ interface StreamerUrls {
   readonly overlayUrl: string;
 }
 
-function buildStreamerUrls(xuid: string): StreamerUrls {
+function buildStreamerUrls(gamertag: string): StreamerUrls {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return {
-    viewUrl: `${origin}/individual-tracker/${encodeURIComponent(xuid)}/view`,
-    overlayUrl: `${origin}/individual-tracker/${encodeURIComponent(xuid)}/overlay`,
+    viewUrl: `${origin}${buildIndividualTrackerPublicViewPath(gamertag)}`,
+    overlayUrl: `${origin}${buildIndividualTrackerPublicOverlayPath(gamertag)}`,
   };
 }
 
@@ -43,7 +47,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export interface StreamerConnectionsSectionViewProps {
-  readonly xuid: string | null;
+  readonly gamertag: string | null;
   readonly defaultColorMode: StreamerViewColorMode;
   readonly playerTeamColor: string;
   readonly playerEnemyColor: string;
@@ -63,7 +67,7 @@ export interface StreamerConnectionsSectionViewProps {
 }
 
 export function StreamerConnectionsSectionView({
-  xuid,
+  gamertag,
   defaultColorMode,
   playerTeamColor,
   playerEnemyColor,
@@ -85,7 +89,7 @@ export function StreamerConnectionsSectionView({
   const [showSaveToast, setShowSaveToast] = useState(false);
   const prevSaveStatusRef = useRef<SaveStatus>("idle");
 
-  const urls = xuid !== null ? buildStreamerUrls(xuid) : null;
+  const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
   const selectedPlayerTeamColor = getTeamColorOrDefault(playerTeamColor, 0);
   const selectedPlayerEnemyColor = getTeamColorOrDefault(playerEnemyColor, 1);
   const selectedObserverTeamColor = getTeamColorOrDefault(observerTeamColor, 0);
@@ -149,7 +153,7 @@ export function StreamerConnectionsSectionView({
         tracker is currently marked live.
       </p>
 
-      {xuid === null ? (
+      {gamertag === null ? (
         <Alert variant="warning">
           No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
         </Alert>

@@ -8,13 +8,13 @@ import { StreamerConnectionsSectionView } from "./streamer-connections";
 interface StreamerConnectionsSectionProps {
   readonly settings: StreamerViewSettings;
   readonly settingsService: IndividualTrackerSettingsService;
-  readonly xuid: string | null;
+  readonly gamertag: string | null;
 }
 
 export function StreamerConnectionsSection({
   settings,
   settingsService,
-  xuid,
+  gamertag,
 }: StreamerConnectionsSectionProps): React.ReactElement {
   const store = useMemo(() => new StreamerConnectionsStore(), []);
   const presenter = useMemo(
@@ -23,8 +23,8 @@ export function StreamerConnectionsSection({
   );
 
   useEffect(() => {
-    presenter.loadSettings(settings, xuid);
-  }, [presenter, settings, xuid]);
+    presenter.loadSettings(settings, gamertag);
+  }, [presenter, settings, gamertag]);
 
   useEffect(() => {
     return (): void => {
@@ -40,7 +40,7 @@ export function StreamerConnectionsSection({
 
   return (
     <StreamerConnectionsSectionView
-      xuid={snapshot.xuid}
+      gamertag={snapshot.gamertag}
       defaultColorMode={snapshot.defaultColorMode}
       playerTeamColor={snapshot.playerTeamColor}
       playerEnemyColor={snapshot.playerEnemyColor}
