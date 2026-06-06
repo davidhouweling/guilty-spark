@@ -1,12 +1,7 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import {
-  type HaloInfiniteClient,
-  type PlayerMatchHistory,
-  type PlaylistCsrContainer,
-  type Stats,
-} from "halo-infinite-api";
+import { type HaloInfiniteClient, type PlaylistCsrContainer, type Stats } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
@@ -20,19 +15,6 @@ import {
   aFakeIndividualTrackerInternalStateWith,
   aFakeIndividualTrackerMatchSummaryWith,
 } from "../fakes/individual-tracker-do.fake";
-
-const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2): PlayerMatchHistory =>
-  ({
-    MatchId: matchId,
-    Outcome: outcome,
-    MatchInfo: {
-      StartTime: startTime,
-      EndTime: startTime,
-      GameVariantCategory: 6,
-      MapVariant: { AssetId: "map-asset", VersionId: "v1" },
-      UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
-    },
-  }) as unknown as PlayerMatchHistory;
 
 const lastPersistedState = (
   spy: MockInstance<(key: string, value: IndividualTrackerInternalState) => Promise<void>>,
@@ -121,14 +103,20 @@ describe("topBarStats", () => {
     vi.useRealTimers();
   });
 
-  it("accumulates player stats from getMatchStats on alarm", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
+  it("recomputes accumulated totals from selectedMatchIds when they differ from accumulatedMatchIds", async () => {
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
     ownerClient.getMatchStats.mockResolvedValue(aMatchStatsForTrackedPlayer("m1"));
     storageGetSpy.mockResolvedValue(
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         startTime: "2024-11-26T12:00:00.000Z",
         searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["m1"],
+        selectedMatchIds: ["m1"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
+        },
+        accumulatedMatchIds: [],
       }),
     );
 
@@ -139,39 +127,46 @@ describe("topBarStats", () => {
     expect(persisted.accumulatedPlayerTotals?.kills).toBe(10);
     expect(persisted.accumulatedPlayerTotals?.deaths).toBe(5);
     expect(persisted.accumulatedPlayerTotals?.assists).toBe(3);
-    expect(persisted.accumulatedMatchIds).toContain("m1");
+    expect(persisted.accumulatedMatchIds).toEqual(["m1"]);
   });
 
-  it("does not double-accumulate if a match is re-enriched on a later poll", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
-    ownerClient.getMatchStats
-      .mockRejectedValueOnce(new Error("stats not ready"))
-      .mockResolvedValue(aMatchStatsForTrackedPlayer("m1"));
+  it("skips recompute when selectedMatchIds equals accumulatedMatchIds", async () => {
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
     storageGetSpy.mockResolvedValue(
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         startTime: "2024-11-26T12:00:00.000Z",
-        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["m1"],
+        selectedMatchIds: ["m1"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
+        },
+        accumulatedMatchIds: ["m1"],
+        accumulatedPlayerTotals: {
+          kills: 10,
+          deaths: 5,
+          assists: 3,
+          headshotKills: 4,
+          shotsFired: 100,
+          shotsHit: 52,
+          damageDealt: 5000,
+          damageTaken: 3000,
+          totalLifeSeconds: 150,
+          totalSpawns: 5,
+          totalLifeSpawns: 5,
+        },
       }),
     );
 
     await individualTrackerDO.alarm();
-    const afterFirst = lastPersistedState(storagePutSpy);
-    expect(afterFirst.accumulatedPlayerTotals).toBeUndefined();
 
-    storageGetSpy.mockResolvedValue(afterFirst);
-    await individualTrackerDO.alarm();
-
-    const afterSecond = lastPersistedState(storagePutSpy);
-    expect(afterSecond.accumulatedPlayerTotals?.kills).toBe(10);
-    expect(afterSecond.accumulatedMatchIds).toHaveLength(1);
+    expect(ownerClient.getMatchStats).not.toHaveBeenCalled();
+    const persisted = lastPersistedState(storagePutSpy);
+    expect(persisted.accumulatedPlayerTotals?.kills).toBe(10);
   });
 
-  it("accumulates totals across multiple matches", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValueOnce([
-      aFakePlayerMatch("m1", "2024-11-26T11:00:00.000Z"),
-      aFakePlayerMatch("m2", "2024-11-26T11:30:00.000Z"),
-    ]);
+  it("recomputes accumulated totals across multiple selected matches", async () => {
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
     ownerClient.getMatchStats
       .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m1", { Kills: 10, Deaths: 5 }))
       .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m2", { Kills: 15, Deaths: 7 }));
@@ -179,7 +174,13 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         startTime: "2024-11-26T12:00:00.000Z",
-        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["m1", "m2"],
+        selectedMatchIds: ["m1", "m2"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
+          m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", teamOutcomes: [2, 3] }),
+        },
+        accumulatedMatchIds: [],
       }),
     );
 
@@ -191,10 +192,7 @@ describe("topBarStats", () => {
   });
 
   it("keeps totalSpawns but skips totalLifeSpawns for a match with malformed AverageLifeDuration", async () => {
-    ownerClient.getPlayerMatches.mockResolvedValueOnce([
-      aFakePlayerMatch("m1", "2024-11-26T11:00:00.000Z"),
-      aFakePlayerMatch("m2", "2024-11-26T11:30:00.000Z"),
-    ]);
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
     ownerClient.getMatchStats
       .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m1", { Spawns: 5, AverageLifeDuration: "NOT_VALID" }))
       .mockResolvedValueOnce(aMatchStatsForTrackedPlayer("m2", { Spawns: 3, AverageLifeDuration: "PT30S" }));
@@ -202,7 +200,13 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         startTime: "2024-11-26T12:00:00.000Z",
-        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["m1", "m2"],
+        selectedMatchIds: ["m1", "m2"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
+          m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", teamOutcomes: [2, 3] }),
+        },
+        accumulatedMatchIds: [],
       }),
     );
 

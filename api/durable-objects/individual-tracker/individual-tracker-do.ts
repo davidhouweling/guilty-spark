@@ -230,7 +230,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         teamRosterSignature: null,
         teamOutcomes: null,
       };
-      await this.enrichScore(haloClient, summary, trackerState);
+      await this.enrichScore(haloClient, summary);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       if (trackerState.selectedMatchIds.length > 0) {
@@ -253,7 +253,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        const enriched = await this.enrichScore(haloClient, summary, trackerState);
+        const enriched = await this.enrichScore(haloClient, summary);
         if (enriched) {
           viewChanged = true;
         }
@@ -276,6 +276,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       discoveredNewMatch = true;
     }
 
+    await this.recomputeAccumulatedTotals(haloClient, trackerState);
+
     trackerState.checkCount += 1;
     trackerState.lastUpdateTime = now;
     trackerState.errorState.consecutiveErrors = 0;
@@ -286,11 +288,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(
-    haloClient: HaloInfiniteClient,
-    summary: IndividualTrackerMatchSummary,
-    trackerState: IndividualTrackerInternalState,
-  ): Promise<boolean> {
+  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);
@@ -318,14 +316,46 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     summary.teamRosterSignature = newRosterSignature;
     summary.teamOutcomes = matchStats.Teams.map((team) => team.Outcome);
 
-    const accumulatedIds = trackerState.accumulatedMatchIds ?? [];
-    if (!accumulatedIds.includes(summary.matchId)) {
-      if (accumulatePlayerStats(trackerState, matchStats)) {
-        trackerState.accumulatedMatchIds = [...accumulatedIds, summary.matchId];
-      }
+    return true;
+  }
+
+  private hasPendingRecompute(trackerState: IndividualTrackerInternalState): boolean {
+    return trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
+  }
+
+  private async recomputeAccumulatedTotals(
+    haloClient: HaloInfiniteClient,
+    trackerState: IndividualTrackerInternalState,
+  ): Promise<void> {
+    if (!this.hasPendingRecompute(trackerState)) {
+      return;
     }
 
-    return true;
+    delete trackerState.accumulatedPlayerTotals;
+    trackerState.accumulatedMatchIds = [];
+
+    for (const matchId of trackerState.selectedMatchIds) {
+      let matchStats: MatchStats;
+      try {
+        matchStats = await haloClient.getMatchStats(matchId);
+      } catch (error) {
+        if (this.isAuthError(error)) {
+          this.ownerClient = null;
+          throw error;
+        }
+        this.logService.warn(
+          "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed",
+          new Map([
+            ["matchId", matchId],
+            ["error", String(error)],
+          ]),
+        );
+        continue;
+      }
+      if (accumulatePlayerStats(trackerState, matchStats)) {
+        trackerState.accumulatedMatchIds.push(matchId);
+      }
+    }
   }
 
   private async resolveMapName(assetId: string, versionId: string): Promise<string> {
@@ -461,7 +491,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.status = "active";
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
-    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+    const resumeAlarmDelay = this.hasPendingRecompute(trackerState) ? 0 : ALARM_INTERVAL_MS;
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerResumeResponse = { success: true, state: this.sanitizeState(trackerState) };
@@ -496,10 +527,24 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Bad Request", { status: 400 });
     }
     const known = new Set(trackerState.matchIds);
-    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id)).sort();
+    const incoming = body.matchIds.filter((id) => known.has(id)).sort();
+    const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
+
+    if (unchanged) {
+      return Response.json({ success: true } satisfies IndividualTrackerSelectMatchesResponse);
+    }
+
+    trackerState.selectedMatchIds = incoming;
+    if (!trackerState.isPaused) {
+      delete trackerState.accumulatedPlayerTotals;
+      trackerState.accumulatedMatchIds = [];
+    }
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
+    if (!trackerState.isPaused) {
+      await this.state.storage.setAlarm(Date.now());
+    }
 
     const response: IndividualTrackerSelectMatchesResponse = { success: true };
     return Response.json(response);
