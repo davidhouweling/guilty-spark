@@ -2,6 +2,7 @@ import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-t
 import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { RealIndividualTrackerService } from "../individual-tracker";
 
 function jsonResponse(payload: object, status = 200): Response {
@@ -32,7 +33,10 @@ describe("RealIndividualTrackerService", () => {
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, "fetch");
-    service = new RealIndividualTrackerService({ apiHost: "https://api.example.com" });
+    service = new RealIndividualTrackerService({
+      apiHost: "https://api.example.com",
+      haloInfiniteClient: {} as unknown as HaloInfiniteClient,
+    });
   });
 
   afterEach(() => {

@@ -36,6 +36,18 @@ export interface TrackerMatchHistoryEntry {
   readonly mapThumbnailUrl: string;
 }
 
+export interface TrackerMatchHistoryResponse {
+  readonly matches: readonly TrackerMatchHistoryEntry[];
+  readonly suggestedGroupings: readonly (readonly string[])[];
+}
+
+export interface TrackerSyncMatchesRequest {
+  readonly trackerId: string;
+  readonly selectedMatchIds: readonly string[];
+  readonly matchGroupings: readonly (readonly string[])[];
+  readonly matches: readonly TrackerMatchHistoryEntry[];
+}
+
 export interface IndividualTrackerService {
   getProfile(): Promise<TrackerProfileResponse>;
   updateProfile(req: UpdateTrackerProfileRequest): Promise<TrackerProfileResponse>;
@@ -46,4 +58,6 @@ export interface IndividualTrackerService {
   resumeTracker(trackerId: string): Promise<TrackerResponse>;
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
+  getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
+  syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
 }

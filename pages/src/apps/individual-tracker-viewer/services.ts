@@ -17,11 +17,11 @@ export interface Services {
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
+  const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
   const [authService, individualTrackerService, individualTrackerViewService] = await Promise.all([
     installAuthService(apiHost),
-    installIndividualTrackerService(apiHost),
+    installIndividualTrackerService(apiHost, haloClient),
     installIndividualTrackerViewService(apiHost),
   ]);
-  const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
   return { authService, individualTrackerService, individualTrackerViewService, haloClient };
 }

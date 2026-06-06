@@ -10,21 +10,120 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
+  selectMatchesContract,
   stopTrackerContract,
   trackerContract,
   trackersContract,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { IndividualTrackerService } from "./types";
+import {
+  getMatchOutcomeLabel,
+  buildTeamRosterSignature,
+  analyzeMatchGroupings,
+} from "@guilty-spark/shared/halo/match-enrichment";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { HaloInfiniteClient, MapAsset, MatchStats, UgcGameVariantAsset } from "halo-infinite-api";
+import { AssetKind, MatchType } from "halo-infinite-api";
+import type {
+  IndividualTrackerService,
+  TrackerMatchHistoryEntry,
+  TrackerMatchHistoryResponse,
+  TrackerSyncMatchesRequest,
+} from "./types";
 
 interface IndividualTrackerServiceOpts {
   readonly apiHost: string;
+  readonly haloInfiniteClient: HaloInfiniteClient;
+}
+
+function formatDisplayDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(date);
+}
+
+function getMapThumbnailUrl(asset: MapAsset): string {
+  const thumbnailFile = asset.Files.FileRelativePaths.find((file) => file.includes("thumbnail"));
+  if (thumbnailFile != null) {
+    return `${asset.Files.Prefix}${thumbnailFile}`;
+  }
+
+  const heroFile = asset.Files.FileRelativePaths.find((file) => file.includes("hero"));
+  if (heroFile != null) {
+    return `${asset.Files.Prefix}${heroFile}`;
+  }
+
+  return "data:,";
+}
+
+function buildMatchResultString(outcome: string, matchStats: MatchStats | null): string {
+  if (matchStats == null) {
+    return outcome;
+  }
+
+  const scoreString = matchStats.Teams.map((team) => team.Stats.CoreStats.Score.toLocaleString()).join(":");
+  return `${outcome} - ${scoreString}`;
+}
+
+function buildTeams(
+  matchStats: MatchStats | null,
+  xuidToGamertag: ReadonlyMap<string, string>,
+): readonly (readonly string[])[] {
+  if (matchStats == null) {
+    return [];
+  }
+
+  const playersByTeam = new Map<number, string[]>();
+
+  for (const player of matchStats.Players) {
+    if (player.PlayerType !== 1) {
+      continue;
+    }
+
+    const xuid = getPlayerXuid(player);
+    const playerGamertag = xuidToGamertag.get(xuid) ?? "*Unknown*";
+    const teamId = player.LastTeamId;
+    const teamPlayers = playersByTeam.get(teamId);
+
+    if (teamPlayers == null) {
+      playersByTeam.set(teamId, [playerGamertag]);
+    } else {
+      teamPlayers.push(playerGamertag);
+    }
+  }
+
+  const teams: string[][] = [];
+  const sortedTeamIds = Array.from(playersByTeam.keys()).sort((left, right) => left - right);
+  for (const teamId of sortedTeamIds) {
+    const teamPlayers = playersByTeam.get(teamId);
+    if (teamPlayers != null) {
+      teams.push([...teamPlayers].sort((left, right) => left.localeCompare(right)));
+    }
+  }
+
+  return teams;
 }
 
 export class RealIndividualTrackerService implements IndividualTrackerService {
   private readonly apiHost: string;
+  private readonly haloInfiniteClient: HaloInfiniteClient;
+  private readonly mapCache = new Map<string, Promise<MapAsset>>();
+  private readonly modeNameCache = new Map<string, Promise<UgcGameVariantAsset>>();
 
-  public constructor({ apiHost }: IndividualTrackerServiceOpts) {
+  public constructor({ apiHost, haloInfiniteClient }: IndividualTrackerServiceOpts) {
     this.apiHost = apiHost;
+    this.haloInfiniteClient = haloInfiniteClient;
   }
 
   private buildUrl(path: string): string {
@@ -186,5 +285,175 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     return trackerContract.fromResponse(response);
+  }
+
+  public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
+    const recentMatches = await this.haloInfiniteClient.getPlayerMatches(xuid, MatchType.All, count, start);
+    if (recentMatches.length === 0) {
+      return { matches: [], suggestedGroupings: [] };
+    }
+
+    const resolvedMatchDetails = await Promise.all(
+      recentMatches.map(async (match) => ({
+        matchId: match.MatchId,
+        detail: await this.getMatchStats(match.MatchId),
+      })),
+    );
+
+    const matchDetailsById = new Map<string, MatchStats>();
+    for (const resolved of resolvedMatchDetails) {
+      if (resolved.detail != null) {
+        matchDetailsById.set(resolved.matchId, resolved.detail);
+      }
+    }
+
+    const xuidToGamertag = await this.getGamertagsByXuid(matchDetailsById);
+
+    const matches = await Promise.all(
+      recentMatches.map(async (match) => {
+        const matchStats = matchDetailsById.get(match.MatchId) ?? null;
+        const mapDetails = await this.getMapDetails(
+          match.MatchInfo.MapVariant.AssetId,
+          match.MatchInfo.MapVariant.VersionId,
+        );
+        const modeName = await this.getModeName(
+          match.MatchInfo.UgcGameVariant.AssetId,
+          match.MatchInfo.UgcGameVariant.VersionId,
+        );
+        const outcome = getMatchOutcomeLabel(match.Outcome);
+        const isMatchmaking = match.MatchInfo.Playlist != null;
+        const lifecycleMode = match.MatchInfo.LifecycleMode;
+        const category: TrackerMatchHistoryEntry["category"] = isMatchmaking
+          ? "matchmaking"
+          : lifecycleMode === 0
+            ? "local"
+            : lifecycleMode === 1
+              ? "custom"
+              : "unknown";
+
+        return {
+          matchId: match.MatchId,
+          startTime: formatDisplayDateTime(match.MatchInfo.StartTime),
+          endTime: formatDisplayDateTime(match.MatchInfo.EndTime),
+          mapAssetId: match.MatchInfo.MapVariant.AssetId,
+          mapVersionId: match.MatchInfo.MapVariant.VersionId,
+          modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
+          modeVersionId: match.MatchInfo.UgcGameVariant.VersionId,
+          gameVariantCategory: match.MatchInfo.GameVariantCategory,
+          startTimeIso: match.MatchInfo.StartTime,
+          endTimeIso: match.MatchInfo.EndTime,
+          duration: getReadableDuration(match.MatchInfo.Duration),
+          mapName: mapDetails.name,
+          modeName,
+          outcome,
+          resultString: buildMatchResultString(outcome, matchStats),
+          isMatchmaking,
+          category,
+          teams: buildTeams(matchStats, xuidToGamertag),
+          mapThumbnailUrl: mapDetails.thumbnailUrl,
+        } satisfies TrackerMatchHistoryEntry;
+      }),
+    );
+
+    const autoGroupingEntries = matches.map((match) => {
+      const stats = matchDetailsById.get(match.matchId) ?? null;
+      return {
+        matchId: match.matchId,
+        isMatchmaking: match.isMatchmaking,
+        teamRosterSignature: stats != null ? buildTeamRosterSignature(stats) : null,
+      };
+    });
+
+    const suggestedGroupings = analyzeMatchGroupings(autoGroupingEntries);
+
+    return { matches, suggestedGroupings };
+  }
+
+  public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(request.trackerId)}/matches`),
+      {
+        credentials: "include",
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchIds: request.selectedMatchIds }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    await selectMatchesContract.fromResponse(response);
+  }
+
+  private async getMatchStats(matchId: string): Promise<MatchStats | null> {
+    try {
+      return await this.haloInfiniteClient.getMatchStats(matchId);
+    } catch {
+      return null;
+    }
+  }
+
+  private async getGamertagsByXuid(matchDetailsById: ReadonlyMap<string, MatchStats>): Promise<Map<string, string>> {
+    const xuids = new Set<string>();
+    for (const stats of matchDetailsById.values()) {
+      for (const player of stats.Players) {
+        if (player.PlayerType === 1) {
+          xuids.add(getPlayerXuid(player));
+        }
+      }
+    }
+
+    if (xuids.size === 0) {
+      return new Map();
+    }
+
+    try {
+      const users = await this.haloInfiniteClient.getUsers(Array.from(xuids));
+      const map = new Map<string, string>();
+      for (const user of users) {
+        map.set(user.xuid, user.gamertag);
+      }
+      return map;
+    } catch {
+      return new Map();
+    }
+  }
+
+  private async getMapDetails(assetId: string, versionId: string): Promise<{ name: string; thumbnailUrl: string }> {
+    const key = `${assetId}:${versionId}`;
+    const existing = this.mapCache.get(key);
+    if (existing != null) {
+      return existing.then((asset) => ({
+        name: asset.PublicName,
+        thumbnailUrl: getMapThumbnailUrl(asset),
+      }));
+    }
+
+    const promise = this.haloInfiniteClient.getAsset(AssetKind.Map, assetId).catch((error: unknown) => {
+      this.mapCache.delete(key);
+      throw error;
+    });
+    this.mapCache.set(key, promise);
+
+    const asset = await promise;
+    return { name: asset.PublicName, thumbnailUrl: getMapThumbnailUrl(asset) };
+  }
+
+  private async getModeName(assetId: string, versionId: string): Promise<string> {
+    const key = `${assetId}:${versionId}`;
+    const existing = this.modeNameCache.get(key);
+    if (existing != null) {
+      return existing.then((variant) => variant.PublicName);
+    }
+
+    const promise = this.haloInfiniteClient.getAsset(AssetKind.UgcGameVariant, assetId).catch((error: unknown) => {
+      this.modeNameCache.delete(key);
+      throw error;
+    });
+    this.modeNameCache.set(key, promise);
+    const variant = await promise;
+    return variant.PublicName;
   }
 }
