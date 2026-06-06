@@ -7,6 +7,7 @@ import {
   buildTeamRosterSignature,
   collapseSequentialSeriesEntries,
   getMatchOutcomeLabel,
+  normalizeModeName,
 } from "../match-enrichment";
 
 describe("getMatchOutcomeLabel()", () => {
@@ -184,6 +185,24 @@ describe("analyzeMatchGroupings()", () => {
 
   it("drops groups with fewer than two matches", () => {
     expect(analyzeMatchGroupings([{ matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" }])).toEqual([]);
+  });
+});
+
+describe("normalizeModeName()", () => {
+  it.each([
+    ["CTF 3 Captures", "Capture the Flag"],
+    ["CTF 5 Captures", "Capture the Flag"],
+    ["Squad Multi-Flag CTF", "Capture the Flag"],
+    ["Assault:Neutral Bomb Ranked", "Neutral Bomb"],
+    ["Assault:Neutral Bomb Squad Ranked", "Neutral Bomb"],
+    ["Team Snipers", "Slayer"],
+    ["Tactical Slayer", "Slayer"],
+    ["Doubles Slayer", "Slayer"],
+    ["FFA Slayer", "Slayer"],
+    ["Squad Slayer", "Slayer"],
+    ["Strongholds", "Strongholds"],
+  ])('normalizes "%s" to "%s"', (input, expected) => {
+    expect(normalizeModeName(input)).toBe(expected);
   });
 });
 

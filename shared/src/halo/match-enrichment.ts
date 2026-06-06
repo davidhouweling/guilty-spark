@@ -166,11 +166,11 @@ export function normalizeModeName(modeName: string): string {
   switch (trimmedName) {
     case "CTF 3 Captures":
     case "CTF 5 Captures":
-    case "Squad Multi-Flag CTF": {
+    case "Multi-Flag CTF": {
       return "Capture the Flag";
     }
     case "Assault:Neutral Bomb Ranked":
-    case "Assault:Neutral Bomb Squad Ranked": {
+    case "Assault:Neutral Bomb": {
       return "Neutral Bomb";
     }
     case "Team Snipers":
