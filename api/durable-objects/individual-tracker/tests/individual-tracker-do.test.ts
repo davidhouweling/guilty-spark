@@ -626,6 +626,51 @@ describe("IndividualTrackerDO", () => {
         expect.objectContaining({ selectedMatchIds: ["m1"] }),
       );
     });
+
+    it("clears accumulatedPlayerTotals and accumulatedMatchIds after selection changes", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1"],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(selectRequest(["m1", "m2"]));
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          selectedMatchIds: ["m1", "m2"],
+          accumulatedMatchIds: [],
+        }),
+      );
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted).not.toHaveProperty("accumulatedPlayerTotals");
+    });
+
+    it("schedules an immediate alarm after selection changes", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }),
+      );
+
+      await individualTrackerDO.fetch(selectRequest(["m1"]));
+
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
   });
 
   describe("toViewState() selection filtering", () => {
