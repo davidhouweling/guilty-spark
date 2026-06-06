@@ -393,68 +393,12 @@ describe("IndividualTrackerManagerPresenter.present", () => {
     expect(model.addDisabled).toBe(false);
   });
 
-  it("includes settings fields from the snapshot", () => {
+  it("includes settings from the snapshot", () => {
     const store = new IndividualTrackerManagerStore();
     store.setSettings({ styleFlags: { colorMode: "observer" } });
-    store.setSettingsSaving(true);
-    store.setSettingsError("Save failed");
 
     const model = IndividualTrackerManagerPresenter.present(store.getSnapshot());
 
     expect(model.settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
-    expect(model.settingsSaving).toBe(true);
-    expect(model.settingsError).toBe("Save failed");
-  });
-});
-
-describe("IndividualTrackerManagerPresenter updateSettings", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("sets settingsSaving to true, saves, then clears settingsSaving and updates settings", async () => {
-    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
-    const { store, presenter } = aHarness(service);
-
-    presenter.updateSettings({ styleFlags: { colorMode: "observer" } });
-
-    expect(store.getSnapshot().settingsSaving).toBe(true);
-
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().settingsSaving).toBe(false);
-    });
-
-    expect(store.getSnapshot().settings).toStrictEqual({ styleFlags: { colorMode: "observer" } });
-    expect(store.getSnapshot().settingsError).toBeNull();
-  });
-
-  it("sets settingsError when the save fails", async () => {
-    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
-    const settingsService = aFakeIndividualTrackerSettingsServiceWith();
-    vi.spyOn(settingsService, "updateSettings").mockRejectedValue(new Error("Network error"));
-    const { store, presenter } = aHarness(service, settingsService);
-
-    presenter.updateSettings({ styleFlags: { colorMode: "player" } });
-
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().settingsSaving).toBe(false);
-    });
-
-    expect(store.getSnapshot().settingsError).toBe("Network error");
-  });
-
-  it("ignores the result after dispose", async () => {
-    const service = aFakeIndividualTrackerServiceWith({ trackers: [] });
-    const { store, presenter } = aHarness(service);
-    const updateSpy = vi.spyOn(store, "setSettings");
-
-    presenter.updateSettings({ styleFlags: { colorMode: "observer" } });
-    presenter.dispose();
-
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(updateSpy).not.toHaveBeenCalled();
-    expect(store.getSnapshot().settings).toStrictEqual({});
   });
 });

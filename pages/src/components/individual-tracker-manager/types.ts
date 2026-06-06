@@ -12,7 +12,5 @@ export interface IndividualTrackerManagerViewModel {
   readonly pendingTrackerId: string | null;
   readonly addDisabled: boolean;
   readonly settings: StreamerViewSettings;
-  readonly settingsSaving: boolean;
-  readonly settingsError: string | null;
   readonly liveXuid: string | null;
 }

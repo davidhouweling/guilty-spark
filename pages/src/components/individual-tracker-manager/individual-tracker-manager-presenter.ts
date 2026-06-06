@@ -51,8 +51,6 @@ export class IndividualTrackerManagerPresenter {
       pendingTrackerId: snapshot.pendingTrackerId,
       addDisabled,
       settings: snapshot.settings,
-      settingsSaving: snapshot.settingsSaving,
-      settingsError: snapshot.settingsError,
       liveXuid: liveTracker?.xuid ?? null,
     };
   }
@@ -178,32 +176,6 @@ export class IndividualTrackerManagerPresenter {
     this.config.store.setGamertagInput("");
     this.config.store.setSearchStartTime("");
     this.config.store.setIdleTimeoutHours("");
-  }
-
-  public updateSettings(settings: StreamerViewSettings): void {
-    if (this.isDisposed) {
-      return;
-    }
-    this.config.store.setSettingsSaving(true);
-    this.config.store.setSettingsError(null);
-    this.config.settingsService
-      .updateSettings(settings)
-      .then((saved) => {
-        if (!this.isDisposed) {
-          this.config.store.setSettings(saved);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!this.isDisposed) {
-          this.config.store.setSettingsError(err instanceof Error ? err.message : "Failed to save settings");
-        }
-      })
-      .finally(() => {
-        if (this.isDisposed) {
-          return;
-        }
-        this.config.store.setSettingsSaving(false);
-      });
   }
 
   private async load(): Promise<void> {

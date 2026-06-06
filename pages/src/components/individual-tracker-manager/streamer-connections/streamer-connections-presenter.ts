@@ -108,6 +108,7 @@ export class StreamerConnectionsPresenter {
   private readonly config: Config;
   private isDisposed = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private saveGeneration = 0;
 
   public constructor(config: Config) {
     this.config = config;
@@ -195,12 +196,13 @@ export class StreamerConnectionsPresenter {
     if (this.isDisposed) {
       return;
     }
+    const generation = ++this.saveGeneration;
     const settings = snapshotToSettings(this.config.store.getSnapshot());
     this.config.store.setSaving();
     this.config.settingsService
       .updateSettings(settings)
       .then((saved) => {
-        if (this.isDisposed) {
+        if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
           return;
         }
         const snapshot = this.config.store.getSnapshot();
@@ -209,7 +211,7 @@ export class StreamerConnectionsPresenter {
         this.config.store.setSaved();
       })
       .catch((err: unknown) => {
-        if (this.isDisposed) {
+        if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
           return;
         }
         const message = err instanceof Error ? err.message : "Failed to save settings";

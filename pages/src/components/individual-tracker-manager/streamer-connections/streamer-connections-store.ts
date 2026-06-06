@@ -115,10 +115,6 @@ export class StreamerConnectionsStore {
     this.update({ saveStatus: "error", saveErrorMessage: message });
   }
 
-  public setSaveIdle(): void {
-    this.update({ saveStatus: "idle" });
-  }
-
   private update(partial: Partial<StreamerConnectionsSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...partial };
     for (const subscriber of this.subscribers) {
