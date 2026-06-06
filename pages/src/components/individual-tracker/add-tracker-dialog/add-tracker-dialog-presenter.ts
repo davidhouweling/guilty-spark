@@ -101,9 +101,9 @@ export class AddTrackerDialogPresenter {
     if (this.isDisposed) {
       return;
     }
-    const { query } = this.config.store.getSnapshot();
-    const normalized = query.trim();
-    if (normalized === "") {
+    const snapshot = this.config.store.getSnapshot();
+    const normalized = snapshot.query.trim();
+    if (normalized === "" || snapshot.searching || snapshot.loadingMatches) {
       return;
     }
     this.config.store.batchUpdate({ searching: true, searchError: null });
