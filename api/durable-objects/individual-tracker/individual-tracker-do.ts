@@ -288,10 +288,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(
-    haloClient: HaloInfiniteClient,
-    summary: IndividualTrackerMatchSummary,
-  ): Promise<boolean> {
+  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
     let matchStats: MatchStats;
     try {
       matchStats = await haloClient.getMatchStats(summary.matchId);

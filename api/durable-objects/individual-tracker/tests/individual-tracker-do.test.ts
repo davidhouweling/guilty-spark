@@ -663,9 +663,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("schedules an immediate alarm after selection changes", async () => {
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }),
-      );
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }));
 
       await individualTrackerDO.fetch(selectRequest(["m1"]));
 

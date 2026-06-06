@@ -1,11 +1,7 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import {
-  type HaloInfiniteClient,
-  type PlaylistCsrContainer,
-  type Stats,
-} from "halo-infinite-api";
+import { type HaloInfiniteClient, type PlaylistCsrContainer, type Stats } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import { IndividualTrackerDO } from "../individual-tracker-do";
