@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import { ComponentLoader } from "../component-loader/component-loader";
@@ -65,9 +64,6 @@ export function IndividualTrackerManagerPage({
       onRowAction: (trackerId: string, action: TrackerRowAction): void => {
         presenter.runRowAction(trackerId, action);
       },
-      onUpdateSettings: (settings: StreamerViewSettings): void => {
-        presenter.updateSettings(settings);
-      },
     }),
     [presenter],
   );
@@ -85,7 +81,7 @@ export function IndividualTrackerManagerPage({
         />
       }
       loaded={
-        <IndividualTrackerManagerProvider model={model} actions={actions}>
+        <IndividualTrackerManagerProvider model={model} actions={actions} settingsService={settingsService}>
           <IndividualTrackerManagerView />
         </IndividualTrackerManagerProvider>
       }

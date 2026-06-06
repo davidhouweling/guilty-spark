@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { aFakeTrackerWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
 import { toManagerModel } from "../manager-model";
 import type { IndividualTrackerManagerViewModel } from "../types";
 
@@ -24,8 +25,7 @@ function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewMode
     pendingTrackerId: null,
     addDisabled: true,
     settings: {},
-    settingsSaving: false,
-    settingsError: null,
+    liveGamertag: null,
     ...overrides,
   };
 }
@@ -38,8 +38,9 @@ const noopActions = {
   onIdleTimeoutHoursChange: (): void => undefined,
   onAddTracker: (): void => undefined,
   onRowAction: (): void => undefined,
-  onUpdateSettings: (): void => undefined,
 };
+
+const fakeSettingsService = aFakeIndividualTrackerSettingsServiceWith();
 
 describe("IndividualTrackerManagerContext", () => {
   it("throws when the model hook is used outside the provider", () => {
@@ -53,7 +54,7 @@ describe("IndividualTrackerManagerContext", () => {
 
     const { result } = renderHook(() => useManagerModel(), {
       wrapper: ({ children }) => (
-        <IndividualTrackerManagerProvider model={model} actions={noopActions}>
+        <IndividualTrackerManagerProvider model={model} actions={noopActions} settingsService={fakeSettingsService}>
           {children}
         </IndividualTrackerManagerProvider>
       ),
@@ -73,6 +74,7 @@ describe("IndividualTrackerManagerContext", () => {
         <IndividualTrackerManagerProvider
           model={aFakeViewModelWith()}
           actions={{ ...noopActions, onAddTracker, onRowAction, onGamertagInputChange }}
+          settingsService={fakeSettingsService}
         >
           {children}
         </IndividualTrackerManagerProvider>

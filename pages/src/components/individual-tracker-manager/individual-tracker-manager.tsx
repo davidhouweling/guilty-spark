@@ -5,8 +5,8 @@ import { Dialog } from "../dialog/dialog";
 import { Input } from "../input/input";
 import type { TrackerRowAction, TrackerRowModel } from "./manager-model";
 import { MAX_TRACKERS } from "./manager-model";
-import { useManagerActions, useManagerModel } from "./individual-tracker-manager-context";
-import { StreamerSettings } from "./settings/streamer-settings";
+import { useManagerActions, useManagerModel, useManagerSettingsService } from "./individual-tracker-manager-context";
+import { StreamerConnectionsSection } from "./streamer-connections/create";
 import styles from "./individual-tracker-manager.module.css";
 
 function StatusBadge({ row }: { readonly row: TrackerRowModel }): React.ReactElement {
@@ -106,8 +106,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
     pendingTrackerId,
     addDisabled,
     settings,
-    settingsSaving,
-    settingsError,
+    liveGamertag,
   } = useManagerModel();
   const {
     onOpenAddDialog,
@@ -117,8 +116,8 @@ export function IndividualTrackerManagerView(): React.ReactElement {
     onIdleTimeoutHoursChange,
     onAddTracker,
     onRowAction,
-    onUpdateSettings,
   } = useManagerActions();
+  const settingsService = useManagerSettingsService();
 
   return (
     <div className={styles.container}>
@@ -184,13 +183,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
       </Dialog>
 
       <section className={styles.settingsSection}>
-        <h2 className={styles.settingsSectionTitle}>Streaming Settings</h2>
-        <StreamerSettings
-          settings={settings}
-          saving={settingsSaving}
-          errorMessage={settingsError}
-          onSave={onUpdateSettings}
-        />
+        <StreamerConnectionsSection settings={settings} settingsService={settingsService} gamertag={liveGamertag} />
       </section>
 
       {model.isAtLimit && (

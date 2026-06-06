@@ -14,8 +14,6 @@ export interface IndividualTrackerManagerSnapshot {
   readonly addPending: boolean;
   readonly pendingTrackerId: string | null;
   readonly settings: StreamerViewSettings;
-  readonly settingsSaving: boolean;
-  readonly settingsError: string | null;
 }
 
 export class IndividualTrackerManagerStore {
@@ -35,8 +33,6 @@ export class IndividualTrackerManagerStore {
       addPending: false,
       pendingTrackerId: null,
       settings: {},
-      settingsSaving: false,
-      settingsError: null,
     };
   }
 
@@ -98,14 +94,6 @@ export class IndividualTrackerManagerStore {
 
   public setSettings(settings: StreamerViewSettings): void {
     this.update({ settings });
-  }
-
-  public setSettingsSaving(settingsSaving: boolean): void {
-    this.update({ settingsSaving });
-  }
-
-  public setSettingsError(settingsError: string | null): void {
-    this.update({ settingsError });
   }
 
   private update(partial: Partial<IndividualTrackerManagerSnapshot>): void {
