@@ -106,7 +106,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
     pendingTrackerId,
     addDisabled,
     settings,
-    liveXuid,
+    liveGamertag,
   } = useManagerModel();
   const {
     onOpenAddDialog,
@@ -183,7 +183,7 @@ export function IndividualTrackerManagerView(): React.ReactElement {
       </Dialog>
 
       <section className={styles.settingsSection}>
-        <StreamerConnectionsSection settings={settings} settingsService={settingsService} xuid={liveXuid} />
+        <StreamerConnectionsSection settings={settings} settingsService={settingsService} gamertag={liveGamertag} />
       </section>
 
       {model.isAtLimit && (

@@ -25,7 +25,7 @@ function aFakeViewModelWith(overrides?: Partial<IndividualTrackerManagerViewMode
     pendingTrackerId: null,
     addDisabled: true,
     settings: {},
-    liveXuid: null,
+    liveGamertag: null,
     ...overrides,
   };
 }

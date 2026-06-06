@@ -51,7 +51,7 @@ export class IndividualTrackerManagerPresenter {
       pendingTrackerId: snapshot.pendingTrackerId,
       addDisabled,
       settings: snapshot.settings,
-      liveXuid: liveTracker?.xuid ?? null,
+      liveGamertag: liveTracker?.gamertag ?? null,
     };
   }
 
