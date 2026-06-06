@@ -710,7 +710,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
-    const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
+    const series = groupings.map((matchIds, groupIndex): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
         .map((matchId) => summariesById.get(matchId))
         .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
@@ -725,20 +725,27 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         })),
       );
 
+      const defaultTitle = getDefaultSeriesGroupTitle();
+      const defaultSubtitle = getDefaultSeriesGroupSubtitle(
+        groupSummaries.map((summary) => ({
+          startTime: summary.startTime,
+          mapAssetId: summary.mapAssetId,
+          mapVersionId: summary.mapVersionId,
+          gameVariantCategory: summary.gameVariantCategory,
+          outcome: summary.outcome,
+        })),
+      );
+
+      const manualSeries = groupIndex === 0 ? state.manualSeries : undefined;
+      const title = manualSeries?.titleOverride ?? defaultTitle;
+      const subtitle = manualSeries?.subtitleOverride ?? defaultSubtitle;
+
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
         matchIds,
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
-        title: getDefaultSeriesGroupTitle(),
-        subtitle: getDefaultSeriesGroupSubtitle(
-          groupSummaries.map((summary) => ({
-            startTime: summary.startTime,
-            mapAssetId: summary.mapAssetId,
-            mapVersionId: summary.mapVersionId,
-            gameVariantCategory: summary.gameVariantCategory,
-            outcome: summary.outcome,
-          })),
-        ),
+        title,
+        subtitle,
       };
     });
 
