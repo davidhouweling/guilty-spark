@@ -240,7 +240,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (trackerState.selectedMatchIds != null && trackerState.selectedMatchIds.length > 0) {
         const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
         if (durationSeconds >= 120) {
-          trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId];
+          trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
         }
       }
       newlyDiscovered.add(matchId);
