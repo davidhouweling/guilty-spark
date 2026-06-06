@@ -322,13 +322,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return true;
   }
 
+  private hasPendingRecompute(trackerState: IndividualTrackerInternalState): boolean {
+    return trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
+  }
+
   private async recomputeAccumulatedTotals(
     haloClient: HaloInfiniteClient,
     trackerState: IndividualTrackerInternalState,
   ): Promise<void> {
-    const needsRecompute =
-      trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
-    if (!needsRecompute) {
+    if (!this.hasPendingRecompute(trackerState)) {
       return;
     }
 
@@ -492,9 +494,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.status = "active";
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
-    const pendingRecompute =
-      trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
-    const resumeAlarmDelay = pendingRecompute ? 0 : ALARM_INTERVAL_MS;
+    const resumeAlarmDelay = this.hasPendingRecompute(trackerState) ? 0 : ALARM_INTERVAL_MS;
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
