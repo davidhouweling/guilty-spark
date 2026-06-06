@@ -110,16 +110,16 @@ export class AddTrackerDialogPresenter {
     this.runSearch(normalized);
   }
 
-  public loadMore(): void {
+  public async loadMore(): Promise<void> {
     if (this.isDisposed) {
-      return;
+      return Promise.resolve();
     }
     const snapshot = this.config.store.getSnapshot();
     if (snapshot.result == null || snapshot.loadingMatches) {
-      return;
+      return Promise.resolve();
     }
     this.config.store.setLoadingMatches(true);
-    this.runLoadMore(snapshot.result.xuid, snapshot.matches.length);
+    return this.doLoadMore(snapshot.result.xuid, snapshot.matches.length);
   }
 
   public toggleMatch(matchId: string): void {
@@ -263,10 +263,6 @@ export class AddTrackerDialogPresenter {
         searchError: err instanceof Error ? err.message : "Failed to load match history.",
       });
     }
-  }
-
-  private runLoadMore(xuid: string, offset: number): void {
-    void this.doLoadMore(xuid, offset);
   }
 
   private async doLoadMore(xuid: string, offset: number): Promise<void> {

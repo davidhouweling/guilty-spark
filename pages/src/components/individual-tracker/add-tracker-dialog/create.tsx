@@ -44,8 +44,7 @@ export function AddTrackerDialogSection({
   const model = useMemo(() => AddTrackerDialogPresenter.present(snapshot), [snapshot]);
 
   const handleLoadMore = useCallback(async (): Promise<void> => {
-    presenter.loadMore();
-    return Promise.resolve();
+    return presenter.loadMore();
   }, [presenter]);
 
   return (
