@@ -4,7 +4,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
-import { MatchHistory } from "../match-history";
+import { MatchHistorySection } from "../create";
 import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 
 afterEach(() => {
@@ -37,12 +37,12 @@ function aMatchWith(
   };
 }
 
-describe("MatchHistory", () => {
+describe("MatchHistorySection", () => {
   it("calls add-to-above for a custom single match with a custom match above", () => {
     const onAddToAboveGroup = vi.fn<(matchId: string) => void>();
 
     render(
-      <MatchHistory
+      <MatchHistorySection
         entries={[aMatchWith("m1", "custom", "Slayer"), aMatchWith("m2", "custom", "Oddball")]}
         allowManualGrouping={true}
         onAddToAboveGroup={onAddToAboveGroup}
@@ -55,7 +55,7 @@ describe("MatchHistory", () => {
   });
 
   it("hides add controls for a matchmaking match", () => {
-    render(<MatchHistory entries={[aMatchWith("m1", "matchmaking", "Slayer")]} allowManualGrouping={true} />);
+    render(<MatchHistorySection entries={[aMatchWith("m1", "matchmaking", "Slayer")]} allowManualGrouping={true} />);
 
     expect(screen.queryByTitle("Add to group above")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Add to group below")).not.toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("MatchHistory", () => {
 
   it("renders only break controls for grouped matches without eligible adjacent groupable matches", () => {
     render(
-      <MatchHistory
+      <MatchHistorySection
         entries={[
           aMatchWith("m1", "custom", "Slayer"),
           aMatchWith("m2", "custom", "Oddball"),
@@ -83,7 +83,7 @@ describe("MatchHistory", () => {
 
   it("rotates series colors by visible series order", () => {
     const { container } = render(
-      <MatchHistory
+      <MatchHistorySection
         entries={[
           aMatchWith("m1", "custom", "Slayer"),
           aMatchWith("m2", "custom", "Oddball"),

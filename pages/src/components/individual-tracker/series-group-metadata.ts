@@ -2,7 +2,6 @@ import {
   buildSeriesGroupKey,
   normalizeSeriesGroupMatchIds,
   getDefaultSeriesGroupSubtitle as sharedGetDefaultSeriesGroupSubtitle,
-  getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
@@ -11,8 +10,6 @@ export interface IndividualTrackerSeriesGroup {
   readonly titleOverride: string | null;
   readonly subtitleOverride: string | null;
 }
-
-export { buildSeriesGroupKey, getDefaultSeriesGroupTitle };
 
 export function getDefaultSeriesGroupSubtitle(
   entries: readonly Pick<

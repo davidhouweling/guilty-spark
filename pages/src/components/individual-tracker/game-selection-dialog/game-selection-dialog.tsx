@@ -5,7 +5,7 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
-import { MatchHistory } from "../../match-history/match-history";
+import { MatchHistorySection } from "../../match-history/create";
 import styles from "./game-selection-dialog.module.css";
 
 export interface GameSelectionDialogProps {
@@ -76,7 +76,7 @@ export function GameSelectionDialog({
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
 
       <div className={styles.matchesContainer}>
-        <MatchHistory
+        <MatchHistorySection
           entries={visibleMatches}
           loadingCount={5}
           showGroupings={true}
