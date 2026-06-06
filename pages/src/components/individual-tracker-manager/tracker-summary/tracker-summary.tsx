@@ -3,8 +3,6 @@ import classNames from "classnames";
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./tracker-summary.module.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface TrackerSearchResult {
   readonly gamertag: string;
   readonly xuid: string;
