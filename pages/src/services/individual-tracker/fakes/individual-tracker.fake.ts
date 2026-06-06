@@ -131,10 +131,6 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return { tracker: this.findTracker(trackerId) };
   }
 
-  public async selectMatches(): Promise<void> {
-    await Promise.resolve();
-  }
-
   private findTracker(trackerId: string): Tracker {
     return this.trackers.find((tracker) => tracker.trackerId === trackerId) ?? aFakeTrackerWith({ trackerId });
   }

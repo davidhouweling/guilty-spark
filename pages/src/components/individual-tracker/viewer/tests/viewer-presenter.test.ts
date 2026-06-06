@@ -9,7 +9,6 @@ import {
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { FakeIndividualTrackerViewService } from "../../../../services/individual-tracker/fakes/view.fake";
-import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
@@ -32,7 +31,6 @@ function aHarness(service: FakeIndividualTrackerViewService): Harness {
       .mockResolvedValue({ difficulties: [], types: [], sprites: {}, medals: [] }),
   };
   const presenter = new IndividualTrackerViewerPresenter({
-    individualTrackerService: aFakeIndividualTrackerServiceWith(),
     individualTrackerViewService: service,
     haloClient: aFakeHaloClientWith(haloClient),
     store,

@@ -1,7 +1,6 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -12,7 +11,6 @@ import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } fr
 import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface Config {
-  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
@@ -62,10 +60,6 @@ export class IndividualTrackerViewerPresenter {
   public deselectMatch(): void {
     this.selectedMatchId = null;
     this.config.store.setSelectedMatchId(null);
-  }
-
-  public async selectMatches(matchIds: readonly string[]): Promise<void> {
-    await this.config.individualTrackerService?.selectMatches(this.config.trackerId, matchIds);
   }
 
   private isStale(matchId: string): boolean {

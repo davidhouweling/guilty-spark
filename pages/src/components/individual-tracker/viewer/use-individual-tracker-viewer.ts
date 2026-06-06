@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
 import type { IndividualTrackerViewerSnapshot } from "./viewer-store";
@@ -8,7 +7,6 @@ import { IndividualTrackerViewerStore } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface UseIndividualTrackerViewerOpts {
-  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
@@ -23,7 +21,6 @@ export interface IndividualTrackerViewerHookResult {
 }
 
 export function useIndividualTrackerViewer({
-  individualTrackerService,
   individualTrackerViewService,
   haloClient,
   trackerId,
@@ -33,13 +30,12 @@ export function useIndividualTrackerViewer({
   const presenter = useMemo(
     () =>
       new IndividualTrackerViewerPresenter({
-        individualTrackerService,
         individualTrackerViewService,
         haloClient,
         store,
         trackerId,
       }),
-    [individualTrackerService, individualTrackerViewService, haloClient, store, trackerId],
+    [individualTrackerViewService, haloClient, store, trackerId],
   );
 
   useEffect(() => {

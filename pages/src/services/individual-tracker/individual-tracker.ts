@@ -10,7 +10,6 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
-  selectMatchesContract,
   stopTrackerContract,
   trackerContract,
   trackersContract,
@@ -187,24 +186,6 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     return trackerContract.fromResponse(response);
-  }
-
-  public async selectMatches(trackerId: string, matchIds: readonly string[]): Promise<void> {
-    const response = await fetch(
-      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/matches`),
-      {
-        credentials: "include",
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchIds }),
-      },
-    );
-
-    if (!response.ok) {
-      throw await this.readError(response);
-    }
-
-    await selectMatchesContract.fromResponse(response);
   }
 
 }

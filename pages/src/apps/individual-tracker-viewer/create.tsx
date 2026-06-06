@@ -71,7 +71,6 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
       loaded={
         services ? (
           <IndividualTrackerViewerPage
-            individualTrackerService={services.individualTrackerService}
             individualTrackerViewService={services.individualTrackerViewService}
             haloClient={services.haloClient}
             trackerId={trackerId}
