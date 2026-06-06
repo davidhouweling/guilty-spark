@@ -39,8 +39,14 @@ describe("StatsPanel", () => {
 
   it("renders match stats player table when status is loaded", () => {
     const stats = aFakeMatchStatsWith();
+    const playerMap = new Map([
+      ["1111111111", "Alpha"],
+      ["2222222222", "Bravo"],
+      ["3333333333", "Charlie"],
+      ["4444444444", "Delta"],
+    ]);
 
-    render(<StatsPanel state={{ status: "loaded", stats }} />);
+    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {} }} />);
 
     expect(screen.getByText("Players")).toBeInTheDocument();
   });

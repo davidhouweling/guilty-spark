@@ -14,6 +14,7 @@ import {
   getDefaultSeriesGroupSubtitle,
   getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
@@ -34,9 +35,11 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
+  IndividualTrackerSelectMatchesRequest,
+  IndividualTrackerSelectMatchesResponse,
   TopBarStatItem,
 } from "./types";
-import { accumulatePlayerStats, computeTopBarStats } from "./top-bar-stats";
+import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -105,6 +108,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "view-state": {
             return await this.handleViewState(request);
+          }
+          case "select-matches": {
+            return await this.handleSelectMatches(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -227,6 +233,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.enrichScore(haloClient, summary, trackerState);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
+      if (trackerState.selectedMatchIds.length > 0) {
+        const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
+        if (durationSeconds >= 120) {
+          trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
+        }
+      }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
     }
@@ -405,6 +417,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       checkCount: 0,
       matchIds: [],
       discoveredMatches: {},
+      selectedMatchIds: [],
       idleTimeoutHours: body.idleTimeoutHours,
       errorState: {
         consecutiveErrors: 0,
@@ -472,6 +485,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
+  private async handleSelectMatches(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const body = await request.json<IndividualTrackerSelectMatchesRequest>();
+    if (!Array.isArray(body.matchIds)) {
+      return new Response("Bad Request", { status: 400 });
+    }
+    const known = new Set(trackerState.matchIds);
+    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id)).sort();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerSelectMatchesResponse = { success: true };
+    return Response.json(response);
+  }
+
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     const response: IndividualTrackerStatusResponse = {
@@ -526,7 +559,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
         (s) => s.teamRosterSignature != null,
       ).length;
-      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}`;
+      const selectionKey = state.selectedMatchIds.join(",");
+      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${selectionKey}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
         return this.cachedTopBarStats;
@@ -583,7 +617,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private toViewState(state: IndividualTrackerInternalState): IndividualTrackerViewState {
+    const activeIds = getActiveMatchIds(state);
     const summaries = state.matchIds
+      .filter((matchId) => activeIds.has(matchId))
       .map((matchId) => state.discoveredMatches[matchId])
       .filter((match): match is IndividualTrackerMatchSummary => match != null)
       .sort((left, right) => compareAsc(new Date(left.startTime), new Date(right.startTime)));

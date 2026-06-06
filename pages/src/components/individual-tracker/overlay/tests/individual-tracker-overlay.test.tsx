@@ -77,7 +77,17 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        matchStatsState={{ status: "loaded", stats: aFakeMatchStatsWith() }}
+        matchStatsState={{
+          status: "loaded",
+          stats: aFakeMatchStatsWith(),
+          playerMap: new Map([
+            ["1111111111", "Alpha"],
+            ["2222222222", "Bravo"],
+            ["3333333333", "Charlie"],
+            ["4444444444", "Delta"],
+          ]),
+          medalMetadata: {},
+        }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -108,7 +118,17 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        matchStatsState={{ status: "loaded", stats: aFakeMatchStatsWith() }}
+        matchStatsState={{
+          status: "loaded",
+          stats: aFakeMatchStatsWith(),
+          playerMap: new Map([
+            ["1111111111", "Alpha"],
+            ["2222222222", "Bravo"],
+            ["3333333333", "Charlie"],
+            ["4444444444", "Delta"],
+          ]),
+          medalMetadata: {},
+        }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={onDeselect}

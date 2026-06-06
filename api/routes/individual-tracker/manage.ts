@@ -1,5 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
+  selectMatchesContract,
+  selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
@@ -16,6 +18,7 @@ import type {
   IndividualTrackerState,
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
+  IndividualTrackerSelectMatchesResponse,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
@@ -31,6 +34,12 @@ function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObje
   return env.INDIVIDUAL_TRACKER_DO.get(doId);
 }
 
+function assertDoOk(response: Response): void {
+  if (!response.ok) {
+    throw new Error(`DO request failed with status ${response.status.toString()}`);
+  }
+}
+
 async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequest): Promise<IndividualTrackerState> {
   const stub = trackerDoStub(env, startRequest.userId, startRequest.trackerId);
   const response = await stub.fetch("http://do/start", {
@@ -38,6 +47,7 @@ async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequ
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(startRequest),
   });
+  assertDoOk(response);
   const result = await response.json<IndividualTrackerStartResponse>();
   return result.state;
 }
@@ -45,6 +55,7 @@ async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequ
 async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/pause", { method: "POST" });
+  assertDoOk(response);
   const result = await response.json<IndividualTrackerPauseResponse>();
   return result.state;
 }
@@ -52,6 +63,7 @@ async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Prom
 async function resumeTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/resume", { method: "POST" });
+  assertDoOk(response);
   const result = await response.json<IndividualTrackerResumeResponse>();
   return result.state;
 }
@@ -59,14 +71,34 @@ async function resumeTrackerDo(env: Env, userId: string, trackerId: string): Pro
 async function stopTrackerDo(env: Env, userId: string, trackerId: string): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/stop", { method: "POST" });
+  assertDoOk(response);
   await response.json<IndividualTrackerStopResponse>();
 }
 
 async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState | null> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/status", { method: "GET" });
+  assertDoOk(response);
   const result = await response.json<IndividualTrackerStatusResponse>();
   return result.state;
+}
+
+function assertDoOkWith404(response: Response): void {
+  if (response.status === 404) {
+    throw new TrackerNotFoundError();
+  }
+  assertDoOk(response);
+}
+
+async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchIds: string[]): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/select-matches", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ matchIds }),
+  });
+  assertDoOkWith404(response);
+  await response.json<IndividualTrackerSelectMatchesResponse>();
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -339,6 +371,45 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker status error"]]));
       return errorContract.toResponse({ error: "Failed to fetch tracker status" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.put("/api/individual-tracker/manage/:trackerId/matches", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      const parsed = await parseJsonBody(request, selectMatchesRequestSchema, "Invalid select matches request");
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, parsed.data.matchIds);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      return selectMatchesContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker select matches error"]]));
+      return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
     }
   });
 };

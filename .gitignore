@@ -64,4 +64,5 @@ api/scripts/*.json
 test-results
 
 # mcp related paths
+.claude
 .playwright-mcp

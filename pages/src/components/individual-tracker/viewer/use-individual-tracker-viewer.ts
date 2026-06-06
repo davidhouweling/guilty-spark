@@ -28,7 +28,13 @@ export function useIndividualTrackerViewer({
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
 
   const presenter = useMemo(
-    () => new IndividualTrackerViewerPresenter({ individualTrackerViewService, haloClient, store, trackerId }),
+    () =>
+      new IndividualTrackerViewerPresenter({
+        individualTrackerViewService,
+        haloClient,
+        store,
+        trackerId,
+      }),
     [individualTrackerViewService, haloClient, store, trackerId],
   );
 

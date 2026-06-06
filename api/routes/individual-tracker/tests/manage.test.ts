@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
+  SelectMatchesResponse,
   StopTrackerResponse,
   TrackerResponse,
   TrackersResponse,
@@ -410,5 +411,93 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<TrackerResponse>();
     expect(body.tracker.trackerId).toBe("t1");
     expect(body.tracker.state?.gamertag).toBe("MyTag");
+  });
+
+  it("returns 401 on select matches when not authenticated", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchIds: ["match-1"] }),
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 on select matches when the tracker is not owned", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockRejectedValue(new TrackerNotFoundError());
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchIds: ["match-1"] }),
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(404);
+  });
+
+  it("calls the DO select-matches endpoint and returns success", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchIds: ["match-1", "match-2"] }),
+    });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<SelectMatchesResponse>();
+    expect(body.success).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledWith("http://do/select-matches", expect.objectContaining({ method: "PUT" }));
+  });
+
+  it("returns 404 on select matches when DO has no state (not yet started)", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchIds: ["m1"] }),
+    });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(404);
   });
 });

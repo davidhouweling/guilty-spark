@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import type { MatchStats as MatchStatsType } from "halo-infinite-api";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createMatchStatsPresenter } from "../../stats/create";
@@ -11,12 +11,17 @@ import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerViewModel } from "./types";
 import styles from "./stats-panel.module.css";
 
-function LoadedStatsPanel({ stats }: { readonly stats: MatchStatsType }): React.ReactElement {
+interface LoadedStatsPanelProps {
+  readonly stats: MatchStatsType;
+  readonly playerMap: Map<string, string>;
+  readonly medalMetadata: MedalMetadata;
+}
+
+function LoadedStatsPanel({ stats, playerMap, medalMetadata }: LoadedStatsPanelProps): React.ReactElement {
   const data = useMemo<MatchStatsData[]>(() => {
     const presenter = createMatchStatsPresenter(stats.MatchInfo.GameVariantCategory);
-    const playerMap = new Map(stats.Players.map((p) => [getPlayerXuid(p), getPlayerXuid(p)]));
-    return presenter.getData(stats, playerMap, {});
-  }, [stats]);
+    return presenter.getData(stats, playerMap, medalMetadata);
+  }, [stats, playerMap, medalMetadata]);
 
   return (
     <div className={styles.wrapper}>
@@ -62,7 +67,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
       );
     }
     case "loaded": {
-      return <LoadedStatsPanel stats={state.stats} />;
+      return <LoadedStatsPanel stats={state.stats} playerMap={state.playerMap} medalMetadata={state.medalMetadata} />;
     }
     default: {
       throw new UnreachableError(state);

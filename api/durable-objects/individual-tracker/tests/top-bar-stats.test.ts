@@ -218,6 +218,7 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         matchIds: ["m1"],
+        selectedMatchIds: ["m1"],
         discoveredMatches: {
           m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", isMatchmaking: true }),
         },
@@ -361,6 +362,7 @@ describe("topBarStats", () => {
       aFakeIndividualTrackerInternalStateWith({
         xuid: trackedXuid,
         matchIds: ["m2", "m1"],
+        selectedMatchIds: ["m1", "m2"],
         discoveredMatches: {
           m1: aFakeIndividualTrackerMatchSummaryWith({
             matchId: "m1",
@@ -507,6 +509,32 @@ describe("topBarStats", () => {
 
       expect(csrSpy).not.toHaveBeenCalled();
       expect(esraSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("selectedMatchIds selection behaviour", () => {
+    it("cache key changes when selection changes", async () => {
+      const baseState = aFakeIndividualTrackerInternalStateWith({
+        xuid: trackedXuid,
+        matchIds: ["m1"],
+        selectedMatchIds: [],
+        discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }) },
+        accumulatedMatchIds: ["m1"],
+      });
+
+      storageGetSpy.mockResolvedValue(baseState);
+      const url = new URL("http://do/view-state");
+      url.searchParams.set("topBarStatSlots", JSON.stringify(["matches-win-loss"]));
+
+      const r1 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const b1: IndividualTrackerViewStateResponse = await r1.json();
+      expect(b1.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "0:0" });
+
+      storageGetSpy.mockResolvedValue({ ...baseState, selectedMatchIds: ["m1"] });
+
+      const r2 = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const b2: IndividualTrackerViewStateResponse = await r2.json();
+      expect(b2.state?.topBarStats?.[0]).toEqual({ label: "Won:Loss", value: "1:0" });
     });
   });
 });

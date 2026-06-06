@@ -16,6 +16,10 @@ import type {
   TopBarStatItem,
 } from "./types";
 
+export function getActiveMatchIds(state: IndividualTrackerInternalState): Set<string> {
+  return new Set(state.selectedMatchIds);
+}
+
 export function accumulatePlayerStats(state: IndividualTrackerInternalState, matchStats: MatchStats): boolean {
   const trackedXuid = state.xuid;
   const player = matchStats.Players.find((p) => getPlayerXuid(p) === trackedXuid);
@@ -78,7 +82,9 @@ function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
 }
 
 function computeSeriesWonLoss(state: IndividualTrackerInternalState): { won: number; lost: number } {
+  const activeIds = getActiveMatchIds(state);
   const summaries = state.matchIds
+    .filter((id) => activeIds.has(id))
     .map((id) => state.discoveredMatches[id])
     .filter((s): s is IndividualTrackerMatchSummary => s != null)
     .sort((a, b) => compareAsc(new Date(a.startTime), new Date(b.startTime)));
@@ -270,7 +276,9 @@ export function computeTopBarStats(
   esraData?: PlayerEsraData | null,
 ): readonly TopBarStatItem[] {
   const totals = state.accumulatedPlayerTotals;
+  const activeIds = getActiveMatchIds(state);
   const matches = state.matchIds
+    .filter((id) => activeIds.has(id))
     .map((id) => state.discoveredMatches[id])
     .filter((s): s is IndividualTrackerMatchSummary => s != null);
   const total = matches.length;
