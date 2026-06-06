@@ -18,11 +18,13 @@ function aFakeTrackerSearchResult(overrides?: Partial<TrackerSearchResult>): Tra
   return {
     gamertag: "Chief",
     xuid: "xuid-001",
+    rankLabel: "Diamond 3",
     csrLabel: "1500",
     currentRankTier: "Diamond",
     currentRankSubTier: 3,
     currentRankMeasurementMatchesRemaining: null,
     currentRankInitialMeasurementMatches: null,
+    allTimePeakRankLabel: "Onyx",
     allTimePeakCsrLabel: "1800",
     allTimePeakRankTier: "Onyx",
     allTimePeakRankSubTier: null,

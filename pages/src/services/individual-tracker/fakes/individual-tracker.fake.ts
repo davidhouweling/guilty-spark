@@ -9,7 +9,12 @@ import type {
   TrackerResponse,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { IndividualTrackerService, TrackerMatchHistoryResponse, TrackerSyncMatchesRequest } from "../types";
+import type {
+  IndividualTrackerService,
+  TrackerMatchHistoryResponse,
+  TrackerSearchResult,
+  TrackerSyncMatchesRequest,
+} from "../types";
 
 interface FakeTrackerOverrides {
   readonly trackerId?: string;
@@ -59,23 +64,58 @@ export function aFakeTrackerProfileWith(overrides: FakeProfileOverrides = {}): T
   };
 }
 
+export interface FakeTrackerSearchResultOverrides {
+  readonly gamertag?: string;
+  readonly xuid?: string;
+}
+
+export function aFakeTrackerSearchResultWith(overrides: FakeTrackerSearchResultOverrides = {}): TrackerSearchResult {
+  return {
+    gamertag: overrides.gamertag ?? "Fake Spartan",
+    xuid: overrides.xuid ?? "2533274800000001",
+    rankLabel: "Gold 5",
+    csrLabel: "1200",
+    currentRankTier: "Gold",
+    currentRankSubTier: 5,
+    currentRankMeasurementMatchesRemaining: null,
+    currentRankInitialMeasurementMatches: null,
+    allTimePeakRankLabel: "Platinum 1",
+    allTimePeakCsrLabel: "1300",
+    allTimePeakRankTier: "Platinum",
+    allTimePeakRankSubTier: 1,
+    seasonPeakCsrLabel: "1250",
+    seasonPeakRankTier: "Gold",
+    seasonPeakRankSubTier: 6,
+    matchmadeMatchCount: 20,
+    customMatchCount: 8,
+  };
+}
+
 interface FakeIndividualTrackerServiceOptions {
   readonly profile: TrackerProfile;
   readonly trackers: readonly Tracker[];
+  readonly searchResult: TrackerSearchResult | null;
+  readonly matchHistory: TrackerMatchHistoryResponse;
 }
 
 export interface FakeIndividualTrackerServiceFactoryOpts {
   readonly profile?: TrackerProfile;
   readonly trackers?: readonly Tracker[];
+  readonly searchResult?: TrackerSearchResult | null;
+  readonly matchHistory?: TrackerMatchHistoryResponse;
 }
 
 export class FakeIndividualTrackerService implements IndividualTrackerService {
   private profile: TrackerProfile;
   private trackers: Tracker[];
+  private readonly searchResult: TrackerSearchResult | null;
+  private readonly matchHistory: TrackerMatchHistoryResponse;
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
     this.profile = options?.profile ?? aFakeTrackerProfileWith();
     this.trackers = [...(options?.trackers ?? [aFakeTrackerWith()])];
+    this.searchResult = options?.searchResult !== undefined ? options.searchResult : aFakeTrackerSearchResultWith();
+    this.matchHistory = options?.matchHistory ?? { matches: [], suggestedGroupings: [] };
   }
 
   public async getProfile(): Promise<TrackerProfileResponse> {
@@ -131,12 +171,18 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return { tracker: this.findTracker(trackerId) };
   }
 
+  public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
+    void query;
+    await Promise.resolve();
+    return this.searchResult;
+  }
+
   public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
     void xuid;
     void start;
     void count;
     await Promise.resolve();
-    return { matches: [], suggestedGroupings: [] };
+    return this.matchHistory;
   }
 
   public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
@@ -168,5 +214,7 @@ export function aFakeIndividualTrackerServiceWith(
   return new FakeIndividualTrackerService({
     ...(opts.profile !== undefined ? { profile: opts.profile } : {}),
     ...(opts.trackers !== undefined ? { trackers: opts.trackers } : {}),
+    ...(opts.searchResult !== undefined ? { searchResult: opts.searchResult } : {}),
+    ...(opts.matchHistory !== undefined ? { matchHistory: opts.matchHistory } : {}),
   });
 }

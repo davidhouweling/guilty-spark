@@ -29,6 +29,7 @@ import type {
   IndividualTrackerService,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
+  TrackerSearchResult,
   TrackerSyncMatchesRequest,
 } from "./types";
 
@@ -207,6 +208,29 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     return trackerContract.fromResponse(response);
+  }
+
+  public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
+    const normalized = query.trim();
+    if (normalized === "") {
+      return null;
+    }
+
+    const url = this.buildUrl(`/api/individual-tracker/manage/search-gamertag?q=${encodeURIComponent(normalized)}`);
+    const response = await fetch(url, {
+      credentials: "include",
+      method: "GET",
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    return await response.json();
   }
 
   public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {

@@ -1,25 +1,10 @@
 import React from "react";
 import classNames from "classnames";
+import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./tracker-summary.module.css";
 
-export interface TrackerSearchResult {
-  readonly gamertag: string;
-  readonly xuid: string;
-  readonly csrLabel: string | null;
-  readonly currentRankTier: string | null;
-  readonly currentRankSubTier: number | null;
-  readonly currentRankMeasurementMatchesRemaining: number | null;
-  readonly currentRankInitialMeasurementMatches: number | null;
-  readonly allTimePeakCsrLabel: string | null;
-  readonly allTimePeakRankTier: string | null;
-  readonly allTimePeakRankSubTier: number | null;
-  readonly seasonPeakCsrLabel: string | null;
-  readonly seasonPeakRankTier: string | null;
-  readonly seasonPeakRankSubTier: number | null;
-  readonly matchmadeMatchCount: number | null;
-  readonly customMatchCount: number | null;
-}
+export type { TrackerSearchResult };
 
 interface TrackerSummaryProps {
   readonly tracker: TrackerSearchResult;

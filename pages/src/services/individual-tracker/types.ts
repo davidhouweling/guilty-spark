@@ -9,6 +9,26 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 
+export interface TrackerSearchResult {
+  readonly gamertag: string;
+  readonly xuid: string;
+  readonly rankLabel: string | null;
+  readonly csrLabel: string | null;
+  readonly currentRankTier: string | null;
+  readonly currentRankSubTier: number | null;
+  readonly currentRankMeasurementMatchesRemaining: number | null;
+  readonly currentRankInitialMeasurementMatches: number | null;
+  readonly allTimePeakRankLabel: string | null;
+  readonly allTimePeakCsrLabel: string | null;
+  readonly allTimePeakRankTier: string | null;
+  readonly allTimePeakRankSubTier: number | null;
+  readonly seasonPeakCsrLabel: string | null;
+  readonly seasonPeakRankTier: string | null;
+  readonly seasonPeakRankSubTier: number | null;
+  readonly matchmadeMatchCount: number | null;
+  readonly customMatchCount: number | null;
+}
+
 export interface TrackerMatchHistoryEntry {
   readonly matchId: string;
   readonly startTime: string;
@@ -58,6 +78,7 @@ export interface IndividualTrackerService {
   resumeTracker(trackerId: string): Promise<TrackerResponse>;
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
+  searchGamertag(query: string): Promise<TrackerSearchResult | null>;
   getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
 }
