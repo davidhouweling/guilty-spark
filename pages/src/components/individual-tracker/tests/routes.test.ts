@@ -30,13 +30,21 @@ describe("buildIndividualTrackerTrackerViewPath", () => {
 });
 
 describe("buildIndividualTrackerPublicViewPath", () => {
-  it("encodes the xuid into the view path", () => {
-    expect(buildIndividualTrackerPublicViewPath("xuid(123456)")).toBe("/xuid(123456)/view");
+  it("returns the /u/<gamertag>/view path", () => {
+    expect(buildIndividualTrackerPublicViewPath("SpartanOne")).toBe("/u/SpartanOne/view");
+  });
+
+  it("percent-encodes special characters in the gamertag", () => {
+    expect(buildIndividualTrackerPublicViewPath("Spartan One")).toBe("/u/Spartan%20One/view");
   });
 });
 
 describe("buildIndividualTrackerPublicOverlayPath", () => {
-  it("encodes the xuid into the overlay path", () => {
-    expect(buildIndividualTrackerPublicOverlayPath("xuid(123456)")).toBe("/xuid(123456)/overlay");
+  it("returns the /u/<gamertag>/overlay path", () => {
+    expect(buildIndividualTrackerPublicOverlayPath("SpartanOne")).toBe("/u/SpartanOne/overlay");
+  });
+
+  it("percent-encodes special characters in the gamertag", () => {
+    expect(buildIndividualTrackerPublicOverlayPath("Spartan One")).toBe("/u/Spartan%20One/overlay");
   });
 });

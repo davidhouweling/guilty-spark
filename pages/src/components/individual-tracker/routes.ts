@@ -22,10 +22,10 @@ export function buildIndividualTrackerTrackerViewPath(trackerId: string): string
   return `/tracker/${encodeURIComponent(trackerId)}`;
 }
 
-export function buildIndividualTrackerPublicViewPath(xuid: string): string {
-  return `/${encodeURIComponent(xuid)}/view`;
+export function buildIndividualTrackerPublicViewPath(gamertag: string): string {
+  return `/u/${encodeURIComponent(gamertag)}/view`;
 }
 
-export function buildIndividualTrackerPublicOverlayPath(xuid: string): string {
-  return `/${encodeURIComponent(xuid)}/overlay`;
+export function buildIndividualTrackerPublicOverlayPath(gamertag: string): string {
+  return `/u/${encodeURIComponent(gamertag)}/overlay`;
 }
