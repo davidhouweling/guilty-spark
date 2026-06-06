@@ -492,6 +492,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const body = await request.json<IndividualTrackerSelectMatchesRequest>();
+    if (!Array.isArray(body.matchIds)) {
+      return new Response("Bad Request", { status: 400 });
+    }
     const known = new Set(trackerState.matchIds);
     trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id)).sort();
 
@@ -592,6 +595,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {
     const state = await this.state.storage.get<IndividualTrackerInternalState>(STATE_STORAGE_KEY);
+    if (state != null) state.selectedMatchIds ??= [];
     return state ?? null;
   }
 
