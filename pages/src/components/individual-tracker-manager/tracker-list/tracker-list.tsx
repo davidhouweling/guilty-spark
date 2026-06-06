@@ -5,8 +5,6 @@ import { Alert } from "../../alert/alert";
 import { Dropdown } from "../../dropdown/dropdown";
 import styles from "./tracker-list.module.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type TrackerDisplayStatus = "active" | "paused" | "stopped" | "not-started";
 
 export interface TrackerListItem {
@@ -34,8 +32,6 @@ interface TrackerListProps {
   readonly onAddTracker?: () => void;
   readonly getActions: (item: TrackerListItem) => readonly TrackerRowAction[];
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function statusLabel(status: TrackerDisplayStatus): string {
   switch (status) {
@@ -144,8 +140,6 @@ function EmptyInfoPanel(): React.ReactElement {
     </div>
   );
 }
-
-// ─── Main list ─────────────────────────────────────────────────────────────────
 
 export function TrackerList({ items, onAddTracker, getActions }: TrackerListProps): React.ReactElement {
   const hasItems = items.length > 0;

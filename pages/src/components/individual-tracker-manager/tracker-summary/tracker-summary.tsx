@@ -28,8 +28,6 @@ interface TrackerSummaryProps {
   readonly className?: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatCsr(value: string | null): string {
   if (value === null || value === "-") {
     return "-";
@@ -50,8 +48,6 @@ function formatMatchCount(value: number | null): string {
 
   return new Intl.NumberFormat().format(value);
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function TrackerSummary({ tracker, className }: TrackerSummaryProps): React.ReactElement {
   const combinedClassName = classNames(styles.summaryCard, className);
