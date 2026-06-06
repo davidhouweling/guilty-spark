@@ -42,17 +42,8 @@ export function applyBreakFromGroup(
       continue;
     }
 
-    const ordered = [...group].sort((leftId, rightId) => {
-      const left = entryIndexMap.get(leftId) ?? Number.MAX_SAFE_INTEGER;
-      const right = entryIndexMap.get(rightId) ?? Number.MAX_SAFE_INTEGER;
-      return left - right;
-    });
-
+    const ordered = orderMatchIdsByEntryIndex(group, entryIndexMap);
     const breakIndex = ordered.indexOf(matchId);
-    if (breakIndex === -1) {
-      nextGroupings.push(group);
-      continue;
-    }
 
     const before = ordered.slice(0, breakIndex);
     const after = ordered.slice(breakIndex + 1);
