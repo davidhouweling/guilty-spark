@@ -492,7 +492,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.status = "active";
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
-    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+    const pendingRecompute =
+      trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
+    const resumeAlarmDelay = pendingRecompute ? 0 : ALARM_INTERVAL_MS;
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerResumeResponse = { success: true, state: this.sanitizeState(trackerState) };
@@ -530,17 +533,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const incoming = body.matchIds.filter((id) => known.has(id)).sort();
     const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
 
-    if (!unchanged) {
-      trackerState.selectedMatchIds = incoming;
-      if (!trackerState.isPaused) {
-        delete trackerState.accumulatedPlayerTotals;
-        trackerState.accumulatedMatchIds = [];
-      }
+    if (unchanged) {
+      return Response.json({ success: true } satisfies IndividualTrackerSelectMatchesResponse);
+    }
+
+    trackerState.selectedMatchIds = incoming;
+    if (!trackerState.isPaused) {
+      delete trackerState.accumulatedPlayerTotals;
+      trackerState.accumulatedMatchIds = [];
     }
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
-    if (!unchanged && !trackerState.isPaused) {
+    if (!trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
     }
 
