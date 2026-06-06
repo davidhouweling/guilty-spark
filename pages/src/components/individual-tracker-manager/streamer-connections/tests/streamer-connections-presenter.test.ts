@@ -263,6 +263,17 @@ describe("StreamerConnectionsPresenter", () => {
       const [[saved]] = updateSpy.mock.calls;
       expect(saved.visibleSections?.topBarStatSlots).toEqual(["kills", "deaths"]);
     });
+
+    it("preserves topBarStatSlots in the store snapshot after save response is applied", async () => {
+      const { store, presenter } = aHarness();
+
+      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+      presenter.setDefaultColorMode("observer");
+
+      await vi.runAllTimersAsync();
+
+      expect(store.getSnapshot().topBarStatSlots).toEqual(["kills", "deaths"]);
+    });
   });
 
   describe("debounced save", () => {
