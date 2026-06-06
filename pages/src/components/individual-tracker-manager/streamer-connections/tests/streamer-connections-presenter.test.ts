@@ -119,9 +119,15 @@ describe("StreamerConnectionsPresenter", () => {
       const { store, presenter } = aHarness();
 
       presenter.setDefaultColorMode("observer");
-      presenter.loadSettings({ styleFlags: { colorMode: "player" } }, "gamertag-456");
+      presenter.setPlayerColors("red", "blue");
+      presenter.loadSettings(
+        { styleFlags: { colorMode: "player", playerTeamColor: "purple", playerEnemyColor: "yellow" } },
+        "gamertag-456",
+      );
 
       expect(store.getSnapshot().defaultColorMode).toBe("observer");
+      expect(store.getSnapshot().playerTeamColor).toBe("red");
+      expect(store.getSnapshot().playerEnemyColor).toBe("blue");
       expect(store.getSnapshot().gamertag).toBe("gamertag-456");
     });
   });

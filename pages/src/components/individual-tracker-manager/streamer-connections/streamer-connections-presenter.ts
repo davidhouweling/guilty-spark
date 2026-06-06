@@ -51,7 +51,7 @@ function settingsToSnapshot(
       tabs: fontSizes.tabs ?? snapshot.fontSizeSettings.tabs,
       ticker: fontSizes.ticker ?? snapshot.fontSizeSettings.ticker,
     },
-    topBarStatSlots: visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots,
+    topBarStatSlots: [...(visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots)],
   };
 }
 
