@@ -37,6 +37,8 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesRequest,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerStartSeriesRequest,
+  IndividualTrackerStartSeriesResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -111,6 +113,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "select-matches": {
             return await this.handleSelectMatches(request);
+          }
+          case "start-series": {
+            return await this.handleStartSeries(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -547,6 +552,32 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const response: IndividualTrackerSelectMatchesResponse = { success: true };
+    return Response.json(response);
+  }
+
+  private async handleStartSeries(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const body = await request.json<IndividualTrackerStartSeriesRequest>();
+    if (trackerState.userId !== body.userId) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    trackerState.manualSeries = {
+      titleOverride: body.titleOverride,
+      subtitleOverride: body.subtitleOverride,
+      teams: body.teams,
+      startedAt: new Date().toISOString(),
+    };
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerStartSeriesResponse = { success: true };
     return Response.json(response);
   }
 

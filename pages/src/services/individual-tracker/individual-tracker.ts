@@ -36,6 +36,8 @@ import {
 } from "./match-history-helpers";
 import type {
   IndividualTrackerService,
+  StartSeriesRequest,
+  StartSeriesResponse,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
@@ -300,8 +302,14 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     };
   }
 
-  public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
-    const recentMatches = await this.haloInfiniteClient.getPlayerMatches(xuid, MatchType.All, count, start);
+  public async getMatchHistory(
+    xuid: string,
+    start: number,
+    count: number,
+    category: "custom" | "all" = "all",
+  ): Promise<TrackerMatchHistoryResponse> {
+    const matchType = category === "custom" ? MatchType.Custom : MatchType.All;
+    const recentMatches = await this.haloInfiniteClient.getPlayerMatches(xuid, matchType, count, start);
     if (recentMatches.length === 0) {
       return { matches: [], suggestedGroupings: [] };
     }
@@ -336,7 +344,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         const outcome = getMatchOutcomeLabel(match.Outcome);
         const isMatchmaking = match.MatchInfo.Playlist != null;
         const lifecycleMode = match.MatchInfo.LifecycleMode;
-        const category: TrackerMatchHistoryEntry["category"] = isMatchmaking
+        const matchCategory: TrackerMatchHistoryEntry["category"] = isMatchmaking
           ? "matchmaking"
           : lifecycleMode === 0
             ? "local"
@@ -361,7 +369,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           outcome,
           resultString: buildMatchResultString(outcome, matchStats),
           isMatchmaking,
-          category,
+          category: matchCategory,
           teams: buildTeams(matchStats, xuidToGamertag),
           mapThumbnailUrl: mapDetails.thumbnailUrl,
         } satisfies TrackerMatchHistoryEntry;
@@ -398,6 +406,28 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     await selectMatchesContract.fromResponse(response);
+  }
+
+  public async startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/${encodeURIComponent(request.trackerId)}/start-series`),
+      {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titleOverride: request.titleOverride,
+          subtitleOverride: request.subtitleOverride,
+          teams: request.teams,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    return response.json<StartSeriesResponse>();
   }
 
   private async getMatchStats(matchId: string): Promise<MatchStats | null> {

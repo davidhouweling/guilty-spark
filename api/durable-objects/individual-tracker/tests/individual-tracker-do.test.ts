@@ -25,6 +25,7 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerStartSeriesRequest,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -1349,6 +1350,66 @@ describe("IndividualTrackerDO", () => {
         individualTrackerDO.webSocketClose(ws, 1000, "bye", true);
         individualTrackerDO.webSocketError(ws, new Error("boom"));
       }).not.toThrow();
+    });
+  });
+
+  describe("handleStartSeries()", () => {
+    const startSeriesRequest = (body: IndividualTrackerStartSeriesRequest): Request =>
+      new Request("http://do/start-series", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    it("returns 404 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(
+        startSeriesRequest({ userId: "user-1", titleOverride: null, subtitleOverride: null, teams: [] }),
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("returns 403 when userId does not match", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ userId: "owner" }));
+
+      const response = await individualTrackerDO.fetch(
+        startSeriesRequest({ userId: "other-user", titleOverride: null, subtitleOverride: null, teams: [] }),
+      );
+
+      expect(response.status).toBe(403);
+    });
+
+    it("persists manualSeries to state and broadcasts view", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ userId: "user-1" }));
+
+      const webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+
+      const body: IndividualTrackerStartSeriesRequest = {
+        userId: "user-1",
+        titleOverride: "Eagle vs Cobra",
+        subtitleOverride: "Bo5",
+        teams: [
+          { name: "Eagle", members: ["Alpha", "Bravo"] },
+          { name: "Cobra", members: ["Charlie"] },
+        ],
+      };
+
+      const response = await do2.fetch(startSeriesRequest(body));
+
+      expect(response.status).toBe(200);
+      const result = await response.json<{ success: boolean }>();
+      expect(result.success).toBe(true);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.manualSeries).toMatchObject({
+        titleOverride: "Eagle vs Cobra",
+        subtitleOverride: "Bo5",
+        teams: body.teams,
+      });
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
 });

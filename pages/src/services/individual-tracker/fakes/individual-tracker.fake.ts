@@ -11,6 +11,9 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
   IndividualTrackerService,
+  StartSeriesRequest,
+  StartSeriesResponse,
+  TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
   TrackerSyncMatchesRequest,
@@ -64,12 +67,7 @@ export function aFakeTrackerProfileWith(overrides: FakeProfileOverrides = {}): T
   };
 }
 
-export interface FakeTrackerSearchResultOverrides {
-  readonly gamertag?: string;
-  readonly xuid?: string;
-}
-
-export function aFakeTrackerSearchResultWith(overrides: FakeTrackerSearchResultOverrides = {}): TrackerSearchResult {
+export function aFakeTrackerSearchResultWith(overrides: Partial<TrackerSearchResult> = {}): TrackerSearchResult {
   return {
     gamertag: overrides.gamertag ?? "Fake Spartan",
     xuid: overrides.xuid ?? "2533274800000001",
@@ -88,6 +86,34 @@ export function aFakeTrackerSearchResultWith(overrides: FakeTrackerSearchResultO
     seasonPeakRankSubTier: 6,
     matchmadeMatchCount: 20,
     customMatchCount: 8,
+    ...overrides,
+  };
+}
+
+export function aFakeMatchHistoryEntryWith(
+  overrides: Partial<TrackerMatchHistoryEntry> = {},
+): TrackerMatchHistoryEntry {
+  return {
+    matchId: "fake-match-id",
+    startTime: "Jan 1, 2026, 12:00:00 AM",
+    endTime: "Jan 1, 2026, 12:10:00 AM",
+    mapAssetId: "fake-map-asset-id",
+    mapVersionId: "fake-map-version-id",
+    modeAssetId: "fake-mode-asset-id",
+    modeVersionId: "fake-mode-version-id",
+    gameVariantCategory: 6,
+    startTimeIso: "2026-01-01T00:00:00.000Z",
+    endTimeIso: "2026-01-01T00:10:00.000Z",
+    duration: "10m 0s",
+    mapName: "Aquarius",
+    modeName: "Slayer",
+    outcome: "Win",
+    resultString: "Win",
+    isMatchmaking: false,
+    category: "custom",
+    teams: [],
+    mapThumbnailUrl: "data:,",
+    ...overrides,
   };
 }
 
@@ -96,6 +122,8 @@ interface FakeIndividualTrackerServiceOptions {
   readonly trackers: readonly Tracker[];
   readonly searchResult: TrackerSearchResult | null;
   readonly matchHistory: TrackerMatchHistoryResponse;
+  readonly searchResults: readonly TrackerSearchResult[];
+  readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[];
 }
 
 export interface FakeIndividualTrackerServiceFactoryOpts {
@@ -103,6 +131,8 @@ export interface FakeIndividualTrackerServiceFactoryOpts {
   readonly trackers?: readonly Tracker[];
   readonly searchResult?: TrackerSearchResult | null;
   readonly matchHistory?: TrackerMatchHistoryResponse;
+  readonly searchResults?: readonly TrackerSearchResult[];
+  readonly matchHistoryEntries?: readonly TrackerMatchHistoryEntry[];
 }
 
 export class FakeIndividualTrackerService implements IndividualTrackerService {
@@ -110,12 +140,16 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   private trackers: Tracker[];
   private readonly searchResult: TrackerSearchResult | null;
   private readonly matchHistory: TrackerMatchHistoryResponse;
+  private readonly searchResults: readonly TrackerSearchResult[] | null;
+  private readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[] | null;
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
     this.profile = options?.profile ?? aFakeTrackerProfileWith();
     this.trackers = [...(options?.trackers ?? [aFakeTrackerWith()])];
     this.searchResult = options?.searchResult !== undefined ? options.searchResult : aFakeTrackerSearchResultWith();
     this.matchHistory = options?.matchHistory ?? { matches: [], suggestedGroupings: [] };
+    this.searchResults = options?.searchResults !== undefined ? options.searchResults : null;
+    this.matchHistoryEntries = options?.matchHistoryEntries !== undefined ? options.matchHistoryEntries : null;
   }
 
   public async getProfile(): Promise<TrackerProfileResponse> {
@@ -172,22 +206,39 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   }
 
   public async searchGamertag(query: string): Promise<TrackerSearchResult | null> {
-    void query;
     await Promise.resolve();
+    if (this.searchResults !== null) {
+      const normalized = query.trim().toLowerCase();
+      const result = this.searchResults.find((r) => r.gamertag.toLowerCase() === normalized);
+      return result ?? null;
+    }
     return this.searchResult;
   }
 
-  public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
-    void xuid;
-    void start;
-    void count;
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  public async getMatchHistory(
+    _xuid: string,
+    _start: number,
+    _count: number,
+    _category?: "custom" | "all",
+  ): Promise<TrackerMatchHistoryResponse> {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     await Promise.resolve();
+    if (this.matchHistoryEntries !== null) {
+      return { matches: [...this.matchHistoryEntries], suggestedGroupings: [] };
+    }
     return this.matchHistory;
   }
 
   public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
     void request;
     await Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async startSeries(_request: StartSeriesRequest): Promise<StartSeriesResponse> {
+    await Promise.resolve();
+    return { success: true };
   }
 
   private findTracker(trackerId: string): Tracker {
@@ -216,5 +267,7 @@ export function aFakeIndividualTrackerServiceWith(
     ...(opts.trackers !== undefined ? { trackers: opts.trackers } : {}),
     ...(opts.searchResult !== undefined ? { searchResult: opts.searchResult } : {}),
     ...(opts.matchHistory !== undefined ? { matchHistory: opts.matchHistory } : {}),
+    ...(opts.searchResults !== undefined ? { searchResults: opts.searchResults } : {}),
+    ...(opts.matchHistoryEntries !== undefined ? { matchHistoryEntries: opts.matchHistoryEntries } : {}),
   });
 }
