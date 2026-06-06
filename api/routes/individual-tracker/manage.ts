@@ -85,13 +85,17 @@ async function statusTrackerDo(env: Env, userId: string, trackerId: string): Pro
   return result.state;
 }
 
-async function clearMatchesDo(env: Env, userId: string, trackerId: string): Promise<void> {
-  const stub = trackerDoStub(env, userId, trackerId);
-  const response = await stub.fetch("http://do/clear-matches", { method: "DELETE" });
+function assertDoOkWith404(response: Response): void {
   if (response.status === 404) {
     throw new TrackerNotFoundError();
   }
   assertDoOk(response);
+}
+
+async function clearMatchesDo(env: Env, userId: string, trackerId: string): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/clear-matches", { method: "DELETE" });
+  assertDoOkWith404(response);
   await response.json<IndividualTrackerClearMatchesResponse>();
 }
 
@@ -102,10 +106,7 @@ async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchI
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ matchIds }),
   });
-  if (response.status === 404) {
-    throw new TrackerNotFoundError();
-  }
-  assertDoOk(response);
+  assertDoOkWith404(response);
   await response.json<IndividualTrackerSelectMatchesResponse>();
 }
 
