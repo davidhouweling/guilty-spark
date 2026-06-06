@@ -496,7 +496,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const body = await request.json<IndividualTrackerSelectMatchesRequest>();
     const known = new Set(trackerState.matchIds);
-    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id));
+    trackerState.selectedMatchIds = body.matchIds.filter((id) => known.has(id)).sort();
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
@@ -574,7 +574,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.cachedResolvedRosterCount ??= Object.values(state.discoveredMatches).filter(
         (s) => s.teamRosterSignature != null,
       ).length;
-      const selectionKey = state.selectedMatchIds == null ? "all" : state.selectedMatchIds.slice().sort().join(",");
+      const selectionKey = state.selectedMatchIds == null ? "all" : state.selectedMatchIds.join(",");
       const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${selectionKey}`;
 
       if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
