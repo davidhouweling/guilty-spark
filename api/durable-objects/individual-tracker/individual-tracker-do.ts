@@ -703,7 +703,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const summariesById = new Map(summaries.map((summary) => [summary.matchId, summary]));
 
-    const groupings = analyzeMatchGroupings(
+    const autoGroupings = analyzeMatchGroupings(
       summaries.map((summary) => ({
         matchId: summary.matchId,
         isMatchmaking: summary.isMatchmaking,
@@ -711,7 +711,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
-    const series = groupings.map((matchIds, groupIndex): IndividualTrackerSeriesGroup => {
+    const backfillMatchIds = state.manualSeries?.backfillMatchIds;
+    const groupings =
+      backfillMatchIds != null && backfillMatchIds.length >= 2 ? [backfillMatchIds, ...autoGroupings] : autoGroupings;
+
+    let visibleSeriesIndex = 0;
+    const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
         .map((matchId) => summariesById.get(matchId))
         .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
@@ -737,9 +742,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         })),
       );
 
-      const manualSeries = groupIndex === 0 ? state.manualSeries : undefined;
+      const isMultiMatch = matchIds.length >= 2;
+      const manualSeries = isMultiMatch && visibleSeriesIndex === 0 ? state.manualSeries : undefined;
       const title = manualSeries?.titleOverride ?? defaultTitle;
       const subtitle = manualSeries?.subtitleOverride ?? defaultSubtitle;
+
+      if (isMultiMatch) {
+        visibleSeriesIndex += 1;
+      }
 
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
