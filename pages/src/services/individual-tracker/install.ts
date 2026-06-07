@@ -1,3 +1,4 @@
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { getMode } from "../mode";
 import { RealIndividualTrackerService } from "./individual-tracker";
 import type { IndividualTrackerService } from "./types";
@@ -6,14 +7,17 @@ import type { IndividualTrackerSettingsService } from "./settings-types";
 import { RealIndividualTrackerViewService } from "./view";
 import type { IndividualTrackerViewService } from "./view-types";
 
-export async function installIndividualTrackerService(apiHost: string): Promise<IndividualTrackerService> {
+export async function installIndividualTrackerService(
+  apiHost: string,
+  haloInfiniteClient: HaloInfiniteClient,
+): Promise<IndividualTrackerService> {
   if (getMode() === "FAKE") {
     const { installFakeServices } = await import("../fakes/install.fake");
     const { individualTrackerService } = await installFakeServices();
     return individualTrackerService;
   }
 
-  return new RealIndividualTrackerService({ apiHost });
+  return new RealIndividualTrackerService({ apiHost, haloInfiniteClient });
 }
 
 export async function installIndividualTrackerSettingsService(

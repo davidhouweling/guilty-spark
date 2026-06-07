@@ -11,8 +11,6 @@ export interface IndividualTrackerSeriesGroup {
   readonly subtitleOverride: string | null;
 }
 
-export { buildSeriesGroupKey };
-
 export function getDefaultSeriesGroupSubtitle(
   entries: readonly Pick<
     TrackerMatchHistoryEntry,

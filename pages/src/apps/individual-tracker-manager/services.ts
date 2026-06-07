@@ -1,3 +1,4 @@
+import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { installAuthService } from "../../services/auth/install";
 import type { AuthService } from "../../services/auth/types";
 import {
@@ -14,9 +15,11 @@ export interface Services {
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
+  const haloInfiniteClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
+
   const [authService, individualTrackerService, settingsService] = await Promise.all([
     installAuthService(apiHost),
-    installIndividualTrackerService(apiHost),
+    installIndividualTrackerService(apiHost, haloInfiniteClient),
     installIndividualTrackerSettingsService(apiHost),
   ]);
 

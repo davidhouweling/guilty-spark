@@ -9,7 +9,7 @@ import type {
   TrackerResponse,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { IndividualTrackerService } from "../types";
+import type { IndividualTrackerService, TrackerMatchHistoryResponse, TrackerSyncMatchesRequest } from "../types";
 
 interface FakeTrackerOverrides {
   readonly trackerId?: string;
@@ -129,6 +129,19 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async getTrackerStatus(trackerId: string): Promise<TrackerResponse> {
     await Promise.resolve();
     return { tracker: this.findTracker(trackerId) };
+  }
+
+  public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
+    void xuid;
+    void start;
+    void count;
+    await Promise.resolve();
+    return { matches: [], suggestedGroupings: [] };
+  }
+
+  public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
+    void request;
+    await Promise.resolve();
   }
 
   private findTracker(trackerId: string): Tracker {

@@ -1,0 +1,119 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.loadingList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.seriesInfo {
+  background: var(--color-background-secondary);
+  border-left: 4px solid var(--halo-teal-primary);
+  border-radius: var(--radius-base);
+  font-size: var(--text-sm);
+  padding: var(--space-4);
+}
+
+.seriesInfo p {
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.actionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.matchList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.card + .seriesBlock,
+.seriesBlock + .card,
+.seriesBlock + .seriesBlock {
+  margin-top: var(--space-4);
+}
+
+.seriesBlock {
+  background: color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 35%, var(--color-border));
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.seriesHeader {
+  background: color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 30%, transparent);
+  border-radius: var(--radius-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.seriesHeaderTopRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.seriesTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.seriesGameCount {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0;
+}
+
+.seriesLabelOptions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.seriesActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.seriesCards {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sentinel {
+  height: 40px;
+}
+
+.loadingMoreList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@media (--tablet-viewport) {
+  .seriesLabelOptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
