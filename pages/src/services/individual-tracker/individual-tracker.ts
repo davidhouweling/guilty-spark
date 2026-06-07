@@ -24,7 +24,16 @@ import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { HaloInfiniteClient, MapAsset, MatchStats, UgcGameVariantAsset } from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
-import { buildMatchResultString, buildTeams, formatDisplayDateTime, getMapThumbnailUrl } from "./match-history-helpers";
+import {
+  buildMatchResultString,
+  buildTeams,
+  formatDisplayDateTime,
+  getCsrLabel,
+  getMapThumbnailUrl,
+  getRankAndCsrLabels,
+  getRankLabel,
+  RANKED_ARENA_PLAYLIST_ID,
+} from "./match-history-helpers";
 import type {
   IndividualTrackerService,
   TrackerMatchHistoryEntry,
@@ -216,21 +225,79 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       return null;
     }
 
-    const url = this.buildUrl(`/api/individual-tracker/manage/search-gamertag?q=${encodeURIComponent(normalized)}`);
-    const response = await fetch(url, {
-      credentials: "include",
-      method: "GET",
-    });
-
-    if (response.status === 404) {
+    let userResult: { gamertag: string; xuid: string };
+    try {
+      userResult = await this.haloInfiniteClient.getUser(normalized);
+    } catch {
       return null;
     }
 
-    if (!response.ok) {
-      throw await this.readError(response);
+    let rankLabel: string | null = null;
+    let csrLabel: string | null = null;
+    let currentRankTier: string | null = null;
+    let currentRankSubTier: number | null = null;
+    let currentRankMeasurementMatchesRemaining: number | null = null;
+    let currentRankInitialMeasurementMatches: number | null = null;
+    let allTimePeakRankLabel: string | null = null;
+    let allTimePeakCsrLabel: string | null = null;
+    let allTimePeakRankTier: string | null = null;
+    let allTimePeakRankSubTier: number | null = null;
+    let seasonPeakCsrLabel: string | null = null;
+    let seasonPeakRankTier: string | null = null;
+    let seasonPeakRankSubTier: number | null = null;
+    let matchmadeMatchCount: number | null = null;
+    let customMatchCount: number | null = null;
+
+    const [rankedArenaCsrs, matchCounts] = await Promise.allSettled([
+      this.haloInfiniteClient.getPlaylistCsr(RANKED_ARENA_PLAYLIST_ID, [userResult.xuid]),
+      this.haloInfiniteClient.getPlayerMatchCount(userResult.xuid),
+    ]);
+
+    if (rankedArenaCsrs.status === "fulfilled") {
+      const [{ Result }] = rankedArenaCsrs.value;
+      const labels = getRankAndCsrLabels(Result);
+      const current = Result.Current;
+      const allTimeMax = Result.AllTimeMax;
+      const seasonMax = Result.SeasonMax;
+      ({ rankLabel, csrLabel } = labels);
+      currentRankTier = current.Tier;
+      currentRankSubTier = current.SubTier;
+      currentRankMeasurementMatchesRemaining = current.MeasurementMatchesRemaining;
+      currentRankInitialMeasurementMatches = current.InitialMeasurementMatches;
+      allTimePeakRankLabel = getRankLabel(allTimeMax.Tier, allTimeMax.SubTier);
+      allTimePeakCsrLabel = getCsrLabel(allTimeMax.Value);
+      allTimePeakRankTier = allTimeMax.Tier;
+      allTimePeakRankSubTier = allTimeMax.SubTier;
+      seasonPeakCsrLabel = getCsrLabel(seasonMax.Value);
+      seasonPeakRankTier = seasonMax.Tier;
+      seasonPeakRankSubTier = seasonMax.SubTier;
     }
 
-    return await response.json();
+    if (matchCounts.status === "fulfilled") {
+      const count = matchCounts.value;
+      matchmadeMatchCount = count.MatchmadeMatchesPlayedCount;
+      customMatchCount = count.CustomMatchesPlayedCount;
+    }
+
+    return {
+      gamertag: userResult.gamertag,
+      xuid: userResult.xuid,
+      rankLabel,
+      csrLabel,
+      currentRankTier,
+      currentRankSubTier,
+      currentRankMeasurementMatchesRemaining,
+      currentRankInitialMeasurementMatches,
+      allTimePeakRankLabel,
+      allTimePeakCsrLabel,
+      allTimePeakRankTier,
+      allTimePeakRankSubTier,
+      seasonPeakCsrLabel,
+      seasonPeakRankTier,
+      seasonPeakRankSubTier,
+      matchmadeMatchCount,
+      customMatchCount,
+    };
   }
 
   public async getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse> {
