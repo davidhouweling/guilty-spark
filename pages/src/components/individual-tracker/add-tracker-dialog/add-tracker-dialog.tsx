@@ -6,7 +6,7 @@ import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
-import { MatchHistory } from "../../match-history/match-history";
+import { MatchHistorySection } from "../../match-history/create";
 import { TrackerSummary } from "../../individual-tracker-manager/tracker-summary/tracker-summary";
 import styles from "./add-tracker-dialog.module.css";
 
@@ -103,7 +103,7 @@ export function AddTrackerDialog({
         {result == null ? (
           <p className={styles.mutedText}>Search for a gamertag first to load recent matches.</p>
         ) : (
-          <MatchHistory
+          <MatchHistorySection
             entries={loadingMatches && visibleMatches == null ? null : (visibleMatches ?? [])}
             loadingCount={3}
             showGroupings={true}
