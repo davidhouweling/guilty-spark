@@ -92,7 +92,7 @@ export class MatchHistoryPresenter {
           groupIndex,
           color: HALO_TEAM_COLORS[visibleSeriesIndex % HALO_TEAM_COLORS.length]?.hex ?? HALO_TEAM_COLORS[0].hex,
           entries: groupEntries,
-          seriesGroup: seriesGroups?.[groupIndex],
+          seriesGroup: seriesGroups?.[visibleSeriesIndex],
         });
         visibleSeriesIndex += 1;
       } else {
