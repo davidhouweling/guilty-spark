@@ -101,6 +101,9 @@ Exported via glob patterns in `package.json` `exports`. Always import via packag
 - **Fakes**: In `fakes/` subfolders; factories named `aFake…With(overrides?)`
 - **Tests**: In `tests/` subfolders
 - **Imports**: Extensionless for internal TypeScript modules; package entrypoints for cross-workspace
+- **One key component per file**: If a file gains a non-trivial sub-component, move that sub-component to its own sibling folder (e.g. `match-card/`) with its own `tests/` subfolder
+- **No re-exports**: Consumers import directly from the source module; never re-export a symbol from an intermediary wrapper file
+- **Extract service helpers**: Helper functions that grow a service file belong in their own named files with dedicated tests
 
 ## Code Style
 
@@ -123,6 +126,8 @@ switch (item.type) {
 **Dates**: `date-fns` for all date operations.
 
 **Imports**: Extensionless for internal modules. `import type` for type-only imports.
+
+**Props ordering**: In React component interfaces, declare props in this order: data props (required first, then optional), then callback props (required first, then optional). Align destructuring order with the declaration order.
 
 **Functions**: Functions to be single single responsibility, when needing to do multiple things, break it down into individual functions that are called / chained.
 
