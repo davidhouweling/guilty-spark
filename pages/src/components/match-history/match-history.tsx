@@ -32,7 +32,6 @@ export interface MatchHistoryProps {
   readonly onSeriesGroupTitleChange?: (groupIndex: number, value: string | null) => void;
   readonly onSeriesGroupSubtitleChange?: (groupIndex: number, value: string | null) => void;
   readonly model: MatchHistoryModel;
-  readonly sentinelRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function MatchHistory({
@@ -44,7 +43,9 @@ export function MatchHistory({
   selectedMatchIds,
   groupings,
   showGroupings = false,
+  hasMore,
   onMatchToggle,
+  onLoadMore,
   onAddToAboveGroup,
   onAddToBelowGroup,
   onBreakFromGroup,
@@ -52,7 +53,6 @@ export function MatchHistory({
   onSeriesGroupTitleChange,
   onSeriesGroupSubtitleChange,
   model,
-  sentinelRef,
 }: MatchHistoryProps): React.JSX.Element {
   const isGroupableGame = (entry: TrackerMatchHistoryEntry): boolean =>
     entry.category === "custom" || entry.category === "local";
@@ -249,11 +249,16 @@ export function MatchHistory({
             }
           }
         })}
-        <div ref={sentinelRef} className={styles.sentinel} />
-        {model.isLoadingMore && (
-          <div className={styles.loadingMoreList}>
-            <LoadingState text="Loading more matches..." />
-          </div>
+        {hasMore === true && (
+          <button
+            className={styles.loadMoreButton}
+            disabled={model.isLoadingMore}
+            onClick={() => {
+              void onLoadMore?.();
+            }}
+          >
+            {model.isLoadingMore ? "Loading…" : "Load more"}
+          </button>
         )}
       </div>
     </div>

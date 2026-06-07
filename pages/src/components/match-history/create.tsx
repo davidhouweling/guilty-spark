@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { MatchHistoryPresenter } from "./match-history-presenter";
@@ -48,33 +48,6 @@ export function MatchHistorySection({
 }: MatchHistorySectionProps): React.JSX.Element {
   const store = useMemo(() => new MatchHistoryStore(), []);
   const presenter = useMemo(() => new MatchHistoryPresenter({ store, onLoadMore }), [store, onLoadMore]);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (onLoadMore == null || hasMore !== true) {
-      return;
-    }
-
-    const sentinel = sentinelRef.current;
-    if (sentinel == null) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (intersectionEntries) => {
-        const [first] = intersectionEntries;
-        if (first.isIntersecting && !store.getSnapshot().isLoadingMore) {
-          void presenter.loadMore();
-        }
-      },
-      { rootMargin: "0px 0px 150px 0px", threshold: 0 },
-    );
-
-    observer.observe(sentinel);
-    return (): void => {
-      observer.disconnect();
-    };
-  }, [presenter, store, onLoadMore, hasMore]);
 
   const snapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),
@@ -100,7 +73,7 @@ export function MatchHistorySection({
       hasMore={hasMore}
       seriesGroups={seriesGroups}
       onMatchToggle={onMatchToggle}
-      onLoadMore={onLoadMore}
+      onLoadMore={async () => presenter.loadMore()}
       onAddToAboveGroup={onAddToAboveGroup}
       onAddToBelowGroup={onAddToBelowGroup}
       onBreakFromGroup={onBreakFromGroup}
@@ -108,7 +81,6 @@ export function MatchHistorySection({
       onSeriesGroupTitleChange={onSeriesGroupTitleChange}
       onSeriesGroupSubtitleChange={onSeriesGroupSubtitleChange}
       model={model}
-      sentinelRef={sentinelRef}
     />
   );
 }
