@@ -11,6 +11,7 @@ export function aFakeIndividualTrackerServiceWith(
     databaseService: opts.databaseService ?? aFakeDatabaseServiceWith(),
   }) as Mocked<IndividualTrackerService>;
 
+  service.deleteTracker = vi.fn<IndividualTrackerService["deleteTracker"]>().mockResolvedValue(undefined);
   service.getSettings = vi.fn<IndividualTrackerService["getSettings"]>().mockResolvedValue({});
   service.getSettingsForView = vi.fn<IndividualTrackerService["getSettingsForView"]>().mockResolvedValue({});
   service.updateSettings = vi.fn<IndividualTrackerService["updateSettings"]>().mockResolvedValue({});

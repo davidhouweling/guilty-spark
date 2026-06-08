@@ -1,5 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
+  deleteTrackerContract,
+  endSeriesContract,
   selectMatchesContract,
   selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
@@ -23,7 +25,11 @@ import type {
   IndividualTrackerStartSeriesRequest,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
-import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
+import {
+  NoActiveSeriesError,
+  TrackerLimitReachedError,
+  TrackerNotFoundError,
+} from "../../services/individual-tracker/errors";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
@@ -115,6 +121,16 @@ async function startSeriesDo(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  assertDoOkWith404(response);
+  await response.json<{ success: true }>();
+}
+
+async function endSeriesDo(env: Env, userId: string, trackerId: string): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/end-series", { method: "POST" });
+  if (response.status === 409) {
+    throw new NoActiveSeriesError();
+  }
   assertDoOkWith404(response);
   await response.json<{ success: true }>();
 }
@@ -475,6 +491,76 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker start series error"]]));
       return errorContract.toResponse({ error: "Failed to start series" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/:trackerId/end-series", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await endSeriesDo(env, auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        if (error instanceof NoActiveSeriesError) {
+          return errorContract.toResponse({ error: "No active series" }, { status: 409, noStore: true });
+        }
+        throw error;
+      }
+
+      return endSeriesContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker end series error"]]));
+      return errorContract.toResponse({ error: "Failed to end series" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.delete("/api/individual-tracker/:trackerId", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await stopTrackerDo(env, auth.session.userId, trackerId);
+        await individualTrackerService.deleteTracker(trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      return deleteTrackerContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker delete error"]]));
+      return errorContract.toResponse({ error: "Failed to delete tracker" }, { status: 500, noStore: true });
     }
   });
 };

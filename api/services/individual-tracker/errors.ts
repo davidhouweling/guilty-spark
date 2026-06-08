@@ -25,3 +25,10 @@ export class TrackerNotFoundError extends Error {
     this.name = "TrackerNotFoundError";
   }
 }
+
+export class NoActiveSeriesError extends Error {
+  constructor(message = "No active series") {
+    super(message);
+    this.name = "NoActiveSeriesError";
+  }
+}

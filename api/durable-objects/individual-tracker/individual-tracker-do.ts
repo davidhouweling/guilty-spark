@@ -117,6 +117,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           case "start-series": {
             return await this.handleStartSeries(request);
           }
+          case "end-series": {
+            return await this.handleEndSeries();
+          }
           case "websocket": {
             return await this.handleWebSocket(request);
           }
@@ -577,6 +580,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const response: IndividualTrackerStartSeriesResponse = { success: true };
     return Response.json(response);
+  }
+
+  private async handleEndSeries(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("No active series", { status: 409 });
+    }
+
+    if (trackerState.manualSeries == null) {
+      return new Response("No active series", { status: 409 });
+    }
+
+    delete trackerState.manualSeries;
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    return Response.json({ success: true });
   }
 
   private async handleStatus(): Promise<Response> {
