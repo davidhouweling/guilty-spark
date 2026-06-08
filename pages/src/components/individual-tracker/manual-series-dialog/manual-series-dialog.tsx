@@ -3,7 +3,7 @@ import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
 import { Alert } from "../../alert/alert";
-import { MatchHistory } from "../../match-history/match-history";
+import { MatchHistorySection } from "../../match-history/create";
 import type { ManualSeriesDialogSnapshot, ManualSeriesTeamSnapshot } from "./manual-series-dialog-store";
 import styles from "./manual-series-dialog.module.css";
 
@@ -178,7 +178,7 @@ export function ManualSeriesDialog({
           {snapshot.backfillError != null && <Alert variant="error">{snapshot.backfillError}</Alert>}
 
           {showBackfillResults && (
-            <MatchHistory
+            <MatchHistorySection
               entries={isBackfillLoading ? null : snapshot.backfillMatches}
               loadingCount={2}
               allowSelection={true}

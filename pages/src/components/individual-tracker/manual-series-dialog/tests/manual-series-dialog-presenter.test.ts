@@ -79,12 +79,12 @@ describe("ManualSeriesDialogPresenter", () => {
       const historySpy = vi.spyOn(service, "getMatchHistory").mockImplementation(async (xuid) => {
         await Promise.resolve();
         if (xuid === "xuid-alpha") {
-          return { matches: [sharedMatch, alphaOnlyMatch] };
+          return { matches: [sharedMatch, alphaOnlyMatch], suggestedGroupings: [] };
         }
         if (xuid === "xuid-bravo") {
-          return { matches: [sharedMatch, bravoOnlyMatch] };
+          return { matches: [sharedMatch, bravoOnlyMatch], suggestedGroupings: [] };
         }
-        return { matches: [] };
+        return { matches: [], suggestedGroupings: [] };
       });
 
       const { presenter, store } = buildPresenter(service);
@@ -160,7 +160,10 @@ describe("ManualSeriesDialogPresenter", () => {
       const result = aFakeTrackerSearchResultWith({ gamertag: "Alpha", xuid: "xuid-alpha" });
       const service = aFakeIndividualTrackerServiceWith({ searchResults: [result] });
 
-      vi.spyOn(service, "getMatchHistory").mockResolvedValue({ matches: [customMatch, matchmakingMatch] });
+      vi.spyOn(service, "getMatchHistory").mockResolvedValue({
+        matches: [customMatch, matchmakingMatch],
+        suggestedGroupings: [],
+      });
 
       const { presenter, store } = buildPresenter(service);
       presenter.setTeamMember(0, 0, "Alpha");

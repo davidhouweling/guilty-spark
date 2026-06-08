@@ -148,8 +148,8 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     this.trackers = [...(options?.trackers ?? [aFakeTrackerWith()])];
     this.searchResult = options?.searchResult !== undefined ? options.searchResult : aFakeTrackerSearchResultWith();
     this.matchHistory = options?.matchHistory ?? { matches: [], suggestedGroupings: [] };
-    this.searchResults = options?.searchResults !== undefined ? options.searchResults : null;
-    this.matchHistoryEntries = options?.matchHistoryEntries !== undefined ? options.matchHistoryEntries : null;
+    this.searchResults = options?.searchResults ?? null;
+    this.matchHistoryEntries = options?.matchHistoryEntries ?? null;
   }
 
   public async getProfile(): Promise<TrackerProfileResponse> {
