@@ -13,7 +13,9 @@ const { guildId = "", queueNumber = "" } = Astro.params;
 
 const isSnowflake = /^\d+$/.test(guildId);
 const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
-const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger;
+const parsedQueueNumber = Number(queueNumber);
+const isSafeQueueNumber = Number.isSafeInteger(parsedQueueNumber) && parsedQueueNumber > 0;
+const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber;
 let responseState: DiscordSeriesStats | null = null;
 let loadError: string | null = null;
 

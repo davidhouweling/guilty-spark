@@ -191,6 +191,71 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
 
+  it("returns cached pending-index response with Retry-After and no-store headers", async () => {
+    const storedByKey = new Map<string, string>();
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
+
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
+
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
+    });
+
+    const cacheKey = "stats:discord:series:123456789012345678:7777";
+    await env.APP_DATA.put(
+      cacheKey,
+      JSON.stringify({
+        status: "pending-index",
+        guildId: "123456789012345678",
+        queueNumber: 7777,
+        retryAfterSeconds: 3,
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      const searchSpy = vi.spyOn(services.discordService, "searchGuildMessages");
+      searchSpy.mockImplementation(() => {
+        throw new Error("searchGuildMessages should not be called when cache hit exists");
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("3");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "pending-index",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      retryAfterSeconds: 3,
+    });
+    expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
+  });
+
   it("treats invalid cached payload as cache miss and resolves via Discord search", async () => {
     const appDataGetSpy: MockInstance<typeof env.APP_DATA.get> = vi.spyOn(env.APP_DATA, "get");
     appDataGetSpy.mockResolvedValue(new Map<string, unknown>());

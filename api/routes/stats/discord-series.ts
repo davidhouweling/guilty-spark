@@ -8,6 +8,7 @@ import {
   type DiscordSeriesStats,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { DiscordError } from "../../services/discord/discord-error";
 import { EmbedColors } from "../../embeds/colors";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -23,22 +24,30 @@ function getCacheKey(guildId: string, queueNumber: number): string {
   return `stats:discord:series:${guildId}:${queueNumber.toString()}`;
 }
 
-function getStatusCode(response: DiscordSeriesStats): number {
+function getResponseOptions(response: DiscordSeriesStats): {
+  status: number;
+  noStore?: boolean;
+  headers?: Record<string, string>;
+} {
   switch (response.status) {
     case "resolved": {
-      return 200;
+      return { status: 200 };
     }
     case "pending-index": {
-      return 503;
+      return {
+        status: 503,
+        noStore: true,
+        headers: { "Retry-After": Math.ceil(response.retryAfterSeconds).toString() },
+      };
     }
     case "not-found": {
-      return 404;
+      return { status: 404 };
     }
     case "forbidden": {
-      return 403;
+      return { status: 403 };
     }
     default: {
-      return 500;
+      throw new UnreachableError(response);
     }
   }
 }
@@ -104,9 +113,10 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       if (cached != null && typeof cached === "object") {
         const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
         if (cachedParseResult.success) {
-          return discordSeriesStatsContract.toResponse(cachedParseResult.data, {
-            status: getStatusCode(cachedParseResult.data),
-          });
+          return discordSeriesStatsContract.toResponse(
+            cachedParseResult.data,
+            getResponseOptions(cachedParseResult.data),
+          );
         }
 
         logService.warn(
@@ -138,11 +148,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         };
         await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
 
-        return discordSeriesStatsContract.toResponse(pendingResponse, {
-          status: 503,
-          noStore: true,
-          headers: { "Retry-After": Math.ceil(retryAfterSeconds).toString() },
-        });
+        return discordSeriesStatsContract.toResponse(pendingResponse, getResponseOptions(pendingResponse));
       }
 
       const flattenedMessages = searchResponse.messages.flatMap((messages: APIMessage[]): APIMessage[] => messages);
