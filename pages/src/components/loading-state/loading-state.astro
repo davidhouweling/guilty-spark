@@ -1,0 +1,17 @@
+---
+import styles from "./loading-state.module.css";
+
+interface Props {
+  readonly text?: string;
+}
+
+const { text } = Astro.props;
+---
+
+<div class={styles.container}>
+  <div class={styles.spinnerContainer}>
+    <div class={styles.spinner}></div>
+    <div class={styles.spinnerGlow}></div>
+  </div>
+  <p class={styles.loadingText}>{text ?? "Establishing Connection..."}</p>
+</div>

@@ -1,0 +1,262 @@
+import type { AutoRouterType } from "itty-router";
+import { EmbedType } from "discord-api-types/v10";
+import type { APIEmbed, APIMessage } from "discord-api-types/v10";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DiscordSeriesStatsResponse } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { createApiRouter } from "../../../base/router";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { EmbedColors } from "../../../embeds/colors";
+import { DiscordError } from "../../../services/discord/discord-error";
+import { installFakeServicesWith } from "../../../services/fakes/services";
+import { statsRoutesRegisterHandler } from "../stats";
+
+function aFakeMessageWith(opts: {
+  id: string;
+  channelId?: string;
+  color: number;
+  title: string;
+  gameFieldValue?: string;
+  authorId?: string;
+}): APIMessage {
+  const fields = opts.gameFieldValue != null ? [{ name: "Game", value: opts.gameFieldValue, inline: true }] : [];
+  const embed: APIEmbed = {
+    type: EmbedType.Rich,
+    color: opts.color,
+    title: opts.title,
+    fields,
+  };
+
+  return {
+    id: opts.id,
+    channel_id: opts.channelId ?? "chan-1",
+    guild_id: "guild-1",
+    content: "",
+    timestamp: new Date().toISOString(),
+    edited_timestamp: null,
+    tts: false,
+    mention_everyone: false,
+    mentions: [],
+    mention_roles: [],
+    attachments: [],
+    embeds: [embed],
+    pinned: false,
+    type: 0,
+    flags: 0,
+    components: [],
+    author: {
+      id: opts.authorId ?? "DISCORD_APP_ID",
+      username: "guilty-spark",
+      discriminator: "0001",
+      avatar: null,
+      global_name: null,
+      bot: true,
+    },
+  } as unknown as APIMessage;
+}
+
+describe("/api/stats/discord/:guildId/:queueNumber", () => {
+  let env: Env;
+  let router: AutoRouterType;
+
+  beforeEach(() => {
+    env = aFakeEnvWith();
+    router = createApiRouter();
+  });
+
+  it("returns resolved payload when a blue overview embed with match ids exists", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-1",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777 (2-1)",
+              gameFieldValue:
+                "[CTF](https://halodatahive.com/Infinite/Match/match-1)\n[Slayer](https://halodatahive.com/Infinite/Match/match-2)",
+            }),
+          ],
+        ],
+      });
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "resolved",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      matchIds: ["match-1", "match-2"],
+    });
+  });
+
+  it("returns pending-index when Discord search indicates indexing delay", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        code: 110000,
+        documents_indexed: 0,
+        retry_after: 3,
+        message: "Index not yet available. Try again later",
+      });
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(503);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "pending-index",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      retryAfterSeconds: 3,
+    });
+  });
+
+  it("returns cached response without calling Discord search", async () => {
+    const storedByKey = new Map<string, string>();
+    env = aFakeEnvWith({
+      APP_DATA: {
+        get: async (key: string, options?: KVNamespaceGetOptions<undefined>) => {
+          const value = storedByKey.get(key);
+          if (value == null) {
+            return null;
+          }
+
+          if (options?.type === "json") {
+            return JSON.parse(value) as unknown;
+          }
+
+          return value;
+        },
+        put: async (key: string, value: string) => {
+          storedByKey.set(key, value);
+        },
+      } as unknown as KVNamespace,
+    });
+
+    const cacheKey = "stats:discord:series:guild-1:7777";
+    await env.APP_DATA.put(
+      cacheKey,
+      JSON.stringify({
+        status: "resolved",
+        guildId: "guild-1",
+        queueNumber: 7777,
+        matchIds: ["cached-match-1"],
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      const searchSpy = vi.spyOn(services.discordService, "searchGuildMessages");
+      searchSpy.mockImplementation(() => {
+        throw new Error("searchGuildMessages should not be called when cache hit exists");
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "resolved",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      matchIds: ["cached-match-1"],
+    });
+  });
+
+  it("returns not-found when no blue overview embeds are found", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [[aFakeMessageWith({ id: "m-err", color: 0xff0000, title: "Error occurred" })]],
+      });
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(404);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body.status).toBe("not-found");
+  });
+
+  it("returns not-found when overview embed has no match ids", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [[aFakeMessageWith({ id: "m-no-match-ids", color: EmbedColors.INFO, title: "Series stats for queue #7777" })]],
+      });
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(404);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "not-found",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      reason: "Series overview embed found but no match IDs were discoverable",
+    });
+  });
+
+  it("returns forbidden when Discord service throws 403", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(
+        new DiscordError(403, { code: 50013, message: "Missing Permissions" }),
+      );
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(403);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "forbidden",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      reason: "Missing Discord permissions or message content access",
+    });
+  });
+
+  it("returns internal error response when Discord search fails unexpectedly", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(new Error("boom"));
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(500);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      error: "Failed to resolve discord series stats",
+    });
+  });
+});
