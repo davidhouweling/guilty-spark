@@ -127,13 +127,6 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       if (cached != null && typeof cached === "object") {
         const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
         if (cachedParseResult.success) {
-          if (cachedParseResult.data.status === "resolved") {
-            return discordSeriesStatsContract.toResponse(cachedParseResult.data, {
-              status: 200,
-              headers: { "Cache-Control": RESOLVED_CACHE_CONTROL_HEADER },
-            });
-          }
-
           return discordSeriesStatsContract.toResponse(
             cachedParseResult.data,
             getResponseOptions(cachedParseResult.data),
@@ -216,10 +209,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
 
       await env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), { expirationTtl: RESOLVED_CACHE_TTL_SECONDS });
 
-      return discordSeriesStatsContract.toResponse(resolvedResponse, {
-        status: 200,
-        headers: { "Cache-Control": RESOLVED_CACHE_CONTROL_HEADER },
-      });
+      return discordSeriesStatsContract.toResponse(resolvedResponse, getResponseOptions(resolvedResponse));
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
         const retryAfterSeconds = sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after);
