@@ -562,7 +562,7 @@ describe("/api/individual-tracker manage routes", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
-      vi.spyOn(services.individualTrackerService, "deleteTracker").mockRejectedValue(new TrackerNotFoundError());
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockRejectedValue(new TrackerNotFoundError());
       return services;
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
@@ -573,15 +573,17 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("deletes a tracker: stops the DO, calls deleteTracker, returns success", async () => {
+  it("deletes a tracker: verifies ownership, stops the DO, calls deleteTracker, returns success", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let deleteTrackerSpy: MockInstance<IndividualTrackerService["deleteTracker"]> | null = null;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env: localEnv });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
       deleteTrackerSpy = vi.spyOn(services.individualTrackerService, "deleteTracker").mockResolvedValue(undefined);
       return services;
     });
@@ -594,6 +596,6 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<DeleteTrackerResponse>();
     expect(body.success).toBe(true);
     expect(fetchSpy).toHaveBeenCalledWith("http://do/stop", expect.objectContaining({ method: "POST" }));
-    expect(Preconditions.checkExists(deleteTrackerSpy, "deleteTracker spy")).toHaveBeenCalledWith("user-123", "t1");
+    expect(Preconditions.checkExists(deleteTrackerSpy, "deleteTracker spy")).toHaveBeenCalledWith("t1");
   });
 });

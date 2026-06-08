@@ -547,8 +547,9 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       const { trackerId } = parsedParams.data;
 
       try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
         await stopTrackerDo(env, auth.session.userId, trackerId);
-        await individualTrackerService.deleteTracker(auth.session.userId, trackerId);
+        await individualTrackerService.deleteTracker(trackerId);
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
