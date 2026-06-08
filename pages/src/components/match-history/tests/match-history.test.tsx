@@ -4,8 +4,10 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import { MatchHistory } from "../match-history";
 import { MatchHistorySection } from "../create";
 import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
+import type { MatchHistoryModel } from "../match-history-presenter";
 
 afterEach(() => {
   cleanup();
@@ -79,6 +81,52 @@ describe("MatchHistorySection", () => {
     expect(screen.queryByTitle("Add to group above")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Add to group below")).not.toBeInTheDocument();
     expect(screen.getAllByTitle("Break from group")).toHaveLength(3);
+  });
+
+  it("renders Load more button when hasMore is true", () => {
+    render(
+      <MatchHistorySection
+        entries={[aMatchWith("m1", "custom", "Slayer")]}
+        hasMore={true}
+        onLoadMore={vi.fn<() => Promise<void>>().mockResolvedValue(undefined)}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
+  });
+
+  it("does not render Load more button when hasMore is false", () => {
+    render(<MatchHistorySection entries={[aMatchWith("m1", "custom", "Slayer")]} hasMore={false} />);
+
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  });
+
+  it("disables Load more button and shows Loading text when isLoadingMore is true", () => {
+    const model: MatchHistoryModel = { segmentBlocks: [], isLoadingMore: true };
+
+    render(
+      <MatchHistory
+        entries={[aMatchWith("m1", "custom", "Slayer")]}
+        hasMore={true}
+        onLoadMore={vi.fn<() => Promise<void>>().mockResolvedValue(undefined)}
+        model={model}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Loading…" });
+    expect(button).toBeDisabled();
+  });
+
+  it("calls onLoadMore when Load more button is clicked", () => {
+    const onLoadMore = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+    render(
+      <MatchHistorySection entries={[aMatchWith("m1", "custom", "Slayer")]} hasMore={true} onLoadMore={onLoadMore} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+    expect(onLoadMore).toHaveBeenCalledOnce();
   });
 
   it("rotates series colors by visible series order", () => {

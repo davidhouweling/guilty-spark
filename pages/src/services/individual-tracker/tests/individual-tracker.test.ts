@@ -2,7 +2,7 @@ import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-t
 import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { HaloInfiniteClient, PlaylistCsr, PlaylistCsrContainer, ResultContainer } from "halo-infinite-api";
 import { RealIndividualTrackerService } from "../individual-tracker";
 
 function jsonResponse(payload: object, status = 200): Response {
@@ -27,15 +27,51 @@ const FAKE_TRACKER: Tracker = {
   state: null,
 };
 
+function aFakePlaylistCsr(overrides: Partial<PlaylistCsr> = {}): PlaylistCsr {
+  return {
+    Value: 1200,
+    MeasurementMatchesRemaining: 0,
+    Tier: "Gold",
+    TierStart: 1100,
+    SubTier: 4,
+    NextTier: "Platinum",
+    NextTierStart: 1300,
+    NextSubTier: 0,
+    InitialMeasurementMatches: 10,
+    DemotionProtectionMatchesRemaining: 0,
+    InitialDemotionProtectionMatches: 0,
+    ...overrides,
+  };
+}
+
+function aFakePlaylistCsrContainer(overrides: Partial<PlaylistCsrContainer> = {}): PlaylistCsrContainer {
+  return {
+    Current: aFakePlaylistCsr(),
+    SeasonMax: aFakePlaylistCsr({ Value: 1250, Tier: "Gold", SubTier: 5 }),
+    AllTimeMax: aFakePlaylistCsr({ Value: 1300, Tier: "Platinum", SubTier: 0 }),
+    ...overrides,
+  };
+}
+
+function aFakeCsrResult(container: PlaylistCsrContainer): ResultContainer<PlaylistCsrContainer>[] {
+  return [{ Result: container } as unknown as ResultContainer<PlaylistCsrContainer>];
+}
+
 describe("RealIndividualTrackerService", () => {
   let fetchSpy: MockInstance;
+  let haloInfiniteClient: HaloInfiniteClient;
   let service: RealIndividualTrackerService;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, "fetch");
+    haloInfiniteClient = {
+      getUser: vi.fn(),
+      getPlaylistCsr: vi.fn(),
+      getPlayerMatchCount: vi.fn(),
+    } as unknown as HaloInfiniteClient;
     service = new RealIndividualTrackerService({
       apiHost: "https://api.example.com",
-      haloInfiniteClient: {} as unknown as HaloInfiniteClient,
+      haloInfiniteClient,
     });
   });
 
@@ -166,5 +202,80 @@ describe("RealIndividualTrackerService", () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ error: "Failed to list trackers" }, 500));
 
     await expect(service.listTrackers()).rejects.toThrow("Failed to list trackers");
+  });
+
+  describe("searchGamertag", () => {
+    it("returns null for an empty query", async () => {
+      const result = await service.searchGamertag("   ");
+
+      expect(result).toBeNull();
+      expect(haloInfiniteClient.getUser).not.toHaveBeenCalled();
+    });
+
+    it("returns null when getUser throws (gamertag not found)", async () => {
+      vi.mocked(haloInfiniteClient.getUser).mockRejectedValueOnce(new Error("Not found"));
+
+      const result = await service.searchGamertag("UnknownSpartan");
+
+      expect(result).toBeNull();
+    });
+
+    it("returns result with rank fields when CSR call succeeds", async () => {
+      vi.mocked(haloInfiniteClient.getUser).mockResolvedValueOnce({
+        gamertag: "Master Chief",
+        xuid: "2533274800000001",
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getUser"]>>);
+      vi.mocked(haloInfiniteClient.getPlaylistCsr).mockResolvedValueOnce(aFakeCsrResult(aFakePlaylistCsrContainer()));
+      vi.mocked(haloInfiniteClient.getPlayerMatchCount).mockResolvedValueOnce({
+        MatchmadeMatchesPlayedCount: 50,
+        CustomMatchesPlayedCount: 5,
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getPlayerMatchCount"]>>);
+
+      const result = await service.searchGamertag("Master Chief");
+
+      expect(result).not.toBeNull();
+      expect(result?.gamertag).toBe("Master Chief");
+      expect(result?.xuid).toBe("2533274800000001");
+      expect(result?.rankLabel).toBe("Gold 5");
+      expect(result?.csrLabel).toBe("1200");
+      expect(result?.matchmadeMatchCount).toBe(50);
+      expect(result?.customMatchCount).toBe(5);
+    });
+
+    it("returns result with null rank fields when CSR call fails", async () => {
+      vi.mocked(haloInfiniteClient.getUser).mockResolvedValueOnce({
+        gamertag: "Master Chief",
+        xuid: "2533274800000001",
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getUser"]>>);
+      vi.mocked(haloInfiniteClient.getPlaylistCsr).mockRejectedValueOnce(new Error("CSR unavailable"));
+      vi.mocked(haloInfiniteClient.getPlayerMatchCount).mockResolvedValueOnce({
+        MatchmadeMatchesPlayedCount: 10,
+        CustomMatchesPlayedCount: 2,
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getPlayerMatchCount"]>>);
+
+      const result = await service.searchGamertag("Master Chief");
+
+      expect(result).not.toBeNull();
+      expect(result?.rankLabel).toBeNull();
+      expect(result?.csrLabel).toBeNull();
+      expect(result?.currentRankTier).toBeNull();
+      expect(result?.matchmadeMatchCount).toBe(10);
+    });
+
+    it("returns result with null match counts when count call fails", async () => {
+      vi.mocked(haloInfiniteClient.getUser).mockResolvedValueOnce({
+        gamertag: "Master Chief",
+        xuid: "2533274800000001",
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getUser"]>>);
+      vi.mocked(haloInfiniteClient.getPlaylistCsr).mockResolvedValueOnce(aFakeCsrResult(aFakePlaylistCsrContainer()));
+      vi.mocked(haloInfiniteClient.getPlayerMatchCount).mockRejectedValueOnce(new Error("Count unavailable"));
+
+      const result = await service.searchGamertag("Master Chief");
+
+      expect(result).not.toBeNull();
+      expect(result?.rankLabel).toBe("Gold 5");
+      expect(result?.matchmadeMatchCount).toBeNull();
+      expect(result?.customMatchCount).toBeNull();
+    });
   });
 });

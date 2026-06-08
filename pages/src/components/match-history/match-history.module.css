@@ -101,15 +101,21 @@
   min-width: 0;
 }
 
-.sentinel {
-  height: 40px;
+.loadMoreButton {
+  align-self: center;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-6);
 }
 
-.loadingMoreList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+.loadMoreButton:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 @media (--tablet-viewport) {

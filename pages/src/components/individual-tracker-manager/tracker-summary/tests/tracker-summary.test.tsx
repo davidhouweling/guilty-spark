@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { TrackerSearchResult } from "../tracker-summary";
+import type { TrackerSearchResult } from "../../../../services/individual-tracker/types";
 import { TrackerSummary } from "../tracker-summary";
 
 vi.mock("../../../icons/rank-icon", () => ({
@@ -18,11 +18,13 @@ function aFakeTrackerSearchResult(overrides?: Partial<TrackerSearchResult>): Tra
   return {
     gamertag: "Chief",
     xuid: "xuid-001",
+    rankLabel: "Diamond 3",
     csrLabel: "1500",
     currentRankTier: "Diamond",
     currentRankSubTier: 3,
     currentRankMeasurementMatchesRemaining: null,
     currentRankInitialMeasurementMatches: null,
+    allTimePeakRankLabel: "Onyx",
     allTimePeakCsrLabel: "1800",
     allTimePeakRankTier: "Onyx",
     allTimePeakRankSubTier: null,
