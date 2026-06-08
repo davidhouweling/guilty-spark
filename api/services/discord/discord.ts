@@ -946,12 +946,20 @@ export class DiscordService {
     const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
     if (options.method === "GET" && options.queryParameters) {
       for (const [key, value] of Object.entries(options.queryParameters)) {
+        if (value == null) {
+          continue;
+        }
+
         if (Array.isArray(value)) {
           for (const item of value) {
+            if (item == null) {
+              continue;
+            }
             url.searchParams.append(key, item.toString());
           }
           continue;
         }
+
         url.searchParams.set(key, value.toString());
       }
     }
