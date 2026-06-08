@@ -108,20 +108,19 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
   router.get("/api/stats/discord/:guildId/:queueNumber", async (request, env: Env) => {
     const services = installServices({ env });
     const { discordService, logService } = services;
+    const parsedParams = parsePathParams(
+      request.params,
+      discordSeriesStatsParamsSchema,
+      "Invalid guildId or queueNumber",
+    );
+    if (!parsedParams.success) {
+      return parsedParams.response;
+    }
+
+    const { guildId, queueNumber } = parsedParams.data;
+    const cacheKey = getCacheKey(guildId, queueNumber);
 
     try {
-      const parsedParams = parsePathParams(
-        request.params,
-        discordSeriesStatsParamsSchema,
-        "Invalid guildId or queueNumber",
-      );
-      if (!parsedParams.success) {
-        return parsedParams.response;
-      }
-
-      const { guildId, queueNumber } = parsedParams.data;
-      const cacheKey = getCacheKey(guildId, queueNumber);
-
       const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
       if (cached != null && typeof cached === "object") {
         const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
@@ -211,17 +210,6 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       return discordSeriesStatsContract.toResponse(resolvedResponse, { status: 200 });
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
-        const parsedParams = parsePathParams(
-          request.params,
-          discordSeriesStatsParamsSchema,
-          "Invalid guildId or queueNumber",
-        );
-        if (!parsedParams.success) {
-          return parsedParams.response;
-        }
-
-        const { guildId, queueNumber } = parsedParams.data;
-        const cacheKey = getCacheKey(guildId, queueNumber);
         const retryAfterSeconds = sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after);
 
         const pendingResponse: DiscordSeriesStats = {
@@ -239,16 +227,6 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       }
 
       if (error instanceof DiscordError && error.httpStatus === 403) {
-        const parsedParams = parsePathParams(
-          request.params,
-          discordSeriesStatsParamsSchema,
-          "Invalid guildId or queueNumber",
-        );
-        if (!parsedParams.success) {
-          return parsedParams.response;
-        }
-        const { guildId, queueNumber } = parsedParams.data;
-
         return discordSeriesStatsContract.toResponse(
           {
             status: "forbidden",
