@@ -463,7 +463,6 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       }
 
       await startSeriesDo(env, auth.session.userId, tracker.TrackerId, {
-        userId: auth.session.userId,
         titleOverride: parsed.data.titleOverride,
         subtitleOverride: parsed.data.subtitleOverride,
         teams: parsed.data.teams.map((team) => ({ name: team.name, members: Array.from(team.members) })),

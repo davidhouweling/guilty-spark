@@ -1365,20 +1365,10 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(
-        startSeriesRequest({ userId: "user-1", titleOverride: null, subtitleOverride: null, teams: [] }),
+        startSeriesRequest({ titleOverride: null, subtitleOverride: null, teams: [] }),
       );
 
       expect(response.status).toBe(404);
-    });
-
-    it("returns 403 when userId does not match", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ userId: "owner" }));
-
-      const response = await individualTrackerDO.fetch(
-        startSeriesRequest({ userId: "other-user", titleOverride: null, subtitleOverride: null, teams: [] }),
-      );
-
-      expect(response.status).toBe(403);
     });
 
     it("persists manualSeries to state and broadcasts view", async () => {
@@ -1388,7 +1378,6 @@ describe("IndividualTrackerDO", () => {
       const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
 
       const body: IndividualTrackerStartSeriesRequest = {
-        userId: "user-1",
         titleOverride: "Eagle vs Cobra",
         subtitleOverride: "Bo5",
         teams: [

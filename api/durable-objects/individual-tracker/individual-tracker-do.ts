@@ -562,9 +562,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const body = await request.json<IndividualTrackerStartSeriesRequest>();
-    if (trackerState.userId !== body.userId) {
-      return new Response("Forbidden", { status: 403 });
-    }
 
     trackerState.manualSeries = {
       titleOverride: body.titleOverride,

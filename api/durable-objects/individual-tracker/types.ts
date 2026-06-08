@@ -109,7 +109,6 @@ export interface IndividualTrackerSeriesTeam {
 }
 
 export interface IndividualTrackerStartSeriesRequest {
-  userId: string;
   titleOverride: string | null;
   subtitleOverride: string | null;
   teams: IndividualTrackerSeriesTeam[];
