@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
+  DeleteTrackerResponse,
   EndSeriesResponse,
   SelectMatchesResponse,
   StopTrackerResponse,
@@ -561,7 +562,7 @@ describe("/api/individual-tracker manage routes", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
-      vi.spyOn(services.individualTrackerService, "deleteTracker").mockRejectedValue(new TrackerNotFoundError());
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockRejectedValue(new TrackerNotFoundError());
       return services;
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
@@ -572,7 +573,7 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("deletes a tracker: stops the DO, calls deleteTracker, returns success", async () => {
+  it("deletes a tracker: verifies ownership, stops the DO, calls deleteTracker, returns success", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
@@ -592,9 +593,9 @@ describe("/api/individual-tracker manage routes", () => {
     const res = (await router.fetch(req, localEnv)) as Response;
 
     expect(res.status).toBe(200);
-    const body = await res.json<StopTrackerResponse>();
+    const body = await res.json<DeleteTrackerResponse>();
     expect(body.success).toBe(true);
     expect(fetchSpy).toHaveBeenCalledWith("http://do/stop", expect.objectContaining({ method: "POST" }));
-    expect(Preconditions.checkExists(deleteTrackerSpy, "deleteTracker spy")).toHaveBeenCalledWith("user-123", "t1");
+    expect(Preconditions.checkExists(deleteTrackerSpy, "deleteTracker spy")).toHaveBeenCalledWith("t1");
   });
 });

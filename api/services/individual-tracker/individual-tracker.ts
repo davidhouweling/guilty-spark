@@ -115,8 +115,7 @@ export class IndividualTrackerService {
     return updated;
   }
 
-  async deleteTracker(userId: string, trackerId: string): Promise<void> {
-    await this.getOwnedTracker(userId, trackerId);
+  async deleteTracker(trackerId: string): Promise<void> {
     await this.databaseService.deleteIndividualTracker(trackerId);
   }
 

@@ -585,7 +585,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async handleEndSeries(): Promise<Response> {
     const trackerState = await this.getState();
     if (trackerState == null) {
-      return new Response("Not Found", { status: 404 });
+      return new Response("No active series", { status: 409 });
     }
 
     if (trackerState.manualSeries == null) {

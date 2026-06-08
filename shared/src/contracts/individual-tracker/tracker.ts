@@ -80,3 +80,6 @@ export type StartSeriesResponse = z.infer<typeof startSeriesContract.schema>;
 
 export const endSeriesContract = defineContract(z.object({ success: z.literal(true) }));
 export type EndSeriesResponse = z.infer<typeof endSeriesContract.schema>;
+
+export const deleteTrackerContract = defineContract(z.object({ success: z.literal(true) }));
+export type DeleteTrackerResponse = z.infer<typeof deleteTrackerContract.schema>;
