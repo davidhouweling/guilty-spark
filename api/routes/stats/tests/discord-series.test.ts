@@ -92,6 +92,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     )) as Response;
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
@@ -181,6 +182,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     )) as Response;
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
@@ -368,6 +370,37 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       guildId: "123456789012345678",
       queueNumber: 7777,
       reason: "Missing Discord permissions or message content access",
+    });
+  });
+
+  it("returns pending-index when Discord service throws 429", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(
+        new DiscordError(429, {
+          code: 0,
+          message: "You are being rate limited.",
+        }),
+      );
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("2");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "pending-index",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      retryAfterSeconds: 2,
     });
   });
 

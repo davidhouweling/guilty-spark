@@ -17,6 +17,8 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const RESOLVED_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
+const RESOLVED_STALE_WHILE_REVALIDATE_SECONDS = 60 * 5;
+const RESOLVED_CACHE_CONTROL_HEADER = `public, s-maxage=${RESOLVED_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${RESOLVED_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
 
 const MATCH_ID_REGEX = /https:\/\/halodatahive\.com\/Infinite\/Match\/([a-zA-Z0-9-]+)/g;
 
@@ -31,7 +33,7 @@ function getResponseOptions(response: DiscordSeriesStats): {
 } {
   switch (response.status) {
     case "resolved": {
-      return { status: 200 };
+      return { status: 200, headers: { "Cache-Control": RESOLVED_CACHE_CONTROL_HEADER } };
     }
     case "pending-index": {
       return {
@@ -92,24 +94,35 @@ function extractMatchIdsFromEmbeds(embeds: readonly APIEmbed[]): string[] {
   return [...matchIds];
 }
 
+function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
+  if (typeof retryAfterValue !== "number") {
+    return DEFAULT_PENDING_RETRY_SECONDS;
+  }
+
+  if (!Number.isFinite(retryAfterValue) || retryAfterValue <= 0) {
+    return DEFAULT_PENDING_RETRY_SECONDS;
+  }
+
+  return retryAfterValue;
+}
+
 export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/discord/:guildId/:queueNumber", async (request, env: Env) => {
     const services = installServices({ env });
     const { discordService, logService } = services;
+    const parsedParams = parsePathParams(
+      request.params,
+      discordSeriesStatsParamsSchema,
+      "Invalid guildId or queueNumber",
+    );
+    if (!parsedParams.success) {
+      return parsedParams.response;
+    }
+
+    const { guildId, queueNumber } = parsedParams.data;
+    const cacheKey = getCacheKey(guildId, queueNumber);
 
     try {
-      const parsedParams = parsePathParams(
-        request.params,
-        discordSeriesStatsParamsSchema,
-        "Invalid guildId or queueNumber",
-      );
-      if (!parsedParams.success) {
-        return parsedParams.response;
-      }
-
-      const { guildId, queueNumber } = parsedParams.data;
-      const cacheKey = getCacheKey(guildId, queueNumber);
-
       const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
       if (cached != null && typeof cached === "object") {
         const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
@@ -136,10 +149,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       });
 
       if ("retry_after" in searchResponse) {
-        const retryAfterValue =
-          typeof searchResponse.retry_after === "number" ? searchResponse.retry_after : DEFAULT_PENDING_RETRY_SECONDS;
-        const retryAfterSeconds =
-          Number.isFinite(retryAfterValue) && retryAfterValue > 0 ? retryAfterValue : DEFAULT_PENDING_RETRY_SECONDS;
+        const retryAfterSeconds = sanitizeRetryAfterSeconds(searchResponse.retry_after);
 
         const pendingResponse: DiscordSeriesStats = {
           status: "pending-index",
@@ -199,19 +209,26 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
 
       await env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), { expirationTtl: RESOLVED_CACHE_TTL_SECONDS });
 
-      return discordSeriesStatsContract.toResponse(resolvedResponse, { status: 200 });
+      return discordSeriesStatsContract.toResponse(resolvedResponse, getResponseOptions(resolvedResponse));
     } catch (error) {
-      if (error instanceof DiscordError && error.httpStatus === 403) {
-        const parsedParams = parsePathParams(
-          request.params,
-          discordSeriesStatsParamsSchema,
-          "Invalid guildId or queueNumber",
-        );
-        if (!parsedParams.success) {
-          return parsedParams.response;
-        }
-        const { guildId, queueNumber } = parsedParams.data;
+      if (error instanceof DiscordError && error.httpStatus === 429) {
+        const retryAfterSeconds = sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after);
 
+        const pendingResponse: DiscordSeriesStats = {
+          status: "pending-index",
+          guildId,
+          queueNumber,
+          retryAfterSeconds,
+        };
+
+        await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), {
+          expirationTtl: PENDING_CACHE_TTL_SECONDS,
+        });
+
+        return discordSeriesStatsContract.toResponse(pendingResponse, getResponseOptions(pendingResponse));
+      }
+
+      if (error instanceof DiscordError && error.httpStatus === 403) {
         return discordSeriesStatsContract.toResponse(
           {
             status: "forbidden",
