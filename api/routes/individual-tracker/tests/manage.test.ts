@@ -538,9 +538,9 @@ describe("/api/individual-tracker manage routes", () => {
     expect(fetchSpy).toHaveBeenCalledWith("http://do/end-series", expect.objectContaining({ method: "POST" }));
   });
 
-  it("returns 404 on end-series when DO has no active series", async () => {
+  it("returns 409 on end-series when DO has no active series", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
-    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
+    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("No active series", { status: 409 }));
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
@@ -554,7 +554,7 @@ describe("/api/individual-tracker manage routes", () => {
 
     const res = (await router.fetch(postRequest("/api/individual-tracker/t1/end-series", {}), localEnv)) as Response;
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(409);
   });
 
   it("returns 404 on delete when the tracker is not owned", async () => {

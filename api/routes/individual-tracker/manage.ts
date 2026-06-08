@@ -13,7 +13,6 @@ import {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import type {
-  IndividualTrackerEndSeriesResponse,
   IndividualTrackerPauseResponse,
   IndividualTrackerResumeResponse,
   IndividualTrackerStartRequest,
@@ -25,7 +24,11 @@ import type {
   IndividualTrackerStartSeriesRequest,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
-import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
+import {
+  NoActiveSeriesError,
+  TrackerLimitReachedError,
+  TrackerNotFoundError,
+} from "../../services/individual-tracker/errors";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
@@ -124,8 +127,11 @@ async function startSeriesDo(
 async function endSeriesDo(env: Env, userId: string, trackerId: string): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/end-series", { method: "POST" });
+  if (response.status === 409) {
+    throw new NoActiveSeriesError();
+  }
   assertDoOkWith404(response);
-  await response.json<IndividualTrackerEndSeriesResponse>();
+  await response.json<{ success: true }>();
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -510,6 +516,9 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        if (error instanceof NoActiveSeriesError) {
+          return errorContract.toResponse({ error: "No active series" }, { status: 409, noStore: true });
         }
         throw error;
       }
