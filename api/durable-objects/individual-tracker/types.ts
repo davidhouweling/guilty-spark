@@ -119,6 +119,10 @@ export interface IndividualTrackerStartSeriesResponse {
   success: true;
 }
 
+export interface IndividualTrackerEndSeriesResponse {
+  success: true;
+}
+
 export interface IndividualTrackerSelectMatchesRequest {
   matchIds: string[];
 }

@@ -1401,4 +1401,48 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
+
+  describe("handleEndSeries()", () => {
+    it("returns 404 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/end-series", { method: "POST" }));
+
+      expect(response.status).toBe(404);
+    });
+
+    it("returns 404 when no active manualSeries exists", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/end-series", { method: "POST" }));
+
+      expect(response.status).toBe(404);
+    });
+
+    it("clears manualSeries, persists state, and broadcasts view", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          manualSeries: {
+            titleOverride: "Eagle vs Cobra",
+            subtitleOverride: "Bo5",
+            teams: [],
+            startedAt: new Date().toISOString(),
+          },
+        }),
+      );
+
+      const webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+
+      const response = await do2.fetch(new Request("http://do/end-series", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const result = await response.json<{ success: boolean }>();
+      expect(result.success).toBe(true);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.manualSeries).toBeUndefined();
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+  });
 });

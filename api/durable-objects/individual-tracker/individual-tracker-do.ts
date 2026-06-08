@@ -39,6 +39,7 @@ import type {
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
   IndividualTrackerStartSeriesResponse,
+  IndividualTrackerEndSeriesResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -116,6 +117,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "start-series": {
             return await this.handleStartSeries(request);
+          }
+          case "end-series": {
+            return await this.handleEndSeries();
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -576,6 +580,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.broadcastViewState(trackerState);
 
     const response: IndividualTrackerStartSeriesResponse = { success: true };
+    return Response.json(response);
+  }
+
+  private async handleEndSeries(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.manualSeries == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    delete trackerState.manualSeries;
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerEndSeriesResponse = { success: true };
     return Response.json(response);
   }
 
