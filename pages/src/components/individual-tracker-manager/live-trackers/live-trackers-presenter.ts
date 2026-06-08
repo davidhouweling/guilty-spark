@@ -36,6 +36,7 @@ export class LiveTrackersPresenter {
   private pollingUserId: string | null = null;
   private liveConnectionKey: string | null = null;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private refreshInFlight = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -234,6 +235,7 @@ export class LiveTrackersPresenter {
       return;
     }
 
+    this.refreshInFlight = true;
     try {
       const { trackers } = await this.config.individualTrackerService.listTrackers();
       const liveTracker = trackers.find((t) => t.isLive);
@@ -249,6 +251,8 @@ export class LiveTrackersPresenter {
         ...current,
         errorMessage: error instanceof Error ? error.message : "Failed to load individual tracker.",
       }));
+    } finally {
+      this.refreshInFlight = false;
     }
   }
 
@@ -402,6 +406,11 @@ export class LiveTrackersPresenter {
         }
         return {
           ...current,
+          // Skip runningTrackers update when a refresh() is in-flight — its result is
+          // authoritative and a stale poll response would resurrect deleted trackers.
+          ...(this.refreshInFlight
+            ? {}
+            : { runningTrackers: response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })) }),
           trackerStatuses: mergedStatuses,
         };
       });
