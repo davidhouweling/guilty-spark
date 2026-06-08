@@ -52,6 +52,7 @@ export function aFakeTrackerWith(overrides: FakeTrackerOverrides = {}): Tracker 
       startTime: "2100-01-01T00:00:00.000Z",
       lastUpdateTime: "2100-01-01T00:00:00.000Z",
       idleTimeoutHours: 6,
+      hasActiveSeries: false,
     },
   };
 }

@@ -374,6 +374,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         "IndividualTracker: getMapName failed",
         new Map([
           ["assetId", assetId],
+          ["versionId", versionId],
           ["error", String(error)],
         ]),
       );

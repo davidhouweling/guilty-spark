@@ -14,7 +14,7 @@ export const trackerStateSchema = z.object({
   startTime: z.string(),
   lastUpdateTime: z.string(),
   idleTimeoutHours: z.number(),
-  hasActiveSeries: z.boolean().optional(),
+  hasActiveSeries: z.boolean(),
 });
 export type TrackerState = z.infer<typeof trackerStateSchema>;
 

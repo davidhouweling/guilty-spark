@@ -91,6 +91,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     startTime: new Date().toISOString(),
     lastUpdateTime: new Date().toISOString(),
     idleTimeoutHours: 6,
+    hasActiveSeries: false,
     ...opts,
   };
 }
