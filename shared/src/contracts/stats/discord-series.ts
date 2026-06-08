@@ -2,7 +2,7 @@ import { z } from "zod";
 import { defineContract } from "../base";
 
 export const discordSeriesStatsParamsSchema = z.object({
-  guildId: z.string().min(1),
+  guildId: z.string().regex(/^\d+$/, "Invalid guildId"),
   queueNumber: z.coerce.number().int().positive(),
 });
 export type DiscordSeriesStatsParams = z.infer<typeof discordSeriesStatsParamsSchema>;
