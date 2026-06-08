@@ -125,14 +125,17 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       });
 
       if ("retry_after" in searchResponse) {
+        const retryAfterValue =
+          typeof searchResponse.retry_after === "number" ? searchResponse.retry_after : DEFAULT_PENDING_RETRY_SECONDS;
+        const retryAfterSeconds =
+          Number.isFinite(retryAfterValue) && retryAfterValue > 0 ? retryAfterValue : DEFAULT_PENDING_RETRY_SECONDS;
+
         const pendingResponse: DiscordSeriesStats = {
           status: "pending-index",
           guildId,
           queueNumber,
-          retryAfterSeconds: (() => {
-            const retryAfter = typeof searchResponse.retry_after === "number" ? searchResponse.retry_after : DEFAULT_PENDING_RETRY_SECONDS;
-            return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : DEFAULT_PENDING_RETRY_SECONDS;
-          })(),
+          retryAfterSeconds,
+        };
         await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
 
         return discordSeriesStatsContract.toResponse(pendingResponse, { status: 503 });
