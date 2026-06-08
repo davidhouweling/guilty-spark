@@ -206,7 +206,7 @@ describe("Xbox Service", () => {
 
       expect(JSON.parse(userAuthRequestBody)).toMatchObject({
         Properties: {
-          RpsTicket: "t=microsoft-access-token",
+          RpsTicket: "d=microsoft-access-token",
         },
       });
       expect(JSON.parse(xstsAuthRequestBody)).toMatchObject({

@@ -6,7 +6,6 @@ import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
 const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
 const XBOX_LIVE_XSTS_RELYING_PARTY = "http://xboxlive.com";
 const XBOX_LIVE_SANDBOX_ID = "RETAIL";
-const MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE = "t";
 const MICROSOFT_OAUTH_RPS_PREAMBLE = "d";
 
 export interface XboxServiceOpts {
@@ -62,7 +61,7 @@ export class XboxService {
   async exchangeMicrosoftAccessTokenForXstsToken(accessToken: string): Promise<TokenInfo> {
     const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(
       accessToken,
-      MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE,
+      MICROSOFT_OAUTH_RPS_PREAMBLE,
     );
     const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
       XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
