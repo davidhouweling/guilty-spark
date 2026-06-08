@@ -1,4 +1,5 @@
 import type { TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
 import type { LiveTrackersPresenter } from "./live-trackers-presenter";
 
 export interface LiveTrackersSnapshot {
@@ -10,6 +11,9 @@ export interface LiveTrackersSnapshot {
   readonly trackerStatuses: Readonly<Record<string, TrackerState | null>>;
   readonly busy: boolean;
   readonly errorMessage: string | null;
+  readonly isAddDialogOpen: boolean;
+  readonly gameSelectionDialogState: GameSelectionDialogState | null;
+  readonly manualSeriesDialogState: ManualSeriesDialogState | null;
 }
 
 export interface LiveTrackersController {
@@ -25,4 +29,8 @@ export interface LiveTrackersSectionController extends LiveTrackersController {
   getSnapshot: () => LiveTrackersSnapshot;
   getTrackerItems: LiveTrackersPresenter["getTrackerItems"];
   getActions: LiveTrackersPresenter["getActions"];
+  openAddDialog: LiveTrackersPresenter["openAddDialog"];
+  closeAddDialog: LiveTrackersPresenter["closeAddDialog"];
+  closeGameSelectionDialog: LiveTrackersPresenter["closeGameSelectionDialog"];
+  closeManualSeriesDialog: LiveTrackersPresenter["closeManualSeriesDialog"];
 }

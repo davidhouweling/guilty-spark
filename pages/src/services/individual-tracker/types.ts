@@ -9,6 +9,7 @@ import type {
   TrackerStatus,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 
 export interface TrackerSearchResult {
@@ -101,8 +102,10 @@ export interface IndividualTrackerSubscription {
   unsubscribe(): void;
 }
 
+export type { TrackerLiveView };
+
 export interface IndividualTrackerConnection {
-  subscribe(listener: (trackerId: string, status: TrackerStatus) => void): IndividualTrackerSubscription;
+  subscribe(listener: (view: TrackerLiveView) => void): IndividualTrackerSubscription;
   subscribeStatus(listener: (status: IndividualTrackerConnectionStatus) => void): IndividualTrackerSubscription;
   disconnect(): void;
 }
