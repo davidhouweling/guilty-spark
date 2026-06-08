@@ -5,6 +5,8 @@ import type {
 import type {
   StartTrackerRequest,
   TrackerResponse,
+  TrackerState,
+  TrackerStatus,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
@@ -85,6 +87,40 @@ export interface StartSeriesResponse {
   readonly success: true;
 }
 
+export type { TrackerState, TrackerStatus };
+
+export type IndividualTrackerConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "stopped"
+  | "error"
+  | "disconnected"
+  | "not_found";
+
+export interface IndividualTrackerSubscription {
+  unsubscribe(): void;
+}
+
+export interface IndividualTrackerConnection {
+  subscribe(listener: (trackerId: string, status: TrackerStatus) => void): IndividualTrackerSubscription;
+  subscribeStatus(listener: (status: IndividualTrackerConnectionStatus) => void): IndividualTrackerSubscription;
+  disconnect(): void;
+}
+
+export interface TrackerReference {
+  readonly trackerId: string;
+  readonly gamertag: string;
+}
+
+export interface TrackerListResponse {
+  readonly trackers: readonly TrackerReference[];
+  readonly statuses: Readonly<Record<string, TrackerState | null>>;
+}
+
+export interface TrackerStatusResponse {
+  readonly activeTracker: TrackerState | null;
+}
+
 export interface IndividualTrackerService {
   getProfile(): Promise<TrackerProfileResponse>;
   updateProfile(req: UpdateTrackerProfileRequest): Promise<TrackerProfileResponse>;
@@ -104,4 +140,9 @@ export interface IndividualTrackerService {
   ): Promise<TrackerMatchHistoryResponse>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
   startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse>;
+  getTrackers(): Promise<TrackerListResponse>;
+  getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse>;
+  deleteTracker(trackerId: string): Promise<void>;
+  endSeries(trackerId: string): Promise<void>;
+  connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
 }

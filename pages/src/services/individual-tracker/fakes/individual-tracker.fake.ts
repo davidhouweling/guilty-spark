@@ -10,12 +10,15 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
+  IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
   StartSeriesResponse,
+  TrackerListResponse,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
+  TrackerStatusResponse,
   TrackerSyncMatchesRequest,
 } from "../types";
 
@@ -239,6 +242,50 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async startSeries(_request: StartSeriesRequest): Promise<StartSeriesResponse> {
     await Promise.resolve();
     return { success: true };
+  }
+
+  public async getTrackers(): Promise<TrackerListResponse> {
+    const { trackers } = await this.listTrackers();
+    return {
+      trackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+      statuses: Object.fromEntries(trackers.map((t) => [t.trackerId, t.state ?? null])),
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async getActiveTrackerState(_xuid: string): Promise<TrackerStatusResponse> {
+    const { trackers } = await this.listTrackers();
+    const live = trackers.find((t) => t.isLive);
+    return { activeTracker: live?.state ?? null };
+  }
+
+  public async deleteTracker(trackerId: string): Promise<void> {
+    await Promise.resolve();
+    this.trackers = this.trackers.filter((t) => t.trackerId !== trackerId);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async endSeries(_trackerId: string): Promise<void> {
+    await Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public connectToTracker(_userId: string, _trackerId: string): IndividualTrackerConnection {
+    return {
+      subscribe: () => ({
+        unsubscribe: (): void => {
+          return;
+        },
+      }),
+      subscribeStatus: () => ({
+        unsubscribe: (): void => {
+          return;
+        },
+      }),
+      disconnect: (): void => {
+        return;
+      },
+    };
   }
 
   private findTracker(trackerId: string): Tracker {

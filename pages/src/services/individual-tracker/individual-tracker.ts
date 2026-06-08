@@ -34,13 +34,17 @@ import {
   getRankLabel,
   RANKED_ARENA_PLAYLIST_ID,
 } from "./match-history-helpers";
+import { RealTrackerViewConnection } from "./view-connection";
 import type {
+  IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
   StartSeriesResponse,
+  TrackerListResponse,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
+  TrackerStatusResponse,
   TrackerSyncMatchesRequest,
 } from "./types";
 
@@ -499,5 +503,80 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     this.modeNameCache.set(key, promise);
     const variant = await promise;
     return variant.PublicName;
+  }
+
+  public async getTrackers(): Promise<TrackerListResponse> {
+    const { trackers } = await this.listTrackers();
+    return {
+      trackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+      statuses: Object.fromEntries(trackers.map((t) => [t.trackerId, t.state ?? null])),
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async getActiveTrackerState(_xuid: string): Promise<TrackerStatusResponse> {
+    const { trackers } = await this.listTrackers();
+    const live = trackers.find((t) => t.isLive);
+    return { activeTracker: live?.state ?? null };
+  }
+
+  public async deleteTracker(trackerId: string): Promise<void> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+  }
+
+  public async endSeries(trackerId: string): Promise<void> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}/end-series`), {
+      credentials: "include",
+      method: "POST",
+    });
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+  }
+
+  public connectToTracker(_userId: string, trackerId: string): IndividualTrackerConnection {
+    const apiUrl = new URL(this.apiHost);
+    const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${apiUrl.host}/api/individual-tracker/${encodeURIComponent(trackerId)}/ws`;
+
+    const ws = new WebSocket(wsUrl);
+    const conn = new RealTrackerViewConnection(ws);
+
+    conn.handleStatus("connecting");
+    ws.onopen = (): void => {
+      conn.handleStatus("connected");
+    };
+    ws.onmessage = (event: MessageEvent): void => {
+      if (typeof event.data === "string") {
+        conn.handleRaw(event.data);
+      }
+    };
+    ws.onerror = (): void => {
+      conn.handleStatus("error");
+    };
+    ws.onclose = (event: CloseEvent): void => {
+      if (event.code === 1000 && event.reason === "Tracker stopped") {
+        conn.handleStatus("stopped");
+        return;
+      }
+      conn.handleStatus(event.code === 1000 ? "disconnected" : "error", event.reason || undefined);
+    };
+
+    return {
+      subscribe: (listener) =>
+        conn.subscribe((view) => {
+          listener(view.trackerId, view.status);
+        }),
+      subscribeStatus: (listener) => conn.subscribeStatus(listener),
+      disconnect: (): void => {
+        conn.disconnect();
+      },
+    };
   }
 }
