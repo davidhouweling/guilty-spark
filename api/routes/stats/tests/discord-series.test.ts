@@ -30,7 +30,7 @@ function aFakeMessageWith(opts: {
   return {
     id: opts.id,
     channel_id: opts.channelId ?? "chan-1",
-    guild_id: "guild-1",
+    guild_id: "123456789012345678",
     content: "",
     timestamp: new Date().toISOString(),
     edited_timestamp: null,
@@ -86,13 +86,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(200);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       matchIds: ["match-1", "match-2"],
     });
@@ -111,13 +114,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(503);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "pending-index",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       retryAfterSeconds: 3,
     });
@@ -147,12 +153,12 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       storedByKey.set(key, value);
     });
 
-    const cacheKey = "stats:discord:series:guild-1:7777";
+    const cacheKey = "stats:discord:series:123456789012345678:7777";
     await env.APP_DATA.put(
       cacheKey,
       JSON.stringify({
         status: "resolved",
-        guildId: "guild-1",
+        guildId: "123456789012345678",
         queueNumber: 7777,
         matchIds: ["cached-match-1"],
       }),
@@ -169,13 +175,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
 
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(200);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       matchIds: ["cached-match-1"],
     });
@@ -206,13 +215,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(200);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       matchIds: ["match-after-invalid-cache"],
     });
@@ -230,7 +242,10 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(404);
     const body = await res.json<DiscordSeriesStatsResponse>();
@@ -251,13 +266,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(404);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "not-found",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       reason: "Series overview embed found but no match IDs were discoverable",
     });
@@ -273,13 +291,16 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(403);
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "forbidden",
-      guildId: "guild-1",
+      guildId: "123456789012345678",
       queueNumber: 7777,
       reason: "Missing Discord permissions or message content access",
     });
@@ -293,7 +314,10 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
 
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");

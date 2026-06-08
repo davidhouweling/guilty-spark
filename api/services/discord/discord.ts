@@ -920,7 +920,7 @@ export class DiscordService {
       (
         | {
             method: "GET";
-            queryParameters?: Record<string, string | number | boolean | (string | number | boolean)[]>;
+            queryParameters?: Record<string, string | number | boolean | null | (string | number | boolean | null)[]>;
             body?: never;
           }
         | { method: "PUT" | "POST" | "PATCH" | "DELETE"; body?: RequestInit["body"]; queryParameters?: never }

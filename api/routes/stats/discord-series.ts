@@ -138,11 +138,11 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         };
         await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
 
-return discordSeriesStatsContract.toResponse(pendingResponse, {
-  status: 503,
-  noStore: true,
-  headers: { "Retry-After": Math.ceil(retryAfterSeconds).toString() },
-});
+        return discordSeriesStatsContract.toResponse(pendingResponse, {
+          status: 503,
+          noStore: true,
+          headers: { "Retry-After": Math.ceil(retryAfterSeconds).toString() },
+        });
       }
 
       const flattenedMessages = searchResponse.messages.flatMap((messages: APIMessage[]): APIMessage[] => messages);
