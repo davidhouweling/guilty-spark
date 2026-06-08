@@ -17,6 +17,8 @@ import type {
   APIModalSubmitInteraction,
   RESTError,
   RESTGetAPIGuildMemberResult,
+  RESTGetAPIGuildMessagesSearchQuery,
+  RESTGetAPIGuildMessagesSearchResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
   RESTPostAPIChannelMessageJSONBody,
@@ -540,6 +542,20 @@ export class DiscordService {
     });
   }
 
+  async searchGuildMessages(
+    guildId: string,
+    query: RESTGetAPIGuildMessagesSearchQuery,
+  ): Promise<RESTGetAPIGuildMessagesSearchResult> {
+    const queryParameters: Record<string, string | number | boolean | (string | number | boolean)[]> = {
+      ...query,
+    };
+
+    return this.fetch<RESTGetAPIGuildMessagesSearchResult>(Routes.guildMessagesSearch(guildId), {
+      method: "GET",
+      queryParameters,
+    });
+  }
+
   async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
     if (!this.userCache.has(userId)) {
       const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
@@ -902,7 +918,11 @@ export class DiscordService {
     path: string,
     options: RequestInit &
       (
-        | { method: "GET"; queryParameters?: Record<string, string | number>; body?: never }
+        | {
+            method: "GET";
+            queryParameters?: Record<string, string | number | boolean | null | (string | number | boolean | null)[]>;
+            body?: never;
+          }
         | { method: "PUT" | "POST" | "PATCH" | "DELETE"; body?: RequestInit["body"]; queryParameters?: never }
       ) = {
       method: "GET",
@@ -926,6 +946,20 @@ export class DiscordService {
     const url = new URL(`/api/v${APIVersion}${path}`, "https://discord.com");
     if (options.method === "GET" && options.queryParameters) {
       for (const [key, value] of Object.entries(options.queryParameters)) {
+        if (value == null) {
+          continue;
+        }
+
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (item == null) {
+              continue;
+            }
+            url.searchParams.append(key, item.toString());
+          }
+          continue;
+        }
+
         url.searchParams.set(key, value.toString());
       }
     }
