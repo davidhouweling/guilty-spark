@@ -60,7 +60,8 @@ function getOverviewEmbed(message: APIMessage, queueNumber: number): APIEmbed | 
     if (embed.color !== EmbedColors.INFO) {
       continue;
     }
-    if (embed.title?.includes(`Series stats for queue #${queueNumber.toString()}`) !== true) {
+    const match = embed.title?.match(/^Series stats for queue #(\d+)\b/);
+    if (match?.[1] !== queueNumber.toString()) {
       continue;
     }
 
