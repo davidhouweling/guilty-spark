@@ -1403,12 +1403,12 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleEndSeries()", () => {
-    it("returns 404 when no state exists", async () => {
+    it("returns 409 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(new Request("http://do/end-series", { method: "POST" }));
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(409);
     });
 
     it("returns 409 when no active manualSeries exists", async () => {

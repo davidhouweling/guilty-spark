@@ -1,5 +1,6 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
+  deleteTrackerContract,
   endSeriesContract,
   selectMatchesContract,
   selectMatchesRequestSchema,
@@ -509,10 +510,9 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       }
       const { trackerId } = parsedParams.data;
 
-      let tracker: IndividualTrackersRow;
       try {
-        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
-        await endSeriesDo(env, auth.session.userId, tracker.TrackerId);
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await endSeriesDo(env, auth.session.userId, trackerId);
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
@@ -556,7 +556,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         throw error;
       }
 
-      return stopTrackerContract.toResponse({ success: true }, { noStore: true });
+      return deleteTrackerContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker delete error"]]));
       return errorContract.toResponse({ error: "Failed to delete tracker" }, { status: 500, noStore: true });
