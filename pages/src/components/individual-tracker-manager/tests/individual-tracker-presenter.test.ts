@@ -113,7 +113,7 @@ describe("IndividualTrackerPresenter", () => {
   });
 
   describe("load — error", () => {
-    it("sets authState to unauthenticated and sets errorMessage on load failure", async () => {
+    it("sets authState to unauthenticated and sets errorMessage on session failure", async () => {
       const store = new IndividualTrackerStore();
       const liveTrackersController = aFakeLiveTrackersController();
       const authService = aFakeAuthServiceWith();
@@ -131,6 +131,27 @@ describe("IndividualTrackerPresenter", () => {
 
       expect(presenter.getSnapshot().authState).toBe("unauthenticated");
       expect(presenter.getSnapshot().errorMessage).not.toBeNull();
+    });
+
+    it("sets authState to authenticated with empty settings when getSettings fails", async () => {
+      const store = new IndividualTrackerStore();
+      const liveTrackersController = aFakeLiveTrackersController();
+      const authService = aFakeAuthServiceWith({ session: AUTHENTICATED_SESSION });
+      const settingsService = aFakeIndividualTrackerSettingsServiceWith();
+      vi.spyOn(settingsService, "getSettings").mockRejectedValue(new Error("settings unavailable"));
+      const presenter = new IndividualTrackerPresenter({
+        authService,
+        settingsService,
+        store,
+        liveTrackersController,
+      });
+
+      presenter.start();
+      await flushPromises();
+
+      expect(presenter.getSnapshot().authState).toBe("authenticated");
+      expect(presenter.getSnapshot().streamerSettings).toEqual({});
+      expect(liveTrackersController.setSessionContext).toHaveBeenCalledWith("u1", "ChiefSpartan", "xuid-1");
     });
   });
 
