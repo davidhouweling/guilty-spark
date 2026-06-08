@@ -68,6 +68,23 @@ export interface TrackerSyncMatchesRequest {
   readonly matches: readonly TrackerMatchHistoryEntry[];
 }
 
+export interface ManualSeriesTeamForm {
+  readonly name: string;
+  readonly members: readonly string[];
+}
+
+export interface StartSeriesRequest {
+  readonly trackerId: string;
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
+  readonly teams: readonly ManualSeriesTeamForm[];
+  readonly matchIds?: readonly string[];
+}
+
+export interface StartSeriesResponse {
+  readonly success: true;
+}
+
 export interface IndividualTrackerService {
   getProfile(): Promise<TrackerProfileResponse>;
   updateProfile(req: UpdateTrackerProfileRequest): Promise<TrackerProfileResponse>;
@@ -79,6 +96,12 @@ export interface IndividualTrackerService {
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
-  getMatchHistory(xuid: string, start: number, count: number): Promise<TrackerMatchHistoryResponse>;
+  getMatchHistory(
+    xuid: string,
+    start: number,
+    count: number,
+    category?: "custom" | "all",
+  ): Promise<TrackerMatchHistoryResponse>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
+  startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse>;
 }

@@ -37,6 +37,8 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesRequest,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerStartSeriesRequest,
+  IndividualTrackerStartSeriesResponse,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -111,6 +113,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "select-matches": {
             return await this.handleSelectMatches(request);
+          }
+          case "start-series": {
+            return await this.handleStartSeries(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -550,6 +555,30 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json(response);
   }
 
+  private async handleStartSeries(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const body = await request.json<IndividualTrackerStartSeriesRequest>();
+
+    trackerState.manualSeries = {
+      titleOverride: body.titleOverride,
+      subtitleOverride: body.subtitleOverride,
+      teams: body.teams,
+      startedAt: new Date().toISOString(),
+      ...(body.matchIds != null && body.matchIds.length > 0 ? { backfillMatchIds: body.matchIds } : {}),
+    };
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerStartSeriesResponse = { success: true };
+    return Response.json(response);
+  }
+
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     const response: IndividualTrackerStatusResponse = {
@@ -671,7 +700,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const summariesById = new Map(summaries.map((summary) => [summary.matchId, summary]));
 
-    const groupings = analyzeMatchGroupings(
+    const autoGroupings = analyzeMatchGroupings(
       summaries.map((summary) => ({
         matchId: summary.matchId,
         isMatchmaking: summary.isMatchmaking,
@@ -679,6 +708,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
+    const backfillMatchIds = state.manualSeries?.backfillMatchIds;
+    const groupings =
+      backfillMatchIds != null && backfillMatchIds.length >= 2 ? [backfillMatchIds, ...autoGroupings] : autoGroupings;
+
+    let visibleSeriesIndex = 0;
     const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
         .map((matchId) => summariesById.get(matchId))
@@ -694,20 +728,32 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         })),
       );
 
+      const defaultTitle = getDefaultSeriesGroupTitle();
+      const defaultSubtitle = getDefaultSeriesGroupSubtitle(
+        groupSummaries.map((summary) => ({
+          startTime: summary.startTime,
+          mapAssetId: summary.mapAssetId,
+          mapVersionId: summary.mapVersionId,
+          gameVariantCategory: summary.gameVariantCategory,
+          outcome: summary.outcome,
+        })),
+      );
+
+      const isMultiMatch = matchIds.length >= 2;
+      const manualSeries = isMultiMatch && visibleSeriesIndex === 0 ? state.manualSeries : undefined;
+      const title = manualSeries?.titleOverride ?? defaultTitle;
+      const subtitle = manualSeries?.subtitleOverride ?? defaultSubtitle;
+
+      if (isMultiMatch) {
+        visibleSeriesIndex += 1;
+      }
+
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
         matchIds,
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
-        title: getDefaultSeriesGroupTitle(),
-        subtitle: getDefaultSeriesGroupSubtitle(
-          groupSummaries.map((summary) => ({
-            startTime: summary.startTime,
-            mapAssetId: summary.mapAssetId,
-            mapVersionId: summary.mapVersionId,
-            gameVariantCategory: summary.gameVariantCategory,
-            outcome: summary.outcome,
-          })),
-        ),
+        title,
+        subtitle,
       };
     });
 

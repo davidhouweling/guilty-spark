@@ -77,6 +77,14 @@ export interface TopBarStatItem {
   value: string;
 }
 
+export interface IndividualTrackerManualSeries {
+  titleOverride: string | null;
+  subtitleOverride: string | null;
+  teams: IndividualTrackerSeriesTeam[];
+  startedAt: string;
+  backfillMatchIds?: string[];
+}
+
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
@@ -86,12 +94,29 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   selectedMatchIds: string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
+  manualSeries?: IndividualTrackerManualSeries;
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
     lastSuccessTime: string;
     lastErrorMessage?: string | undefined;
   };
+}
+
+export interface IndividualTrackerSeriesTeam {
+  name: string;
+  members: string[];
+}
+
+export interface IndividualTrackerStartSeriesRequest {
+  titleOverride: string | null;
+  subtitleOverride: string | null;
+  teams: IndividualTrackerSeriesTeam[];
+  matchIds?: string[];
+}
+
+export interface IndividualTrackerStartSeriesResponse {
+  success: true;
 }
 
 export interface IndividualTrackerSelectMatchesRequest {

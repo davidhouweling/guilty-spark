@@ -3,6 +3,7 @@ import {
   selectMatchesContract,
   selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
+  startSeriesRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
@@ -19,6 +20,7 @@ import type {
   IndividualTrackerStatusResponse,
   IndividualTrackerStopResponse,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerStartSeriesRequest,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../services/individual-tracker/errors";
@@ -99,6 +101,22 @@ async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchI
   });
   assertDoOkWith404(response);
   await response.json<IndividualTrackerSelectMatchesResponse>();
+}
+
+async function startSeriesDo(
+  env: Env,
+  userId: string,
+  trackerId: string,
+  body: IndividualTrackerStartSeriesRequest,
+): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/start-series", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  assertDoOkWith404(response);
+  await response.json<{ success: true }>();
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -410,6 +428,53 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker select matches error"]]));
       return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/:trackerId/start-series", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      const parsed = await parseJsonBody(request, startSeriesRequestSchema, "Invalid start series request");
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      await startSeriesDo(env, auth.session.userId, tracker.TrackerId, {
+        titleOverride: parsed.data.titleOverride,
+        subtitleOverride: parsed.data.subtitleOverride,
+        teams: parsed.data.teams.map((team) => ({ name: team.name, members: Array.from(team.members) })),
+        ...(parsed.data.matchIds != null && parsed.data.matchIds.length > 0
+          ? { matchIds: [...parsed.data.matchIds] }
+          : {}),
+      });
+
+      return Response.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker start series error"]]));
+      return errorContract.toResponse({ error: "Failed to start series" }, { status: 500, noStore: true });
     }
   });
 };

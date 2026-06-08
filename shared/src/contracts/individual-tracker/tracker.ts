@@ -60,3 +60,20 @@ export type SelectMatchesRequest = z.infer<typeof selectMatchesRequestSchema>;
 
 export const selectMatchesContract = defineContract(z.object({ success: z.literal(true) }));
 export type SelectMatchesResponse = z.infer<typeof selectMatchesContract.schema>;
+
+export const startSeriesTeamSchema = z.object({
+  name: z.string(),
+  members: z.array(z.string()),
+});
+export type StartSeriesTeam = z.infer<typeof startSeriesTeamSchema>;
+
+export const startSeriesRequestSchema = z.object({
+  titleOverride: z.string().nullable(),
+  subtitleOverride: z.string().nullable(),
+  teams: z.array(startSeriesTeamSchema),
+  matchIds: z.array(z.string()).optional(),
+});
+export type StartSeriesRequest = z.infer<typeof startSeriesRequestSchema>;
+
+export const startSeriesContract = defineContract(z.object({ success: z.literal(true) }));
+export type StartSeriesResponse = z.infer<typeof startSeriesContract.schema>;
