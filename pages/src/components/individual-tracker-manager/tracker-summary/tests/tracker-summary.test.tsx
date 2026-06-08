@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { TrackerSearchResult } from "../tracker-summary";
+import type { TrackerSearchResult } from "../../../../services/individual-tracker/types";
 import { TrackerSummary } from "../tracker-summary";
 
 vi.mock("../../../icons/rank-icon", () => ({

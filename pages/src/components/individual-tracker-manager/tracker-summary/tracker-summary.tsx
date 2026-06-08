@@ -4,8 +4,6 @@ import type { TrackerSearchResult } from "../../../services/individual-tracker/t
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./tracker-summary.module.css";
 
-export type { TrackerSearchResult };
-
 interface TrackerSummaryProps {
   readonly tracker: TrackerSearchResult;
   readonly className?: string;
