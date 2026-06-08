@@ -255,6 +255,7 @@ export class StatsCommand extends BaseCommand {
 
       await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
       await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
+      void this.warmDiscordSeriesStatsRoute(guildId, queueData.queue);
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
@@ -358,6 +359,7 @@ export class StatsCommand extends BaseCommand {
 
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
         await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
+        void this.warmDiscordSeriesStatsRoute(guildId, queueData.queue);
 
         await haloService.updateDiscordAssociations();
       }
@@ -655,5 +657,28 @@ export class StatsCommand extends BaseCommand {
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
       locale,
     });
+  }
+
+  private async warmDiscordSeriesStatsRoute(guildId: string, queueNumber: number): Promise<void> {
+    const { logService } = this.services;
+    const url = `${this.env.HOST_URL}/api/stats/discord/${guildId}/${queueNumber.toString()}`;
+
+    try {
+      const response = await fetch(url, { method: "GET" });
+      if (response.ok) {
+        return;
+      }
+
+      logService.warn(
+        "Discord series stats warm request returned non-OK status",
+        new Map([
+          ["guildId", guildId],
+          ["queueNumber", queueNumber.toString()],
+          ["status", response.status.toString()],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(error as Error, new Map([["guildId", guildId], ["queueNumber", queueNumber.toString()]]));
+    }
   }
 }
