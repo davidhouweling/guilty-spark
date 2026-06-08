@@ -34,7 +34,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
         data={rows}
         columns={columns}
         getRowKey={(row): string => row.matchId}
-        ariaLabel="Series match ids"
+        ariaLabel="Series match IDs"
         initialSort={{ columnId: "matchId", desc: false }}
       />
     </section>
