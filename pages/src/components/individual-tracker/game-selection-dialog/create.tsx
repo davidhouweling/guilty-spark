@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { GameSelectionDialogPresenter } from "./game-selection-dialog-presenter";
@@ -30,6 +30,9 @@ export function GameSelectionDialogSection({
   onSynced,
   individualTrackerService,
 }: GameSelectionDialogSectionProps): React.ReactElement | null {
+  const onSyncedRef = useRef(onSynced);
+  onSyncedRef.current = onSynced;
+
   const store = useMemo(() => new GameSelectionDialogStore(), []);
 
   const presenter = useMemo(
@@ -42,7 +45,9 @@ export function GameSelectionDialogSection({
         initialSelectedMatchIds,
         initialGroupings,
         initialSeriesGroups,
-        onSynced,
+        onSynced: (): void => {
+          onSyncedRef.current();
+        },
       }),
     [
       store,
@@ -52,7 +57,6 @@ export function GameSelectionDialogSection({
       initialSelectedMatchIds,
       initialGroupings,
       initialSeriesGroups,
-      onSynced,
     ],
   );
 

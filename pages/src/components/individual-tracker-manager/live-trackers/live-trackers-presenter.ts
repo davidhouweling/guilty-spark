@@ -234,7 +234,7 @@ export class LiveTrackersPresenter {
       });
     }
 
-    if (status === "active" && trackerId != null) {
+    if (status === "active" && item.isLive && trackerId != null) {
       actions.push({
         label: "Game selection",
         disabled: snapshot.busy,
