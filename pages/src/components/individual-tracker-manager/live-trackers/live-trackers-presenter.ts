@@ -332,6 +332,12 @@ export class LiveTrackersPresenter {
         }, 3000);
         return;
       }
+      if (status === "not_found") {
+        this.liveConnectionKey = null;
+        this.teardownConnection();
+        void this.refresh();
+        return;
+      }
       if (status !== "stopped") {
         return;
       }
@@ -396,7 +402,6 @@ export class LiveTrackersPresenter {
         }
         return {
           ...current,
-          runningTrackers: response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
           trackerStatuses: mergedStatuses,
         };
       });
