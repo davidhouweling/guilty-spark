@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import { LiveTrackersPresenter } from "./live-trackers-presenter";
 import { LiveTrackersStore } from "./live-trackers-store";
@@ -10,6 +10,13 @@ interface LiveTrackersSectionInternalProps {
 }
 
 function LiveTrackersSectionInternal({ controller }: LiveTrackersSectionInternalProps): React.ReactElement {
+  useEffect(() => {
+    controller.start();
+    return (): void => {
+      controller.dispose();
+    };
+  }, [controller]);
+
   const snapshot = useSyncExternalStore(
     (listener) => controller.subscribe(listener),
     () => controller.getSnapshot(),
