@@ -92,6 +92,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     )) as Response;
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
@@ -181,6 +182,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     )) as Response;
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
     const body = await res.json<DiscordSeriesStatsResponse>();
     expect(body).toEqual({
       status: "resolved",
