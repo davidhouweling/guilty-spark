@@ -596,7 +596,8 @@ export class LiveTrackersPresenter {
       xuid: trackerState.xuid,
       initialSelectedMatchIds: liveView?.matches.map((m) => m.matchId) ?? [],
       initialGroupings: liveView?.series.map((s) => s.matchIds) ?? [],
-      initialSeriesGroups: liveView?.series.map((s) => ({ matchIds: s.matchIds, titleOverride: null, subtitleOverride: null })) ?? [],
+      initialSeriesGroups:
+        liveView?.series.map((s) => ({ matchIds: s.matchIds, titleOverride: null, subtitleOverride: null })) ?? [],
     };
     this.updateSnapshot((s) => ({ ...s, gameSelectionDialogState: dialogState }));
   }

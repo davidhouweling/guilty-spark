@@ -143,7 +143,7 @@ describe("LiveTrackersPresenter", () => {
     presenter.dispose();
   });
 
-  it("openAddDialog sets isAddDialogOpen to true; closeAddDialog clears it", async () => {
+  it("openAddDialog sets isAddDialogOpen to true; closeAddDialog clears it", () => {
     const { presenter } = aHarness({});
 
     presenter.start();
@@ -172,11 +172,8 @@ describe("LiveTrackersPresenter", () => {
     presenter.setSessionContext("u1", null, null);
     await presenter.refresh();
 
-    const item = presenter.getTrackerItems()[0];
+    const [item] = presenter.getTrackerItems();
     expect(item).toBeDefined();
-    if (item == null) {
-      return;
-    }
 
     const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
     expect(gameSelectionAction).toBeDefined();
@@ -212,11 +209,8 @@ describe("LiveTrackersPresenter", () => {
     presenter.setSessionContext("u1", null, null);
     await presenter.refresh();
 
-    const item = presenter.getTrackerItems()[0];
+    const [item] = presenter.getTrackerItems();
     expect(item).toBeDefined();
-    if (item == null) {
-      return;
-    }
 
     const startSeriesAction = presenter.getActions(item).find((a) => a.label === "Start series");
     expect(startSeriesAction).toBeDefined();

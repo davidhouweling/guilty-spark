@@ -49,15 +49,7 @@ export function GameSelectionDialogSection({
           onSyncedRef.current();
         },
       }),
-    [
-      store,
-      individualTrackerService,
-      trackerId,
-      xuid,
-      initialSelectedMatchIds,
-      initialGroupings,
-      initialSeriesGroups,
-    ],
+    [store, individualTrackerService, trackerId, xuid, initialSelectedMatchIds, initialGroupings, initialSeriesGroups],
   );
 
   useEffect(() => {
