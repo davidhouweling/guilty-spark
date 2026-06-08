@@ -1,3 +1,4 @@
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { LiveTrackersController } from "./live-trackers/types";
@@ -16,19 +17,19 @@ interface Config {
 
 export class IndividualTrackerPresenter {
   private readonly config: Config;
-  private isDisposed = false;
+  private loadSeq = 0;
 
   public constructor(config: Config) {
     this.config = config;
   }
 
   public start(): void {
-    this.isDisposed = false;
-    void this.load();
+    const seq = ++this.loadSeq;
+    void this.load(seq);
   }
 
   public dispose(): void {
-    this.isDisposed = true;
+    ++this.loadSeq;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -43,7 +44,7 @@ export class IndividualTrackerPresenter {
   }
 
   public setActiveSection(sectionId: IndividualTrackerSectionId): void {
-    this.updateSnapshot((s) => ({ ...s, activeSection: sectionId }));
+    this.applySnapshot((s) => ({ ...s, activeSection: sectionId }));
   }
 
   public signIn(): void {
@@ -52,20 +53,23 @@ export class IndividualTrackerPresenter {
     window.location.assign(loginUrl.toString());
   }
 
-  private async load(): Promise<void> {
+  private async load(seq: number): Promise<void> {
     try {
-      const [session, settings] = await Promise.all([
-        this.config.authService.getSession(),
-        this.config.settingsService.getSettings(),
-      ]);
+      const session = await this.config.authService.getSession();
 
-      if (this.isDisposed) {
+      if (seq !== this.loadSeq) {
         return;
       }
 
       if (!session.authenticated) {
         this.config.liveTrackersController.resetForUnauthenticated();
-        this.updateSnapshot((s) => ({ ...s, authState: "unauthenticated", errorMessage: null }));
+        this.updateSnapshot(seq, (s) => ({ ...s, authState: "unauthenticated", errorMessage: null }));
+        return;
+      }
+
+      const settings = await this.config.settingsService.getSettings().catch((): StreamerViewSettings => ({}));
+
+      if (seq !== this.loadSeq) {
         return;
       }
 
@@ -75,7 +79,7 @@ export class IndividualTrackerPresenter {
         session.xboxXuid ?? null,
       );
 
-      this.updateSnapshot((s) => ({
+      this.updateSnapshot(seq, (s) => ({
         ...s,
         authState: "authenticated",
         errorMessage: null,
@@ -83,10 +87,10 @@ export class IndividualTrackerPresenter {
         gamertag: session.xboxGamertag ?? null,
       }));
     } catch {
-      if (this.isDisposed) {
+      if (seq !== this.loadSeq) {
         return;
       }
-      this.updateSnapshot((s) => ({
+      this.updateSnapshot(seq, (s) => ({
         ...s,
         authState: "unauthenticated",
         errorMessage: "Failed to load session. Please refresh the page.",
@@ -94,10 +98,14 @@ export class IndividualTrackerPresenter {
     }
   }
 
-  private updateSnapshot(updater: (s: IndividualTrackerSnapshot) => IndividualTrackerSnapshot): void {
-    if (this.isDisposed) {
+  private updateSnapshot(seq: number, updater: (s: IndividualTrackerSnapshot) => IndividualTrackerSnapshot): void {
+    if (seq !== this.loadSeq) {
       return;
     }
+    this.applySnapshot(updater);
+  }
+
+  private applySnapshot(updater: (s: IndividualTrackerSnapshot) => IndividualTrackerSnapshot): void {
     this.config.store.snapshot = updater(this.config.store.snapshot);
     for (const listener of this.config.store.subscribers) {
       listener();
