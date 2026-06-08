@@ -1,5 +1,5 @@
 import type { MockInstance } from "vitest";
-import { describe, beforeEach, vi, it, expect } from "vitest";
+import { describe, afterEach, beforeEach, vi, it, expect } from "vitest";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -131,6 +131,10 @@ describe("StatsCommand", () => {
     updateDeferredReplyWithErrorSpy = vi
       .spyOn(services.discordService, "updateDeferredReplyWithError")
       .mockResolvedValue(apiMessage);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("execute(): subcommand neatqueue", () => {

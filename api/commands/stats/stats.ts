@@ -255,9 +255,11 @@ export class StatsCommand extends BaseCommand {
 
       await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
       await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
-      void this.warmDiscordSeriesStatsRoute(guildId, queueData.queue);
 
-      await haloService.updateDiscordAssociations();
+      await Promise.all([
+        haloService.updateDiscordAssociations(),
+        this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
+      ]);
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
         error.appendData({
@@ -359,9 +361,11 @@ export class StatsCommand extends BaseCommand {
 
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
         await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
-        void this.warmDiscordSeriesStatsRoute(guildId, queueData.queue);
 
-        await haloService.updateDiscordAssociations();
+        await Promise.all([
+          haloService.updateDiscordAssociations(),
+          this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
+        ]);
       }
     } catch (error) {
       if (error instanceof EndUserError) {
