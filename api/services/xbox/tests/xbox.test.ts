@@ -520,17 +520,10 @@ describe("Xbox Service", () => {
 
     it("throws error when API returns non-200 status", async () => {
       const gamertag = "TestPlayer1";
-
-      xsapiClientGetSpy.mockResolvedValueOnce({
-        data: { profileUsers: [] },
-        response: new Response(),
-        headers: {},
-        statusCode: 404,
-      });
-
-      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow(
-        `Failed to fetch user with gamertag ${gamertag}: 404`,
-      );
+      const err = new Error("Not Found");
+      err.name = "XRFetchClientException";
+      xsapiClientGetSpy.mockRejectedValueOnce(err);
+      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow("Not Found");
     });
 
     it("refreshes token if not loaded", async () => {

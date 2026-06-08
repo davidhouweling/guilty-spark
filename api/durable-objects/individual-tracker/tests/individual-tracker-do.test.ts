@@ -210,6 +210,7 @@ describe("IndividualTrackerDO", () => {
       expect(Object.keys(body.state).sort()).toEqual(
         [
           "gamertag",
+          "hasActiveSeries",
           "idleTimeoutHours",
           "isPaused",
           "lastUpdateTime",
@@ -328,7 +329,7 @@ describe("IndividualTrackerDO", () => {
         expect(body.state).not.toHaveProperty("searchStartTime");
         expect(body.state).not.toHaveProperty("checkCount");
         expect(body.state).not.toHaveProperty("lastMatchDiscoveredAt");
-        expect(Object.keys(body.state)).toHaveLength(9);
+        expect(Object.keys(body.state)).toHaveLength(10);
       }
     });
   });

@@ -13,6 +13,7 @@ export interface TrackerListItem {
   readonly status: TrackerDisplayStatus;
   readonly isLive: boolean;
   readonly isPinned: boolean;
+  readonly hasActiveSeries: boolean;
 }
 
 export interface TrackerRowAction {

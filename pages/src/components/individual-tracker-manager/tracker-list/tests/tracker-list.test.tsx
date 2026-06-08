@@ -25,6 +25,7 @@ describe("TrackerList", () => {
       status: "active",
       isLive: true,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -41,6 +42,7 @@ describe("TrackerList", () => {
       status: "paused",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -56,6 +58,7 @@ describe("TrackerList", () => {
       status: "active",
       isLive: false,
       isPinned: true,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -70,6 +73,7 @@ describe("TrackerList", () => {
       status: "stopped",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -84,6 +88,7 @@ describe("TrackerList", () => {
       status: "not-started",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -98,6 +103,7 @@ describe("TrackerList", () => {
       status: "active",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     render(<TrackerList items={[item]} getActions={() => []} />);
@@ -107,8 +113,8 @@ describe("TrackerList", () => {
 
   it("renders a row per item", () => {
     const items: readonly TrackerListItem[] = [
-      { trackerId: "t-1", gamertag: "Alpha", status: "active", isLive: true, isPinned: false },
-      { trackerId: "t-2", gamertag: "Bravo", status: "paused", isLive: false, isPinned: false },
+      { trackerId: "t-1", gamertag: "Alpha", status: "active", isLive: true, isPinned: false, hasActiveSeries: false },
+      { trackerId: "t-2", gamertag: "Bravo", status: "paused", isLive: false, isPinned: false, hasActiveSeries: false },
     ];
 
     render(<TrackerList items={items} getActions={() => []} />);
@@ -126,6 +132,7 @@ describe("TrackerList", () => {
       status: "active",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     const getActions = vi.fn<(item: TrackerListItem) => readonly TrackerRowAction[]>(() => []);
@@ -144,6 +151,7 @@ describe("TrackerList", () => {
       status: "active",
       isLive: false,
       isPinned: false,
+      hasActiveSeries: false,
     };
 
     const onClick = vi.fn<() => void>();

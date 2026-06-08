@@ -117,28 +117,37 @@ export class XboxService {
       throw new Error("Gamertag cannot be empty");
     }
 
-    if (!this.tokenInfo) {
-      await this.maybeRefreshXstsToken();
-    }
-    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
+    await this.maybeRefreshXstsToken();
 
+    try {
+      return await this.fetchUserByGamertag(gamertag);
+    } catch (err) {
+      if (this.isUnauthorizedError(err)) {
+        await this.clearToken();
+        await this.updateCredentials();
+        return this.fetchUserByGamertag(gamertag);
+      }
+      throw err;
+    }
+  }
+
+  private async fetchUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
+    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
     const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
       `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
       {
         options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
       },
     );
-
-    if (response.statusCode !== 200) {
-      throw new Error(`Failed to fetch user with gamertag ${gamertag}: ${response.statusCode.toString()}`);
-    }
-
     const [profileUser] = response.data.profileUsers;
     if (!profileUser) {
       throw new Error(`User with gamertag ${gamertag} not found`);
     }
-
     return profileUserToXboxUserInfo(profileUser);
+  }
+
+  private isUnauthorizedError(err: unknown): boolean {
+    return err instanceof Error && err.name === "XRFetchClientException" && err.message === "Unauthorized";
   }
 
   async getUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
@@ -146,9 +155,7 @@ export class XboxService {
       return [];
     }
 
-    if (!this.tokenInfo) {
-      await this.maybeRefreshXstsToken();
-    }
+    await this.maybeRefreshXstsToken();
     const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
 
     const response = await Promise.allSettled(
@@ -182,7 +189,8 @@ export class XboxService {
       this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
       this.env.XBOX_PASSWORD,
       {
-        XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
+        sandboxId: XBOX_LIVE_SANDBOX_ID,
+        XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
       },
     );
 

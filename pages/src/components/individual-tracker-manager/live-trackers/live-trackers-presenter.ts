@@ -78,6 +78,7 @@ export class LiveTrackersPresenter {
 
   public setSessionContext(userId: string, xboxGamertag: string | null, xboxXuid: string | null): void {
     this.updateSnapshot((s) => ({ ...s, userId, xboxGamertag, xboxXuid }));
+    void this.refresh();
   }
 
   public resetForUnauthenticated(): void {
@@ -132,6 +133,7 @@ export class LiveTrackersPresenter {
         status: pinnedState != null ? derivedStatus(pinnedState.status) : "not-started",
         isLive: pinnedRuntimeTracker != null && pinnedRuntimeTracker.trackerId === snapshot.activeTracker?.trackerId,
         isPinned: true,
+        hasActiveSeries: pinnedState?.hasActiveSeries ?? false,
       });
     }
 
@@ -146,6 +148,7 @@ export class LiveTrackersPresenter {
         status: trackerState != null ? derivedStatus(trackerState.status) : "stopped",
         isLive: tracker.trackerId === snapshot.activeTracker?.trackerId,
         isPinned: false,
+        hasActiveSeries: trackerState?.hasActiveSeries ?? false,
       });
     }
 
@@ -223,15 +226,17 @@ export class LiveTrackersPresenter {
           }
         },
       });
-      actions.push({
-        label: "End series",
-        disabled: snapshot.busy || trackerId == null,
-        onClick: (): void => {
-          if (trackerId != null) {
-            void this.endSeries(trackerId);
-          }
-        },
-      });
+      if (item.hasActiveSeries) {
+        actions.push({
+          label: "End series",
+          disabled: snapshot.busy || trackerId == null,
+          onClick: (): void => {
+            if (trackerId != null) {
+              void this.endSeries(trackerId);
+            }
+          },
+        });
+      }
     }
 
     if (status === "active" && item.isLive && trackerId != null) {
@@ -242,13 +247,15 @@ export class LiveTrackersPresenter {
           this.openGameSelection(item);
         },
       });
-      actions.push({
-        label: "Start series",
-        disabled: snapshot.busy,
-        onClick: (): void => {
-          this.openManualSeriesDialog(item);
-        },
-      });
+      if (!item.hasActiveSeries) {
+        actions.push({
+          label: "Start series",
+          disabled: snapshot.busy,
+          onClick: (): void => {
+            this.openManualSeriesDialog(item);
+          },
+        });
+      }
     }
 
     if (!isPinned) {
