@@ -1,6 +1,7 @@
 import type { AutoRouterType } from "itty-router";
 import { EmbedType } from "discord-api-types/v10";
 import type { APIEmbed, APIMessage } from "discord-api-types/v10";
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscordSeriesStatsResponse } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { createApiRouter } from "../../../base/router";
@@ -124,24 +125,26 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
 
   it("returns cached response without calling Discord search", async () => {
     const storedByKey = new Map<string, string>();
-    env = aFakeEnvWith({
-      APP_DATA: {
-        get: async (key: string, options?: KVNamespaceGetOptions<undefined>) => {
-          const value = storedByKey.get(key);
-          if (value == null) {
-            return null;
-          }
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
 
-          if (options?.type === "json") {
-            return JSON.parse(value) as unknown;
-          }
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
 
-          return value;
-        },
-        put: async (key: string, value: string) => {
-          storedByKey.set(key, value);
-        },
-      } as unknown as KVNamespace,
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
     });
 
     const cacheKey = "stats:discord:series:guild-1:7777";
@@ -176,6 +179,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       queueNumber: 7777,
       matchIds: ["cached-match-1"],
     });
+    expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
 
   it("returns not-found when no blue overview embeds are found", async () => {
@@ -203,7 +207,9 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
         doing_deep_historical_index: false,
         total_results: 1,
-        messages: [[aFakeMessageWith({ id: "m-no-match-ids", color: EmbedColors.INFO, title: "Series stats for queue #7777" })]],
+        messages: [
+          [aFakeMessageWith({ id: "m-no-match-ids", color: EmbedColors.INFO, title: "Series stats for queue #7777" })],
+        ],
       });
       return services;
     });
