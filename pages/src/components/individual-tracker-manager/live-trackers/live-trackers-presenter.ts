@@ -1,4 +1,4 @@
-import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { TrackerState, TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerService,
@@ -35,6 +35,7 @@ export class LiveTrackersPresenter {
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private pollingUserId: string | null = null;
   private liveConnectionKey: string | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
   public constructor(config: Config) {
     this.config = config;
@@ -53,6 +54,10 @@ export class LiveTrackersPresenter {
     this.storeUnsubscribe = null;
     this.teardownConnection();
     this.teardownPolling();
+    if (this.reconnectTimeout != null) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
   }
 
   public subscribe(listener: () => void): () => void {
@@ -101,10 +106,7 @@ export class LiveTrackersPresenter {
         trackerId: pinnedRuntimeTracker?.trackerId ?? null,
         gamertag: snapshot.xboxGamertag,
         status: pinnedState != null ? derivedStatus(pinnedState.status) : "not-started",
-        isLive:
-          pinnedRuntimeTracker != null
-            ? pinnedRuntimeTracker.trackerId === snapshot.activeTracker?.trackerId
-            : snapshot.activeTracker == null,
+        isLive: pinnedRuntimeTracker != null && pinnedRuntimeTracker.trackerId === snapshot.activeTracker?.trackerId,
         isPinned: true,
       });
     }
@@ -232,21 +234,14 @@ export class LiveTrackersPresenter {
     }
 
     try {
-      const [trackerListResponse, activeStatusResponse] = await Promise.all([
-        this.config.individualTrackerService.getTrackers(),
-        snapshot.xboxXuid == null
-          ? Promise.resolve({ activeTracker: null })
-          : this.config.individualTrackerService.getActiveTrackerState(snapshot.xboxXuid),
-      ]);
+      const { trackers } = await this.config.individualTrackerService.listTrackers();
+      const liveTracker = trackers.find((t) => t.isLive);
 
       this.updateSnapshot((current) => ({
         ...current,
-        activeTracker: activeStatusResponse.activeTracker,
-        runningTrackers: trackerListResponse.trackers.map((t) => ({
-          trackerId: t.trackerId,
-          gamertag: t.gamertag,
-        })),
-        trackerStatuses: trackerListResponse.statuses,
+        activeTracker: liveTracker?.state ?? null,
+        runningTrackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+        trackerStatuses: Object.fromEntries<TrackerState | null>(trackers.map((t) => [t.trackerId, t.state ?? null])),
       }));
     } catch (error) {
       this.updateSnapshot((current) => ({
@@ -320,15 +315,30 @@ export class LiveTrackersPresenter {
     });
 
     this.statusSubscription = this.connection.subscribeStatus((status) => {
+      if (status === "error" || status === "disconnected") {
+        this.liveConnectionKey = null;
+        this.teardownConnection();
+        if (this.reconnectTimeout != null) {
+          clearTimeout(this.reconnectTimeout);
+        }
+        this.reconnectTimeout = setTimeout(() => {
+          this.reconnectTimeout = null;
+          if (!this.isDisposed) {
+            this.syncRuntimeDependencies();
+          }
+        }, 3000);
+        return;
+      }
       if (status !== "stopped") {
         return;
       }
+      // Null activeTracker so that if the same tracker is restarted, syncRuntimeDependencies
+      // sees a key change and establishes a fresh WS connection.
       this.updateSnapshot((snapshot) => {
         const existing = snapshot.trackerStatuses[trackerId] ?? null;
         return {
           ...snapshot,
-          activeTracker:
-            snapshot.activeTracker == null ? null : { ...snapshot.activeTracker, status: "stopped" as TrackerStatus },
+          activeTracker: null,
           trackerStatuses:
             existing == null
               ? snapshot.trackerStatuses
