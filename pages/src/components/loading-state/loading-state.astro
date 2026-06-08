@@ -8,7 +8,7 @@ interface Props {
 const { text } = Astro.props;
 ---
 
-<div class={styles.container}>
+<div class={styles.container} role="status" aria-live="polite" aria-atomic="true">
   <div class={styles.spinnerContainer}>
     <div class={styles.spinner}></div>
     <div class={styles.spinnerGlow}></div>

@@ -101,8 +101,18 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       const cacheKey = getCacheKey(guildId, queueNumber);
 
       const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
-      if (cached != null && typeof cached === "object" && "status" in cached) {
-        return discordSeriesStatsContract.toResponse(cached, { status: getStatusCode(cached) });
+      if (cached != null && typeof cached === "object") {
+        const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
+        if (cachedParseResult.success) {
+          return discordSeriesStatsContract.toResponse(cachedParseResult.data, {
+            status: getStatusCode(cachedParseResult.data),
+          });
+        }
+
+        logService.warn(
+          "Invalid cached discord series stats payload, treating as cache miss",
+          new Map([["cacheKey", cacheKey]]),
+        );
       }
 
       const searchResponse = await discordService.searchGuildMessages(guildId, {

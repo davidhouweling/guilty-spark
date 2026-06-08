@@ -11,8 +11,8 @@ import { fetchDiscordSeriesStats } from "../../../../services/stats/discord-seri
 
 const { guildId = "", queueNumber = "" } = Astro.params;
 
-const invalidQueueNumber = Number.parseInt(queueNumber, 10);
-const hasInvalidParams = guildId.length === 0 || Number.isNaN(invalidQueueNumber) || invalidQueueNumber <= 0;
+const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
+const hasInvalidParams = guildId.length === 0 || !isStrictPositiveInteger;
 
 let responseState: DiscordSeriesStats | null = null;
 let loadError: string | null = null;

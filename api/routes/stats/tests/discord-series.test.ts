@@ -182,6 +182,42 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
 
+  it("treats invalid cached payload as cache miss and resolves via Discord search", async () => {
+    const appDataGetSpy: MockInstance<typeof env.APP_DATA.get> = vi.spyOn(env.APP_DATA, "get");
+    appDataGetSpy.mockResolvedValue(new Map<string, unknown>());
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-after-invalid-cache",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777",
+              gameFieldValue: "[Slayer](https://halodatahive.com/Infinite/Match/match-after-invalid-cache)",
+            }),
+          ],
+        ],
+      });
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(new Request("http://localhost/api/stats/discord/guild-1/7777"), env)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toEqual({
+      status: "resolved",
+      guildId: "guild-1",
+      queueNumber: 7777,
+      matchIds: ["match-after-invalid-cache"],
+    });
+  });
+
   it("returns not-found when no blue overview embeds are found", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
