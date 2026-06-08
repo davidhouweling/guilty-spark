@@ -678,7 +678,13 @@ export class StatsCommand extends BaseCommand {
         ]),
       );
     } catch (error) {
-      logService.warn(error as Error, new Map([["guildId", guildId], ["queueNumber", queueNumber.toString()]]));
+      logService.warn(
+        error as Error,
+        new Map([
+          ["guildId", guildId],
+          ["queueNumber", queueNumber.toString()],
+        ]),
+      );
     }
   }
 }
