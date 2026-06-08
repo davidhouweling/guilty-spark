@@ -17,6 +17,8 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const RESOLVED_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
+const RESOLVED_STALE_WHILE_REVALIDATE_SECONDS = 60 * 5;
+const RESOLVED_CACHE_CONTROL_HEADER = `public, s-maxage=${RESOLVED_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${RESOLVED_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
 
 const MATCH_ID_REGEX = /https:\/\/halodatahive\.com\/Infinite\/Match\/([a-zA-Z0-9-]+)/g;
 
@@ -31,7 +33,7 @@ function getResponseOptions(response: DiscordSeriesStats): {
 } {
   switch (response.status) {
     case "resolved": {
-      return { status: 200 };
+      return { status: 200, headers: { "Cache-Control": RESOLVED_CACHE_CONTROL_HEADER } };
     }
     case "pending-index": {
       return {
@@ -207,7 +209,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
 
       await env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), { expirationTtl: RESOLVED_CACHE_TTL_SECONDS });
 
-      return discordSeriesStatsContract.toResponse(resolvedResponse, { status: 200 });
+      return discordSeriesStatsContract.toResponse(resolvedResponse, getResponseOptions(resolvedResponse));
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
         const retryAfterSeconds = sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after);
