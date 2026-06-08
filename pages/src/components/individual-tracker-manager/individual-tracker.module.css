@@ -33,10 +33,10 @@
 }
 
 .tabs {
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   display: flex;
   gap: var(--space-1);
   margin-bottom: var(--space-6);
-  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
 }
 
 .tabButton {
