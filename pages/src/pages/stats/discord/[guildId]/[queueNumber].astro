@@ -1,0 +1,53 @@
+---
+export const prerender = false;
+
+import type { DiscordSeriesStats } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { API_HOST } from "../../../../constants";
+import Layout from "../../../../layouts/layout.astro";
+import { DiscordSeriesStatsApp } from "../../../../apps/discord-series-stats/create";
+import LoadingState from "../../../../components/loading-state/loading-state.astro";
+import ErrorState from "../../../../components/error-state/error-state.astro";
+import { fetchDiscordSeriesStats } from "../../../../services/stats/discord-series";
+
+const { guildId = "", queueNumber = "" } = Astro.params;
+
+const isSnowflake = /^\d+$/.test(guildId);
+const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
+const parsedQueueNumber = Number(queueNumber);
+const isSafeQueueNumber = Number.isSafeInteger(parsedQueueNumber) && parsedQueueNumber > 0;
+const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber;
+let responseState: DiscordSeriesStats | null = null;
+let loadError: string | null = null;
+
+if (hasInvalidParams) {
+  Astro.response.status = 404;
+  loadError = "Queue not found";
+} else {
+  try {
+    const response = await fetchDiscordSeriesStats(`${API_HOST}/api/stats/discord/${guildId}/${queueNumber}`);
+    Astro.response.status = response.status;
+    responseState = response.data;
+  } catch {
+    Astro.response.status = 500;
+    loadError = "Failed to load stats";
+  }
+}
+---
+
+<Layout title={`Queue #${queueNumber} Stats`} description="Series stats for a completed queue">
+  {
+    responseState?.status === "resolved" ? (
+      <DiscordSeriesStatsApp client:load data={responseState} />
+    ) : responseState?.status === "pending-index" ? (
+      <LoadingState
+        text={`Stats are still indexing. Retry in ${Math.ceil(responseState.retryAfterSeconds).toString()}s.`}
+      />
+    ) : responseState?.status === "forbidden" ? (
+      <ErrorState title="Access forbidden" message={responseState.reason} />
+    ) : responseState?.status === "not-found" ? (
+      <ErrorState title="Queue not found" message={responseState.reason} />
+    ) : (
+      <ErrorState title="Unable to load stats" message={loadError ?? "Unexpected response"} />
+    )
+  }
+</Layout>

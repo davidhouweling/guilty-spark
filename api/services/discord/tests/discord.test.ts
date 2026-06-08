@@ -14,6 +14,8 @@ import {
   ComponentType,
   InteractionType,
   Locale,
+  MessageSearchAuthorType,
+  MessageSearchSortMode,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordService } from "../discord";
@@ -898,6 +900,53 @@ describe("DiscordService", () => {
       );
 
       expect(response).toEqual(apiMessage);
+    });
+  });
+
+  describe("searchGuildMessages()", () => {
+    it("serializes array query parameters as repeated search params", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            doing_deep_historical_index: false,
+            total_results: 0,
+            messages: [],
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+
+      await discordService.searchGuildMessages("fake-guild-id", {
+        content: "Series stats for queue #7777",
+        author_id: ["user-1", "user-2"],
+        author_type: [MessageSearchAuthorType.Bot],
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "desc",
+        limit: 25,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/guilds/fake-guild-id/messages/search?content=Series+stats+for+queue+%237777&author_id=user-1&author_id=user-2&author_type=bot&sort_by=timestamp&sort_order=desc&limit=25",
+        {
+          body: null,
+          headers: new Headers({
+            Authorization: "Bot DISCORD_TOKEN",
+            "content-type": "application/json;charset=UTF-8",
+          }),
+          method: "GET",
+          queryParameters: {
+            content: "Series stats for queue #7777",
+            author_id: ["user-1", "user-2"],
+            author_type: [MessageSearchAuthorType.Bot],
+            sort_by: MessageSearchSortMode.Timestamp,
+            sort_order: "desc",
+            limit: 25,
+          },
+        },
+      );
     });
   });
 
