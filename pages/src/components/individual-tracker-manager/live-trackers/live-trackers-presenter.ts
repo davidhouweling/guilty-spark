@@ -42,6 +42,7 @@ export class LiveTrackersPresenter {
   }
 
   public start(): void {
+    this.isDisposed = false;
     this.storeUnsubscribe = this.subscribe(() => {
       this.syncRuntimeDependencies();
     });
@@ -282,7 +283,9 @@ export class LiveTrackersPresenter {
 
     if (nextConnectionKey !== this.liveConnectionKey) {
       this.teardownConnection();
-      if (snapshot.userId != null && snapshot.activeTracker != null) {
+      // Don't reconnect while a backoff timer is pending — it will call syncRuntimeDependencies
+      // itself when it fires.
+      if (snapshot.userId != null && snapshot.activeTracker != null && this.reconnectTimeout == null) {
         this.setupConnection(snapshot.userId, snapshot.activeTracker.trackerId);
       }
     }
@@ -383,11 +386,20 @@ export class LiveTrackersPresenter {
 
     try {
       const response = await this.config.individualTrackerService.getTrackers();
-      this.updateSnapshot((current) => ({
-        ...current,
-        runningTrackers: response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
-        trackerStatuses: { ...current.trackerStatuses, ...response.statuses },
-      }));
+      this.updateSnapshot((current) => {
+        const liveId = current.activeTracker?.trackerId ?? null;
+        const mergedStatuses = { ...current.trackerStatuses };
+        for (const [trackerId, status] of Object.entries(response.statuses)) {
+          if (trackerId !== liveId) {
+            mergedStatuses[trackerId] = status;
+          }
+        }
+        return {
+          ...current,
+          runningTrackers: response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+          trackerStatuses: mergedStatuses,
+        };
+      });
     } catch {
       // polling failures are silent
     }
