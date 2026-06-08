@@ -670,7 +670,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       logService.warn(
-        "Discord series stats warm request returned non-OK status",
+        `Discord series stats warm request returned non-OK status: ${response.status.toString()}`,
         new Map([
           ["guildId", guildId],
           ["queueNumber", queueNumber.toString()],
