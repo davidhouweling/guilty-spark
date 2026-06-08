@@ -256,7 +256,10 @@ export class StatsCommand extends BaseCommand {
       await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
       await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
 
-      await haloService.updateDiscordAssociations();
+      await Promise.all([
+        haloService.updateDiscordAssociations(),
+        this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
+      ]);
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
         error.appendData({
@@ -359,7 +362,10 @@ export class StatsCommand extends BaseCommand {
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
         await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
 
-        await haloService.updateDiscordAssociations();
+        await Promise.all([
+          haloService.updateDiscordAssociations(),
+          this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
+        ]);
       }
     } catch (error) {
       if (error instanceof EndUserError) {
@@ -655,5 +661,34 @@ export class StatsCommand extends BaseCommand {
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
       locale,
     });
+  }
+
+  private async warmDiscordSeriesStatsRoute(guildId: string, queueNumber: number): Promise<void> {
+    const { logService } = this.services;
+    const url = `${this.env.HOST_URL}/api/stats/discord/${guildId}/${queueNumber.toString()}`;
+
+    try {
+      const response = await fetch(url, { method: "GET" });
+      if (response.ok) {
+        return;
+      }
+
+      logService.warn(
+        `Discord series stats warm request returned non-OK status: ${response.status.toString()}`,
+        new Map([
+          ["guildId", guildId],
+          ["queueNumber", queueNumber.toString()],
+          ["status", response.status.toString()],
+        ]),
+      );
+    } catch (error) {
+      logService.warn(
+        error as Error,
+        new Map([
+          ["guildId", guildId],
+          ["queueNumber", queueNumber.toString()],
+        ]),
+      );
+    }
   }
 }

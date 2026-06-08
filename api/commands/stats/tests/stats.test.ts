@@ -1,5 +1,5 @@
 import type { MockInstance } from "vitest";
-import { describe, beforeEach, vi, it, expect } from "vitest";
+import { describe, afterEach, beforeEach, vi, it, expect } from "vitest";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -117,6 +117,7 @@ describe("StatsCommand", () => {
   let statsCommand: StatsCommand;
   let services: Services;
   let env: Env;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
   let updateDeferredReplySpy: MockInstance<typeof services.discordService.updateDeferredReply>;
   let updateDeferredReplyWithErrorSpy: MockInstance<typeof services.discordService.updateDeferredReplyWithError>;
 
@@ -124,11 +125,16 @@ describe("StatsCommand", () => {
     services = installFakeServicesWith();
     env = aFakeEnvWith();
     statsCommand = new StatsCommand(services, env);
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
     updateDeferredReplyWithErrorSpy = vi
       .spyOn(services.discordService, "updateDeferredReplyWithError")
       .mockResolvedValue(apiMessage);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("execute(): subcommand neatqueue", () => {
@@ -366,6 +372,14 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(updateDiscordAssociationsSpy).toHaveBeenCalledWith();
+      });
+
+      it("warms the discord series stats route after posting embeds", async () => {
+        await jobToComplete?.();
+
+        expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8787/api/stats/discord/fake-guild-id/777", {
+          method: "GET",
+        });
       });
 
       it("calls discordService.updateDeferredReplyWithError with an error when an error is thrown", async () => {
@@ -661,6 +675,16 @@ describe("StatsCommand", () => {
           await jobToComplete?.();
 
           expect(updateDiscordAssociationsSpy).toHaveBeenCalled();
+        });
+
+        it("warms the discord series stats route after posting embeds", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+
+          await jobToComplete?.();
+
+          expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8787/api/stats/discord/fake-guild-id/777", {
+            method: "GET",
+          });
         });
 
         it("appends previous error data when new error occurs", async () => {
