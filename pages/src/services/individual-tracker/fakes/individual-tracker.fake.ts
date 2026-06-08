@@ -178,7 +178,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   public async startTracker(req: StartTrackerRequest): Promise<TrackerResponse> {
     await Promise.resolve();
-    const tracker = aFakeTrackerWith({ gamertag: req.gamertag });
+    const tracker = aFakeTrackerWith({ gamertag: req.gamertag, isLive: false });
     this.trackers = [...this.trackers, tracker];
     return { tracker };
   }

@@ -476,6 +476,10 @@ export class LiveTrackersPresenter {
     try {
       await this.config.individualTrackerService.startTracker({ idleTimeoutHours: 1, gamertag: targetGamertag });
       await this.refresh();
+      const afterRefresh = this.getSnapshot();
+      if (afterRefresh.runningTrackers.length === 1 && afterRefresh.activeTracker == null) {
+        await this.selectLiveTracker(afterRefresh.runningTrackers[0].trackerId);
+      }
     } catch (error) {
       this.updateSnapshot((s) => ({
         ...s,
