@@ -155,6 +155,20 @@ export class XboxService {
     }
 
     await this.maybeRefreshXstsToken();
+
+    try {
+      return await this.fetchUsersByXuids(xuids);
+    } catch (err) {
+      if (this.isUnauthorizedError(err)) {
+        await this.clearToken();
+        await this.updateCredentials();
+        return this.fetchUsersByXuids(xuids);
+      }
+      throw err;
+    }
+  }
+
+  private async fetchUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
     const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
 
     const response = await Promise.allSettled(
@@ -167,6 +181,13 @@ export class XboxService {
         ),
       ),
     );
+
+    const unauthorizedResult = response.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected" && this.isUnauthorizedError(r.reason),
+    );
+    if (unauthorizedResult != null) {
+      throw unauthorizedResult.reason;
+    }
 
     return response
       .map((res) => {
