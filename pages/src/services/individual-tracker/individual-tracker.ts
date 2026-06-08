@@ -522,6 +522,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
   public async deleteTracker(trackerId: string): Promise<void> {
     const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}`), {
+      credentials: "include",
       method: "DELETE",
     });
     if (!response.ok) {
@@ -531,6 +532,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
   public async endSeries(trackerId: string): Promise<void> {
     const response = await fetch(this.buildUrl(`/api/individual-tracker/${encodeURIComponent(trackerId)}/end-series`), {
+      credentials: "include",
       method: "POST",
     });
     if (!response.ok) {
