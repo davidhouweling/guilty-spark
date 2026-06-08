@@ -1,10 +1,12 @@
 import type { TrackerState, TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerService,
   IndividualTrackerSubscription,
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
+import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -37,6 +39,7 @@ export class LiveTrackersPresenter {
   private liveConnectionKey: string | null = null;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private refreshInFlight = false;
+  private activeLiveView: TrackerLiveView | null = null;
 
   public constructor(config: Config) {
     this.config = config;
@@ -88,7 +91,26 @@ export class LiveTrackersPresenter {
       trackerStatuses: {},
       busy: false,
       errorMessage: null,
+      isAddDialogOpen: false,
+      gameSelectionDialogState: null,
+      manualSeriesDialogState: null,
     }));
+  }
+
+  public openAddDialog(): void {
+    this.updateSnapshot((s) => ({ ...s, isAddDialogOpen: true }));
+  }
+
+  public closeAddDialog(): void {
+    this.updateSnapshot((s) => (s.busy ? s : { ...s, isAddDialogOpen: false }));
+  }
+
+  public closeGameSelectionDialog(): void {
+    this.updateSnapshot((s) => (s.busy ? s : { ...s, gameSelectionDialogState: null }));
+  }
+
+  public closeManualSeriesDialog(): void {
+    this.updateSnapshot((s) => (s.busy ? s : { ...s, manualSeriesDialogState: null }));
   }
 
   public getTrackerItems(): readonly TrackerListItem[] {
@@ -212,6 +234,23 @@ export class LiveTrackersPresenter {
       });
     }
 
+    if (status === "active" && item.isLive && trackerId != null) {
+      actions.push({
+        label: "Game selection",
+        disabled: snapshot.busy,
+        onClick: (): void => {
+          this.openGameSelection(item);
+        },
+      });
+      actions.push({
+        label: "Start series",
+        disabled: snapshot.busy,
+        onClick: (): void => {
+          this.openManualSeriesDialog(item);
+        },
+      });
+    }
+
     if (!isPinned) {
       actions.push({
         label: "Delete tracker",
@@ -306,17 +345,18 @@ export class LiveTrackersPresenter {
     this.liveConnectionKey = `${userId}:${trackerId}`;
     this.connection = this.config.individualTrackerService.connectToTracker(userId, trackerId);
 
-    this.connectionSubscription = this.connection.subscribe((wsTrackerId, status) => {
+    this.connectionSubscription = this.connection.subscribe((view) => {
+      this.activeLiveView = view;
       this.updateSnapshot((snapshot) => {
-        const existing = snapshot.trackerStatuses[wsTrackerId];
+        const existing = snapshot.trackerStatuses[view.trackerId];
         if (existing == null) {
           return snapshot;
         }
-        const updated = { ...existing, status };
+        const updated = { ...existing, status: view.status };
         return {
           ...snapshot,
-          activeTracker: snapshot.activeTracker?.trackerId === wsTrackerId ? updated : snapshot.activeTracker,
-          trackerStatuses: { ...snapshot.trackerStatuses, [wsTrackerId]: updated },
+          activeTracker: snapshot.activeTracker?.trackerId === view.trackerId ? updated : snapshot.activeTracker,
+          trackerStatuses: { ...snapshot.trackerStatuses, [view.trackerId]: updated },
         };
       });
     });
@@ -369,6 +409,7 @@ export class LiveTrackersPresenter {
     this.connection?.disconnect();
     this.connection = null;
     this.liveConnectionKey = null;
+    this.activeLiveView = null;
   }
 
   private setupPolling(userId: string): void {
@@ -535,5 +576,40 @@ export class LiveTrackersPresenter {
     } finally {
       this.updateSnapshot((s) => ({ ...s, busy: false }));
     }
+  }
+
+  private openGameSelection(item: TrackerListItem): void {
+    if (item.trackerId == null) {
+      return;
+    }
+    const snapshot = this.getSnapshot();
+    const trackerState = snapshot.trackerStatuses[item.trackerId] ?? null;
+    if (trackerState == null) {
+      this.updateSnapshot((s) => ({ ...s, errorMessage: "Unable to load tracker state for game selection." }));
+      return;
+    }
+
+    const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+    const dialogState: GameSelectionDialogState = {
+      trackerId: item.trackerId,
+      trackerLabel: item.gamertag,
+      xuid: trackerState.xuid,
+      initialSelectedMatchIds: liveView?.matches.map((m) => m.matchId) ?? [],
+      initialGroupings: liveView?.series.map((s) => s.matchIds) ?? [],
+      initialSeriesGroups:
+        liveView?.series.map((s) => ({ matchIds: s.matchIds, titleOverride: null, subtitleOverride: null })) ?? [],
+    };
+    this.updateSnapshot((s) => ({ ...s, gameSelectionDialogState: dialogState }));
+  }
+
+  private openManualSeriesDialog(item: TrackerListItem): void {
+    if (item.trackerId == null) {
+      return;
+    }
+    const dialogState: ManualSeriesDialogState = {
+      trackerId: item.trackerId,
+      trackerLabel: item.gamertag,
+    };
+    this.updateSnapshot((s) => ({ ...s, manualSeriesDialogState: dialogState }));
   }
 }

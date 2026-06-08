@@ -569,10 +569,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     };
 
     return {
-      subscribe: (listener) =>
-        conn.subscribe((view) => {
-          listener(view.trackerId, view.status);
-        }),
+      subscribe: (listener) => conn.subscribe(listener),
       subscribeStatus: (listener) => conn.subscribeStatus(listener),
       disconnect: (): void => {
         conn.disconnect();

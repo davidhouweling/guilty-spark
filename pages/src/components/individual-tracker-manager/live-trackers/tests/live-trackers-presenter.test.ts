@@ -135,8 +135,98 @@ describe("LiveTrackersPresenter", () => {
     expect(actionLabels).toContain("Pause");
     expect(actionLabels).toContain("Stop tracker");
     expect(actionLabels).toContain("End series");
+    expect(actionLabels).toContain("Game selection");
+    expect(actionLabels).toContain("Start series");
     expect(actionLabels).not.toContain("Resume");
     expect(actionLabels).not.toContain("Start tracker");
+
+    presenter.dispose();
+  });
+
+  it("openAddDialog sets isAddDialogOpen to true; closeAddDialog clears it", () => {
+    const { presenter } = aHarness({});
+
+    presenter.start();
+    expect(presenter.getSnapshot().isAddDialogOpen).toBe(false);
+
+    presenter.openAddDialog();
+    expect(presenter.getSnapshot().isAddDialogOpen).toBe(true);
+
+    presenter.closeAddDialog();
+    expect(presenter.getSnapshot().isAddDialogOpen).toBe(false);
+
+    presenter.dispose();
+  });
+
+  it("Game selection action opens gameSelectionDialogState for active tracker with known xuid", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active" }),
+    });
+    const { presenter } = aHarness({ trackers: [tracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const [item] = presenter.getTrackerItems();
+    expect(item).toBeDefined();
+
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    expect(gameSelectionAction).toBeDefined();
+    if (gameSelectionAction == null) {
+      return;
+    }
+
+    gameSelectionAction.onClick();
+
+    const { gameSelectionDialogState } = presenter.getSnapshot();
+    expect(gameSelectionDialogState).not.toBeNull();
+    expect(gameSelectionDialogState?.trackerId).toBe("t1");
+    expect(gameSelectionDialogState?.trackerLabel).toBe("Chief");
+    expect(gameSelectionDialogState?.xuid).toBe("xuid-1");
+
+    presenter.closeGameSelectionDialog();
+    expect(presenter.getSnapshot().gameSelectionDialogState).toBeNull();
+
+    presenter.dispose();
+  });
+
+  it("Start series action opens manualSeriesDialogState for active tracker", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active" }),
+    });
+    const { presenter } = aHarness({ trackers: [tracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const [item] = presenter.getTrackerItems();
+    expect(item).toBeDefined();
+
+    const startSeriesAction = presenter.getActions(item).find((a) => a.label === "Start series");
+    expect(startSeriesAction).toBeDefined();
+    if (startSeriesAction == null) {
+      return;
+    }
+
+    startSeriesAction.onClick();
+
+    const { manualSeriesDialogState } = presenter.getSnapshot();
+    expect(manualSeriesDialogState).not.toBeNull();
+    expect(manualSeriesDialogState?.trackerId).toBe("t1");
+    expect(manualSeriesDialogState?.trackerLabel).toBe("Chief");
+
+    presenter.closeManualSeriesDialog();
+    expect(presenter.getSnapshot().manualSeriesDialogState).toBeNull();
 
     presenter.dispose();
   });
