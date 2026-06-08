@@ -577,12 +577,10 @@ describe("/api/individual-tracker manage routes", () => {
     const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
-    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let deleteTrackerSpy: MockInstance<IndividualTrackerService["deleteTracker"]> | null = null;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env: localEnv });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
-      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
       deleteTrackerSpy = vi.spyOn(services.individualTrackerService, "deleteTracker").mockResolvedValue(undefined);
       return services;
     });
