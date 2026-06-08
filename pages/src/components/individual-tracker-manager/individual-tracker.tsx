@@ -59,8 +59,8 @@ export function IndividualTrackerShell({
             </button>
           </div>
 
-          {activeSection === "live-trackers" && liveTrackersContent}
-          {activeSection === "streamer-settings" && streamerSettingsContent}
+          <div hidden={activeSection !== "live-trackers"}>{liveTrackersContent}</div>
+          <div hidden={activeSection !== "streamer-settings"}>{streamerSettingsContent}</div>
         </>
       )}
     </div>
