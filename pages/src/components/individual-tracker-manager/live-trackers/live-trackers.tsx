@@ -8,6 +8,7 @@ interface LiveTrackersSectionViewProps {
   readonly trackerItems: readonly TrackerListItem[];
   readonly getActions: (item: TrackerListItem) => readonly TrackerRowAction[];
   readonly onAddTracker: () => void;
+  readonly dialogs?: React.ReactNode;
 }
 
 export function LiveTrackersSectionView({
@@ -15,11 +16,13 @@ export function LiveTrackersSectionView({
   trackerItems,
   getActions,
   onAddTracker,
+  dialogs,
 }: LiveTrackersSectionViewProps): React.ReactElement {
   return (
     <>
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
       <TrackerList items={trackerItems} getActions={getActions} onAddTracker={onAddTracker} />
+      {dialogs}
     </>
   );
 }

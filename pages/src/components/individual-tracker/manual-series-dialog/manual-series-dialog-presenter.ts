@@ -235,6 +235,9 @@ export class ManualSeriesDialogPresenter {
 
       this.config.store.setBackfillDone(candidates, warning, error);
     } catch (err) {
+      if (this.checkDisposed()) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Failed to discover custom-game matches.";
       this.config.store.setBackfillError(message);
     }
