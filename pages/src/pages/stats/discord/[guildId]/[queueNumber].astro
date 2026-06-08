@@ -11,9 +11,9 @@ import { fetchDiscordSeriesStats } from "../../../../services/stats/discord-seri
 
 const { guildId = "", queueNumber = "" } = Astro.params;
 
+const isSnowflake = /^\d+$/.test(guildId);
 const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
-const hasInvalidParams = guildId.length === 0 || !isStrictPositiveInteger;
-
+const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger;
 let responseState: DiscordSeriesStats | null = null;
 let loadError: string | null = null;
 
