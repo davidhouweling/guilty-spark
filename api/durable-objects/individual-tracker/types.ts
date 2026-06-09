@@ -51,11 +51,24 @@ export interface IndividualTrackerViewMatch {
   score: string;
 }
 
+export interface NeatQueueSeriesPlayer {
+  discordId: string;
+  discordName: string;
+  gamertag: string | null;
+  xboxId: string | null;
+}
+
+export interface NeatQueueSeriesTeam {
+  name: string;
+  players: NeatQueueSeriesPlayer[];
+}
+
 export interface NeatQueueSeriesContext {
   title: string;
   subtitle: string;
   guildIconUrl: string | null;
   matchIds: string[];
+  teams: NeatQueueSeriesTeam[];
 }
 
 export interface IndividualTrackerSeriesGroup {
@@ -65,6 +78,7 @@ export interface IndividualTrackerSeriesGroup {
   title: string;
   subtitle: string;
   guildIconUrl?: string | null;
+  teams?: NeatQueueSeriesTeam[];
 }
 
 export interface AccumulatedPlayerTotals {

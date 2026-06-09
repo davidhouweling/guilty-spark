@@ -818,6 +818,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       const title = manualSeries?.titleOverride ?? neatQueueContext?.title ?? defaultTitle;
       const subtitle = manualSeries?.subtitleOverride ?? neatQueueContext?.subtitle ?? defaultSubtitle;
       const guildIconUrl = neatQueueContext?.guildIconUrl ?? null;
+      const teams = neatQueueContext?.teams;
 
       if (isMultiMatch) {
         visibleSeriesIndex += 1;
@@ -830,6 +831,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         title,
         subtitle,
         guildIconUrl,
+        ...(teams !== undefined ? { teams } : {}),
       };
     });
 

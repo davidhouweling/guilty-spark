@@ -26,6 +26,7 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
+  NeatQueueSeriesContext,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -1448,10 +1449,25 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleNudge()", () => {
-    const aNeatQueueContext = () => ({
+    const aNeatQueueContext = (): NeatQueueSeriesContext => ({
       title: "Guilty Spark",
       subtitle: "Queue #1",
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
+      matchIds: [],
+      teams: [
+        {
+          name: "Eagle",
+          players: [
+            { discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" },
+          ],
+        },
+        {
+          name: "Cobra",
+          players: [
+            { discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" },
+          ],
+        },
+      ],
     });
 
     it("returns 404 when no state exists", async () => {
@@ -1484,6 +1500,7 @@ describe("IndividualTrackerDO", () => {
         title: context.title,
         subtitle: context.subtitle,
         guildIconUrl: context.guildIconUrl,
+        teams: context.teams,
         matchIds: [],
       });
 
@@ -1550,13 +1567,18 @@ describe("IndividualTrackerDO", () => {
       ),
     });
 
-    it("applies NeatQueue title and subtitle to the matching series group", async () => {
+    it("applies NeatQueue title, subtitle, guildIconUrl, and teams to the matching series group", async () => {
       const ids = ["match-nq-1", "match-nq-2"];
+      const teams = [
+        { name: "Eagle", players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }] },
+        { name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
+      ];
       const context = {
         title: "Guilty Spark",
         subtitle: "Queue #5",
         guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
         matchIds: ids,
+        teams,
       };
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -1568,12 +1590,13 @@ describe("IndividualTrackerDO", () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
       expect(response.status).toBe(200);
-      const body = await response.json<{ state: { series: { title: string; subtitle: string; guildIconUrl: string | null }[] } }>();
+      const body = await response.json<{ state: { series: { title: string; subtitle: string; guildIconUrl: string | null; teams?: typeof teams }[] } }>();
       const [group] = body.state.series;
       expect(group).toBeDefined();
       expect(group?.title).toBe("Guilty Spark");
       expect(group?.subtitle).toBe("Queue #5");
       expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
+      expect(group?.teams).toEqual(teams);
     });
 
     it("falls back to computed defaults when activeNeatQueueSeries is not set", async () => {

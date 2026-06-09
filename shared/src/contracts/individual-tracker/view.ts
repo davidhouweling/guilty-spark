@@ -17,6 +17,20 @@ export const trackerMatchSummarySchema = z.object({
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 
+export const trackerSeriesPlayerSchema = z.object({
+  discordId: z.string(),
+  discordName: z.string(),
+  gamertag: z.string().nullable(),
+  xboxId: z.string().nullable(),
+});
+export type TrackerSeriesPlayer = z.infer<typeof trackerSeriesPlayerSchema>;
+
+export const trackerSeriesTeamSchema = z.object({
+  name: z.string(),
+  players: z.array(trackerSeriesPlayerSchema),
+});
+export type TrackerSeriesTeam = z.infer<typeof trackerSeriesTeamSchema>;
+
 export const trackerSeriesGroupSchema = z.object({
   id: z.string(),
   matchIds: z.array(z.string()),
@@ -24,6 +38,7 @@ export const trackerSeriesGroupSchema = z.object({
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable().optional(),
+  teams: z.array(trackerSeriesTeamSchema).optional(),
 });
 export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
 
