@@ -1446,4 +1446,149 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
+
+  describe("handleNudge()", () => {
+    const aNeatQueueContext = () => ({
+      title: "Guilty Spark",
+      subtitle: "Queue #1",
+      guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
+    });
+
+    it("returns 404 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aNeatQueueContext()) }),
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("sets activeNeatQueueSeries, triggers immediate alarm, broadcasts view, and returns success", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+
+      const context = aNeatQueueContext();
+      const response = await do2.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(context) }),
+      );
+
+      expect(response.status).toBe(200);
+      const result = await response.json<{ success: boolean }>();
+      expect(result.success).toBe(true);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeNeatQueueSeries).toMatchObject({
+        title: context.title,
+        subtitle: context.subtitle,
+        guildIconUrl: context.guildIconUrl,
+        matchIds: [],
+      });
+
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+
+    it("returns 400 for malformed JSON body", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: "not-json" }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
+    it("clears activeNeatQueueSeries when called with null body", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeNeatQueueSeries: { ...aNeatQueueContext(), matchIds: ["match-1"] },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(null) }),
+      );
+
+      expect(response.status).toBe(200);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeNeatQueueSeries).toBeUndefined();
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
+
+    it("resets matchIds to empty when setting a new series context", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeNeatQueueSeries: { ...aNeatQueueContext(), matchIds: ["stale-match-id"] },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aNeatQueueContext()) }),
+      );
+
+      expect(response.status).toBe(200);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeNeatQueueSeries?.matchIds).toEqual([]);
+    });
+  });
+
+  describe("toViewState() NeatQueue series metadata", () => {
+    const makeNeatQueueMatches = (
+      ids: string[],
+    ): { matchIds: string[]; selectedMatchIds: string[]; discoveredMatches: Record<string, ReturnType<typeof aFakeIndividualTrackerMatchSummaryWith>> } => ({
+      matchIds: ids,
+      selectedMatchIds: ids,
+      discoveredMatches: Object.fromEntries(
+        ids.map((id) =>
+          [id, aFakeIndividualTrackerMatchSummaryWith({ matchId: id, teamRosterSignature: "sig-a:sig-b" })],
+        ),
+      ),
+    });
+
+    it("applies NeatQueue title and subtitle to the matching series group", async () => {
+      const ids = ["match-nq-1", "match-nq-2"];
+      const context = {
+        title: "Guilty Spark",
+        subtitle: "Queue #5",
+        guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
+        matchIds: ids,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeNeatQueueMatches(ids),
+          activeNeatQueueSeries: context,
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{ state: { series: { title: string; subtitle: string; guildIconUrl: string | null }[] } }>();
+      const [group] = body.state.series;
+      expect(group).toBeDefined();
+      expect(group?.title).toBe("Guilty Spark");
+      expect(group?.subtitle).toBe("Queue #5");
+      expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
+    });
+
+    it("falls back to computed defaults when activeNeatQueueSeries is not set", async () => {
+      const ids = ["match-default-1", "match-default-2"];
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ ...makeNeatQueueMatches(ids) }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{ state: { series: { title: string; guildIconUrl: string | null }[] } }>();
+      const [group] = body.state.series;
+      expect(group?.title).toBe("Eagle vs Cobra");
+      expect(group?.guildIconUrl).toBeNull();
+    });
+  });
 });

@@ -23,6 +23,7 @@ export const trackerSeriesGroupSchema = z.object({
   score: z.string(),
   title: z.string(),
   subtitle: z.string(),
+  guildIconUrl: z.string().nullable().optional(),
 });
 export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
 

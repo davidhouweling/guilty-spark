@@ -39,6 +39,8 @@ import type {
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
   IndividualTrackerStartSeriesResponse,
+  IndividualTrackerNudgeResponse,
+  NeatQueueSeriesContext,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -119,6 +121,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "end-series": {
             return await this.handleEndSeries();
+          }
+          case "nudge": {
+            return await this.handleNudge(request);
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -249,6 +254,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
+    }
+
+    if (trackerState.activeNeatQueueSeries != null && newlyDiscovered.size > 0) {
+      for (const matchId of newlyDiscovered) {
+        trackerState.activeNeatQueueSeries.matchIds.push(matchId);
+      }
     }
 
     for (const matchId of trackerState.matchIds) {
@@ -602,6 +613,40 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json({ success: true });
   }
 
+  private async handleNudge(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    let context: NeatQueueSeriesContext | null = null;
+    const text = await request.text();
+    if (text.length > 0) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return new Response("Bad Request", { status: 400 });
+      }
+      context = parsed as NeatQueueSeriesContext | null;
+    }
+
+    if (context != null) {
+      trackerState.activeNeatQueueSeries = { ...context, matchIds: [] };
+    } else {
+      delete trackerState.activeNeatQueueSeries;
+    }
+
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+    await this.state.storage.setAlarm(Date.now());
+
+    const response: IndividualTrackerNudgeResponse = { success: true };
+    return Response.json(response);
+  }
+
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     const response: IndividualTrackerStatusResponse = {
@@ -736,6 +781,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const groupings =
       backfillMatchIds != null && backfillMatchIds.length >= 2 ? [backfillMatchIds, ...autoGroupings] : autoGroupings;
 
+    const activeNeatQueueMatchIds = new Set(state.activeNeatQueueSeries?.matchIds ?? []);
+
     let visibleSeriesIndex = 0;
     const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
@@ -765,8 +812,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const isMultiMatch = matchIds.length >= 2;
       const manualSeries = isMultiMatch && visibleSeriesIndex === 0 ? state.manualSeries : undefined;
-      const title = manualSeries?.titleOverride ?? defaultTitle;
-      const subtitle = manualSeries?.subtitleOverride ?? defaultSubtitle;
+      const isNeatQueueSeries =
+        activeNeatQueueMatchIds.size > 0 && matchIds.some((id) => activeNeatQueueMatchIds.has(id));
+      const neatQueueContext = isNeatQueueSeries ? state.activeNeatQueueSeries : undefined;
+      const title = manualSeries?.titleOverride ?? neatQueueContext?.title ?? defaultTitle;
+      const subtitle = manualSeries?.subtitleOverride ?? neatQueueContext?.subtitle ?? defaultSubtitle;
+      const guildIconUrl = neatQueueContext?.guildIconUrl ?? null;
 
       if (isMultiMatch) {
         visibleSeriesIndex += 1;
@@ -778,6 +829,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
         title,
         subtitle,
+        guildIconUrl,
       };
     });
 

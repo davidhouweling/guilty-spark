@@ -51,12 +51,20 @@ export interface IndividualTrackerViewMatch {
   score: string;
 }
 
+export interface NeatQueueSeriesContext {
+  title: string;
+  subtitle: string;
+  guildIconUrl: string | null;
+  matchIds: string[];
+}
+
 export interface IndividualTrackerSeriesGroup {
   id: string;
   matchIds: string[];
   score: string;
   title: string;
   subtitle: string;
+  guildIconUrl?: string | null;
 }
 
 export interface AccumulatedPlayerTotals {
@@ -96,6 +104,7 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
   manualSeries?: IndividualTrackerManualSeries;
+  activeNeatQueueSeries?: NeatQueueSeriesContext;
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -125,6 +134,10 @@ export interface IndividualTrackerSelectMatchesRequest {
 }
 
 export interface IndividualTrackerSelectMatchesResponse {
+  success: true;
+}
+
+export interface IndividualTrackerNudgeResponse {
   success: true;
 }
 
@@ -173,7 +186,8 @@ export type IndividualTrackerAction =
   | "stop"
   | "status"
   | "view-state"
-  | "select-matches";
+  | "select-matches"
+  | "nudge";
 
 export interface IndividualTrackerApiMap {
   start: {
@@ -203,6 +217,10 @@ export interface IndividualTrackerApiMap {
   "select-matches": {
     request: IndividualTrackerSelectMatchesRequest;
     response: IndividualTrackerSelectMatchesResponse;
+  };
+  nudge: {
+    request: NeatQueueSeriesContext | null;
+    response: IndividualTrackerNudgeResponse;
   };
 }
 
