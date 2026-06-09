@@ -749,7 +749,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async computeAndUpdateSeriesScore(trackerState: LiveTrackerState): Promise<string> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US", true);
     trackerState.seriesScore = seriesScore;
     return seriesScore;
   }
