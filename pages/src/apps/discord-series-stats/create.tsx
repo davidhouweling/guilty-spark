@@ -236,7 +236,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
               mobileDown="0"
               className={classNames(styles.contentContainer, styles.standard)}
             >
-              {matchStats?.data != null ? (
+              {matchStats.data != null ? (
                 <MatchStatsView
                   data={matchStats.data}
                   id={match.matchId}
