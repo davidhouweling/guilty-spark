@@ -64,4 +64,30 @@ describe("fetchDiscordSeriesStats", () => {
     expect(result.retryAfterSeconds).toBeNull();
     expect(result.data.status).toBe("pending-index");
   });
+
+  it("returns null Retry-After for non-digit numeric strings", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "pending-index",
+          guildId: "123456789012345678",
+          queueNumber: 7777,
+          retryAfterSeconds: 3,
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "1e+21",
+          },
+        },
+      ),
+    );
+
+    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+
+    expect(result.status).toBe(503);
+    expect(result.retryAfterSeconds).toBeNull();
+    expect(result.data.status).toBe("pending-index");
+  });
 });

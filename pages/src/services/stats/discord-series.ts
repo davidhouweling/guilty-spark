@@ -8,8 +8,12 @@ function parseRetryAfterHeader(value: string | null): number | null {
     return null;
   }
 
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     return null;
   }
 
