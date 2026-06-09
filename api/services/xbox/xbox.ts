@@ -199,8 +199,7 @@ export class XboxService {
       this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
       this.env.XBOX_PASSWORD,
       {
-        sandboxId: XBOX_LIVE_SANDBOX_ID,
-        XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
+        XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
       },
     );
 
