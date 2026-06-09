@@ -33,6 +33,7 @@ export class SeriesOverviewEmbed {
     guildId,
     channelId,
     messageId,
+    pagesUrl,
     locale,
     queue,
     series,
@@ -43,6 +44,7 @@ export class SeriesOverviewEmbed {
     guildId: string;
     channelId: string;
     messageId: string;
+    pagesUrl?: string;
     locale: string;
     queue: number;
     series: MatchStats[];
@@ -94,6 +96,7 @@ export class SeriesOverviewEmbed {
     const endTime = this.discordService.getTimestamp(
       Preconditions.checkExists(seriesMatches[seriesMatches.length - 1]?.MatchInfo.EndTime),
     );
+    const internalStatsLink = pagesUrl != null ? `${pagesUrl}/stats/discord/${guildId}/${queue.toString()}` : null;
 
     const embeds: APIEmbed[] = [];
     const dataRows = tableData.slice(1); // All rows except titles
@@ -141,7 +144,7 @@ export class SeriesOverviewEmbed {
 
       if (isFirstEmbed) {
         embed.title = `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale)})`;
-        embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`;
+        embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}${internalStatsLink != null ? `\n-# [View web stats](${internalStatsLink})` : ""}`;
         embed.url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
       }
 

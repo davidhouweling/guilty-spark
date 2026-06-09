@@ -211,6 +211,35 @@ describe("SeriesOverviewEmbed", () => {
       expect(firstEmbed?.fields?.some((field) => field.name === "Score (🦅:🐍)")).toBe(true);
     });
 
+    it("includes internal web stats link when pagesUrl is provided", async () => {
+      const finalTeams: TeamMapping[] = [
+        {
+          name: "Team Alpha",
+          playerIds: ["user1", "user2"],
+        },
+        {
+          name: "Team Beta",
+          playerIds: ["user3", "user4"],
+        },
+      ];
+
+      const embeds = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        messageId: "message123",
+        pagesUrl: "https://guilty-spark.app",
+        locale: "en-US",
+        queue: 1,
+        series: [sampleMatchStats],
+        finalTeams,
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      const [firstEmbed] = embeds;
+      expect(firstEmbed?.description).toContain("https://guilty-spark.app/stats/discord/guild123/1");
+    });
+
     it("splits into multiple embeds when data exceeds field character limits", async () => {
       const finalTeams: TeamMapping[] = [
         {

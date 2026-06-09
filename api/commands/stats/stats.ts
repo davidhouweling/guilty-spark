@@ -635,6 +635,7 @@ export class StatsCommand extends BaseCommand {
       guildId,
       channelId,
       messageId: queueData.message.id,
+      pagesUrl: this.env.PAGES_URL,
       locale,
       queue: queueData.queue,
       series,

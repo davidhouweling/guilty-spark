@@ -217,7 +217,8 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls 
         "description": "**Eagle:** <@000000000000000001> <@000000000000000002> <@000000000000000003> <@000000000000000004>
 **Cobra:** <@000000000000000005> <@000000000000000006> <@000000000000000007> <@000000000000000008>
 
--# Start time: <t:1732617393:f> | End time: <t:1732619665:f>",
+-# Start time: <t:1732617393:f> | End time: <t:1732619665:f>
+-# [View web stats](http://localhost:4321/stats/discord/fake-guild-id/777)",
         "fields": [
           {
             "inline": true,
