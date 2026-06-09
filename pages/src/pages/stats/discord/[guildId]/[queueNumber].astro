@@ -50,7 +50,7 @@ if (hasInvalidParams) {
 }
 ---
 
-<Layout title={`Queue #${queueNumber} Stats`} description="Series stats for a completed queue">
+<Layout title={`Queue #${queueNumber} Stats - Guilty Spark`} description="Series stats for a completed queue">
   {
     responseState?.status === "resolved" ? (
       <DiscordSeriesStatsApp client:load data={responseState} />

@@ -51,12 +51,43 @@ export interface IndividualTrackerViewMatch {
   score: string;
 }
 
+export interface SeriesPlayer {
+  discordId: string | null;
+  discordName: string | null;
+  gamertag: string | null;
+  xboxId: string | null;
+}
+
+export interface SeriesTeam {
+  name: string;
+  players: SeriesPlayer[];
+}
+
+export interface ActiveSeries {
+  title: string;
+  subtitle: string | null;
+  guildIconUrl: string | null;
+  teams: SeriesTeam[];
+  matchIds: string[];
+  startedAt: string;
+  isActive: boolean;
+}
+
+export interface SeriesContextPayload {
+  title: string;
+  subtitle: string;
+  guildIconUrl: string | null;
+  teams: SeriesTeam[];
+}
+
 export interface IndividualTrackerSeriesGroup {
   id: string;
   matchIds: string[];
   score: string;
   title: string;
   subtitle: string;
+  guildIconUrl?: string | null;
+  teams?: SeriesTeam[];
 }
 
 export interface AccumulatedPlayerTotals {
@@ -78,14 +109,6 @@ export interface TopBarStatItem {
   value: string;
 }
 
-export interface IndividualTrackerManualSeries {
-  titleOverride: string | null;
-  subtitleOverride: string | null;
-  teams: IndividualTrackerSeriesTeam[];
-  startedAt: string;
-  backfillMatchIds?: string[];
-}
-
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
@@ -95,7 +118,8 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   selectedMatchIds: string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
-  manualSeries?: IndividualTrackerManualSeries;
+  activeSeries?: ActiveSeries;
+  completedSeries?: ActiveSeries[];
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -125,6 +149,10 @@ export interface IndividualTrackerSelectMatchesRequest {
 }
 
 export interface IndividualTrackerSelectMatchesResponse {
+  success: true;
+}
+
+export interface IndividualTrackerNudgeResponse {
   success: true;
 }
 
@@ -173,7 +201,8 @@ export type IndividualTrackerAction =
   | "stop"
   | "status"
   | "view-state"
-  | "select-matches";
+  | "select-matches"
+  | "nudge";
 
 export interface IndividualTrackerApiMap {
   start: {
@@ -203,6 +232,10 @@ export interface IndividualTrackerApiMap {
   "select-matches": {
     request: IndividualTrackerSelectMatchesRequest;
     response: IndividualTrackerSelectMatchesResponse;
+  };
+  nudge: {
+    request: SeriesContextPayload | null;
+    response: IndividualTrackerNudgeResponse;
   };
 }
 

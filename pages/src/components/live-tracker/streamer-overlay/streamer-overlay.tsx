@@ -29,7 +29,7 @@ const DIFFICULTY_RANGE = new Map([
 
 export interface StreamerOverlayProps {
   readonly teamColors: TeamColor[];
-  readonly gameModeIconUrl: (gameMode: string) => string;
+  readonly gameModeIconUrl: (gameMode: string, gameVariantCategory?: number) => string;
   readonly settings: AllStreamerSettings;
   readonly settingsUi: React.ReactNode;
 }
@@ -49,7 +49,7 @@ function resolveTeamName(
 interface NeatQueueStreamerOverlayProps {
   readonly neatQueueState: LiveTrackerNeatQueueStateRenderModel;
   readonly teamColors: TeamColor[];
-  readonly gameModeIconUrl: (gameMode: string) => string;
+  readonly gameModeIconUrl: (gameMode: string, gameVariantCategory?: number) => string;
   readonly settings: AllStreamerSettings;
   readonly settingsUi: React.ReactNode;
 }
@@ -496,7 +496,7 @@ function NeatQueueStreamerOverlay({
           matchId: match.matchId,
           label: settings.global.ticker.showTabs ? match.gameMap : "",
           score: match.gameScore,
-          icon: gameModeIconUrl(match.gameType),
+          icon: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
           teamColor,
         };
       }),

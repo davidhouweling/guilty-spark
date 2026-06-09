@@ -205,7 +205,7 @@ export class HaloService {
     return { gameScore: scoreString, gameSubScore: null };
   }
 
-  getSeriesScore(matches: MatchStats[], locale: string): string {
+  getSeriesScore(matches: MatchStats[], locale: string, includeEmojis = false): string {
     const entries: SeriesScoreEntry[] = matches.map((match) => ({
       startTime: match.MatchInfo.StartTime,
       mapAssetId: match.MatchInfo.MapVariant.AssetId,
@@ -214,7 +214,12 @@ export class HaloService {
       teamOutcomes: match.Teams.map((team) => team.Outcome),
     }));
     const wins = computeSeriesTeamWins(entries);
-    const score = wins.map((value) => value.toLocaleString(locale)).join(":") || "🦅 0:0 🐍";
+    const score = wins.map((value) => value.toLocaleString(locale)).join(":") || (includeEmojis ? "🦅 0:0 🐍" : "0:0");
+
+    if (!includeEmojis) {
+      return score;
+    }
+
     return wins.length === 2 ? `🦅 ${score} 🐍` : score;
   }
 
