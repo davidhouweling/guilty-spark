@@ -84,6 +84,10 @@ function calculateSeriesMetadata(
 
   const startMs = new Date(firstMatch.startTime).getTime();
   const endMs = new Date(lastMatch.endTime).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+    return null;
+  }
+
   const totalMs = endMs - startMs;
   const totalMinutes = Math.floor(totalMs / 60000);
   const totalSeconds = Math.floor((totalMs % 60000) / 1000);
