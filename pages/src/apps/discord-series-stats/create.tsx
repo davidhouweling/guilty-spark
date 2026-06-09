@@ -202,9 +202,9 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
                 <section key={team.name} className={styles.teamCard}>
                   <h3 className={styles.teamName}>{team.name}</h3>
                   <ul className={styles.playerList}>
-{team.players.map((player, playerIndex) => (
-  <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
-))}
+                    {team.players.map((player, playerIndex) => (
+                      <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
+                    ))}
                   </ul>
                 </section>
               );
