@@ -48,6 +48,8 @@ import type {
   TrackerSyncMatchesRequest,
 } from "./types";
 
+const XUID_BATCH_SIZE = 24;
+
 interface IndividualTrackerServiceOpts {
   readonly apiHost: string;
   readonly haloInfiniteClient: HaloInfiniteClient;
@@ -459,8 +461,8 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     const xuidList = Array.from(xuids);
     const chunks: string[][] = [];
-    for (let i = 0; i < xuidList.length; i += 24) {
-      chunks.push(xuidList.slice(i, i + 24));
+    for (let i = 0; i < xuidList.length; i += XUID_BATCH_SIZE) {
+      chunks.push(xuidList.slice(i, i + XUID_BATCH_SIZE));
     }
 
     const results = await Promise.allSettled(chunks.map(async (chunk) => this.haloInfiniteClient.getUsers(chunk)));
