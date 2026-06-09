@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { ConsoleLogClient } from "../console-log-client";
 
+function stringifyContent(content: Record<string, unknown>): string {
+  return JSON.stringify(content, null, 2);
+}
+
 describe("ConsoleLogClient", () => {
   let logClient: ConsoleLogClient;
   let consoleSpy: {
@@ -41,7 +45,11 @@ describe("ConsoleLogClient", () => {
     it("logs info message without extra data", () => {
       logClient.info("test info message");
 
-      expect(consoleSpy.info).toHaveBeenCalledWith("test info message", undefined);
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test info message",
+        }),
+      );
     });
 
     it("logs info message with extra data", () => {
@@ -49,7 +57,12 @@ describe("ConsoleLogClient", () => {
 
       logClient.info("test info", extra);
 
-      expect(consoleSpy.info).toHaveBeenCalledWith("test info", JSON.stringify([...extra], null, 2));
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test info",
+          key: "value",
+        }),
+      );
     });
 
     it("logs Error objects", () => {
@@ -57,7 +70,12 @@ describe("ConsoleLogClient", () => {
 
       logClient.info(error);
 
-      expect(consoleSpy.info).toHaveBeenCalledWith(error, undefined);
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test error",
+          stack: error.stack,
+        }),
+      );
     });
   });
 
@@ -65,7 +83,11 @@ describe("ConsoleLogClient", () => {
     it("logs warn message without extra data", () => {
       logClient.warn("test warning");
 
-      expect(consoleSpy.warn).toHaveBeenCalledWith("test warning", undefined);
+      expect(consoleSpy.warn).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test warning",
+        }),
+      );
     });
 
     it("logs warn message with extra data", () => {
@@ -73,7 +95,12 @@ describe("ConsoleLogClient", () => {
 
       logClient.warn("test warning", extra);
 
-      expect(consoleSpy.warn).toHaveBeenCalledWith("test warning", JSON.stringify([...extra], null, 2));
+      expect(consoleSpy.warn).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test warning",
+          context: "data",
+        }),
+      );
     });
   });
 
@@ -81,7 +108,11 @@ describe("ConsoleLogClient", () => {
     it("logs error message without extra data", () => {
       logClient.error("test error");
 
-      expect(consoleSpy.error).toHaveBeenCalledWith("test error", undefined);
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test error",
+        }),
+      );
     });
 
     it("logs error message with extra data", () => {
@@ -89,7 +120,12 @@ describe("ConsoleLogClient", () => {
 
       logClient.error("test error", extra);
 
-      expect(consoleSpy.error).toHaveBeenCalledWith("test error", JSON.stringify([...extra], null, 2));
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        stringifyContent({
+          message: "test error",
+          details: "info",
+        }),
+      );
     });
   });
 
@@ -97,7 +133,12 @@ describe("ConsoleLogClient", () => {
     it("logs fatal message with FATAL prefix without extra data", () => {
       logClient.fatal("critical failure");
 
-      expect(consoleSpy.error).toHaveBeenCalledWith("FATAL:", "critical failure", undefined);
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        "FATAL:",
+        stringifyContent({
+          message: "critical failure",
+        }),
+      );
     });
 
     it("logs fatal message with FATAL prefix with extra data", () => {
@@ -105,7 +146,13 @@ describe("ConsoleLogClient", () => {
 
       logClient.fatal("critical failure", extra);
 
-      expect(consoleSpy.error).toHaveBeenCalledWith("FATAL:", "critical failure", JSON.stringify([...extra], null, 2));
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        "FATAL:",
+        stringifyContent({
+          message: "critical failure",
+          crash: "data",
+        }),
+      );
     });
   });
 });
