@@ -85,7 +85,7 @@ function getWinningTeamColor(rawMatch: unknown, teamColors: TeamColor[]): TeamCo
     return null;
   }
 
-  return getTeamColorOrDefault(teamColors[winningTeamIndex], winningTeamIndex);
+  return getTeamColorOrDefault(teamColors[winningTeamIndex]?.id, winningTeamIndex);
 }
 
 export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): ReactElement {
