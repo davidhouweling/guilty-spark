@@ -11,7 +11,14 @@ import type { DatabaseService } from "../../database/database";
 import { IndividualTrackerService, MAX_TRACKERS_PER_USER } from "../individual-tracker";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "../errors";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
+import {
+  aFakeIndividualTrackerDOWith,
+  type FakeIndividualTrackerDO,
+} from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
+import type { LogService } from "../../log/types";
+import type { SeriesContextPayload } from "../../../durable-objects/individual-tracker/types";
 
 describe("IndividualTrackerService", () => {
   let databaseService: DatabaseService;
@@ -372,6 +379,107 @@ describe("IndividualTrackerService", () => {
 
       expect(result.IsLive).toBe(1);
       expect(setLiveSpy).toHaveBeenCalledWith("user-1", "t1");
+    });
+  });
+
+  describe("nudgeTrackers", () => {
+    let doStub: FakeIndividualTrackerDO;
+    let fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]>;
+    let logService: LogService;
+    let nudgeService: IndividualTrackerService;
+
+    beforeEach(() => {
+      doStub = aFakeIndividualTrackerDOWith();
+      fetchSpy = vi.spyOn(doStub, "fetch");
+      logService = aFakeLogServiceWith();
+      nudgeService = new IndividualTrackerService({
+        env: aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) }),
+        logService,
+        databaseService,
+      });
+    });
+
+    it("POSTs /nudge to the DO stub for each active tracker with the given payload", async () => {
+      const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Xuid: "xuid-1", Status: "active" });
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([tracker]);
+      const payload: SeriesContextPayload = {
+        title: "Test Server",
+        subtitle: "Queue #1",
+        guildIconUrl: null,
+        teams: [],
+      };
+
+      await nudgeService.nudgeTrackers(["xuid-1"], payload);
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("https://individual-tracker-do/nudge");
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(init.body as string)).toEqual(payload);
+    });
+
+    it("POSTs /nudge with a null body when payload is null", async () => {
+      const tracker = aFakeIndividualTrackerDOWith({ nudgeResponse: { success: true } });
+      const localFetchSpy = vi.spyOn(tracker, "fetch");
+      const localService = new IndividualTrackerService({
+        env: aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(tracker) }),
+        logService,
+        databaseService,
+      });
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" }),
+      ]);
+
+      await localService.nudgeTrackers(["xuid-1"], null);
+
+      const [, init] = localFetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toBeNull();
+    });
+
+    it("skips stopped trackers and only nudges active ones", async () => {
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "stopped" }),
+        aFakeIndividualTrackersRow({ TrackerId: "t2", UserId: "user-1", Status: "active" }),
+        aFakeIndividualTrackersRow({ TrackerId: "t3", UserId: "user-1", Status: "paused" }),
+      ]);
+
+      await nudgeService.nudgeTrackers(["xuid-1", "xuid-2", "xuid-3"], null);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not call the DO when all trackers are stopped", async () => {
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
+        aFakeIndividualTrackersRow({ Status: "stopped" }),
+      ]);
+
+      await nudgeService.nudgeTrackers(["xuid-1"], null);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("swallows a per-tracker fetch error and continues nudging remaining trackers", async () => {
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" }),
+        aFakeIndividualTrackersRow({ TrackerId: "t2", UserId: "user-1", Status: "active" }),
+      ]);
+      const warnSpy: MockInstance<LogService["warn"]> = vi.spyOn(logService, "warn");
+      fetchSpy.mockRejectedValueOnce(new Error("DO unavailable")).mockResolvedValueOnce(new Response("ok"));
+
+      await expect(nudgeService.nudgeTrackers(["xuid-1", "xuid-2"], null)).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("makes no DO calls when given an empty xuid list", async () => {
+      const findSpy: MockInstance<DatabaseService["findIndividualTrackersByXuids"]> = vi
+        .spyOn(databaseService, "findIndividualTrackersByXuids")
+        .mockResolvedValue([]);
+
+      await nudgeService.nudgeTrackers([], null);
+
+      expect(findSpy).toHaveBeenCalledWith([]);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });
