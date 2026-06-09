@@ -1457,15 +1457,11 @@ describe("IndividualTrackerDO", () => {
       teams: [
         {
           name: "Eagle",
-          players: [
-            { discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" },
-          ],
+          players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
         },
         {
           name: "Cobra",
-          players: [
-            { discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" },
-          ],
+          players: [{ discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" }],
         },
       ],
     });
@@ -1557,13 +1553,18 @@ describe("IndividualTrackerDO", () => {
   describe("toViewState() NeatQueue series metadata", () => {
     const makeNeatQueueMatches = (
       ids: string[],
-    ): { matchIds: string[]; selectedMatchIds: string[]; discoveredMatches: Record<string, ReturnType<typeof aFakeIndividualTrackerMatchSummaryWith>> } => ({
+    ): {
+      matchIds: string[];
+      selectedMatchIds: string[];
+      discoveredMatches: Record<string, ReturnType<typeof aFakeIndividualTrackerMatchSummaryWith>>;
+    } => ({
       matchIds: ids,
       selectedMatchIds: ids,
       discoveredMatches: Object.fromEntries(
-        ids.map((id) =>
-          [id, aFakeIndividualTrackerMatchSummaryWith({ matchId: id, teamRosterSignature: "sig-a:sig-b" })],
-        ),
+        ids.map((id) => [
+          id,
+          aFakeIndividualTrackerMatchSummaryWith({ matchId: id, teamRosterSignature: "sig-a:sig-b" }),
+        ]),
       ),
     });
 
@@ -1590,7 +1591,9 @@ describe("IndividualTrackerDO", () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
       expect(response.status).toBe(200);
-      const body = await response.json<{ state: { series: { title: string; subtitle: string; guildIconUrl: string | null; teams?: typeof teams }[] } }>();
+      const body = await response.json<{
+        state: { series: { title: string; subtitle: string; guildIconUrl: string | null; teams?: typeof teams }[] };
+      }>();
       const [group] = body.state.series;
       expect(group).toBeDefined();
       expect(group?.title).toBe("Guilty Spark");
@@ -1601,9 +1604,7 @@ describe("IndividualTrackerDO", () => {
 
     it("falls back to computed defaults when activeNeatQueueSeries is not set", async () => {
       const ids = ["match-default-1", "match-default-2"];
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ ...makeNeatQueueMatches(ids) }),
-      );
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ ...makeNeatQueueMatches(ids) }));
 
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
