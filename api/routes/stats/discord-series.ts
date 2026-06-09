@@ -114,7 +114,7 @@ function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
 function splitGameTypeAndMap(gameTypeAndMap: string): { gameType: string; gameMap: string } {
   const colonSplit = gameTypeAndMap.split(":");
   if (colonSplit.length > 1) {
-    const gameType = (colonSplit[0] ?? "*Unknown Game Type*").trim();
+    const gameType = (colonSplit[0] ?? "*Unknown Game Type*").trim() || "*Unknown Game Type*";
     const gameMap = colonSplit.slice(1).join(":").trim() || "*Unknown Map*";
     return { gameType, gameMap };
   }
